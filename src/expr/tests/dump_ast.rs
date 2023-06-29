@@ -38,7 +38,9 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("x > y && y > 1 || x > z && z > 1", "LogicalOr(LogicalAnd(Gt(x,y),Gt(y,1)),LogicalAnd(Gt(x,z),Gt(z,1)))", 15),
         ("(foo(1))(2)", "Call(Call(foo,1),2)", 8),
         ("(3 > 4 != 5 < 6) == True", "Eq(Ne(Gt(3,4),Lt(5,6)),True)", 17),
-        ("if x > y { x } else { y } * 2", "", 26),
+        ("if x > y { x } else { y } * 2", "Mul(Branch(Gt(x,y),x,y),2)", 26),
+        ("if x > y { x } else if x < y { y } else { 0 } * 2", "Mul(Branch(Gt(x,y),x,Branch(Lt(x,y),y,0)),2)", 46),
+        ("if x > y { x } * 2", "", 0),  // Not an error, but may throw a runtime error
     ];
 
     result.into_iter().map(
@@ -53,6 +55,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ("[1, 2, a[]]", ParseErrorKind::UnexpectedEoe, 8),
         ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
+        ("if x { 0 } else { }", ParseErrorKind::UnexpectedEoe, 16),
     ];
 
     result.into_iter().map(
@@ -61,7 +64,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
 }
 
 #[test]
-fn ast_dump_test() {
+fn valid_ast_dump_test() {
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {
@@ -69,6 +72,12 @@ fn ast_dump_test() {
         assert_eq!(expr.to_string(&session), ast);
         assert_eq!(expr.span.index, span);
     }
+
+}
+
+#[test]
+fn invalid_ast_dump_test() {
+    let mut session = LocalParseSession::new();
 
     for (input, err_kind, span) in invalid_samples() {
 

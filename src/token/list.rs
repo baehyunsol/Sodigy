@@ -151,6 +151,7 @@ impl TokenList {
     }
 
     // Some(Err(_)) indicates that it's a branch_expr but the inner expr has a syntax error
+    // if self.step() is `if`, it must return Some(_)
     pub fn step_branch_expr(&mut self) -> Option<Result<Expr, ParseError>> {
         let if_span = if let Some(s) = self.get_curr_span() { s } else { return None; };
 
@@ -158,11 +159,11 @@ impl TokenList {
 
             let cond = match parse_expr(self, 0) {
                 Ok(expr) => expr,
-                Err(e) => { return Some(Err(e)); }
+                Err(e) => { return Some(Err(e.set_span_of_eof(if_span))); }
             };
 
             let true_expr = match self.step() {
-                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), .. }) => {
+                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: true_expr_span }) => {
                     let mut true_expr_tokens = TokenList::from_vec_box_token(elements.to_vec());
 
                     match parse_expr(&mut true_expr_tokens, 0) {
@@ -173,7 +174,7 @@ impl TokenList {
                             return Some(Err(ParseError::tok(err_token.kind.clone(), err_token.span)));
                         },
                         Err(e) => {
-                            return Some(Err(e));
+                            return Some(Err(e.set_span_of_eof(*true_expr_span)));
                         }
                     }
                 },
@@ -181,12 +182,48 @@ impl TokenList {
                     return Some(Err(ParseError::tok(kind.clone(), span.clone())));
                 }
                 None => {
-                    return Some(Err(ParseError::eoe(Span::dummy())));
+                    return Some(Err(ParseError::eoe(if_span)));
                 }
             };
-
+            let else_span = self.get_curr_span();
             let false_expr = if self.consume(TokenKind::Keyword(Keyword::Else)) {
-                todo!()
+
+                match self.data.get(self.cursor) {
+                    Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {
+
+                        match self.step_branch_expr() {
+                            Some(Ok(false_expr)) => false_expr,
+                            Some(Err(e)) => {
+                                return Some(Err(e));
+                            }
+                            None => unreachable!()
+                        }
+
+                    },
+                    Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: false_expr_span }) => {
+                        self.cursor += 1;
+                        let mut false_expr_tokens = TokenList::from_vec_box_token(elements.to_vec());
+
+                        match parse_expr(&mut false_expr_tokens, 0) {
+                            Ok(expr) if false_expr_tokens.is_eof() => expr,
+                            Ok(_) => {  // has unnecessary tokens
+                                let err_token = false_expr_tokens.step().unwrap();
+
+                                return Some(Err(ParseError::tok(err_token.kind.clone(), err_token.span)));
+                            },
+                            Err(e) => {
+                                return Some(Err(e.set_span_of_eof(*false_expr_span)));
+                            }
+                        }
+                    },
+                    Some(Token { kind, span }) => {
+                        return Some(Err(ParseError::tok(kind.clone(), span.clone())))
+                    },
+                    None => {
+                        return Some(Err(ParseError::eoe(else_span.unwrap())));
+                    }
+                }
+
             }
 
             // if an `if_expr` doesn't have an else branch, it inserts `unreachable!`
