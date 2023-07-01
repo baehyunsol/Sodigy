@@ -32,7 +32,11 @@ pub fn split_list_by_comma(elements: &Vec<Box<Token>>) -> Result<Vec<Box<Expr>>,
         elements,
         TokenKind::Operator(OpToken::Comma)
     ).into_iter().map(
-        |tokens| parse_expr(&mut TokenList::from_vec_box_token(tokens), 0)
+        |tokens| {
+            let mut tokens = TokenList::from_vec_box_token(tokens);
+
+            parse_expr_exhaustive(&mut tokens)
+        }
     );
 
     let mut elements_buffer = Vec::with_capacity(elements.len());
@@ -42,4 +46,20 @@ pub fn split_list_by_comma(elements: &Vec<Box<Token>>) -> Result<Vec<Box<Expr>>,
     }
 
     Ok(elements_buffer)
+}
+
+pub fn parse_expr_exhaustive(tokens: &mut TokenList) -> Result<Expr, ParseError> {
+
+    match parse_expr(tokens, 0) {
+        Ok(e) if tokens.is_eof() => Ok(e),
+        Ok(_) => {
+            let Token { kind, span } = tokens.step().expect("Internal Compiler Error 72A64FD");
+
+            Err(ParseError::tok(
+                kind.clone(), *span, vec![]
+            ))
+        },
+        Err(e) => Err(e)
+    }
+
 }

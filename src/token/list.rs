@@ -2,7 +2,7 @@ use super::{Delimiter, Keyword, Token, TokenKind, OpToken};
 use crate::arg_def::{ArgDef, parse_arg_def};
 use crate::err::ParseError;
 use crate::expr::{Expr, ExprKind, parse_expr, PrefixOp, InfixOp, PostfixOp};
-use crate::parse::split_list_by_comma;
+use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::value::parse_block_expr;
 
@@ -351,10 +351,9 @@ impl TokenList {
         match self.data.get(self.cursor) {
             Some(Token { kind: TokenKind::List(delim_, elements), .. }) if *delim_ == delim => {
                 self.cursor += 1;
+                let mut tokens = TokenList::from_vec_box_token(elements.clone());
 
-                Some(parse_expr(
-                    &mut TokenList::from_vec_box_token(elements.clone()), 0
-                ))
+                Some(parse_expr_exhaustive(&mut tokens))
             },
             _ => None
         }

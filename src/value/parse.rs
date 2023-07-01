@@ -100,6 +100,16 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
 
         let value = Box::new(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
 
-        Ok(Value { kind: ValueKind::Block { defs, value }, span: first_span })
+        if let Some(Token { kind, span }) = block_tokens.step() {
+            Err(ParseError::tok(
+                kind.clone(), *span,
+                vec![],
+            ))
+        }
+
+        else {
+            Ok(Value { kind: ValueKind::Block { defs, value }, span: first_span })
+        }
+
     }
 }

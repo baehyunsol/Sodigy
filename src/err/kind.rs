@@ -11,6 +11,7 @@ pub enum ParseErrorKind {
     // expected an expression, but got nothing
     UnexpectedEoe,
 
+    // if `expected` is empty, that means no token's expected
     UnexpectedToken { expected: Vec<TokenKind>, got: TokenKind }
 }
 

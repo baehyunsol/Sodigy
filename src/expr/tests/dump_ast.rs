@@ -33,6 +33,9 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("1.2 + a.b", "Add(1.2,Path(a,b))", 4),
         ("a[1..2] <> b[1..]", "Concat(Index(a,Range(1,2)),Index(b,Range(1)))", 8),
         ("[1.2.., 1.2..3.4, 1. .. 3.]", "[Range(1.2),Range(1.2,3.4),Range(1,3)]", 0),
+        ("1. ..", "Range(1)", 3),
+        ("1.0..", "Range(1)", 3),
+        ("1.", "1", 0),
         ("[\"Trailing Comma\", ]", "[\"Trailing Comma\"]", 0),
         ("[1, 2, 3, [4, 5, 6]]", "[1,2,3,[4,5,6]]", 0),
         ("x > y && y > 1 || x > z && z > 1", "LogicalOr(LogicalAnd(Gt(x,y),Gt(y,1)),LogicalAnd(Gt(x,z),Gt(z,1)))", 15),
@@ -53,12 +56,32 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
 fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, error kind, error span)
     let result = vec![
         ("1...3.", ParseErrorKind::UnexpectedChar('.'), 1),
-        ("a.1", ParseErrorKind::UnexpectedToken{ got: TokenKind::Number(Ratio::one()), expected: vec![TokenKind::Identifier(InternedString::dummy())] }, 1),
+        ("1...", ParseErrorKind::UnexpectedChar('.'), 1),
+        ("a.1", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Number(Ratio::one()),
+            expected: vec![TokenKind::Identifier(InternedString::dummy())]
+        }, 1),
         ("[1, 2, a[]]", ParseErrorKind::UnexpectedEoe, 8),
         ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
         ("if x { 0 } else { }", ParseErrorKind::UnexpectedEoe, 16),
         ("{a = 3; b = 4;}", ParseErrorKind::UnexpectedEoe, 13),
+        ("{1 1}", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Number(Ratio::one()),
+            expected: vec![]
+        }, 3),
+        ("[1 1]", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Number(Ratio::one()),
+            expected: vec![]
+        }, 3),
+        ("[1 1, 1 1]", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Number(Ratio::one()),
+            expected: vec![]
+        }, 3),
+        ("(1 1)", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Number(Ratio::one()),
+            expected: vec![]
+        }, 3),
     ];
 
     result.into_iter().map(
