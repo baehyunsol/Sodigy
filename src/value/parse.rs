@@ -30,7 +30,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
             Delimiter::Brace => parse_block_expr(
                 &mut TokenList::from_vec_box_token(elements.to_vec())
             ).map_err(|e| e.set_span_of_eof(*span)),
-            Delimiter::Parenthesis => unreachable!("This must be handled by `parse_expr`")
+            Delimiter::Parenthesis => unreachable!("Internal Compiler Error 2C73648"),  // This must be handled by `parse_expr`
         },
         Some(Token { span, kind }) => Err(ParseError::tok(
             kind.clone(), *span,

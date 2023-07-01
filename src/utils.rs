@@ -17,7 +17,7 @@ pub fn into_char(s: &[u8], ind: usize) -> char {
     }
 
     else {
-        unreachable!()
+        unreachable!("Internal Compiler Error 9684A25: {s:?}, {ind}")
     }
 
 }

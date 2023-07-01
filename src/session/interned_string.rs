@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
 
 const DUMMY_INDEX: u32 = u32::MAX - 8;

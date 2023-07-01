@@ -7,7 +7,7 @@ mod kind;
 pub use list::TokenList;
 pub use kind::TokenKind;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Token {
     pub span: Span,
     pub kind: TokenKind
@@ -33,7 +33,7 @@ impl PartialEq for Token {
 
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Delimiter {
     Parenthesis,  // ()
     Bracket,  // []
@@ -57,7 +57,7 @@ impl Delimiter {
         }
 
         else {
-            unreachable!()
+            unreachable!("Interal Compiler Error 335FA8A: {c}")
         }
 
     }
@@ -80,7 +80,7 @@ impl Delimiter {
 
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Keyword {
     If, Else, Def, Use,
 }

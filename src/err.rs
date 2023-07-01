@@ -14,7 +14,6 @@ pub use kind::ParseErrorKind;
  */
 
 // Actually it's both for parser and lexer
-#[derive(Debug)]
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub span: Span,

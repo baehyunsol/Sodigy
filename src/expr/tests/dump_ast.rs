@@ -71,9 +71,17 @@ fn valid_ast_dump_test() {
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {
-        let expr = dump_ast_of_expr(input, &mut session).unwrap();
-        assert_eq!(expr.to_string(&session), ast);
-        assert_eq!(expr.span.index, span);
+
+        match dump_ast_of_expr(input, &mut session) {
+            Ok(expr) => {
+                assert_eq!(expr.to_string(&session), ast);
+                assert_eq!(expr.span.index, span);
+            }
+            Err(err) => {
+                panic!("{}", err.render_err(&session));
+            }
+        }
+
     }
 
 }
@@ -85,7 +93,16 @@ fn invalid_ast_dump_test() {
     for (input, err_kind, span) in invalid_samples() {
 
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
-            assert_eq!(e.kind, err_kind);
+
+            if e.kind != err_kind {
+                panic!(
+                    "input: {}\nexpected_err:{}\ngot: {}",
+                    String::from_utf8_lossy(&input).to_string(),
+                    err_kind.render_err(&session),
+                    e.kind.render_err(&session),
+                );
+            }
+
             assert_eq!(e.span.index, span);
         }
 

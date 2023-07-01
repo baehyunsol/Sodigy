@@ -2,7 +2,7 @@ use super::{Delimiter, Keyword, OpToken, Token};
 use crate::session::{InternedString, LocalParseSession};
 use hmath::Ratio;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum TokenKind {
     Number(Ratio),
     String(InternedString),

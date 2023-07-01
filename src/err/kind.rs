@@ -1,7 +1,7 @@
 use crate::session::LocalParseSession;
 use crate::token::TokenKind;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum ParseErrorKind {
     UnexpectedChar(char),
 

@@ -13,8 +13,6 @@ pub struct ArgDef {
 
 // NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
-    assert!(!tokens.is_eof(), "Internal Compiler Error 53A2FA7");
-
     let name = match tokens.step() {
         Some(token) if token.is_identifier() => token.unwrap_identifier(),
         Some(token) => {
@@ -23,7 +21,7 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
                 vec![TokenKind::Identifier(InternedString::dummy())]
             ));
         }
-        None => unreachable!()
+        None => unreachable!("Internal Compiler Error 53A2FA7")
     };
 
     tokens.consume_token_or_error(TokenKind::Operator(OpToken::Colon))?;

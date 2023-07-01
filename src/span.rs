@@ -2,7 +2,7 @@ use crate::session::LocalParseSession;
 
 const MAX_PREVIEW_LEN: usize = 96;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 pub struct Span {
     file_no: u32,
     pub index: usize

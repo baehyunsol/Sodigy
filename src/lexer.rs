@@ -129,7 +129,7 @@ fn lex_token(s: &[u8], mut ind: usize, session: &mut LocalParseSession) -> Resul
                 Err(e) => Err(match e {
                     ConversionError::NoData | ConversionError::UnexpectedEnd => ParseError::eof(curr_span),
                     ConversionError::InvalidChar(c) => ParseError::ch(c, curr_span),
-                    _ => unreachable!()
+                    _ => unreachable!("Internal Compiler Error 89CFCAA")
                 })
             }
         }
@@ -487,7 +487,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     }
 
     else {
-        unreachable!()
+        unreachable!("Internal Compiler Error 71B2472: {:?}", s[ind])
     }
 
 }
