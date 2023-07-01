@@ -16,10 +16,10 @@ impl ValueKind {
         match self {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
-            ValueKind::Identifier(ind) => String::from_utf8_lossy(&session.unintern_string(*ind).unwrap()).to_string(),
+            ValueKind::Identifier(ind) => String::from_utf8_lossy(&session.unintern_string(*ind).expect("Internal Compiler Error 3E90A3A")).to_string(),
             ValueKind::String(ind) => format!(
                 "{:?}",
-                String::from_utf8_lossy(&session.unintern_string(*ind).unwrap()).to_string()
+                String::from_utf8_lossy(&session.unintern_string(*ind).expect("Internal Compiler Error 52FD790")).to_string()
             ),
             ValueKind::List(elements) => format!(
                 "[{}]",
@@ -32,7 +32,7 @@ impl ValueKind {
                     |(name, value)|
                     format!(
                         "{}={};",
-                        String::from_utf8_lossy(&session.unintern_string(*name).unwrap()).to_string(),
+                        String::from_utf8_lossy(&session.unintern_string(*name).expect("Internal Compiler Error 8029687")).to_string(),
                         value.to_string(session)
                     )
                 ).collect::<Vec<String>>().concat();

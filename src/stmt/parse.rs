@@ -17,7 +17,7 @@ pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
 pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error FB4375E");
 
-    let curr_span = tokens.get_curr_span().unwrap();
+    let curr_span = tokens.get_curr_span().expect("Internal Compiler Error E22AC92");
 
     if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
         todo!()
@@ -51,11 +51,13 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         let expr = parse_expr(tokens, 0)?;
 
+        tokens.consume_token_or_error(TokenKind::Operator(OpToken::SemiColon)).map_err(|e| e.set_span_of_eof(curr_span))?;
+
         todo!()
     }
 
     else {
-        let top_token = tokens.step().unwrap();
+        let top_token = tokens.step().expect("Internal Compiler Error 54831A5");
 
         Err(ParseError::tok(
             top_token.kind.clone(), top_token.span,

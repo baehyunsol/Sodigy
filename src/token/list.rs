@@ -261,7 +261,7 @@ impl TokenList {
                     return Some(Err(ParseError::eoe(if_span)));
                 }
             };
-            let else_span = self.get_curr_span();
+            let else_span = self.get_curr_span().expect("Internal Compiler Error 26CED6F");
             let false_expr = if self.consume(TokenKind::Keyword(Keyword::Else)) {
 
                 match self.data.get(self.cursor) {
@@ -301,7 +301,7 @@ impl TokenList {
                         )))
                     },
                     None => {
-                        return Some(Err(ParseError::eoe(else_span.unwrap())));
+                        return Some(Err(ParseError::eoe(else_span)));
                     }
                 }
 

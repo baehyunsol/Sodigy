@@ -113,7 +113,7 @@ fn lex_token(s: &[u8], mut ind: usize, session: &mut LocalParseSession) -> Resul
 
             // `1.2..` is valid (syntactically)
             if dot_count == 2 && buffer.last() == Some(&b'.') {
-                buffer.pop().unwrap();
+                buffer.pop().expect("Interal Compiler Error 6E339A1");
             }
 
             let string = String::from_utf8_lossy(&buffer).to_string();

@@ -115,7 +115,7 @@ fn cut_char(line: &[u8], length: usize) -> Vec<u8> {
             }
 
             else if *c >= 192 {
-                result.pop().unwrap();
+                result.pop().expect("Internal Compiler Error AE41736");
                 break;
             }
 
@@ -132,8 +132,8 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
         return lines;
     }
 
-    let line_no_len = lines[0].iter().position(|&c| c == 0xe2).unwrap();  // the first byte of `│`
-    let highlight_line_index = lines.iter().position(|line| line[0] == b'>').unwrap();
+    let line_no_len = lines[0].iter().position(|&c| c == 0xe2).expect("Internal Compiler Error 538DC83");  // the first byte of `│`
+    let highlight_line_index = lines.iter().position(|line| line[0] == b'>').expect("Internal Compiler Error 2B1BA68");
 
     let upper: Vec<u8> = format!("{}│{}▼", " ".repeat(line_no_len), " ".repeat(col)).as_bytes().to_vec();
     let lower: Vec<u8> = format!("{}│{}▲", " ".repeat(line_no_len), " ".repeat(col)).as_bytes().to_vec();

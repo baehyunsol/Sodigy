@@ -38,7 +38,7 @@ impl TokenKind {
         }
 
         else {
-            panic!("Trying to unwrap_identifier a non-identifier")
+            panic!("Internal Compiler Error 0E82A87: {}", self.render_err(&LocalParseSession::dummy()))
         }
 
     }

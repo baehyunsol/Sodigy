@@ -59,7 +59,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
 
     else if block_tokens.ends_with(TokenKind::Operator(OpToken::SemiColon)) {
         Err(ParseError::eoe_msg(
-            block_tokens.last_token().unwrap().span,
+            block_tokens.last_token().expect("Internal Compiler Error B13FA79").span,
             "An expression must come at the end of a block".to_string()
         ))
     }
