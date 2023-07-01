@@ -1,8 +1,10 @@
 use super::{Delimiter, Keyword, Token, TokenKind, OpToken};
+use crate::arg_def::{ArgDef, parse_arg_def};
 use crate::err::ParseError;
 use crate::expr::{Expr, ExprKind, parse_expr, PrefixOp, InfixOp, PostfixOp};
 use crate::parse::split_list_by_comma;
 use crate::span::Span;
+use crate::value::parse_block_expr;
 
 pub struct TokenList {
     pub data: Vec<Token>,
@@ -25,9 +27,22 @@ impl TokenList {
     }
 
     pub fn is_eof(&self) -> bool {
-        #[cfg(test)] assert!(self.cursor <= self.data.len());
+        assert!(self.cursor <= self.data.len(), "Internal Compiler Error 9789F9F");
 
         self.cursor >= self.data.len()
+    }
+
+    pub fn last_token(&self) -> Option<&Token> {
+        self.data.last()
+    }
+
+    pub fn ends_with(&self, token_kind: TokenKind) -> bool {
+
+        match self.data.last() {
+            Some(Token { kind, .. }) if *kind == token_kind => true,
+            _ => false
+        }
+
     }
 
     pub fn backward(&mut self) {
@@ -45,6 +60,18 @@ impl TokenList {
                 true
             },
             _ => false
+        }
+
+    }
+
+    pub fn consume_token_or_error(&mut self, token_kind: TokenKind) -> Result<(), ParseError> {
+
+        match self.step() {
+            Some(Token { kind, .. }) if *kind == token_kind => Ok(()),
+            Some(Token { kind, span }) => Err(ParseError::tok(
+                kind.clone(), *span, vec![token_kind]
+            )),
+            None => Err(ParseError::eoe(Span::dummy())),
         }
 
     }
@@ -68,6 +95,46 @@ impl TokenList {
         }
 
         result
+    }
+
+    pub fn step_func_def_args(&mut self) -> Option<Result<Vec<ArgDef>, ParseError>> {
+
+        match self.data.get(self.cursor) {
+            Some(Token { kind: TokenKind::List(Delimiter::Parenthesis, elements), span }) => {
+                let mut args = vec![];
+                let mut args_tokens = TokenList::from_vec_box_token(elements.to_vec());
+
+                while !args_tokens.is_eof() {
+
+                    match parse_arg_def(&mut args_tokens) {
+                        Ok(arg) => { args.push(arg); },
+                        Err(e) => { return Some(Err(e.set_span_of_eof(*span))); }
+                    }
+
+                    match args_tokens.step() {
+                        Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {},
+                        Some(Token { kind, span }) => {
+                            return Some(Err(ParseError::tok(
+                                kind.clone(), *span,
+                                vec![TokenKind::Operator(OpToken::Comma)]
+                            )));
+                        },
+                        None => {
+                            break;
+                        }
+                    }
+
+                }
+
+                Some(Ok(args))
+            },
+            _ => None
+        }
+
+    }
+
+    pub fn step_type(&mut self) -> Option<Result<Expr, ParseError>> {
+        todo!()
     }
 
     pub fn step_prefix_op(&mut self) -> Option<PrefixOp> {
@@ -163,23 +230,22 @@ impl TokenList {
             };
 
             let true_expr = match self.step() {
-                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: true_expr_span }) => {
-                    let mut true_expr_tokens = TokenList::from_vec_box_token(elements.to_vec());
-
-                    match parse_expr(&mut true_expr_tokens, 0) {
-                        Ok(expr) if true_expr_tokens.is_eof() => expr,
-                        Ok(_) => {  // has unnecessary tokens
-                            let err_token = true_expr_tokens.step().unwrap();
-
-                            return Some(Err(ParseError::tok(err_token.kind.clone(), err_token.span)));
-                        },
-                        Err(e) => {
-                            return Some(Err(e.set_span_of_eof(*true_expr_span)));
-                        }
+                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: true_expr_span }) => match parse_block_expr(
+                    &mut TokenList::from_vec_box_token(elements.to_vec())
+                ) {
+                    Ok(t) => Expr {
+                        kind: t.block_to_expr_kind(),
+                        span: *true_expr_span,
+                    },
+                    Err(e) => {
+                        return Some(Err(e.set_span_of_eof(*true_expr_span)));
                     }
                 },
                 Some(Token { kind, span }) => {
-                    return Some(Err(ParseError::tok(kind.clone(), span.clone())));
+                    return Some(Err(ParseError::tok(
+                        kind.clone(), *span,
+                        vec![TokenKind::List(Delimiter::Brace, vec![])]
+                    )));
                 }
                 None => {
                     return Some(Err(ParseError::eoe(if_span)));
@@ -202,14 +268,13 @@ impl TokenList {
                     },
                     Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: false_expr_span }) => {
                         self.cursor += 1;
-                        let mut false_expr_tokens = TokenList::from_vec_box_token(elements.to_vec());
 
-                        match parse_expr(&mut false_expr_tokens, 0) {
-                            Ok(expr) if false_expr_tokens.is_eof() => expr,
-                            Ok(_) => {  // has unnecessary tokens
-                                let err_token = false_expr_tokens.step().unwrap();
-
-                                return Some(Err(ParseError::tok(err_token.kind.clone(), err_token.span)));
+                        match parse_block_expr(
+                            &mut TokenList::from_vec_box_token(elements.to_vec())
+                        ) {
+                            Ok(t) => Expr {
+                                kind: t.block_to_expr_kind(),
+                                span: *false_expr_span,
                             },
                             Err(e) => {
                                 return Some(Err(e.set_span_of_eof(*false_expr_span)));
@@ -217,7 +282,13 @@ impl TokenList {
                         }
                     },
                     Some(Token { kind, span }) => {
-                        return Some(Err(ParseError::tok(kind.clone(), span.clone())))
+                        return Some(Err(ParseError::tok(
+                            kind.clone(), *span,
+                            vec![
+                                TokenKind::Keyword(Keyword::If),
+                                TokenKind::List(Delimiter::Brace, vec![])
+                            ]
+                        )))
                     },
                     None => {
                         return Some(Err(ParseError::eoe(else_span.unwrap())));

@@ -11,7 +11,7 @@ pub enum ParseErrorKind {
     // expected an expression, but got nothing
     UnexpectedEoe,
 
-    UnexpectedToken(TokenKind)
+    UnexpectedToken { expected: Vec<TokenKind>, got: TokenKind }
 }
 
 impl ParseErrorKind {
@@ -21,7 +21,17 @@ impl ParseErrorKind {
             ParseErrorKind::UnexpectedChar(c) => format!("Unexpected character `{c}` is found while parsing!"),
             ParseErrorKind::UnexpectedEof => format!("Unexpected EOF while parsing!"),
             ParseErrorKind::UnexpectedEoe => format!("Expected an expression, but got nothing!"),
-            ParseErrorKind::UnexpectedToken(t) => format!("Unexpected token `{}`", t.render_err(session))
+            ParseErrorKind::UnexpectedToken { expected, got } => if expected.len() == 0 {
+                format!("Unexpected Token: `{}`", got.render_err(session))
+            } else {
+                format!(
+                    "Expected `{}`, but got `{}`",
+                    expected.iter().map(
+                        |token| token.render_err(session)
+                    ).collect::<Vec<String>>().join(", "),
+                    got.render_err(session)
+                )
+            }
         }
     }
 

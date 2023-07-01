@@ -1,15 +1,15 @@
 use super::{Delimiter, Keyword, OpToken, Token};
-use crate::session::LocalParseSession;
+use crate::session::{InternedString, LocalParseSession};
 use hmath::Ratio;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenKind {
     Number(Ratio),
-    String(u32),
+    String(InternedString),
 
     // It doesn't care how the inside looks like. It only guarantees that the opening and closing are properly matched.
     List(Delimiter, Vec<Box<Token>>),
-    Identifier(u32),
+    Identifier(InternedString),
 
     // True, False, None
     Keyword(Keyword),
@@ -18,6 +18,30 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
+
+    pub fn is_identifier(&self) -> bool {
+
+        if let TokenKind::Identifier(_) = self {
+            true
+        }
+
+        else {
+            false
+        }
+
+    }
+
+    pub fn unwrap_identifier(&self) -> InternedString {
+
+        if let TokenKind::Identifier(s) = self {
+            *s
+        }
+
+        else {
+            panic!("Trying to unwrap_identifier a non-identifier")
+        }
+
+    }
 
     // preview of this token_kind for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
@@ -29,10 +53,14 @@ impl TokenKind {
                 Delimiter::Brace => "{...}",
                 Delimiter::Bracket => "[...]",
             }.to_string(),
-            TokenKind::Identifier(i) => format!(
-                "Identifier: `{}`",
-                String::from_utf8_lossy(&session.get_string_from_index(*i).unwrap_or(vec![b'?'; 3])).to_string()
-            ),
+            TokenKind::Identifier(string) => if string.is_dummy() || session.is_dummy {
+                "Identifier".to_string()
+            } else {
+                format!(
+                    "Identifier: `{}`",
+                    String::from_utf8_lossy(&session.unintern_string(*string).unwrap_or(vec![b'?'; 3])).to_string()
+                )
+            },
             TokenKind::Keyword(k) => format!("Keyword: `{}`", k.render_err()),
             TokenKind::Operator(op) => format!("Special Character: `{}`", op.render_err())
         }

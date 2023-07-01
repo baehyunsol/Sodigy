@@ -1,3 +1,4 @@
+use crate::expr::ExprKind;
 use crate::span::Span;
 use crate::token::TokenKind;
 
@@ -6,12 +7,12 @@ mod parse;
 #[cfg(test)] mod tests;
 
 pub use kind::ValueKind;
-pub use parse::parse_value;
+pub use parse::{parse_block_expr, parse_value};
 
 #[derive(Clone)]
 pub struct Value {
+    kind: ValueKind,
     span: Span,
-    kind: ValueKind
 }
 
 impl Value {
@@ -22,6 +23,28 @@ impl Value {
 
     pub fn get_first_token(&self) -> TokenKind {
         self.kind.get_first_token()
+    }
+
+    // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`
+    // `{x + y}` -> `x + y`
+    pub fn block_to_expr_kind(&self) -> ExprKind {
+
+        if let ValueKind::Block { defs, value } = &self.kind {
+
+            if defs.is_empty() {
+                value.kind.clone()
+            }
+
+            else {
+                ExprKind::Value(Box::new(self.clone()))
+            }
+
+        }
+
+        else {
+            panic!("Internal Compiler Error 95C0592: {}", self.kind.render_err());
+        }
+
     }
 
 }

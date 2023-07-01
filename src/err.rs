@@ -8,10 +8,9 @@ mod kind;
 pub use kind::ParseErrorKind;
 
 /*
- * It's okay for errors to be expensive to initialize, because each parse_session is supposed to 
- * encounter at most one error...
- *
- * Avoid patterns that catches a ParseError and return Ok
+ * The compiler assumes that a successful compilation never initializes a `ParseError`.
+ * That's why it's okay for `ParseError` and its related functions to be expensive.
+ * Please try not to break its assumption.
  */
 
 // Actually it's both for parser and lexer
@@ -41,6 +40,14 @@ impl ParseError {
         }
     }
 
+    pub fn eoe_msg(span: Span, message: String) -> Self {
+        ParseError {
+            kind: ParseErrorKind::UnexpectedEoe,
+            span,
+            message
+        }
+    }
+
     pub fn is_eof(&self) -> bool {
         self.kind == ParseErrorKind::UnexpectedEof
     }
@@ -64,17 +71,17 @@ impl ParseError {
         }
     }
 
-    pub fn tok(t: TokenKind, span: Span) -> Self {
+    pub fn tok(got: TokenKind, span: Span, expected: Vec<TokenKind>) -> Self {
         ParseError {
-            kind: ParseErrorKind::UnexpectedToken(t),
+            kind: ParseErrorKind::UnexpectedToken{ got, expected },
             span,
             message: String::new()
         }
     }
 
-    pub fn tok_msg(t: TokenKind, span: Span, message: String) -> Self {
+    pub fn tok_msg(got: TokenKind, span: Span, expected: Vec<TokenKind>, message: String) -> Self {
         ParseError {
-            kind: ParseErrorKind::UnexpectedToken(t),
+            kind: ParseErrorKind::UnexpectedToken{ got, expected },
             span, message
         }
     }

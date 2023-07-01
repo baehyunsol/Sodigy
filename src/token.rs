@@ -1,3 +1,4 @@
+use crate::session::InternedString;
 use crate::span::Span;
 
 mod list;
@@ -10,6 +11,18 @@ pub use kind::TokenKind;
 pub struct Token {
     pub span: Span,
     pub kind: TokenKind
+}
+
+impl Token {
+
+    pub fn is_identifier(&self) -> bool {
+        self.kind.is_identifier()
+    }
+
+    pub fn unwrap_identifier(&self) -> InternedString {
+        self.kind.unwrap_identifier()
+    }
+
 }
 
 impl PartialEq for Token {
@@ -69,7 +82,7 @@ impl Delimiter {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Keyword {
-    If, Else, Def,
+    If, Else, Def, Use,
 }
 
 impl Keyword {
@@ -80,6 +93,7 @@ impl Keyword {
             Keyword::If => "if",
             Keyword::Else => "else",
             Keyword::Def => "def",
+            Keyword::Use => "use",
         }.to_string()
     }
 
@@ -98,9 +112,11 @@ pub enum OpToken {
     Comma, Dot, Colon, SemiColon,
     DotDot,
 
-    // below 2 are not used by lexer, but by `get_first_token`
+    // below 4 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
     ClosingSquareBracket,
+    OpeningCurlyBrace,
+    ClosingCurlyBrace,
 }
 
 impl OpToken {
@@ -133,6 +149,8 @@ impl OpToken {
             OpToken::Assign => "=",
             OpToken::OpeningSquareBracket => "[",
             OpToken::ClosingSquareBracket => "]",
+            OpToken::OpeningCurlyBrace => "{",
+            OpToken::ClosingCurlyBrace => "}",
         }.to_string()
     }
 

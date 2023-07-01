@@ -1,17 +1,19 @@
 use crate::expr::Expr;
+use crate::session::{InternedString, LocalParseSession};
 use crate::token::{OpToken, TokenKind};
 use hmath::{BigInt, Ratio};
 
 #[derive(Clone)]
 pub enum ValueKind {
-
-    // TODO: How about `True`, `False`, and `None`? Do we treat them like other identifiers?
-    Identifier(u32),
-
+    Identifier(InternedString),
     Integer(BigInt),
     Real(Ratio),
-    String(u32),
+    String(InternedString),
     List(Vec<Box<Expr>>),
+    Block {
+        defs: Vec<(InternedString, Box<Expr>)>,  // (name, value)
+        value: Box<Expr>
+    },
 }
 
 impl ValueKind {
@@ -36,8 +38,13 @@ impl ValueKind {
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
             ValueKind::String(i) => TokenKind::String(*i),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
+            ValueKind::Block { .. } => TokenKind::Operator(OpToken::OpeningCurlyBrace),
         }
 
+    }
+
+    pub fn render_err(&self) -> String {
+        self.get_first_token().render_err(&LocalParseSession::dummy())
     }
 
 }

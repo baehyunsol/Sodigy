@@ -1,7 +1,8 @@
 use super::{Expr, ExprKind, PrefixOp, InfixOp, PostfixOp};
 use crate::err::ParseError;
+use crate::session::InternedString;
 use crate::span::Span;
-use crate::token::TokenList;
+use crate::token::{TokenKind, TokenList};
 use crate::value::parse_value;
 
 // pratt algorithm
@@ -28,8 +29,8 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
 
     else if let Some(branch) = tokens.step_branch_expr() {
 
-        #[cfg(test)] if let Ok(Expr { kind, .. }) = &branch {
-            assert!(kind.is_branch());
+        if let Ok(Expr { kind, .. }) = &branch {
+            assert!(kind.is_branch(), "Internal Compiler Error 8CC1C78");
         }
 
         branch.map_err(|e| e.set_span_of_eof(lhs_span))?
@@ -117,6 +118,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 return Err(ParseError::tok_msg(
                     rhs.get_first_token(),
                     curr_span,
+                    vec![TokenKind::Identifier(InternedString::dummy())],
 "A name of a field or a method must be an identifier!
 `a.b` is valid, but `a.1` is not.".to_string()
                 ));

@@ -112,7 +112,7 @@ fn lex_token(s: &[u8], mut ind: usize, session: &mut LocalParseSession) -> Resul
             }
 
             // `1.2..` is valid (syntactically)
-            if dot_count == 2 && buffer[buffer.len() - 1] == b'.' {
+            if dot_count == 2 && buffer.last() == Some(&b'.') {
                 buffer.pop().unwrap();
             }
 
