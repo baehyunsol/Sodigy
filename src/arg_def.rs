@@ -13,6 +13,8 @@ pub struct ArgDef {
 
 // NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
+    assert!(!tokens.is_eof(), "Internal Compiler Error 7109BBF");
+
     let name = match tokens.step() {
         Some(token) if token.is_identifier() => token.unwrap_identifier(),
         Some(token) => {

@@ -6,7 +6,6 @@ mod parse;
 mod session;
 mod span;
 mod stmt;
-#[cfg(test)] mod tests;
 mod token;
 mod utils;
 mod value;

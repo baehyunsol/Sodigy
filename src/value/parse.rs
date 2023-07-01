@@ -1,4 +1,5 @@
 use crate::err::ParseError;
+use crate::expr::parse_expr;
 use crate::parse::split_list_by_comma;
 use crate::session::InternedString;
 use crate::span::Span;
@@ -64,14 +65,41 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
     }
 
     else {
-        // let pattern = match block_tokens.step_pattern() {};
+        let first_span = block_tokens.get_curr_span().expect("Internal Compiler Error 64B8455");
+        let mut defs_count = block_tokens.count_tokens_non_recursive(TokenKind::Operator(OpToken::SemiColon));
 
-        // block_tokens.consume_token_or_error(
-        //     TokenKind::Operator(OpToken::Assign)
-        // ).map_err(|e| e.set_span_of_eof(*span))?;
+        let mut defs = Vec::with_capacity(defs_count);
 
-        // let expr = parse_expr(&mut block_tokens, 0)?;
+        for _ in 0..defs_count {
+            let curr_span = block_tokens.get_curr_span().expect("Internal Compiler Error F299389");
 
-        todo!()
+            // TODO: allow pattern matchings for assignments
+            let name = match block_tokens.step() {
+                Some(Token { kind, .. }) if kind.is_identifier() => kind.unwrap_identifier(),
+                Some(Token { kind, span }) => {
+                    return Err(ParseError::tok(
+                        kind.clone(), *span,
+                        vec![TokenKind::Identifier(InternedString::dummy())]
+                    ));
+                }
+                None => unreachable!("Interal Compiler Error 275EFCB")
+            };
+
+            block_tokens.consume_token_or_error(
+                TokenKind::Operator(OpToken::Assign)
+            ).map_err(|e| e.set_span_of_eof(curr_span))?;
+
+            let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(curr_span))?;
+
+            block_tokens.consume_token_or_error(
+                TokenKind::Operator(OpToken::SemiColon)
+            ).map_err(|e| e.set_span_of_eof(curr_span))?;
+
+            defs.push((name, Box::new(expr)));
+        }
+
+        let value = Box::new(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
+
+        Ok(Value { kind: ValueKind::Block { defs, value }, span: first_span })
     }
 }

@@ -37,11 +37,11 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("[1, 2, 3, [4, 5, 6]]", "[1,2,3,[4,5,6]]", 0),
         ("x > y && y > 1 || x > z && z > 1", "LogicalOr(LogicalAnd(Gt(x,y),Gt(y,1)),LogicalAnd(Gt(x,z),Gt(z,1)))", 15),
         ("(foo(1))(2)", "Call(Call(foo,1),2)", 8),
-        ("{x = 3; y = 4; x + y}", "", 0),
+        ("{x = 3; y = x + 1; x + y}", "{x=3;y=Add(x,1);Add(x,y)}", 0),
         ("(3 > 4 != 5 < 6) == True", "Eq(Ne(Gt(3,4),Lt(5,6)),True)", 17),
         ("if x > y { x } else { y } * 2", "Mul(Branch(Gt(x,y),x,y),2)", 26),
         ("if x > y { x } else if x < y { y } else { 0 } * 2", "Mul(Branch(Gt(x,y),x,Branch(Lt(x,y),y,0)),2)", 46),
-        ("if if a { b } else { c } { d } else { e }", "", 0),
+        ("if if a { b } else { c } { d } else { e }", "Branch(Branch(a,b,c),d,e)", 0),
         ("if x > y { x } * 2", "", 0),  // Not an error, but may throw a runtime error
     ];
 
@@ -58,7 +58,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
         ("if x { 0 } else { }", ParseErrorKind::UnexpectedEoe, 16),
-        ("{a = 3; b = 4;}", ParseErrorKind::UnexpectedEoe, 0),
+        ("{a = 3; b = 4;}", ParseErrorKind::UnexpectedEoe, 13),
     ];
 
     result.into_iter().map(

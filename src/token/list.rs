@@ -49,6 +49,16 @@ impl TokenList {
         self.cursor -= 1;
     }
 
+    pub fn count_tokens_non_recursive(&self, kind: TokenKind) -> usize {
+        let mut count = 0;
+
+        for token in self.data[self.cursor..].iter() {
+            if &token.kind == &kind { count += 1; }
+        }
+
+        count
+    }
+
     // if the current token is `token`, it steps forward and returns true
     // it returns false otherwise
     // it's helpful if the borrow checker doesn't allow you to use `self.step`
