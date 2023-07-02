@@ -1,4 +1,4 @@
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{Expr, parse_expr};
 use crate::token::{OpToken, Token, TokenKind, TokenList};
 
@@ -56,7 +56,7 @@ pub fn parse_expr_exhaustive(tokens: &mut TokenList) -> Result<Expr, ParseError>
             let Token { kind, span } = tokens.step().expect("Internal Compiler Error 72A64FD");
 
             Err(ParseError::tok(
-                kind.clone(), *span, vec![]
+                kind.clone(), *span, ExpectedToken::Nothing
             ))
         },
         Err(e) => Err(e)

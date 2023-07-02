@@ -1,4 +1,4 @@
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::parse::split_list_by_comma;
 use crate::session::InternedString;
@@ -35,18 +35,13 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
         },
         Some(Token { span, kind }) => Err(ParseError::tok(
             kind.clone(), *span,
-            vec![
-                TokenKind::Number(Ratio::zero()),  // `render_err` will not show the actual value
-                TokenKind::String(InternedString::dummy()),
-                TokenKind::Identifier(InternedString::dummy()),
-                TokenKind::List(Delimiter::Bracket, vec![]),
-                TokenKind::List(Delimiter::Brace, vec![]),
-                TokenKind::List(Delimiter::Parenthesis, vec![]),
-            ]
+            ExpectedToken::AnyExpression,
         )),
 
-        // upper layer should handle the span
-        None => Err(ParseError::eoe(Span::dummy()))
+        None => Err(ParseError::eoe(
+            Span::dummy(),
+            ExpectedToken::AnyExpression,
+        ))
     }
 
 }
@@ -54,13 +49,18 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
 pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseError> {
 
     if block_tokens.is_eof() {
-        Err(ParseError::eoe_msg(Span::dummy(), "A block cannot be empty!".to_string()))
+        Err(ParseError::eoe_msg(
+            Span::dummy(),
+            ExpectedToken::AnyExpression,
+            "A block cannot be empty!".to_string(),
+        ))
     }
 
     else if block_tokens.ends_with(TokenKind::Operator(OpToken::SemiColon)) {
         Err(ParseError::eoe_msg(
             block_tokens.last_token().expect("Internal Compiler Error B13FA79").span,
-            "An expression must come at the end of a block".to_string()
+            ExpectedToken::AnyExpression,
+            "An expression must come at the end of a block".to_string(),
         ))
     }
 
@@ -79,7 +79,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
                 Some(Token { kind, span }) => {
                     return Err(ParseError::tok(
                         kind.clone(), *span,
-                        vec![TokenKind::Identifier(InternedString::dummy())]
+                        ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())]),
                     ));
                 }
                 None => unreachable!("Interal Compiler Error 275EFCB")
@@ -103,7 +103,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
         if let Some(Token { kind, span }) = block_tokens.step() {
             Err(ParseError::tok(
                 kind.clone(), *span,
-                vec![],
+                ExpectedToken::Nothing,
             ))
         }
 

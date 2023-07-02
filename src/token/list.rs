@@ -1,6 +1,6 @@
 use super::{Delimiter, Keyword, Token, TokenKind, OpToken};
 use crate::arg_def::{ArgDef, parse_arg_def};
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{Expr, ExprKind, parse_expr, PrefixOp, InfixOp, PostfixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
@@ -79,9 +79,13 @@ impl TokenList {
         match self.step() {
             Some(Token { kind, .. }) if *kind == token_kind => Ok(()),
             Some(Token { kind, span }) => Err(ParseError::tok(
-                kind.clone(), *span, vec![token_kind]
+                kind.clone(), *span,
+                ExpectedToken::SpecificTokens(vec![token_kind])
             )),
-            None => Err(ParseError::eoe(Span::dummy())),
+            None => Err(ParseError::eoe(
+                Span::dummy(),
+                ExpectedToken::SpecificTokens(vec![token_kind])
+            )),
         }
 
     }
@@ -126,7 +130,7 @@ impl TokenList {
                         Some(Token { kind, span }) => {
                             return Some(Err(ParseError::tok(
                                 kind.clone(), *span,
-                                vec![TokenKind::Operator(OpToken::Comma)]
+                                ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::Comma)])
                             )));
                         },
                         None => {
@@ -143,8 +147,14 @@ impl TokenList {
 
     }
 
+    // it returns `None` only when there's no token to parse
     pub fn step_type(&mut self) -> Option<Result<Expr, ParseError>> {
-        todo!()
+
+        match self.data.get(self.cursor) {
+            Some(_) => Some(parse_expr(self, 0)),
+            None => None,
+        }
+
     }
 
     pub fn step_prefix_op(&mut self) -> Option<PrefixOp> {
@@ -254,14 +264,19 @@ impl TokenList {
                 Some(Token { kind, span }) => {
                     return Some(Err(ParseError::tok(
                         kind.clone(), *span,
-                        vec![TokenKind::List(Delimiter::Brace, vec![])]
+                        ExpectedToken::SpecificTokens(vec![TokenKind::List(Delimiter::Brace, vec![])])
                     )));
                 }
                 None => {
-                    return Some(Err(ParseError::eoe(if_span)));
+                    return Some(Err(ParseError::eoe(
+                        if_span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::OpeningCurlyBrace)])
+                    )));
                 }
             };
-            let else_span = self.get_curr_span().expect("Internal Compiler Error 26CED6F");
+
+            let else_span = self.get_curr_span();
+
             let false_expr = if self.consume(TokenKind::Keyword(Keyword::Else)) {
 
                 match self.data.get(self.cursor) {
@@ -294,22 +309,38 @@ impl TokenList {
                     Some(Token { kind, span }) => {
                         return Some(Err(ParseError::tok(
                             kind.clone(), *span,
-                            vec![
+                            ExpectedToken::SpecificTokens(vec![
                                 TokenKind::Keyword(Keyword::If),
                                 TokenKind::List(Delimiter::Brace, vec![])
-                            ]
+                            ])
                         )))
                     },
                     None => {
-                        return Some(Err(ParseError::eoe(else_span)));
+                        return Some(Err(ParseError::eoe(
+                            else_span.expect("Internal Compiler Error 26CED6F"),
+                            ExpectedToken::SpecificTokens(vec![
+                                TokenKind::Keyword(Keyword::If),
+                                TokenKind::List(Delimiter::Brace, vec![])
+                            ])
+                        )));
                     }
                 }
 
             }
 
-            // if an `if_expr` doesn't have an else branch, it inserts `unreachable!`
             else {
-                todo!()
+
+                return match self.step() {
+                    Some(Token { kind, span }) => Some(Err(ParseError::tok(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)])
+                    ))),
+                    None => Some(Err(ParseError::eoe(
+                        if_span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)])
+                    )))
+                };
+
             };
 
             Some(Ok(Expr { span: if_span, kind: ExprKind::Branch(Box::new(cond), Box::new(true_expr), Box::new(false_expr)) }))

@@ -1,8 +1,8 @@
-use crate::err::{ParseError, ParseErrorKind};
+use crate::err::{ExpectedToken, ParseError, ParseErrorKind};
 use crate::expr::{Expr, parse_expr};
 use crate::lexer::lex_tokens;
 use crate::session::{InternedString, LocalParseSession};
-use crate::token::{TokenKind, TokenList};
+use crate::token::{Keyword, OpToken, TokenKind, TokenList};
 use hmath::Ratio;
 
 pub fn dump_ast_of_expr(input: Vec<u8>, session: &mut LocalParseSession) -> Result<Expr, ParseError> {
@@ -35,6 +35,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("[1.2.., 1.2..3.4, 1. .. 3.]", "[Range(1.2),Range(1.2,3.4),Range(1,3)]", 0),
         ("1. ..", "Range(1)", 3),
         ("1.0..", "Range(1)", 3),
+        ("[[], [], ]", "[[],[]]", 0),
         ("1.", "1", 0),
         ("[\"Trailing Comma\", ]", "[\"Trailing Comma\"]", 0),
         ("[1, 2, 3, [4, 5, 6]]", "[1,2,3,[4,5,6]]", 0),
@@ -45,7 +46,6 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("if x > y { x } else { y } * 2", "Mul(Branch(Gt(x,y),x,y),2)", 26),
         ("if x > y { x } else if x < y { y } else { 0 } * 2", "Mul(Branch(Gt(x,y),x,Branch(Lt(x,y),y,0)),2)", 46),
         ("if if a { b } else { c } { d } else { e }", "Branch(Branch(a,b,c),d,e)", 0),
-        ("if x > y { x } * 2", "", 0),  // Not an error, but may throw a runtime error
     ];
 
     result.into_iter().map(
@@ -59,28 +59,41 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ("1...", ParseErrorKind::UnexpectedChar('.'), 1),
         ("a.1", ParseErrorKind::UnexpectedToken {
             got: TokenKind::Number(Ratio::one()),
-            expected: vec![TokenKind::Identifier(InternedString::dummy())]
+            expected: ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())]),
         }, 1),
-        ("[1, 2, a[]]", ParseErrorKind::UnexpectedEoe, 8),
+        ("[1, 2, a[]]", ParseErrorKind::UnexpectedEoe(
+            ExpectedToken::AnyExpression
+        ), 8),
         ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
-        ("if x { 0 } else { }", ParseErrorKind::UnexpectedEoe, 16),
-        ("{a = 3; b = 4;}", ParseErrorKind::UnexpectedEoe, 13),
+        ("if x { 0 } else { }", ParseErrorKind::UnexpectedEoe(
+            ExpectedToken::AnyExpression
+        ), 16),
+        ("if x > y { x } * 2", ParseErrorKind::UnexpectedToken {
+            got: TokenKind::Operator(OpToken::Mul),
+            expected: ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)]),
+        }, 15),
+        ("if x > y { x }", ParseErrorKind::UnexpectedEoe(
+            ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)])
+        ), 0),
+        ("{a = 3; b = 4;}", ParseErrorKind::UnexpectedEoe(
+            ExpectedToken::AnyExpression
+        ), 13),
         ("{1 1}", ParseErrorKind::UnexpectedToken {
             got: TokenKind::Number(Ratio::one()),
-            expected: vec![]
+            expected: ExpectedToken::Nothing,
         }, 3),
         ("[1 1]", ParseErrorKind::UnexpectedToken {
             got: TokenKind::Number(Ratio::one()),
-            expected: vec![]
+            expected: ExpectedToken::Nothing,
         }, 3),
         ("[1 1, 1 1]", ParseErrorKind::UnexpectedToken {
             got: TokenKind::Number(Ratio::one()),
-            expected: vec![]
+            expected: ExpectedToken::Nothing,
         }, 3),
         ("(1 1)", ParseErrorKind::UnexpectedToken {
             got: TokenKind::Number(Ratio::one()),
-            expected: vec![]
+            expected: ExpectedToken::Nothing,
         }, 3),
     ];
 

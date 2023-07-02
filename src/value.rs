@@ -12,6 +12,8 @@ pub use parse::{parse_block_expr, parse_value};
 #[derive(Clone)]
 pub struct Value {
     kind: ValueKind,
+
+    // TODO: why do we need span for values when all exprs have a span?
     span: Span,
 }
 

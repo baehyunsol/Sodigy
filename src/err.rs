@@ -31,17 +31,17 @@ impl ParseError {
         }
     }
 
-    pub fn eoe(span: Span) -> Self {
+    pub fn eoe(span: Span, expected: ExpectedToken) -> Self {
         ParseError {
-            kind: ParseErrorKind::UnexpectedEoe,
+            kind: ParseErrorKind::UnexpectedEoe(expected),
             span,
             message: String::new()
         }
     }
 
-    pub fn eoe_msg(span: Span, message: String) -> Self {
+    pub fn eoe_msg(span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
-            kind: ParseErrorKind::UnexpectedEoe,
+            kind: ParseErrorKind::UnexpectedEoe(expected),
             span,
             message
         }
@@ -52,7 +52,7 @@ impl ParseError {
     }
 
     pub fn is_eoe(&self) -> bool {
-        self.kind == ParseErrorKind::UnexpectedEoe
+        if let ParseErrorKind::UnexpectedEoe(_) = self.kind { true } else { false }
     }
 
     pub fn ch(c: char, span: Span) -> Self {
@@ -70,7 +70,7 @@ impl ParseError {
         }
     }
 
-    pub fn tok(got: TokenKind, span: Span, expected: Vec<TokenKind>) -> Self {
+    pub fn tok(got: TokenKind, span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken{ got, expected },
             span,
@@ -78,7 +78,7 @@ impl ParseError {
         }
     }
 
-    pub fn tok_msg(got: TokenKind, span: Span, expected: Vec<TokenKind>, message: String) -> Self {
+    pub fn tok_msg(got: TokenKind, span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken{ got, expected },
             span, message
@@ -108,6 +108,52 @@ impl ParseError {
                 String::new()
             },
             self.span.render_err(session)
+        )
+    }
+
+}
+
+#[derive(PartialEq)]
+pub enum ExpectedToken {
+    AnyExpression,
+    SpecificTokens(Vec<TokenKind>),
+    Nothing
+}
+
+impl ExpectedToken {
+
+    pub fn render_err(&self, session: &LocalParseSession) -> String {
+
+        match self {
+            ExpectedToken::AnyExpression => "Any kind of expression was expected,".to_string(),
+            ExpectedToken::Nothing => "Expected no tokens,".to_string(),
+            ExpectedToken::SpecificTokens(token_kinds) => format!("Expected {},", pretty_list(token_kinds, session))
+        }
+
+    }
+
+}
+
+// As stated at the top, error-related functions are okay to be slow
+fn pretty_list(token_kinds: &[TokenKind], session: &LocalParseSession) -> String {
+
+    if token_kinds.len() == 0 {
+        String::new()
+    }
+
+    else if token_kinds.len() == 1 {
+        token_kinds[0].render_err(session)
+    }
+
+    else if token_kinds.len() == 2 {
+        format!("{} or {}", token_kinds[0].render_err(session), token_kinds[1].render_err(session))
+    }
+
+    else {
+        format!(
+            "{}, {}",
+            token_kinds[0].render_err(session),
+            pretty_list(&token_kinds[1..], session)
         )
     }
 

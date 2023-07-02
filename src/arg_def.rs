@@ -1,4 +1,4 @@
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::span::Span;
@@ -20,7 +20,7 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
         Some(token) => {
             return Err(ParseError::tok(
                 token.kind.clone(), token.span,
-                vec![TokenKind::Identifier(InternedString::dummy())]
+                ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())])
             ));
         }
         None => unreachable!("Internal Compiler Error 53A2FA7")
@@ -31,7 +31,10 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
     let type_ = match tokens.step_type() {
         Some(t) => Box::new(t?),
         None => {
-            return Err(ParseError::eoe(Span::dummy()));
+            return Err(ParseError::eoe(
+                Span::dummy(),
+                ExpectedToken::AnyExpression
+            ));
         }
     };
 

@@ -1,5 +1,5 @@
 use super::Stmt;
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::session::InternedString;
 use crate::token::{Keyword, OpToken, TokenKind, TokenList};
@@ -29,11 +29,14 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             Some(token) => {
                 return Err(ParseError::tok(
                     token.kind.clone(), token.span,
-                    vec![TokenKind::Identifier(InternedString::dummy())]
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())])
                 ));
             }
             None => {
-                return Err(ParseError::eoe(curr_span));
+                return Err(ParseError::eoe(
+                    curr_span,
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())])
+                ));
             }
         };
 
@@ -61,7 +64,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         Err(ParseError::tok(
             top_token.kind.clone(), top_token.span,
-            vec![TokenKind::Keyword(Keyword::Use), TokenKind::Keyword(Keyword::Def)]
+            ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Use), TokenKind::Keyword(Keyword::Def)])
         ))
     }
 

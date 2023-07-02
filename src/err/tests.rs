@@ -14,7 +14,7 @@ fn error_message_test() {
 ]]".to_vec();
     session.set_input(input.clone());
     let error_msg = 
-"Expected an expression, but got nothing!
+"Any kind of expression was expected, but got nothing!
     1 │ [[
     2 │     1,
     3 │     2,
