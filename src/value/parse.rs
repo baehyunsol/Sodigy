@@ -94,18 +94,12 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
                 .expect("Internal Compiler Error F299389");
 
             // TODO: allow pattern matchings for assignments
-            let name = match block_tokens.step() {
-                Some(Token { kind, .. }) if kind.is_identifier() => kind.unwrap_identifier(),
-                Some(Token { kind, span }) => {
-                    return Err(ParseError::tok(
-                        kind.clone(),
-                        *span,
-                        ExpectedToken::SpecificTokens(vec![
-                            TokenKind::Identifier(InternedString::dummy()),
-                        ]),
-                    ));
+            let name = match block_tokens.step_identifier_strict() {
+                Ok(id) => id,
+                Err(e) => {
+                    assert!(!e.is_eoe(), "Internal Compiler Error 275EFCB");
+                    return Err(e);
                 }
-                None => unreachable!("Interal Compiler Error 275EFCB"),
             };
 
             block_tokens

@@ -18,7 +18,11 @@ pub use kind::ParseErrorKind;
 pub struct ParseError {
     pub kind: ParseErrorKind,
     pub span: Span,
-    pub message: String,
+
+    // At least one of `ParseError`'s field must be private
+    // I'll someday implement a checker that `ParseError` is initialized at most once during a compilation
+    // To do that, I have to make sure that all the other players use constructor functions, instead of direct initialization
+    message: String,
 }
 
 impl ParseError {

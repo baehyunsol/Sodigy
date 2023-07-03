@@ -26,24 +26,10 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
         todo!()
     } else if tokens.consume(TokenKind::Keyword(Keyword::Def)) {
-        let name = match tokens.step() {
-            Some(token) if token.is_identifier() => token.unwrap_identifier(),
-            Some(token) => {
-                return Err(ParseError::tok(
-                    token.kind.clone(),
-                    token.span,
-                    ExpectedToken::SpecificTokens(vec![
-                        TokenKind::Identifier(InternedString::dummy()),
-                    ]),
-                ));
-            }
-            None => {
-                return Err(ParseError::eoe(
-                    curr_span,
-                    ExpectedToken::SpecificTokens(vec![
-                        TokenKind::Identifier(InternedString::dummy()),
-                    ]),
-                ));
+        let name = match tokens.step_identifier_strict() {
+            Ok(id) => id,
+            Err(e) => {
+                return Err(e.set_span_of_eof(curr_span));
             }
         };
 

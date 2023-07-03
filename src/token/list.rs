@@ -2,6 +2,7 @@ use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
+use crate::session::InternedString;
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef};
 use crate::value::parse_block_expr;
@@ -100,6 +101,28 @@ impl TokenList {
     // `step_XXX` functions (including `step`)
     // if the current token is `XXX`, it returns `Some(XXX)` and steps the cursor forward
     // otherwise, it doesn't do anything and returns `None`
+    // `step_XXX_strict` are like `step_XXX`, but returns `Err()` instead of `None`
+
+    pub fn step_identifier_strict(&mut self) -> Result<InternedString, ParseError> {
+        match self.step() {
+            Some(Token { kind, .. }) if kind.is_identifier() => Ok(kind.unwrap_identifier()),
+            Some(Token { kind, span }) => Err(ParseError::tok(
+                kind.clone(),
+                *span,
+
+                // TODO: implement TokenKind::dummy_ident()
+                ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Identifier(InternedString::dummy()),
+                ]),
+            )),
+            None => Err(ParseError::eoe(
+                Span::dummy(),
+                ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Identifier(InternedString::dummy()),
+                ]),
+            ))
+        }
+    }
 
     pub fn step(&mut self) -> Option<&Token> {
         let result = self.data.get(self.cursor);

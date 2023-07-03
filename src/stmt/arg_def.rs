@@ -13,18 +13,13 @@ pub struct ArgDef {
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error 7109BBF");
 
-    let name = match tokens.step() {
-        Some(token) if token.is_identifier() => token.unwrap_identifier(),
-        Some(token) => {
-            return Err(ParseError::tok(
-                token.kind.clone(),
-                token.span,
-                ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Identifier(InternedString::dummy()),
-                ]),
-            ));
+    let name = match tokens.step_identifier_strict() {
+        Ok(id) => id,
+        Err(e) => {
+            assert!(!e.is_eoe(), "Internal Compiler Error 53A2FA7");
+
+            return Err(e);
         }
-        None => unreachable!("Internal Compiler Error 53A2FA7"),
     };
 
     tokens.consume_token_or_error(TokenKind::Operator(OpToken::Colon))?;
