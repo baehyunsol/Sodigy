@@ -139,9 +139,9 @@ impl TokenList {
                             return Some(Err(ParseError::tok(
                                 kind.clone(),
                                 *span,
-                                ExpectedToken::SpecificTokens(vec![TokenKind::Operator(
-                                    OpToken::Comma,
-                                )]),
+                                ExpectedToken::SpecificTokens(vec![
+                                    TokenKind::Operator(OpToken::Comma),
+                                ]),
                             )));
                         }
                         None => {
@@ -292,18 +292,17 @@ impl TokenList {
                     return Some(Err(ParseError::tok(
                         kind.clone(),
                         *span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::List(
-                            Delimiter::Brace,
-                            vec![],
-                        )]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::List(Delimiter::Brace, vec![]),
+                        ]),
                     )));
                 }
                 None => {
                     return Some(Err(ParseError::eoe(
                         if_span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::Operator(
-                            OpToken::OpeningCurlyBrace,
-                        )]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::Operator(OpToken::OpeningCurlyBrace),
+                        ]),
                     )));
                 }
             };
@@ -365,11 +364,15 @@ impl TokenList {
                     Some(Token { kind, span }) => Some(Err(ParseError::tok(
                         kind.clone(),
                         *span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::Keyword(Keyword::Else),
+                        ]),
                     ))),
                     None => Some(Err(ParseError::eoe(
                         if_span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::Keyword(Keyword::Else),
+                        ]),
                     ))),
                 };
             };

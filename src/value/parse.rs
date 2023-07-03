@@ -100,9 +100,9 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
                     return Err(ParseError::tok(
                         kind.clone(),
                         *span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
-                            InternedString::dummy(),
-                        )]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::Identifier(InternedString::dummy()),
+                        ]),
                     ));
                 }
                 None => unreachable!("Interal Compiler Error 275EFCB"),

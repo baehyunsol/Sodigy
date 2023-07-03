@@ -32,17 +32,17 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                 return Err(ParseError::tok(
                     token.kind.clone(),
                     token.span,
-                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
-                        InternedString::dummy(),
-                    )]),
+                    ExpectedToken::SpecificTokens(vec![
+                        TokenKind::Identifier(InternedString::dummy()),
+                    ]),
                 ));
             }
             None => {
                 return Err(ParseError::eoe(
                     curr_span,
-                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
-                        InternedString::dummy(),
-                    )]),
+                    ExpectedToken::SpecificTokens(vec![
+                        TokenKind::Identifier(InternedString::dummy()),
+                    ]),
                 ));
             }
         };

@@ -19,7 +19,9 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
             return Err(ParseError::tok(
                 token.kind.clone(),
                 token.span,
-                ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())]),
+                ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Identifier(InternedString::dummy()),
+                ]),
             ));
         }
         None => unreachable!("Internal Compiler Error 53A2FA7"),

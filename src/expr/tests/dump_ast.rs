@@ -20,9 +20,9 @@ pub fn dump_ast_of_expr(
     Ok(expr)
 }
 
-fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {
-    // (input, AST, span of the top operator)
+fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of the top operator)
     let result = vec![
+        ("a[1]", "Index(a,1)", 1),
         ("a.b.c(3)", "Call(Path(Path(a,b),c),3)", 5),
         (
             "-1 + -2 * -3 + -4",
@@ -110,8 +110,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {
         .collect()
 }
 
-fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {
-    // (input, error kind, error span)
+fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, error kind, error span)
     let result = vec![
         ("1...3.", ParseErrorKind::UnexpectedChar('.'), 1),
         ("1...", ParseErrorKind::UnexpectedChar('.'), 1),
@@ -119,9 +118,9 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {
             "a.1",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
-                    InternedString::dummy(),
-                )]),
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Identifier(InternedString::dummy())
+                ]),
             },
             1,
         ),
@@ -141,15 +140,19 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {
             "if x > y { x } * 2",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Operator(OpToken::Mul),
-                expected: ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Else)]),
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Keyword(Keyword::Else),
+                ]),
             },
             15,
         ),
         (
             "if x > y { x }",
-            ParseErrorKind::UnexpectedEoe(ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(
-                Keyword::Else,
-            )])),
+            ParseErrorKind::UnexpectedEoe(
+                ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Keyword(Keyword::Else),
+                ])
+            ),
             0,
         ),
         (
