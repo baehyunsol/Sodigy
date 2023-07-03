@@ -1,4 +1,3 @@
-mod arg_def;
 mod err;
 mod expr;
 mod lexer;

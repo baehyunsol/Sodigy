@@ -1,12 +1,13 @@
+use super::{Decorator, FuncDef};
+
 pub enum StmtKind {
-
-    // 'def' NAME '(' ARGS ')' ':' TYPE '=' EXPR ';'
-    FuncDef,
-
-    // 'def' NAME ':' TYPE '=' EXPR ';'
-    ConstDef,
+    // 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'
+    Def(FuncDef),
 
     // has many aliases
     // 'use' PATH 'as' NAME ';'
-    UseName,
+    Use,
+
+    // '@' DECORATOR_NAME ('(' DECORATOR_ARGS ')')?
+    Decorator(Decorator),
 }

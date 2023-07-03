@@ -4,7 +4,8 @@ use crate::token::TokenKind;
 
 mod kind;
 mod parse;
-#[cfg(test)] mod tests;
+#[cfg(test)]
+mod tests;
 
 pub use kind::ValueKind;
 pub use parse::{parse_block_expr, parse_value};
@@ -18,7 +19,6 @@ pub struct Value {
 }
 
 impl Value {
-
     pub fn is_identifier(&self) -> bool {
         self.kind.is_identifier()
     }
@@ -30,23 +30,17 @@ impl Value {
     // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`
     // `{x + y}` -> `x + y`
     pub fn block_to_expr_kind(&self) -> ExprKind {
-
         if let ValueKind::Block { defs, value } = &self.kind {
-
             if defs.is_empty() {
                 value.kind.clone()
+            } else {
+                ExprKind::Value(self.clone())
             }
-
-            else {
-                ExprKind::Value(Box::new(self.clone()))
-            }
-
+        } else {
+            panic!(
+                "Internal Compiler Error 95C0592: {}",
+                self.kind.render_err()
+            );
         }
-
-        else {
-            panic!("Internal Compiler Error 95C0592: {}", self.kind.render_err());
-        }
-
     }
-
 }

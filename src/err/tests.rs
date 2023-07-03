@@ -11,10 +11,11 @@ fn error_message_test() {
     3,
     4[],
     5
-]]".to_vec();
+]]"
+    .to_vec();
+
     session.set_input(input.clone());
-    let error_msg = 
-"Any kind of expression was expected, but got nothing!
+    let error_msg = "Any kind of expression was expected, but got nothing!
     1 │ [[
     2 │     1,
     3 │     2,

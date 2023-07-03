@@ -2,46 +2,53 @@ use crate::token::OpToken;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PrefixOp {
-    Not, Neg
+    Not,
+    Neg,
 }
 
 impl From<&OpToken> for PrefixOp {
-
     fn from(t: &OpToken) -> PrefixOp {
         match t {
             OpToken::Sub => PrefixOp::Neg,
             OpToken::Not => PrefixOp::Not,
-            _ => unreachable!("Internal Compiler Error D71F043: {t:?}")
+            _ => unreachable!("Internal Compiler Error D71F043: {t:?}"),
         }
     }
-
 }
 
 impl From<&PrefixOp> for OpToken {
-
     fn from(op: &PrefixOp) -> OpToken {
         match op {
             PrefixOp::Not => OpToken::Not,
             PrefixOp::Neg => OpToken::Sub,
         }
     }
-
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum InfixOp {
-    Add, Sub, Mul, Div, Rem,
-    Eq, Gt, Lt, Ne, Ge, Le,
-    BitwiseAnd, BitwiseOr,
-    LogicalAnd, LogicalOr,
-    Index,   // `[]`
-    Path,    // `.`
-    Concat,  // `<>`
-    Range,   // `..`
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+    Eq,
+    Gt,
+    Lt,
+    Ne,
+    Ge,
+    Le,
+    BitwiseAnd,
+    BitwiseOr,
+    LogicalAnd,
+    LogicalOr,
+    Index,  // `[]`
+    Path,   // `.`
+    Concat, // `<>`
+    Range,  // `..`
 }
 
 impl From<&OpToken> for InfixOp {
-
     fn from(t: &OpToken) -> InfixOp {
         match t {
             OpToken::Add => InfixOp::Add,
@@ -65,21 +72,18 @@ impl From<&OpToken> for InfixOp {
             _ => unreachable!("Internal Compiler Error ED223AA: {t:?}"),
         }
     }
-
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PostfixOp {
-    Range,  // `..`
+    Range, // `..`
 }
 
 impl From<&OpToken> for PostfixOp {
-
     fn from(t: &OpToken) -> PostfixOp {
         match t {
             OpToken::DotDot => PostfixOp::Range,
-            _ => unreachable!("Internal Compiler Error 5A4D194: {t:?}")
+            _ => unreachable!("Internal Compiler Error 5A4D194: {t:?}"),
         }
     }
-
 }

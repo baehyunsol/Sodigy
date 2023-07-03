@@ -11,12 +11,7 @@ fn keywords() -> Vec<Vec<u8>> {
     ]
 }
 
-pub const KEYWORDS: [Keyword; 4] = [
-    Keyword::If,
-    Keyword::Else,
-    Keyword::Def,
-    Keyword::Use,
-];
+pub const KEYWORDS: [Keyword; 4] = [Keyword::If, Keyword::Else, Keyword::Def, Keyword::Use];
 
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
@@ -25,11 +20,11 @@ pub struct LocalParseSession {
     pub is_dummy: bool,
 
     // no files, but just a direct input
-    #[cfg(test)] curr_file_data: Vec<u8>,
+    #[cfg(test)]
+    curr_file_data: Vec<u8>,
 }
 
 impl LocalParseSession {
-
     pub fn new() -> Self {
         let keywords = keywords();
         let mut strings = HashMap::with_capacity(keywords.len());
@@ -41,20 +36,24 @@ impl LocalParseSession {
         }
 
         LocalParseSession {
-            strings, strings_rev,
-            curr_file: u32::MAX,  // null
+            strings,
+            strings_rev,
+            curr_file: u32::MAX, // null
             is_dummy: false,
 
-            #[cfg(test)] curr_file_data: vec![]
+            #[cfg(test)]
+            curr_file_data: vec![],
         }
     }
 
     pub fn dummy() -> Self {
         LocalParseSession {
-            strings: HashMap::new(), strings_rev: HashMap::new(),
+            strings: HashMap::new(),
+            strings_rev: HashMap::new(),
             curr_file: 0,
             is_dummy: true,
-            #[cfg(test)] curr_file_data: vec![]
+            #[cfg(test)]
+            curr_file_data: vec![],
         }
     }
 
@@ -69,7 +68,6 @@ impl LocalParseSession {
 
     // Expensive (if it has to write to a GlobalCache)
     pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
-
         match self.strings_rev.get(&string) {
             Some(n) => *n,
             _ => {
@@ -81,26 +79,28 @@ impl LocalParseSession {
                 index
             }
         }
-
     }
 
     pub fn unintern_string(&self, string: InternedString) -> Option<Vec<u8>> {
-
         match self.strings.get(&string) {
             Some(buf) => Some(buf.to_vec()),
             None => {
-                #[cfg(test)] return None;
+                #[cfg(test)]
+                return None;
 
                 // TODO: search global cache
-                #[cfg(not(test))] return None;
+                #[cfg(not(test))]
+                return None;
             }
         }
     }
 
     // Expensive!
     pub fn get_file_raw_content(&self, index: u32) -> &[u8] {
-        #[cfg(test)] return &self.curr_file_data;
+        #[cfg(test)]
+        return &self.curr_file_data;
 
-        #[cfg(not(test))] todo!();
+        #[cfg(not(test))]
+        todo!();
     }
 }

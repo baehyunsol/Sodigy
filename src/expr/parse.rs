@@ -1,4 +1,4 @@
-use super::{Expr, ExprKind, PrefixOp, InfixOp, PostfixOp};
+use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
 use crate::session::InternedString;
 use crate::span::Span;
@@ -13,38 +13,29 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         span
     } else {
         // meaning there's no more token in the list
-        return Err(ParseError::eoe(
-            Span::dummy(),
-            ExpectedToken::AnyExpression
-        ))
+        return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
     };
 
     let mut lhs = if let Some(op) = tokens.step_prefix_op() {
         let bp = prefix_binding_power(op);
         let rhs = parse_expr(tokens, bp).map_err(|e| e.set_span_of_eof(lhs_span))?;
 
-        Expr { span: lhs_span, kind: ExprKind::Prefix(op, Box::new(rhs)) }
-    }
-
-    else if let Some(expr) = tokens.step_paren_expr() {
+        Expr {
+            span: lhs_span,
+            kind: ExprKind::Prefix(op, Box::new(rhs)),
+        }
+    } else if let Some(expr) = tokens.step_paren_expr() {
         expr.map_err(|e| e.set_span_of_eof(lhs_span))?
-    }
-
-    else if let Some(branch) = tokens.step_branch_expr() {
-
+    } else if let Some(branch) = tokens.step_branch_expr() {
         if let Ok(Expr { kind, .. }) = &branch {
             assert!(kind.is_branch(), "Internal Compiler Error 8CC1C78");
         }
 
         branch.map_err(|e| e.set_span_of_eof(lhs_span))?
-    }
-
-    else {
+    } else {
         Expr {
             span: lhs_span,
-            kind: ExprKind::Value(Box::new(
-                parse_value(tokens).map_err(|e| e.set_span_of_eof(lhs_span))?
-            ))
+            kind: ExprKind::Value(parse_value(tokens).map_err(|e| e.set_span_of_eof(lhs_span))?),
         }
     };
 
@@ -59,13 +50,13 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
             let bp = postfix_binding_power(op);
 
             if bp < min_bp {
-                tokens.backward();  // this operator is not parsed in this call
+                tokens.backward(); // this operator is not parsed in this call
                 break;
             }
 
             lhs = Expr {
                 span: curr_span,
-                kind: ExprKind::Postfix(op, Box::new(lhs))
+                kind: ExprKind::Postfix(op, Box::new(lhs)),
             };
             continue;
         }
@@ -74,7 +65,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
             let (l_bp, r_bp) = infix_binding_power(InfixOp::Index);
 
             if l_bp < min_bp {
-                tokens.backward();  // this operator is not parsed in this call
+                tokens.backward(); // this operator is not parsed in this call
                 break;
             }
 
@@ -83,8 +74,8 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 kind: ExprKind::Infix(
                     InfixOp::Index,
                     Box::new(lhs),
-                    Box::new(index.map_err(|e| e.set_span_of_eof(curr_span))?)
-                )
+                    Box::new(index.map_err(|e| e.set_span_of_eof(curr_span))?),
+                ),
             };
 
             continue;
@@ -94,13 +85,16 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
             let (l_bp, r_bp) = func_call_binding_power();
 
             if l_bp < min_bp {
-                tokens.backward();  // this operator is not parsed in this call
+                tokens.backward(); // this operator is not parsed in this call
                 break;
             }
 
             lhs = Expr {
                 span: curr_span,
-                kind: ExprKind::Call(Box::new(lhs), args.map_err(|e| e.set_span_of_eof(curr_span))?)
+                kind: ExprKind::Call(
+                    Box::new(lhs),
+                    args.map_err(|e| e.set_span_of_eof(curr_span))?,
+                ),
             };
 
             continue;
@@ -110,7 +104,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
             let (l_bp, r_bp) = infix_binding_power(op);
 
             if l_bp < min_bp {
-                tokens.backward();  // this operator is not parsed in this call
+                tokens.backward(); // this operator is not parsed in this call
                 break;
             }
 
@@ -121,15 +115,18 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 return Err(ParseError::tok_msg(
                     rhs.get_first_token(),
                     curr_span,
-                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())]),
-"A name of a field or a method must be an identifier!
-`a.b` is valid, but `a.1` is not.".to_string(),
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
+                        InternedString::dummy(),
+                    )]),
+                    "A name of a field or a method must be an identifier!
+`a.b` is valid, but `a.1` is not."
+                        .to_string(),
                 ));
             }
 
             lhs = Expr {
                 span: curr_span,
-                kind: ExprKind::Infix(op, Box::new(lhs), Box::new(rhs))
+                kind: ExprKind::Infix(op, Box::new(lhs), Box::new(rhs)),
             };
 
             continue;
@@ -156,7 +153,6 @@ fn prefix_binding_power(op: PrefixOp) -> u32 {
 // ref: https://doc.rust-lang.org/reference/expressions.html#expression-precedence
 // ref: https://hexdocs.pm/elixir/main/operators.html
 fn infix_binding_power(op: InfixOp) -> (u32, u32) {
-
     match op {
         InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
         InfixOp::Mul | InfixOp::Div | InfixOp::Rem => (MUL, MUL + 1),
@@ -171,7 +167,6 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::LogicalAnd => (LOGICAL_AND, LOGICAL_AND + 1),
         InfixOp::LogicalOr => (LOGICAL_OR, LOGICAL_OR + 1),
     }
-
 }
 
 fn func_call_binding_power() -> (u32, u32) {
@@ -186,7 +181,8 @@ const MUL: u32 = 17;
 const ADD: u32 = 15;
 const BITWISE_AND: u32 = 13;
 const BITWISE_OR: u32 = 11;
-const CONCAT: u32 = 9; const RANGE: u32 = 9;
+const CONCAT: u32 = 9;
+const RANGE: u32 = 9;
 const COMP: u32 = 7;
 const COMP_EQ: u32 = 5;
 const LOGICAL_AND: u32 = 3;

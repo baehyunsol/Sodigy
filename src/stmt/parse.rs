@@ -1,4 +1,4 @@
-use super::Stmt;
+use super::{FuncDef, Stmt, StmtKind};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::session::InternedString;
@@ -17,55 +17,93 @@ pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
 pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error FB4375E");
 
-    let curr_span = tokens.get_curr_span().expect("Internal Compiler Error E22AC92");
+    let curr_span = tokens
+        .get_curr_span()
+        .expect("Internal Compiler Error E22AC92");
 
     if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
         todo!()
-    }
-
-    else if tokens.consume(TokenKind::Keyword(Keyword::Def)) {
+    } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
+        todo!()
+    } else if tokens.consume(TokenKind::Keyword(Keyword::Def)) {
         let name = match tokens.step() {
             Some(token) if token.is_identifier() => token.unwrap_identifier(),
             Some(token) => {
                 return Err(ParseError::tok(
-                    token.kind.clone(), token.span,
-                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())])
+                    token.kind.clone(),
+                    token.span,
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
+                        InternedString::dummy(),
+                    )]),
                 ));
             }
             None => {
                 return Err(ParseError::eoe(
                     curr_span,
-                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(InternedString::dummy())])
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Identifier(
+                        InternedString::dummy(),
+                    )]),
                 ));
             }
         };
 
-        let args = match tokens.step_func_def_args() {
-            Some(Ok(args)) => {
-                Some(args)
+        let (args, is_const) = match tokens.step_func_def_args() {
+            Some(Ok(args)) => (args, false),
+            Some(Err(e)) => {
+                return Err(e);
             }
-            Some(Err(e)) => { return Err(e); }
+            None => (vec![], true),
+        };
+
+        tokens
+            .consume_token_or_error(TokenKind::Operator(OpToken::Colon))
+            .map_err(|e| e.set_span_of_eof(curr_span))?;
+
+        let ret_type = match tokens.step_type() {
+            Some(Ok(t)) => t,
+            Some(Err(e)) => {
+                return Err(e);
+            }
             None => {
-                None
+                return Err(ParseError::eoe_msg(
+                    curr_span,
+                    ExpectedToken::AnyExpression,
+                    "You must provide the return type of this definition!".to_string(),
+                ));
             }
         };
 
-        tokens.consume_token_or_error(TokenKind::Operator(OpToken::Assign)).map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens
+            .consume_token_or_error(TokenKind::Operator(OpToken::Assign))
+            .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-        let expr = parse_expr(tokens, 0)?;
+        let ret_val = parse_expr(tokens, 0)?;
 
-        tokens.consume_token_or_error(TokenKind::Operator(OpToken::SemiColon)).map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens
+            .consume_token_or_error(TokenKind::Operator(OpToken::SemiColon))
+            .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-        todo!()
-    }
-
-    else {
+        Ok(Stmt {
+            kind: StmtKind::Def(FuncDef {
+                name,
+                args,
+                is_const,
+                ret_type,
+                ret_val,
+            }),
+            span: curr_span,
+        })
+    } else {
         let top_token = tokens.step().expect("Internal Compiler Error 54831A5");
 
         Err(ParseError::tok(
-            top_token.kind.clone(), top_token.span,
-            ExpectedToken::SpecificTokens(vec![TokenKind::Keyword(Keyword::Use), TokenKind::Keyword(Keyword::Def)])
+            top_token.kind.clone(),
+            top_token.span,
+            ExpectedToken::SpecificTokens(vec![
+                TokenKind::Keyword(Keyword::Use),
+                TokenKind::Keyword(Keyword::Def),
+                TokenKind::Operator(OpToken::At),
+            ]),
         ))
     }
-
 }
