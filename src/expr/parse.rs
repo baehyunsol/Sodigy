@@ -1,6 +1,5 @@
 use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
-use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{TokenKind, TokenList};
 use crate::value::parse_value;
@@ -116,7 +115,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                     rhs.get_first_token(),
                     curr_span,
                     ExpectedToken::SpecificTokens(vec![
-                        TokenKind::Identifier(InternedString::dummy())
+                        TokenKind::dummy_identifier()
                     ]),
                     "A name of a field or a method must be an identifier!
 `a.b` is valid, but `a.1` is not."

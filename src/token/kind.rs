@@ -37,6 +37,10 @@ impl TokenKind {
         }
     }
 
+    pub fn dummy_identifier() -> Self {
+        TokenKind::Identifier(InternedString::dummy())
+    }
+
     // preview of this token_kind for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {

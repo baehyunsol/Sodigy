@@ -1,11 +1,9 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::parse::split_list_by_comma;
-use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
 use crate::value::{Value, ValueKind};
-use hmath::Ratio;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
     match tokens.step() {

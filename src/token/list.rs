@@ -109,16 +109,14 @@ impl TokenList {
             Some(Token { kind, span }) => Err(ParseError::tok(
                 kind.clone(),
                 *span,
-
-                // TODO: implement TokenKind::dummy_ident()
                 ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Identifier(InternedString::dummy()),
+                    TokenKind::dummy_identifier(),
                 ]),
             )),
             None => Err(ParseError::eoe(
                 Span::dummy(),
                 ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Identifier(InternedString::dummy()),
+                    TokenKind::dummy_identifier(),
                 ]),
             ))
         }

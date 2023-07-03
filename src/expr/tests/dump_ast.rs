@@ -119,7 +119,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Identifier(InternedString::dummy())
+                    TokenKind::dummy_identifier()
                 ]),
             },
             1,

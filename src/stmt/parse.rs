@@ -1,7 +1,6 @@
-use super::{FuncDef, Stmt, StmtKind};
+use super::{Decorator, FuncDef, Stmt, StmtKind};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
-use crate::session::InternedString;
 use crate::token::{Keyword, OpToken, TokenKind, TokenList};
 
 pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
@@ -24,7 +23,29 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
         todo!()
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
-        todo!()
+        let name = match tokens.step_identifier_strict() {
+            Ok(id) => id,
+            Err(e) => {
+                return Err(e.set_span_of_eof(curr_span));
+            }
+        };
+
+        let (args, no_args) = match tokens.step_func_args() {
+            Some(Ok(args)) => (args, false),
+            Some(Err(e)) => {
+                return Err(e.set_span_of_eof(curr_span));
+            }
+            None => (vec![], true)
+        };
+
+        Ok(Stmt {
+            kind: StmtKind::Decorator(Decorator {
+                name,
+                args,
+                no_args,
+            }),
+            span: curr_span,
+        })
     } else if tokens.consume(TokenKind::Keyword(Keyword::Def)) {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,

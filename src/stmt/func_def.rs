@@ -9,7 +9,7 @@ pub struct FuncDef {
     pub ret_type: Expr,
     pub ret_val: Expr,
 
-    // constants are defined without args (but 0-arg functions and constants are different)
-    // constants cannot be called
+    // constants are defined without args 
+    // 0-arg functions and constants are different: `def PI` vs `def GET_PI()`
     pub is_const: bool,
 }
