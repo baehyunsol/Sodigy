@@ -3,6 +3,7 @@
 mod err;
 mod expr;
 mod lexer;
+mod module;
 mod parse;
 mod session;
 mod span;

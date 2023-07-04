@@ -1,4 +1,6 @@
-use super::{Decorator, FuncDef};
+use super::{Decorator, FuncDef, Use};
+use crate::module::ModulePath;
+use crate::session::InternedString;
 
 pub enum StmtKind {
     // 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'
@@ -6,7 +8,7 @@ pub enum StmtKind {
 
     // has many aliases
     // 'use' PATH 'as' NAME ';'
-    Use,
+    Use(Use),
 
     // '@' DECORATOR_NAME ('(' DECORATOR_ARGS ')')?
     Decorator(Decorator),

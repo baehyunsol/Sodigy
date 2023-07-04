@@ -72,6 +72,7 @@ pub enum Keyword {
     Else,
     Def,
     Use,
+    As,
 }
 
 impl Keyword {
@@ -82,6 +83,7 @@ impl Keyword {
             Keyword::Else => "else",
             Keyword::Def => "def",
             Keyword::Use => "use",
+            Keyword::As => "as",
         }
         .to_string()
     }

@@ -1,6 +1,8 @@
-use super::{Decorator, FuncDef, Stmt, StmtKind};
+use super::{Decorator, FuncDef, Stmt, StmtKind, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
+use crate::module::ModulePath;
+use crate::session::InternedString;
 use crate::token::{Keyword, OpToken, TokenKind, TokenList};
 
 pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
@@ -21,7 +23,28 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         .expect("Internal Compiler Error E22AC92");
 
     if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
-        todo!()
+        // one `use` may generate multiple `Stmt`s, but the return type doesn't allow that
+        // so it may modify `tokens` to add `use` cases it found
+        match parse_use(tokens) {
+            Ok(mut cases) => {
+                assert!(cases.len() > 0, "Internal Compiler Error FF61AD7");
+
+                while cases.len() > 1 {
+                    tokens.append(use_case_to_tokens(
+                        cases.pop().expect("Internal Compiler Error 4151602"),
+                    ));
+                }
+
+                Ok(Stmt {
+                    kind: StmtKind::Use(cases[0].clone()),
+                    span: curr_span,
+                })
+            }
+            Err(e) => {
+                return Err(e.set_span_of_eof(curr_span));
+            }
+        }
+
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
@@ -113,4 +136,18 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             ]),
         ))
     }
+}
+
+/*
+ * `use A.B;` -> `use A.B as B;`
+ * `use A.B.C;` -> `use A.B.C as C;`
+ * `use A.B, C.D;` -> `use A.B; use C.D;`
+ * `use {A.B, C.D};` -> `use A.B; use C.D;`
+ * `use A.{B, C, D};` -> `use A.B; use A.C; use A.D;`
+ * `use A.B, C, D;` -> `use A.B; use C; use D;`
+ * `use A.{B as C, D as E};` -> `use A.B as C; use A.D as E;`
+ * `use A.{B, C} as D;` -> Invalid
+ */
+pub fn parse_use(tokens: &mut TokenList) -> Result<Vec<Use>, ParseError> {
+    todo!()
 }

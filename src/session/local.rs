@@ -8,10 +8,17 @@ fn keywords() -> Vec<Vec<u8>> {
         b"else".to_vec(),
         b"def".to_vec(),
         b"use".to_vec(),
+        b"as".to_vec(),
     ]
 }
 
-pub const KEYWORDS: [Keyword; 4] = [Keyword::If, Keyword::Else, Keyword::Def, Keyword::Use];
+pub const KEYWORDS: [Keyword; 5] = [
+    Keyword::If,
+    Keyword::Else,
+    Keyword::Def,
+    Keyword::Use,
+    Keyword::As,
+];
 
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,

@@ -63,6 +63,10 @@ impl TokenList {
         count
     }
 
+    pub fn append(&mut self, mut tokens: Vec<Token>) {
+        self.data.append(&mut tokens);
+    }
+
     // if the current token is `token`, it steps forward and returns true
     // it returns false otherwise
     // it's helpful if the borrow checker doesn't allow you to use `self.step`
