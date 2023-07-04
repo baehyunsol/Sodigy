@@ -1,5 +1,6 @@
 use crate::expr::Expr;
 use crate::session::{InternedString, LocalParseSession};
+use crate::stmt::ArgDef;
 use crate::token::{OpToken, TokenKind};
 use hmath::{BigInt, Ratio};
 
@@ -10,6 +11,14 @@ pub enum ValueKind {
     Real(Ratio),
     String(InternedString),
     List(Vec<Box<Expr>>),
+
+    // '\' '{' (ARGS ',')? VALUE '}'
+    // `ARGS` of lambda and `ARGS` of FuncDef are identical
+    Lambda(Vec<Box<ArgDef>>, Box<Expr>),
+
+    // BLOCK: '{' DEFS ';' VALUE '}'
+    // DEF: PATTERN '=' VALUE
+    // DEFs are seperated by ';'
     Block {
         defs: Vec<(InternedString, Box<Expr>)>, // (name, value)
         value: Box<Expr>,
@@ -31,6 +40,7 @@ impl ValueKind {
             ValueKind::Integer(n) => TokenKind::Number(n.clone().into()),
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
             ValueKind::String(i) => TokenKind::String(*i),
+            ValueKind::Lambda(_, _) => TokenKind::Operator(OpToken::BackSlash),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Block { .. } => TokenKind::Operator(OpToken::OpeningCurlyBrace),
         }

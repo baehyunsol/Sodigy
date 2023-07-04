@@ -2,6 +2,7 @@ use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::parse::split_list_by_comma;
 use crate::span::Span;
+use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
 use crate::value::{Value, ValueKind};
 
@@ -37,6 +38,35 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
             span: *span,
             kind: ValueKind::Identifier(*ind),
         }),
+        Some(Token {
+            span,
+            kind: TokenKind::Operator(OpToken::BackSlash)
+        }) => {
+            // reset lifetime of `span`, so that borrowck doesn't stop me
+            let span = *span;
+
+            match tokens.step() {
+                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), .. }) => match parse_lambda_def(
+                    &mut TokenList::from_vec_box_token(elements.to_vec())
+                ) {
+                    Ok(v) => Ok(Value {
+                        span, kind: v,
+                    }),
+                    Err(e) => Err(e),
+                },
+                Some(Token { kind, span }) => Err(ParseError::tok(
+                    kind.clone(), *span,
+                    ExpectedToken::SpecificTokens(vec![
+                        TokenKind::List(Delimiter::Brace, vec![])
+                    ])
+                )),
+                None => Err(ParseError::eoe(
+                    span, ExpectedToken::SpecificTokens(vec![
+                        TokenKind::List(Delimiter::Brace, vec![])
+                    ])
+                )),
+            }
+        },
         Some(Token {
             span,
             kind: TokenKind::List(delim, elements),
@@ -81,7 +111,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
         let first_span = block_tokens
             .get_curr_span()
             .expect("Internal Compiler Error 64B8455");
-        let mut defs_count =
+        let defs_count =
             block_tokens.count_tokens_non_recursive(TokenKind::Operator(OpToken::SemiColon));
 
         let mut defs = Vec::with_capacity(defs_count);
@@ -124,5 +154,51 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
                 span: first_span,
             })
         }
+    }
+}
+
+// TODO: `parse_block_expr` and `parse_lambda_def` are very similar
+fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
+    if tokens.is_eof() {
+        Err(ParseError::eoe_msg(
+            Span::dummy(),
+            ExpectedToken::AnyExpression,
+            "A definition of a lambda function cannot be empty!".to_string(),
+        ))
+    } else if tokens.ends_with(TokenKind::Operator(OpToken::Comma)) {
+        Err(ParseError::tok_msg(
+            TokenKind::Operator(OpToken::Comma),
+            tokens
+                .last_token()
+                .expect("Internal Compiler Error C929E72")
+                .span,
+            ExpectedToken::Nothing,
+            "Trailing commas in lambda definition is not allowed!".to_string(),
+        ))
+    } else {
+        let first_span = tokens
+            .get_curr_span()
+            .expect("Internal Compiler Error 245BA3F");
+        let args_count =
+            tokens.count_tokens_non_recursive(TokenKind::Operator(OpToken::Comma));
+
+        let mut args = Vec::with_capacity(args_count);
+
+        for _ in 0..args_count {
+            let curr_span = tokens
+                .get_curr_span()
+                .expect("Internal Compiler Error F299389");
+
+            args.push(Box::new(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?));
+
+            tokens
+                .consume_token_or_error(TokenKind::Operator(OpToken::Comma))
+                .map_err(|e| e.set_span_of_eof(curr_span))?;
+        }
+
+        let value =
+            Box::new(parse_expr(tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
+
+        Ok(ValueKind::Lambda(args, value))
     }
 }

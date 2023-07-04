@@ -1,5 +1,6 @@
 use super::{Value, ValueKind};
 use crate::session::LocalParseSession;
+use crate::stmt::ArgDef;
 
 impl Value {
     pub fn to_string(&self, session: &LocalParseSession) -> String {
@@ -35,6 +36,26 @@ impl ValueKind {
                     .collect::<Vec<String>>()
                     .join(",")
             ),
+            ValueKind::Lambda(args, value) => {
+                let args = args
+                    .iter()
+                    .map(|box ArgDef { name, ty }| {
+                        format!(
+                            "{}:{},",
+                            String::from_utf8_lossy(
+                                &session
+                                    .unintern_string(*name)
+                                    .expect("Internal Compiler Error 8029687")
+                            )
+                            .to_string(),
+                            ty.to_string(session)
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .concat();
+
+                format!("Lambda({args}{})", value.to_string(session))
+            },
             ValueKind::Block { defs, value } => {
                 let defs = defs
                     .iter()

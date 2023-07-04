@@ -1,7 +1,7 @@
 use crate::err::{ExpectedToken, ParseError, ParseErrorKind};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
-use crate::session::{InternedString, LocalParseSession};
+use crate::session::LocalParseSession;
 use crate::token::{Keyword, OpToken, TokenKind, TokenList};
 use hmath::Ratio;
 
@@ -102,6 +102,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
             "Branch(Branch(a,b,c),d,e)",
             0,
         ),
+        ("\\{x: Int, y: Int, x + y}", "Lambda(x:Int,y:Int,Add(x,y))", 0)
     ];
 
     result

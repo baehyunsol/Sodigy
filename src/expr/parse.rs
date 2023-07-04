@@ -61,7 +61,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         }
 
         if let Some(index) = tokens.step_index_op() {
-            let (l_bp, r_bp) = infix_binding_power(InfixOp::Index);
+            let (l_bp, _) = infix_binding_power(InfixOp::Index);
 
             if l_bp < min_bp {
                 tokens.backward(); // this operator is not parsed in this call
@@ -81,7 +81,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         }
 
         if let Some(args) = tokens.step_func_args() {
-            let (l_bp, r_bp) = func_call_binding_power();
+            let (l_bp, _) = func_call_binding_power();
 
             if l_bp < min_bp {
                 tokens.backward(); // this operator is not parsed in this call

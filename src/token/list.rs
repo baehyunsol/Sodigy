@@ -331,33 +331,34 @@ impl TokenList {
             let else_span = self.get_curr_span();
 
             let false_expr = if self.consume(TokenKind::Keyword(Keyword::Else)) {
-                match self.data.get(self.cursor) {
+                match self.step() {
                     Some(Token {
                         kind: TokenKind::Keyword(Keyword::If),
                         ..
-                    }) => match self.step_branch_expr() {
-                        Some(Ok(false_expr)) => false_expr,
-                        Some(Err(e)) => {
-                            return Some(Err(e));
+                    }) => {
+                        // `step_branch_expr` reads from `Keyword::If`
+                        self.backward();
+
+                        match self.step_branch_expr() {
+                            Some(Ok(false_expr)) => false_expr,
+                            Some(Err(e)) => {
+                                return Some(Err(e));
+                            }
+                            None => unreachable!("Interal Compiler Error A453107"),
                         }
-                        None => unreachable!("Interal Compiler Error A453107"),
                     },
                     Some(Token {
                         kind: TokenKind::List(Delimiter::Brace, elements),
                         span: false_expr_span,
-                    }) => {
-                        self.cursor += 1;
-
-                        match parse_block_expr(&mut TokenList::from_vec_box_token(
-                            elements.to_vec(),
-                        )) {
-                            Ok(t) => Expr {
-                                kind: t.block_to_expr_kind(),
-                                span: *false_expr_span,
-                            },
-                            Err(e) => {
-                                return Some(Err(e.set_span_of_eof(*false_expr_span)));
-                            }
+                    }) => match parse_block_expr(
+                        &mut TokenList::from_vec_box_token(elements.to_vec())
+                    ) {
+                        Ok(t) => Expr {
+                            kind: t.block_to_expr_kind(),
+                            span: *false_expr_span,
+                        },
+                        Err(e) => {
+                            return Some(Err(e.set_span_of_eof(*false_expr_span)));
                         }
                     }
                     Some(Token { kind, span }) => {

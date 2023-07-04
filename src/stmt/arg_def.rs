@@ -4,9 +4,10 @@ use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{OpToken, TokenKind, TokenList};
 
+#[derive(Clone)]
 pub struct ArgDef {
-    name: InternedString,
-    type_: Expr, // TODO: better implementation?
+    pub name: InternedString,
+    pub ty: Expr,
 }
 
 // NAME ':' TYPE
@@ -24,12 +25,12 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
 
     tokens.consume_token_or_error(TokenKind::Operator(OpToken::Colon))?;
 
-    let type_ = match tokens.step_type() {
+    let ty = match tokens.step_type() {
         Some(t) => t?,
         None => {
             return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
         }
     };
 
-    Ok(ArgDef { name, type_ })
+    Ok(ArgDef { name, ty })
 }
