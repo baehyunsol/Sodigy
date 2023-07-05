@@ -1,6 +1,4 @@
 use super::{Decorator, FuncDef, Use};
-use crate::module::ModulePath;
-use crate::session::InternedString;
 
 pub enum StmtKind {
     // 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'

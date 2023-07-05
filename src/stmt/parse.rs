@@ -3,7 +3,8 @@ use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::module::ModulePath;
 use crate::session::InternedString;
-use crate::token::{Keyword, OpToken, TokenKind, TokenList};
+use crate::span::Span;
+use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
 
 pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
     let mut result = vec![];
@@ -25,7 +26,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
         // one `use` may generate multiple `Stmt`s, but the return type doesn't allow that
         // so it may modify `tokens` to add `use` cases it found
-        match parse_use(tokens) {
+        match parse_use(tokens, curr_span, true) {
             Ok(mut cases) => {
                 assert!(cases.len() > 0, "Internal Compiler Error FF61AD7");
 
@@ -148,6 +149,182 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
  * `use A.{B as C, D as E};` -> `use A.B as C; use A.D as E;`
  * `use A.{B, C} as D;` -> Invalid
  */
-pub fn parse_use(tokens: &mut TokenList) -> Result<Vec<Use>, ParseError> {
-    todo!()
+pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec<Use>, ParseError> {
+    // State 1: expecting ident or `{`
+    //   - with `ident`, extend curr path. goto state 2
+    //   - with `{` push all the path to stack (same level), and start new level. goto state 1
+    // State 2: expecting `,`, `;`, `as` or `.`
+    //   - with `,`, add new path. goto state 1
+    //   - with `;`,  ___
+    //   - with `as`, ___
+    //   - with `.`, do nothing. goto state 1
+
+    let mut curr_paths: Vec<Use> = vec![];
+    let mut curr_path: Vec<InternedString> = vec![];
+    let mut curr_state = ParseUseState::IdentReady;
+    let mut after_brace = false;
+
+    loop {
+
+        match curr_state {
+            ParseUseState::IdentReady => match tokens.step() {
+                Some(Token { kind, .. }) if kind.is_identifier() => {
+                    curr_path.push(kind.unwrap_identifier());
+                    curr_state = ParseUseState::IdentEnd;
+                }
+                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: brace_span }) => match parse_use(
+                    &mut TokenList::from_vec_box_token(elements.to_vec()), span, false
+                ) {
+                    Ok(uses) => {
+
+                        for use_case in uses.into_iter() {
+                            curr_paths.push(use_case.push_front(&curr_path));
+                        }
+
+                        curr_path = vec![];
+                        curr_state = ParseUseState::IdentEnd;
+                        after_brace = true;
+                    },
+                    Err(e) => {
+                        return Err(e.set_span_of_eof(*brace_span));
+                    }
+                }
+                Some(Token { kind, span }) => {
+                    return Err(ParseError::tok(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::dummy_identifier(),
+                            TokenKind::List(Delimiter::Brace, vec![]),
+                        ])
+                    ));
+                }
+                None => {
+                    return Err(ParseError::eoe(
+                        Span::dummy(),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::dummy_identifier(),
+                            TokenKind::List(Delimiter::Brace, vec![]),
+                        ])
+                    ));
+                }
+            }
+            ParseUseState::IdentEnd => {
+                let mut expected_tokens = vec![
+                    TokenKind::Operator(OpToken::Comma),
+                ];
+
+                if !after_brace {
+                    expected_tokens.push(TokenKind::Operator(OpToken::Dot));
+                    expected_tokens.push(TokenKind::Keyword(Keyword::As));
+                }
+
+                if is_top {
+                    expected_tokens.push(TokenKind::Operator(OpToken::SemiColon));
+                }
+
+                match tokens.step() {
+                    Some(Token { kind: TokenKind::Operator(OpToken::Dot), span }) => {
+
+                        if after_brace {
+                            return Err(ParseError::tok(
+                                TokenKind::Operator(OpToken::Dot), *span,
+                                ExpectedToken::SpecificTokens(expected_tokens)
+                            ));
+                        }
+
+                        else {
+                            curr_state = ParseUseState::IdentReady;
+                        }
+
+                    }
+                    Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {
+                        let alias = *curr_path.last().expect("Interal Compiler Error 0838D13");
+                        curr_paths.push(Use::new(curr_path, alias, span));
+
+                        curr_path = vec![];
+                        curr_state = ParseUseState::IdentReady;
+                    }
+                    Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), span: colon_span }) => {
+
+                        if curr_path.len() > 0 {
+                            let alias = *curr_path.last().expect("Interal Compiler Error 034DC0D");
+                            curr_paths.push(Use::new(curr_path, alias, span));
+                        }
+
+                        if is_top {
+                            return Ok(curr_paths);
+                        }
+
+                        else {
+                            return Err(ParseError::tok(
+                                TokenKind::Operator(OpToken::SemiColon), *colon_span,
+                                ExpectedToken::SpecificTokens(expected_tokens)
+                            ));
+                        }
+                    }
+                    Some(Token { kind: TokenKind::Keyword(Keyword::As), .. }) => {
+
+                        if after_brace {
+                            return Err(ParseError::tok(
+                                TokenKind::Operator(OpToken::Dot), span,
+                                ExpectedToken::SpecificTokens(expected_tokens)
+                            ));
+                        }
+
+                        else {
+                            curr_state = ParseUseState::IdentReady;
+                        }
+
+                    },
+                    Some(Token { kind, span }) => {
+                        return Err(ParseError::tok(
+                            kind.clone(), *span,
+                            ExpectedToken::SpecificTokens(expected_tokens)
+                        ));
+                    }
+                    None => {
+                        return Err(ParseError::eoe(
+                            Span::dummy(),
+                            ExpectedToken::SpecificTokens(expected_tokens)
+                        ));
+                    }
+                }
+            }
+            ParseUseState::AliasReady => match tokens.step() {
+                Some(Token { kind, .. }) if kind.is_identifier() => {
+                    curr_paths.push(Use::new(
+                        curr_path,
+                        kind.unwrap_identifier(),
+                        span
+                    ));
+
+                    curr_path = vec![];
+                }
+                Some(Token { kind, span }) => {
+                    return Err(ParseError::tok(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()])
+                    ))
+                }
+                None => {
+                    return Err(ParseError::eoe(
+                        Span::dummy(),
+                        ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()])
+                    ))
+                }
+            }
+        }
+
+        if after_brace && curr_state == ParseUseState::IdentReady {
+            after_brace = false;
+        }
+
+    }
+}
+
+#[derive(PartialEq)]
+enum ParseUseState {
+    IdentReady,
+    IdentEnd,
+    AliasReady
 }

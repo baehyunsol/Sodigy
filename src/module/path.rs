@@ -7,6 +7,17 @@ pub struct ModulePath (Vec<InternedString>);
 
 impl ModulePath {
 
+    pub fn from_names(names: Vec<InternedString>) -> Self {
+        ModulePath(names)
+    }
+
+    pub fn push_front(&mut self, path: &Vec<InternedString>) {
+        self.0 = vec![
+            path.clone(),
+            self.0.clone(),
+        ].concat();
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }

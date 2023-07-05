@@ -65,6 +65,15 @@ fn sample() -> Vec<(String, HashSet<String>)> {
             ],
         ),
         (
+            "use A.{B, C, D,}, E.F;",
+            vec![
+                "use A.B as B;",
+                "use A.C as C;",
+                "use A.D as D;",
+                "use E.F as F;",
+            ],
+        ),
+        (
             "use A.{B, C, D.{E, F, G}, H};",
             vec![
                 "use A.B as B;",
@@ -101,6 +110,9 @@ fn sample() -> Vec<(String, HashSet<String>)> {
 fn invalid() -> Vec<String> {
     vec![
         "use A.{B, C} as D;",
+        "use A.{};",
+        "use A.{,};",
+        "use A.{B, C;};",
     ].into_iter().map(
         |s| s.to_string()
     ).collect()
