@@ -142,7 +142,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Operator(OpToken::Mul),
                 expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Keyword(Keyword::Else),
+                    TokenKind::keyword_else(),
                 ]),
             },
             15,
@@ -151,7 +151,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "if x > y { x }",
             ParseErrorKind::UnexpectedEoe(
                 ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Keyword(Keyword::Else),
+                    TokenKind::keyword_else(),
                 ])
             ),
             0,

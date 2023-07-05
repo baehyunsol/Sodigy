@@ -1,7 +1,6 @@
 use super::{Decorator, FuncDef, Stmt, StmtKind, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
-use crate::module::ModulePath;
 use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
@@ -23,7 +22,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         .get_curr_span()
         .expect("Internal Compiler Error E22AC92");
 
-    if tokens.consume(TokenKind::Keyword(Keyword::Use)) {
+    if tokens.consume(TokenKind::keyword_use()) {
         // one `use` may generate multiple `Stmt`s, but the return type doesn't allow that
         // so it may modify `tokens` to add `use` cases it found
         match parse_use(tokens, curr_span, true) {
@@ -70,7 +69,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }),
             span: curr_span,
         })
-    } else if tokens.consume(TokenKind::Keyword(Keyword::Def)) {
+    } else if tokens.consume(TokenKind::keyword_def()) {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
@@ -105,13 +104,13 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         };
 
         tokens
-            .consume_token_or_error(TokenKind::Operator(OpToken::Assign))
+            .consume_token_or_error(TokenKind::assign())
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         let ret_val = parse_expr(tokens, 0)?;
 
         tokens
-            .consume_token_or_error(TokenKind::Operator(OpToken::SemiColon))
+            .consume_token_or_error(TokenKind::semi_colon())
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         Ok(Stmt {
@@ -131,8 +130,8 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             top_token.kind.clone(),
             top_token.span,
             ExpectedToken::SpecificTokens(vec![
-                TokenKind::Keyword(Keyword::Use),
-                TokenKind::Keyword(Keyword::Def),
+                TokenKind::keyword_use(),
+                TokenKind::keyword_def(),
                 TokenKind::Operator(OpToken::At),
             ]),
         ))
@@ -210,16 +209,16 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
             }
             ParseUseState::IdentEnd => {
                 let mut expected_tokens = vec![
-                    TokenKind::Operator(OpToken::Comma),
+                    TokenKind::comma(),
                 ];
 
                 if !after_brace {
-                    expected_tokens.push(TokenKind::Operator(OpToken::Dot));
-                    expected_tokens.push(TokenKind::Keyword(Keyword::As));
+                    expected_tokens.push(TokenKind::dot());
+                    expected_tokens.push(TokenKind::keyword_as());
                 }
 
                 if is_top {
-                    expected_tokens.push(TokenKind::Operator(OpToken::SemiColon));
+                    expected_tokens.push(TokenKind::semi_colon());
                 }
 
                 match tokens.step() {
@@ -227,7 +226,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                         if after_brace {
                             return Err(ParseError::tok(
-                                TokenKind::Operator(OpToken::Dot), *span,
+                                TokenKind::dot(), *span,
                                 ExpectedToken::SpecificTokens(expected_tokens)
                             ));
                         }
@@ -257,7 +256,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                         else {
                             return Err(ParseError::tok(
-                                TokenKind::Operator(OpToken::SemiColon), *colon_span,
+                                TokenKind::semi_colon(), *colon_span,
                                 ExpectedToken::SpecificTokens(expected_tokens)
                             ));
                         }
@@ -266,7 +265,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                         if after_brace {
                             return Err(ParseError::tok(
-                                TokenKind::Operator(OpToken::Dot), span,
+                                TokenKind::dot(), span,
                                 ExpectedToken::SpecificTokens(expected_tokens)
                             ));
                         }

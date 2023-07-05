@@ -98,7 +98,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
             ExpectedToken::AnyExpression,
             "A block cannot be empty!".to_string(),
         ))
-    } else if block_tokens.ends_with(TokenKind::Operator(OpToken::SemiColon)) {
+    } else if block_tokens.ends_with(TokenKind::semi_colon()) {
         Err(ParseError::eoe_msg(
             block_tokens
                 .last_token()
@@ -112,7 +112,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
             .get_curr_span()
             .expect("Internal Compiler Error 64B8455");
         let defs_count =
-            block_tokens.count_tokens_non_recursive(TokenKind::Operator(OpToken::SemiColon));
+            block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
 
         let mut defs = Vec::with_capacity(defs_count);
 
@@ -131,13 +131,13 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
             };
 
             block_tokens
-                .consume_token_or_error(TokenKind::Operator(OpToken::Assign))
+                .consume_token_or_error(TokenKind::assign())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
             let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(curr_span))?;
 
             block_tokens
-                .consume_token_or_error(TokenKind::Operator(OpToken::SemiColon))
+                .consume_token_or_error(TokenKind::semi_colon())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
             defs.push((name, Box::new(expr)));
@@ -165,9 +165,9 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             ExpectedToken::AnyExpression,
             "A definition of a lambda function cannot be empty!".to_string(),
         ))
-    } else if tokens.ends_with(TokenKind::Operator(OpToken::Comma)) {
+    } else if tokens.ends_with(TokenKind::comma()) {
         Err(ParseError::tok_msg(
-            TokenKind::Operator(OpToken::Comma),
+            TokenKind::comma(),
             tokens
                 .last_token()
                 .expect("Internal Compiler Error C929E72")
@@ -180,7 +180,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             .get_curr_span()
             .expect("Internal Compiler Error 245BA3F");
         let args_count =
-            tokens.count_tokens_non_recursive(TokenKind::Operator(OpToken::Comma));
+            tokens.count_tokens_non_recursive(TokenKind::comma());
 
         let mut args = Vec::with_capacity(args_count);
 
@@ -192,7 +192,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             args.push(Box::new(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?));
 
             tokens
-                .consume_token_or_error(TokenKind::Operator(OpToken::Comma))
+                .consume_token_or_error(TokenKind::comma())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
         }
 

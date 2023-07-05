@@ -45,7 +45,7 @@ impl ValueKind {
                             String::from_utf8_lossy(
                                 &session
                                     .unintern_string(*name)
-                                    .expect("Internal Compiler Error 8029687")
+                                    .expect("Internal Compiler Error 5C00152")
                             )
                             .to_string(),
                             ty.to_string(session)

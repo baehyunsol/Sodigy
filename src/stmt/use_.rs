@@ -1,7 +1,7 @@
 use crate::module::ModulePath;
 use crate::session::InternedString;
 use crate::span::Span;
-use crate::token::{Keyword, OpToken, Token, TokenKind};
+use crate::token::{Token, TokenKind};
 
 // `span` points to the keyword `use`
 #[derive(Clone)]
@@ -36,7 +36,7 @@ pub fn use_case_to_tokens(Use { path, alias, span }: Use) -> Vec<Token> {
 
     tokens.push(Token {
         span,
-        kind: TokenKind::Keyword(Keyword::Use)
+        kind: TokenKind::keyword_use(),
     });
 
     for token in path.tokens(span) {
@@ -45,17 +45,17 @@ pub fn use_case_to_tokens(Use { path, alias, span }: Use) -> Vec<Token> {
 
     tokens.push(Token {
         span,
-        kind: TokenKind::Keyword(Keyword::As)
+        kind: TokenKind::keyword_as(),
     });
 
     tokens.push(Token {
         span,
-        kind: TokenKind::Identifier(alias)
+        kind: TokenKind::Identifier(alias),
     });
 
     tokens.push(Token {
         span,
-        kind: TokenKind::Operator(OpToken::SemiColon)
+        kind: TokenKind::semi_colon(),
     });
 
     tokens

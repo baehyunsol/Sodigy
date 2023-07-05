@@ -1,6 +1,6 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{parse_expr, Expr};
-use crate::token::{OpToken, Token, TokenKind, TokenList};
+use crate::token::{Token, TokenKind, TokenList};
 
 pub fn split_tokens(tokens: &Vec<Box<Token>>, delim: TokenKind) -> Vec<Vec<Box<Token>>> {
     let mut result = vec![];
@@ -24,7 +24,7 @@ pub fn split_tokens(tokens: &Vec<Box<Token>>, delim: TokenKind) -> Vec<Vec<Box<T
 
 // `elements` is that of `TokenKind::List(_, elements)`
 pub fn split_list_by_comma(elements: &Vec<Box<Token>>) -> Result<Vec<Box<Expr>>, ParseError> {
-    let elements = split_tokens(elements, TokenKind::Operator(OpToken::Comma))
+    let elements = split_tokens(elements, TokenKind::comma())
         .into_iter()
         .map(|tokens| {
             let mut tokens = TokenList::from_vec_box_token(tokens);

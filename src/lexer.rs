@@ -335,7 +335,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
             Ok((
                 Token {
                     span: curr_span,
-                    kind: TokenKind::Operator(OpToken::Dot),
+                    kind: TokenKind::dot(),
                 },
                 ind + 1,
             ))

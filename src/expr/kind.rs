@@ -1,5 +1,5 @@
 use super::{Expr, InfixOp, PostfixOp, PrefixOp};
-use crate::token::{Keyword, TokenKind};
+use crate::token::TokenKind;
 use crate::value::Value;
 
 #[derive(Clone)]
@@ -39,7 +39,7 @@ impl ExprKind {
             ExprKind::Call(f, _) => f.get_first_token(),
             ExprKind::Infix(_, e, _) | ExprKind::Postfix(_, e) => e.get_first_token(),
             ExprKind::Prefix(op, _) => TokenKind::Operator(op.into()),
-            ExprKind::Branch(_, _, _) => TokenKind::Keyword(Keyword::If),
+            ExprKind::Branch(_, _, _) => TokenKind::keyword_if(),
         }
     }
 }

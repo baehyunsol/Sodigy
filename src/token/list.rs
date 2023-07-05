@@ -165,7 +165,7 @@ impl TokenList {
                                 kind.clone(),
                                 *span,
                                 ExpectedToken::SpecificTokens(vec![
-                                    TokenKind::Operator(OpToken::Comma),
+                                    TokenKind::comma(),
                                 ]),
                             )));
                         }
@@ -291,7 +291,7 @@ impl TokenList {
             return None;
         };
 
-        if self.consume(TokenKind::Keyword(Keyword::If)) {
+        if self.consume(TokenKind::keyword_if()) {
             let cond = match parse_expr(self, 0) {
                 Ok(expr) => expr,
                 Err(e) => {
@@ -334,7 +334,7 @@ impl TokenList {
 
             let else_span = self.get_curr_span();
 
-            let false_expr = if self.consume(TokenKind::Keyword(Keyword::Else)) {
+            let false_expr = if self.consume(TokenKind::keyword_else()) {
                 match self.step() {
                     Some(Token {
                         kind: TokenKind::Keyword(Keyword::If),
@@ -370,7 +370,7 @@ impl TokenList {
                             kind.clone(),
                             *span,
                             ExpectedToken::SpecificTokens(vec![
-                                TokenKind::Keyword(Keyword::If),
+                                TokenKind::keyword_if(),
                                 TokenKind::List(Delimiter::Brace, vec![]),
                             ]),
                         )))
@@ -379,7 +379,7 @@ impl TokenList {
                         return Some(Err(ParseError::eoe(
                             else_span.expect("Internal Compiler Error 26CED6F"),
                             ExpectedToken::SpecificTokens(vec![
-                                TokenKind::Keyword(Keyword::If),
+                                TokenKind::keyword_if(),
                                 TokenKind::List(Delimiter::Brace, vec![]),
                             ]),
                         )));
@@ -391,13 +391,13 @@ impl TokenList {
                         kind.clone(),
                         *span,
                         ExpectedToken::SpecificTokens(vec![
-                            TokenKind::Keyword(Keyword::Else),
+                            TokenKind::keyword_else(),
                         ]),
                     ))),
                     None => Some(Err(ParseError::eoe(
                         if_span,
                         ExpectedToken::SpecificTokens(vec![
-                            TokenKind::Keyword(Keyword::Else),
+                            TokenKind::keyword_else(),
                         ]),
                     ))),
                 };

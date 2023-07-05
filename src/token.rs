@@ -3,6 +3,7 @@ use crate::span::Span;
 
 mod kind;
 mod list;
+mod macros;
 
 pub use kind::TokenKind;
 pub use list::TokenList;
