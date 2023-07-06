@@ -13,6 +13,11 @@ impl Span {
         Span { file_no, index }
     }
 
+    #[cfg(test)]
+    pub fn first() -> Self {
+        Span { file_no: 0, index: 0 }
+    }
+
     pub fn dummy() -> Self {
         Span {
             file_no: u32::MAX,

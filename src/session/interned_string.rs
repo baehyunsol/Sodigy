@@ -1,3 +1,5 @@
+use super::LocalParseSession;
+
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
 
@@ -10,6 +12,14 @@ impl InternedString {
 
     pub fn is_dummy(&self) -> bool {
         self.0 == DUMMY_INDEX
+    }
+
+    #[cfg(test)]
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        let bytes = session.unintern_string(*self)
+            .expect("Internal Compiler Error 657FECD");
+
+        String::from_utf8_lossy(&bytes).to_string()
     }
 }
 

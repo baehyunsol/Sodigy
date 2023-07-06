@@ -31,4 +31,11 @@ impl ModulePath {
         ).collect()
     }
 
+    #[cfg(test)]
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        self.0.iter().map(|s| s.to_string(session)).collect::<Vec<String>>().join(".")
+    }
 }
+
+#[cfg(test)]
+use crate::session::LocalParseSession;

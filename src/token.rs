@@ -46,7 +46,7 @@ impl Delimiter {
         } else if c == b'[' {
             Delimiter::Bracket
         } else {
-            unreachable!("Interal Compiler Error 335FA8A: {c}")
+            unreachable!("Internal Compiler Error 335FA8A: {c}")
         }
     }
 

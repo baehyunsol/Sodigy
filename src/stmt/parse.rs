@@ -138,30 +138,13 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     }
 }
 
-/*
- * `use A.B;` -> `use A.B as B;`
- * `use A.B.C;` -> `use A.B.C as C;`
- * `use A.B, C.D;` -> `use A.B; use C.D;`
- * `use {A.B, C.D};` -> `use A.B; use C.D;`
- * `use A.{B, C, D};` -> `use A.B; use A.C; use A.D;`
- * `use A.B, C, D;` -> `use A.B; use C; use D;`
- * `use A.{B as C, D as E};` -> `use A.B as C; use A.D as E;`
- * `use A.{B, C} as D;` -> Invalid
- */
+// See test cases
 pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec<Use>, ParseError> {
-    // State 1: expecting ident or `{`
-    //   - with `ident`, extend curr path. goto state 2
-    //   - with `{` push all the path to stack (same level), and start new level. goto state 1
-    // State 2: expecting `,`, `;`, `as` or `.`
-    //   - with `,`, add new path. goto state 1
-    //   - with `;`,  ___
-    //   - with `as`, ___
-    //   - with `.`, do nothing. goto state 1
-
     let mut curr_paths: Vec<Use> = vec![];
     let mut curr_path: Vec<InternedString> = vec![];
     let mut curr_state = ParseUseState::IdentReady;
     let mut after_brace = false;
+    let mut trailing_comma = false;
 
     loop {
 
@@ -198,13 +181,21 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     ));
                 }
                 None => {
-                    return Err(ParseError::eoe(
-                        Span::dummy(),
-                        ExpectedToken::SpecificTokens(vec![
-                            TokenKind::dummy_identifier(),
-                            TokenKind::List(Delimiter::Brace, vec![]),
-                        ])
-                    ));
+
+                    if trailing_comma && !is_top {
+                        return Ok(curr_paths);
+                    }
+
+                    else {
+                        return Err(ParseError::eoe(
+                            Span::dummy(),
+                            ExpectedToken::SpecificTokens(vec![
+                                TokenKind::dummy_identifier(),
+                                TokenKind::List(Delimiter::Brace, vec![]),
+                            ])
+                        ));
+                    }
+
                 }
             }
             ParseUseState::IdentEnd => {
@@ -237,16 +228,25 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                     }
                     Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {
-                        let alias = *curr_path.last().expect("Interal Compiler Error 0838D13");
-                        curr_paths.push(Use::new(curr_path, alias, span));
 
-                        curr_path = vec![];
+                        if after_brace {
+                            assert_eq!(curr_path.len(), 0, "Internal Compiler Error 9408C5B");
+                        }
+
+                        else {
+                            let alias = *curr_path.last().expect("Internal Compiler Error 0838D13");
+                            curr_paths.push(Use::new(curr_path, alias, span));
+    
+                            curr_path = vec![];
+                        }
+
+                        trailing_comma = true;
                         curr_state = ParseUseState::IdentReady;
                     }
                     Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), span: colon_span }) => {
 
                         if curr_path.len() > 0 {
-                            let alias = *curr_path.last().expect("Interal Compiler Error 034DC0D");
+                            let alias = *curr_path.last().expect("Internal Compiler Error 034DC0D");
                             curr_paths.push(Use::new(curr_path, alias, span));
                         }
 
@@ -261,17 +261,18 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                             ));
                         }
                     }
-                    Some(Token { kind: TokenKind::Keyword(Keyword::As), .. }) => {
+                    Some(Token { kind: TokenKind::Keyword(Keyword::As), span: as_span }) => {
+
 
                         if after_brace {
                             return Err(ParseError::tok(
-                                TokenKind::dot(), span,
+                                TokenKind::Keyword(Keyword::As), *as_span,
                                 ExpectedToken::SpecificTokens(expected_tokens)
                             ));
                         }
 
                         else {
-                            curr_state = ParseUseState::IdentReady;
+                            curr_state = ParseUseState::AliasReady;
                         }
 
                     },
@@ -282,10 +283,24 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         ));
                     }
                     None => {
-                        return Err(ParseError::eoe(
-                            Span::dummy(),
-                            ExpectedToken::SpecificTokens(expected_tokens)
-                        ));
+
+                        if is_top {
+                            return Err(ParseError::eoe(
+                                Span::dummy(),
+                                ExpectedToken::SpecificTokens(expected_tokens)
+                            ));
+                        }
+
+                        else {
+
+                            if curr_path.len() > 0 {
+                                let alias = *curr_path.last().expect("Internal Compiler Error 9B2EFF5");
+                                curr_paths.push(Use::new(curr_path, alias, span));
+                            }
+
+                            return Ok(curr_paths);
+                        }
+
                     }
                 }
             }
@@ -298,6 +313,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     ));
 
                     curr_path = vec![];
+                    curr_state = ParseUseState::PathEnd;
                 }
                 Some(Token { kind, span }) => {
                     return Err(ParseError::tok(
@@ -312,10 +328,54 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     ))
                 }
             }
+            // expected: if is_top { [';', ','] } else { [',', '}'] }
+            // `;` if is_top
+            // None if !is_top
+            // `,`
+            ParseUseState::PathEnd => {
+
+                let expected = if is_top {
+                    vec![TokenKind::semi_colon(), TokenKind::comma()]
+                } else {
+                    vec![TokenKind::comma(), TokenKind::Operator(OpToken::ClosingCurlyBrace)]
+                };
+
+                match tokens.step() {
+                    Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) =>  {
+                        trailing_comma = true;
+                        curr_state = ParseUseState::IdentReady;
+                    }
+                    Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), .. }) if is_top => {
+                        return Ok(curr_paths);
+                    }
+                    Some(Token { kind, span }) => {
+                        return Err(ParseError::tok(
+                            kind.clone(), *span,
+                            ExpectedToken::SpecificTokens(expected),
+                        ));
+                    }
+                    None => {
+                        if is_top {
+                            return Err(ParseError::eoe(
+                                Span::dummy(),
+                                ExpectedToken::SpecificTokens(expected),
+                            ))
+                        }
+
+                        else {
+                            return Ok(curr_paths);
+                        }
+                    }
+                }
+            }
         }
 
         if after_brace && curr_state == ParseUseState::IdentReady {
             after_brace = false;
+        }
+
+        if trailing_comma && curr_state != ParseUseState::IdentReady {
+            trailing_comma = false;
         }
 
     }
@@ -325,5 +385,6 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 enum ParseUseState {
     IdentReady,
     IdentEnd,
-    AliasReady
+    AliasReady,
+    PathEnd,
 }

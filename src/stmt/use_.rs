@@ -6,8 +6,8 @@ use crate::token::{Token, TokenKind};
 // `span` points to the keyword `use`
 #[derive(Clone)]
 pub struct Use {
-    path: ModulePath,
-    alias: InternedString,
+    pub path: ModulePath,
+    pub alias: InternedString,
     span: Span,
 }
 

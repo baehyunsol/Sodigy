@@ -348,7 +348,7 @@ impl TokenList {
                             Some(Err(e)) => {
                                 return Some(Err(e));
                             }
-                            None => unreachable!("Interal Compiler Error A453107"),
+                            None => unreachable!("Internal Compiler Error A453107"),
                         }
                     },
                     Some(Token {
