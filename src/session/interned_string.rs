@@ -1,3 +1,4 @@
+#[cfg(test)]
 use super::LocalParseSession;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]

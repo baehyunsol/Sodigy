@@ -1,4 +1,3 @@
-use crate::session::InternedString;
 use crate::span::Span;
 
 mod kind;
@@ -12,16 +11,6 @@ pub use list::TokenList;
 pub struct Token {
     pub span: Span,
     pub kind: TokenKind,
-}
-
-impl Token {
-    pub fn is_identifier(&self) -> bool {
-        self.kind.is_identifier()
-    }
-
-    pub fn unwrap_identifier(&self) -> InternedString {
-        self.kind.unwrap_identifier()
-    }
 }
 
 impl PartialEq for Token {

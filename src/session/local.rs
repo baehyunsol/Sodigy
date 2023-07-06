@@ -23,8 +23,8 @@ pub const KEYWORDS: [Keyword; 5] = [
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
     strings_rev: HashMap<Vec<u8>, InternedString>,
-    pub curr_file: u32,
-    pub is_dummy: bool,
+    pub(crate) curr_file: u32,
+    pub(crate) is_dummy: bool,
 
     // no files, but just a direct input
     #[cfg(test)]

@@ -11,13 +11,13 @@ pub use kind::ParseErrorKind;
 /*
  * The compiler assumes that a successful compilation never initializes a `ParseError`.
  * That's why it's okay for `ParseError` and its related functions to be expensive.
- * Please try not to break its assumption.
+ * Please try not to break this assumption.
  */
 
-// Actually it's both for parser and lexer
+/// Actually it's both for parser and lexer
 pub struct ParseError {
-    pub kind: ParseErrorKind,
-    pub span: Span,
+    pub(crate) kind: ParseErrorKind,
+    pub(crate) span: Span,
 
     // At least one of `ParseError`'s field must be private
     // I'll someday implement a checker that `ParseError` is initialized at most once during a compilation
@@ -27,7 +27,7 @@ pub struct ParseError {
 
 impl ParseError {
     // `span` must point to the start of the token it's parsing, not just the end of the file
-    pub fn eof(span: Span) -> Self {
+    pub(crate) fn eof(span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEof,
             span,
@@ -35,7 +35,7 @@ impl ParseError {
         }
     }
 
-    pub fn eoe(span: Span, expected: ExpectedToken) -> Self {
+    pub(crate) fn eoe(span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEoe(expected),
             span,
@@ -43,7 +43,7 @@ impl ParseError {
         }
     }
 
-    pub fn eoe_msg(span: Span, expected: ExpectedToken, message: String) -> Self {
+    pub(crate) fn eoe_msg(span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEoe(expected),
             span,
@@ -51,11 +51,11 @@ impl ParseError {
         }
     }
 
-    pub fn is_eof(&self) -> bool {
+    pub(crate) fn is_eof(&self) -> bool {
         self.kind == ParseErrorKind::UnexpectedEof
     }
 
-    pub fn is_eoe(&self) -> bool {
+    pub(crate) fn is_eoe(&self) -> bool {
         if let ParseErrorKind::UnexpectedEoe(_) = self.kind {
             true
         } else {
@@ -63,7 +63,7 @@ impl ParseError {
         }
     }
 
-    pub fn ch(c: char, span: Span) -> Self {
+    pub(crate) fn ch(c: char, span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedChar(c),
             span,
@@ -71,7 +71,7 @@ impl ParseError {
         }
     }
 
-    pub fn ch_msg(c: char, span: Span, message: String) -> Self {
+    pub(crate) fn ch_msg(c: char, span: Span, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedChar(c),
             span,
@@ -79,7 +79,7 @@ impl ParseError {
         }
     }
 
-    pub fn tok(got: TokenKind, span: Span, expected: ExpectedToken) -> Self {
+    pub(crate) fn tok(got: TokenKind, span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken { got, expected },
             span,
@@ -87,7 +87,7 @@ impl ParseError {
         }
     }
 
-    pub fn tok_msg(got: TokenKind, span: Span, expected: ExpectedToken, message: String) -> Self {
+    pub(crate) fn tok_msg(got: TokenKind, span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken { got, expected },
             span,
@@ -95,7 +95,7 @@ impl ParseError {
         }
     }
 
-    pub fn set_span_of_eof(mut self, span: Span) -> ParseError {
+    pub(crate) fn set_span_of_eof(mut self, span: Span) -> ParseError {
         if (self.is_eof() || self.is_eoe()) && self.span.is_dummy() {
             self.span = span;
             self

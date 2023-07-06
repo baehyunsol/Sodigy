@@ -2,7 +2,7 @@ use crate::err::{ExpectedToken, ParseError, ParseErrorKind};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
-use crate::token::{Keyword, OpToken, TokenKind, TokenList};
+use crate::token::{OpToken, TokenKind, TokenList};
 use hmath::Ratio;
 
 pub fn dump_ast_of_expr(
