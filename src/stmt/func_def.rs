@@ -1,10 +1,14 @@
-use super::ArgDef;
+use super::{ArgDef, Decorator};
 use crate::expr::Expr;
 use crate::session::InternedString;
+use crate::span::Span;
 
 pub struct FuncDef {
+    pub span: Span,  // it points to `d` of `def`
     pub name: InternedString,
     pub args: Vec<ArgDef>,
+
+    pub decorators: Vec<Decorator>,
 
     pub ret_type: Expr,
     pub ret_val: Expr,

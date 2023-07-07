@@ -4,4 +4,20 @@
   - current crate only parses a file
     - doesn't care about other files
     - returns `Vec<Stmt>`
+      - TODO: return `AST`, which does more analysis on `Vec<Stmt>`
+        - it has
+          - all the names (`def`ined or `use`d)
+          - very basic optimizations
+            - `{x = foo(); y = bar(); x + y + y}` -> `{y = bar(); foo() + y + y}`
+            - `{x = \{x, x + 1}; x(a)}` -> `{__TMP_LAMBDA_FUNC_NAME(a)}` -> `__TMP_LAMBDA_FUNC_NAME(a)`
     - it also does name-resolving
+    - it also does name-checking
+      - If an expression has a symbol `a`, `a` must be
+        - defined in the file,
+        - imported with `use __ as a;`,
+        - or in `sodigy.prelude`
+        - none of them have to do with other files
+      - TODO: how about name errors with `use`s?
+        - ex: `use a.b.c;` where `a` is an external file
+          - `b` is not defined in `a`
+          - do we have to preserve span of `b` for error messages?

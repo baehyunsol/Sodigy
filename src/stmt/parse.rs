@@ -120,6 +120,8 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                 is_const,
                 ret_type,
                 ret_val,
+                span: curr_span,
+                decorators: vec![],  // will be filled later
             }),
             span: curr_span,
         })

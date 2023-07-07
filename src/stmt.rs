@@ -22,6 +22,6 @@ pub use use_::{Use, use_case_to_tokens};
 pub use parse::parse_use;
 
 pub struct Stmt {
-    kind: StmtKind,
+    pub(crate) kind: StmtKind,
     span: Span,
 }

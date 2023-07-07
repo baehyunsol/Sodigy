@@ -3,12 +3,12 @@ use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
-// `span` points to the keyword `use`
 #[derive(Clone)]
 pub struct Use {
     pub path: ModulePath,
     pub alias: InternedString,
-    span: Span,
+
+    pub span: Span,  // if points to `u` of `use`
 }
 
 impl Use {
