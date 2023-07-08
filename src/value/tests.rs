@@ -1,12 +1,6 @@
-use super::{Value, ValueKind};
+use super::ValueKind;
 use crate::session::LocalParseSession;
 use crate::stmt::ArgDef;
-
-impl Value {
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
-        self.kind.to_string(session)
-    }
-}
 
 impl ValueKind {
     pub fn is_list(&self) -> bool {

@@ -1,10 +1,10 @@
 use super::{Expr, InfixOp, PostfixOp, PrefixOp};
 use crate::token::TokenKind;
-use crate::value::Value;
+use crate::value::ValueKind;
 
 #[derive(Clone)]
 pub enum ExprKind {
-    Value(Value),
+    Value(ValueKind),
     Prefix(PrefixOp, Box<Expr>),
     Infix(InfixOp, Box<Expr>, Box<Expr>),
     Postfix(PostfixOp, Box<Expr>),

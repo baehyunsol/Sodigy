@@ -4,6 +4,7 @@ use crate::token::TokenKind;
 mod kind;
 mod ops;
 mod parse;
+mod name_resolve;
 
 #[cfg(test)]
 mod tests;

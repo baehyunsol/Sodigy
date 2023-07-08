@@ -4,40 +4,28 @@ use crate::parse::split_list_by_comma;
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
-use crate::value::{Value, ValueKind};
+use crate::value::ValueKind;
 
-pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
+pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     match tokens.step() {
         Some(Token {
             span,
             kind: TokenKind::Number(n),
         }) => {
             if n.is_integer() {
-                Ok(Value {
-                    span: *span,
-                    kind: ValueKind::Integer(n.into()),
-                })
+                Ok(ValueKind::Integer(n.into()))
             } else {
-                Ok(Value {
-                    span: *span,
-                    kind: ValueKind::Real(n.clone()),
-                })
+                Ok(ValueKind::Real(n.clone()))
             }
         }
         Some(Token {
             span,
             kind: TokenKind::String(ind),
-        }) => Ok(Value {
-            span: *span,
-            kind: ValueKind::String(*ind),
-        }),
+        }) => Ok(ValueKind::String(*ind)),
         Some(Token {
             span,
             kind: TokenKind::Identifier(ind),
-        }) => Ok(Value {
-            span: *span,
-            kind: ValueKind::Identifier(*ind),
-        }),
+        }) => Ok(ValueKind::Identifier(*ind)),
         Some(Token {
             span,
             kind: TokenKind::Operator(OpToken::BackSlash)
@@ -49,9 +37,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
                 Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), .. }) => match parse_lambda_def(
                     &mut TokenList::from_vec_box_token(elements.to_vec())
                 ) {
-                    Ok(v) => Ok(Value {
-                        span, kind: v,
-                    }),
+                    Ok(v) => Ok(v),
                     Err(e) => Err(e),
                 },
                 Some(Token { kind, span }) => Err(ParseError::tok(
@@ -71,10 +57,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
             span,
             kind: TokenKind::List(delim, elements),
         }) => match delim {
-            Delimiter::Bracket => Ok(Value {
-                span: *span,
-                kind: ValueKind::List(split_list_by_comma(elements)?),
-            }),
+            Delimiter::Bracket => Ok(ValueKind::List(split_list_by_comma(elements)?)),
             Delimiter::Brace => {
                 parse_block_expr(&mut TokenList::from_vec_box_token(elements.to_vec()))
                     .map_err(|e| e.set_span_of_eof(*span))
@@ -91,7 +74,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<Value, ParseError> {
     }
 }
 
-pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseError> {
+pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     if block_tokens.is_eof() {
         Err(ParseError::eoe_msg(
             Span::dummy(),
@@ -149,10 +132,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<Value, ParseErro
         if let Some(Token { kind, span }) = block_tokens.step() {
             Err(ParseError::tok(kind.clone(), *span, ExpectedToken::Nothing))
         } else {
-            Ok(Value {
-                kind: ValueKind::Block { defs, value },
-                span: first_span,
-            })
+            Ok(ValueKind::Block { defs, value })
         }
     }
 }

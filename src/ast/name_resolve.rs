@@ -1,4 +1,56 @@
 use super::{AST, ASTError};
+use crate::session::{InternedString, LocalParseSession};
+use crate::stmt::Use;
+use std::collections::{HashMap, HashSet};
+
+// TODO: where should it belong?
+#[derive(Clone)]
+pub struct NameScope {
+    defs: HashSet<InternedString>,
+    uses: HashMap<InternedString, Use>,
+    pub(crate) name_stack: Vec<HashSet<InternedString>>,
+    preludes: HashSet<InternedString>,
+}
+
+impl NameScope {
+    // Ok(None) -> valid name, no alias
+    // Ok(Some(u)) -> valid name, and has alias `u`
+    // Err() -> invalid name
+    // TODO: suggest the closest name
+    pub fn search_name(&self, name: InternedString) -> Result<Option<&Use>, ()> {
+
+        // the order of the stack doesn't matter because
+        // we'll search all of them in the end anyway
+        for names in self.name_stack.iter() {
+
+            if names.contains(&name) {
+                return Ok(None);
+            }
+
+        }
+
+        if let Some(u) = self.uses.get(&name) {
+            Ok(Some(u))
+        }
+
+        else if self.defs.contains(&name) {
+            Ok(None)
+        }
+
+        else if self.preludes.contains(&name) {
+            Ok(None)
+        }
+
+        else {
+            Err(())
+        }
+
+    }
+
+    pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Option<String> {
+        todo!()
+    }
+}
 
 /*
  * Name Precedence
@@ -14,15 +66,28 @@ use super::{AST, ASTError};
  * if `A` is invalid. Then it halts anyway...
  *
  *
- * It also does extra stuffs beside resolving names.
- * - Finding errors
- * - optimizing
+ * It also finds use of undefined names while resolving names.
  */
 
 impl AST {
 
     pub fn resolve_names(&mut self) -> Result<(), ASTError> {
-        todo!()
+        let mut name_scope = self.gen_name_scope();
+
+        for func in self.defs.values_mut() {
+            func.resolve_names(&mut name_scope)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn gen_name_scope(&self) -> NameScope {
+        NameScope {
+            defs: self.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
+            uses: self.uses.clone(),
+            name_stack: vec![],
+            preludes: HashSet::new(),  // TODO
+        }
     }
 
 }

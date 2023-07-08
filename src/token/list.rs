@@ -5,7 +5,7 @@ use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::session::InternedString;
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef};
-use crate::value::{parse_block_expr, Value};
+use crate::value::{parse_block_expr, ValueKind};
 
 pub struct TokenList {
     pub data: Vec<Token>,
@@ -65,17 +65,6 @@ impl TokenList {
 
     pub fn append(&mut self, mut tokens: Vec<Token>) {
         self.data.append(&mut tokens);
-    }
-
-    fn contains(&self, kind: &TokenKind) -> bool {
-
-        for token in self.data[self.cursor..].iter() {
-            if &token.kind == kind {
-                return true;
-            }
-        }
-
-        false
     }
 
     // if the current token is `token`, it steps forward and returns true
@@ -452,7 +441,7 @@ impl TokenList {
 
                 else {
                     Some(Ok(Expr {
-                        kind: ExprKind::Value(Value::tuple(elements, *span)),
+                        kind: ExprKind::Value(ValueKind::Tuple(elements)),
                         span: *span,
                     }))
                 }

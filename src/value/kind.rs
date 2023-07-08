@@ -1,4 +1,4 @@
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::ArgDef;
 use crate::token::{OpToken, TokenKind};
@@ -47,6 +47,23 @@ impl ValueKind {
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),
             ValueKind::Block { .. } => TokenKind::Operator(OpToken::OpeningCurlyBrace),
+        }
+    }
+
+    // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`
+    // `{x + y}` -> `x + y`
+    pub fn block_to_expr_kind(self) -> ExprKind {
+        if let ValueKind::Block { defs, value } = &self {
+            if defs.is_empty() {
+                value.kind.clone()
+            } else {
+                ExprKind::Value(self)
+            }
+        } else {
+            panic!(
+                "Internal Compiler Error 95C0592: {}",
+                self.render_err()
+            );
         }
     }
 

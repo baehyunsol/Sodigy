@@ -1,3 +1,4 @@
+use crate::ast::NameScope;
 use crate::err::SodigyError;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
@@ -13,8 +14,7 @@ pub struct ASTError {
 }
 
 impl ASTError {
-
-    pub(crate) fn def(name: InternedString, first_def: Span, second_def: Span) -> Self {
+    pub(crate) fn multi_def(name: InternedString, first_def: Span, second_def: Span) -> Self {
         ASTError {
             kind: ASTErrorKind::MultipleDef(name),
             span1: first_def,
@@ -30,6 +30,13 @@ impl ASTError {
         }
     }
 
+    pub(crate) fn no_def(name: InternedString, span: Span, name_scope: NameScope) -> Self {
+        ASTError {
+            kind: ASTErrorKind::UndefinedSymbol(name, name_scope),
+            span1: span,
+            span2: Span::dummy(),
+        }
+    }
 }
 
 impl SodigyError for ASTError {
