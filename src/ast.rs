@@ -1,5 +1,5 @@
 use crate::session::InternedString;
-use crate::stmt::{Decorator, FuncDef, Stmt, StmtKind, Use};
+use crate::stmt::{FuncDef, Stmt, StmtKind, Use};
 use std::collections::HashMap;
 
 mod err;

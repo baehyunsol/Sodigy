@@ -21,3 +21,12 @@
         - ex: `use a.b.c;` where `a` is an external file
           - `b` is not defined in `a`
           - do we have to preserve span of `b` for error messages?
+
+- incremental compilation
+  - reuse intermediate result from previous compilations
+- background compilation
+  - daemon iterates all the files regularly
+    - period: 5 seconds -> very long for CPU, but short enough for programmers
+  - if it finds a modified file, it tries to generate an intermediate result
+    - if succeeds, update the intermediate result
+    - if fails, let programmers use information from the error messages

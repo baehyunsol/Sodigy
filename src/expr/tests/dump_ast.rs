@@ -1,4 +1,4 @@
-use crate::err::{ExpectedToken, ParseError, ParseErrorKind};
+use crate::err::{ExpectedToken, ParseError, ParseErrorKind, SodigyError};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;

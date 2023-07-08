@@ -1,4 +1,5 @@
-use crate::session::InternedString;
+use crate::err::SodigyError;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 
 mod kind;
@@ -29,4 +30,10 @@ impl ASTError {
         }
     }
 
+}
+
+impl SodigyError for ASTError {
+    fn render_err(&self, session: &LocalParseSession) -> String {
+        self.kind.render_err(self.span1, self.span2, session)
+    }
 }

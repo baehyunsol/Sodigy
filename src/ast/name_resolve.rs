@@ -12,6 +12,11 @@ use super::{AST, ASTError};
  * When it sees `use A.B.C;`, it doesn't care whether `A` is valid or not.
  * It just assumes that everything is fine. Another checker will alert the programmer
  * if `A` is invalid. Then it halts anyway...
+ *
+ *
+ * It also does extra stuffs beside resolving names.
+ * - Finding errors
+ * - optimizing
  */
 
 impl AST {

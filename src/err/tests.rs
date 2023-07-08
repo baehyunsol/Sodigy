@@ -1,3 +1,4 @@
+use crate::err::SodigyError;
 use crate::expr::dump_ast_of_expr;
 use crate::session::LocalParseSession;
 

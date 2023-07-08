@@ -6,11 +6,15 @@ mod kind;
 #[cfg(test)]
 mod tests;
 
+pub trait SodigyError {
+    fn render_err(&self, session: &LocalParseSession) -> String;
+}
+
 pub use kind::ParseErrorKind;
 
 /*
- * The compiler assumes that a successful compilation never initializes a `ParseError`.
- * That's why it's okay for `ParseError` and its related functions to be expensive.
+ * The compiler assumes that a successful compilation never initializes a `T: SodigyError`.
+ * That's why it's okay for `T: SodigyError` and its related functions to be expensive.
  * Please try not to break this assumption.
  */
 
@@ -103,8 +107,10 @@ impl ParseError {
             self
         }
     }
+}
 
-    pub fn render_err(&self, session: &LocalParseSession) -> String {
+impl SodigyError for ParseError {
+    fn render_err(&self, session: &LocalParseSession) -> String {
         format!(
             "{}{}\n{}",
             self.kind.render_err(session),

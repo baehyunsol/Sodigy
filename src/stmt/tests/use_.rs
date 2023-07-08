@@ -1,3 +1,4 @@
+use crate::err::SodigyError;
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
 use crate::span::Span;
