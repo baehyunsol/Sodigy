@@ -1,4 +1,4 @@
-use crate::expr::ExprKind;
+use crate::expr::{Expr, ExprKind};
 use crate::span::Span;
 use crate::token::TokenKind;
 
@@ -25,6 +25,13 @@ impl Value {
 
     pub fn get_first_token(&self) -> TokenKind {
         self.kind.get_first_token()
+    }
+
+    pub fn tuple(elements: Vec<Box<Expr>>, span: Span) -> Self {
+        Value {
+            kind: ValueKind::Tuple(elements),
+            span,
+        }
     }
 
     // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`

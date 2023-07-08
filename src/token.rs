@@ -112,6 +112,8 @@ pub enum OpToken {
     // below 4 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
     ClosingSquareBracket,
+    OpeningParenthesis,
+    ClosingParenthesis,
     OpeningCurlyBrace,
     ClosingCurlyBrace,
 }
@@ -147,6 +149,8 @@ impl OpToken {
             OpToken::Assign => "=",
             OpToken::OpeningSquareBracket => "[",
             OpToken::ClosingSquareBracket => "]",
+            OpToken::OpeningParenthesis => "(",
+            OpToken::ClosingParenthesis => ")",
             OpToken::OpeningCurlyBrace => "{",
             OpToken::ClosingCurlyBrace => "}",
         }

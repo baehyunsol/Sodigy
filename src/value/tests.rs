@@ -9,6 +9,13 @@ impl Value {
 }
 
 impl ValueKind {
+    pub fn is_list(&self) -> bool {
+        match self {
+            ValueKind::List(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn to_string(&self, session: &LocalParseSession) -> String {
         match self {
             ValueKind::Integer(n) => n.to_string(),
@@ -28,14 +35,22 @@ impl ValueKind {
                 )
                 .to_string()
             ),
-            ValueKind::List(elements) => format!(
-                "[{}]",
-                elements
-                    .iter()
-                    .map(|element| element.to_string(session))
-                    .collect::<Vec<String>>()
-                    .join(",")
-            ),
+            ValueKind::List(elements) | ValueKind::Tuple(elements) => {
+                let (name, opening, closing) = if self.is_list() {
+                    ("", "[", "]")
+                } else {
+                    ("Tuple", "(", ")")
+                };
+
+                format!(
+                    "{name}{opening}{}{closing}",
+                    elements
+                        .iter()
+                        .map(|element| element.to_string(session))
+                        .collect::<Vec<String>>()
+                        .join(",")
+                )
+            },
             ValueKind::Lambda(args, value) => {
                 let args = args
                     .iter()

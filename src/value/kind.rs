@@ -12,6 +12,9 @@ pub enum ValueKind {
     String(InternedString),
     List(Vec<Box<Expr>>),
 
+    // for a single-element tuple, use a trailing comma
+    Tuple(Vec<Box<Expr>>),
+
     // '\' '{' (ARGS ',')? VALUE '}'
     // `ARGS` of lambda and `ARGS` of FuncDef are identical
     Lambda(Vec<Box<ArgDef>>, Box<Expr>),
@@ -42,6 +45,7 @@ impl ValueKind {
             ValueKind::String(i) => TokenKind::String(*i),
             ValueKind::Lambda(_, _) => TokenKind::Operator(OpToken::BackSlash),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
+            ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),
             ValueKind::Block { .. } => TokenKind::Operator(OpToken::OpeningCurlyBrace),
         }
     }

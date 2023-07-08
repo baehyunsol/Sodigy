@@ -102,7 +102,12 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
             "Branch(Branch(a,b,c),d,e)",
             0,
         ),
-        ("\\{x: Int, y: Int, x + y}", "Lambda(x:Int,y:Int,Add(x,y))", 0)
+        ("\\{x: Int, y: Int, x + y}", "Lambda(x:Int,y:Int,Add(x,y))", 0),
+        ("(3)", "3", 1),
+        ("(3,)", "Tuple(3)", 0),
+        ("(3, 4)", "Tuple(3,4)", 0),
+        ("(3, 4,)", "Tuple(3,4)", 0),
+        ("()", "Tuple()", 0),
     ];
 
     result
@@ -193,6 +198,14 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             },
             3,
         ),
+        (
+            "foo(1 1)",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::Number(Ratio::one()),
+                expected: ExpectedToken::Nothing,
+            },
+            6,
+        ),
     ];
 
     result
@@ -206,6 +219,7 @@ fn valid_ast_dump_test() {
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {
+        println!("{}", String::from_utf8_lossy(&input));
         match dump_ast_of_expr(input, &mut session) {
             Ok(expr) => {
                 assert_eq!(expr.to_string(&session), ast);

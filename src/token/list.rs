@@ -5,7 +5,7 @@ use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::session::InternedString;
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef};
-use crate::value::parse_block_expr;
+use crate::value::{parse_block_expr, Value};
 
 pub struct TokenList {
     pub data: Vec<Token>,
@@ -65,6 +65,17 @@ impl TokenList {
 
     pub fn append(&mut self, mut tokens: Vec<Token>) {
         self.data.append(&mut tokens);
+    }
+
+    fn contains(&self, kind: &TokenKind) -> bool {
+
+        for token in self.data[self.cursor..].iter() {
+            if &token.kind == kind {
+                return true;
+            }
+        }
+
+        false
     }
 
     // if the current token is `token`, it steps forward and returns true
@@ -412,10 +423,42 @@ impl TokenList {
         }
     }
 
-    // SINGLE expr inside a parenthesis
+    // If the inner content has comma(s), it interprets it as a tuple
+    // Otherwise, it interprets it as a single expression inside a parenthesis
     // Some(Err(_)) indicates that it's a paren_expr but the inner expr has a syntax error
     pub fn step_paren_expr(&mut self) -> Option<Result<Expr, ParseError>> {
-        self._step_list_expr(Delimiter::Parenthesis)
+        match self.data.get(self.cursor) {
+            Some(Token {
+                kind: TokenKind::List(Delimiter::Parenthesis, elements),
+                span,
+            }) => {
+                self.cursor += 1;
+
+                let has_trailing_comma = match elements.last() {
+                    Some(box Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => true,
+                    _ => false
+                };
+
+                let elements = match split_list_by_comma(elements) {
+                    Ok(el) => el,
+                    Err(er) => {
+                        return Some(Err(er));
+                    }
+                };
+
+                if elements.len() == 1 && !has_trailing_comma {
+                    Some(Ok(Box::leak(elements[0].clone()).to_owned()))
+                }
+
+                else {
+                    Some(Ok(Expr {
+                        kind: ExprKind::Value(Value::tuple(elements, *span)),
+                        span: *span,
+                    }))
+                }
+            }
+            _ => None,
+        }
     }
 
     // works like `step_paren_expr` but for square brackets
