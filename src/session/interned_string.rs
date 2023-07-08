@@ -1,10 +1,17 @@
 #[cfg(test)]
 use super::LocalParseSession;
 
+/*
+ * 0: dummy
+ * 1 ~ 0xff_fff: builtins
+ * indices of builtins do not change across compilations, but it might change when the compiler version changes
+ * 0x100_000 ~ 0x100_000 + keywords.len(): keywords
+ */
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
 
-const DUMMY_INDEX: u32 = u32::MAX - 8;
+const DUMMY_INDEX: u32 = 0;
+pub const KEYWORD_START: u32 = 0x100_000;
 
 impl InternedString {
     pub fn dummy() -> Self {
@@ -17,10 +24,7 @@ impl InternedString {
 
     #[cfg(test)]
     pub fn to_string(&self, session: &LocalParseSession) -> String {
-        let bytes = session.unintern_string(*self)
-            .expect("Internal Compiler Error 657FECD");
-
-        String::from_utf8_lossy(&bytes).to_string()
+        String::from_utf8_lossy(&session.unintern_string(*self)).to_string()
     }
 }
 

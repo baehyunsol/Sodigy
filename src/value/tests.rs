@@ -15,17 +15,13 @@ impl ValueKind {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
             ValueKind::Identifier(ind) => String::from_utf8_lossy(
-                &session
-                    .unintern_string(*ind)
-                    .expect("Internal Compiler Error 3E90A3A"),
+                &session.unintern_string(*ind)
             )
             .to_string(),
             ValueKind::String(ind) => format!(
                 "{:?}",
                 String::from_utf8_lossy(
-                    &session
-                        .unintern_string(*ind)
-                        .expect("Internal Compiler Error 52FD790")
+                    &session.unintern_string(*ind)
                 )
                 .to_string()
             ),
@@ -52,9 +48,7 @@ impl ValueKind {
                         format!(
                             "{}:{},",
                             String::from_utf8_lossy(
-                                &session
-                                    .unintern_string(*name)
-                                    .expect("Internal Compiler Error 5C00152")
+                                &session.unintern_string(*name)
                             )
                             .to_string(),
                             ty.to_string(session)
@@ -72,9 +66,7 @@ impl ValueKind {
                         format!(
                             "{}={};",
                             String::from_utf8_lossy(
-                                &session
-                                    .unintern_string(*name)
-                                    .expect("Internal Compiler Error 8029687")
+                                &session.unintern_string(*name)
                             )
                             .to_string(),
                             value.to_string(session)

@@ -16,7 +16,6 @@ impl NameScope {
     // Ok(None) -> valid name, no alias
     // Ok(Some(u)) -> valid name, and has alias `u`
     // Err() -> invalid name
-    // TODO: suggest the closest name
     pub fn search_name(&self, name: InternedString) -> Result<Option<&Use>, ()> {
 
         // the order of the stack doesn't matter because
@@ -47,6 +46,8 @@ impl NameScope {
 
     }
 
+    // rust/compiler/rustc_span/src/edit_distance.rs
+    // It's okay for an error-related function to be very expensive!
     pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Option<String> {
         todo!()
     }

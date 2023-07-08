@@ -7,7 +7,7 @@ pub enum TokenKind {
     Number(Ratio),
     String(InternedString),
 
-    // It doesn't care how the inside looks like. It only guarantees that the opening and closing are properly matched.
+    // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
     List(Delimiter, Vec<Box<Token>>),
     Identifier(InternedString),
 
@@ -59,7 +59,7 @@ impl TokenKind {
                     format!(
                         "Identifier: `{}`",
                         String::from_utf8_lossy(
-                            &session.unintern_string(*string).unwrap_or(vec![b'?'; 3])
+                            &session.unintern_string(*string)
                         )
                         .to_string()
                     )

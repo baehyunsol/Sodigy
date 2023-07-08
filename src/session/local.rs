@@ -1,4 +1,4 @@
-use super::InternedString;
+use super::{InternedString, KEYWORD_START};
 use crate::token::Keyword;
 use std::collections::HashMap;
 
@@ -38,8 +38,8 @@ impl LocalParseSession {
         let mut strings_rev = HashMap::with_capacity(keywords.len());
 
         for (index, keyword) in keywords.iter().enumerate() {
-            strings.insert(index.into(), keyword.to_vec());
-            strings_rev.insert(keyword.to_vec(), index.into());
+            strings.insert((index + KEYWORD_START as usize).into(), keyword.to_vec());
+            strings_rev.insert(keyword.to_vec(), (index + KEYWORD_START as usize).into());
         }
 
         LocalParseSession {
@@ -70,7 +70,7 @@ impl LocalParseSession {
     }
 
     pub fn try_unwrap_keyword(&self, index: InternedString) -> Option<Keyword> {
-        KEYWORDS.get::<usize>(index.into()).map(|k| *k)
+        KEYWORDS.get::<usize>(<InternedString as Into<usize>>::into(index) - KEYWORD_START as usize).map(|k| *k)
     }
 
     // Expensive (if it has to write to a GlobalCache)
@@ -80,24 +80,24 @@ impl LocalParseSession {
             _ => {
                 // TODO: first, try to get from the Global cache
                 // if fail, make a new entry in the Glocal cache, and get that
-                let index = self.strings.len().into();
+                let index = self.strings.len() + KEYWORD_START as usize;
+                let index: InternedString = index.into();
+
                 self.strings.insert(index, string.clone());
                 self.strings_rev.insert(string.clone(), index);
+
                 index
             }
         }
     }
 
-    pub fn unintern_string(&self, string: InternedString) -> Option<Vec<u8>> {
+    pub fn unintern_string(&self, string: InternedString) -> Vec<u8> {
         match self.strings.get(&string) {
-            Some(buf) => Some(buf.to_vec()),
+            Some(buf) => buf.to_vec(),
             None => {
-                #[cfg(test)]
-                return None;
-
                 // TODO: search global cache
-                #[cfg(not(test))]
-                return None;
+                // it must be somewhere!
+                todo!()
             }
         }
     }
