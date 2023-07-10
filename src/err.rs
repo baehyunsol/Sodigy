@@ -68,6 +68,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn is_iutf8(&self) -> bool {
+        if let ParseErrorKind::InvalidUTF8(_) = self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
     pub(crate) fn ch(c: char, span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedChar(c),
@@ -101,12 +109,28 @@ impl ParseError {
     }
 
     pub(crate) fn invalid_utf8(cs: Vec<u8>, ind: usize) -> Self {
-        todo!()
+        ParseError {
+            kind: ParseErrorKind::InvalidUTF8(cs),
+            span: Span::dummy_index(ind),
+            message: String::new(),
+        }
     }
 
-    pub(crate) fn set_span_of_eof(mut self, span: Span) -> ParseError {
+    pub(crate) fn set_span_of_eof(mut self, span: Span) -> Self {
         if (self.is_eof() || self.is_eoe()) && self.span.is_dummy() {
             self.span = span;
+            self
+        } else {
+            self
+        }
+    }
+
+    pub(crate) fn set_ind_and_fileno(mut self, span: Span) -> Self {
+        if self.is_iutf8() && self.span.is_dummy_index() {
+            let offset = self.span.index;
+            self.span = span;
+            self.span.index += offset;
+
             self
         } else {
             self

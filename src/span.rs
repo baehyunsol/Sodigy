@@ -30,6 +30,18 @@ impl Span {
         self.file_no == u32::MAX && self.index == usize::MAX
     }
 
+    // one must call `.set_ind_and_fileno` after initializing this!
+    pub fn dummy_index(index: usize) -> Self {
+        Span {
+            file_no: u32::MAX,
+            index,
+        }
+    }
+
+    pub fn is_dummy_index(&self) -> bool {
+        self.file_no == u32::MAX && self.index != usize::MAX
+    }
+
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);

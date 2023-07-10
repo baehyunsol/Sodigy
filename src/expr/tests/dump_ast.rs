@@ -109,7 +109,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("(3, 4)", "Tuple(3,4)", 0),
         ("(3, 4,)", "Tuple(3,4)", 0),
         ("()", "Tuple()", 0),
-        ("'한글 입력 테스트'", "", 0),
+        ("'한글 입력 테스트'", "\"한글 입력 테스트\"", 0),
     ];
 
     result
@@ -131,8 +131,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             2,
-        ),
-        (
+        ), (
             "a.(a)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::List(Delimiter::Parenthesis, vec![]),
@@ -141,20 +140,17 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             2,
-        ),
-        (
+        ), (
             "[1, 2, a[]]",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             8,
-        ),
-        ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
+        ), ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
         (
             "if x { 0 } else { }",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             16,
-        ),
-        (
+        ), (
             "if x > y { x } * 2",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Operator(OpToken::Mul),
@@ -163,8 +159,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             15,
-        ),
-        (
+        ), (
             "if x > y { x }",
             ParseErrorKind::UnexpectedEoe(
                 ExpectedToken::SpecificTokens(vec![
@@ -172,58 +167,64 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ])
             ),
             0,
-        ),
-        (
+        ), (
             "{a = 3; b = 4;}",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             13,
-        ),
-        (
+        ), (
             "{1 1}",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ),
-        (
+        ), (
             "[1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ),
-        (
+        ), (
             "[1 1, 1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ),
-        (
+        ), (
             "(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ),
-        (
+        ), (
             "foo(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             6,
+        ), (
+            "한글넣으면죽음?",
+            ParseErrorKind::UnexpectedChar('한'),
+            0,
         ),
     ];
 
-    result
+    let mut result: Vec<(Vec<u8>, ParseErrorKind, usize)> = result
         .into_iter()
         .map(|(input, err, span)| (input.bytes().collect::<Vec<u8>>(), err, span))
-        .collect()
+        .collect();
+
+    result.push((
+        vec![32, 32, 34, 65, 65, 200, 200, 65, 65, 34],
+        ParseErrorKind::InvalidUTF8(vec![200]),
+        5,
+    ));
+
+    result
 }
 
 #[test]

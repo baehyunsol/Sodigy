@@ -22,6 +22,10 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
         ParseErrorKind::UnexpectedToken { expected: e1, got: t1 } => match k2 {
             ParseErrorKind::UnexpectedToken { expected: e2, got: t2 } => e1.is_same_type(e2) && t1.is_same_type(t2),
             _ => false,
+        },
+        ParseErrorKind::InvalidUTF8(e1) => match k2 {
+            ParseErrorKind::InvalidUTF8(e2) => e1 == e2,
+            _ => false,
         }
     }
 

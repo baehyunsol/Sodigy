@@ -45,8 +45,9 @@ fn lex_token(
                         Token {
                             span: curr_span,
                             kind: TokenKind::String(
-                                // TODO: set span
-                                bytes_to_v32(&buffer)?
+                                bytes_to_v32(&buffer).map_err(
+                                    |e| e.set_ind_and_fileno(curr_span)
+                                )?
                             ),
                         },
                         ind + 1,

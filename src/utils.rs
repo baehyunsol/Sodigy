@@ -31,15 +31,52 @@ fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
     }
 
     else if cs[0] < 224 {
-        todo!()
+
+        if cs.len() != 2 {
+            Err(ParseError::invalid_utf8(cs, ind))
+        }
+
+        else {
+            Ok(cs[0] as u32 % 32 * 64 + cs[1] as u32 % 64)
+        }
+
     }
 
     else if cs[0] < 240 {
-        todo!()
+
+        if cs.len() != 3 {
+            Err(ParseError::invalid_utf8(cs, ind))
+        }
+
+        else {
+            Ok(
+                cs[0] as u32 % 16 * 4096
+                + cs[1] as u32 % 64 * 64
+                + cs[2] as u32 % 64
+            )
+        }
+
+    }
+
+    else if cs[0] < 248 {
+
+        if cs.len() != 4 {
+            Err(ParseError::invalid_utf8(cs, ind))
+        }
+
+        else {
+            Ok(
+                cs[0] as u32 % 8 * 262144
+                + cs[1] as u32 % 64 * 4096
+                + cs[2] as u32 % 64 * 64
+                + cs[3] as u32 % 64
+            )
+        }
+
     }
 
     else {
-        todo!()
+        Err(ParseError::invalid_utf8(cs, ind))
     }
 
 }

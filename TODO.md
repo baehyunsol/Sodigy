@@ -30,3 +30,13 @@
   - if it finds a modified file, it tries to generate an intermediate result
     - if succeeds, update the intermediate result
     - if fails, let programmers use information from the error messages
+
+---
+
+`?` syntax
+
+```
+def foo(a: BAR, b: BAZ): Result(Ty) = func(
+  foofoo(a)?, barbar(b)?
+);
+```
