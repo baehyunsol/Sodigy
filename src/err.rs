@@ -3,8 +3,9 @@ use crate::span::Span;
 use crate::token::TokenKind;
 
 mod kind;
+
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub trait SodigyError {
     fn render_err(&self, session: &LocalParseSession) -> String;
@@ -139,6 +140,30 @@ impl ExpectedToken {
             ExpectedToken::SpecificTokens(token_kinds) => {
                 format!("Expected {},", pretty_list(token_kinds, session))
             }
+        }
+    }
+
+    #[cfg(test)]
+    pub fn is_same_type(&self, other: &ExpectedToken) -> bool {
+        match (self, other) {
+            (ExpectedToken::AnyExpression, ExpectedToken::AnyExpression)
+            | (ExpectedToken::Nothing, ExpectedToken::Nothing) => true,
+
+            // for test runners, the order of the tokens do not matter
+            // for test functions, we do not have to care about their performance... really?
+            (ExpectedToken::SpecificTokens(tokens1), ExpectedToken::SpecificTokens(tokens2)) => {
+
+                for t1 in tokens1.iter() {
+
+                    if !tokens2.iter().any(|t2| t1.is_same_type(t2)) {
+                        return false;
+                    }
+
+                }
+
+                true
+            }
+            _ => false,
         }
     }
 }

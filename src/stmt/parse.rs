@@ -19,7 +19,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error FB4375E");
 
     let curr_span = tokens
-        .get_curr_span()
+        .peek_curr_span()
         .expect("Internal Compiler Error E22AC92");
 
     if tokens.consume(TokenKind::keyword_use()) {

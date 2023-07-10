@@ -1,5 +1,6 @@
 use super::{Expr, ExprKind};
 use crate::ast::{ASTError, NameScope};
+use crate::expr::InfixOp;
 use crate::value::ValueKind;
 
 impl Expr {
@@ -19,14 +20,22 @@ impl Expr {
                 ValueKind::Identifier(id) => match name_scope.search_name(*id) {
                     Ok(None) => Ok(()),
                     Ok(Some(alias)) => {
-                        todo!();
+                        self.kind = alias.to_path();
 
                         Ok(())
                     },
                     Err(()) => Err(ASTError::no_def(*id, self.span, name_scope.clone())),
                 },
-                ValueKind::Lambda(args, expr) => todo!(),
-                ValueKind::Block { defs, value } => todo!(),
+                ValueKind::Lambda(args, expr) => {
+                    name_scope.push_names(args);
+
+                    expr.resolve_names(name_scope)
+                },
+                ValueKind::Block { defs, value } => {
+                    name_scope.push_names(defs);
+
+                    value.resolve_names(name_scope)
+                },
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope),
             ExprKind::Branch(cond, b1, b2) => {
@@ -45,7 +54,21 @@ impl Expr {
 
                 Ok(())
             }
-            ExprKind::Infix(op, o1, o2) => todo!(),  // InfixOp::Path must be taken a special care
+            ExprKind::Infix(op, o1, o2) => match op {
+
+                // `a.b.c` -> `a` has to be resolved, but the others shall not
+                InfixOp::Path => {
+                    o1.resolve_names(name_scope)?;
+
+                    Ok(())
+                },
+                _ => {
+                    o1.resolve_names(name_scope)?;
+                    o2.resolve_names(name_scope)?;
+
+                    Ok(())
+                }
+            },
         }
     }
 }

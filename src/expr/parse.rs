@@ -1,14 +1,14 @@
 use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
 use crate::span::Span;
-use crate::token::{TokenKind, TokenList};
+use crate::token::{Token, TokenKind, TokenList};
 use crate::value::parse_value;
 
 // pratt algorithm
 // https://github.com/matklad/minipratt
 // https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
 pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseError> {
-    let lhs_span = if let Some(span) = tokens.get_curr_span() {
+    let lhs_span = if let Some(span) = tokens.peek_curr_span() {
         span
     } else {
         // meaning there's no more token in the list
@@ -39,7 +39,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
     };
 
     loop {
-        let curr_span = if let Some(span) = tokens.get_curr_span() {
+        let curr_span = if let Some(span) = tokens.peek_curr_span() {
             span
         } else {
             break;
@@ -103,25 +103,36 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
             let (l_bp, r_bp) = infix_binding_power(op);
 
             if l_bp < min_bp {
-                tokens.backward(); // this operator is not parsed in this call
+                tokens.backward();  // this operator is not parsed in this call
                 break;
             }
 
-            let rhs = parse_expr(tokens, r_bp).map_err(|e| e.set_span_of_eof(curr_span))?;
-
             // `a.b` is valid, but `a.1` is not
-            if op == InfixOp::Path && !rhs.is_identifier() {
-                return Err(ParseError::tok_msg(
-                    rhs.get_first_token(),
-                    curr_span,
-                    ExpectedToken::SpecificTokens(vec![
-                        TokenKind::dummy_identifier()
-                    ]),
-                    "A name of a field or a method must be an identifier!
-`a.b` is valid, but `a.1` is not."
-                        .to_string(),
-                ));
+            if op == InfixOp::Path && !tokens.peek_identifier().is_some() {
+                let err_msg = "A name of a field or a method must be an identifier!
+`a.b` is valid, but `a.1` is not.".to_string();
+                let expected = ExpectedToken::SpecificTokens(vec![
+                    TokenKind::dummy_identifier()
+                ]);
+
+                if let Some(Token { kind, span }) = tokens.step() {
+                    return Err(ParseError::tok_msg(
+                        kind.clone(), *span,
+                        expected, err_msg,
+                    ));
+                }
+
+                else {
+                    return Err(ParseError::eoe_msg(
+                        curr_span,
+                        expected,
+                        err_msg,
+                    ));
+                }
+
             }
+
+            let rhs = parse_expr(tokens, r_bp).map_err(|e| e.set_span_of_eof(curr_span))?;
 
             lhs = Expr {
                 span: curr_span,

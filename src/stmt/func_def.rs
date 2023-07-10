@@ -22,11 +22,7 @@ pub struct FuncDef {
 impl FuncDef {
 
     pub fn resolve_names(&mut self, name_scope: &mut NameScope) -> Result<(), ASTError> {
-        name_scope.name_stack.push(
-            self.args.iter().map(
-                |arg| arg.name
-            ).collect()
-        );
+        name_scope.push_names(&self.args);
 
         self.ret_val.resolve_names(name_scope)
     }

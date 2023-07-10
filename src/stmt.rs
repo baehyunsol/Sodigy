@@ -11,7 +11,7 @@ mod tests;
 
 mod use_;
 
-pub use arg_def::{parse_arg_def, ArgDef};
+pub use arg_def::{parse_arg_def, ArgDef, GetNameOfArg};
 pub use decorator::Decorator;
 pub use func_def::FuncDef;
 pub use kind::StmtKind;

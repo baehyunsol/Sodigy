@@ -69,4 +69,25 @@ impl TokenKind {
             TokenKind::Operator(op) => format!("Special Character: `{}`", op.render_err()),
         }
     }
+
+    #[cfg(test)]
+    pub fn is_same_type(&self, other: &TokenKind) -> bool {
+        match (self, other) {
+            (TokenKind::Number(m), TokenKind::Number(n)) => m == n,
+            (TokenKind::Keyword(m), TokenKind::Keyword(n)) => m == n,
+            (TokenKind::Operator(m), TokenKind::Operator(n)) => m == n,
+
+            // test runners do not care about the elements:
+            // because the error variants do not care about the elements!
+            (TokenKind::List(m, _), TokenKind::List(n, _)) => m == n,
+
+            // test runners cannot generate the same string: they cannot access the ParseSession
+            (TokenKind::String(_), TokenKind::String(_)) => true,
+
+            // test runners cannot generate the same identifier: they cannot access the ParseSession
+            (TokenKind::Identifier(_), TokenKind::Identifier(_)) => true,
+
+            _ => false,
+        }
+    }
 }

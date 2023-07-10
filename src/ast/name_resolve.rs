@@ -1,6 +1,6 @@
 use super::{AST, ASTError};
 use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::Use;
+use crate::stmt::{GetNameOfArg, Use};
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -48,8 +48,16 @@ impl NameScope {
 
     // rust/compiler/rustc_span/src/edit_distance.rs
     // It's okay for an error-related function to be very expensive!
-    pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Option<String> {
+    pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Vec<String> {
         todo!()
+    }
+
+    pub fn push_names<A: GetNameOfArg>(&mut self, args: &Vec<A>) {
+        self.name_stack.push(
+            args.iter().map(
+                |arg| arg.get_name_of_arg()
+            ).collect()
+        );
     }
 }
 

@@ -1,8 +1,8 @@
-use crate::err::{ExpectedToken, ParseError, ParseErrorKind, SodigyError};
+use crate::err::{ExpectedToken, ParseError, ParseErrorKind, SodigyError, tests::is_eq};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
-use crate::token::{OpToken, TokenKind, TokenList};
+use crate::token::{Delimiter, OpToken, TokenKind, TokenList};
 use hmath::Ratio;
 
 pub fn dump_ast_of_expr(
@@ -128,7 +128,17 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                     TokenKind::dummy_identifier()
                 ]),
             },
-            1,
+            2,
+        ),
+        (
+            "a.(a)",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::List(Delimiter::Parenthesis, vec![]),
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::dummy_identifier()
+                ]),
+            },
+            2,
         ),
         (
             "[1, 2, a[]]",
@@ -238,12 +248,12 @@ fn invalid_ast_dump_test() {
 
     for (input, err_kind, span) in invalid_samples() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
-            if e.kind != err_kind {
+            if !is_eq(&e.kind, &err_kind) {
                 panic!(
                     "input: {}\nexpected_err:{}\ngot: {}",
                     String::from_utf8_lossy(&input).to_string(),
                     err_kind.render_err(&session),
-                    e.kind.render_err(&session),
+                    e.render_err(&session),
                 );
             }
 

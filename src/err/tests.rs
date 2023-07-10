@@ -1,6 +1,30 @@
+use super::ParseErrorKind;
 use crate::err::SodigyError;
 use crate::expr::dump_ast_of_expr;
 use crate::session::LocalParseSession;
+
+pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
+
+    match k1 {
+        ParseErrorKind::UnexpectedChar(c1) => match k2 {
+            ParseErrorKind::UnexpectedChar(c2) if c1 == c2 => true,
+            _ => false,
+        },
+        ParseErrorKind::UnexpectedEof => match k2 {
+            ParseErrorKind::UnexpectedEof => true,
+            _ => false,
+        },
+        ParseErrorKind::UnexpectedEoe(e1) => match k2 {
+            ParseErrorKind::UnexpectedEoe(e2) => e1.is_same_type(e2),
+            _ => false,
+        },
+        ParseErrorKind::UnexpectedToken { expected: e1, got: t1 } => match k2 {
+            ParseErrorKind::UnexpectedToken { expected: e2, got: t2 } => e1.is_same_type(e2) && t1.is_same_type(t2),
+            _ => false,
+        }
+    }
+
+}
 
 #[test]
 fn error_message_test() {

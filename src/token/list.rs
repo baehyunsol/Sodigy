@@ -95,17 +95,34 @@ impl TokenList {
         }
     }
 
-    // `get_XXX` functions don't move the cursor
+    // `peek_XXX` functions don't move the cursor
     // it returns None if the cursor is not pointing to the data
 
-    pub fn get_curr_span(&self) -> Option<Span> {
+    pub fn peek_curr_span(&self) -> Option<Span> {
         self.data.get(self.cursor).map(|t| t.span)
+    }
+
+    pub fn peek_identifier(&self) -> Option<InternedString> {
+        match self.data.get(self.cursor) {
+            Some(t) if t.is_identifier() => Some(t.unwrap_identifier()),
+            _ => None
+        }
     }
 
     // `step_XXX` functions (including `step`)
     // if the current token is `XXX`, it returns `Some(XXX)` and steps the cursor forward
     // otherwise, it doesn't do anything and returns `None`
     // `step_XXX_strict` are like `step_XXX`, but returns `Err()` instead of `None`
+
+    pub fn step(&mut self) -> Option<&Token> {
+        let result = self.data.get(self.cursor);
+
+        if result.is_some() {
+            self.cursor += 1;
+        }
+
+        result
+    }
 
     pub fn step_identifier_strict(&mut self) -> Result<InternedString, ParseError> {
         match self.step() {
@@ -124,16 +141,6 @@ impl TokenList {
                 ]),
             ))
         }
-    }
-
-    pub fn step(&mut self) -> Option<&Token> {
-        let result = self.data.get(self.cursor);
-
-        if result.is_some() {
-            self.cursor += 1;
-        }
-
-        result
     }
 
     pub fn step_func_def_args(&mut self) -> Option<Result<Vec<ArgDef>, ParseError>> {
@@ -285,7 +292,7 @@ impl TokenList {
     // Some(Err(_)) indicates that it's a branch_expr but the inner expr has a syntax error
     // if self.step() is `if`, it must return Some(_)
     pub fn step_branch_expr(&mut self) -> Option<Result<Expr, ParseError>> {
-        let if_span = if let Some(s) = self.get_curr_span() {
+        let if_span = if let Some(s) = self.peek_curr_span() {
             s
         } else {
             return None;
@@ -332,7 +339,7 @@ impl TokenList {
                 }
             };
 
-            let else_span = self.get_curr_span();
+            let else_span = self.peek_curr_span();
 
             let false_expr = if self.consume(TokenKind::keyword_else()) {
                 match self.step() {

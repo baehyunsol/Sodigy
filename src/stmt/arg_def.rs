@@ -34,3 +34,26 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
 
     Ok(ArgDef { name, ty })
 }
+
+// TODO: where should this belong?
+pub trait GetNameOfArg {
+    fn get_name_of_arg(&self) -> InternedString;
+}
+
+impl GetNameOfArg for ArgDef {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.name
+    }
+}
+
+impl<A> GetNameOfArg for (InternedString, Box<A>) {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.0
+    }
+}
+
+impl<A: GetNameOfArg> GetNameOfArg for Box<A> {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.as_ref().get_name_of_arg()
+    }
+}

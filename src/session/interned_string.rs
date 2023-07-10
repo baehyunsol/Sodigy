@@ -7,7 +7,7 @@ use super::LocalParseSession;
  * indices of builtins do not change across compilations, but it might change when the compiler version changes
  * 0x100_000 ~ 0x100_000 + keywords.len(): keywords
  */
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
 
 const DUMMY_INDEX: u32 = 0;

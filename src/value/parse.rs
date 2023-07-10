@@ -92,7 +92,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         ))
     } else {
         let first_span = block_tokens
-            .get_curr_span()
+            .peek_curr_span()
             .expect("Internal Compiler Error 64B8455");
         let defs_count =
             block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
@@ -101,7 +101,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
 
         for _ in 0..defs_count {
             let curr_span = block_tokens
-                .get_curr_span()
+                .peek_curr_span()
                 .expect("Internal Compiler Error F299389");
 
             // TODO: allow pattern matchings for assignments
@@ -157,7 +157,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         ))
     } else {
         let first_span = tokens
-            .get_curr_span()
+            .peek_curr_span()
             .expect("Internal Compiler Error 245BA3F");
         let args_count =
             tokens.count_tokens_non_recursive(TokenKind::comma());
@@ -166,7 +166,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
 
         for _ in 0..args_count {
             let curr_span = tokens
-                .get_curr_span()
+                .peek_curr_span()
                 .expect("Internal Compiler Error F299389");
 
             args.push(Box::new(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?));
