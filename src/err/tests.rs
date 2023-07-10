@@ -1,6 +1,6 @@
 use super::ParseErrorKind;
-use crate::err::SodigyError;
-use crate::expr::dump_ast_of_expr;
+use crate::parse_file;
+use crate::file_system::{read_bytes, read_string};
 use crate::session::LocalParseSession;
 
 pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
@@ -29,31 +29,20 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
 #[test]
 fn error_message_test() {
     let mut session = LocalParseSession::new();
-    let input = b"
-[[
-    1,
-    2,
-    3,
-    4[],
-    5
-]]"
-    .to_vec();
 
-    session.set_input(input.clone());
-    let error_msg = "Any kind of expression was expected, but got nothing!
-    1 │ [[
-    2 │     1,
-    3 │     2,
-    4 │     3,
-      │      ▼
->>> 5 │     4[],
-      │      ▲
-    6 │     5
-    7 │ ]]";
+    for i in 0..3 {
+        let input = read_bytes(&format!("./src/err/samples/{i}.in")).unwrap();
+        session.set_input(input.clone());
+        let error_msg = read_string(&format!("./src/err/samples/{i}.out")).unwrap();
 
-    if let Err(e) = dump_ast_of_expr(input, &mut session) {
-        assert_eq!(e.render_err(&session), error_msg)
-    } else {
-        panic!()
+        if let Err(e) = parse_file(&input, &mut session) {
+
+            if e.render_err(&session) != error_msg {
+                panic!("expected\n{}\n\nactual\n{}", error_msg, e.render_err(&session));
+            }
+
+        } else {
+            panic!("{} is supposed to fail, but doesn't!", String::from_utf8_lossy(&input))
+        }
     }
 }

@@ -3,6 +3,7 @@
 mod ast;
 mod err;
 mod expr;
+mod file_system;
 mod lexer;
 mod module;
 mod parse;

@@ -61,9 +61,9 @@ impl Span {
             .enumerate()
             .map(|(index, line)| {
                 let marker = if index == row {
-                    vec![b'>'; 3]
+                    "▸".as_bytes().to_vec()
                 } else {
-                    vec![b' '; 3]
+                    b" ".to_vec()
                 };
 
                 let line_no = format!(" {index:08} │ ").as_bytes().to_vec();
@@ -83,15 +83,28 @@ impl Span {
 
         let mut preview = preview[preview_start_index..preview_end_index].to_vec();
 
-        while preview.iter().all(|line| line[4] == b'0') {
-            preview = preview
-                .iter_mut()
-                .map(|line| {
-                    line.remove(4);
+        while preview.iter().all(
+            |line| 
+                (line[0] == b' ' && line[2] == b'0')
+                || (line[0] == 0xe2 && line[4] == b'0')  // 0xe2 is the first byte of `▸`
+        ) {
+            preview = preview.iter_mut().map(
+                    |line| {
+                        if line[0] == b' ' {
+                            line.remove(2);
+                        }
 
-                    line.to_vec()
-                })
-                .collect()
+                        else {
+                            line.remove(4);
+                        }
+
+                        line.to_vec()
+                    }
+                ).collect()
+        }
+
+        if preview.len() == 1 && row == 0 {
+            preview[0] = vec!["▸ 0 │".as_bytes().to_vec(), preview[0][8..].to_vec()].concat()
         }
 
         preview = insert_col_markers(preview, col);
@@ -128,19 +141,25 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
         return lines;
     }
 
-    let line_no_len = lines[0]
-        .iter()
-        .position(|&c| c == 0xe2)
-        .expect("Internal Compiler Error 538DC83"); // the first byte of `│`
+    let line_no_len = if lines.len() == 1 {
+        assert_eq!(lines[0][4], b'0', "Internal Compiler Error 00CDDBE");
+        4
+    } else {
+        lines[0]
+            .iter()
+            .position(|&c| c == 0xe2)  // the first byte of `│`
+            .expect("Internal Compiler Error 538DC83")
+    };
+
     let highlight_line_index = lines
         .iter()
-        .position(|line| line[0] == b'>')
-        .expect("Internal Compiler Error 2B1BA68");
+        .position(|line| line[0] == 0xe2)
+        .expect("Internal Compiler Error 2B1BA68");  // the first byte of `▸`
 
-    let upper: Vec<u8> = format!("{}│{}▼", " ".repeat(line_no_len), " ".repeat(col))
+    let upper: Vec<u8> = format!("{}│{}▾", " ".repeat(line_no_len), " ".repeat(col))
         .as_bytes()
         .to_vec();
-    let lower: Vec<u8> = format!("{}│{}▲", " ".repeat(line_no_len), " ".repeat(col))
+    let lower: Vec<u8> = format!("{}│{}▴", " ".repeat(line_no_len), " ".repeat(col))
         .as_bytes()
         .to_vec();
 

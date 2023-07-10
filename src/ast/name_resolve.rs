@@ -2,6 +2,7 @@ use super::{AST, ASTError};
 use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
+use crate::utils::{substr_edit_distance, edit_distance};
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -48,11 +49,68 @@ impl NameScope {
     }
 
     // rust/compiler/rustc_span/src/edit_distance.rs
+    // THIS FUNCTION IS VERY EXPENSIVE!!
     // It's okay for an error-related function to be very expensive!
+    // But don't call this function unless the compiler encounters an error!
     pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Vec<String> {
-        // TODO
+        let name: Vec<u8> = session.unintern_string(name).into_iter().map(
+            |mut c| { c.make_ascii_lowercase(); c }
+        ).collect();
+        let mut result = vec![];
 
-        vec![]
+        let (sub_edit_distance, self_edit_distance) = if name.len() < 4 {
+            (0, 1)
+        } else if name.len() < 8 {
+            (1, 1)
+        } else if name.len() < 12 {
+            (1, 2)
+        } else {
+            (1, 3)
+        };
+
+        for curr_name in self.all_names(session).iter() {
+            let lowered_name: Vec<u8> = curr_name.iter().map(
+                |c| {
+                    let mut c = *c;
+                    c.make_ascii_lowercase();
+
+                    c
+                }
+            ).collect();
+
+            if edit_distance(&name, &lowered_name) <= self_edit_distance
+                || substr_edit_distance(&name, &lowered_name) <= sub_edit_distance {
+                result.push(String::from_utf8_lossy(curr_name).to_string());
+            }
+
+        }
+
+        result.dedup();
+        result
+    }
+
+    // It must be only called by `self.get_similar_name`
+    fn all_names(&self, session: &LocalParseSession) -> Vec<Vec<u8>> {
+        let mut result = Vec::with_capacity(
+            self.defs.len() + self.preludes.len() + self.uses.len()
+            + self.name_stack.iter().fold(0, |c, s| c + s.len())
+        );
+
+        for name in self.defs.iter().chain(self.preludes.iter()) {
+            result.push(session.unintern_string(*name));
+        }
+
+        for name in self.uses.iter() {
+            result.push(session.unintern_string(*name.0));
+        }
+
+        for name_stack in self.name_stack.iter() {
+            for name in name_stack.iter() {
+                result.push(session.unintern_string(*name));
+            }
+        }
+
+        result
     }
 
     pub fn push_names<A: GetNameOfArg>(&mut self, args: &Vec<A>) {
