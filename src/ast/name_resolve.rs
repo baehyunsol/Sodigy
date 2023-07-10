@@ -56,6 +56,11 @@ impl NameScope {
         let name: Vec<u8> = session.unintern_string(name).into_iter().map(
             |mut c| { c.make_ascii_lowercase(); c }
         ).collect();
+
+        if name.len() < 2 {
+            return vec![];
+        }
+
         let mut result = vec![];
 
         let (sub_edit_distance, self_edit_distance) = if name.len() < 4 {
@@ -119,6 +124,10 @@ impl NameScope {
                 |arg| arg.get_name_of_arg()
             ).collect()
         );
+    }
+
+    pub fn pop_names(&mut self) {
+        self.name_stack.pop().expect("Internal Compiler Error 836C6C0");
     }
 }
 

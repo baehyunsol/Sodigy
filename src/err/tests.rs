@@ -30,7 +30,7 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
 fn error_message_test() {
     let mut session = LocalParseSession::new();
 
-    for i in 0..3 {
+    for i in 0..4 {
         let input = read_bytes(&format!("./src/err/samples/{i}.in")).unwrap();
         session.set_input(input.clone());
         let error_msg = read_string(&format!("./src/err/samples/{i}.out")).unwrap();

@@ -1,6 +1,7 @@
 use super::{Expr, ExprKind};
 use crate::ast::{ASTError, NameScope};
 use crate::expr::InfixOp;
+use crate::stmt::ArgDef;
 use crate::value::ValueKind;
 
 impl Expr {
@@ -27,14 +28,31 @@ impl Expr {
                     Err(()) => Err(ASTError::no_def(*id, self.span, name_scope.clone())),
                 },
                 ValueKind::Lambda(args, expr) => {
+
+                    // TODO: `name_scope.push_names` after `ty.resolve_names`?
+                    // -> dependent types?
                     name_scope.push_names(args);
 
-                    expr.resolve_names(name_scope)
+                    for box ArgDef { ty, .. } in args.iter_mut() {
+                        ty.resolve_names(name_scope)?;
+                    }
+
+                    expr.resolve_names(name_scope)?;
+                    name_scope.pop_names();
+
+                    Ok(())
                 },
                 ValueKind::Block { defs, value } => {
                     name_scope.push_names(defs);
 
-                    value.resolve_names(name_scope)
+                    for (_, expr) in defs.iter_mut() {
+                        expr.resolve_names(name_scope)?;
+                    }
+
+                    value.resolve_names(name_scope)?;
+                    name_scope.pop_names();
+
+                    Ok(())
                 },
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope),

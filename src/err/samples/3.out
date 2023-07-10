@@ -1,0 +1,9 @@
+`InvalidName` is not defined!
+  0 │ def lambda_test: Int = {
+    │                      ▾
+▸ 1 │     l = \{x: Int, y: InvalidName, x + y + a + b};
+    │                      ▴
+  2 │     a = 3;
+  3 │ 
+  4 │     l(a)
+  5 │ };

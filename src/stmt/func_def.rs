@@ -27,8 +27,11 @@ impl FuncDef {
         // TODO: `push_names(self.args)` before this line? or after this?
         // dependent types?
         self.ret_type.resolve_names(name_scope)?;
+        self.ret_val.resolve_names(name_scope)?;
 
-        self.ret_val.resolve_names(name_scope)
+        name_scope.pop_names();
+
+        Ok(())
     }
 
 }
