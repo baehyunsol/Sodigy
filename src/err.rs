@@ -100,6 +100,10 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn invalid_utf8(cs: Vec<u8>, ind: usize) -> Self {
+        todo!()
+    }
+
     pub(crate) fn set_span_of_eof(mut self, span: Span) -> ParseError {
         if (self.is_eof() || self.is_eoe()) && self.span.is_dummy() {
             self.span = span;

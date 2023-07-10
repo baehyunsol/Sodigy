@@ -2,7 +2,7 @@ use crate::err::ParseError;
 use crate::session::LocalParseSession;
 use crate::span::Span;
 use crate::token::{Delimiter, OpToken, Token, TokenKind};
-use crate::utils::{bytes_to_string, into_char};
+use crate::utils::{bytes_to_string, bytes_to_v32, into_char};
 use hmath::{ConversionError, Ratio};
 
 pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token>, ParseError> {
@@ -44,7 +44,10 @@ fn lex_token(
                     return Ok((
                         Token {
                             span: curr_span,
-                            kind: TokenKind::String(session.intern_string(buffer)),
+                            kind: TokenKind::String(
+                                // TODO: set span
+                                bytes_to_v32(&buffer)?
+                            ),
                         },
                         ind + 1,
                     ));

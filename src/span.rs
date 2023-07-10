@@ -35,27 +35,24 @@ impl Span {
         let buffer = session.get_file_raw_content(self.file_no);
         let mut row = 0;
         let mut col = 0;
-        let mut curr_col = 0;
         let mut lines = vec![];
-        let mut tmp_lines = vec![];
+        let mut curr_line = vec![];
 
         for (i, c) in buffer.iter().enumerate() {
             if *c == b'\n' {
-                lines.push(tmp_lines);
-                tmp_lines = vec![];
-                curr_col = 0;
+                lines.push(curr_line);
+                curr_line = vec![];
             } else {
-                tmp_lines.push(*c);
-                curr_col += 1;
+                curr_line.push(*c);
             }
 
             if self.index == i {
                 row = lines.len();
-                col = curr_col;
+                col = curr_line.len();
             }
         }
 
-        lines.push(tmp_lines);
+        lines.push(curr_line);
 
         let preview = lines
             .into_iter()

@@ -1,3 +1,5 @@
+use crate::err::ParseError;
+
 pub fn into_char(s: &[u8], ind: usize) -> char {
     if s[ind] < 128 {
         s[ind] as char
@@ -21,10 +23,93 @@ pub fn into_char(s: &[u8], ind: usize) -> char {
     }
 }
 
-// every Vec<u8> in the compiler must be a valid UTF-8,
-// invalid UTF-8 must be rejected beforehand
+fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
+    assert!(cs.len() > 0, "Internal Compiler Error 8211564");
+
+    if cs[0] < 192 {
+        Err(ParseError::invalid_utf8(cs, ind))
+    }
+
+    else if cs[0] < 224 {
+        todo!()
+    }
+
+    else if cs[0] < 240 {
+        todo!()
+    }
+
+    else {
+        todo!()
+    }
+
+}
+
+pub fn bytes_to_v32(s: &[u8]) -> Result<Vec<u32>, ParseError> {
+    let mut result = Vec::with_capacity(s.len());
+    let mut tmp_buf = vec![];
+
+    for (ind, c) in s.iter().enumerate() {
+
+        if tmp_buf.is_empty() {
+
+            if *c < 128 {
+                result.push(*c as u32);
+            }
+
+            else {
+                tmp_buf.push(*c);
+            }
+
+        }
+
+        else {
+
+            if *c < 128 {
+                result.push(assemble_char(tmp_buf, ind)?);
+                result.push(*c as u32);
+                tmp_buf = vec![];
+            }
+
+            else if *c >= 192 {
+                result.push(assemble_char(tmp_buf, ind)?);
+                tmp_buf = vec![*c];
+            }
+
+            else {
+                tmp_buf.push(*c);
+            }
+
+        }
+
+    }
+
+    if !tmp_buf.is_empty() {
+        let ind = s.len() - tmp_buf.len();
+        result.push(assemble_char(tmp_buf, ind)?);
+    }
+
+    Ok(result)
+}
+
+pub fn v32_to_string(v: &[u32]) -> Result<String, u32> {
+    let mut chars = Vec::with_capacity(v.len());
+
+    for c in v.iter() {
+
+        match char::from_u32(*c) {
+            Some(c) => { chars.push(c); }
+            None => {
+                return Err(*c)
+            }
+        }
+
+    }
+
+    Ok(chars.iter().collect())
+}
+
 pub fn bytes_to_string(b: &[u8]) -> String {
-    String::from_utf8(b.to_vec()).expect("Internal Compiler Error 0A502DB: {b:?}")
+    String::from_utf8_lossy(b).to_string()
 }
 
 // https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance

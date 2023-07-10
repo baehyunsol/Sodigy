@@ -109,6 +109,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("(3, 4)", "Tuple(3,4)", 0),
         ("(3, 4,)", "Tuple(3,4)", 0),
         ("()", "Tuple()", 0),
+        ("'한글 입력 테스트'", "", 0),
     ];
 
     result

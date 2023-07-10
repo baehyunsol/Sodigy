@@ -1,7 +1,7 @@
 use super::ValueKind;
 use crate::session::LocalParseSession;
 use crate::stmt::ArgDef;
-use crate::utils::bytes_to_string;
+use crate::utils::{bytes_to_string, v32_to_string};
 
 impl ValueKind {
     pub fn is_list(&self) -> bool {
@@ -16,9 +16,10 @@ impl ValueKind {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
             ValueKind::Identifier(ind) => bytes_to_string(&session.unintern_string(*ind)),
-            ValueKind::String(ind) => format!(
+            ValueKind::String(buf) => format!(
                 "{:?}",
-                bytes_to_string(&session.unintern_string(*ind)),
+                v32_to_string(buf)
+                    .expect("Internal Compiler Error 552D806: {buf:?}"),
             ),
             ValueKind::List(elements) | ValueKind::Tuple(elements) => {
                 let (name, opening, closing) = if self.is_list() {

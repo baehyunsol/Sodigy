@@ -10,12 +10,13 @@ pub fn get_preludes() -> HashSet<InternedString> {
 
 #[inline]
 pub fn get_prelude_buffs_len() -> usize {
-    1
+    2
 }
 
 pub fn get_prelude_buffs() -> Vec<Vec<u8>> {
     vec![
         b"Int".to_vec(),
+        b"String".to_vec(),
     ]
 }
 

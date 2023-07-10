@@ -20,8 +20,8 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         }
         Some(Token {
             span,
-            kind: TokenKind::String(ind),
-        }) => Ok(ValueKind::String(*ind)),
+            kind: TokenKind::String(buf),
+        }) => Ok(ValueKind::String(buf.to_vec())),
         Some(Token {
             span,
             kind: TokenKind::Identifier(ind),

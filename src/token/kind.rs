@@ -6,7 +6,7 @@ use hmath::Ratio;
 #[derive(Clone, PartialEq)]
 pub enum TokenKind {
     Number(Ratio),
-    String(InternedString),
+    String(Vec<u32>),  // in Sodigy, Strings are just List(Char), where Char is an Int
 
     // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
     List(Delimiter, Vec<Box<Token>>),

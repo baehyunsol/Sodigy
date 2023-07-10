@@ -1,6 +1,6 @@
 use super::ParseErrorKind;
 use crate::parse_file;
-use crate::file_system::{read_bytes, read_string};
+use crate::file_system::{read_bytes, read_string, write_bytes, WriteMode};
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
 
@@ -30,14 +30,25 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
 #[test]
 fn error_message_test() {
     let mut session = LocalParseSession::new();
+    let samples = (0..4096).map(|i| i.to_string()).collect::<Vec<String>>();
+    let samples = vec![
+        vec!["no_utf8_str".to_string()],
+        samples,
+    ].concat();
 
-    for i in 0..65536 {
-        let input = if let Ok(s) = read_bytes(&format!("./src/err/samples/{i}.in")) { s } else {
+    // TODO: no_utf8_comment, no_utf8_ident
+
+    // def DUMB_STRING: String = '������';
+    let no_utf8_str = vec![100, 101, 102, 32, 68, 85, 77, 66, 95, 83, 84, 82, 73, 78, 71, 58, 32, 83, 116, 114, 105, 110, 103, 32, 61, 32, 39, 200, 200, 200, 200, 200, 200, 39, 59];
+    write_bytes("./src/err/samples/no_utf8_str.in", &no_utf8_str, WriteMode::CreateOrTruncate).unwrap();
+
+    for sample in samples.iter() {
+        let input = if let Ok(s) = read_bytes(&format!("./src/err/samples/{sample}.in")) { s } else {
             break;
         };
         session.set_input(input.clone());
-        let error_msg = if let Ok(s) = read_string(&format!("./src/err/samples/{i}.out")) { s } else {
-            format!("`{i}.out` is not found!")
+        let error_msg = if let Ok(s) = read_string(&format!("./src/err/samples/{sample}.out")) { s } else {
+            format!("`{sample}.out` is not found!")
         };
 
         if let Err(e) = parse_file(&input, &mut session) {
@@ -50,4 +61,5 @@ fn error_message_test() {
             panic!("{} is supposed to fail, but doesn't!", bytes_to_string(&input))
         }
     }
+
 }
