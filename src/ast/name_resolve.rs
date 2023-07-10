@@ -2,7 +2,7 @@ use super::{AST, ASTError};
 use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
-use crate::utils::{substr_edit_distance, edit_distance};
+use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -85,7 +85,7 @@ impl NameScope {
 
             if edit_distance(&name, &lowered_name) <= self_edit_distance
                 || substr_edit_distance(&name, &lowered_name) <= sub_edit_distance {
-                result.push(String::from_utf8_lossy(curr_name).to_string());
+                result.push(bytes_to_string(curr_name));
             }
 
         }

@@ -1,6 +1,7 @@
 use super::ValueKind;
 use crate::session::LocalParseSession;
 use crate::stmt::ArgDef;
+use crate::utils::bytes_to_string;
 
 impl ValueKind {
     pub fn is_list(&self) -> bool {
@@ -14,16 +15,10 @@ impl ValueKind {
         match self {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
-            ValueKind::Identifier(ind) => String::from_utf8_lossy(
-                &session.unintern_string(*ind)
-            )
-            .to_string(),
+            ValueKind::Identifier(ind) => bytes_to_string(&session.unintern_string(*ind)),
             ValueKind::String(ind) => format!(
                 "{:?}",
-                String::from_utf8_lossy(
-                    &session.unintern_string(*ind)
-                )
-                .to_string()
+                bytes_to_string(&session.unintern_string(*ind)),
             ),
             ValueKind::List(elements) | ValueKind::Tuple(elements) => {
                 let (name, opening, closing) = if self.is_list() {
@@ -47,11 +42,8 @@ impl ValueKind {
                     .map(|box ArgDef { name, ty }| {
                         format!(
                             "{}:{},",
-                            String::from_utf8_lossy(
-                                &session.unintern_string(*name)
-                            )
-                            .to_string(),
-                            ty.to_string(session)
+                            bytes_to_string(&session.unintern_string(*name)),
+                            ty.to_string(session),
                         )
                     })
                     .collect::<Vec<String>>()
@@ -65,11 +57,8 @@ impl ValueKind {
                     .map(|(name, value)| {
                         format!(
                             "{}={};",
-                            String::from_utf8_lossy(
-                                &session.unintern_string(*name)
-                            )
-                            .to_string(),
-                            value.to_string(session)
+                            bytes_to_string(&session.unintern_string(*name)),
+                            value.to_string(session),
                         )
                     })
                     .collect::<Vec<String>>()

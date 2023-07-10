@@ -1,6 +1,9 @@
 #[cfg(test)]
 use super::LocalParseSession;
 
+#[cfg(test)]
+use crate::utils::bytes_to_string;
+
 /*
  * 0: dummy
  * 1 ~ 0xff_fff: builtins and preludes
@@ -24,7 +27,7 @@ impl InternedString {
 
     #[cfg(test)]
     pub fn to_string(&self, session: &LocalParseSession) -> String {
-        String::from_utf8_lossy(&session.unintern_string(*self)).to_string()
+        bytes_to_string(&session.unintern_string(*self))
     }
 }
 

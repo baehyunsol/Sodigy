@@ -3,6 +3,7 @@ use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
 use crate::token::{Delimiter, OpToken, TokenKind, TokenList};
+use crate::utils::bytes_to_string;
 use hmath::Ratio;
 
 pub fn dump_ast_of_expr(
@@ -230,7 +231,7 @@ fn valid_ast_dump_test() {
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {
-        println!("{}", String::from_utf8_lossy(&input));
+        println!("{}", bytes_to_string(&input));
         match dump_ast_of_expr(input, &mut session) {
             Ok(expr) => {
                 assert_eq!(expr.to_string(&session), ast);
@@ -252,7 +253,7 @@ fn invalid_ast_dump_test() {
             if !is_eq(&e.kind, &err_kind) {
                 panic!(
                     "input: {}\nexpected_err:{}\ngot: {}",
-                    String::from_utf8_lossy(&input).to_string(),
+                    bytes_to_string(&input),
                     err_kind.render_err(&session),
                     e.render_err(&session),
                 );
@@ -262,7 +263,7 @@ fn invalid_ast_dump_test() {
         } else {
             panic!(
                 "{:?} is supposed to fail, but doesn't!",
-                String::from_utf8_lossy(&input).to_string()
+                bytes_to_string(&input),
             );
         }
     }

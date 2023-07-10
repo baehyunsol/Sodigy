@@ -2,7 +2,7 @@ use crate::err::ParseError;
 use crate::session::LocalParseSession;
 use crate::span::Span;
 use crate::token::{Delimiter, OpToken, Token, TokenKind};
-use crate::utils::into_char;
+use crate::utils::{bytes_to_string, into_char};
 use hmath::{ConversionError, Ratio};
 
 pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token>, ParseError> {
@@ -108,7 +108,7 @@ fn lex_token(
                 buffer.pop().expect("Internal Compiler Error 6E339A1");
             }
 
-            let string = String::from_utf8_lossy(&buffer).to_string();
+            let string = bytes_to_string(&buffer);
 
             match Ratio::from_string(&string) {
                 Ok(n) => Ok((

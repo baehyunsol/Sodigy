@@ -1,4 +1,5 @@
 use crate::session::LocalParseSession;
+use crate::utils::bytes_to_string;
 
 const MAX_PREVIEW_LEN: usize = 96;
 
@@ -111,7 +112,7 @@ impl Span {
 
         preview
             .iter()
-            .map(|line| String::from_utf8_lossy(line).to_string())
+            .map(|line| bytes_to_string(line))
             .collect::<Vec<String>>()
             .join("\n")
     }

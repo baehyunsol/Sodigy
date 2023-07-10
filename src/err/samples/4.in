@@ -1,0 +1,5 @@
+def no_korean: String = {
+    한글노노 = 3;
+
+    "여기는 한글 됨"
+};

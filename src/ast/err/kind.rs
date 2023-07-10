@@ -1,6 +1,7 @@
 use crate::ast::NameScope;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
+use crate::utils::bytes_to_string;
 
 pub enum ASTErrorKind {
     MultipleDef(InternedString),
@@ -15,7 +16,7 @@ impl ASTErrorKind {
         match self {
             ASTErrorKind::MultipleDef(d) => {
                 let name = session.unintern_string(*d);
-                let name = String::from_utf8_lossy(&name);
+                let name = bytes_to_string(&name);
 
                 format!(
                     "`{name}` is defined more than once!\n{}\n\n{}",
@@ -32,7 +33,7 @@ impl ASTErrorKind {
                 };
 
                 let name = session.unintern_string(*d);
-                let name = String::from_utf8_lossy(&name);
+                let name = bytes_to_string(&name);
 
                 format!(
                     "`{name}` is not defined!{suggestions}\n{}",

@@ -3,22 +3,28 @@ pub fn into_char(s: &[u8], ind: usize) -> char {
         s[ind] as char
     } else if s[ind] < 224 {
         std::str::from_utf8(&s[ind..(ind + 2)])
-            .unwrap_or("?")
+            .expect(&format!("Internal Compiler Error 5907096: {:?}", &s[ind..(ind + 2)]))
             .chars()
             .collect::<Vec<char>>()[0]
     } else if s[ind] < 240 {
         std::str::from_utf8(&s[ind..(ind + 3)])
-            .unwrap_or("?")
+            .expect(&format!("Internal Compiler Error 0371E1F: {:?}", &s[ind..(ind + 3)]))
             .chars()
             .collect::<Vec<char>>()[0]
     } else if s[ind] < 248 {
         std::str::from_utf8(&s[ind..(ind + 4)])
-            .unwrap_or("?")
+            .expect(&format!("Internal Compiler Error B862683: {:?}", &s[ind..(ind + 4)]))
             .chars()
             .collect::<Vec<char>>()[0]
     } else {
         unreachable!("Internal Compiler Error 9684A25: {s:?}, {ind}")
     }
+}
+
+// every Vec<u8> in the compiler must be a valid UTF-8,
+// invalid UTF-8 must be rejected beforehand
+pub fn bytes_to_string(b: &[u8]) -> String {
+    String::from_utf8(b.to_vec()).expect("Internal Compiler Error 0A502DB: {b:?}")
 }
 
 // https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance

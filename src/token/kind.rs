@@ -1,5 +1,6 @@
 use super::{Delimiter, Keyword, OpToken, Token};
 use crate::session::{InternedString, LocalParseSession};
+use crate::utils::bytes_to_string;
 use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
@@ -58,10 +59,7 @@ impl TokenKind {
                 } else {
                     format!(
                         "Identifier: `{}`",
-                        String::from_utf8_lossy(
-                            &session.unintern_string(*string)
-                        )
-                        .to_string()
+                        bytes_to_string(&session.unintern_string(*string)),
                     )
                 }
             }
