@@ -1,4 +1,5 @@
 use super::{InternedString, KEYWORD_START};
+use crate::prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
 use std::collections::HashMap;
 
@@ -34,12 +35,19 @@ pub struct LocalParseSession {
 impl LocalParseSession {
     pub fn new() -> Self {
         let keywords = keywords();
-        let mut strings = HashMap::with_capacity(keywords.len());
-        let mut strings_rev = HashMap::with_capacity(keywords.len());
+        let preludes = get_prelude_buffs();
+
+        let mut strings = HashMap::with_capacity(keywords.len() + preludes.len());
+        let mut strings_rev = HashMap::with_capacity(keywords.len() + preludes.len());
 
         for (index, keyword) in keywords.iter().enumerate() {
             strings.insert((index + KEYWORD_START as usize).into(), keyword.to_vec());
             strings_rev.insert(keyword.to_vec(), (index + KEYWORD_START as usize).into());
+        }
+
+        for (index, prelude) in preludes.iter().enumerate() {
+            strings.insert(get_prelude_index(index).into(), prelude.to_vec());
+            strings_rev.insert(prelude.to_vec(), get_prelude_index(index).into());
         }
 
         LocalParseSession {
@@ -70,7 +78,15 @@ impl LocalParseSession {
     }
 
     pub fn try_unwrap_keyword(&self, index: InternedString) -> Option<Keyword> {
-        KEYWORDS.get::<usize>(<InternedString as Into<usize>>::into(index) - KEYWORD_START as usize).map(|k| *k)
+        let index: usize = index.into();
+
+        if index >= KEYWORD_START as usize {
+            KEYWORDS.get(index - KEYWORD_START as usize).map(|k| *k)
+        }
+
+        else {
+            None
+        }
     }
 
     // Expensive (if it has to write to a GlobalCache)
@@ -89,6 +105,11 @@ impl LocalParseSession {
                 index
             }
         }
+    }
+
+    // It succeeds if `string` is already interned
+    pub fn try_intern_string(&self, string: Vec<u8>) -> Option<InternedString> {
+        self.strings_rev.get(&string).map(|s| *s)
     }
 
     pub fn unintern_string(&self, string: InternedString) -> Vec<u8> {

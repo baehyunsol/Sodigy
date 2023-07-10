@@ -1,4 +1,5 @@
 use super::{AST, ASTError};
+use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use std::collections::{HashMap, HashSet};
@@ -49,7 +50,9 @@ impl NameScope {
     // rust/compiler/rustc_span/src/edit_distance.rs
     // It's okay for an error-related function to be very expensive!
     pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Vec<String> {
-        todo!()
+        // TODO
+
+        vec![]
     }
 
     pub fn push_names<A: GetNameOfArg>(&mut self, args: &Vec<A>) {
@@ -95,7 +98,7 @@ impl AST {
             defs: self.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
             uses: self.uses.clone(),
             name_stack: vec![],
-            preludes: HashSet::new(),  // TODO
+            preludes: get_preludes(),
         }
     }
 

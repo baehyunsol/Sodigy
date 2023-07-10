@@ -6,6 +6,7 @@ mod expr;
 mod lexer;
 mod module;
 mod parse;
+mod prelude;
 mod session;
 mod span;
 mod stmt;

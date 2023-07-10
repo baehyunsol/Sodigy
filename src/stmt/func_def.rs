@@ -24,6 +24,10 @@ impl FuncDef {
     pub fn resolve_names(&mut self, name_scope: &mut NameScope) -> Result<(), ASTError> {
         name_scope.push_names(&self.args);
 
+        // TODO: `push_names(self.args)` before this line? or after this?
+        // dependent types?
+        self.ret_type.resolve_names(name_scope)?;
+
         self.ret_val.resolve_names(name_scope)
     }
 

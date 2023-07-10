@@ -6,7 +6,6 @@ use crate::token::{Token, TokenKind};
 pub struct ModulePath (Vec<InternedString>);
 
 impl ModulePath {
-
     pub fn from_names(names: Vec<InternedString>) -> Self {
         ModulePath(names)
     }
@@ -29,6 +28,10 @@ impl ModulePath {
                 kind: TokenKind::Identifier(*s),
             }
         ).collect()
+    }
+
+    pub fn as_ref(&self) -> &Vec<InternedString> {
+        &self.0
     }
 
     #[cfg(test)]

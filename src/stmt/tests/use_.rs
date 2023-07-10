@@ -1,5 +1,4 @@
 use crate::err::SodigyError;
-use crate::expr::ExprKind;
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
 use crate::span::Span;
@@ -10,10 +9,6 @@ use std::collections::HashSet;
 impl Use {
     pub fn to_string(&self, session: &LocalParseSession) -> String {
         format!("use {} as {};", self.path.to_string(session), self.alias.to_string(session))
-    }
-
-    pub fn to_path(&self) -> ExprKind {
-        todo!()
     }
 }
 

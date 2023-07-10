@@ -6,6 +6,9 @@ mod err;
 mod name_resolve;
 mod opt;
 
+#[cfg(test)]
+mod tests;
+
 pub use err::ASTError;
 pub use name_resolve::NameScope;
 

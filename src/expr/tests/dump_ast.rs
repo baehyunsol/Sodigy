@@ -226,6 +226,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
 
 #[test]
 fn valid_ast_dump_test() {
+    std::env::set_var("RUST_BACKTRACE", "FULL");
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {

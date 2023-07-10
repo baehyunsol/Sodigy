@@ -3,8 +3,8 @@ use super::LocalParseSession;
 
 /*
  * 0: dummy
- * 1 ~ 0xff_fff: builtins
- * indices of builtins do not change across compilations, but it might change when the compiler version changes
+ * 1 ~ 0xff_fff: builtins and preludes
+ * indices of builtins do not change across compilations, but it might change when the Sodigy version changes
  * 0x100_000 ~ 0x100_000 + keywords.len(): keywords
  */
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
