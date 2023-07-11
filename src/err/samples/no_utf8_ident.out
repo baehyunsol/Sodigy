@@ -1,0 +1,4 @@
+Invalid UTF-8 bytes are found: [200, 200]
+    │     ▾
+▸ 0 │ def ���: String = 'ABC';
+    │     ▴
