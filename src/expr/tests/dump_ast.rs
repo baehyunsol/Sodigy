@@ -110,6 +110,10 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("(3, 4,)", "Tuple(3,4)", 0),
         ("()", "Tuple()", 0),
         ("'한글 입력 테스트'", "\"한글 입력 테스트\"", 0),
+        ("b\"ABC 한글 DEF\"", "", 0),
+        ("b\'ABC 한글 DEF\'", "", 0),
+        ("f\"{a} + {b} = {a + b}\"", "", 0),
+        ("f\'{a} + {b} = {a + b}\'", "", 0),
     ];
 
     result
@@ -210,6 +214,34 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "한글넣으면죽음?",
             ParseErrorKind::UnexpectedChar('한'),
             0,
+        ), (
+            "b \"ABC 한글 DEF\"",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::String(vec![]),
+                expected: ExpectedToken::Nothing,
+            },
+            0
+        ), (
+            "b \'ABC 한글 DEF\'",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::String(vec![]),
+                expected: ExpectedToken::Nothing,
+            },
+            0
+        ), (
+            "f \"{a} + {b} = {a + b}\"",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::String(vec![]),
+                expected: ExpectedToken::Nothing,
+            },
+            0
+        ), (
+            "f \'{a} + {b} = {a + b}\'",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::String(vec![]),
+                expected: ExpectedToken::Nothing,
+            },
+            0
         ),
     ];
 

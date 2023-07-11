@@ -33,6 +33,17 @@
 
 ---
 
+`b"ABC"` -> `bytes([65, 66, 67])`
+
+`f"{a} + {b} = {a + b}"` -> `a.to_string() <> " + " <> b.to_string() <> " = " <> (a + b).to_string()`
+
+In order to implement these, there must be a way the compiler can represent builtin functions (in AST)
+
+- `bytes`
+- `.to_string()`
+
+---
+
 `?` syntax
 
 ```
@@ -40,3 +51,12 @@ def foo(a: BAR, b: BAZ): Result(Ty) = func(
   foofoo(a)?, barbar(b)?
 );
 ```
+
+TODO: study Monad
+
+- `f(state, val) -> (new_state, result)`
+  - don't want to destrut every time
+- `Option::map()`
+  - can implement with typical syntax
+- `?`
+  - needs a special syntax and semantics, but seems difficult to impl

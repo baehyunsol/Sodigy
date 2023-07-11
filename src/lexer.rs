@@ -199,7 +199,7 @@ fn lex_token(
         }
         b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'=' | b'<' | b'>' | b',' | b'.' | b':'
         | b';' | b'&' | b'|' | b'@' | b'\\' => lex_op_tokens(s, ind, session),
-        _ => Err(ParseError::ch(into_char(s, ind), curr_span)),
+        _ => Err(ParseError::ch(into_char(s, ind).map_err(|e| e.set_ind_and_fileno(curr_span))?, curr_span)),
     }
 }
 

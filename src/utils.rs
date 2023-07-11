@@ -1,26 +1,26 @@
 use crate::err::ParseError;
 
-pub fn into_char(s: &[u8], ind: usize) -> char {
-    if s[ind] < 128 {
-        s[ind] as char
+pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
+    let len = if s[ind] < 128 {
+        1
     } else if s[ind] < 224 {
-        std::str::from_utf8(&s[ind..(ind + 2)])
-            .expect(&format!("Internal Compiler Error 5907096: {:?}", &s[ind..(ind + 2)]))
-            .chars()
-            .collect::<Vec<char>>()[0]
+        2
     } else if s[ind] < 240 {
-        std::str::from_utf8(&s[ind..(ind + 3)])
-            .expect(&format!("Internal Compiler Error 0371E1F: {:?}", &s[ind..(ind + 3)]))
-            .chars()
-            .collect::<Vec<char>>()[0]
+        3
     } else if s[ind] < 248 {
-        std::str::from_utf8(&s[ind..(ind + 4)])
-            .expect(&format!("Internal Compiler Error B862683: {:?}", &s[ind..(ind + 4)]))
-            .chars()
-            .collect::<Vec<char>>()[0]
+        4
     } else {
-        unreachable!("Internal Compiler Error 9684A25: {s:?}, {ind}")
+        return Err(ParseError::invalid_utf8(vec![s[ind]], 0));
+    };
+
+    if let Ok(s) = std::str::from_utf8(&s[ind..(ind + len)]) {
+        Ok(s.chars().nth(0).expect("Internal Compiler Error B0DC26D"))
     }
+
+    else {
+        Err(ParseError::invalid_utf8(s[ind..(ind + len)].to_vec(), 0))
+    }
+
 }
 
 fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
@@ -246,9 +246,9 @@ pub fn edit_distance_impl(a: &[u8], b: &[u8], i: usize, j: usize, cache: &mut Ve
 fn into_char_test() {
     let s = "aͲ린".as_bytes();
 
-    assert_eq!(into_char(s, 0), 'a');
-    assert_eq!(into_char(s, 1), 'Ͳ');
-    assert_eq!(into_char(s, 3), '린');
+    assert_eq!(into_char(s, 0).unwrap_or('X'), 'a');
+    assert_eq!(into_char(s, 1).unwrap_or('X'), 'Ͳ');
+    assert_eq!(into_char(s, 3).unwrap_or('X'), '린');
 }
 
 #[test]
