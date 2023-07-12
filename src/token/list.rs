@@ -17,16 +17,6 @@ impl TokenList {
         TokenList { data, cursor: 0 }
     }
 
-    pub fn from_vec_box_token(data: Vec<Box<Token>>) -> Self {
-        TokenList {
-            data: data
-                .into_iter()
-                .map(|token| Box::leak(token).to_owned())
-                .collect(),
-            cursor: 0,
-        }
-    }
-
     pub fn is_eof(&self) -> bool {
         assert!(
             self.cursor <= self.data.len(),
@@ -150,7 +140,7 @@ impl TokenList {
                 span,
             }) => {
                 let mut args = vec![];
-                let mut args_tokens = TokenList::from_vec_box_token(elements.to_vec());
+                let mut args_tokens = TokenList::from_vec(elements.to_vec());
 
                 while !args_tokens.is_eof() {
                     match parse_arg_def(&mut args_tokens) {
@@ -310,7 +300,7 @@ impl TokenList {
                 Some(Token {
                     kind: TokenKind::List(Delimiter::Brace, elements),
                     span: true_expr_span,
-                }) => match parse_block_expr(&mut TokenList::from_vec_box_token(elements.to_vec()))
+                }) => match parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
                 {
                     Ok(t) => Expr {
                         kind: t.block_to_expr_kind(),
@@ -362,7 +352,7 @@ impl TokenList {
                         kind: TokenKind::List(Delimiter::Brace, elements),
                         span: false_expr_span,
                     }) => match parse_block_expr(
-                        &mut TokenList::from_vec_box_token(elements.to_vec())
+                        &mut TokenList::from_vec(elements.to_vec())
                     ) {
                         Ok(t) => Expr {
                             kind: t.block_to_expr_kind(),
@@ -431,7 +421,7 @@ impl TokenList {
                 self.cursor += 1;
 
                 let has_trailing_comma = match elements.last() {
-                    Some(box Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => true,
+                    Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => true,
                     _ => false
                 };
 
@@ -443,7 +433,7 @@ impl TokenList {
                 };
 
                 if elements.len() == 1 && !has_trailing_comma {
-                    Some(Ok(Box::leak(elements[0].clone()).to_owned()))
+                    Some(Ok(elements[0].clone()))
                 }
 
                 else {
@@ -464,7 +454,7 @@ impl TokenList {
 
     // It works like `step_paren_expr`, but supports multiple args separated by commas
     // this function cannot distinguish between paren_expr and func_args -> the caller is responsible for that
-    pub fn step_func_args(&mut self) -> Option<Result<Vec<Box<Expr>>, ParseError>> {
+    pub fn step_func_args(&mut self) -> Option<Result<Vec<Expr>, ParseError>> {
         match self.data.get(self.cursor) {
             Some(Token {
                 kind: TokenKind::List(Delimiter::Parenthesis, elements),
@@ -485,7 +475,7 @@ impl TokenList {
                 ..
             }) if *delim_ == delim => {
                 self.cursor += 1;
-                let mut tokens = TokenList::from_vec_box_token(elements.clone());
+                let mut tokens = TokenList::from_vec(elements.clone());
 
                 Some(parse_expr_exhaustive(&mut tokens))
             }

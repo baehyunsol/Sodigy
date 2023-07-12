@@ -152,7 +152,7 @@ fn lex_token(
 
                 let (e, new_ind) = lex_token(s, ind, session)?;
                 ind = new_ind;
-                data.push(Box::new(e));
+                data.push(e);
 
                 ind = skip_whitespaces_and_comments(s, ind, session).ok_or(
                     ParseError::eoe_msg(

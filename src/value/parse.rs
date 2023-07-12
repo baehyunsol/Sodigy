@@ -33,7 +33,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
 
             match tokens.step() {
                 Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), .. }) => match parse_lambda_def(
-                    &mut TokenList::from_vec_box_token(elements.to_vec())
+                    &mut TokenList::from_vec(elements.to_vec())
                 ) {
                     Ok(v) => Ok(v),
                     Err(e) => Err(e),
@@ -80,7 +80,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 let mut buffer = Vec::with_capacity(tokens.len());
 
                 for expr in exprs.into_iter() {
-                    buffer.push(Box::new(expr?));
+                    buffer.push(expr?);
                 }
 
                 Ok(ValueKind::Format(buffer))
@@ -92,7 +92,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         }) => match delim {
             Delimiter::Bracket => Ok(ValueKind::List(split_list_by_comma(elements)?)),
             Delimiter::Brace => {
-                parse_block_expr(&mut TokenList::from_vec_box_token(elements.to_vec()))
+                parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
                     .map_err(|e| e.set_span_of_eof(*span))
             }
             Delimiter::Parenthesis => unreachable!("Internal Compiler Error 2C73648"), // This must be handled by `parse_expr`
@@ -156,7 +156,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .consume_token_or_error(TokenKind::semi_colon())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-            defs.push((name, Box::new(expr)));
+            defs.push((name, expr));
         }
 
         let value =
@@ -202,16 +202,15 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 .peek_curr_span()
                 .expect("Internal Compiler Error F299389");
 
-            args.push(Box::new(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?));
+            args.push(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?);
 
             tokens
                 .consume_token_or_error(TokenKind::comma())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
         }
 
-        let value =
-            Box::new(parse_expr(tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
+        let value = parse_expr(tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?;
 
-        Ok(ValueKind::Lambda(args, value))
+        Ok(ValueKind::Lambda(args, Box::new(value)))
     }
 }

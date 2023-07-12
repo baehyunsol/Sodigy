@@ -46,7 +46,7 @@ impl GetNameOfArg for ArgDef {
     }
 }
 
-impl<A> GetNameOfArg for (InternedString, Box<A>) {
+impl<A> GetNameOfArg for (InternedString, A) {
     fn get_name_of_arg(&self) -> InternedString {
         self.0
     }

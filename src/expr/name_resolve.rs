@@ -35,7 +35,7 @@ impl Expr {
                     // -> dependent types?
                     name_scope.push_names(args);
 
-                    for box ArgDef { ty, .. } in args.iter_mut() {
+                    for ArgDef { ty, .. } in args.iter_mut() {
                         ty.resolve_names(name_scope)?;
                     }
 

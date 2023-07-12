@@ -53,7 +53,7 @@ impl ValueKind {
             ValueKind::Lambda(args, value) => {
                 let args = args
                     .iter()
-                    .map(|box ArgDef { name, ty }| {
+                    .map(|ArgDef { name, ty }| {
                         format!(
                             "{}:{},",
                             bytes_to_string(&session.unintern_string(*name)),

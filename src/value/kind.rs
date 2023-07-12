@@ -11,23 +11,21 @@ pub enum ValueKind {
     Real(Ratio),
     String(Vec<u32>),
     Bytes(Vec<u8>),
-
-    // TODO: none of the below has to be `Vec<Box<_>>` -> `Vec` itself is a smart pointer!
-    Format(Vec<Box<Expr>>),
-    List(Vec<Box<Expr>>),
+    Format(Vec<Expr>),
+    List(Vec<Expr>),
 
     // for a single-element tuple, use a trailing comma
-    Tuple(Vec<Box<Expr>>),
+    Tuple(Vec<Expr>),
 
     // '\' '{' (ARGS ',')? VALUE '}'
     // `ARGS` of lambda and `ARGS` of FuncDef are identical
-    Lambda(Vec<Box<ArgDef>>, Box<Expr>),
+    Lambda(Vec<ArgDef>, Box<Expr>),
 
     // BLOCK: '{' DEFS ';' VALUE '}'
     // DEF: PATTERN '=' VALUE
     // DEFs are seperated by ';'
     Block {
-        defs: Vec<(InternedString, Box<Expr>)>, // (name, value)
+        defs: Vec<(InternedString, Expr)>, // (name, value)
         value: Box<Expr>,
     },
 }

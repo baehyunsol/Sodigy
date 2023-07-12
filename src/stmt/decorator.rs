@@ -3,7 +3,7 @@ use crate::session::InternedString;
 
 pub struct Decorator {
     pub name: InternedString,
-    pub args: Vec<Box<Expr>>,
+    pub args: Vec<Expr>,
 
     // 0-args and no_args are different
     // `@deco` vs `@deco()`

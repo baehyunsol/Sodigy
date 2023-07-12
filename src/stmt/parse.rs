@@ -157,7 +157,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     curr_state = ParseUseState::IdentEnd;
                 }
                 Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: brace_span }) => match parse_use(
-                    &mut TokenList::from_vec_box_token(elements.to_vec()), span, false
+                    &mut TokenList::from_vec(elements.to_vec()), span, false
                 ) {
                     Ok(uses) => {
 

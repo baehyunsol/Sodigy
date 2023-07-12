@@ -10,7 +10,7 @@ pub enum ExprKind {
     Postfix(PostfixOp, Box<Expr>),
 
     // (Functor, Args)
-    Call(Box<Expr>, Vec<Box<Expr>>),
+    Call(Box<Expr>, Vec<Expr>),
 
     // cond, true, false
     Branch(Box<Expr>, Box<Expr>, Box<Expr>),
