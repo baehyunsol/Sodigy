@@ -59,21 +59,32 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             kind: TokenKind::FormattedString(tokens),
             span,
         }) => {
-            let exprs = tokens.iter().map(
-                |tokens| {
-                    let start_span = tokens[0].span;
-                    let mut tokens = TokenList::from_vec(tokens.to_vec());
-        
-                    parse_expr_exhaustive(&mut tokens).map_err(|e| e.set_span_of_eof(start_span))
-                }
-            );
-            let mut buffer = Vec::with_capacity(tokens.len());
-
-            for expr in exprs.into_iter() {
-                buffer.push(Box::new(expr?));
+            // very simple optimization: `f"ABC"` -> `"ABC"`
+            if tokens.len() == 1 && tokens[0].len() == 1 && tokens[0][0].kind.is_string() {
+                Ok(ValueKind::String(tokens[0][0].kind.unwrap_string().to_vec()))
             }
 
-            Ok(ValueKind::Format(buffer))
+            else if tokens.is_empty() {
+                Ok(ValueKind::String(vec![]))
+            }
+
+            else {
+                let exprs = tokens.iter().map(
+                    |tokens| {
+                        let start_span = tokens[0].span;
+                        let mut tokens = TokenList::from_vec(tokens.to_vec());
+
+                        parse_expr_exhaustive(&mut tokens).map_err(|e| e.set_span_of_eof(start_span))
+                    }
+                );
+                let mut buffer = Vec::with_capacity(tokens.len());
+
+                for expr in exprs.into_iter() {
+                    buffer.push(Box::new(expr?));
+                }
+
+                Ok(ValueKind::Format(buffer))
+            }
         },
         Some(Token {
             span,

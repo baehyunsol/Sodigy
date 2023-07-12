@@ -45,6 +45,14 @@ impl TokenKind {
         }
     }
 
+    pub fn is_string(&self) -> bool {
+        if let TokenKind::String(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn unwrap_string(&self) -> &Vec<u32> {
         if let TokenKind::String(v) = self {
             v

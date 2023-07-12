@@ -507,7 +507,6 @@ fn skip_whitespaces_and_comments(
 fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
     // t.span points to `"` of `b"`, but it should point to `b`.
     let span = t.span.backward(1).expect("Internal Compiler Error FEDF1CB");
-    let string = t.kind.unwrap_string();
 
     Ok(Token {
         kind: TokenKind::Bytes(v32_to_bytes(t.kind.unwrap_string())),

@@ -123,8 +123,12 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("f\"{a} + {b} = {a + b}\"", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
         ("f\'{a} + {b} = {a + b}\'", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
         ("f\"{{{3}}}\"", "Format(3)", 0),
+        ("f\"{3}\"", "Format(3)", 0),
         ("f\"{3} + {4}\"", "Format(3,\" + \",4)",0),
         ("f'A, B, {C}, D'", "Format(\"A, B, \",C,\", D\")", 0),
+        ("f\"ABC\"", "\"ABC\"", 0),
+        ("f\"\"", "\"\"", 0),
+        ("b\"\"", "Bytes()", 0),
     ];
 
     result

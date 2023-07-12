@@ -15,7 +15,7 @@ pub use name_resolve::NameScope;
 // It represents a single file.
 // It doesn't have any data from other files, meaning that
 // it's safe to reuse previously generated AST unless the file
-// is not modified.
+// is modified.
 pub struct AST {
     defs: HashMap<InternedString, FuncDef>,
     uses: HashMap<InternedString, Use>,

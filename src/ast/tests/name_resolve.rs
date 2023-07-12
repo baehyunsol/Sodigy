@@ -43,6 +43,10 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "use a.b.c.d.e.f.g.h.i.j as c;
             def tester: Int = c.b.c;",
             "Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(a,b),c),d),e),f),g),h),i),j),b),c)",
+        ), (
+            "use a.b.c;
+            def tester: Int = {c = 3; a = 4; a + c};",
+            "{c=3;a=4;Add(a,c)}",
         ),
     ].into_iter().map(
         |(s1, s2)| (s1.as_bytes().to_vec(), s2.to_string())
