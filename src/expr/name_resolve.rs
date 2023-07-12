@@ -8,10 +8,12 @@ impl Expr {
     pub fn resolve_names(&mut self, name_scope: &mut NameScope) -> Result<(), ASTError> {
         match &mut self.kind {
             ExprKind::Value(v) => match v {
-                ValueKind::Integer(_) | ValueKind::Real(_) | ValueKind::String(_) => {
+                ValueKind::Integer(_) | ValueKind::Real(_) | ValueKind::String(_) | ValueKind::Bytes(_) => {
                     return Ok(());
                 },
-                ValueKind::List(elements) | ValueKind::Tuple(elements) => {
+                ValueKind::List(elements)
+                | ValueKind::Tuple(elements)
+                | ValueKind::Format(elements) => {
                     for elem in elements.iter_mut() {
                         elem.resolve_names(name_scope)?;
                     }

@@ -42,6 +42,21 @@ impl Span {
         self.file_no == u32::MAX && self.index != usize::MAX
     }
 
+    pub fn backward(&self, offset: usize) -> Option<Self> {
+
+        if offset > self.index {
+            None
+        }
+
+        else {
+            Some(Span {
+                file_no: self.file_no,
+                index: self.index - offset,
+            })
+        }
+
+    }
+
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);

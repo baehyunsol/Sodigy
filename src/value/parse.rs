@@ -11,13 +11,11 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         Some(Token {
             kind: TokenKind::Number(n),
             ..
-        }) => {
-            if n.is_integer() {
+        }) => if n.is_integer() {
                 Ok(ValueKind::Integer(n.into()))
-            } else {
-                Ok(ValueKind::Real(n.clone()))
-            }
-        }
+        } else {
+            Ok(ValueKind::Real(n.clone()))
+        },
         Some(Token {
             kind: TokenKind::String(buf),
             ..
@@ -53,6 +51,10 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 )),
             }
         },
+        Some(Token {
+            kind: TokenKind::Bytes(b),
+            ..
+        }) => Ok(ValueKind::Bytes(b.to_vec())),
         Some(Token {
             span,
             kind: TokenKind::List(delim, elements),

@@ -11,6 +11,13 @@ impl ValueKind {
         }
     }
 
+    pub fn is_tuple(&self) -> bool {
+        match self {
+            ValueKind::Tuple(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn to_string(&self, session: &LocalParseSession) -> String {
         match self {
             ValueKind::Integer(n) => n.to_string(),
@@ -21,11 +28,17 @@ impl ValueKind {
                 v32_to_string(buf)
                     .expect("Internal Compiler Error 552D806: {buf:?}"),
             ),
-            ValueKind::List(elements) | ValueKind::Tuple(elements) => {
+            ValueKind::Bytes(b) => format!(
+                "Bytes({})",
+                b.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(","),
+            ),
+            ValueKind::List(elements) | ValueKind::Tuple(elements) | ValueKind::Format(elements) => {
                 let (name, opening, closing) = if self.is_list() {
                     ("", "[", "]")
-                } else {
+                } else if self.is_tuple() {
                     ("Tuple", "(", ")")
+                } else {
+                    ("Format", "(", ")")
                 };
 
                 format!(

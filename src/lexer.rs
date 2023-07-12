@@ -165,6 +165,31 @@ fn lex_token(
             ))
         }
         b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+
+            // byte string literals and formatted string literals
+            if s[ind] == b'b' || s[ind] == b'f' {
+                match s.get(ind + 1) {
+                    Some(c) if *c == b'\'' || *c == b'"' => {
+                        let (string_literal, end_index) = lex_token(s, ind + 1, session)?;
+
+                        return if s[ind] == b'b' {
+                            Ok((
+                                string_to_bytes(string_literal)?,
+                                end_index,
+                            ))
+                        }
+
+                        else {
+                            Ok((
+                                string_to_formatted(string_literal)?,
+                                end_index,
+                            ))
+                        };
+                    },
+                    _ => {}
+                }
+            }
+
             let mut buffer = vec![];
 
             while ind < s.len()
@@ -466,4 +491,50 @@ fn skip_whitespaces_and_comments(
     }
 
     Err(ParseError::eof(curr_span))
+}
+
+fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
+    // t.span points to `"` of `b"`, but it should point to `b`.
+    let span = t.span.backward(1).expect("Internal Compiler Error FEDF1CB");
+    let string = t.kind.unwrap_string();
+    let mut buffer = Vec::with_capacity(string.len() * 3 / 2);
+
+    for c in string.iter() {
+
+        if *c < 128 {
+            buffer.push(*c as u8);
+        }
+
+        else if *c < 4096 {
+            buffer.push(192 + (*c / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+        else if *c < 65536 {
+            buffer.push(224 + (*c / 4096) as u8);
+            buffer.push(128 + (*c % 4096 / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+        else {
+            buffer.push(240 + (*c / 262144) as u8);
+            buffer.push(128 + (*c % 262144 / 4096) as u8);
+            buffer.push(128 + (*c % 4096 / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+    }
+
+    Ok(Token {
+        kind: TokenKind::Bytes(buffer),
+        span,
+    })
+}
+
+fn string_to_formatted(t: Token) -> Result<Token, ParseError> {
+    // t.span points to `"` of `f"`, but it should point to `f`.
+    let span = t.span.backward(1).expect("Internal Compiler Error C30F25D");
+    let string = t.kind.unwrap_string();
+
+    todo!();
 }

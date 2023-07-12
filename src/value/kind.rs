@@ -10,6 +10,8 @@ pub enum ValueKind {
     Integer(BigInt),
     Real(Ratio),
     String(Vec<u32>),
+    Bytes(Vec<u8>),
+    Format(Vec<Box<Expr>>),
     List(Vec<Box<Expr>>),
 
     // for a single-element tuple, use a trailing comma
@@ -43,6 +45,8 @@ impl ValueKind {
             ValueKind::Integer(n) => TokenKind::Number(n.clone().into()),
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
             ValueKind::String(_) => TokenKind::String(vec![]),
+            ValueKind::Bytes(_) => TokenKind::Bytes(vec![]),
+            ValueKind::Format(_) => TokenKind::FormattedString(vec![]),
             ValueKind::Lambda(_, _) => TokenKind::Operator(OpToken::BackSlash),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),

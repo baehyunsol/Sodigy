@@ -11,11 +11,16 @@ pub enum TokenKind {
     // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
     List(Delimiter, Vec<Box<Token>>),
     Identifier(InternedString),
-
-    // True, False, None
     Keyword(Keyword),
 
     Operator(OpToken),
+
+    // b"ABC" -> [65, 66, 67]
+    Bytes(Vec<u8>),
+
+    // f"{a} + {b} = {a + b}" -> a.to_string() <> " + " <> b.to_string() <> " = " <> (a + b).to_string()
+    // TODO: enough tests for formatted strings
+    FormattedString(Vec<Vec<Token>>),
 }
 
 impl TokenKind {
@@ -33,7 +38,18 @@ impl TokenKind {
         } else {
             panic!(
                 "Internal Compiler Error 0E82A87: {}",
-                self.render_err(&LocalParseSession::dummy())
+                self.render_err(&LocalParseSession::dummy()),
+            )
+        }
+    }
+
+    pub fn unwrap_string(&self) -> &Vec<u32> {
+        if let TokenKind::String(v) = self {
+            v
+        } else {
+            panic!(
+                "Internal Compiler Error 64B3507: {}",
+                self.render_err(&LocalParseSession::dummy()),
             )
         }
     }
@@ -47,6 +63,8 @@ impl TokenKind {
         match self {
             TokenKind::Number(_) => "Number".to_string(),
             TokenKind::String(_) => "String Literal".to_string(),
+            TokenKind::Bytes(_) => "Bytes Literal".to_string(),
+            TokenKind::FormattedString(_) => "Formatted String Literal".to_string(),
             TokenKind::List(delim, _) => match delim {
                 Delimiter::Parenthesis => "(...)",
                 Delimiter::Brace => "{...}",
@@ -84,6 +102,9 @@ impl TokenKind {
 
             // test runners cannot generate the same identifier: they cannot access the ParseSession
             (TokenKind::Identifier(_), TokenKind::Identifier(_)) => true,
+
+            (TokenKind::Bytes(m), TokenKind::Bytes(n)) => m == n,
+            (TokenKind::FormattedString(_), TokenKind::FormattedString(_)) => true,
 
             _ => false,
         }

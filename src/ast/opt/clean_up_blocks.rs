@@ -74,9 +74,11 @@ impl ExprKind {
                 ValueKind::Identifier(_)
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
-                | ValueKind::String(_) => {},
+                | ValueKind::String(_)
+                | ValueKind::Bytes(_) => {},
                 ValueKind::List(elements)
-                | ValueKind::Tuple(elements) => {
+                | ValueKind::Tuple(elements)
+                | ValueKind::Format(elements) => {
                     for element in elements.iter_mut() {
                         element.clean_up_blocks();
                     }
