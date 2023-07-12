@@ -122,6 +122,9 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ),
         ("f\"{a} + {b} = {a + b}\"", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
         ("f\'{a} + {b} = {a + b}\'", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
+        ("f\"{{{3}}}\"", "Format(3)", 0),
+        ("f\"{3} + {4}\"", "Format(3,\" + \",4)",0),
+        ("f'A, B, {C}, D'", "Format(\"A, B, \",C,\", D\")", 0),
     ];
 
     result
@@ -134,6 +137,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
     let result = vec![
         ("1...3.", ParseErrorKind::UnexpectedChar('.'), 1),
         ("1...", ParseErrorKind::UnexpectedChar('.'), 1),
+        ("1 + ", ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression), 2),
         (
             "a.1",
             ParseErrorKind::UnexpectedToken {
@@ -143,7 +147,8 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             2,
-        ), (
+        ),
+        (
             "a.(a)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::List(Delimiter::Parenthesis, vec![]),
@@ -152,17 +157,20 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             2,
-        ), (
+        ),
+        (
             "[1, 2, a[]]",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             8,
-        ), ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
+        ),
+        ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
         ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
         (
             "if x { 0 } else { }",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             16,
-        ), (
+        ),
+        (
             "if x > y { x } * 2",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Operator(OpToken::Mul),
@@ -171,7 +179,8 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ]),
             },
             15,
-        ), (
+        ),
+        (
             "if x > y { x }",
             ParseErrorKind::UnexpectedEoe(
                 ExpectedToken::SpecificTokens(vec![
@@ -179,77 +188,108 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 ])
             ),
             0,
-        ), (
+        ),
+        (
             "{a = 3; b = 4;}",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             13,
-        ), (
+        ),
+        (
             "{1 1}",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ), (
+        ),
+        (
             "[1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ), (
+        ),
+        (
             "[1 1, 1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ), (
+        ),
+        (
             "(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             3,
-        ), (
+        ),
+        (
             "foo(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
                 expected: ExpectedToken::Nothing,
             },
             6,
-        ), (
+        ),
+        (
             "한글넣으면죽음?",
             ParseErrorKind::UnexpectedChar('한'),
             0,
-        ), (
-            "b \"ABC 한글 DEF\"",
+        ),
+        (
+            "f'ABC {}'",
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
+            6,
+        ),
+        (
+            "f'ABC {1 + }'",
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
+            9,
+        ),
+        (
+            "f'ABC { [][]}'",
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
+            10,
+        ),
+        (
+            "f'{1'",
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)])),
+            2,
+        ),
+        (
+            "(b \"ABC 한글 DEF\")",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
                 expected: ExpectedToken::Nothing,
             },
-            0
-        ), (
-            "b \'ABC 한글 DEF\'",
+            3,
+        ),
+        (
+            "(b \'ABC 한글 DEF\')",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
                 expected: ExpectedToken::Nothing,
             },
-            0
-        ), (
-            "f \"{a} + {b} = {a + b}\"",
+            3,
+        ),
+        (
+            "(f \"{a} + {b} = {a + b}\")",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
                 expected: ExpectedToken::Nothing,
             },
-            0
-        ), (
-            "f \'{a} + {b} = {a + b}\'",
+            3,
+        ),
+        (
+            "(f \'{a} + {b} = {a + b}\')",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
                 expected: ExpectedToken::Nothing,
             },
-            0
+            3,
         ),
     ];
 
@@ -273,7 +313,6 @@ fn valid_ast_dump_test() {
     let mut session = LocalParseSession::new();
 
     for (input, ast, span) in valid_samples() {
-        println!("{}", bytes_to_string(&input));
         match dump_ast_of_expr(input, &mut session) {
             Ok(expr) => {
                 assert_eq!(expr.to_string(&session), ast);
@@ -292,7 +331,7 @@ fn invalid_ast_dump_test() {
 
     for (input, err_kind, span) in invalid_samples() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
-            if !is_eq(&e.kind, &err_kind) {
+            if !is_eq(&e.kind, &err_kind) || e.span.index != span {
                 panic!(
                     "input: {}\nexpected_err:{}\ngot: {}",
                     bytes_to_string(&input),
@@ -300,8 +339,6 @@ fn invalid_ast_dump_test() {
                     e.render_err(&session),
                 );
             }
-
-            assert_eq!(e.span.index, span);
         } else {
             panic!(
                 "{:?} is supposed to fail, but doesn't!",

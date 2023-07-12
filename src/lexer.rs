@@ -1,8 +1,8 @@
-use crate::err::ParseError;
+use crate::err::{ExpectedToken, ParseError};
 use crate::session::LocalParseSession;
 use crate::span::Span;
 use crate::token::{Delimiter, OpToken, Token, TokenKind};
-use crate::utils::{bytes_to_string, bytes_to_v32, into_char};
+use crate::utils::{bytes_to_string, bytes_to_v32, into_char, v32_to_bytes};
 use hmath::{ConversionError, Ratio};
 
 pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token>, ParseError> {
@@ -181,7 +181,7 @@ fn lex_token(
 
                         else {
                             Ok((
-                                string_to_formatted(string_literal)?,
+                                string_to_formatted(string_literal, session)?,
                                 end_index,
                             ))
                         };
@@ -497,44 +497,128 @@ fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
     // t.span points to `"` of `b"`, but it should point to `b`.
     let span = t.span.backward(1).expect("Internal Compiler Error FEDF1CB");
     let string = t.kind.unwrap_string();
-    let mut buffer = Vec::with_capacity(string.len() * 3 / 2);
 
-    for c in string.iter() {
+    Ok(Token {
+        kind: TokenKind::Bytes(v32_to_bytes(t.kind.unwrap_string())),
+        span,
+    })
+}
 
-        if *c < 128 {
-            buffer.push(*c as u8);
+fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Token, ParseError> {
+    // t.span points to `"` of `f"`, but it should point to `f`.
+    let span = t.span.backward(1).expect("Internal Compiler Error C30F25D");
+
+    let string = t.kind.unwrap_string();
+    let mut curr_state = FormatStringParseState::String;
+    let mut tmp_buffer = vec![];
+    let mut buffer = vec![];
+    let mut curr_start_span = 0;
+    let mut nested_braces = 0;
+
+    for (i, c) in string.iter().enumerate() {
+
+        match curr_state {
+            FormatStringParseState::String => {
+
+                if *c == '{' as u32 {
+
+                    if !tmp_buffer.is_empty() {
+                        buffer.push(vec![Token {
+                            kind: TokenKind::String(tmp_buffer),
+                            span: span.forward(curr_start_span + 2),  // 2 for `f"`
+                        }]);
+                    }
+
+                    curr_start_span = i;
+                    tmp_buffer = vec![];
+                    curr_state = FormatStringParseState::Value;
+                    nested_braces = 1;
+                }
+
+                else {
+                    tmp_buffer.push(*c);
+                }
+
+            }
+            FormatStringParseState::Value => {
+
+                if *c == '}' as u32 {
+                    nested_braces -= 1;
+
+                    if nested_braces == 0 {
+                        let value_string = v32_to_bytes(&tmp_buffer);
+                        let inner_value = lex_tokens(&value_string, session)
+                            .map(|tokens| set_span_of_formatted_string(tokens, span.forward(curr_start_span + 3)))
+                            .map_err(|error| set_span_of_formatted_string_err(error, span.forward(curr_start_span + 3)))?;
+
+                        if inner_value.is_empty() {
+                            return Err(ParseError::eoe(
+                                span.forward(curr_start_span + 2),
+                                ExpectedToken::AnyExpression,
+                            ));
+                        }
+
+                        buffer.push(inner_value);
+                        curr_start_span = i + 1;
+                        tmp_buffer = vec![];
+                        curr_state = FormatStringParseState::String;
+                    }
+                }
+
+                // it allows `f"{{{3}}}"`
+                else if *c == '{' as u32 {
+                    nested_braces += 1;
+                }
+
+                else {
+                    tmp_buffer.push(*c);
+                }
+
+            }
         }
 
-        else if *c < 4096 {
-            buffer.push(192 + (*c / 64) as u8);
-            buffer.push(128 + (*c % 64) as u8);
-        }
+    }
 
-        else if *c < 65536 {
-            buffer.push(224 + (*c / 4096) as u8);
-            buffer.push(128 + (*c % 4096 / 64) as u8);
-            buffer.push(128 + (*c % 64) as u8);
-        }
+    if !tmp_buffer.is_empty() {
 
-        else {
-            buffer.push(240 + (*c / 262144) as u8);
-            buffer.push(128 + (*c % 262144 / 4096) as u8);
-            buffer.push(128 + (*c % 4096 / 64) as u8);
-            buffer.push(128 + (*c % 64) as u8);
+        match curr_state {
+            FormatStringParseState::String => {
+                buffer.push(vec![Token {
+                    kind: TokenKind::String(tmp_buffer),
+                    span: span.forward(curr_start_span + 2),  // 2 for `f"`
+                }]);
+            }
+            FormatStringParseState::Value => {
+                return Err(ParseError::eoe(
+                    span.forward(curr_start_span + 2),  // 2 for `f"`
+                    ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)]),
+                ));
+            }
         }
 
     }
 
     Ok(Token {
-        kind: TokenKind::Bytes(buffer),
+        kind: TokenKind::FormattedString(buffer),
         span,
     })
 }
 
-fn string_to_formatted(t: Token) -> Result<Token, ParseError> {
-    // t.span points to `"` of `f"`, but it should point to `f`.
-    let span = t.span.backward(1).expect("Internal Compiler Error C30F25D");
-    let string = t.kind.unwrap_string();
+enum FormatStringParseState {
+    String, Value,
+}
 
-    todo!();
+fn set_span_of_formatted_string(mut tokens: Vec<Token>, span: Span) -> Vec<Token> {
+
+    for token in tokens.iter_mut() {
+        token.span = span.forward(token.span.index);
+    }
+
+    tokens
+}
+
+fn set_span_of_formatted_string_err(mut error: ParseError, span: Span) -> ParseError {
+    error.span = span.forward(error.span.index);
+
+    error
 }

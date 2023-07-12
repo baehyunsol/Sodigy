@@ -1,6 +1,6 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
-use crate::parse::split_list_by_comma;
+use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
@@ -26,7 +26,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         }) => Ok(ValueKind::Identifier(*ind)),
         Some(Token {
             span,
-            kind: TokenKind::Operator(OpToken::BackSlash)
+            kind: TokenKind::Operator(OpToken::BackSlash),
         }) => {
             // reset lifetime of `span`, so that borrowck doesn't stop me
             let span = *span;
@@ -55,6 +55,26 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             kind: TokenKind::Bytes(b),
             ..
         }) => Ok(ValueKind::Bytes(b.to_vec())),
+        Some(Token {
+            kind: TokenKind::FormattedString(tokens),
+            span,
+        }) => {
+            let exprs = tokens.iter().map(
+                |tokens| {
+                    let start_span = tokens[0].span;
+                    let mut tokens = TokenList::from_vec(tokens.to_vec());
+        
+                    parse_expr_exhaustive(&mut tokens).map_err(|e| e.set_span_of_eof(start_span))
+                }
+            );
+            let mut buffer = Vec::with_capacity(tokens.len());
+
+            for expr in exprs.into_iter() {
+                buffer.push(Box::new(expr?));
+            }
+
+            Ok(ValueKind::Format(buffer))
+        },
         Some(Token {
             span,
             kind: TokenKind::List(delim, elements),

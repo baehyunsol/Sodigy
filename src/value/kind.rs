@@ -11,6 +11,8 @@ pub enum ValueKind {
     Real(Ratio),
     String(Vec<u32>),
     Bytes(Vec<u8>),
+
+    // TODO: none of the below has to be `Vec<Box<_>>` -> `Vec` itself is a smart pointer!
     Format(Vec<Box<Expr>>),
     List(Vec<Box<Expr>>),
 

@@ -57,6 +57,13 @@ impl Span {
 
     }
 
+    pub fn forward(&self, offset: usize) -> Self {
+        Span {
+            file_no: self.file_no,
+            index: self.index + offset,
+        }
+    }
+
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);

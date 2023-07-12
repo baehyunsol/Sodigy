@@ -145,6 +145,47 @@ pub fn v32_to_string(v: &[u32]) -> Result<String, u32> {
     Ok(chars.iter().collect())
 }
 
+pub fn v32_to_bytes(v: &[u32]) -> Vec<u8> {
+    let mut buffer = Vec::with_capacity(v.len() * 3 / 2);
+
+    for c in v.iter() {
+
+        if *c < 128 {
+            buffer.push(*c as u8);
+        }
+
+        else if *c < 4096 {
+            buffer.push(192 + (*c / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+        else if *c < 65536 {
+            buffer.push(224 + (*c / 4096) as u8);
+            buffer.push(128 + (*c % 4096 / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+        else if *c < 2097152 {
+            buffer.push(240 + (*c / 262144) as u8);
+            buffer.push(128 + (*c % 262144 / 4096) as u8);
+            buffer.push(128 + (*c % 4096 / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+        // I know that UTF-8 ends at 0x10ffff... but, you know, no one knows the future
+        else {
+            buffer.push(248 + (*c / 16777216) as u8);
+            buffer.push(128 + (*c % 16777216 / 262144) as u8);
+            buffer.push(128 + (*c % 262144 / 4096) as u8);
+            buffer.push(128 + (*c % 4096 / 64) as u8);
+            buffer.push(128 + (*c % 64) as u8);
+        }
+
+    }
+
+    buffer
+}
+
 pub fn bytes_to_string(b: &[u8]) -> String {
     String::from_utf8_lossy(b).to_string()
 }
@@ -242,22 +283,59 @@ pub fn edit_distance_impl(a: &[u8], b: &[u8], i: usize, j: usize, cache: &mut Ve
     result
 }
 
-#[test]
-fn into_char_test() {
-    let s = "aͲ린".as_bytes();
+#[cfg(test)]
+mod tests {
+    use super::{
+        edit_distance, into_char, substr_edit_distance,
+        bytes_to_string, bytes_to_v32,
+        v32_to_bytes, v32_to_string,
+    };
+    use crate::err::SodigyError;
+    use crate::session::LocalParseSession;
 
-    assert_eq!(into_char(s, 0).unwrap_or('X'), 'a');
-    assert_eq!(into_char(s, 1).unwrap_or('X'), 'Ͳ');
-    assert_eq!(into_char(s, 3).unwrap_or('X'), '린');
-}
+    #[test]
+    fn into_char_test() {
+        let s = "aͲ린".as_bytes();
+    
+        assert_eq!(into_char(s, 0).unwrap_or('X'), 'a');
+        assert_eq!(into_char(s, 1).unwrap_or('X'), 'Ͳ');
+        assert_eq!(into_char(s, 3).unwrap_or('X'), '린');
+    }
+    
+    #[test]
+    fn edit_distance_test() {
+        assert_eq!(edit_distance(b"item", b"itme"), 1);
+        assert_eq!(edit_distance(b"time", b"tiem"), 1);
+        assert_eq!(edit_distance(b"Internal", b"Interal"), 1);
+        assert_eq!(edit_distance(b"HTML", b"Programming Language"), 18);
+    
+        assert_eq!(substr_edit_distance(b"edit_distan", b"substr_edit_distance"), 0);
+        assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
+    }
+    
+    #[test]
+    fn str_conversion_test() {
+        let s1 = String::from("aaaπa가a🦈a👨🏿‍🎓πaπππ가π🦈π👨🏿‍🎓가a가π가가가🦈가👨🏿‍🎓🦈a🦈π🦈가🦈🦈🦈👨🏿‍🎓👨🏿‍🎓a👨🏿‍🎓π👨🏿‍🎓가👨🏿‍🎓🦈👨🏿‍🎓👨🏿‍🎓");
+        let b1 = s1.as_bytes().to_vec();
 
-#[test]
-fn edit_distance_test() {
-    assert_eq!(edit_distance(b"item", b"itme"), 1);
-    assert_eq!(edit_distance(b"time", b"tiem"), 1);
-    assert_eq!(edit_distance(b"Internal", b"Interal"), 1);
-    assert_eq!(edit_distance(b"HTML", b"Programming Language"), 18);
+        let v1 = bytes_to_v32(&b1).map_err(|e| e.render_err(&LocalParseSession::dummy())).unwrap();
+        let s2 = v32_to_string(&v1).unwrap();
+        let s3 = bytes_to_string(&b1);
+        let b2 = v32_to_bytes(&v1);
 
-    assert_eq!(substr_edit_distance(b"edit_distan", b"substr_edit_distance"), 0);
-    assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
+        let v2 = bytes_to_v32(&b2).map_err(|e| e.render_err(&LocalParseSession::dummy())).unwrap();
+        let s4 = v32_to_string(&v2).unwrap();
+        let s5 = bytes_to_string(&b2);
+        let b3 = v32_to_bytes(&v2);
+
+        assert_eq!(s1, s2);
+        assert_eq!(s2, s3);
+        assert_eq!(s3, s4);
+        assert_eq!(s4, s5);
+
+        assert_eq!(v1, v2);
+
+        assert_eq!(b1, b2);
+        assert_eq!(b2, b3);
+    }
 }

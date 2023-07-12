@@ -9,7 +9,9 @@ pub enum TokenKind {
     String(Vec<u32>),  // in Sodigy, Strings are just List(Char), where Char is an Int
 
     // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
+    // TODO: It need not be `Vec<Box<Token>>`, `Vec<Token>` would work
     List(Delimiter, Vec<Box<Token>>),
+
     Identifier(InternedString),
     Keyword(Keyword),
 
