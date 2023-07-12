@@ -9,8 +9,8 @@ use crate::value::ValueKind;
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     match tokens.step() {
         Some(Token {
-            span,
             kind: TokenKind::Number(n),
+            ..
         }) => {
             if n.is_integer() {
                 Ok(ValueKind::Integer(n.into()))
@@ -19,12 +19,12 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             }
         }
         Some(Token {
-            span,
             kind: TokenKind::String(buf),
+            ..
         }) => Ok(ValueKind::String(buf.to_vec())),
         Some(Token {
-            span,
             kind: TokenKind::Identifier(ind),
+            ..
         }) => Ok(ValueKind::Identifier(*ind)),
         Some(Token {
             span,

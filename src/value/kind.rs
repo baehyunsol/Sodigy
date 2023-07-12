@@ -42,7 +42,7 @@ impl ValueKind {
             ValueKind::Identifier(i) => TokenKind::Identifier(*i),
             ValueKind::Integer(n) => TokenKind::Number(n.clone().into()),
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
-            ValueKind::String(i) => TokenKind::String(vec![]),
+            ValueKind::String(_) => TokenKind::String(vec![]),
             ValueKind::Lambda(_, _) => TokenKind::Operator(OpToken::BackSlash),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),

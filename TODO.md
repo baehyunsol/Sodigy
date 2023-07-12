@@ -60,3 +60,17 @@ TODO: study Monad
   - can implement with typical syntax
 - `?`
   - needs a special syntax and semantics, but seems difficult to impl
+
+---
+
+modify field values: see how Haskell and Purescript works
+
+---
+
+```
+use a.b.c;
+
+{a = 3; a + c}
+```
+
+after name resolving, `a + c` would become `a + a.b.c`, and `a` in rhs would be 3. -> It's not what the programmer intended...
