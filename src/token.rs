@@ -65,6 +65,24 @@ impl Delimiter {
             Delimiter::Brace => b'}',
         }
     }
+
+    pub fn closing_token_kind(&self) -> TokenKind {
+        match self {
+            Delimiter::Parenthesis => TokenKind::Operator(OpToken::ClosingParenthesis),
+            Delimiter::Bracket => TokenKind::Operator(OpToken::ClosingSquareBracket),
+            Delimiter::Brace => TokenKind::Operator(OpToken::ClosingCurlyBrace),
+        }
+    }
+}
+
+use std::fmt::{Error as FmtError, Formatter, Display};
+
+impl Display for Delimiter {
+
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FmtError> {
+        write!(fmt, "{}", self.start() as char)
+    }
+
 }
 
 #[derive(Copy, Clone, PartialEq)]

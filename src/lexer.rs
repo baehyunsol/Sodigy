@@ -9,7 +9,7 @@ pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token
     let mut cursor = 0;
     let mut tokens = vec![];
 
-    while let Ok(next_ind) = skip_whitespaces_and_comments(s, cursor, session) {
+    while let Some(next_ind) = skip_whitespaces_and_comments(s, cursor, session) {
         cursor = next_ind;
 
         let (token, next_ind) = lex_token(s, cursor, session)?;
@@ -37,7 +37,7 @@ fn lex_token(
 
             loop {
                 if ind >= s.len() {
-                    return Err(ParseError::eof(curr_span));
+                    return Err(ParseError::eof_msg(curr_span, String::from("Unexpected EOF while parsing a string literal!")));
                 }
 
                 if !escaped && s[ind] == marker {
@@ -123,9 +123,8 @@ fn lex_token(
                     ind,
                 )),
                 Err(e) => Err(match e {
-                    ConversionError::NoData | ConversionError::UnexpectedEnd => {
-                        ParseError::eof(curr_span)
-                    }
+                    ConversionError::NoData
+                    | ConversionError::UnexpectedEnd => ParseError::eof(curr_span),
                     ConversionError::InvalidChar(c) => ParseError::ch(c, curr_span),
                     _ => unreachable!("Internal Compiler Error 89CFCAA"),
                 }),
@@ -139,7 +138,13 @@ fn lex_token(
             let mut data = vec![];
 
             loop {
-                ind = skip_whitespaces_and_comments(s, ind, session)?;
+                ind = skip_whitespaces_and_comments(s, ind, session).ok_or(
+                    ParseError::eoe_msg(
+                        curr_span,
+                        ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
+                        format!("`{marker}` is not closed properly!"),
+                    )
+                )?;
 
                 if s[ind] == end {
                     break;
@@ -149,7 +154,13 @@ fn lex_token(
                 ind = new_ind;
                 data.push(Box::new(e));
 
-                ind = skip_whitespaces_and_comments(s, ind, session)?;
+                ind = skip_whitespaces_and_comments(s, ind, session).ok_or(
+                    ParseError::eoe_msg(
+                        curr_span,
+                        ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
+                        format!("`{marker}` is not closed properly!"),
+                    )
+                )?;
 
                 if s[ind] == end {
                     break;
@@ -468,12 +479,12 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
 
 // initial `ind` must either be (1) first character of a value or a delimiter, (2) whitespace, or (3) start of a comment
 // the returned value is always either be (1) EOF, or (2) first character of a value or a delimiter
-// if the initial `ind` or the returned `ind` is not inside `s`, it returns `ParseError::UnexpectedEof`
+// if the initial `ind` or the returned `ind` is not inside `s`, it returns None
 fn skip_whitespaces_and_comments(
     s: &[u8],
     mut ind: usize,
     session: &mut LocalParseSession,
-) -> Result<usize, ParseError> {
+) -> Option<usize> {
     let curr_span = Span::new(session.curr_file, ind);
 
     while ind < s.len() {
@@ -486,11 +497,11 @@ fn skip_whitespaces_and_comments(
                 ind += 1;
             }
         } else {
-            return Ok(ind);
+            return Some(ind);
         }
     }
 
-    Err(ParseError::eof(curr_span))
+    None
 }
 
 fn string_to_bytes(t: Token) -> Result<Token, ParseError> {

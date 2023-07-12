@@ -33,17 +33,6 @@
 
 ---
 
-`b"ABC"` -> `bytes([65, 66, 67])`
-
-`f"{a} + {b} = {a + b}"` -> `a.to_string() <> " + " <> b.to_string() <> " = " <> (a + b).to_string()`
-
-In order to implement these, there must be a way the compiler can represent builtin functions (in AST)
-
-- `bytes`
-- `.to_string()`
-
----
-
 `?` syntax
 
 ```

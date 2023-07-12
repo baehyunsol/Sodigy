@@ -164,7 +164,13 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             8,
         ),
         ("[(), {), ]", ParseErrorKind::UnexpectedChar(')'), 6),
-        ("[1, 2, 3, 4", ParseErrorKind::UnexpectedEof, 11),
+        (
+            "[1, 2, 3, 4",
+            ParseErrorKind::UnexpectedEoe(
+                ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingSquareBracket)])
+            ),
+            0
+        ),
         (
             "if x { 0 } else { }",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),

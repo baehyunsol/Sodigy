@@ -40,6 +40,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn eof_msg(span: Span, message: String) -> Self {
+        ParseError {
+            kind: ParseErrorKind::UnexpectedEof,
+            span,
+            message,
+        }
+    }
+
     pub(crate) fn eoe(span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEoe(expected),
