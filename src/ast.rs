@@ -17,7 +17,7 @@ pub use name_resolve::NameScope;
 // it's safe to reuse previously generated AST unless the file
 // is modified.
 pub struct AST {
-    defs: HashMap<InternedString, FuncDef>,
+    pub(crate) defs: HashMap<InternedString, FuncDef>,
     uses: HashMap<InternedString, Use>,
 }
 

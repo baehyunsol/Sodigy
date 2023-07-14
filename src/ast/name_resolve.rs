@@ -63,11 +63,11 @@ impl NameScope {
 
         let mut result = vec![];
 
-        let (sub_edit_distance, self_edit_distance) = if name.len() < 4 {
+        let (sub_edit_distance, self_edit_distance) = if name.len() <= 4 {
             (0, 1)
-        } else if name.len() < 8 {
+        } else if name.len() <= 8 {
             (1, 1)
-        } else if name.len() < 12 {
+        } else if name.len() <= 12 {
             (1, 2)
         } else {
             (1, 3)

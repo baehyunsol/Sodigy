@@ -46,12 +46,25 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         }
 
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
+        let mut names = vec![];
+
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
                 return Err(e.set_span_of_eof(curr_span));
             }
         };
+
+        names.push(name);
+
+        while tokens.consume(TokenKind::dot()) {
+            names.push(match tokens.step_identifier_strict() {
+                Ok(id) => id,
+                Err(e) => {
+                    return Err(e.set_span_of_eof(curr_span));
+                }
+            });
+        }
 
         let (args, no_args) = match tokens.step_func_args() {
             Some(Ok(args)) => (args, false),
@@ -63,9 +76,10 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         Ok(Stmt {
             kind: StmtKind::Decorator(Decorator {
-                name,
+                names,
                 args,
                 no_args,
+                span: curr_span,
             }),
             span: curr_span,
         })

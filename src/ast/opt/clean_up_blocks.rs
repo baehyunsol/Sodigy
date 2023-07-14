@@ -83,8 +83,14 @@ impl ExprKind {
                         element.clean_up_blocks();
                     }
                 },
+                ValueKind::Lambda(args, val) => {
+                    for ArgDef { ty, .. } in args.iter_mut() {
+                        ty.clean_up_blocks();
+                    }
+
+                    val.clean_up_blocks();
+                },
                 ValueKind::Block { defs, value } => todo!(),
-                ValueKind::Lambda(args, val) => todo!(),
             },
             ExprKind::Prefix(_, v) => v.clean_up_blocks(),
             ExprKind::Postfix(_, v) => v.clean_up_blocks(),

@@ -1,0 +1,7 @@
+`z` is not defined!
+  0 │ use a.b.c;
+  1 │ 
+    │                           ▾
+▸ 2 │ @c({x = 3; y = 4; x + y + z})
+    │                           ▴
+  3 │ def tester: Int = 0;

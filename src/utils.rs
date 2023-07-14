@@ -296,23 +296,28 @@ mod tests {
     #[test]
     fn into_char_test() {
         let s = "aͲ린".as_bytes();
-    
+
         assert_eq!(into_char(s, 0).unwrap_or('X'), 'a');
         assert_eq!(into_char(s, 1).unwrap_or('X'), 'Ͳ');
         assert_eq!(into_char(s, 3).unwrap_or('X'), '린');
     }
-    
+
     #[test]
     fn edit_distance_test() {
         assert_eq!(edit_distance(b"item", b"itme"), 1);
         assert_eq!(edit_distance(b"time", b"tiem"), 1);
         assert_eq!(edit_distance(b"Internal", b"Interal"), 1);
         assert_eq!(edit_distance(b"HTML", b"Programming Language"), 18);
-    
+
         assert_eq!(substr_edit_distance(b"edit_distan", b"substr_edit_distance"), 0);
         assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
+
+        assert_eq!(edit_distance(
+            b"Very Very Long String: I want to make sure that `edit_distance` is not O(a^n) algorithm",
+            b"Another very very long string... 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        ), 75);
     }
-    
+
     #[test]
     fn str_conversion_test() {
         let s1 = String::from("aaaπa가a🦈a👨🏿‍🎓πaπππ가π🦈π👨🏿‍🎓가a가π가가가🦈가👨🏿‍🎓🦈a🦈π🦈가🦈🦈🦈👨🏿‍🎓👨🏿‍🎓a👨🏿‍🎓π👨🏿‍🎓가👨🏿‍🎓🦈👨🏿‍🎓👨🏿‍🎓");

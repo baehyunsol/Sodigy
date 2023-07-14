@@ -4,6 +4,7 @@ use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use crate::value::ValueKind;
+use std::slice::Iter;
 
 #[derive(Clone)]
 pub struct Use {
@@ -34,6 +35,10 @@ impl Use {
     // not to generate errors from Exprs from this
     pub fn to_path(&self) -> ExprKind {
         to_path_impl(self.path.as_ref())
+    }
+
+    pub fn iter_path(&self) -> Iter<InternedString> {
+        self.path.as_ref().iter()
     }
 }
 
