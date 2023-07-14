@@ -9,7 +9,7 @@ pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token
     let mut cursor = 0;
     let mut tokens = vec![];
 
-    while let Some(next_ind) = skip_whitespaces_and_comments(s, cursor, session) {
+    while let Some(next_ind) = skip_whitespaces_and_comments(s, cursor) {
         cursor = next_ind;
 
         let (token, next_ind) = lex_token(s, cursor, session)?;
@@ -138,7 +138,7 @@ fn lex_token(
             let mut data = vec![];
 
             loop {
-                ind = skip_whitespaces_and_comments(s, ind, session).ok_or(
+                ind = skip_whitespaces_and_comments(s, ind).ok_or(
                     ParseError::eoe_msg(
                         curr_span,
                         ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
@@ -154,7 +154,7 @@ fn lex_token(
                 ind = new_ind;
                 data.push(e);
 
-                ind = skip_whitespaces_and_comments(s, ind, session).ok_or(
+                ind = skip_whitespaces_and_comments(s, ind).ok_or(
                     ParseError::eoe_msg(
                         curr_span,
                         ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
@@ -491,9 +491,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
 fn skip_whitespaces_and_comments(
     s: &[u8],
     mut ind: usize,
-    session: &mut LocalParseSession,
 ) -> Option<usize> {
-    let curr_span = Span::new(session.curr_file, ind);
 
     while ind < s.len() {
         if s[ind] == b' ' || s[ind] == b'\n' || s[ind] == b'\r' || s[ind] == b'\t' {

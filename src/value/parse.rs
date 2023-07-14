@@ -57,7 +57,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         }) => Ok(ValueKind::Bytes(b.to_vec())),
         Some(Token {
             kind: TokenKind::FormattedString(tokens),
-            span,
+            ..
         }) => {
             // very simple optimization: `f"ABC"` -> `"ABC"`
             if tokens.len() == 1 && tokens[0].len() == 1 && tokens[0][0].kind.is_string() {

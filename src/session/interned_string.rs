@@ -7,8 +7,10 @@ use crate::utils::bytes_to_string;
 /*
  * 0: dummy
  * 1 ~ 0xff_fff: builtins and preludes
- * indices of builtins do not change across compilations, but it might change when the Sodigy version changes
+ *    indices of builtins do not change across compilations, but it might change when the Sodigy version changes.
+ *    InternedString is just name, it has nothing to do with its actual meaning.
  * 0x100_000 ~ 0x100_000 + keywords.len(): keywords
+ * others: string literals from the programmer
  */
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
