@@ -234,7 +234,7 @@ fn lex_token(
             }
         }
         b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'=' | b'<' | b'>' | b',' | b'.' | b':'
-        | b';' | b'&' | b'|' | b'@' | b'\\' => lex_op_tokens(s, ind, session),
+        | b';' | b'&' | b'|' | b'@' | b'\\' | b'$' => lex_op_tokens(s, ind, session),
         _ => Err(ParseError::ch(into_char(s, ind).map_err(|e| e.set_ind_and_fileno(curr_span))?, curr_span)),
     }
 }
@@ -409,6 +409,14 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
             Token {
                 span: curr_span,
                 kind: TokenKind::Operator(OpToken::Div),
+            },
+            ind + 1,
+        ))
+    } else if s[ind] == b'$' {
+        Ok((
+            Token {
+                span: curr_span,
+                kind: TokenKind::Operator(OpToken::FieldModifier),
             },
             ind + 1,
         ))

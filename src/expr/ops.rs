@@ -1,4 +1,11 @@
+use crate::session::InternedString;
 use crate::token::OpToken;
+
+#[cfg(test)]
+use crate::session::LocalParseSession;
+
+#[cfg(test)]
+use crate::utils::bytes_to_string;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PrefixOp {
@@ -46,6 +53,21 @@ pub enum InfixOp {
     Path,   // `.`
     Concat, // `<>`
     Range,  // `..`
+
+    ModifyField(InternedString),  // $foo
+}
+
+impl InfixOp {
+
+    #[cfg(test)]
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        if let InfixOp::ModifyField(field) = self {
+            format!("ModifyField({})", bytes_to_string(&session.unintern_string(*field)))
+        }
+        else {
+            format!("{self:?}")
+        }
+    }
 }
 
 impl From<&OpToken> for InfixOp {

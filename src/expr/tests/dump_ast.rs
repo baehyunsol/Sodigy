@@ -129,6 +129,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("f\"ABC\"", "\"ABC\"", 0),
         ("f\"\"", "\"\"", 0),
         ("b\"\"", "Bytes()", 0),
+        ("me $age me.age + 1", "ModifyField(age)(me,Add(Path(me,age),1))", 3),
     ];
 
     result
@@ -300,6 +301,14 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 expected: ExpectedToken::Nothing,
             },
             3,
+        ),
+        (
+            "[0, 1, 2, 3] $0 1",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::Number(Ratio::zero()),
+                expected: ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()]),
+            },
+            14,
         ),
     ];
 

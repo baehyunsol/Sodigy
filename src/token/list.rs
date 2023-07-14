@@ -202,12 +202,25 @@ impl TokenList {
         }
     }
 
-    pub fn step_infix_op(&mut self) -> Option<InfixOp> {
+    // There's one case where it returns an error: an identifier doesn't follow a `$`.
+    pub fn step_infix_op(&mut self) -> Option<Result<InfixOp, ParseError>> {
         match self.data.get(self.cursor) {
             Some(Token {
                 kind: TokenKind::Operator(op),
-                ..
-            }) => match op {
+                span,
+            }) => match *op {
+                OpToken::FieldModifier => {
+                    self.cursor += 1;
+                    let span = *span;
+                    let field_name = match self.step_identifier_strict() {
+                        Ok(f) => f,
+                        Err(e) => {
+                            return Some(Err(e.set_span_of_eof(span)));
+                        }
+                    };
+
+                    Some(Ok(InfixOp::ModifyField(field_name)))
+                },
                 OpToken::Add
                 | OpToken::Sub
                 | OpToken::Mul
@@ -227,7 +240,7 @@ impl TokenList {
                 | OpToken::Or
                 | OpToken::OrOr => {
                     self.cursor += 1;
-                    Some(op.into())
+                    Some(Ok(op.into()))
                 }
                 _ => None,
             },

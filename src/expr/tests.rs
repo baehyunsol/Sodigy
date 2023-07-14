@@ -17,9 +17,10 @@ impl ExprKind {
             ExprKind::Value(v) => v.to_string(session),
             ExprKind::Prefix(op, expr) => format!("{op:?}({})", expr.to_string(session)),
             ExprKind::Infix(op, lhs, rhs) => format!(
-                "{op:?}({},{})",
+                "{}({},{})",
+                op.to_string(session),
                 lhs.to_string(session),
-                rhs.to_string(session)
+                rhs.to_string(session),
             ),
             ExprKind::Postfix(op, expr) => format!("{op:?}({})", expr.to_string(session)),
             ExprKind::Call(functor, args) => format!(

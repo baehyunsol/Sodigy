@@ -20,3 +20,22 @@ Sodigy uses arbitrary-width integers.
 ### Numbers
 
 Sodigy doesn't use floating points, but rational numbers.
+
+## Operators
+
+### `$`
+
+`$` is an infix operator, which modifies a value of a field.
+
+Its lhs operand is the object you want to modify. Unlike the other infix operators, it has 2 rhs operands: the name of the field and the new value.
+
+```
+def set_age(p: Person, new_age: Int): Person = p $age new_age;
+
+@test.eq(Person("Bae", 23))
+def set_age_test: Person = set_age(
+    Person("Bae", 21), 23
+);
+```
+
+You can use whitespaces between `$` and the name of the field, but I recommend you not to do so, for the sake of readability.

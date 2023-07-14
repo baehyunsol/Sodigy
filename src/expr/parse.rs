@@ -100,6 +100,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         }
 
         if let Some(op) = tokens.step_infix_op() {
+            let op = op?;
             let (l_bp, r_bp) = infix_binding_power(op);
 
             if l_bp < min_bp {
@@ -174,6 +175,7 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Eq | InfixOp::Ne => (COMP_EQ, COMP_EQ + 1),
         InfixOp::BitwiseAnd => (BITWISE_AND, BITWISE_AND + 1),
         InfixOp::BitwiseOr => (BITWISE_OR, BITWISE_OR + 1),
+        InfixOp::ModifyField(_) => (MODIFY, MODIFY + 1),
         InfixOp::LogicalAnd => (LOGICAL_AND, LOGICAL_AND + 1),
         InfixOp::LogicalOr => (LOGICAL_OR, LOGICAL_OR + 1),
     }
@@ -183,17 +185,17 @@ fn func_call_binding_power() -> (u32, u32) {
     (CALL, CALL + 1)
 }
 
-const PATH: u32 = 25;
-const CALL: u32 = 23;
-const INDEX: u32 = 21;
-const NEG: u32 = 19;
-const MUL: u32 = 17;
-const ADD: u32 = 15;
-const BITWISE_AND: u32 = 13;
-const BITWISE_OR: u32 = 11;
-const CONCAT: u32 = 9;
-const RANGE: u32 = 9;
-const COMP: u32 = 7;
-const COMP_EQ: u32 = 5;
+const PATH: u32 = 27;
+const CALL: u32 = 25;
+const INDEX: u32 = 23;
+const NEG: u32 = 21;
+const MUL: u32 = 19;
+const ADD: u32 = 17;
+const BITWISE_AND: u32 = 15;
+const BITWISE_OR: u32 = 13;
+const CONCAT: u32 = 11; const RANGE: u32 = 11;
+const COMP: u32 = 9;
+const COMP_EQ: u32 = 7;
+const MODIFY: u32 = 5;
 const LOGICAL_AND: u32 = 3;
 const LOGICAL_OR: u32 = 1;

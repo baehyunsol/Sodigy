@@ -138,6 +138,8 @@ pub enum OpToken {
     DotDot,
     BackSlash,
 
+    FieldModifier,  // $
+
     // below 4 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
     ClosingSquareBracket,
@@ -175,6 +177,7 @@ impl OpToken {
             OpToken::SemiColon => ";",
             OpToken::DotDot => "..",
             OpToken::BackSlash => "\\",
+            OpToken::FieldModifier => "$",
             OpToken::Assign => "=",
             OpToken::OpeningSquareBracket => "[",
             OpToken::ClosingSquareBracket => "]",
