@@ -104,6 +104,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
             0,
         ),
         ("\\{x: Int, y: Int, x + y}", "Lambda(x:Int,y:Int,Add(x,y))", 0),
+        ("\\{x, y, x + y}", "Lambda(x,y,Add(x,y))", 0),
         ("(3)", "3", 1),
         ("(3,)", "Tuple(3)", 0),
         ("(3, 4)", "Tuple(3,4)", 0),

@@ -24,10 +24,6 @@ pub struct Expr {
 }
 
 impl Expr {
-    pub fn is_identifier(&self) -> bool {
-        self.kind.is_identifier()
-    }
-
     pub fn get_first_token(&self) -> TokenKind {
         self.kind.get_first_token()
     }

@@ -7,7 +7,9 @@ use crate::token::{OpToken, TokenKind, TokenList};
 #[derive(Clone)]
 pub struct ArgDef {
     pub name: InternedString,
-    pub ty: Expr,
+
+    // if it's None, it has to be inferred later
+    pub ty: Option<Expr>,
 }
 
 // NAME ':' TYPE
@@ -23,16 +25,21 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
         }
     };
 
-    tokens.consume_token_or_error(TokenKind::Operator(OpToken::Colon))?;
+    if tokens.consume(TokenKind::Operator(OpToken::Colon)) {
+        let ty = match tokens.step_type() {
+            Some(t) => Some(t?),
+            None => {
+                return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
+            }
+        };
+    
+        Ok(ArgDef { name, ty })
+    }
 
-    let ty = match tokens.step_type() {
-        Some(t) => t?,
-        None => {
-            return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
-        }
-    };
+    else {
+        Ok(ArgDef { name, ty: None })
+    }
 
-    Ok(ArgDef { name, ty })
 }
 
 // TODO: where should this belong?

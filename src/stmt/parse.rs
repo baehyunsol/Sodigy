@@ -99,6 +99,12 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             None => (vec![], true),
         };
 
+        for arg in args.iter() {
+            if arg.ty.is_none() {
+                return Err(ParseError::untyped_arg(arg.name, name, curr_span));
+            }
+        }
+
         tokens
             .consume_token_or_error(TokenKind::Operator(OpToken::Colon))
             .map_err(|e| e.set_span_of_eof(curr_span))?;
@@ -132,7 +138,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                 name,
                 args,
                 is_const,
-                ret_type,
+                ret_type: Some(ret_type),
                 ret_val,
                 span: curr_span,
                 decorators: vec![],  // will be filled later

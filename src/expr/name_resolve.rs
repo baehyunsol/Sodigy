@@ -36,7 +36,9 @@ impl Expr {
                     name_scope.push_names(args);
 
                     for ArgDef { ty, .. } in args.iter_mut() {
-                        ty.resolve_names(name_scope)?;
+                        if let Some(ty) = ty {
+                            ty.resolve_names(name_scope)?;
+                        }
                     }
 
                     expr.resolve_names(name_scope)?;

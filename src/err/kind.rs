@@ -1,6 +1,7 @@
 use super::ExpectedToken;
-use crate::session::LocalParseSession;
+use crate::session::{InternedString, LocalParseSession};
 use crate::token::TokenKind;
+use crate::utils::bytes_to_string;
 
 #[derive(PartialEq)]
 pub enum ParseErrorKind {
@@ -16,6 +17,9 @@ pub enum ParseErrorKind {
         expected: ExpectedToken,
         got: TokenKind,
     },
+
+    // A definition of a lambda may omit type notations, but `def` may not
+    UntypedArg(InternedString, InternedString),
 }
 
 impl ParseErrorKind {
@@ -36,6 +40,11 @@ impl ParseErrorKind {
             ),
             ParseErrorKind::InvalidUTF8(chars) => format!(
                 "Invalid UTF-8 bytes are found: {chars:?}"
+            ),
+            ParseErrorKind::UntypedArg(arg, func) => format!(
+                "Argument `{}` of function `{}` has no type annotation!\nIn lambda functions, you may omit type annotations, but not with `def`s.",
+                bytes_to_string(&session.unintern_string(*arg)),
+                bytes_to_string(&session.unintern_string(*func)),
             ),
         }
     }

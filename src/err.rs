@@ -1,4 +1,4 @@
-use crate::session::LocalParseSession;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::TokenKind;
 
@@ -120,6 +120,14 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::InvalidUTF8(cs),
             span: Span::dummy_index(ind),
+            message: String::new(),
+        }
+    }
+
+    pub(crate) fn untyped_arg(arg_name: InternedString, func_name: InternedString, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::UntypedArg(arg_name, func_name),
+            span,
             message: String::new(),
         }
     }

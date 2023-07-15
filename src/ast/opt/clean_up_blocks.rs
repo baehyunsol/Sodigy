@@ -47,10 +47,15 @@ impl AST {
 
         for func in self.defs.values_mut() {
             func.ret_val.clean_up_blocks();
-            func.ret_type.clean_up_blocks();
+
+            if let Some(ty) = &mut func.ret_type {
+                ty.clean_up_blocks();
+            }
 
             for ArgDef { ty, .. } in func.args.iter_mut() {
-                ty.clean_up_blocks();
+                if let Some(ty) = ty {
+                    ty.clean_up_blocks();
+                }
             }
 
         }
@@ -85,7 +90,9 @@ impl ExprKind {
                 },
                 ValueKind::Lambda(args, val) => {
                     for ArgDef { ty, .. } in args.iter_mut() {
-                        ty.clean_up_blocks();
+                        if let Some(ty) = ty {
+                            ty.clean_up_blocks();
+                        }
                     }
 
                     val.clean_up_blocks();

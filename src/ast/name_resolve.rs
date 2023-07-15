@@ -129,6 +129,15 @@ impl NameScope {
     pub fn pop_names(&mut self) {
         self.name_stack.pop().expect("Internal Compiler Error 836C6C0");
     }
+
+    pub fn from_ast(ast: &AST) -> Self {
+        NameScope {
+            defs: ast.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
+            uses: ast.uses.clone(),
+            name_stack: vec![],
+            preludes: get_preludes(),
+        }
+    }
 }
 
 /*
@@ -151,22 +160,13 @@ impl NameScope {
 impl AST {
 
     pub fn resolve_names(&mut self) -> Result<(), ASTError> {
-        let mut name_scope = self.gen_name_scope();
+        let mut name_scope = NameScope::from_ast(self);
 
         for func in self.defs.values_mut() {
             func.resolve_names(&mut name_scope)?;
         }
 
         Ok(())
-    }
-
-    pub fn gen_name_scope(&self) -> NameScope {
-        NameScope {
-            defs: self.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
-            uses: self.uses.clone(),
-            name_stack: vec![],
-            preludes: get_preludes(),
-        }
     }
 
 }

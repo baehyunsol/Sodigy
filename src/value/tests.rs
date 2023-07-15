@@ -53,13 +53,16 @@ impl ValueKind {
             ValueKind::Lambda(args, value) => {
                 let args = args
                     .iter()
-                    .map(|ArgDef { name, ty }| {
-                        format!(
-                            "{}:{},",
-                            bytes_to_string(&session.unintern_string(*name)),
-                            ty.to_string(session),
-                        )
-                    })
+                    .map(|ArgDef { name, ty }| if let Some(ty) = ty {
+                            format!(
+                                "{}:{},",
+                                bytes_to_string(&session.unintern_string(*name)),
+                                ty.to_string(session),
+                            )
+                        } else {
+                            format!("{},", bytes_to_string(&session.unintern_string(*name)))
+                        }
+                    )
                     .collect::<Vec<String>>()
                     .concat();
 

@@ -29,3 +29,12 @@ def ackermann_test: Int = ackermann(3, 4);
 @test.eq(10946)
 def fibonacci_test: Int = fibonacci(20);
 ```
+
+```
+@test.eq(10946)
+def fibo_lambda: Int = {
+    fibo = \{n, if n < 2 { 1 } else { fibo(n - 1) + fibo(n - 2) }};
+
+    fibo(20)
+};
+```

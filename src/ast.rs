@@ -2,8 +2,10 @@ use crate::session::InternedString;
 use crate::stmt::{FuncDef, Stmt, StmtKind, Use};
 use std::collections::HashMap;
 
+mod endec;
 mod err;
 mod name_resolve;
+mod lambda_resolve;
 mod opt;
 
 #[cfg(test)]
@@ -18,7 +20,7 @@ pub use name_resolve::NameScope;
 // is modified.
 pub struct AST {
     pub(crate) defs: HashMap<InternedString, FuncDef>,
-    uses: HashMap<InternedString, Use>,
+    pub(crate) uses: HashMap<InternedString, Use>,
 }
 
 impl AST {
@@ -87,6 +89,7 @@ impl AST {
         }
 
         ast.resolve_names()?;
+        ast.resolve_lambdas();
         ast.opt()?;
 
         Ok(ast)

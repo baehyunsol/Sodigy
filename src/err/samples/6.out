@@ -1,0 +1,5 @@
+Argument `x` of function `untyped_arg` has no type annotation!
+In lambda functions, you may omit type annotations, but not with `def`s.
+    │ ▾
+▸ 0 │ def untyped_arg(x, y): Int = x + y;
+    │ ▴

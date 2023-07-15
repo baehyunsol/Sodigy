@@ -26,7 +26,13 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
         ParseErrorKind::InvalidUTF8(e1) => match k2 {
             ParseErrorKind::InvalidUTF8(e2) => e1 == e2,
             _ => false,
-        }
+        },
+
+        // the test runner cannot generate an InternedString before it actually parses a code
+        ParseErrorKind::UntypedArg(_, _) => match k2 {
+            ParseErrorKind::UntypedArg(_, _) => true,
+            _ => false,
+        },
     }
 
 }
