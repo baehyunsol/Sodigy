@@ -1,10 +1,11 @@
+use super::{BlockId, ValueKind};
+use crate::ast::NameOrigin;
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
-use crate::value::ValueKind;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     match tokens.step() {
@@ -23,7 +24,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         Some(Token {
             kind: TokenKind::Identifier(ind),
             ..
-        }) => Ok(ValueKind::Identifier(*ind)),
+        }) => Ok(ValueKind::Identifier(*ind, NameOrigin::NotKnownYet)),
         Some(Token {
             span,
             kind: TokenKind::Operator(OpToken::BackSlash),
@@ -165,7 +166,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         if let Some(Token { kind, span }) = block_tokens.step() {
             Err(ParseError::tok(kind.clone(), *span, ExpectedToken::Nothing))
         } else {
-            Ok(ValueKind::Block { defs, value })
+            Ok(ValueKind::Block { defs, value, id: BlockId::new_rand() })
         }
     }
 }

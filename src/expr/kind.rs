@@ -1,4 +1,5 @@
 use super::{Expr, InfixOp, PostfixOp, PrefixOp};
+use crate::ast::NameOrigin;
 use crate::token::TokenKind;
 use crate::value::ValueKind;
 
@@ -40,6 +41,15 @@ impl ExprKind {
             ExprKind::Infix(_, e, _) | ExprKind::Postfix(_, e) => e.get_first_token(),
             ExprKind::Prefix(op, _) => TokenKind::Operator(op.into()),
             ExprKind::Branch(_, _, _) => TokenKind::keyword_if(),
+        }
+    }
+
+    pub fn set_origin(&mut self, origin: NameOrigin) {
+        match self {
+            ExprKind::Value(ValueKind::Identifier(_, curr_origin)) => {
+                *curr_origin = origin;
+            }
+            _ => panic!("Internal Compiler Error 3FDF4E0"),
         }
     }
 }

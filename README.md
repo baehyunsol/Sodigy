@@ -9,6 +9,8 @@ It's still under development. Only parser and lexer are (partially) complete.
 - Every function in Sodigy is pure.
 - Every function in Sodigy is evaluable at compile time.
 
+### Lambda Functions
+
 ## Types
 
 Types in Sodigy are first-class objects. The type checker (which is not implmeneted yet) evaluates the type signatures in compile time, and calls `.is_subtype_of()`.
@@ -30,6 +32,8 @@ Sodigy doesn't use floating points, but rational numbers.
 Its lhs operand is the object you want to modify. Unlike the other infix operators, it has 2 rhs operands: the name of the field and the new value.
 
 ```
+# TODO: add definition of `Person`
+
 def set_age(p: Person, new_age: Int): Person = p $age new_age;
 
 @test.eq(Person("Bae", 23))

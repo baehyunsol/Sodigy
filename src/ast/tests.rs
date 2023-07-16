@@ -1,6 +1,7 @@
 use super::AST;
 use crate::session::LocalParseSession;
 
+mod name_origin;
 mod name_resolve;
 
 impl AST {

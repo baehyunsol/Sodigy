@@ -3,6 +3,7 @@ use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
+use crate::value::BlockId;
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -10,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 pub struct NameScope {
     defs: HashSet<InternedString>,
     uses: HashMap<InternedString, Use>,
-    pub(crate) name_stack: Vec<HashSet<InternedString>>,
+    pub(crate) name_stack: Vec<(HashSet<InternedString>, NameScopeKind)>,
     preludes: HashSet<InternedString>,
 }
 
@@ -18,28 +19,28 @@ impl NameScope {
     // Ok(None) -> valid name, no alias
     // Ok(Some(u)) -> valid name, and has alias `u`
     // Err() -> invalid name
-    pub fn search_name(&self, name: InternedString) -> Result<Option<&Use>, ()> {
+    pub fn search_name(&self, name: InternedString) -> Result<(Option<&Use>, NameOrigin), ()> {
 
         // the order of the stack doesn't matter because
         // we'll search all of them in the end anyway
-        for names in self.name_stack.iter() {
+        for (names, name_scope_kind) in self.name_stack.iter().rev() {
 
             if names.contains(&name) {
-                return Ok(None);
+                return Ok((None, name_scope_kind.into()));
             }
 
         }
 
         if let Some(u) = self.uses.get(&name) {
-            Ok(Some(u))
+            Ok((Some(u), NameOrigin::SubPath))
         }
 
         else if self.defs.contains(&name) {
-            Ok(None)
+            Ok((None, NameOrigin::Local))
         }
 
         else if self.preludes.contains(&name) {
-            Ok(None)
+            Ok((None, NameOrigin::Prelude))
         }
 
         else {
@@ -98,7 +99,7 @@ impl NameScope {
     fn all_names(&self, session: &LocalParseSession) -> Vec<Vec<u8>> {
         let mut result = Vec::with_capacity(
             self.defs.len() + self.preludes.len() + self.uses.len()
-            + self.name_stack.iter().fold(0, |c, s| c + s.len())
+            + self.name_stack.iter().fold(0, |c, s| c + s.0.len())
         );
 
         for name in self.defs.iter().chain(self.preludes.iter()) {
@@ -109,7 +110,9 @@ impl NameScope {
             result.push(session.unintern_string(*name.0));
         }
 
-        for name_stack in self.name_stack.iter() {
+        // It doesn't care about what kind of stack it is
+        // it only finds similar names
+        for (name_stack, _) in self.name_stack.iter() {
             for name in name_stack.iter() {
                 result.push(session.unintern_string(*name));
             }
@@ -118,11 +121,14 @@ impl NameScope {
         result
     }
 
-    pub fn push_names<A: GetNameOfArg>(&mut self, args: &Vec<A>) {
+    pub fn push_names<A: GetNameOfArg>(&mut self, args: &Vec<A>, kind: NameScopeKind) {
         self.name_stack.push(
-            args.iter().map(
-                |arg| arg.get_name_of_arg()
-            ).collect()
+            (
+                args.iter().map(
+                    |arg| arg.get_name_of_arg()
+                ).collect(),
+                kind,
+            )
         );
     }
 
@@ -136,6 +142,34 @@ impl NameScope {
             uses: ast.uses.clone(),
             name_stack: vec![],
             preludes: get_preludes(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum NameOrigin {
+    NotKnownYet,
+    Global,   // `a` of `use a.b.c;`
+    SubPath,  // `b` of `use a.b.c;`, or `a.b()`
+    Local,    // `a` of `def a: _ = _;`
+    Prelude,
+    FuncArg,
+    BlockDef(BlockId),
+}
+
+#[derive(Clone)]
+pub enum NameScopeKind {
+    Block(BlockId),
+    FuncArg,
+    LambdaArg,
+}
+
+impl From<&NameScopeKind> for NameOrigin {
+    fn from(k: &NameScopeKind) -> Self {
+        match k {
+            NameScopeKind::Block(id) => NameOrigin::BlockDef(*id),
+            NameScopeKind::FuncArg => NameOrigin::FuncArg,
+            NameScopeKind::LambdaArg => todo!(),
         }
     }
 }
@@ -155,15 +189,17 @@ impl NameScope {
  *
  *
  * It also finds use of undefined names while resolving names.
+ * It also extracts lambda functions while resolving names.
  */
 
 impl AST {
 
     pub fn resolve_names(&mut self) -> Result<(), ASTError> {
         let mut name_scope = NameScope::from_ast(self);
+        let mut lambda_defs = HashMap::new();
 
         for func in self.defs.values_mut() {
-            func.resolve_names(&mut name_scope)?;
+            func.resolve_names(&mut name_scope, &mut lambda_defs)?;
         }
 
         Ok(())

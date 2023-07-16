@@ -22,7 +22,7 @@ impl ValueKind {
         match self {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
-            ValueKind::Identifier(ind) => bytes_to_string(&session.unintern_string(*ind)),
+            ValueKind::Identifier(ind, _) => bytes_to_string(&session.unintern_string(*ind)),
             ValueKind::String(buf) => format!(
                 "{:?}",
                 v32_to_string(buf)
@@ -68,7 +68,7 @@ impl ValueKind {
 
                 format!("Lambda({args}{})", value.to_string(session))
             },
-            ValueKind::Block { defs, value } => {
+            ValueKind::Block { defs, value, .. } => {
                 let defs = defs
                     .iter()
                     .map(|(name, value)| {

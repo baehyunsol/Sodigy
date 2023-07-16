@@ -1,7 +1,9 @@
+use super::FuncDef;
 use crate::ast::{ASTError, NameScope};
 use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::span::Span;
+use std::collections::HashMap;
 
 pub struct Decorator {
     // a path consists of many names
@@ -18,17 +20,17 @@ pub struct Decorator {
 
 impl Decorator {
 
-    pub fn resolve_names(&mut self, name_scope: &mut NameScope) -> Result<(), ASTError> {
+    pub fn resolve_names(&mut self, name_scope: &mut NameScope, lambda_defs: &mut HashMap<InternedString, FuncDef>) -> Result<(), ASTError> {
 
         match name_scope.search_name(self.names[0]) {
-            Ok(Some(u)) => {
+            Ok((Some(u), _)) => {
                 if self.names.len() == 1 {
                     self.names = u.iter_path().map(|i| *i).collect();
                 } else {
                     self.names = u.iter_path().chain(self.names[1..].iter()).map(|i| *i).collect();
                 }
             },
-            Ok(None) => {},
+            Ok((None, _)) => {},
             Err(_) => {
                 return Err(ASTError::no_def(
                     self.names[0],
@@ -39,7 +41,7 @@ impl Decorator {
         }
 
         for arg in self.args.iter_mut() {
-            arg.resolve_names(name_scope)?;
+            arg.resolve_names(name_scope, lambda_defs)?;
         }
 
         Ok(())

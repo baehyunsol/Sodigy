@@ -76,7 +76,7 @@ impl ExprKind {
     pub fn clean_up_blocks(&mut self) {
         match self {
             ExprKind::Value(v) => match v {
-                ValueKind::Identifier(_)
+                ValueKind::Identifier(_, _)
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
@@ -97,7 +97,7 @@ impl ExprKind {
 
                     val.clean_up_blocks();
                 },
-                ValueKind::Block { defs, value } => todo!(),
+                ValueKind::Block { defs, value, .. } => todo!(),
             },
             ExprKind::Prefix(_, v) => v.clean_up_blocks(),
             ExprKind::Postfix(_, v) => v.clean_up_blocks(),

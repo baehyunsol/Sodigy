@@ -139,6 +139,7 @@ impl TokenList {
                 kind: TokenKind::List(Delimiter::Parenthesis, elements),
                 span,
             }) => {
+                self.cursor += 1;
                 let mut args = vec![];
                 let mut args_tokens = TokenList::from_vec(elements.to_vec());
 

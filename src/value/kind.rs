@@ -1,3 +1,4 @@
+use crate::ast::NameOrigin;
 use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::ArgDef;
@@ -6,7 +7,7 @@ use hmath::{BigInt, Ratio};
 
 #[derive(Clone)]
 pub enum ValueKind {
-    Identifier(InternedString),
+    Identifier(InternedString, NameOrigin),
     Integer(BigInt),
     Real(Ratio),
     String(Vec<u32>),
@@ -27,12 +28,13 @@ pub enum ValueKind {
     Block {
         defs: Vec<(InternedString, Expr)>, // (name, value)
         value: Box<Expr>,
+        id: BlockId,
     },
 }
 
 impl ValueKind {
     pub fn is_identifier(&self) -> bool {
-        if let ValueKind::Identifier(_) = self {
+        if let ValueKind::Identifier(_, _) = self {
             true
         } else {
             false
@@ -41,7 +43,7 @@ impl ValueKind {
 
     pub fn get_first_token(&self) -> TokenKind {
         match self {
-            ValueKind::Identifier(i) => TokenKind::Identifier(*i),
+            ValueKind::Identifier(i, _) => TokenKind::Identifier(*i),
             ValueKind::Integer(n) => TokenKind::Number(n.clone().into()),
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
             ValueKind::String(_) => TokenKind::String(vec![]),
@@ -57,7 +59,7 @@ impl ValueKind {
     // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`
     // `{x + y}` -> `x + y`
     pub fn block_to_expr_kind(self) -> ExprKind {
-        if let ValueKind::Block { defs, value } = &self {
+        if let ValueKind::Block { defs, value, .. } = &self {
             if defs.is_empty() {
                 value.kind.clone()
             } else {
@@ -75,4 +77,15 @@ impl ValueKind {
         self.get_first_token()
             .render_err(&LocalParseSession::dummy())
     }
+}
+
+#[derive(Copy, Clone)]
+pub struct BlockId(u64);
+
+impl BlockId {
+
+    pub fn new_rand() -> Self {
+        BlockId(rand::random())
+    }
+
 }

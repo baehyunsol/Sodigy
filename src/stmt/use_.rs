@@ -1,3 +1,4 @@
+use crate::ast::NameOrigin;
 use crate::expr::{Expr, ExprKind, InfixOp};
 use crate::module::ModulePath;
 use crate::session::InternedString;
@@ -75,23 +76,39 @@ pub fn use_case_to_tokens(Use { path, alias, span }: Use) -> Vec<Token> {
 
 macro_rules! new_path {
     ($p0: expr) => {
-        ExprKind::Value(ValueKind::Identifier($p0))
+        new_path!(global, $p0)
     };
-    (recurs, $ps: expr, $pt: expr) => {
+    (global, $p0: expr) => {
+        ExprKind::Value(ValueKind::Identifier($p0, NameOrigin::Global))
+    };
+    (sub, $p0: expr) => {
+        ExprKind::Value(ValueKind::Identifier($p0, NameOrigin::SubPath))
+    };
+    ($p0: expr, $p1: expr) => {
         ExprKind::Infix(
             InfixOp::Path,
             Box::new(Expr {
-                kind: $ps,
-                span: Span::dummy()
+                kind: new_path!(global, $p0),
+                span: Span::dummy(),
             }),
             Box::new(Expr {
-                kind: new_path!($pt),
-                span: Span::dummy()
+                kind: new_path!(sub, $p1),
+                span: Span::dummy(),
             }),
         )
     };
-    ($p0: expr, $p1: expr) => {
-        new_path!(recurs, new_path!($p0), $p1)
+    (recurs, $ph: expr, $pt: expr) => {
+        ExprKind::Infix(
+            InfixOp::Path,
+            Box::new(Expr {
+                kind: $ph,
+                span: Span::dummy(),
+            }),
+            Box::new(Expr {
+                kind: new_path!(sub, $pt),
+                span: Span::dummy(),
+            })
+        )
     };
     ($p0: expr, $p1: expr, $p2: expr) => {
         new_path!(recurs, new_path!($p0, $p1), $p2)

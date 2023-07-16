@@ -5,14 +5,16 @@ use std::collections::HashMap;
 mod endec;
 mod err;
 mod name_resolve;
-mod lambda_resolve;
 mod opt;
+
+#[cfg(test)]
+mod walker;
 
 #[cfg(test)]
 mod tests;
 
 pub use err::ASTError;
-pub use name_resolve::NameScope;
+pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
 
 // It represents a single file.
 // It doesn't have any data from other files, meaning that
@@ -89,7 +91,6 @@ impl AST {
         }
 
         ast.resolve_names()?;
-        ast.resolve_lambdas();
         ast.opt()?;
 
         Ok(ast)
