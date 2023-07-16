@@ -49,7 +49,7 @@ impl ExprKind {
                         elem.kind.id_walker(f);
                     }
                 },
-                ValueKind::Lambda(args, val) => {
+                ValueKind::Lambda(_, _) => {
                     // call this function after all the lambdas are resolved
                     panic!();
                 }

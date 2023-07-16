@@ -1,7 +1,7 @@
 use crate::err::{ExpectedToken, ParseError, ParseErrorKind, SodigyError, tests::is_eq};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
-use crate::session::LocalParseSession;
+use crate::session::{InternedString, LocalParseSession};
 use crate::token::{Delimiter, OpToken, TokenKind, TokenList};
 use crate::utils::bytes_to_string;
 use hmath::Ratio;
@@ -310,6 +310,16 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
                 expected: ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()]),
             },
             14,
+        ),
+        (
+            "\\{x: Int, x: Int, x + x}",
+            ParseErrorKind::MultipleDefParam(InternedString::dummy()),
+            10,
+        ),
+        (
+            "{x = 3; x = 4; x + x}",
+            ParseErrorKind::MultipleDefParam(InternedString::dummy()),
+            8,
         ),
     ];
 

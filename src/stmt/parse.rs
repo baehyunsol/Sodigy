@@ -4,6 +4,7 @@ use crate::expr::parse_expr;
 use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
+use std::collections::HashSet;
 
 pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
     let mut result = vec![];
@@ -99,9 +100,16 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             None => (vec![], true),
         };
 
+        let mut arg_names = HashSet::with_capacity(args.len());
+
         for arg in args.iter() {
+
+            if !arg_names.insert(arg.name) {
+                return Err(ParseError::multi_def(arg.name, arg.span));
+            }
+
             if arg.ty.is_none() {
-                return Err(ParseError::untyped_arg(arg.name, name, curr_span));
+                return Err(ParseError::untyped_arg(arg.name, name, arg.span));
             }
         }
 

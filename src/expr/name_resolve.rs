@@ -10,8 +10,11 @@ impl Expr {
     pub fn resolve_names(&mut self, name_scope: &mut NameScope, lambda_defs: &mut HashMap<InternedString, FuncDef>) -> Result<(), ASTError> {
         match &mut self.kind {
             ExprKind::Value(v) => match v {
-                ValueKind::Integer(_) | ValueKind::Real(_) | ValueKind::String(_) | ValueKind::Bytes(_) => {
-                    return Ok(());
+                ValueKind::Integer(_)
+                | ValueKind::Real(_)
+                | ValueKind::String(_)
+                | ValueKind::Bytes(_) => {
+                    Ok(())
                 },
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)

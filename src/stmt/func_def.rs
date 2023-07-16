@@ -40,6 +40,12 @@ impl FuncDef {
             ty.resolve_names(name_scope, lambda_defs)?;
         }
 
+        for ArgDef { ty, .. } in self.args.iter_mut() {
+            if let Some(ty) = ty {
+                ty.resolve_names(name_scope, lambda_defs)?;
+            }
+        }
+
         name_scope.pop_names();
 
         Ok(())

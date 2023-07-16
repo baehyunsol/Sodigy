@@ -132,6 +132,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn multi_def(name: InternedString, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::MultipleDefParam(name),
+            span,
+            message: String::new(),
+        }
+    }
+
     pub(crate) fn set_span_of_eof(mut self, span: Span) -> Self {
         if (self.is_eof() || self.is_eoe()) && self.span.is_dummy() {
             self.span = span;

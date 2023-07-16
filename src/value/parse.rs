@@ -6,6 +6,7 @@ use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
+use std::collections::HashSet;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     match tokens.step() {
@@ -132,6 +133,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
 
         let mut defs = Vec::with_capacity(defs_count);
+        let mut names = HashSet::with_capacity(defs_count);
 
         for _ in 0..defs_count {
             let curr_span = block_tokens
@@ -139,13 +141,11 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .expect("Internal Compiler Error F299389");
 
             // TODO: allow pattern matchings for assignments
-            let name = match block_tokens.step_identifier_strict() {
-                Ok(id) => id,
-                Err(e) => {
-                    assert!(!e.is_eoe(), "Internal Compiler Error 275EFCB");
-                    return Err(e);
-                }
-            };
+            let name = block_tokens.step_identifier_strict()?;
+
+            if !names.insert(name) {
+                return Err(ParseError::multi_def(name, curr_span));
+            }
 
             block_tokens
                 .consume_token_or_error(TokenKind::assign())
@@ -197,13 +197,20 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             tokens.count_tokens_non_recursive(TokenKind::comma());
 
         let mut args = Vec::with_capacity(args_count);
+        let mut arg_names = HashSet::with_capacity(args_count);
 
         for _ in 0..args_count {
             let curr_span = tokens
                 .peek_curr_span()
                 .expect("Internal Compiler Error F299389");
 
-            args.push(parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?);
+            let arg = parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?;
+
+            if !arg_names.insert(arg.name) {
+                return Err(ParseError::multi_def(arg.name, arg.span));
+            }
+
+            args.push(arg);
 
             tokens
                 .consume_token_or_error(TokenKind::comma())

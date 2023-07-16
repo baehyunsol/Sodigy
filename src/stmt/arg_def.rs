@@ -10,11 +10,15 @@ pub struct ArgDef {
 
     // if it's None, it has to be inferred later
     pub ty: Option<Expr>,
+
+    // first character of the name
+    pub span: Span,
 }
 
 // NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error 7109BBF");
+    let span = tokens.peek_curr_span().expect("Internal Compiler Error 266A2FE");
 
     let name = match tokens.step_identifier_strict() {
         Ok(id) => id,
@@ -25,19 +29,21 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
         }
     };
 
+    let colon_span = tokens.peek_curr_span();
+
     if tokens.consume(TokenKind::Operator(OpToken::Colon)) {
         let ty = match tokens.step_type() {
             Some(t) => Some(t?),
             None => {
-                return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
+                return Err(ParseError::eoe(colon_span.expect("Internal Compiler Error 2CBC3AD"), ExpectedToken::AnyExpression));
             }
         };
-    
-        Ok(ArgDef { name, ty })
+
+        Ok(ArgDef { name, ty, span })
     }
 
     else {
-        Ok(ArgDef { name, ty: None })
+        Ok(ArgDef { name, ty: None, span })
     }
 
 }

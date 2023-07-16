@@ -20,6 +20,11 @@ pub enum ParseErrorKind {
 
     // A definition of a lambda may omit type notations, but `def` may not
     UntypedArg(InternedString, InternedString),
+
+    // def foo(x: Int, x: Int)
+    // \{x: Int, x: Int, x + x}
+    // {x = 3; x = 4; x + x}
+    MultipleDefParam(InternedString),
 }
 
 impl ParseErrorKind {
@@ -45,6 +50,10 @@ impl ParseErrorKind {
                 "Argument `{}` of function `{}` has no type annotation!\nIn lambda functions, you may omit type annotations, but not with `def`s.",
                 bytes_to_string(&session.unintern_string(*arg)),
                 bytes_to_string(&session.unintern_string(*func)),
+            ),
+            ParseErrorKind::MultipleDefParam(name) => format!(
+                "Parameter `{}` is defined more than once!",
+                bytes_to_string(&session.unintern_string(*name)),
             ),
         }
     }

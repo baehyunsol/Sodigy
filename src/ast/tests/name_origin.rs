@@ -9,10 +9,11 @@ fn samples() -> Vec<Vec<u8>> {
         def local___: Int = 3;
 
         @sub__(local___)
-        def local__(func__: List(Int), func___: List(Int)): Int = {
+        def local__(func__: List(Int), func___: List(Int), block_scoped: Int): Int = {
             block__ = 3;
             block___ = 4;
-            func__[local___] + func___[local___ + 1] + block__ + block___
+            block_scoped = 5;
+            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped
         };",
     ].into_iter().map(|s| s.to_vec()).collect()
 }
@@ -34,7 +35,6 @@ fn name_origin_test() {
         ast.id_walker(
             |name, origin| {
                 let name = session.unintern_string(*name);
-                println!("{:?}", bytes_to_string(&name));
 
                 match origin {
                     NameOrigin::Global => assert!(name.starts_with(b"global")),
