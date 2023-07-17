@@ -1,5 +1,4 @@
-use crate::session::LocalParseSession;
-use crate::parse_file;
+use super::check_ast_of_tester;
 
 fn samples() -> Vec<(Vec<u8>, String)> {
     vec![
@@ -44,9 +43,9 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             def tester: Int = c.b.c;",
             "Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(a,b),c),d),e),f),g),h),i),j),b),c)",
         ), (
-            "use a.b.c;
-            def tester: Int = {c = 3; a = 4; a + c};",
-            "{c=3;a=4;Add(a,c)}",
+            "use a.b.c; use foo; use bar;
+            def tester: Int = {c = foo; a = bar; a + c};",
+            "Add(bar,foo)",
         ),
     ].into_iter().map(
         |(s1, s2)| (s1.as_bytes().to_vec(), s2.to_string())
@@ -55,17 +54,5 @@ fn samples() -> Vec<(Vec<u8>, String)> {
 
 #[test]
 fn name_resolve_test() {
-    let mut session = LocalParseSession::new();
-    let test_func_name = b"tester".to_vec();
-
-    for (sample, desired) in samples() {
-        session.set_input(sample.clone());
-        let ast = match parse_file(&sample, &mut session) {
-            Ok(a) => a,
-            Err(e) => panic!("{}", e.render_err(&session)),
-        };
-
-        assert_eq!(ast.dump_ast_of_def(test_func_name.clone(), &session).unwrap(), desired);
-    }
-
+    check_ast_of_tester(samples());
 }

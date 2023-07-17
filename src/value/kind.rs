@@ -79,7 +79,7 @@ impl ValueKind {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct BlockId(u64);
 
 impl BlockId {

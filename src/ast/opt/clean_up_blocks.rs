@@ -1,8 +1,24 @@
-use super::super::AST;
-use crate::err::ParseError;
-use crate::expr::ExprKind;
+use super::super::{AST, ASTError, NameOrigin};
+use crate::expr::{Expr, ExprKind};
+use crate::session::InternedString;
+use crate::span::Span;
 use crate::stmt::ArgDef;
-use crate::value::ValueKind;
+use crate::value::{BlockId, ValueKind};
+use std::collections::{HashMap, HashSet};
+
+/*
+{
+    x = foo();
+
+    if cond {
+        f(x)
+    } else {
+        g(x)
+    }
+}
+
+even though `x` is used twice (syntactically), it'll never be used twice (semantically)
+*/
 
 impl AST {
 
@@ -12,18 +28,18 @@ impl AST {
     //   - simple value: single identifier (or a path), small number (how small?), static values (contants)
     // 4. If a block has no defs, it unwraps the block.
     // 5. Check cycles?
-    pub fn clean_up_blocks(&mut self) -> Result<(), ParseError> {
+    pub fn clean_up_blocks(&mut self) -> Result<(), ASTError> {
 
         for func in self.defs.values_mut() {
-            func.ret_val.kind.clean_up_blocks()?;
+            func.ret_val.clean_up_blocks()?;
 
             if let Some(ty) = &mut func.ret_type {
-                ty.kind.clean_up_blocks()?;
+                ty.clean_up_blocks()?;
             }
 
             for ArgDef { ty, .. } in func.args.iter_mut() {
                 if let Some(ty) = ty {
-                    ty.kind.clean_up_blocks()?;
+                    ty.clean_up_blocks()?;
                 }
             }
 
@@ -33,9 +49,24 @@ impl AST {
     }
 }
 
+impl Expr {
+    pub fn clean_up_blocks(&mut self) -> Result<(), ASTError> {
+        let span = self.span;
+
+        self.kind.clean_up_blocks(span)?;
+
+        // in case `clean_up_blocks` removed all the blocks
+        if self.is_block_with_0_defs() {
+            *self = self.unwrap_block_value();
+        }
+
+        Ok(())
+    }
+}
+
 impl ExprKind {
 
-    pub fn clean_up_blocks(&mut self) -> Result<(), ParseError> {
+    pub fn clean_up_blocks(&mut self, span: Span) -> Result<(), ASTError> {
         match self {
             ExprKind::Value(v) => match v {
                 ValueKind::Identifier(_, _)
@@ -47,25 +78,25 @@ impl ExprKind {
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
                     for element in elements.iter_mut() {
-                        element.kind.clean_up_blocks()?;
+                        element.clean_up_blocks()?;
                     }
                 },
                 ValueKind::Lambda(args, val) => {
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
-                            ty.kind.clean_up_blocks()?;
+                            ty.clean_up_blocks()?;
                         }
                     }
 
-                    val.kind.clean_up_blocks()?;
+                    val.clean_up_blocks()?;
                 },
                 ValueKind::Block { defs, value, id } => {
                     let graph = get_dep_graph(&defs, &value, *id);
-                    let never_used = vec![];
-                    let used_once = vec![];
+                    let mut never_used = vec![];
+                    let mut once_used = vec![];
 
                     if let Some(name) = find_cycle(&graph) {
-                        return Err(ParseError::recursive_def(name));
+                        return Err(ASTError::recursive_def(name, span));
                     }
 
                     for (def_name, usage) in graph.iter() {
@@ -75,33 +106,69 @@ impl ExprKind {
                         }
 
                         else if usage.len() == 1 {
-                            used_once.push(*def_name);
+                            once_used.push(*def_name);
                         }
 
                     }
 
-                    // TODO: remove never_used ones
-                    // TODO: substitute used_once ones
-                    // TODO: substitute simple ones
-                    // TODO: if all the defs are removed, unwrap the block
+                    // remove `never_used` ones
+                    for never_used_name in never_used.iter() {
+                        defs.swap_remove(
+                            defs.iter().position(
+                                |(name, _)| name == never_used_name
+                            ).expect("Internal Compiler Error EC6848E")
+                        );
+                    }
+
+                    for (name, value) in defs.iter() {
+                        if is_simple_expr(value) {
+                            once_used.push(*name);
+                        }
+                    }
+
+                    // remove duplicates
+                    let once_used_or_simple: HashSet<InternedString> = once_used.into_iter().collect();
+
+                    // substitute `once_used` ones and remove their defs
+                    // substitute `simple` ones and remove their defs
+                    for name_to_subs in once_used_or_simple.iter() {
+                        let ind = defs.iter().position(
+                            |(name, _)| name == name_to_subs
+                        ).expect("Internal Compiler Error B3154ED");
+                        let (_, value_to_subs) = defs[ind].clone();
+
+                        for (_, value) in defs.iter_mut() {
+                            substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
+                        }
+
+                        substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
+
+                        defs.swap_remove(ind);
+                    }
+
+                    for (_, value) in defs.iter_mut() {
+                        value.clean_up_blocks()?;
+                    }
+
+                    value.clean_up_blocks()?;
                 },
             },
-            ExprKind::Prefix(_, v) => v.kind.clean_up_blocks()?,
-            ExprKind::Postfix(_, v) => v.kind.clean_up_blocks()?,
+            ExprKind::Prefix(_, v) => v.clean_up_blocks()?,
+            ExprKind::Postfix(_, v) => v.clean_up_blocks()?,
             ExprKind::Infix(_, v1, v2) => {
-                v1.kind.clean_up_blocks()?;
-                v2.kind.clean_up_blocks()?;
+                v1.clean_up_blocks()?;
+                v2.clean_up_blocks()?;
             },
             ExprKind::Branch(c, t, f) => {
-                c.kind.clean_up_blocks()?;
-                t.kind.clean_up_blocks()?;
-                f.kind.clean_up_blocks()?;
+                c.clean_up_blocks()?;
+                t.clean_up_blocks()?;
+                f.clean_up_blocks()?;
             },
             ExprKind::Call(f, args) => {
-                f.kind.clean_up_blocks()?;
+                f.clean_up_blocks()?;
 
                 for arg in args.iter_mut() {
-                    arg.kind.clean_up_blocks()?;
+                    arg.clean_up_blocks()?;
                 }
 
             }
@@ -110,4 +177,168 @@ impl ExprKind {
         Ok(())
     }
 
+}
+
+// HashMap<K, Vec<K>>, where K is a name of a local-def
+// Vec<K> stores usage of the key.
+// if hash_map[foo] = [bar, bar, InternedString::dummy()], that means `foo` is used in `bar` twice and in the main value once
+fn get_dep_graph(defs: &Vec<(InternedString, Expr)>, value: &Box<Expr>, id: BlockId) -> HashMap<InternedString, Vec<InternedString>> {
+    let mut result = HashMap::with_capacity(defs.len());
+
+    for (name1, _) in defs.iter() {
+        let mut occurrence = vec![];
+
+        for (name2, value) in defs.iter() {
+            let mut count = 0;
+            count_occurrence(value, *name1, id, &mut count);
+
+            for _ in 0..count {
+                occurrence.push(*name2);
+            }
+        }
+
+        let mut count = 0;
+        count_occurrence(value, *name1, id, &mut count);
+
+        for _ in 0..count {
+            occurrence.push(InternedString::dummy());
+        }
+
+        result.insert(*name1, occurrence);
+    }
+
+    result
+}
+
+fn count_occurrence(expr: &Expr, name: InternedString, block_id: BlockId, count: &mut usize) {
+    match &expr.kind {
+        ExprKind::Value(v) => match v {
+            ValueKind::Identifier(name_, NameOrigin::BlockDef(id)) if *name_ == name && *id == block_id => {
+                *count += 1;
+            },
+            ValueKind::Identifier(_, _)
+            | ValueKind::Integer(_)
+            | ValueKind::Real(_)
+            | ValueKind::String(_)
+            | ValueKind::Bytes(_) => {},
+            ValueKind::Format(elements)
+            | ValueKind::List(elements)
+            | ValueKind::Tuple(elements) => {
+                for element in elements.iter() {
+                    count_occurrence(element, name, block_id, count);
+                }
+            },
+            ValueKind::Lambda(args, value) => {
+                count_occurrence(value.as_ref(), name, block_id, count);
+
+                for ArgDef { ty, .. } in args.iter() {
+                    if let Some(ty) = ty {
+                        count_occurrence(ty, name, block_id, count);
+                    }
+                }
+
+            },
+            ValueKind::Block { defs, value, .. } => {
+                count_occurrence(value, name, block_id, count);
+
+                for (_, value) in defs.iter() {
+                    count_occurrence(value, name, block_id, count);
+                }
+            }
+        },
+        ExprKind::Prefix(_, op) | ExprKind::Postfix(_, op) => {
+            count_occurrence(op, name, block_id, count);
+        },
+        ExprKind::Infix(_, op1, op2) => {
+            count_occurrence(op1, name, block_id, count);
+            count_occurrence(op2, name, block_id, count);
+        },
+        ExprKind::Branch(c, t, f) => {
+            count_occurrence(c, name, block_id, count);
+            count_occurrence(t, name, block_id, count);
+            count_occurrence(f, name, block_id, count);
+        },
+        ExprKind::Call(f, args) => {
+            count_occurrence(f, name, block_id, count);
+
+            for arg in args.iter() {
+                count_occurrence(arg, name, block_id, count);
+            }
+        },
+    }
+}
+
+fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: InternedString, block_id: BlockId) {
+    match &mut haystack.kind {
+        ExprKind::Value(v) => match v {
+            ValueKind::Identifier(name, NameOrigin::BlockDef(id_)) if *name == name_to_replace && *id_ == block_id => {
+                *haystack = needle.clone();
+                return;
+            },
+            ValueKind::Identifier(_, _)
+            | ValueKind::Integer(_)
+            | ValueKind::Real(_)
+            | ValueKind::String(_)
+            | ValueKind::Bytes(_) => {},
+            ValueKind::Format(elements)
+            | ValueKind::List(elements)
+            | ValueKind::Tuple(elements) => {
+                for element in elements.iter_mut() {
+                    substitute_local_def(element, needle, name_to_replace, block_id);
+                }
+            },
+            ValueKind::Lambda(args, value) => {
+                substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
+
+                for ArgDef { ty, .. } in args.iter_mut() {
+                    if let Some(ty) = ty {
+                        substitute_local_def(ty, needle, name_to_replace, block_id);
+                    }
+                }
+
+            },
+            ValueKind::Block { defs, value, .. } => {
+                substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
+
+                for (_, value) in defs.iter_mut() {
+                    substitute_local_def(value, needle, name_to_replace, block_id);
+                }
+            }
+        },
+        ExprKind::Prefix(_, op) | ExprKind::Postfix(_, op) => {
+            substitute_local_def(op, needle, name_to_replace, block_id);
+        },
+        ExprKind::Infix(_, op1, op2) => {
+            substitute_local_def(op1, needle, name_to_replace, block_id);
+            substitute_local_def(op2, needle, name_to_replace, block_id);
+        },
+        ExprKind::Branch(c, t, f) => {
+            substitute_local_def(c, needle, name_to_replace, block_id);
+            substitute_local_def(t, needle, name_to_replace, block_id);
+            substitute_local_def(f, needle, name_to_replace, block_id);
+        },
+        ExprKind::Call(f, args) => {
+            substitute_local_def(f, needle, name_to_replace, block_id);
+
+            for arg in args.iter_mut() {
+                substitute_local_def(arg, needle, name_to_replace, block_id);
+            }
+        },
+    }
+}
+
+fn is_simple_expr(e: &Expr) -> bool {
+
+    match e.kind {
+        // TODO: anything else?
+        ExprKind::Value(ValueKind::Identifier(_, _)) => true,
+        _ => false
+    }
+
+}
+
+// If there are multiple cycles, it returns one arbitrary name included in one of the cycle
+fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<InternedString> {
+    // TODO
+    None
 }

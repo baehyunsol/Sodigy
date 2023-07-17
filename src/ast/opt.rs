@@ -5,7 +5,7 @@ mod clean_up_blocks;
 impl AST {
 
     pub fn opt(&mut self) -> Result<(), ASTError> {
-        // self.clean_up_blocks();  // TODO
+        self.clean_up_blocks()?;  // TODO: make it configurable
 
         Ok(())
     }

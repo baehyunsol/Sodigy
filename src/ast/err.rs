@@ -37,6 +37,14 @@ impl ASTError {
             span2: Span::dummy(),
         }
     }
+
+    pub(crate) fn recursive_def(name: InternedString, span: Span) -> Self {
+        ASTError {
+            kind: ASTErrorKind::RecursiveDefInBlock(name),
+            span1: span,
+            span2: Span::dummy(),
+        }
+    }
 }
 
 impl SodigyError for ASTError {

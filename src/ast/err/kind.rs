@@ -9,6 +9,8 @@ pub enum ASTErrorKind {
     // NameScope is used to suggest a similar name
     UndefinedSymbol(InternedString, NameScope),
     DecoratorOnUse,
+
+    RecursiveDefInBlock(InternedString),
 }
 
 impl ASTErrorKind {
@@ -43,6 +45,10 @@ impl ASTErrorKind {
             ASTErrorKind::DecoratorOnUse => format!(
                 "You cannot decorate a `use` statement!\n{}",
                 span1.render_err(session),
+            ),
+            ASTErrorKind::RecursiveDefInBlock(name) => format!(
+                "A block expression contains a recursively defined value: `{}`",
+                bytes_to_string(&session.unintern_string(*name)),
             ),
         }
     }
