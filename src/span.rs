@@ -173,7 +173,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
         return lines;
     }
 
-    let line_no_len = if lines.len() == 1 {
+    let line_no_len = if lines[0][0] == 0xe2 {  // the first byte of `│` and `▸` are the same...
         assert_eq!(lines[0][4], b'0', "Internal Compiler Error 00CDDBE");
         4
     } else {

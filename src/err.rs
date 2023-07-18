@@ -165,7 +165,7 @@ impl ParseError {
 impl SodigyError for ParseError {
     fn render_err(&self, session: &LocalParseSession) -> String {
         format!(
-            "{}{}\n{}",
+            "{}{}\n\n{}",
             self.kind.render_err(session),
             if self.message.len() > 0 {
                 format!("\n{}", self.message)

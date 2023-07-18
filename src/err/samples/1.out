@@ -1,4 +1,5 @@
 Any kind of expression was expected, but got nothing!
+
   0 │ def test1: Int = [[
   1 │     1,
   2 │     2,

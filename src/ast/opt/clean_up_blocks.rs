@@ -7,6 +7,8 @@ use crate::value::{BlockId, ValueKind};
 use std::collections::{HashMap, HashSet};
 
 /*
+TODO
+
 {
     x = foo();
 
@@ -27,7 +29,7 @@ impl AST {
     // 3. If a value of a definition is simple, all the referents are replaced with the value.
     //   - simple value: single identifier (or a path), small number (how small?), static values (contants)
     // 4. If a block has no defs, it unwraps the block.
-    // 5. Check cycles?
+    // 5. Check cycles
     pub fn clean_up_blocks(&mut self) -> Result<(), ASTError> {
 
         for func in self.defs.values_mut() {
@@ -339,6 +341,36 @@ fn is_simple_expr(e: &Expr) -> bool {
 
 // If there are multiple cycles, it returns one arbitrary name included in one of the cycle
 fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<InternedString> {
-    // TODO
+
+    for (node, succ) in graph.iter() {
+        let mut visited = HashSet::with_capacity(graph.len());
+        let mut stack = vec![];
+
+        for node in succ.iter() {
+            visited.insert(*node);
+            stack.push(*node);
+        }
+
+        while let Some(n) = stack.pop() {
+
+            if n.is_dummy() {
+                continue;
+            }
+
+            for succ in graph.get(&n).expect("Internal Compiler Error 9CF067E").iter() {
+                if !visited.contains(succ) {
+                    visited.insert(*node);
+                    stack.push(*succ);
+                }
+            }
+
+        }
+
+        if visited.contains(node) {
+            return Some(*node);
+        }
+
+    }
+
     None
 }

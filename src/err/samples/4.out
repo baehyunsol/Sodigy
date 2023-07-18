@@ -1,4 +1,5 @@
 Unexpected character `한` is found while parsing!
+
   0 │ def no_korean: String = {
     │     ▾
 ▸ 1 │     한글노노 = 3;

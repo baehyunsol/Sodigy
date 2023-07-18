@@ -14,16 +14,14 @@ pub enum ASTErrorKind {
 }
 
 impl ASTErrorKind {
-    pub fn render_err(&self, span1: Span, span2: Span, session: &LocalParseSession) -> String {
+    pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             ASTErrorKind::MultipleDef(d) => {
                 let name = session.unintern_string(*d);
                 let name = bytes_to_string(&name);
 
                 format!(
-                    "`{name}` is defined more than once!\n{}\n\n{}",
-                    span1.render_err(session),
-                    span2.render_err(session),
+                    "`{name}` is defined more than once!",
                 )
             },
             ASTErrorKind::UndefinedSymbol(d, names) => {
@@ -38,13 +36,11 @@ impl ASTErrorKind {
                 let name = bytes_to_string(&name);
 
                 format!(
-                    "`{name}` is not defined!{suggestions}\n{}",
-                    span1.render_err(session),
+                    "`{name}` is not defined!{suggestions}",
                 )
             },
             ASTErrorKind::DecoratorOnUse => format!(
-                "You cannot decorate a `use` statement!\n{}",
-                span1.render_err(session),
+                "You cannot decorate a `use` statement!",
             ),
             ASTErrorKind::RecursiveDefInBlock(name) => format!(
                 "A block expression contains a recursively defined value: `{}`",

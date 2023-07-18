@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
 
         assert_eq!(edit_distance(
-            b"Very Very Long String: I want to make sure that `edit_distance` is not O(a^n) algorithm",
+            b"Very Very Long String: I want to make sure that `edit_distance` is not an O(a^n) algorithm",
             b"Another very very long string... 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
         ), 75);
     }

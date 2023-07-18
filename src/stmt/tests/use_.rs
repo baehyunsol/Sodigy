@@ -28,7 +28,7 @@ fn test_parse_use() {
         let mut tokens = TokenList::from_vec(tokens);
 
         // skip `use`
-        tokens.step().expect("Internal Compiler Error B01EA26");
+        tokens.step().expect("Internal Compiler Error 2315E55");
 
         let uses = match parse_use(&mut tokens, Span::first(), true) {
             Ok(u) => u,

@@ -1,5 +1,6 @@
 `aabb` is not defined!
 Similar names found: `babb`
+
   0 │ use a as babb;
   1 │ 
   2 │ def func1: babb = babb;

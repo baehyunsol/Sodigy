@@ -1,5 +1,6 @@
 `int` is not defined!
 Similar names found: `Int`
+
     │           ▾
 ▸ 0 │ def ZERO: int = 0;
     │           ▴
