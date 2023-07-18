@@ -63,7 +63,8 @@ impl Expr {
                     //     todo!();
                     // }
 
-                    // TODO: 새 람다 이름 앞에다가 이상한 특수문자 붙일 거여서 프로그래머가 쓴 이름하고 겹칠 일은 없음. 근데 지들끼리 hash가 겹칠 수는 있음!
+                    // No hash collision between programmer-defined names and newly generated name: the new ones have special characters
+                    // But there may be collisions between newly generated ones -> TODO: what then?
                     // if let Some(_) = lambda_defs.insert(lambda_def.name, lambda_def) {
                     //     todo!();
                     // }
