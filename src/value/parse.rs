@@ -1,5 +1,5 @@
-use super::{BlockId, ValueKind};
-use crate::ast::NameOrigin;
+use super::ValueKind;
+use crate::ast::{NameOrigin, NameScopeId};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
@@ -166,7 +166,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         if let Some(Token { kind, span }) = block_tokens.step() {
             Err(ParseError::tok(kind.clone(), *span, ExpectedToken::Nothing))
         } else {
-            Ok(ValueKind::Block { defs, value, id: BlockId::new_rand() })
+            Ok(ValueKind::Block { defs, value, id: NameScopeId::new_rand() })
         }
     }
 }

@@ -24,7 +24,7 @@ pub const KEYWORDS: [Keyword; 5] = [
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
     strings_rev: HashMap<Vec<u8>, InternedString>,
-    pub(crate) curr_file: u32,
+    pub(crate) curr_file: u64,
     pub(crate) is_dummy: bool,
 
     // no files, but just a direct input
@@ -53,7 +53,7 @@ impl LocalParseSession {
         LocalParseSession {
             strings,
             strings_rev,
-            curr_file: u32::MAX, // null
+            curr_file: u64::MAX, // null
             is_dummy: false,
 
             #[cfg(test)]
@@ -124,7 +124,7 @@ impl LocalParseSession {
     }
 
     // Expensive!
-    pub fn get_file_raw_content(&self, index: u32) -> &[u8] {
+    pub fn get_file_raw_content(&self, index: u64) -> &[u8] {
         #[cfg(test)]
         return &self.curr_file_data;
 

@@ -3,7 +3,6 @@ use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
-use crate::value::BlockId;
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -153,25 +152,36 @@ pub enum NameOrigin {
     SubPath,  // `b` of `use a.b.c;`, or `a.b()`
     Local,    // `a` of `def a: _ = _;`
     Prelude,
-    FuncArg,
-    BlockDef(BlockId),
+    FuncArg(NameScopeId),
+    BlockDef(NameScopeId),
 }
 
 #[derive(Clone)]
 pub enum NameScopeKind {
-    Block(BlockId),
-    FuncArg,
-    LambdaArg,
+    Block(NameScopeId),
+    FuncArg(NameScopeId),
+    LambdaArg(NameScopeId),
 }
 
 impl From<&NameScopeKind> for NameOrigin {
     fn from(k: &NameScopeKind) -> Self {
         match k {
             NameScopeKind::Block(id) => NameOrigin::BlockDef(*id),
-            NameScopeKind::FuncArg => NameOrigin::FuncArg,
-            NameScopeKind::LambdaArg => todo!(),
+            NameScopeKind::FuncArg(id) => NameOrigin::FuncArg(*id),
+            NameScopeKind::LambdaArg(id) => NameOrigin::FuncArg(*id),
         }
     }
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct NameScopeId(u128);
+
+impl NameScopeId {
+
+    pub fn new_rand() -> Self {
+        NameScopeId(rand::random())
+    }
+
 }
 
 /*
@@ -194,12 +204,12 @@ impl From<&NameScopeKind> for NameOrigin {
 
 impl AST {
 
-    pub fn resolve_names(&mut self) -> Result<(), ASTError> {
+    pub fn resolve_names(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
         let mut name_scope = NameScope::from_ast(self);
         let mut lambda_defs = HashMap::new();
 
         for func in self.defs.values_mut() {
-            func.resolve_names(&mut name_scope, &mut lambda_defs)?;
+            func.resolve_names(&mut name_scope, &mut lambda_defs, session)?;
         }
 
         Ok(())

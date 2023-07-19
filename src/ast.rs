@@ -1,4 +1,4 @@
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{FuncDef, Stmt, StmtKind, Use};
 use std::collections::HashMap;
 
@@ -14,7 +14,7 @@ mod walker;
 mod tests;
 
 pub use err::ASTError;
-pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
+pub use name_resolve::{NameOrigin, NameScope, NameScopeId, NameScopeKind};
 
 // It represents a single file.
 // It doesn't have any data from other files, meaning that
@@ -27,7 +27,7 @@ pub struct AST {
 
 impl AST {
 
-    pub(crate) fn from_stmts(stmts: Vec<Stmt>) -> Result<Self, ASTError> {
+    pub(crate) fn from_stmts(stmts: Vec<Stmt>, session: &mut LocalParseSession) -> Result<Self, ASTError> {
         let mut curr_decos = vec![];
         let mut ast = AST {
             defs: HashMap::new(),
@@ -90,7 +90,7 @@ impl AST {
 
         }
 
-        ast.resolve_names()?;
+        ast.resolve_names(session)?;
         ast.opt()?;
 
         Ok(ast)

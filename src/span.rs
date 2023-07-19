@@ -1,3 +1,4 @@
+use crate::hash::{SdgHash, SdgHashResult};
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
 
@@ -5,12 +6,14 @@ const MAX_PREVIEW_LEN: usize = 96;
 
 #[derive(Copy, Clone)]
 pub struct Span {
-    file_no: u32,
+    // TODO: tell the programmer to change the name of a file when there's a collision
+    file_no: u64,  // hash of the name of the file
+
     pub index: usize,
 }
 
 impl Span {
-    pub fn new(file_no: u32, index: usize) -> Self {
+    pub fn new(file_no: u64, index: usize) -> Self {
         Span { file_no, index }
     }
 
@@ -21,25 +24,25 @@ impl Span {
 
     pub fn dummy() -> Self {
         Span {
-            file_no: u32::MAX,
+            file_no: u64::MAX,
             index: usize::MAX,
         }
     }
 
     pub fn is_dummy(&self) -> bool {
-        self.file_no == u32::MAX && self.index == usize::MAX
+        self.file_no == u64::MAX && self.index == usize::MAX
     }
 
     // one must call `.set_ind_and_fileno` after initializing this!
     pub fn dummy_index(index: usize) -> Self {
         Span {
-            file_no: u32::MAX,
+            file_no: u64::MAX,
             index,
         }
     }
 
     pub fn is_dummy_index(&self) -> bool {
-        self.file_no == u32::MAX && self.index != usize::MAX
+        self.file_no == u64::MAX && self.index != usize::MAX
     }
 
     pub fn backward(&self, offset: usize) -> Option<Self> {
@@ -207,4 +210,10 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
         },
     ]
     .concat()
+}
+
+impl SdgHash for Span {
+    fn sdg_hash(&self) -> SdgHashResult {
+        self.file_no.sdg_hash() ^ self.index.sdg_hash()
+    }
 }

@@ -1,0 +1,42 @@
+@test.eq(43)
+def functor_test: Int = {
+  adder = \{x, \{y, x + y}};
+  adder1 = adder(1);
+  adder2 = adder(2);
+
+  adder1(20) + adder2(20)
+};
+
+@test.eq(10946)
+def mutual_fibo: Int = {
+    n = 20;
+    fibo1 = \{n, if n < 2 { 1 } else { fibo1(n - 1) + fibo2(n - 2) }};
+    fibo2 = \{n, if n < 2 { 1 } else { fibo2(n - 1) + fibo1(n - 2) }};
+
+    fibo2(n)
+};
+
+# TODO: type signatures of functors
+def adder(n: Int): Fn(Int, Int) = \{x: Int, x + n};
+
+@test.eq([8, 16])
+def adder_test: List(Int) = [adder(3)(5), adder(7)(9)];
+
+@test.eq(9 + (81 + (3 + 27 + 243 + 729)))
+def name_scope_test: Int = {
+a = 3; b = 9;
+    b + {
+        b = 27; c = 81;
+        c + {
+            c = 243; d = 729;
+            a + b + c + d
+        }
+    }
+};
+
+@test.eq(999999999999999999999940837306036211360320144)
+def big_number_test: Int = {
+    a = 31622776601683793319988;
+
+    a * a
+};

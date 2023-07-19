@@ -1,6 +1,5 @@
 use crate::ast::NameScope;
 use crate::session::{InternedString, LocalParseSession};
-use crate::span::Span;
 use crate::utils::bytes_to_string;
 
 pub enum ASTErrorKind {

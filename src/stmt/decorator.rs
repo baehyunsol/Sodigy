@@ -1,7 +1,7 @@
 use super::FuncDef;
 use crate::ast::{ASTError, NameScope};
 use crate::expr::Expr;
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use std::collections::HashMap;
 
@@ -20,7 +20,12 @@ pub struct Decorator {
 
 impl Decorator {
 
-    pub fn resolve_names(&mut self, name_scope: &mut NameScope, lambda_defs: &mut HashMap<InternedString, FuncDef>) -> Result<(), ASTError> {
+    pub fn resolve_names(
+        &mut self,
+        name_scope: &mut NameScope,
+        lambda_defs: &mut HashMap<InternedString, FuncDef>,
+        session: &mut LocalParseSession,
+    ) -> Result<(), ASTError> {
 
         match name_scope.search_name(self.names[0]) {
             Ok((Some(u), _)) => {
@@ -41,7 +46,7 @@ impl Decorator {
         }
 
         for arg in self.args.iter_mut() {
-            arg.resolve_names(name_scope, lambda_defs)?;
+            arg.resolve_names(name_scope, lambda_defs, session)?;
         }
 
         Ok(())

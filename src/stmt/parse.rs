@@ -1,4 +1,5 @@
 use super::{Decorator, FuncDef, Stmt, StmtKind, Use, use_case_to_tokens};
+use crate::ast::NameScopeId;
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::parse_expr;
 use crate::session::InternedString;
@@ -142,14 +143,17 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         Ok(Stmt {
+            // TODO: use FuncDef::new() and make fields private
             kind: StmtKind::Def(FuncDef {
                 name,
                 args,
                 is_const,
+                is_anonymous: false,
                 ret_type: Some(ret_type),
                 ret_val,
                 span: curr_span,
                 decorators: vec![],  // will be filled later
+                id: NameScopeId::new_rand(),
             }),
             span: curr_span,
         })

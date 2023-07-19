@@ -4,6 +4,7 @@ mod ast;
 mod err;
 mod expr;
 mod file_system;
+mod hash;
 mod lexer;
 mod module;
 mod parse;
@@ -29,5 +30,5 @@ pub fn parse_file(s: &[u8], session: &mut LocalParseSession) -> Result<AST, Box<
 
     let stmts = parse_stmts(&mut tokens).map_err(|e| Box::new(e) as Box<dyn SodigyError>)?;
 
-    AST::from_stmts(stmts).map_err(|e| Box::new(e) as Box<dyn SodigyError>)
+    AST::from_stmts(stmts, session).map_err(|e| Box::new(e) as Box<dyn SodigyError>)
 }

@@ -1,4 +1,4 @@
-use crate::ast::NameOrigin;
+use crate::ast::{NameOrigin, NameScopeId};
 use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::ArgDef;
@@ -28,7 +28,7 @@ pub enum ValueKind {
     Block {
         defs: Vec<(InternedString, Expr)>, // (name, value)
         value: Box<Expr>,
-        id: BlockId,
+        id: NameScopeId,
     },
 }
 
@@ -77,15 +77,4 @@ impl ValueKind {
         self.get_first_token()
             .render_err(&LocalParseSession::dummy())
     }
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub struct BlockId(u64);
-
-impl BlockId {
-
-    pub fn new_rand() -> Self {
-        BlockId(rand::random())
-    }
-
 }
