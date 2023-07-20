@@ -1,6 +1,7 @@
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::TokenKind;
+use crate::utils::print_list;
 
 mod kind;
 
@@ -11,7 +12,7 @@ pub trait SodigyError {
     fn render_err(&self, session: &LocalParseSession) -> String;
 }
 
-pub use kind::ParseErrorKind;
+pub use kind::{ParamType, ParseErrorKind};
 
 /*
  * The compiler assumes that a successful compilation never initializes a `T: SodigyError`.
@@ -132,9 +133,9 @@ impl ParseError {
         }
     }
 
-    pub(crate) fn multi_def(name: InternedString, span: Span) -> Self {
+    pub(crate) fn multi_def(name: InternedString, span: Span, param_type: ParamType) -> Self {
         ParseError {
-            kind: ParseErrorKind::MultipleDefParam(name),
+            kind: ParseErrorKind::MultipleDefParam(name, param_type),
             span,
             message: String::new(),
         }
@@ -160,19 +161,44 @@ impl ParseError {
             self
         }
     }
+
+    pub(crate) fn is_unexpected_token(&self) -> bool {
+        if let ParseErrorKind::UnexpectedToken{ .. } = &self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn set_msg(&mut self, message: &str) {
+        self.message = message.to_string();
+    }
+
+    pub(crate) fn set_expected_tokens(&mut self, tokens: Vec<TokenKind>) {
+        match &mut self.kind {
+            ParseErrorKind::UnexpectedToken { expected, .. } => {
+                *expected = ExpectedToken::SpecificTokens(tokens);
+            },
+            _ => {},
+        }
+    }
 }
 
 impl SodigyError for ParseError {
     fn render_err(&self, session: &LocalParseSession) -> String {
         format!(
-            "{}{}\n\n{}",
+            "Error: {}{}{}",
             self.kind.render_err(session),
             if self.message.len() > 0 {
                 format!("\n{}", self.message)
             } else {
                 String::new()
             },
-            self.span.render_err(session)
+            if self.span.is_dummy() {
+                String::new()
+            } else {
+                format!("\n\n{}", self.span.render_err(session))
+            }
         )
     }
 }
@@ -187,10 +213,18 @@ pub enum ExpectedToken {
 impl ExpectedToken {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
-            ExpectedToken::AnyExpression => "Any kind of expression was expected,".to_string(),
-            ExpectedToken::Nothing => "Expected no tokens,".to_string(),
+            ExpectedToken::AnyExpression => "expected any kind of expression".to_string(),
+            ExpectedToken::Nothing => "expected no tokens".to_string(),
             ExpectedToken::SpecificTokens(token_kinds) => {
-                format!("Expected {},", pretty_list(token_kinds, session))
+                format!(
+                    "expected {}",
+                    print_list(
+                        &token_kinds.iter().map(
+                            |kind| kind.render_err(session)
+                        ).collect::<Vec<String>>(),
+                        "", "",
+                    ),
+                )
             }
         }
     }
@@ -220,6 +254,7 @@ impl ExpectedToken {
     }
 }
 
+// TODO: make this function generic
 // As stated at the top, error-related functions are okay to be slow
 fn pretty_list(token_kinds: &[TokenKind], session: &LocalParseSession) -> String {
     if token_kinds.len() == 0 {

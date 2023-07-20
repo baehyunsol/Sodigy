@@ -1,5 +1,6 @@
-`z` is not defined!
+Error: cannot find name `z` in this scope
 
+tests/test.sdg:2:27
   0 │ use a.b.c;
   1 │ 
     │                           ▾

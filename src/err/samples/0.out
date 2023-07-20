@@ -1,6 +1,7 @@
-`int` is not defined!
-Similar names found: `Int`
+Error: cannot find name `int` in this scope
+A similar name exists: `Int`
 
+tests/test.sdg:0:11
     │           ▾
 ▸ 0 │ def ZERO: int = 0;
     │           ▴

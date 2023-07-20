@@ -1,5 +1,6 @@
-`InvalidName` is not defined!
+Error: cannot find name `InvalidName` in this scope
 
+tests/test.sdg:1:22
   0 │ def lambda_test: Int = {
     │                      ▾
 ▸ 1 │     l = \{x: Int, y: InvalidName, x + y + a + b};

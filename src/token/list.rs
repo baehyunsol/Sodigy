@@ -216,7 +216,13 @@ impl TokenList {
                     let field_name = match self.step_identifier_strict() {
                         Ok(f) => f,
                         Err(e) => {
-                            return Some(Err(e.set_span_of_eof(span)));
+                            let mut e = e.set_span_of_eof(span);
+
+                            if e.is_unexpected_token() {
+                                e.set_msg("A name of a field must follow `$`.");
+                            }
+
+                            return Some(Err(e));
                         }
                     };
 
@@ -441,7 +447,11 @@ impl TokenList {
 
                 let elements = match split_list_by_comma(elements) {
                     Ok(el) => el,
-                    Err(er) => {
+                    Err(mut er) => {
+                        er.set_expected_tokens(vec![
+                            TokenKind::Operator(OpToken::ClosingParenthesis),
+                            TokenKind::comma(),
+                        ]);
                         return Some(Err(er));
                     }
                 };
@@ -463,7 +473,15 @@ impl TokenList {
 
     // works like `step_paren_expr` but for square brackets
     pub fn step_index_op(&mut self) -> Option<Result<Expr, ParseError>> {
-        self._step_list_expr(Delimiter::Bracket)
+        self._step_list_expr(Delimiter::Bracket).map(
+            |r| r.map_err(|mut e| {
+                e.set_expected_tokens(vec![
+                    TokenKind::Operator(OpToken::ClosingSquareBracket),
+                ]);
+
+                e
+            })
+        )
     }
 
     // It works like `step_paren_expr`, but supports multiple args separated by commas
@@ -476,7 +494,18 @@ impl TokenList {
             }) => {
                 self.cursor += 1;
 
-                Some(split_list_by_comma(elements))
+                Some(
+                    split_list_by_comma(elements).map_err(
+                        |mut e| {
+                            e.set_expected_tokens(vec![
+                                TokenKind::Operator(OpToken::ClosingParenthesis),
+                                TokenKind::comma(),
+                            ]);
+
+                            e
+                        }
+                    )
+                )
             }
             _ => None,
         }

@@ -50,7 +50,7 @@ impl ASTError {
 impl SodigyError for ASTError {
     fn render_err(&self, session: &LocalParseSession) -> String {
         format!(
-            "{}{}{}",
+            "Error: {}{}{}",
             self.kind.render_err(session),
             if self.span1.is_dummy() {
                 String::new()

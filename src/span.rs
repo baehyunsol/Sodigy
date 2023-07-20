@@ -70,6 +70,7 @@ impl Span {
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);
+        let file_path = session.get_file_path(self.file_no);
         let mut row = 0;
         let mut col = 0;
         let mut lines = vec![];
@@ -143,6 +144,7 @@ impl Span {
         }
 
         preview = insert_col_markers(preview, col);
+        preview.insert(0, render_pos(file_path, row, col));
 
         preview
             .iter()
@@ -150,6 +152,13 @@ impl Span {
             .collect::<Vec<String>>()
             .join("\n")
     }
+}
+
+fn render_pos(file_path: Vec<u8>, row: usize, col: usize) -> Vec<u8> {
+    vec![
+        file_path,
+        format!(":{row}:{col}").as_bytes().to_vec(),
+    ].concat()
 }
 
 fn cut_char(line: &[u8], length: usize) -> Vec<u8> {

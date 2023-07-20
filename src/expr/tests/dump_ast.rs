@@ -1,4 +1,4 @@
-use crate::err::{ExpectedToken, ParseError, ParseErrorKind, SodigyError, tests::is_eq};
+use crate::err::{ExpectedToken, ParamType, ParseError, ParseErrorKind, SodigyError, tests::is_eq};
 use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::{InternedString, LocalParseSession};
@@ -210,7 +210,9 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "{1 1}",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingCurlyBrace),
+                ]),
             },
             3,
         ),
@@ -218,7 +220,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "[1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingSquareBracket),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -226,15 +231,31 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "[1 1, 1 1]",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingSquareBracket),
+                    TokenKind::comma(),
+                ]),
             },
             3,
+        ),
+        (
+            "a[1 1]",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::Number(Ratio::one()),
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingSquareBracket),
+                ]),
+            },
+            4,
         ),
         (
             "(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -242,7 +263,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "foo(1 1)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             6,
         ),
@@ -275,7 +299,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "(b \"ABC 한글 DEF\")",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -283,7 +310,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "(b \'ABC 한글 DEF\')",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -291,7 +321,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "(f \"{a} + {b} = {a + b}\")",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -299,7 +332,10 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "(f \'{a} + {b} = {a + b}\')",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::String(vec![]),
-                expected: ExpectedToken::Nothing,
+                expected: ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::ClosingParenthesis),
+                    TokenKind::comma(),
+                ]),
             },
             3,
         ),
@@ -313,12 +349,12 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ),
         (
             "\\{x: Int, x: Int, x + x}",
-            ParseErrorKind::MultipleDefParam(InternedString::dummy()),
+            ParseErrorKind::MultipleDefParam(InternedString::dummy(), ParamType::LambdaParam),
             10,
         ),
         (
             "{x = 3; x = 4; x + x}",
-            ParseErrorKind::MultipleDefParam(InternedString::dummy()),
+            ParseErrorKind::MultipleDefParam(InternedString::dummy(), ParamType::BlockDef),
             8,
         ),
     ];

@@ -1,5 +1,25 @@
 use crate::err::ParseError;
 
+pub fn print_list(list: &[String], wrapper_pre: &str, wrapper_post: &str) -> String {
+
+    if list.is_empty() {
+        String::new()
+    }
+
+    else if list.len() == 1 {
+        format!("{wrapper_pre}{}{wrapper_post}", list[0])
+    }
+
+    else if list.len() == 2 {
+        format!("{wrapper_pre}{}{wrapper_post} or {wrapper_pre}{}{wrapper_post}", list[0], list[1])
+    }
+
+    else {
+        format!("{wrapper_pre}{}{wrapper_post}, {}", list[0], print_list(&list[1..], wrapper_pre, wrapper_post))
+    }
+
+}
+
 pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
     let len = if s[ind] < 128 {
         1

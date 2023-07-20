@@ -123,6 +123,14 @@ impl LocalParseSession {
         }
     }
 
+    pub fn get_file_path(&self, index: u64) -> Vec<u8> {
+        #[cfg(test)]
+        return b"tests/test.sdg".to_vec();
+
+        #[cfg(not(test))]
+        todo!();
+    }
+
     // Expensive!
     pub fn get_file_raw_content(&self, index: u64) -> &[u8] {
         #[cfg(test)]

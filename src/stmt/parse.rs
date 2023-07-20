@@ -1,6 +1,5 @@
 use super::{Decorator, FuncDef, Stmt, StmtKind, Use, use_case_to_tokens};
-use crate::ast::NameScopeId;
-use crate::err::{ExpectedToken, ParseError};
+use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
 use crate::session::InternedString;
 use crate::span::Span;
@@ -106,7 +105,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         for arg in args.iter() {
 
             if !arg_names.insert(arg.name) {
-                return Err(ParseError::multi_def(arg.name, arg.span));
+                return Err(ParseError::multi_def(arg.name, arg.span, ParamType::FuncParam));
             }
 
             if arg.ty.is_none() {
@@ -127,7 +126,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                 return Err(ParseError::eoe_msg(
                     curr_span,
                     ExpectedToken::AnyExpression,
-                    "You must provide the return type of this definition!".to_string(),
+                    "You must provide the return type of this definition.".to_string(),
                 ));
             }
         };
@@ -144,17 +143,10 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         Ok(Stmt {
             // TODO: use FuncDef::new() and make fields private
-            kind: StmtKind::Def(FuncDef {
-                name,
-                args,
-                is_const,
-                is_anonymous: false,
-                ret_type: Some(ret_type),
-                ret_val,
-                span: curr_span,
-                decorators: vec![],  // will be filled later
-                id: NameScopeId::new_rand(),
-            }),
+            kind: StmtKind::Def(FuncDef::new(
+                name, args, is_const,
+                ret_type, ret_val, curr_span,
+            )),
             span: curr_span,
         })
     } else {

@@ -24,37 +24,55 @@ pub enum ParseErrorKind {
     // def foo(x: Int, x: Int)
     // \{x: Int, x: Int, x + x}
     // {x = 3; x = 4; x + x}
-    MultipleDefParam(InternedString),
+    MultipleDefParam(InternedString, ParamType),
+}
+
+#[derive(PartialEq)]
+pub enum ParamType {
+    FuncParam,
+    LambdaParam,
+    BlockDef,
 }
 
 impl ParseErrorKind {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             ParseErrorKind::UnexpectedChar(c) => format!(
-                "Unexpected character `{c}` is found while parsing!"
+                "unexpected character: {c:?}"
             ),
-            ParseErrorKind::UnexpectedEof => format!("Unexpected EOF while parsing!"),
+            ParseErrorKind::UnexpectedEof => format!("unexpected end of file"),
             ParseErrorKind::UnexpectedEoe(expected) => format!(
-                "{} but got nothing!",
+                "{}, found nothing",
                 expected.render_err(session)
             ),
             ParseErrorKind::UnexpectedToken { expected, got } => format!(
-                "{} but got {}",
+                "{}, found {}",
                 expected.render_err(session),
                 got.render_err(session),
             ),
             ParseErrorKind::InvalidUTF8(chars) => format!(
-                "Invalid UTF-8 bytes are found: {chars:?}"
+                "{chars:?} is not a valid utf-8"
             ),
             ParseErrorKind::UntypedArg(arg, func) => format!(
-                "Argument `{}` of function `{}` has no type annotation!\nIn lambda functions, you may omit type annotations, but not with `def`s.",
+                "expected a type annotation, found nothing\nParameter `{}` of function `{}` has no type annotation.\nOnly lambda functions are allowed to omit type annotations.",
                 bytes_to_string(&session.unintern_string(*arg)),
                 bytes_to_string(&session.unintern_string(*func)),
             ),
-            ParseErrorKind::MultipleDefParam(name) => format!(
-                "Parameter `{}` is defined more than once!",
+            ParseErrorKind::MultipleDefParam(name, param_type) => format!(
+                "identifier `{}` is bound more than once in {}",
                 bytes_to_string(&session.unintern_string(*name)),
+                param_type.render_err(),
             ),
         }
+    }
+}
+
+impl ParamType {
+    pub fn render_err(&self) -> String {
+        match self {
+            ParamType::FuncParam => "a function parameter list",
+            ParamType::LambdaParam => "a lambda parameter list",
+            ParamType::BlockDef => "a block expression",
+        }.to_string()
     }
 }

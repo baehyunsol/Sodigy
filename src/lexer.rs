@@ -37,7 +37,7 @@ fn lex_token(
 
             loop {
                 if ind >= s.len() {
-                    return Err(ParseError::eof_msg(curr_span, String::from("Unexpected EOF while parsing a string literal!")));
+                    return Err(ParseError::eof_msg(curr_span, String::from("Unexpected EOF while parsing a string literal.")));
                 }
 
                 if !escaped && s[ind] == marker {
@@ -142,7 +142,7 @@ fn lex_token(
                     ParseError::eoe_msg(
                         curr_span,
                         ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
-                        format!("`{marker}` is not closed properly!"),
+                        format!("`{marker}` is unclosed."),
                     )
                 )?;
 
@@ -158,7 +158,7 @@ fn lex_token(
                     ParseError::eoe_msg(
                         curr_span,
                         ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
-                        format!("`{marker}` is not closed properly!"),
+                        format!("`{marker}` is unclosed."),
                     )
                 )?;
 
@@ -358,8 +358,8 @@ fn lex_op_tokens(
                     '.',
                     curr_span,
                     "`...` is not a valid syntax.
-For a range operator following a real number, try `1. ..` or `(1.)..`
-For consecutive range operators (which is likely a semantic error), try `(1..)..`"
+For a range operator following a real number, try `1. ..` or `(1.)..`.
+For consecutive range operators (which is likely a semantic error), try `(1..)..`."
                         .to_string(),
                 ))
             } else {

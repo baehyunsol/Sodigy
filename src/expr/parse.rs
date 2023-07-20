@@ -110,7 +110,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
 
             // `a.b` is valid, but `a.1` is not
             if op == InfixOp::Path && !tokens.peek_identifier().is_some() {
-                let err_msg = "A name of a field or a method must be an identifier!
+                let err_msg = "A name of a field or a method must be an identifier.
 `a.b` is valid, but `a.1` is not.".to_string();
                 let expected = ExpectedToken::SpecificTokens(vec![
                     TokenKind::dummy_identifier()

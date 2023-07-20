@@ -1,4 +1,4 @@
-// TODO: It must be at another crate, not in the parser!
+// TODO: independent crate
 
 use std::fs::{read, File, OpenOptions};
 use std::io::{self, Read, Write};

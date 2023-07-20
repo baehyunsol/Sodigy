@@ -1,6 +1,7 @@
-`aabb` is not defined!
-Similar names found: `babb`
+Error: cannot find name `aabb` in this scope
+A similar name exists: `babb`
 
+tests/test.sdg:4:12
   0 │ use a as babb;
   1 │ 
   2 │ def func1: babb = babb;

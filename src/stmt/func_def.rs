@@ -1,10 +1,10 @@
 use super::{ArgDef, Decorator};
-use crate::ast::{ASTError, NameScope, NameScopeId, NameScopeKind};
+use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeId, NameScopeKind};
 use crate::expr::Expr;
 use crate::hash::SdgHash;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct FuncDef {
     pub span: Span,  // it points to `d` of `def`, or `\` of a lambda function
@@ -20,14 +20,52 @@ pub struct FuncDef {
 
     // constants are defined without args 
     // 0-arg functions and constants are different: `def PI` vs `def GET_PI()`
-    pub is_const: bool,
+    is_const: bool,
 
-    pub is_anonymous: bool,
+    is_anonymous: bool,
 
     pub id: NameScopeId,
 }
 
 impl FuncDef {
+
+    pub fn new(
+        name: InternedString,
+        args: Vec<ArgDef>,
+        is_const: bool,
+        ret_type: Expr,
+        ret_val: Expr,
+        span: Span,
+    ) -> Self {
+        FuncDef {
+            name, args, is_const,
+            ret_type: Some(ret_type),
+            ret_val,
+            span,
+            is_anonymous: false,
+            decorators: vec![],  // filled later
+            id: NameScopeId::new_rand(),
+        }
+    }
+
+    pub fn create_anonymous_function(
+        args: Vec<ArgDef>,
+        ret_val: Expr,
+        span: Span,
+        id: NameScopeId,
+        session: &mut LocalParseSession,
+    ) -> Self {
+        let lambda_func_name = format!("@@LAMBDA__{}", span.sdg_hash().to_string());
+
+        FuncDef {
+            args, ret_val, span, id,
+            decorators: vec![],
+            ret_type: None,  // has to be inferred later
+            is_const: false,
+            is_anonymous: true,
+            name: session.intern_string(lambda_func_name.into()),
+        }
+    }
 
     pub fn resolve_names(
         &mut self,
@@ -61,27 +99,30 @@ impl FuncDef {
         Ok(())
     }
 
-    pub fn create_anonymous_function(
-        args: Vec<ArgDef>,
-        ret_val: Expr,
-        span: Span,
-        id: NameScopeId,
-        session: &mut LocalParseSession,
-    ) -> Self {
-        let lambda_func_name = format!("@@LAMBDA__{}", span.sdg_hash().to_string());
+    // It returns Some(_) only when the result is none-empty
+    // That's for easier pattern destructuring
+    pub fn get_all_foreign_names(&self) -> Option<HashSet<(InternedString, NameOrigin)>> {
+        if !self.is_anonymous {
+            None
+        } else {
+            let mut result = HashSet::new();
+            let mut blocks = vec![];
+            self.ret_val.get_all_foreign_names(self.id, &mut result, &mut blocks);
 
-        FuncDef {
-            args, ret_val, span, id,
-            decorators: vec![],
-            ret_type: None,  // has to be inferred later
-            is_const: false,
-            is_anonymous: true,
-            name: session.intern_string(lambda_func_name.into()),
+            for ArgDef { ty, .. } in self.args.iter() {
+                if let Some(ty) = ty {
+                    ty.get_all_foreign_names(self.id, &mut result, &mut blocks);
+                }
+            }
+
+            if result.is_empty() {
+                None
+            }
+
+            else {
+                Some(result)
+            }
         }
-    }
-
-    pub fn is_closure(&self) -> bool {
-        self.is_anonymous && todo!()
     }
 
 }

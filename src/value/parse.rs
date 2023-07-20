@@ -1,6 +1,6 @@
 use super::ValueKind;
 use crate::ast::{NameOrigin, NameScopeId};
-use crate::err::{ExpectedToken, ParseError};
+use crate::err::{ExpectedToken, ParseError, ParamType};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
@@ -92,7 +92,18 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             span,
             kind: TokenKind::List(delim, elements),
         }) => match delim {
-            Delimiter::Bracket => Ok(ValueKind::List(split_list_by_comma(elements)?)),
+            Delimiter::Bracket => Ok(ValueKind::List(
+                split_list_by_comma(elements).map_err(
+                    |mut e| {
+                        e.set_expected_tokens(vec![
+                            TokenKind::Operator(OpToken::ClosingSquareBracket),
+                            TokenKind::comma(),
+                        ]);
+
+                        e
+                    }
+                )?
+            )),
             Delimiter::Brace => {
                 parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
                     .map_err(|e| e.set_span_of_eof(*span))
@@ -114,7 +125,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         Err(ParseError::eoe_msg(
             Span::dummy(),
             ExpectedToken::AnyExpression,
-            "A block cannot be empty!".to_string(),
+            "A block cannot be empty.".to_string(),
         ))
     } else if block_tokens.ends_with(TokenKind::semi_colon()) {
         Err(ParseError::eoe_msg(
@@ -123,7 +134,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .expect("Internal Compiler Error B13FA79")
                 .span,
             ExpectedToken::AnyExpression,
-            "An expression must come at the end of a block".to_string(),
+            "An expression must come at the end of a block.".to_string(),
         ))
     } else {
         let first_span = block_tokens
@@ -144,7 +155,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             let name = block_tokens.step_identifier_strict()?;
 
             if !names.insert(name) {
-                return Err(ParseError::multi_def(name, curr_span));
+                return Err(ParseError::multi_def(name, curr_span, ParamType::BlockDef));
             }
 
             block_tokens
@@ -164,7 +175,11 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             Box::new(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
 
         if let Some(Token { kind, span }) = block_tokens.step() {
-            Err(ParseError::tok(kind.clone(), *span, ExpectedToken::Nothing))
+            Err(ParseError::tok(
+                kind.clone(),
+                *span,
+                ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)])
+            ))
         } else {
             Ok(ValueKind::Block { defs, value, id: NameScopeId::new_rand() })
         }
@@ -177,7 +192,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         Err(ParseError::eoe_msg(
             Span::dummy(),
             ExpectedToken::AnyExpression,
-            "A definition of a lambda function cannot be empty!".to_string(),
+            "A definition of a lambda function cannot be empty.".to_string(),
         ))
     } else if tokens.ends_with(TokenKind::comma()) {
         Err(ParseError::tok_msg(
@@ -187,7 +202,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 .expect("Internal Compiler Error C929E72")
                 .span,
             ExpectedToken::Nothing,
-            "Trailing commas in lambda definition is not allowed!".to_string(),
+            "Trailing commas in lambda definition is not allowed.".to_string(),
         ))
     } else {
         let first_span = tokens
@@ -207,7 +222,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             let arg = parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?;
 
             if !arg_names.insert(arg.name) {
-                return Err(ParseError::multi_def(arg.name, arg.span));
+                return Err(ParseError::multi_def(arg.name, arg.span, ParamType::LambdaParam));
             }
 
             args.push(arg);

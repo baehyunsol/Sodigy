@@ -1,4 +1,4 @@
-// TODO: It must be at another crate, not in the parser crate!
+// TODO: independent crate
 
 use crate::session::InternedString;
 use std::collections::HashSet;

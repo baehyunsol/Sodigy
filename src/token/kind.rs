@@ -69,28 +69,28 @@ impl TokenKind {
     // preview of this token_kind for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
-            TokenKind::Number(_) => "Number".to_string(),
-            TokenKind::String(_) => "String Literal".to_string(),
-            TokenKind::Bytes(_) => "Bytes Literal".to_string(),
-            TokenKind::FormattedString(_) => "Formatted String Literal".to_string(),
+            TokenKind::Number(_) => "a number literal".to_string(),
+            TokenKind::String(_) => "a string literal".to_string(),
+            TokenKind::Bytes(_) => "a bytes literal".to_string(),
+            TokenKind::FormattedString(_) => "a formatted string literal".to_string(),
             TokenKind::List(delim, _) => match delim {
-                Delimiter::Parenthesis => "(...)",
-                Delimiter::Brace => "{...}",
-                Delimiter::Bracket => "[...]",
+                Delimiter::Parenthesis => "`(`",
+                Delimiter::Brace => "`{`",
+                Delimiter::Bracket => "`[`",
             }
             .to_string(),
             TokenKind::Identifier(string) => {
                 if string.is_dummy() || session.is_dummy {
-                    "Identifier".to_string()
+                    "an identifier".to_string()
                 } else {
                     format!(
-                        "Identifier: `{}`",
+                        "an identifier `{}`",
                         bytes_to_string(&session.unintern_string(*string)),
                     )
                 }
             }
-            TokenKind::Keyword(k) => format!("Keyword: `{}`", k.render_err()),
-            TokenKind::Operator(op) => format!("Special Character: `{}`", op.render_err()),
+            TokenKind::Keyword(k) => format!("keyword `{}`", k.render_err()),
+            TokenKind::Operator(op) => format!("character `{}`", op.render_err()),
         }
     }
 

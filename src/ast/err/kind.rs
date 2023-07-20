@@ -1,6 +1,6 @@
 use crate::ast::NameScope;
 use crate::session::{InternedString, LocalParseSession};
-use crate::utils::bytes_to_string;
+use crate::utils::{bytes_to_string, print_list};
 
 pub enum ASTErrorKind {
     MultipleDef(InternedString),
@@ -20,48 +20,37 @@ impl ASTErrorKind {
                 let name = bytes_to_string(&name);
 
                 format!(
-                    "`{name}` is defined more than once!",
+                    "the name `{name}` is defined more than once",
                 )
             },
             ASTErrorKind::UndefinedSymbol(d, names) => {
                 let suggestions = names.get_similar_name(*d, session);
+                let rendered_suggestions = print_list(
+                    &suggestions, "`", "`",
+                );
                 let suggestions = if suggestions.is_empty() {
                     String::new()
+                } else if suggestions.len() > 1 {
+                    format!("\nSimilar names exist: {}", rendered_suggestions)
                 } else {
-                    format!("\nSimilar names found: {}", render_suggestions(suggestions))
+                    format!("\nA similar name exists: {}", rendered_suggestions)
                 };
 
                 let name = session.unintern_string(*d);
                 let name = bytes_to_string(&name);
 
                 format!(
-                    "`{name}` is not defined!{suggestions}",
+                    "cannot find name `{name}` in this scope{suggestions}",
                 )
             },
             ASTErrorKind::DecoratorOnUse => format!(
-                "You cannot decorate a `use` statement!",
+                "a `use` statement is not decoratable",
             ),
+            // TODO: we have to allow recursive block-defs
             ASTErrorKind::RecursiveDefInBlock(name) => format!(
                 "A block expression contains a recursively defined value: `{}`",
                 bytes_to_string(&session.unintern_string(*name)),
             ),
         }
     }
-}
-
-fn render_suggestions(suggestions: Vec<String>) -> String {
-    assert!(!suggestions.is_empty(), "Internal Compiler Error B688677");
-
-    if suggestions.len() == 1 {
-        format!("`{}`", suggestions[0])
-    }
-
-    else if suggestions.len() == 2 {
-        format!("`{}` or `{}`", suggestions[0], suggestions[1])
-    }
-
-    else {
-        format!("`{}`, {}", suggestions[0], render_suggestions(suggestions[1..].to_vec()))
-    }
-
 }

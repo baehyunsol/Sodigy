@@ -145,7 +145,7 @@ impl NameScope {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     NotKnownYet,
     Global,   // `a` of `use a.b.c;`
@@ -173,7 +173,7 @@ impl From<&NameScopeKind> for NameOrigin {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct NameScopeId(u128);
 
 impl NameScopeId {

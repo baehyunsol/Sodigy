@@ -1,5 +1,6 @@
-Invalid UTF-8 bytes are found: [200]
+Error: [200] is not a valid utf-8
 
+tests/test.sdg:0:28
     │                            ▾
 ▸ 0 │ def DUMB_STRING: String = '������';
     │                            ▴

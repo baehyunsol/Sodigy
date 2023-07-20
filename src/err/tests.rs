@@ -33,8 +33,8 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
             ParseErrorKind::UntypedArg(_, _) => true,
             _ => false,
         },
-        ParseErrorKind::MultipleDefParam(_) => match k2 {
-            ParseErrorKind::MultipleDefParam(_) => true,
+        ParseErrorKind::MultipleDefParam(_, t1) => match k2 {
+            ParseErrorKind::MultipleDefParam(_, t2) => t1 == t2,
             _ => false,
         },
     }
