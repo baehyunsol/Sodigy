@@ -1,15 +1,12 @@
 use super::AST;
+use crate::endec::{Endec, EndecError};
 
-impl AST {
-
-    pub fn encode(&self) -> Vec<u8> {
+impl Endec for AST {
+    fn encode(&self, buffer: &mut Vec<u8>) {
         todo!()
     }
 
-    // we don't care about the error_kind of `decode`
-    // the compiler will just re-generate the AST if the decode fails
-    pub fn decode(b: &[u8]) -> Option<Self> {
+    fn decode(buffer: &[u8], index: &mut usize) -> Result<Self, EndecError> {
         todo!()
     }
-
 }

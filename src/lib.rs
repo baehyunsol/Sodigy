@@ -1,6 +1,7 @@
 #![feature(box_patterns)]
 
 mod ast;
+mod endec;
 mod err;
 mod expr;
 mod file_system;
