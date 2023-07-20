@@ -3,6 +3,7 @@ use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::span::Span;
 use crate::token::{OpToken, TokenKind, TokenList};
+use crate::value::BlockDef;
 
 #[derive(Clone)]
 pub struct ArgDef {
@@ -59,9 +60,9 @@ impl GetNameOfArg for ArgDef {
     }
 }
 
-impl<A> GetNameOfArg for (InternedString, A) {
+impl GetNameOfArg for BlockDef {
     fn get_name_of_arg(&self) -> InternedString {
-        self.0
+        self.name
     }
 }
 

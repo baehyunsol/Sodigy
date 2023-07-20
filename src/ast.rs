@@ -91,7 +91,7 @@ impl AST {
         }
 
         ast.resolve_names(session)?;
-        ast.opt()?;
+        ast.opt(session)?;
 
         Ok(ast)
     }

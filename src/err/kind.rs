@@ -27,7 +27,7 @@ pub enum ParseErrorKind {
     MultipleDefParam(InternedString, ParamType),
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum ParamType {
     FuncParam,
     LambdaParam,

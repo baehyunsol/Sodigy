@@ -3,7 +3,7 @@ use crate::ast::{ASTError, NameScope};
 use crate::expr::Expr;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Decorator {
     // a path consists of many names
@@ -45,8 +45,11 @@ impl Decorator {
             }
         }
 
+        // we don't have to track names here
+        let mut dummy = HashSet::new();
+
         for arg in self.args.iter_mut() {
-            arg.resolve_names(name_scope, lambda_defs, session)?;
+            arg.resolve_names(name_scope, lambda_defs, session, &mut dummy)?;
         }
 
         Ok(())

@@ -1,9 +1,11 @@
 use super::super::{AST, ASTError, NameOrigin, NameScopeId};
+use crate::err::ParamType;
 use crate::expr::{Expr, ExprKind};
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::ArgDef;
-use crate::value::ValueKind;
+use crate::value::{BlockDef, ValueKind};
+use crate::warning::SodigyWarning;
 use std::collections::{HashMap, HashSet};
 
 /*
@@ -30,18 +32,18 @@ impl AST {
     //   - simple value: single identifier (or a path), small number (how small?), static values (contants)
     // 4. If a block has no defs, it unwraps the block.
     // 5. Check cycles
-    pub fn clean_up_blocks(&mut self) -> Result<(), ASTError> {
+    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
 
         for func in self.defs.values_mut() {
-            func.ret_val.clean_up_blocks()?;
+            func.ret_val.clean_up_blocks(session)?;
 
             if let Some(ty) = &mut func.ret_type {
-                ty.clean_up_blocks()?;
+                ty.clean_up_blocks(session)?;
             }
 
             for ArgDef { ty, .. } in func.args.iter_mut() {
                 if let Some(ty) = ty {
-                    ty.clean_up_blocks()?;
+                    ty.clean_up_blocks(session)?;
                 }
             }
 
@@ -52,10 +54,10 @@ impl AST {
 }
 
 impl Expr {
-    pub fn clean_up_blocks(&mut self) -> Result<(), ASTError> {
+    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
         let span = self.span;
 
-        self.kind.clean_up_blocks(span)?;
+        self.kind.clean_up_blocks(span, session)?;
 
         // in case `clean_up_blocks` removed all the blocks
         if self.is_block_with_0_defs() {
@@ -68,7 +70,7 @@ impl Expr {
 
 impl ExprKind {
 
-    pub fn clean_up_blocks(&mut self, span: Span) -> Result<(), ASTError> {
+    pub fn clean_up_blocks(&mut self, span: Span, session: &mut LocalParseSession) -> Result<(), ASTError> {
         match self {
             ExprKind::Value(v) => match v {
                 ValueKind::Identifier(_, _)
@@ -80,17 +82,17 @@ impl ExprKind {
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
                     for element in elements.iter_mut() {
-                        element.clean_up_blocks()?;
+                        element.clean_up_blocks(session)?;
                     }
                 },
                 ValueKind::Lambda(args, val) => {
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
-                            ty.clean_up_blocks()?;
+                            ty.clean_up_blocks(session)?;
                         }
                     }
 
-                    val.clean_up_blocks()?;
+                    val.clean_up_blocks(session)?;
                 },
                 ValueKind::Block { defs, value, id } => {
                     let graph = get_dep_graph(&defs, &value, *id);
@@ -115,14 +117,16 @@ impl ExprKind {
 
                     // remove `never_used` ones
                     for never_used_name in never_used.iter() {
+                        session.add_warning(SodigyWarning::unused(*never_used_name, get_span_by_name(*never_used_name, defs), ParamType::BlockDef));
+
                         defs.swap_remove(
                             defs.iter().position(
-                                |(name, _)| name == never_used_name
+                                |BlockDef { name, .. }| name == never_used_name
                             ).expect("Internal Compiler Error EC6848E")
                         );
                     }
 
-                    for (name, value) in defs.iter() {
+                    for BlockDef { value, name, .. } in defs.iter() {
                         if is_simple_expr(value) {
                             once_used.push(*name);
                         }
@@ -135,11 +139,11 @@ impl ExprKind {
                     // substitute `simple` ones and remove their defs
                     for name_to_subs in once_used_or_simple.iter() {
                         let ind = defs.iter().position(
-                            |(name, _)| name == name_to_subs
+                            |BlockDef { name, .. }| name == name_to_subs
                         ).expect("Internal Compiler Error B3154ED");
-                        let (_, value_to_subs) = defs[ind].clone();
+                        let BlockDef { value: value_to_subs, .. } = defs[ind].clone();
 
-                        for (_, value) in defs.iter_mut() {
+                        for BlockDef { value, .. } in defs.iter_mut() {
                             substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
                         }
 
@@ -148,29 +152,29 @@ impl ExprKind {
                         defs.swap_remove(ind);
                     }
 
-                    for (_, value) in defs.iter_mut() {
-                        value.clean_up_blocks()?;
+                    for BlockDef { value, .. } in defs.iter_mut() {
+                        value.clean_up_blocks(session)?;
                     }
 
-                    value.clean_up_blocks()?;
+                    value.clean_up_blocks(session)?;
                 },
             },
-            ExprKind::Prefix(_, v) => v.clean_up_blocks()?,
-            ExprKind::Postfix(_, v) => v.clean_up_blocks()?,
+            ExprKind::Prefix(_, v) => v.clean_up_blocks(session)?,
+            ExprKind::Postfix(_, v) => v.clean_up_blocks(session)?,
             ExprKind::Infix(_, v1, v2) => {
-                v1.clean_up_blocks()?;
-                v2.clean_up_blocks()?;
+                v1.clean_up_blocks(session)?;
+                v2.clean_up_blocks(session)?;
             },
             ExprKind::Branch(c, t, f) => {
-                c.clean_up_blocks()?;
-                t.clean_up_blocks()?;
-                f.clean_up_blocks()?;
+                c.clean_up_blocks(session)?;
+                t.clean_up_blocks(session)?;
+                f.clean_up_blocks(session)?;
             },
             ExprKind::Call(f, args) => {
-                f.clean_up_blocks()?;
+                f.clean_up_blocks(session)?;
 
                 for arg in args.iter_mut() {
-                    arg.clean_up_blocks()?;
+                    arg.clean_up_blocks(session)?;
                 }
 
             }
@@ -184,13 +188,13 @@ impl ExprKind {
 // HashMap<K, Vec<K>>, where K is a name of a local-def
 // Vec<K> stores usage of the key.
 // if hash_map[foo] = [bar, bar, InternedString::dummy()], that means `foo` is used in `bar` twice and in the main value once
-fn get_dep_graph(defs: &Vec<(InternedString, Expr)>, value: &Box<Expr>, id: NameScopeId) -> HashMap<InternedString, Vec<InternedString>> {
+fn get_dep_graph(defs: &Vec<BlockDef>, value: &Box<Expr>, id: NameScopeId) -> HashMap<InternedString, Vec<InternedString>> {
     let mut result = HashMap::with_capacity(defs.len());
 
-    for (name1, _) in defs.iter() {
+    for BlockDef { name: name1, .. } in defs.iter() {
         let mut occurrence = vec![];
 
-        for (name2, value) in defs.iter() {
+        for BlockDef { name: name2, value, .. } in defs.iter() {
             let mut count = 0;
             count_occurrence(value, *name1, id, &mut count);
 
@@ -243,7 +247,7 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: NameScopeId, co
             ValueKind::Block { defs, value, .. } => {
                 count_occurrence(value, name, block_id, count);
 
-                for (_, value) in defs.iter() {
+                for BlockDef { value, .. } in defs.iter() {
                     count_occurrence(value, name, block_id, count);
                 }
             }
@@ -302,7 +306,7 @@ fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: Int
             ValueKind::Block { defs, value, .. } => {
                 substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
 
-                for (_, value) in defs.iter_mut() {
+                for BlockDef { value, .. } in defs.iter_mut() {
                     substitute_local_def(value, needle, name_to_replace, block_id);
                 }
             }
@@ -373,4 +377,13 @@ fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<In
     }
 
     None
+}
+
+fn get_span_by_name(name: InternedString, defs: &Vec<BlockDef>) -> Span {
+    for BlockDef { name: name_, span, .. } in defs.iter() {
+        if *name_ == name {
+            return *span;
+        }
+    }
+    panic!("Internal Compiler Error 18F4B03");
 }

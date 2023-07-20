@@ -2,7 +2,7 @@ use super::{AST, NameOrigin};
 use crate::expr::ExprKind;
 use crate::session::InternedString;
 use crate::stmt::{ArgDef, Decorator};
-use crate::value::ValueKind;
+use crate::value::{BlockDef, ValueKind};
 
 impl AST {
 
@@ -54,8 +54,8 @@ impl ExprKind {
                     panic!();
                 }
                 ValueKind::Block { defs, value, .. } => {
-                    for (_, val) in defs.iter() {
-                        val.kind.id_walker(f);
+                    for BlockDef { value, .. } in defs.iter() {
+                        value.kind.id_walker(f);
                     }
 
                     value.kind.id_walker(f);

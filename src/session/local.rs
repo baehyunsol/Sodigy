@@ -1,6 +1,7 @@
 use super::{InternedString, KEYWORD_START};
 use crate::prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
+use crate::warning::SodigyWarning;
 use std::collections::HashMap;
 
 fn keywords() -> Vec<Vec<u8>> {
@@ -26,6 +27,8 @@ pub struct LocalParseSession {
     strings_rev: HashMap<Vec<u8>, InternedString>,
     pub(crate) curr_file: u64,
     pub(crate) is_dummy: bool,
+
+    warnings: Vec<SodigyWarning>,
 
     // no files, but just a direct input
     #[cfg(test)]
@@ -55,6 +58,7 @@ impl LocalParseSession {
             strings_rev,
             curr_file: u64::MAX, // null
             is_dummy: false,
+            warnings: vec![],
 
             #[cfg(test)]
             curr_file_data: vec![],
@@ -67,6 +71,8 @@ impl LocalParseSession {
             strings_rev: HashMap::new(),
             curr_file: 0,
             is_dummy: true,
+            warnings: vec![],
+
             #[cfg(test)]
             curr_file_data: vec![],
         }
@@ -120,6 +126,16 @@ impl LocalParseSession {
                 // it must be somewhere!
                 todo!()
             }
+        }
+    }
+
+    pub fn add_warning(&mut self, warning: SodigyWarning) {
+        self.warnings.push(warning);
+    }
+
+    pub fn add_warnings(&mut self, warnings: Vec<SodigyWarning>) {
+        for warning in warnings.into_iter() {
+            self.warnings.push(warning);
         }
     }
 

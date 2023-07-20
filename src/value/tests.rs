@@ -2,6 +2,7 @@ use super::ValueKind;
 use crate::session::LocalParseSession;
 use crate::stmt::ArgDef;
 use crate::utils::{bytes_to_string, v32_to_string};
+use crate::value::BlockDef;
 
 impl ValueKind {
     pub fn is_list(&self) -> bool {
@@ -71,7 +72,7 @@ impl ValueKind {
             ValueKind::Block { defs, value, .. } => {
                 let defs = defs
                     .iter()
-                    .map(|(name, value)| {
+                    .map(|BlockDef{ name, value, .. }| {
                         format!(
                             "{}={};",
                             bytes_to_string(&session.unintern_string(*name)),

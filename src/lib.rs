@@ -15,6 +15,7 @@ mod stmt;
 mod token;
 mod utils;
 mod value;
+mod warning;
 
 pub use err::SodigyError;
 pub use session::{GlobalParseSession, LocalParseSession};

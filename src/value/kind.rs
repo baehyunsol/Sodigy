@@ -1,6 +1,7 @@
 use crate::ast::{NameOrigin, NameScopeId};
 use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
+use crate::span::Span;
 use crate::stmt::ArgDef;
 use crate::token::{OpToken, TokenKind};
 use hmath::{BigInt, Ratio};
@@ -26,7 +27,7 @@ pub enum ValueKind {
     // DEF: PATTERN '=' VALUE
     // DEFs are seperated by ';'
     Block {
-        defs: Vec<(InternedString, Expr)>, // (name, value)
+        defs: Vec<BlockDef>,
         value: Box<Expr>,
         id: NameScopeId,
     },
@@ -77,4 +78,11 @@ impl ValueKind {
         self.get_first_token()
             .render_err(&LocalParseSession::dummy())
     }
+}
+
+#[derive(Clone)]
+pub struct BlockDef {
+    pub(crate) name: InternedString,
+    pub(crate) value: Expr,
+    pub(crate) span: Span,
 }

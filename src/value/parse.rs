@@ -6,6 +6,7 @@ use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
+use crate::value::BlockDef;
 use std::collections::HashSet;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
@@ -168,7 +169,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .consume_token_or_error(TokenKind::semi_colon())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-            defs.push((name, expr));
+            defs.push(BlockDef { name, value: expr, span: curr_span });
         }
 
         let value =
