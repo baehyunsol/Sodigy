@@ -9,7 +9,28 @@ It's still under development. Only parser and lexer are (partially) complete.
 - Every function in Sodigy is pure.
 - Every function in Sodigy is evaluable at compile time.
 
+### Decorators
+
+Decorators decorate functions (and others WIP). For now, only built-in decorators are available. I don't have any plan for custom decorators in near future.
+
 ### Lambda Functions
+
+The syntax of lambda functions is very simple: parameters and the body is inside a curly brace, and the curly brace follows a backslash (`\`). You may omit type annotations of parameters.
+
+```
+\{x: Int, y, x + y}
+```
+
+Above is an anonymous function that takes two integers and returns the sum of the integers.
+
+Lambda functions can also capture its environment (closures).
+
+```
+def adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
+
+@test.eq(8)
+def adder_test: Int = adder(5)(3);
+```
 
 ### Constants vs 0-arg Functions
 
@@ -70,6 +91,33 @@ Since the values are lazily evaluated, you cannot use them recursively. Belows a
 }
 ```
 
+### String Literals
+
+Sodigy doesn't distinguish double-quoted literals and single-quoted literals. It only has `String` type, but no `Char` type. It may change in the future.
+
+Beside normal string literals, there are two special ones: formatted strings and bytes.
+
+#### Formatted strings
+
+Formatted strings are like that of Python (as far as I know). A letter `f` followed by a string literal is a formatted string.
+
+```
+{
+    a = 3;
+    b = 4;
+
+    f"{a} + {b} = {a + b}"
+}
+```
+
+The above value is evaluated to `"3 + 4 = 7"`. It's just like Python!
+
+#### Bytes
+
+Byte literals are like that of Rust (as far as I know). A letter `b` followed by a string literal is bytes.
+
+TODO: example
+
 ## Types
 
 Types in Sodigy are first-class objects. The type checker (which is not implmeneted yet) evaluates the type signatures in compile time, and calls `.is_subtype_of()`.
@@ -106,3 +154,12 @@ You can use whitespaces between `$` and the name of the field, but I recommend y
 ## Comments
 
 `#` for a single line comment, and `##!` \~ `!##` for a multiline comment.
+
+```
+# This is a comment
+def add_1_2: Int = 1 + 2;
+
+##!
+This is also a comment
+!##
+```
