@@ -5,7 +5,7 @@ mod clean_up_blocks;
 
 impl AST {
 
-    pub fn opt(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    pub(crate) fn opt(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
         self.clean_up_blocks(session)?;  // TODO: it's not an optimization because it finds cycles in block-defs
 
         Ok(())

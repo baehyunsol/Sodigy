@@ -102,3 +102,7 @@ def set_age_test: Person = set_age(
 ```
 
 You can use whitespaces between `$` and the name of the field, but I recommend you not to do so, for the sake of readability.
+
+## Comments
+
+`#` for a single line comment, and `##!` \~ `!##` for a multiline comment.

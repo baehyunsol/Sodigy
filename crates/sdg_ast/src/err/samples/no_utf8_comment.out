@@ -1,0 +1,7 @@
+Error: [200, 200] is not a valid utf-8
+
+tests/test.sdg:0:3
+    │   ▾
+▸ 0 │ # ���
+    │   ▴
+  1 │ def FOO: Int = 0;

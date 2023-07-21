@@ -32,7 +32,7 @@ impl AST {
     //   - simple value: single identifier (or a path), small number (how small?), static values (contants)
     // 4. If a block has no defs, it unwraps the block.
     // 5. Check cycles
-    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    pub(crate) fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
 
         for func in self.defs.values_mut() {
             func.ret_val.clean_up_blocks(session)?;

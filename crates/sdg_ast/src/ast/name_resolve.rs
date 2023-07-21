@@ -204,7 +204,7 @@ impl NameScopeId {
 
 impl AST {
 
-    pub fn resolve_names(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    pub(crate) fn resolve_names(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
         let mut name_scope = NameScope::from_ast(self);
         let mut lambda_defs = HashMap::new();
 

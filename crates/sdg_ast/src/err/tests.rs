@@ -49,6 +49,7 @@ fn error_message_test() {
         vec![
             "no_utf8_str".to_string(),
             "no_utf8_ident".to_string(),
+            "no_utf8_comment".to_string(),
         ],
         samples,
     ].concat();
@@ -61,9 +62,9 @@ fn error_message_test() {
     let no_utf8_ident = vec![100, 101, 102, 32, 200, 200, 200, 58, 32, 83, 116, 114, 105, 110, 103, 32, 61, 32, 39, 65, 66, 67, 39, 59];
     write_bytes("./src/err/samples/no_utf8_ident.in", &no_utf8_ident, WriteMode::CreateOrTruncate).unwrap();
 
-    // It's okay for comments to have invalid utf-8
-    // let no_utf8_comment = [35, 32, 200, 200, 200, 10, 100, 101, 102, 32, 70, 79, 79, 58, 32, 73, 110, 116, 32, 61, 32, 48, 59];
-    // write_bytes("./src/err/samples/no_utf8_comment.in", &no_utf8_comment, WriteMode::CreateOrTruncate).unwrap();
+    // invalid utf-8 in a comment
+    let no_utf8_comment = [35, 32, 200, 200, 200, 10, 100, 101, 102, 32, 70, 79, 79, 58, 32, 73, 110, 116, 32, 61, 32, 48, 59];
+    write_bytes("./src/err/samples/no_utf8_comment.in", &no_utf8_comment, WriteMode::CreateOrTruncate).unwrap();
 
     for sample in samples.iter() {
         let input = if let Ok(s) = read_bytes(&format!("./src/err/samples/{sample}.in")) { s } else {

@@ -9,12 +9,22 @@ pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token
     let mut cursor = 0;
     let mut tokens = vec![];
 
-    while let Some(next_ind) = skip_whitespaces_and_comments(s, cursor) {
-        cursor = next_ind;
-
-        let (token, next_ind) = lex_token(s, cursor, session)?;
-        tokens.push(token);
-        cursor = next_ind;
+    loop {
+        match skip_whitespaces_and_comments(s, cursor) {
+            Ok(next_ind) => {
+                cursor = next_ind;
+        
+                let (token, next_ind) = lex_token(s, cursor, session)?;
+                tokens.push(token);
+                cursor = next_ind;
+            },
+            Err(SkipWhiteSpaceCommentResult::Eof) => {
+                break;
+            },
+            Err(e) => {
+                return Err(e.into_parse_error(Span::new(session.curr_file, 0)));
+            }
+        }
     }
 
     Ok(tokens)
@@ -138,12 +148,8 @@ fn lex_token(
             let mut data = vec![];
 
             loop {
-                ind = skip_whitespaces_and_comments(s, ind).ok_or(
-                    ParseError::eoe_msg(
-                        curr_span,
-                        ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
-                        format!("`{marker}` is unclosed."),
-                    )
+                ind = skip_whitespaces_and_comments(s, ind).map_err(
+                    |e| e.into_list_eof(curr_span, marker)
                 )?;
 
                 if s[ind] == end {
@@ -154,12 +160,8 @@ fn lex_token(
                 ind = new_ind;
                 data.push(e);
 
-                ind = skip_whitespaces_and_comments(s, ind).ok_or(
-                    ParseError::eoe_msg(
-                        curr_span,
-                        ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
-                        format!("`{marker}` is unclosed."),
-                    )
+                ind = skip_whitespaces_and_comments(s, ind).map_err(
+                    |e| e.into_list_eof(curr_span, marker)
                 )?;
 
                 if s[ind] == end {
@@ -487,27 +489,100 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
 
 // initial `ind` must either be (1) first character of a value or a delimiter, (2) whitespace, or (3) start of a comment
 // the returned value is always either be (1) EOF, or (2) first character of a value or a delimiter
-// if the initial `ind` or the returned `ind` is not inside `s`, it returns None
+// if the initial `ind` or the returned `ind` is not inside `s`, it returns Err
 fn skip_whitespaces_and_comments(
     s: &[u8],
     mut ind: usize,
-) -> Option<usize> {
+) -> Result<usize, SkipWhiteSpaceCommentResult> {
 
-    while ind < s.len() {
-        if s[ind] == b' ' || s[ind] == b'\n' || s[ind] == b'\r' || s[ind] == b'\t' {
-            ind += 1;
-        } else if s[ind] == b'#' {
-            ind += 1;
-
-            while ind < s.len() && s[ind] != b'\n' {
+    loop {
+        match s.get(ind) {
+            Some(b' ') | Some(b'\n') | Some(b'\r') | Some(b'\t') => {
                 ind += 1;
+            },
+            Some(b'#') => {
+                ind += 1;
+
+                // multiline comment
+                if s.get(ind) == Some(&b'#') && s.get(ind + 1) == Some(&b'!') {
+                    let comment_start = ind - 1;
+                    ind += 2;
+
+                    loop {
+                        if s.get(ind) == Some(&b'!')
+                            && s.get(ind + 1) == Some(&b'#')
+                            && s.get(ind + 2) == Some(&b'#')
+                        {
+                            ind += 3;
+                            break;
+                        }
+
+                        else if ind >= s.len() {
+                            return Err(SkipWhiteSpaceCommentResult::CommentEof(comment_start));
+                        }
+
+                        else if s[ind] >= 128 {
+                            ind = step_utf8_char(s, ind)?;
+                            continue;
+                        }
+
+                        ind += 1;
+                    }
+                }
+
+                else {
+                    while ind < s.len() && s[ind] != b'\n' {
+                        if s[ind] >= 128 {
+                            ind = step_utf8_char(s, ind)?;
+                            continue;
+                        }
+
+                        ind += 1;
+                    }
+                }
+            },
+            Some(_) => {
+                return Ok(ind);
+            },
+            None => {
+                return Err(SkipWhiteSpaceCommentResult::Eof);
             }
-        } else {
-            return Some(ind);
         }
     }
+}
 
-    None
+enum SkipWhiteSpaceCommentResult {
+    Eof,
+    CommentEof(usize),  // index points to the start of the comment
+    InvalidUTF8(Vec<u8>, usize),
+}
+
+impl SkipWhiteSpaceCommentResult {
+    pub fn into_list_eof(&self, span: Span, marker: Delimiter) -> ParseError {
+        match self {
+            SkipWhiteSpaceCommentResult::Eof => ParseError::eoe_msg(
+                span,
+                ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
+                format!("{marker} is unclosed."),
+            ),
+            _ => self.into_parse_error(span),
+        }
+    }
+    pub fn into_parse_error(&self, span: Span) -> ParseError {
+        match self {
+            SkipWhiteSpaceCommentResult::CommentEof(index) => ParseError::eof_msg(
+                span.set_index(*index),
+                String::from("There's an unterminated block comment."),
+            ),
+            SkipWhiteSpaceCommentResult::InvalidUTF8(utf, index) => ParseError::invalid_utf8(
+                utf.to_vec(),
+                span.set_index(*index),
+            ),
+            SkipWhiteSpaceCommentResult::Eof => unreachable!(
+                "Internal Compiler Error EAA88B9"
+            ),
+        }
+    }
 }
 
 fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
@@ -637,4 +712,124 @@ fn set_span_of_formatted_string_err(mut error: ParseError, span: Span) -> ParseE
     error.span = span.forward(error.span.index);
 
     error
+}
+
+fn step_utf8_char(buffer: &[u8], index: usize) -> Result<usize, SkipWhiteSpaceCommentResult> {
+
+    if buffer[index] < 192 {
+        Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index]], index))
+    }
+
+    else if buffer[index] < 224 {
+
+        if let Some(n) = buffer.get(index + 1) {
+
+            if 128 <= *n && *n < 192 {
+                Ok(index + 2)
+            }
+
+            else {
+                Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], *n], index))
+            }
+
+        }
+
+        else {
+            Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index]], index))
+        }
+
+    }
+
+    else if buffer[index] < 240 {
+
+        if let Some(n) = buffer.get(index + 1) {
+
+            if 128 <= *n && *n < 192 {
+
+                if let Some(n) = buffer.get(index + 2) {
+
+                    if 128 <= *n && *n < 192 {
+                        Ok(index + 3)
+                    }
+
+                    else {
+                        Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], buffer[index + 1], *n], index))
+                    }
+
+                }
+
+                else {
+                    Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], *n], index))
+                }
+
+            }
+
+            else {
+                Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], *n], index))
+            }
+
+        }
+
+        else {
+            Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index]], index))
+        }
+
+    }
+
+    else if buffer[index] < 248 {
+
+        if let Some(n) = buffer.get(index + 1) {
+
+            if 128 <= *n && *n < 192 {
+
+                if let Some(n) = buffer.get(index + 2) {
+
+                    if 128 <= *n && *n < 192 {
+
+                        if let Some(n) = buffer.get(index + 3) {
+
+                            if 128 <= *n && *n < 192 {
+                                Ok(index + 4)
+                            }
+
+                            else {
+                                Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], buffer[index + 1], buffer[index + 2], *n], index))
+                            }
+
+                        }
+
+                        else {
+                            Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], buffer[index + 1], buffer[index + 2]], index))
+                        }
+
+                    }
+
+                    else {
+                        Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], buffer[index + 1], *n], index))
+                    }
+
+                }
+
+                else {
+                    Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], *n], index))
+                }
+
+            }
+
+            else {
+                Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index], *n], index))
+            }
+
+        }
+
+        else {
+            Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index]], index))
+        }
+
+    }
+
+    else {
+        Err(SkipWhiteSpaceCommentResult::InvalidUTF8(vec![buffer[index]], index))
+    }
+
 }

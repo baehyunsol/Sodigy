@@ -24,6 +24,8 @@ pub fn dump_ast_of_expr(
 fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of the top operator)
     let result = vec![
         ("a[1]", "Index(a,1)", 1),
+        ("a[1] # Comment Test", "Index(a,1)", 1),
+        ("a[1] ##! Comment Test !##", "Index(a,1)", 1),
         ("a.b.c(3)", "Call(Path(Path(a,b),c),3)", 5),
         (
             "-1 + -2 * -3 + -4",
@@ -356,6 +358,11 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             "{x = 3; x = 4; x + x}",
             ParseErrorKind::MultipleDefParam(InternedString::dummy(), ParamType::BlockDef),
             8,
+        ),
+        (
+            "   ##!##  # Unfinished Comment",
+            ParseErrorKind::UnexpectedEof,
+            3,
         ),
     ];
 

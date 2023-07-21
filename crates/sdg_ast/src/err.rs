@@ -117,7 +117,15 @@ impl ParseError {
         }
     }
 
-    pub(crate) fn invalid_utf8(cs: Vec<u8>, ind: usize) -> Self {
+    pub(crate) fn invalid_utf8(cs: Vec<u8>, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidUTF8(cs),
+            span,
+            message: String::new(),
+        }
+    }
+
+    pub(crate) fn invalid_utf8_dummy_index(cs: Vec<u8>, ind: usize) -> Self {
         ParseError {
             kind: ParseErrorKind::InvalidUTF8(cs),
             span: Span::dummy_index(ind),

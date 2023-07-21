@@ -45,6 +45,13 @@ impl Span {
         self.file_no == u64::MAX && self.index != usize::MAX
     }
 
+    pub fn set_index(&self, index: usize) -> Self {
+        Span {
+            index,
+            ..self.clone()
+        }
+    }
+
     pub fn backward(&self, offset: usize) -> Option<Self> {
 
         if offset > self.index {

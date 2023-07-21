@@ -30,7 +30,7 @@ pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
     } else if s[ind] < 248 {
         4
     } else {
-        return Err(ParseError::invalid_utf8(vec![s[ind]], 0));
+        return Err(ParseError::invalid_utf8_dummy_index(vec![s[ind]], 0));
     };
 
     if let Ok(s) = std::str::from_utf8(&s[ind..(ind + len)]) {
@@ -38,7 +38,7 @@ pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
     }
 
     else {
-        Err(ParseError::invalid_utf8(s[ind..(ind + len)].to_vec(), 0))
+        Err(ParseError::invalid_utf8_dummy_index(s[ind..(ind + len)].to_vec(), 0))
     }
 
 }
@@ -47,13 +47,13 @@ fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
     assert!(cs.len() > 0, "Internal Compiler Error 8211564");
 
     if cs[0] < 192 {
-        Err(ParseError::invalid_utf8(cs, ind))
+        Err(ParseError::invalid_utf8_dummy_index(cs, ind))
     }
 
     else if cs[0] < 224 {
 
         if cs.len() != 2 {
-            Err(ParseError::invalid_utf8(cs, ind))
+            Err(ParseError::invalid_utf8_dummy_index(cs, ind))
         }
 
         else {
@@ -65,7 +65,7 @@ fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
     else if cs[0] < 240 {
 
         if cs.len() != 3 {
-            Err(ParseError::invalid_utf8(cs, ind))
+            Err(ParseError::invalid_utf8_dummy_index(cs, ind))
         }
 
         else {
@@ -81,7 +81,7 @@ fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
     else if cs[0] < 248 {
 
         if cs.len() != 4 {
-            Err(ParseError::invalid_utf8(cs, ind))
+            Err(ParseError::invalid_utf8_dummy_index(cs, ind))
         }
 
         else {
@@ -96,7 +96,7 @@ fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
     }
 
     else {
-        Err(ParseError::invalid_utf8(cs, ind))
+        Err(ParseError::invalid_utf8_dummy_index(cs, ind))
     }
 
 }
