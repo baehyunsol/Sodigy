@@ -1,5 +1,3 @@
-// TODO: independent crate
-
 use std::fs::{read, File, OpenOptions};
 use std::io::{self, Read, Write};
 

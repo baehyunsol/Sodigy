@@ -1,5 +1,3 @@
-// TODO: independent crate
-
 mod collections;
 mod err;
 mod ints;

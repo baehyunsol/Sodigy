@@ -1,5 +1,3 @@
-// TODO: independent crate
-
 mod bytes;
 mod ints;
 

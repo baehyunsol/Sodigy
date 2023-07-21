@@ -1,5 +1,5 @@
 use super::AST;
-use crate::endec::{Endec, EndecError};
+use sdg_endec::{Endec, EndecError};
 
 impl Endec for AST {
     fn encode(&self, buffer: &mut Vec<u8>) {

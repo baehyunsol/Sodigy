@@ -2,10 +2,10 @@ use super::{ArgDef, Decorator};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeId, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
-use crate::hash::SdgHash;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::warning::SodigyWarning;
+use sdg_hash::SdgHash;
 use std::collections::{HashMap, HashSet};
 
 pub struct FuncDef {

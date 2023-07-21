@@ -1,6 +1,6 @@
-use crate::hash::{SdgHash, SdgHashResult};
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
+use sdg_hash::{SdgHash, SdgHashResult};
 
 const MAX_PREVIEW_LEN: usize = 96;
 

@@ -5,6 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[workspace]
+members = [
+    "crates/sdg_ast",
+    "crates/sdg_endec",
+    "crates/sdg_fs",
+    "crates/sdg_hash",
+]
+
 [dependencies]
-hmath = "*"
-rand = "*"
+sdg_ast = { path = "./crates/sdg_ast", version = "*" }
+sdg_endec = { path = "./crates/sdg_endec", version = "*" }
+sdg_fs = { path = "./crates/sdg_fs", version = "*" }
+sdg_hash = { path = "./crates/sdg_hash", version = "*" }

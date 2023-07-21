@@ -1,8 +1,8 @@
 use super::ParseErrorKind;
 use crate::parse_file;
-use crate::file_system::{read_bytes, read_string, write_bytes, WriteMode};
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
+use sdg_fs::{read_bytes, read_string, write_bytes, WriteMode};
 
 pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
 
