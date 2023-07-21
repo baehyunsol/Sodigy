@@ -95,6 +95,8 @@ Since the values are lazily evaluated, you cannot use them recursively. Belows a
 
 Sodigy doesn't distinguish double-quoted literals and single-quoted literals. It only has `String` type, but no `Char` type. It may change in the future.
 
+Internally, Sodigy strings are lists of integers. Each integer represent a character, not a byte. For example, a korean character "한" is 3 bytes in UTF-8. It's `[237, 149, 156]` in Rust, and `"한".len()` is 3 in Rust. But in Sodigy, it's a single character, which is 54620 in integer. It makes Sodigy slower than Rust, but makes it much easier to deal with strings, especially indexing.
+
 Beside normal string literals, there are two special ones: formatted strings and bytes.
 
 #### Formatted strings
