@@ -20,7 +20,6 @@ fn samples() -> Vec<Vec<u8>> {
 
 #[test]
 fn name_origin_test() {
-    std::env::set_var("RUST_BACKTRACE", "FULL");
     let mut session = LocalParseSession::new();
 
     for sample in samples() {

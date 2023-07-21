@@ -13,7 +13,7 @@ impl Endec for String {
 use std::string::FromUtf8Error;
 
 impl From<FromUtf8Error> for EndecError {
-    fn from(e: FromUtf8Error) -> Self {
+    fn from(_: FromUtf8Error) -> Self {
         EndecError::Utf8Error
     }
 }

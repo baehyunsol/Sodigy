@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum EndecError {
     UnexpectedEof,
     UnexpectedByte(u8),

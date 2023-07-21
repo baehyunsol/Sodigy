@@ -23,7 +23,7 @@ def lambdas(x: Int, y: Int): Int = \{
 };
 
 @test.eq(111)
-def lambdas_test: Int = lambdas(3, 9)()()(27, 81)
+def lambdas_test: Int = lambdas(3, 9)()()(27, 81);
 
 # TODO: type signatures of functors
 def adder(n: Int): Fn(Int, Int) = \{x: Int, x + n};

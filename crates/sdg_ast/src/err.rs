@@ -253,25 +253,3 @@ impl ExpectedToken {
         }
     }
 }
-
-// TODO: make this function generic
-// As stated at the top, error-related functions are okay to be slow
-fn pretty_list(token_kinds: &[TokenKind], session: &LocalParseSession) -> String {
-    if token_kinds.len() == 0 {
-        String::new()
-    } else if token_kinds.len() == 1 {
-        token_kinds[0].render_err(session)
-    } else if token_kinds.len() == 2 {
-        format!(
-            "{} or {}",
-            token_kinds[0].render_err(session),
-            token_kinds[1].render_err(session)
-        )
-    } else {
-        format!(
-            "{}, {}",
-            token_kinds[0].render_err(session),
-            pretty_list(&token_kinds[1..], session)
-        )
-    }
-}

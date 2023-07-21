@@ -142,7 +142,6 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         Ok(Stmt {
-            // TODO: use FuncDef::new() and make fields private
             kind: StmtKind::Def(FuncDef::new(
                 name, args, is_const,
                 ret_type, ret_val, curr_span,

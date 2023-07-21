@@ -4,6 +4,9 @@ mod ints;
 mod string;
 mod tuples;
 
+#[cfg(test)]
+mod tests;
+
 pub use err::EndecError;
 
 pub trait Endec {
