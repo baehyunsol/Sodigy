@@ -3,6 +3,7 @@ use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
+use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
 // TODO: where should it belong?
@@ -152,15 +153,15 @@ pub enum NameOrigin {
     SubPath,  // `b` of `use a.b.c;`, or `a.b()`
     Local,    // `a` of `def a: _ = _;`
     Prelude,
-    FuncArg(NameScopeId),
-    BlockDef(NameScopeId),
+    FuncArg(UID),
+    BlockDef(UID),
 }
 
 #[derive(Clone)]
 pub enum NameScopeKind {
-    Block(NameScopeId),
-    FuncArg(NameScopeId),
-    LambdaArg(NameScopeId),
+    Block(UID),
+    FuncArg(UID),
+    LambdaArg(UID),
 }
 
 impl From<&NameScopeKind> for NameOrigin {
@@ -171,17 +172,6 @@ impl From<&NameScopeKind> for NameOrigin {
             NameScopeKind::LambdaArg(id) => NameOrigin::FuncArg(*id),
         }
     }
-}
-
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
-pub struct NameScopeId(u128);
-
-impl NameScopeId {
-
-    pub fn new_rand() -> Self {
-        NameScopeId(rand::random())
-    }
-
 }
 
 /*

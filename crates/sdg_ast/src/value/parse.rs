@@ -1,5 +1,5 @@
 use super::ValueKind;
-use crate::ast::{NameOrigin, NameScopeId};
+use crate::ast::NameOrigin;
 use crate::err::{ExpectedToken, ParseError, ParamType};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
@@ -7,6 +7,7 @@ use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
 use crate::value::BlockDef;
+use sdg_uid::UID;
 use std::collections::HashSet;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
@@ -182,7 +183,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)])
             ))
         } else {
-            Ok(ValueKind::Block { defs, value, id: NameScopeId::new_rand() })
+            Ok(ValueKind::Block { defs, value, id: UID::new_block_id() })
         }
     }
 }

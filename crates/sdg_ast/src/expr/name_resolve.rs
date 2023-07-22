@@ -1,9 +1,10 @@
 use super::{Expr, ExprKind};
-use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeId, NameScopeKind};
+use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::expr::InfixOp;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{ArgDef, FuncDef};
 use crate::value::{BlockDef, ValueKind};
+use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
 impl Expr {
@@ -47,7 +48,7 @@ impl Expr {
                     Err(()) => Err(ASTError::no_def(*id, self.span, name_scope.clone())),
                 },
                 ValueKind::Lambda(args, expr) => {
-                    let lambda_id = NameScopeId::new_rand();
+                    let lambda_id = UID::new_lambda_id();
 
                     // TODO: `name_scope.push_names` after `ty.resolve_names`?
                     // -> dependent types?
@@ -132,9 +133,9 @@ impl Expr {
 
     pub fn get_all_foreign_names(
         &self,
-        curr_func_id: NameScopeId,
+        curr_func_id: UID,
         buffer: &mut HashSet<(InternedString, NameOrigin)>,
-        curr_blocks: &mut Vec<NameScopeId>,
+        curr_blocks: &mut Vec<UID>,
     ) {
         match &self.kind {
             ExprKind::Value(v) => match v {

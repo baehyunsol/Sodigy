@@ -14,7 +14,7 @@ mod walker;
 mod tests;
 
 pub use err::ASTError;
-pub use name_resolve::{NameOrigin, NameScope, NameScopeId, NameScopeKind};
+pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
 
 // It represents a single file.
 // It doesn't have any data from other files, meaning that

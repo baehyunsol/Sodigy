@@ -1,10 +1,11 @@
-use crate::ast::{NameOrigin, NameScopeId};
+use crate::ast::NameOrigin;
 use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::ArgDef;
 use crate::token::{OpToken, TokenKind};
 use hmath::{BigInt, Ratio};
+use sdg_uid::UID;
 
 #[derive(Clone)]
 pub enum ValueKind {
@@ -29,7 +30,7 @@ pub enum ValueKind {
     Block {
         defs: Vec<BlockDef>,
         value: Box<Expr>,
-        id: NameScopeId,
+        id: UID,
     },
 }
 

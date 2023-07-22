@@ -1,4 +1,4 @@
-use super::super::{AST, ASTError, NameOrigin, NameScopeId};
+use super::super::{AST, ASTError, NameOrigin};
 use crate::err::ParamType;
 use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
@@ -6,6 +6,7 @@ use crate::span::Span;
 use crate::stmt::ArgDef;
 use crate::value::{BlockDef, ValueKind};
 use crate::warning::SodigyWarning;
+use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
 /*
@@ -188,7 +189,7 @@ impl ExprKind {
 // HashMap<K, Vec<K>>, where K is a name of a local-def
 // Vec<K> stores usage of the key.
 // if hash_map[foo] = [bar, bar, InternedString::dummy()], that means `foo` is used in `bar` twice and in the main value once
-fn get_dep_graph(defs: &Vec<BlockDef>, value: &Box<Expr>, id: NameScopeId) -> HashMap<InternedString, Vec<InternedString>> {
+fn get_dep_graph(defs: &Vec<BlockDef>, value: &Box<Expr>, id: UID) -> HashMap<InternedString, Vec<InternedString>> {
     let mut result = HashMap::with_capacity(defs.len());
 
     for BlockDef { name: name1, .. } in defs.iter() {
@@ -216,7 +217,7 @@ fn get_dep_graph(defs: &Vec<BlockDef>, value: &Box<Expr>, id: NameScopeId) -> Ha
     result
 }
 
-fn count_occurrence(expr: &Expr, name: InternedString, block_id: NameScopeId, count: &mut usize) {
+fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mut usize) {
     match &expr.kind {
         ExprKind::Value(v) => match v {
             ValueKind::Identifier(name_, NameOrigin::BlockDef(id)) if *name_ == name && *id == block_id => {
@@ -274,7 +275,7 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: NameScopeId, co
     }
 }
 
-fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: InternedString, block_id: NameScopeId) {
+fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: InternedString, block_id: UID) {
     match &mut haystack.kind {
         ExprKind::Value(v) => match v {
             ValueKind::Identifier(name, NameOrigin::BlockDef(id_)) if *name == name_to_replace && *id_ == block_id => {

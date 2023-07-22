@@ -1,11 +1,12 @@
 use super::{ArgDef, Decorator};
-use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeId, NameScopeKind};
+use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::warning::SodigyWarning;
 use sdg_hash::SdgHash;
+use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
 pub struct FuncDef {
@@ -26,7 +27,7 @@ pub struct FuncDef {
 
     is_anonymous: bool,
 
-    pub id: NameScopeId,
+    pub id: UID,
 }
 
 impl FuncDef {
@@ -46,7 +47,7 @@ impl FuncDef {
             span,
             is_anonymous: false,
             decorators: vec![],  // filled later
-            id: NameScopeId::new_rand(),
+            id: UID::new_func_id(),
         }
     }
 
@@ -54,7 +55,7 @@ impl FuncDef {
         args: Vec<ArgDef>,
         ret_val: Expr,
         span: Span,
-        id: NameScopeId,
+        id: UID,
         session: &mut LocalParseSession,
     ) -> Self {
         let lambda_func_name = format!("@@LAMBDA__{}", span.sdg_hash().to_string());
