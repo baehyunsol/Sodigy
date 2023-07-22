@@ -2,7 +2,8 @@ use super::{Expr, ExprKind};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::expr::InfixOp;
 use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::{ArgDef, FuncDef};
+use crate::span::Span;
+use crate::stmt::{ArgDef, FuncDef, FuncKind};
 use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
@@ -63,7 +64,7 @@ impl Expr {
                     expr.resolve_names(name_scope, lambda_defs, session, used_names)?;
                     name_scope.pop_names();
 
-                    let lambda_def = FuncDef::create_anonymous_function(
+                    let mut lambda_def = FuncDef::create_anonymous_function(
                         args.clone(),
                         *expr.clone(),
                         self.span,
@@ -72,14 +73,33 @@ impl Expr {
                     );
 
                     if let Some(names) = lambda_def.get_all_foreign_names() {
-                        todo!();
+                        self.kind = ExprKind::Call(
+                            Box::new(Expr {
+                                kind: ExprKind::Value(
+                                    ValueKind::Identifier(lambda_def.name, NameOrigin::Local)
+                                ),
+                                span: self.span,
+                            }),
+                            names.into_iter().map(
+                                |name| Expr {
+                                    kind: ExprKind::Value(name.into()),
+                                    span: Span::dummy(),
+                                }
+                            ).collect()
+                        );
+
+                        // TODO: we have to record the result of `lambda_def.get_all_foreign_names` inside `lambda_def`
+
+                        lambda_def.kind = FuncKind::Closure;
+                    }
+
+                    else {
+                        self.kind = ExprKind::Value(
+                            ValueKind::Identifier(lambda_def.name, NameOrigin::Local)
+                        );
                     }
 
                     session.add_warnings(lambda_def.get_unused_names(used_names));
-
-                    self.kind = ExprKind::Value(
-                        ValueKind::Identifier(lambda_def.name, NameOrigin::Local)
-                    );
 
                     // No hash collision between programmer-defined names and newly generated name: the new ones have special characters
                     // But there may be collisions between newly generated ones -> TODO: what then?

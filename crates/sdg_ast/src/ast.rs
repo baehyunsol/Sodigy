@@ -1,5 +1,5 @@
 use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::{FuncDef, Stmt, StmtKind, Use};
+use crate::stmt::{FuncDef, Stmt, Use};
 use std::collections::HashMap;
 
 mod endec;
@@ -36,9 +36,9 @@ impl AST {
 
         for stmt in stmts.into_iter() {
 
-            match stmt.kind {
-                StmtKind::Decorator(d) => { curr_decos.push(d); }
-                StmtKind::Def(mut f) => {
+            match stmt {
+                Stmt::Decorator(d) => { curr_decos.push(d); }
+                Stmt::Def(mut f) => {
                     f.decorators = curr_decos;
                     curr_decos = vec![];
 
@@ -61,7 +61,7 @@ impl AST {
                     }
 
                 }
-                StmtKind::Use(u) => {
+                Stmt::Use(u) => {
 
                     if !curr_decos.is_empty() {
                         return Err(ASTError::deco(u.span));

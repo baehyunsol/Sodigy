@@ -73,6 +73,12 @@ impl ValueKind {
     }
 }
 
+impl From<(InternedString, NameOrigin)> for ValueKind {
+    fn from((name, origin): (InternedString, NameOrigin)) -> Self {
+        ValueKind::Identifier(name, origin)
+    }
+}
+
 #[derive(Clone)]
 pub struct BlockDef {
     pub(crate) name: InternedString,

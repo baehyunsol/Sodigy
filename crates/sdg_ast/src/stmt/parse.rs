@@ -1,4 +1,4 @@
-use super::{Decorator, FuncDef, Stmt, StmtKind, Use, use_case_to_tokens};
+use super::{Decorator, FuncDef, Stmt, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
 use crate::session::InternedString;
@@ -36,10 +36,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                     ));
                 }
 
-                Ok(Stmt {
-                    kind: StmtKind::Use(cases[0].clone()),
-                    span: curr_span,
-                })
+                Ok(Stmt::Use(cases[0].clone()))
             }
             Err(e) => {
                 return Err(e.set_span_of_eof(curr_span));
@@ -75,15 +72,12 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             None => (vec![], true)
         };
 
-        Ok(Stmt {
-            kind: StmtKind::Decorator(Decorator {
-                names,
-                args,
-                no_args,
-                span: curr_span,
-            }),
+        Ok(Stmt::Decorator(Decorator {
+            names,
+            args,
+            no_args,
             span: curr_span,
-        })
+        }))
     } else if tokens.consume(TokenKind::keyword_def()) {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
@@ -141,13 +135,10 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             .consume_token_or_error(TokenKind::semi_colon())
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-        Ok(Stmt {
-            kind: StmtKind::Def(FuncDef::new(
-                name, args, is_const,
-                ret_type, ret_val, curr_span,
-            )),
-            span: curr_span,
-        })
+        Ok(Stmt::Def(FuncDef::new(
+            name, args, is_const,
+            ret_type, ret_val, curr_span,
+        )))
     } else {
         let top_token = tokens.step().expect("Internal Compiler Error C9A5B07DC36");
 

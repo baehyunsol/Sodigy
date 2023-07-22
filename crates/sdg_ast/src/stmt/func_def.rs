@@ -21,11 +21,7 @@ pub struct FuncDef {
 
     pub ret_val: Expr,
 
-    // constants are defined without args 
-    // 0-arg functions and constants are different: `def PI` vs `def GET_PI()`
-    is_const: bool,
-
-    is_anonymous: bool,
+    pub(crate) kind: FuncKind,
 
     pub id: UID,
 }
@@ -40,12 +36,18 @@ impl FuncDef {
         ret_val: Expr,
         span: Span,
     ) -> Self {
+        let kind = if is_const {
+            FuncKind::Const
+        } else {
+            FuncKind::Normal
+        };
+
         FuncDef {
-            name, args, is_const,
+            name, args,
             ret_type: Some(ret_type),
             ret_val,
             span,
-            is_anonymous: false,
+            kind,
             decorators: vec![],  // filled later
             id: UID::new_func_id(),
         }
@@ -64,9 +66,17 @@ impl FuncDef {
             args, ret_val, span, id,
             decorators: vec![],
             ret_type: None,  // has to be inferred later
-            is_const: false,
-            is_anonymous: true,
+            kind: FuncKind::Lambda,  // if it's a closure, it'll be handled later
             name: session.intern_string(lambda_func_name.into()),
+        }
+    }
+
+    fn is_anonymous(&self) -> bool {
+        match self.kind {
+            FuncKind::Closure | FuncKind::Lambda => true,
+            FuncKind::Normal | FuncKind::Const
+            | FuncKind::Enum | FuncKind::Struct
+            | FuncKind::EnumVariant => false,
         }
     }
 
@@ -110,7 +120,7 @@ impl FuncDef {
     // It returns Some(_) only when the result is non-empty
     // That's for easier pattern destructuring
     pub fn get_all_foreign_names(&self) -> Option<HashSet<(InternedString, NameOrigin)>> {
-        if !self.is_anonymous {
+        if !self.is_anonymous() {
             None
         } else {
             let mut result = HashSet::new();
@@ -137,7 +147,7 @@ impl FuncDef {
         let mut result = vec![];
         let self_name_origin = NameOrigin::FuncArg(self.id);
 
-        let param_type = if self.is_anonymous {
+        let param_type = if self.is_anonymous() {
             ParamType::LambdaParam
         } else {
             ParamType::FuncParam
@@ -151,4 +161,23 @@ impl FuncDef {
 
         result
     }
+}
+
+pub enum FuncKind {
+
+    // def foo(n: Int): Int = n + 1;
+    Normal,
+
+    // def PI: Number = 3.14159;
+    Const,
+
+    // \{x, y, x + y}
+    Lambda,
+
+    // \{x, x + n}
+    Closure,
+
+    Enum,
+    EnumVariant,
+    Struct,
 }
