@@ -17,22 +17,22 @@ pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
 }
 
 pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
-    assert!(!tokens.is_eof(), "Internal Compiler Error FB4375E");
+    assert!(!tokens.is_eof(), "Internal Compiler Error 9C5927A4A12");
 
     let curr_span = tokens
         .peek_curr_span()
-        .expect("Internal Compiler Error E22AC92");
+        .expect("Internal Compiler Error 6A3B6B7A132");
 
     if tokens.consume(TokenKind::keyword_use()) {
         // one `use` may generate multiple `Stmt`s, but the return type doesn't allow that
         // so it may modify `tokens` to add `use` cases it found
         match parse_use(tokens, curr_span, true) {
             Ok(mut cases) => {
-                assert!(cases.len() > 0, "Internal Compiler Error FF61AD7");
+                assert!(cases.len() > 0, "Internal Compiler Error 60A138A38C9");
 
                 while cases.len() > 1 {
                     tokens.append(use_case_to_tokens(
-                        cases.pop().expect("Internal Compiler Error 4151602"),
+                        cases.pop().expect("Internal Compiler Error ABD09371688"),
                     ));
                 }
 
@@ -149,7 +149,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             span: curr_span,
         })
     } else {
-        let top_token = tokens.step().expect("Internal Compiler Error 54831A5");
+        let top_token = tokens.step().expect("Internal Compiler Error C9A5B07DC36");
 
         Err(ParseError::tok(
             top_token.kind.clone(),
@@ -255,11 +255,11 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {
 
                         if after_brace {
-                            assert_eq!(curr_path.len(), 0, "Internal Compiler Error 9408C5B");
+                            assert_eq!(curr_path.len(), 0, "Internal Compiler Error D10499A6C75");
                         }
 
                         else {
-                            let alias = *curr_path.last().expect("Internal Compiler Error 0838D13");
+                            let alias = *curr_path.last().expect("Internal Compiler Error A57ABC5F7D7");
                             curr_paths.push(Use::new(curr_path, alias, span));
     
                             curr_path = vec![];
@@ -271,7 +271,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), span: colon_span }) => {
 
                         if curr_path.len() > 0 {
-                            let alias = *curr_path.last().expect("Internal Compiler Error 034DC0D");
+                            let alias = *curr_path.last().expect("Internal Compiler Error 52A9A947304");
                             curr_paths.push(Use::new(curr_path, alias, span));
                         }
 
@@ -319,7 +319,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         else {
 
                             if curr_path.len() > 0 {
-                                let alias = *curr_path.last().expect("Internal Compiler Error 9B2EFF5");
+                                let alias = *curr_path.last().expect("Internal Compiler Error 42A7CAA8F86");
                                 curr_paths.push(Use::new(curr_path, alias, span));
                             }
 

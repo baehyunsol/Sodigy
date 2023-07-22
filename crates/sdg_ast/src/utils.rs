@@ -34,7 +34,7 @@ pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
     };
 
     if let Ok(s) = std::str::from_utf8(&s[ind..(ind + len)]) {
-        Ok(s.chars().nth(0).expect("Internal Compiler Error B0DC26D"))
+        Ok(s.chars().nth(0).expect("Internal Compiler Error 039A331EDA3"))
     }
 
     else {
@@ -44,7 +44,7 @@ pub fn into_char(s: &[u8], ind: usize) -> Result<char, ParseError> {
 }
 
 fn assemble_char(cs: Vec<u8>, ind: usize) -> Result<u32, ParseError> {
-    assert!(cs.len() > 0, "Internal Compiler Error 8211564");
+    assert!(cs.len() > 0, "Internal Compiler Error F5AB2B57A5E");
 
     if cs[0] < 192 {
         Err(ParseError::invalid_utf8_dummy_index(cs, ind))

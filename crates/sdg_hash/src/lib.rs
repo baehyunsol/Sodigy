@@ -40,7 +40,7 @@ impl SdgHashResult {
     }
 
     pub fn to_string(&self) -> String {
-        String::from_utf8(self.to_bytes()).expect("Internal Compiler Error 0CF2EF4")
+        String::from_utf8(self.to_bytes()).expect("Internal Compiler Error 732856577C3")
     }
 }
 

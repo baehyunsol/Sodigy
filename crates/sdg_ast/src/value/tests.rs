@@ -27,7 +27,7 @@ impl ValueKind {
             ValueKind::String(buf) => format!(
                 "{:?}",
                 v32_to_string(buf)
-                    .expect("Internal Compiler Error 552D806: {buf:?}"),
+                    .expect("Internal Compiler Error 5F6D16DDCB7: {buf:?}"),
             ),
             ValueKind::Bytes(b) => format!(
                 "Bytes({})",

@@ -35,14 +35,6 @@ pub enum ValueKind {
 }
 
 impl ValueKind {
-    pub fn is_identifier(&self) -> bool {
-        if let ValueKind::Identifier(_, _) = self {
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn get_first_token(&self) -> TokenKind {
         match self {
             ValueKind::Identifier(i, _) => TokenKind::Identifier(*i),
@@ -69,7 +61,7 @@ impl ValueKind {
             }
         } else {
             panic!(
-                "Internal Compiler Error 95C0592: {}",
+                "Internal Compiler Error 32D704D714E: {}",
                 self.render_err()
             );
         }

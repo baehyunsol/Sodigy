@@ -20,7 +20,7 @@ impl TokenList {
     pub fn is_eof(&self) -> bool {
         assert!(
             self.cursor <= self.data.len(),
-            "Internal Compiler Error 9789F9F"
+            "Internal Compiler Error 2E10FE0E985"
         );
 
         self.cursor >= self.data.len()
@@ -365,7 +365,7 @@ impl TokenList {
                             Some(Err(e)) => {
                                 return Some(Err(e));
                             }
-                            None => unreachable!("Internal Compiler Error A453107"),
+                            None => unreachable!("Internal Compiler Error 438E6E8F21A"),
                         }
                     },
                     Some(Token {
@@ -394,7 +394,7 @@ impl TokenList {
                     }
                     None => {
                         return Some(Err(ParseError::eoe(
-                            else_span.expect("Internal Compiler Error 26CED6F"),
+                            else_span.expect("Internal Compiler Error A862F21BFAD"),
                             ExpectedToken::SpecificTokens(vec![
                                 TokenKind::keyword_if(),
                                 TokenKind::List(Delimiter::Brace, vec![]),

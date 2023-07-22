@@ -27,7 +27,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         expr.map_err(|e| e.set_span_of_eof(lhs_span))?
     } else if let Some(branch) = tokens.step_branch_expr() {
         if let Ok(Expr { kind, .. }) = &branch {
-            assert!(kind.is_branch(), "Internal Compiler Error 8CC1C78");
+            assert!(kind.is_branch(), "Internal Compiler Error 7DC70F8958E");
         }
 
         branch.map_err(|e| e.set_span_of_eof(lhs_span))?

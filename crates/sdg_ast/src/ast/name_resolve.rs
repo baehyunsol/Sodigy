@@ -133,7 +133,7 @@ impl NameScope {
     }
 
     pub fn pop_names(&mut self) {
-        self.name_stack.pop().expect("Internal Compiler Error 836C6C0");
+        self.name_stack.pop().expect("Internal Compiler Error 4FB22BF9906");
     }
 
     pub fn from_ast(ast: &AST) -> Self {

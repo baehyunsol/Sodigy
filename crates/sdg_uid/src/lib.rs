@@ -17,7 +17,7 @@ impl UID {
 
 }
 
-const ZERO: u128 = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0000;
-const BLOCK: u128  = 0x0000;
-const FUNC: u128   = 0x0001;
-const LAMBDA: u128 = 0x0002;
+const ZERO: u128 = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_F000;
+const BLOCK: u128  = 0x000;
+const FUNC: u128   = 0x001;
+const LAMBDA: u128 = 0x002;

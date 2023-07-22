@@ -18,13 +18,13 @@ pub struct ArgDef {
 
 // NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
-    assert!(!tokens.is_eof(), "Internal Compiler Error 7109BBF");
-    let span = tokens.peek_curr_span().expect("Internal Compiler Error 266A2FE");
+    assert!(!tokens.is_eof(), "Internal Compiler Error 07D37C4F06C");
+    let span = tokens.peek_curr_span().expect("Internal Compiler Error 485EC436A97");
 
     let name = match tokens.step_identifier_strict() {
         Ok(id) => id,
         Err(e) => {
-            assert!(!e.is_eoe(), "Internal Compiler Error 53A2FA7");
+            assert!(!e.is_eoe(), "Internal Compiler Error 4FB91C7A34A");
 
             return Err(e);
         }
@@ -36,7 +36,7 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
         let ty = match tokens.step_type() {
             Some(t) => Some(t?),
             None => {
-                return Err(ParseError::eoe(colon_span.expect("Internal Compiler Error 2CBC3AD"), ExpectedToken::AnyExpression));
+                return Err(ParseError::eoe(colon_span.expect("Internal Compiler Error 49830959A04"), ExpectedToken::AnyExpression));
             }
         };
 

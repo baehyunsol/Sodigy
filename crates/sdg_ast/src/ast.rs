@@ -44,14 +44,14 @@ impl AST {
 
                     if ast.defs.contains_key(&f.name) {
                         let first_def = ast.defs.get(&f.name).expect(
-                            "Internal Compiler Error 3E1BDDB"
+                            "Internal Compiler Error 32C4175D312"
                         ).span;
                         return Err(ASTError::multi_def(f.name, first_def, f.span));
                     }
 
                     else if ast.uses.contains_key(&f.name) {
                         let first_def = ast.uses.get(&f.name).expect(
-                            "Internal Compiler Error 0A7DF53"
+                            "Internal Compiler Error 141662FE076"
                         ).span;
                         return Err(ASTError::multi_def(f.name, first_def, f.span));
                     }
@@ -69,14 +69,14 @@ impl AST {
 
                     if ast.defs.contains_key(&u.alias) {
                         let first_def = ast.defs.get(&u.alias).expect(
-                            "Internal Compiler Error 12D24D5"
+                            "Internal Compiler Error DD2D5DD058A"
                         ).span;
                         return Err(ASTError::multi_def(u.alias, first_def, u.span));
                     }
 
                     else if ast.uses.contains_key(&u.alias) {
                         let first_def = ast.uses.get(&u.alias).expect(
-                            "Internal Compiler Error 035B6A1"
+                            "Internal Compiler Error 56D7C654ADC"
                         ).span;
                         return Err(ASTError::multi_def(u.alias, first_def, u.span));
                     }

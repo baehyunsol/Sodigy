@@ -51,7 +51,7 @@ impl ExprKind {
                 },
                 ValueKind::Lambda(_, _) => {
                     // call this function after all the lambdas are resolved
-                    panic!("Internal Compiler Error EB9467C");
+                    panic!("Internal Compiler Error 0E60BE5B42D");
                 }
                 ValueKind::Block { defs, value, .. } => {
                     for BlockDef { value, .. } in defs.iter() {

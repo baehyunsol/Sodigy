@@ -18,7 +18,7 @@ impl From<&OpToken> for PrefixOp {
         match t {
             OpToken::Sub => PrefixOp::Neg,
             OpToken::Not => PrefixOp::Not,
-            _ => unreachable!("Internal Compiler Error D71F043: {t:?}"),
+            _ => unreachable!("Internal Compiler Error 94FD57BFF22: {t:?}"),
         }
     }
 }
@@ -91,7 +91,7 @@ impl From<&OpToken> for InfixOp {
             OpToken::Dot => InfixOp::Path,
             OpToken::Concat => InfixOp::Concat,
             OpToken::DotDot => InfixOp::Range,
-            _ => unreachable!("Internal Compiler Error ED223AA: {t:?}"),
+            _ => unreachable!("Internal Compiler Error 01EC27D4304: {t:?}"),
         }
     }
 }
@@ -105,7 +105,7 @@ impl From<&OpToken> for PostfixOp {
     fn from(t: &OpToken) -> PostfixOp {
         match t {
             OpToken::DotDot => PostfixOp::Range,
-            _ => unreachable!("Internal Compiler Error 5A4D194: {t:?}"),
+            _ => unreachable!("Internal Compiler Error 0BA3488EA42: {t:?}"),
         }
     }
 }

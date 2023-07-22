@@ -178,7 +178,7 @@ fn cut_char(line: &[u8], length: usize) -> Vec<u8> {
             if *c < 128 {
                 break;
             } else if *c >= 192 {
-                result.pop().expect("Internal Compiler Error AE41736");
+                result.pop().expect("Internal Compiler Error A79FBD9EF92");
                 break;
             }
         }
@@ -193,19 +193,19 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
     }
 
     let line_no_len = if lines[0][0] == 0xe2 {  // the first byte of `│` and `▸` are the same...
-        assert_eq!(lines[0][4], b'0', "Internal Compiler Error 00CDDBE");
+        assert_eq!(lines[0][4], b'0', "Internal Compiler Error 5A798E8FF9D");
         4
     } else {
         lines[0]
             .iter()
             .position(|&c| c == 0xe2)  // the first byte of `│`
-            .expect("Internal Compiler Error 538DC83")
+            .expect("Internal Compiler Error B1E7DE3656E")
     };
 
     let highlight_line_index = lines
         .iter()
         .position(|line| line[0] == 0xe2)
-        .expect("Internal Compiler Error 2B1BA68");  // the first byte of `▸`
+        .expect("Internal Compiler Error B8D98CD8735");  // the first byte of `▸`
 
     let upper: Vec<u8> = format!("{}│{}▾", " ".repeat(line_no_len), " ".repeat(col))
         .as_bytes()

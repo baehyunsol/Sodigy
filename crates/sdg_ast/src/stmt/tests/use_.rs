@@ -28,7 +28,7 @@ fn test_parse_use() {
         let mut tokens = TokenList::from_vec(tokens);
 
         // skip `use`
-        tokens.step().expect("Internal Compiler Error 2315E55");
+        tokens.step().expect("Internal Compiler Error 7EBCD877039");
 
         let uses = match parse_use(&mut tokens, Span::first(), true) {
             Ok(u) => u,
@@ -54,7 +54,7 @@ fn test_parse_use() {
         let mut tokens = TokenList::from_vec(tokens);
 
         // skip `use`
-        tokens.step().expect("Internal Compiler Error B01EA26");
+        tokens.step().expect("Internal Compiler Error 6480C2EDCCB");
 
         match parse_use(&mut tokens, Span::first(), true) {
             Ok(u) => {

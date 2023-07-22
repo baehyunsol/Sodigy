@@ -45,7 +45,7 @@ pub fn parse_expr_exhaustive(tokens: &mut TokenList) -> Result<Expr, ParseError>
     match parse_expr(tokens, 0) {
         Ok(e) if tokens.is_eof() => Ok(e),
         Ok(_) => {
-            let Token { kind, span } = tokens.step().expect("Internal Compiler Error 72A64FD");
+            let Token { kind, span } = tokens.step().expect("Internal Compiler Error 3B4CDE2C457");
 
             Err(ParseError::tok(kind.clone(), *span, ExpectedToken::Nothing))
         }

@@ -123,7 +123,7 @@ impl ExprKind {
                         defs.swap_remove(
                             defs.iter().position(
                                 |BlockDef { name, .. }| name == never_used_name
-                            ).expect("Internal Compiler Error EC6848E")
+                            ).expect("Internal Compiler Error 3535BE1925D")
                         );
                     }
 
@@ -141,7 +141,7 @@ impl ExprKind {
                     for name_to_subs in once_used_or_simple.iter() {
                         let ind = defs.iter().position(
                             |BlockDef { name, .. }| name == name_to_subs
-                        ).expect("Internal Compiler Error B3154ED");
+                        ).expect("Internal Compiler Error E7C812E19B6");
                         let BlockDef { value: value_to_subs, .. } = defs[ind].clone();
 
                         for BlockDef { value, .. } in defs.iter_mut() {
@@ -362,7 +362,7 @@ fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<In
                 continue;
             }
 
-            for succ in graph.get(&n).expect("Internal Compiler Error 9CF067E").iter() {
+            for succ in graph.get(&n).expect("Internal Compiler Error 234AA43FC08").iter() {
                 if !visited.contains(succ) {
                     visited.insert(*node);
                     stack.push(*succ);
@@ -386,5 +386,5 @@ fn get_span_by_name(name: InternedString, defs: &Vec<BlockDef>) -> Span {
             return *span;
         }
     }
-    panic!("Internal Compiler Error 18F4B03");
+    panic!("Internal Compiler Error D679C5FEB5E");
 }

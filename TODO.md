@@ -19,7 +19,7 @@ def foo(a: BAR, b: BAZ): Result(Ty) = func(
 );
 ```
 
-TODO: study Monad
+should study Monad
 
 - `f(state, val) -> (new_state, result)`
   - don't want to destrut every time

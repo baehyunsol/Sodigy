@@ -119,7 +119,7 @@ fn lex_token(
 
             // `1.2..` is valid (syntactically)
             if dot_count == 2 && buffer.last() == Some(&b'.') {
-                buffer.pop().expect("Internal Compiler Error 6E339A1");
+                buffer.pop().expect("Internal Compiler Error F19F5A0773E");
             }
 
             let string = bytes_to_string(&buffer);
@@ -136,7 +136,7 @@ fn lex_token(
                     ConversionError::NoData
                     | ConversionError::UnexpectedEnd => ParseError::eof(curr_span),
                     ConversionError::InvalidChar(c) => ParseError::ch(c, curr_span),
-                    _ => unreachable!("Internal Compiler Error 89CFCAA"),
+                    _ => unreachable!("Internal Compiler Error A536A225023"),
                 }),
             }
         }
@@ -483,7 +483,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
             ))
         }
     } else {
-        unreachable!("Internal Compiler Error 71B2472: {:?}", s[ind])
+        unreachable!("Internal Compiler Error D8D928EFE31: {:?}", s[ind])
     }
 }
 
@@ -579,7 +579,7 @@ impl SkipWhiteSpaceCommentResult {
                 span.set_index(*index),
             ),
             SkipWhiteSpaceCommentResult::Eof => unreachable!(
-                "Internal Compiler Error EAA88B9"
+                "Internal Compiler Error BB890D04923"
             ),
         }
     }
@@ -587,7 +587,7 @@ impl SkipWhiteSpaceCommentResult {
 
 fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
     // t.span points to `"` of `b"`, but it should point to `b`.
-    let span = t.span.backward(1).expect("Internal Compiler Error FEDF1CB");
+    let span = t.span.backward(1).expect("Internal Compiler Error FAEDCCA5948");
 
     Ok(Token {
         kind: TokenKind::Bytes(v32_to_bytes(t.kind.unwrap_string())),
@@ -597,7 +597,7 @@ fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
 
 fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Token, ParseError> {
     // t.span points to `"` of `f"`, but it should point to `f`.
-    let span = t.span.backward(1).expect("Internal Compiler Error C30F25D");
+    let span = t.span.backward(1).expect("Internal Compiler Error 953FBC78CED");
 
     let string = t.kind.unwrap_string();
     let mut curr_state = FormatStringParseState::String;

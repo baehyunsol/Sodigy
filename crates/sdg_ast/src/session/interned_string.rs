@@ -10,7 +10,7 @@ use crate::utils::bytes_to_string;
  *    indices of builtins do not change across compilations, but it might change when the Sodigy version changes.
  *    InternedString is just name, it has nothing to do with its actual meaning.
  * 0x100_000 ~ 0x100_000 + keywords.len(): keywords
- * others: string literals from the programmer
+ * others: identifiers
  */
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct InternedString(u32);
@@ -35,7 +35,7 @@ impl InternedString {
 
 impl From<usize> for InternedString {
     fn from(n: usize) -> Self {
-        assert!(n as u32 != DUMMY_INDEX, "Internal Compiler Error B2CC601");
+        assert!(n as u32 != DUMMY_INDEX, "Internal Compiler Error 8036B4B4D50");
 
         InternedString(n as u32)
     }

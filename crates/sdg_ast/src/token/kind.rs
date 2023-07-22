@@ -37,7 +37,7 @@ impl TokenKind {
             *s
         } else {
             panic!(
-                "Internal Compiler Error 0E82A87: {}",
+                "Internal Compiler Error FD9DC4CD703: {}",
                 self.render_err(&LocalParseSession::dummy()),
             )
         }
@@ -56,7 +56,7 @@ impl TokenKind {
             v
         } else {
             panic!(
-                "Internal Compiler Error 64B3507: {}",
+                "Internal Compiler Error E58B67B9AFA: {}",
                 self.render_err(&LocalParseSession::dummy()),
             )
         }

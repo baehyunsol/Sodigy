@@ -148,7 +148,7 @@ impl Expr {
                     },
                     NameOrigin::NotKnownYet => {
                         // All the name has to be already resolved
-                        panic!("Internal Compiler Error DE00B4E");
+                        panic!("Internal Compiler Error D0D2C11F711");
                     },
                     _ => {}
                 },
@@ -165,7 +165,7 @@ impl Expr {
                 },
                 ValueKind::Lambda(_, _) => {
                     // Inner lambdas have to be resolved before the outer ones, if the lambdas are nested
-                    panic!("Internal Compiler Error CB875E2");
+                    panic!("Internal Compiler Error 13D43ACBD32");
                 },
                 ValueKind::Block {
                     defs, id, ..
@@ -176,7 +176,7 @@ impl Expr {
                         value.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
                     }
 
-                    curr_blocks.pop().expect("Internal Compiler Error F15396B");
+                    curr_blocks.pop().expect("Internal Compiler Error 21D5A6DAABF");
                 }
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => {

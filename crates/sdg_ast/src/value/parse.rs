@@ -110,7 +110,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
                     .map_err(|e| e.set_span_of_eof(*span))
             }
-            Delimiter::Parenthesis => unreachable!("Internal Compiler Error 2C73648"), // This must be handled by `parse_expr`
+            Delimiter::Parenthesis => unreachable!("Internal Compiler Error 35C353D8706"), // This must be handled by `parse_expr`
         },
         Some(Token { span, kind }) => Err(ParseError::tok(
             kind.clone(),
@@ -133,7 +133,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         Err(ParseError::eoe_msg(
             block_tokens
                 .last_token()
-                .expect("Internal Compiler Error B13FA79")
+                .expect("Internal Compiler Error 36756872BD9")
                 .span,
             ExpectedToken::AnyExpression,
             "An expression must come at the end of a block.".to_string(),
@@ -141,7 +141,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
     } else {
         let first_span = block_tokens
             .peek_curr_span()
-            .expect("Internal Compiler Error 64B8455");
+            .expect("Internal Compiler Error 5450834BC6F");
         let defs_count =
             block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
 
@@ -151,7 +151,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         for _ in 0..defs_count {
             let curr_span = block_tokens
                 .peek_curr_span()
-                .expect("Internal Compiler Error F299389");
+                .expect("Internal Compiler Error A455FA3AFC7");
 
             // TODO: allow pattern matchings for assignments
             let name = block_tokens.step_identifier_strict()?;
@@ -201,7 +201,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             TokenKind::comma(),
             tokens
                 .last_token()
-                .expect("Internal Compiler Error C929E72")
+                .expect("Internal Compiler Error 0A486D27A08")
                 .span,
             ExpectedToken::Nothing,
             "Trailing commas in lambda definition is not allowed.".to_string(),
@@ -209,7 +209,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     } else {
         let first_span = tokens
             .peek_curr_span()
-            .expect("Internal Compiler Error 245BA3F");
+            .expect("Internal Compiler Error 92BC0C79DD6");
         let args_count =
             tokens.count_tokens_non_recursive(TokenKind::comma());
 
@@ -219,7 +219,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         for _ in 0..args_count {
             let curr_span = tokens
                 .peek_curr_span()
-                .expect("Internal Compiler Error F299389");
+                .expect("Internal Compiler Error EF60F059587");
 
             let arg = parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?;
 

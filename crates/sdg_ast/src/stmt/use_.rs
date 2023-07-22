@@ -17,7 +17,7 @@ pub struct Use {
 
 impl Use {
     pub fn new(path: Vec<InternedString>, alias: InternedString, span: Span) -> Self {
-        assert!(!path.is_empty(), "Internal Compiler Error C564E4A");
+        assert!(!path.is_empty(), "Internal Compiler Error C992CA92C26");
 
         Use {
             path: ModulePath::from_names(path),
@@ -123,7 +123,7 @@ macro_rules! new_path {
 
 // best optimization I can think of
 fn to_path_impl(path: &[InternedString]) -> ExprKind {
-    assert!(!path.is_empty(), "Internal Compiler Error AAC0E14");
+    assert!(!path.is_empty(), "Internal Compiler Error DD4626E9B3A");
 
     if path.len() < 4 {
 
