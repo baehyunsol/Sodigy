@@ -153,8 +153,12 @@ impl ExprKind {
                         defs.swap_remove(ind);
                     }
 
-                    for BlockDef { value, .. } in defs.iter_mut() {
+                    for BlockDef { value, ty, .. } in defs.iter_mut() {
                         value.clean_up_blocks(session)?;
+
+                        if let Some(ty) = ty {
+                            ty.clean_up_blocks(session)?;
+                        }
                     }
 
                     value.clean_up_blocks(session)?;
@@ -195,9 +199,13 @@ fn get_dep_graph(defs: &Vec<BlockDef>, value: &Box<Expr>, id: UID) -> HashMap<In
     for BlockDef { name: name1, .. } in defs.iter() {
         let mut occurrence = vec![];
 
-        for BlockDef { name: name2, value, .. } in defs.iter() {
+        for BlockDef { name: name2, value, ty, .. } in defs.iter() {
             let mut count = 0;
             count_occurrence(value, *name1, id, &mut count);
+
+            if let Some(ty) = ty {
+                count_occurrence(ty, *name1, id, &mut count);
+            }
 
             for _ in 0..count {
                 occurrence.push(*name2);
@@ -248,8 +256,12 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
             ValueKind::Block { defs, value, .. } => {
                 count_occurrence(value, name, block_id, count);
 
-                for BlockDef { value, .. } in defs.iter() {
+                for BlockDef { value, ty, .. } in defs.iter() {
                     count_occurrence(value, name, block_id, count);
+
+                    if let Some(ty) = ty {
+                        count_occurrence(ty, name, block_id, count);
+                    }
                 }
             }
         },
@@ -307,8 +319,12 @@ fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: Int
             ValueKind::Block { defs, value, .. } => {
                 substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
 
-                for BlockDef { value, .. } in defs.iter_mut() {
+                for BlockDef { value, ty, .. } in defs.iter_mut() {
                     substitute_local_def(value, needle, name_to_replace, block_id);
+
+                    if let Some(ty) = ty {
+                        substitute_local_def(ty, needle, name_to_replace, block_id);
+                    }
                 }
             }
         },

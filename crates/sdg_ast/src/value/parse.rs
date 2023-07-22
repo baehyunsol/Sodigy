@@ -154,11 +154,22 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .expect("Internal Compiler Error A455FA3AFC7");
 
             // TODO: allow pattern matchings for assignments
+            // -> Don't change the shape of `BlockDef`,
+            //    Just convert a pattern into 1 or more `BlockDef`s in this function
+            // -> ex: `Person { age, name } = foo();`
+            //    into `_tmp: Person = foo(); age = _tmp.age; name = _tmp.name;`
             let name = block_tokens.step_identifier_strict()?;
 
             if !names.insert(name) {
                 return Err(ParseError::multi_def(name, curr_span, ParamType::BlockDef));
             }
+
+            // type annotation is optional
+            let ty = if block_tokens.consume(TokenKind::colon()) {
+                Some(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(curr_span))?)
+            } else {
+                None
+            };
 
             block_tokens
                 .consume_token_or_error(TokenKind::assign())
@@ -170,7 +181,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .consume_token_or_error(TokenKind::semi_colon())
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-            defs.push(BlockDef { name, value: expr, span: curr_span });
+            defs.push(BlockDef { name, ty, value: expr, span: curr_span });
         }
 
         let value =

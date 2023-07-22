@@ -116,12 +116,12 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         (
             "b\"ABC 한글 DEF\"",
             "Bytes(65,66,67,32,237,149,156,234,184,128,32,68,69,70)",
-            0
+            0,
         ),
         (
             "b\'ABC 한글 DEF\'",
             "Bytes(65,66,67,32,237,149,156,234,184,128,32,68,69,70)",
-            0
+            0,
         ),
         ("f\"{a} + {b} = {a + b}\"", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
         ("f\'{a} + {b} = {a + b}\'", "Format(a,\" + \",b,\" = \",Add(a,b))", 0),
@@ -133,6 +133,11 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("f\"\"", "\"\"", 0),
         ("b\"\"", "Bytes()", 0),
         ("me $age me.age + 1", "ModifyField(age)(me,Add(Path(me,age),1))", 3),
+        (
+            "{a: Int = 3; b: String = \"abc\"; a + b} # Yeah, it's a type error, but this test is not for that",
+            "{a:Int=3;b:String=\"abc\";Add(a,b)}",
+            0,
+        ),
     ];
 
     result

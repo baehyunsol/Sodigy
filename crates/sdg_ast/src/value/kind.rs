@@ -82,6 +82,7 @@ impl From<(InternedString, NameOrigin)> for ValueKind {
 #[derive(Clone)]
 pub struct BlockDef {
     pub(crate) name: InternedString,
+    pub(crate) ty: Option<Expr>,
     pub(crate) value: Expr,
     pub(crate) span: Span,
 }

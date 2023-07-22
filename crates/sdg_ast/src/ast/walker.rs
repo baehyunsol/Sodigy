@@ -54,8 +54,12 @@ impl ExprKind {
                     panic!("Internal Compiler Error 0E60BE5B42D");
                 }
                 ValueKind::Block { defs, value, .. } => {
-                    for BlockDef { value, .. } in defs.iter() {
+                    for BlockDef { value, ty, .. } in defs.iter() {
                         value.kind.id_walker(f);
+
+                        if let Some(ty) = ty {
+                            ty.kind.id_walker(f);
+                        }
                     }
 
                     value.kind.id_walker(f);

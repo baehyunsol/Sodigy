@@ -72,10 +72,15 @@ impl ValueKind {
             ValueKind::Block { defs, value, .. } => {
                 let defs = defs
                     .iter()
-                    .map(|BlockDef{ name, value, .. }| {
+                    .map(|BlockDef{ name, ty, value, .. }| {
                         format!(
-                            "{}={};",
+                            "{}{}={};",
                             bytes_to_string(&session.unintern_string(*name)),
+                            if let Some(ty) = ty {
+                                format!(":{}", ty.to_string(session))
+                            } else {
+                                String::new()
+                            },
                             value.to_string(session),
                         )
                     })

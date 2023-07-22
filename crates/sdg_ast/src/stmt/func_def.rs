@@ -110,7 +110,7 @@ impl FuncDef {
             }
         }
 
-        session.add_warnings(self.get_unused_names(&used_args));
+        session.add_warnings(self.get_unused_name_warnings(&used_args));
 
         name_scope.pop_names();
 
@@ -143,7 +143,7 @@ impl FuncDef {
         }
     }
 
-    pub fn get_unused_names(&self, used_names: &HashSet<(InternedString, NameOrigin)>) -> Vec<SodigyWarning> {
+    pub fn get_unused_name_warnings(&self, used_names: &HashSet<(InternedString, NameOrigin)>) -> Vec<SodigyWarning> {
         let mut result = vec![];
         let self_name_origin = NameOrigin::FuncArg(self.id);
 

@@ -24,6 +24,7 @@ macro_rules! token_kind_impl {
 token_kind_impl!(Op, dot, Dot);
 token_kind_impl!(Op, comma, Comma);
 token_kind_impl!(Op, semi_colon, SemiColon);
+token_kind_impl!(Op, colon, Colon);
 token_kind_impl!(Op, assign, Assign);
 token_kind_impl!(Key, keyword_if, If);
 token_kind_impl!(Key, keyword_else, Else);

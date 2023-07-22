@@ -7,7 +7,7 @@ tests/test.sdg:3:22
     │                      ▾
 ▸ 3 │     l = \{x: Int, y: InvalidName, x + y + a + b};
     │                      ▴
-  4 │     a = 3;
+  4 │     a: Int = 3;
   5 │ 
   6 │     l(a)
   7 │ };

@@ -99,7 +99,7 @@ impl Expr {
                         );
                     }
 
-                    session.add_warnings(lambda_def.get_unused_names(used_names));
+                    session.add_warnings(lambda_def.get_unused_name_warnings(used_names));
 
                     // No hash collision between programmer-defined names and newly generated name: the new ones have special characters
                     // But there may be collisions between newly generated ones -> TODO: what then?
@@ -112,8 +112,12 @@ impl Expr {
                 ValueKind::Block { defs, value, id } => {
                     name_scope.push_names(defs, NameScopeKind::Block(*id));
 
-                    for BlockDef { value, .. } in defs.iter_mut() {
+                    for BlockDef { value, ty, .. } in defs.iter_mut() {
                         value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+
+                        if let Some(ty) = ty {
+                            ty.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                        }
                     }
 
                     value.resolve_names(name_scope, lambda_defs, session, used_names)?;
@@ -192,8 +196,12 @@ impl Expr {
                 } => {
                     curr_blocks.push(*id);
 
-                    for BlockDef { value, .. } in defs.iter() {
+                    for BlockDef { value, ty, .. } in defs.iter() {
                         value.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
+
+                        if let Some(ty) = ty {
+                            ty.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
+                        }
                     }
 
                     curr_blocks.pop().expect("Internal Compiler Error 21D5A6DAABF");

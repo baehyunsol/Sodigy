@@ -2,7 +2,7 @@
 
 def lambda_test: Int = {
     l = \{x: Int, y: InvalidName, x + y + a + b};
-    a = 3;
+    a: Int = 3;
 
     l(a)
 };
