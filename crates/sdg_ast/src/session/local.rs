@@ -1,27 +1,12 @@
-use super::{InternedString, KEYWORD_START};
-use crate::prelude::{get_prelude_buffs, get_prelude_index};
+use super::{GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
 use std::collections::HashMap;
 
-fn keywords() -> Vec<Vec<u8>> {
-    vec![
-        b"if".to_vec(),
-        b"else".to_vec(),
-        b"def".to_vec(),
-        b"use".to_vec(),
-        b"as".to_vec(),
-    ]
-}
+#[cfg(not(test))]
+use sdg_fs::read_bytes;
 
-pub const KEYWORDS: [Keyword; 5] = [
-    Keyword::If,
-    Keyword::Else,
-    Keyword::Def,
-    Keyword::Use,
-    Keyword::As,
-];
-
+#[derive(Default)]
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
     strings_rev: HashMap<Vec<u8>, InternedString>,
@@ -37,44 +22,20 @@ pub struct LocalParseSession {
 
 impl LocalParseSession {
     pub fn new() -> Self {
-        let keywords = keywords();
-        let preludes = get_prelude_buffs();
-
-        let mut strings = HashMap::with_capacity(keywords.len() + preludes.len());
-        let mut strings_rev = HashMap::with_capacity(keywords.len() + preludes.len());
-
-        for (index, keyword) in keywords.iter().enumerate() {
-            strings.insert((index + KEYWORD_START as usize).into(), keyword.to_vec());
-            strings_rev.insert(keyword.to_vec(), (index + KEYWORD_START as usize).into());
-        }
-
-        for (index, prelude) in preludes.iter().enumerate() {
-            strings.insert(get_prelude_index(index).into(), prelude.to_vec());
-            strings_rev.insert(prelude.to_vec(), get_prelude_index(index).into());
-        }
+        try_init_global_session();
 
         LocalParseSession {
-            strings,
-            strings_rev,
             curr_file: u64::MAX, // null
             is_dummy: false,
-            warnings: vec![],
-
-            #[cfg(test)]
-            curr_file_data: vec![],
+            ..Self::default()
         }
     }
 
     pub fn dummy() -> Self {
         LocalParseSession {
-            strings: HashMap::new(),
-            strings_rev: HashMap::new(),
             curr_file: 0,
             is_dummy: true,
-            warnings: vec![],
-
-            #[cfg(test)]
-            curr_file_data: vec![],
+            ..Self::default()
         }
     }
 
@@ -100,20 +61,25 @@ impl LocalParseSession {
         match self.strings_rev.get(&string) {
             Some(n) => *n,
             _ => {
-                // TODO: first, try to get from the Global cache
-                // if fail, make a new entry in the Glocal cache, and get that
-                let index = self.strings.len() + KEYWORD_START as usize;
-                let index: InternedString = index.into();
+                let result = unsafe {
+                    let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error CB9665F9D46");
+                    let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 77C4E2EDBE9");
 
-                self.strings.insert(index, string.clone());
-                self.strings_rev.insert(string.clone(), index);
+                    let r = g.intern_string(string.clone());
+                    drop(lock);
 
-                index
+                    r
+                };
+
+                self.strings.insert(result, string.clone());
+                self.strings_rev.insert(string.clone(), result);
+
+                result
             }
         }
     }
 
-    // It succeeds if `string` is already interned
+    // It succeeds if `string` is already interned by this local session
     pub fn try_intern_string(&self, string: Vec<u8>) -> Option<InternedString> {
         self.strings_rev.get(&string).map(|s| *s)
     }
@@ -122,9 +88,15 @@ impl LocalParseSession {
         match self.strings.get(&string) {
             Some(buf) => buf.to_vec(),
             None => {
-                // TODO: search global cache
-                // it must be somewhere!
-                todo!()
+                unsafe {
+                    let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error CB9665F9D46");
+                    let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 77C4E2EDBE9");
+
+                    let r = g.unintern_string(string);
+                    drop(lock);
+
+                    r
+                }
             }
         }
     }
@@ -139,20 +111,33 @@ impl LocalParseSession {
         }
     }
 
-    pub fn get_file_path(&self, index: u64) -> Vec<u8> {
+    pub fn get_file_path(&self, index: u64) -> String {
         #[cfg(test)]
-        return b"tests/test.sdg".to_vec();
+        return "tests/test.sdg".to_string();
 
         #[cfg(not(test))]
-        todo!();
+        return unsafe {
+            let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error 9C9003FC163");
+            let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 721788AA0BA");
+
+            let p = g.get_file_path(index);
+            drop(lock);
+
+            p
+        };
     }
 
     // Expensive!
-    pub fn get_file_raw_content(&self, index: u64) -> &[u8] {
+    pub fn get_file_raw_content(&self, index: u64) -> Vec<u8> {
         #[cfg(test)]
-        return &self.curr_file_data;
+        return self.curr_file_data.clone();
 
         #[cfg(not(test))]
-        todo!();
+        return {
+            let path = self.get_file_path(index);
+
+            // What do we do here? There's no way the compiler can recover from this
+            read_bytes(&path).expect("Internal Compiler Error D4A59FCCCE0")
+        };
     }
 }

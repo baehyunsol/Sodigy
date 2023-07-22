@@ -77,7 +77,7 @@ impl Span {
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);
-        let file_path = session.get_file_path(self.file_no);
+        let file_path = session.get_file_path(self.file_no).as_bytes().to_vec();
         let mut row = 0;
         let mut col = 0;
         let mut lines = vec![];
