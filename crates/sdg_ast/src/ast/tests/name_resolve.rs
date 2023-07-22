@@ -44,7 +44,7 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(Path(a,b),c),d),e),f),g),h),i),j),b),c)",
         ), (
             "use a.b.c; use foo; use bar;
-            def tester: Int = {c = foo; a = bar; a + c};",
+            def tester: Int = {let c = foo; let a = bar; a + c};",
             "Add(bar,foo)",
         ),
     ].into_iter().map(

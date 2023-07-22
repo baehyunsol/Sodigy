@@ -1,9 +1,9 @@
 Error: cannot find name `z` in this scope
 
-tests/test.sdg:2:27
+tests/test.sdg:2:35
   0 │ use a.b.c;
   1 │ 
-    │                           ▾
-▸ 2 │ @c({x = 3; y = 4; x + y + z})
-    │                           ▴
+    │                                   ▾
+▸ 2 │ @c({let x = 3; let y = 4; x + y + z})
+    │                                   ▴
   3 │ def tester: Int = 0;

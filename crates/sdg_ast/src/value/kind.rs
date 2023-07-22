@@ -84,5 +84,7 @@ pub struct BlockDef {
     pub(crate) name: InternedString,
     pub(crate) ty: Option<Expr>,
     pub(crate) value: Expr,
+
+    // points to the first character of the name
     pub(crate) span: Span,
 }

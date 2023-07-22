@@ -31,9 +31,9 @@ def add_test: Int = 1 + 2;",
             "
 @test.eq([1, 2, 3])
 def list_test: List(Int) = {
-    one = 1;
-    two = one + one;
-    three = one + two;
+    let one = 1;
+    let two = one + one;
+    let three = one + two;
 
     [one, two, three]
 };",

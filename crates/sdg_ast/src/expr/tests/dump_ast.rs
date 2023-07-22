@@ -84,7 +84,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
             15,
         ),
         ("(foo(1))(2)", "Call(Call(foo,1),2)", 8),
-        ("{x = 3; y = x + 1; x + y}", "{x=3;y=Add(x,1);Add(x,y)}", 0),
+        ("{let x = 3; let y = x + 1; x + y}", "{x=3;y=Add(x,1);Add(x,y)}", 0),
         (
             "(3 > 4 != 5 < 6) == True",
             "Eq(Ne(Gt(3,4),Lt(5,6)),True)",
@@ -134,7 +134,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize)> {  // (input, AST, span of t
         ("b\"\"", "Bytes()", 0),
         ("me $age me.age + 1", "ModifyField(age)(me,Add(Path(me,age),1))", 3),
         (
-            "{a: Int = 3; b: String = \"abc\"; a + b} # Yeah, it's a type error, but this test is not for that",
+            "{let a: Int = 3; let b: String = \"abc\"; a + b} # Yeah, it's a type error, but this test is not for that",
             "{a:Int=3;b:String=\"abc\";Add(a,b)}",
             0,
         ),
@@ -200,9 +200,9 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             0,
         ),
         (
-            "{a = 3; b = 4;}",
+            "{let a = 3; let b = 4;}",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
-            13,
+            21,
         ),
         (
             "{1 1}",
@@ -351,9 +351,9 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             10,
         ),
         (
-            "{x = 3; x = 4; x + x}",
+            "{let x = 3; let x = 4; x + x}",
             ParseErrorKind::MultipleDefParam(InternedString::dummy(), ParamType::BlockDef),
-            8,
+            16,
         ),
         (
             "   ##!##  # Unfinished Comment",
@@ -401,7 +401,7 @@ fn invalid_ast_dump_test() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
             if !is_eq(&e.kind, &err_kind) || e.span.index != span {
                 panic!(
-                    "input: {}\nexpected_err:{}\ngot: {}",
+                    "input: {}\nexpected_err:{}\nexpected_span: {span}\ngot: {}",
                     bytes_to_string(&input),
                     err_kind.render_err(&session),
                     e.render_err(&session),

@@ -47,19 +47,38 @@ we want `n` to be anytype that implements `?`, not just `T`. We also want `R` to
 
 callers have to be explicit about `?`.
 
-```
+```rust
 {
-  val1: A = _;
-  val2: T(A, C) = _;
+  let val1: A = _;
+  let val2: T(A, C) = _;
 
   [
     foo(val1),
     foo(val2?),
   ]
 }
+
+# becomes
+
+{
+  let val1: A = _;
+  let val2: T(A, C) = _;
+
+  [
+    foo(val1),
+    match val2 {
+      T1(val2) => foo(val2),
+      T2(c) => R2(c as B),
+    }
+  ]
+}
 ```
 
 isn't it monad?
+
+For this, we have to clarify the order of evaluation of args
+
+`foo(a?, b?, c?)`: what if all the args are erroneous?
 
 ---
 
@@ -87,8 +106,6 @@ Pattern matching
   - If inside pattern, it's ignored (no bindings)
 - `[Ok(Foo { name, age }), ..] = foo();`
   - only in `match`s
-
-there must be `let` before a pattern, in block expressions
 
 if the pattern is `True`, how do we know whether it's a name binding or an enum variant? It's necessary if I'm to implement `match` statements
 

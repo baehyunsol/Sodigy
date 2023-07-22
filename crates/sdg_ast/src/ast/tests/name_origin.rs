@@ -10,9 +10,9 @@ fn samples() -> Vec<Vec<u8>> {
 
         @sub__(local___)
         def local__(func__: List(Int), func___: List(Int), block_scoped: Int): Int = {
-            block__ = 3;
-            block___ = 4;
-            block_scoped = 5;
+            let block__ = 3;
+            let block___ = 4;
+            let block_scoped = 5;
             func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped
         };",
     ].into_iter().map(|s| s.as_bytes().to_vec()).collect()

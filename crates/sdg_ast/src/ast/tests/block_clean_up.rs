@@ -6,10 +6,10 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "
             use foo, bar;
             def tester: Int = {
-                a = foo;
-                b = bar;
-                c = 1_3076_7436_8000;
-                d = 3000;
+                let a = foo;
+                let b = bar;
+                let c = 1_3076_7436_8000;
+                let d = 3000;
                 a + b + c + c
             };",
             "{c=1307674368000;Add(Add(Add(foo,bar),c),c)}",
@@ -18,8 +18,8 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "
             use foo;
             def tester: Int = {
-                a = 3;
-                b = 4;
+                let a = 3;
+                let b = 4;
                 foo
             };",
             "foo",
@@ -28,14 +28,14 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "
             use foo;
             def tester: Int = {
-                a = {
-                    a = 3;
-                    b = 4;
+                let a = {
+                    let a = 3;
+                    let b = 4;
                     a + b
                 };
-                b = {
-                    b = foo() + 5;
-                    c = foo();
+                let b = {
+                    let b = foo() + 5;
+                    let c = foo();
                     b + c + c
                 };
                 a + b
@@ -46,11 +46,11 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "
             use foo, bar, baz, foz, ciz, sol;
             def tester: Int = {
-                a = foo; b = bar;
+                let a = foo; let b = bar;
                 {
-                    b = baz; c = foz;
+                    let b = baz; let c = foz;
                     {
-                        c = ciz; d = sol;
+                        let c = ciz; let d = sol;
                         a + b + c + d
                     }
                 }
@@ -61,11 +61,11 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "
             use foo, bar, baz, foz, ciz, sol;
             def tester: Int = {
-                a = foo; b = bar;
+                let a = foo; let b = bar;
                 b + {
-                    b = baz; c = foz;
+                    let b = baz; let c = foz;
                     c + {
-                        c = ciz; d = sol;
+                        let c = ciz; let d = sol;
                         a + b + c + d
                     }
                 }

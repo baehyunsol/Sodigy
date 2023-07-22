@@ -1,8 +1,8 @@
 # 한글 주석은 달아도 되지?
 
 def lambda_test: Int = {
-    l = \{x: Int, y: InvalidName, x + y + a + b};
-    a: Int = 3;
+    let l = \{x: Int, y: InvalidName, x + y + a + b};
+    let a: Int = 3;
 
     l(a)
 };

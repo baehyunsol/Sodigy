@@ -49,13 +49,13 @@ Second, `PI_CONST` is static, while `PI_FUNC` is not. It means that `PI_CONST` i
 
 Block expressions let you create lexical scopes. Its syntax is very similar to that of Rust and C/C++, but works very differently.
 
-```
+```rust
 {
-    x = 3;
-    y = 4;
-    z = {
-        x = 5;
-        w = 6;
+    let x = 3;
+    let y = 4;
+    let z = {
+        let x = 5;
+        let w = 6;
 
         x + w
     };
@@ -72,9 +72,9 @@ Since the values are lazily evaluated, you cannot use them recursively. Belows a
 
 ```
 {
-    x = 3;
-    y = 4;
-    x = 5;
+    let x = 3;
+    let y = 4;
+    let x = 5;
 
     # Don't know which `x` to use
     x + y
@@ -83,9 +83,9 @@ Since the values are lazily evaluated, you cannot use them recursively. Belows a
 
 ```
 {
-    x = z + 1;
-    y = x + 2;
-    z = y + 3;
+    let x = z + 1;
+    let y = x + 2;
+    let z = y + 3;
 
     x + y + z
 }
@@ -105,8 +105,8 @@ Formatted strings are like that of Python (as far as I know). A letter `f` follo
 
 ```
 {
-    a = 3;
-    b = 4;
+    let a = 3;
+    let b = 4;
 
     f"{a} + {b} = {a + b}"
 }

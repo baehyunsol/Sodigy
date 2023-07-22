@@ -5,7 +5,7 @@ use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::span::Span;
 use crate::stmt::parse_arg_def;
-use crate::token::{Delimiter, OpToken, Token, TokenKind, TokenList};
+use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
 use crate::value::BlockDef;
 use sdg_uid::UID;
 use std::collections::HashSet;
@@ -149,9 +149,17 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         let mut names = HashSet::with_capacity(defs_count);
 
         for _ in 0..defs_count {
+            // points to `let`
             let curr_span = block_tokens
                 .peek_curr_span()
-                .expect("Internal Compiler Error A455FA3AFC7");
+                .expect("Internal Compiler Error 3DB2B1546F6");
+
+            block_tokens
+                .consume_token_or_error(TokenKind::Keyword(Keyword::Let))
+                .map_err(|e| e.set_span_of_eof(curr_span))?;
+
+            // points to the first character of the name (or the pattern)
+            let name_span = block_tokens.peek_curr_span();
 
             // TODO: allow pattern matchings for assignments
             // -> Don't change the shape of `BlockDef`,
@@ -160,28 +168,31 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             //    into `_tmp: Person = foo(); age = _tmp.age; name = _tmp.name;`
             let name = block_tokens.step_identifier_strict()?;
 
+            // Now it's guaranteed that it's not None
+            let name_span = name_span.expect("Internal Compiler Error A455FA3AFC7");
+
             if !names.insert(name) {
-                return Err(ParseError::multi_def(name, curr_span, ParamType::BlockDef));
+                return Err(ParseError::multi_def(name, name_span, ParamType::BlockDef));
             }
 
             // type annotation is optional
             let ty = if block_tokens.consume(TokenKind::colon()) {
-                Some(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(curr_span))?)
+                Some(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(name_span))?)
             } else {
                 None
             };
 
             block_tokens
                 .consume_token_or_error(TokenKind::assign())
-                .map_err(|e| e.set_span_of_eof(curr_span))?;
+                .map_err(|e| e.set_span_of_eof(name_span))?;
 
-            let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(curr_span))?;
+            let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(name_span))?;
 
             block_tokens
                 .consume_token_or_error(TokenKind::semi_colon())
-                .map_err(|e| e.set_span_of_eof(curr_span))?;
+                .map_err(|e| e.set_span_of_eof(name_span))?;
 
-            defs.push(BlockDef { name, ty, value: expr, span: curr_span });
+            defs.push(BlockDef { name, ty, value: expr, span: name_span });
         }
 
         let value =

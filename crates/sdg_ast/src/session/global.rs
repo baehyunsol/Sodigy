@@ -47,15 +47,17 @@ fn keywords() -> Vec<Vec<u8>> {
         b"def".to_vec(),
         b"use".to_vec(),
         b"as".to_vec(),
+        b"let".to_vec(),
     ]
 }
 
-pub const KEYWORDS: [Keyword; 5] = [
+pub const KEYWORDS: [Keyword; 6] = [
     Keyword::If,
     Keyword::Else,
     Keyword::Def,
     Keyword::Use,
     Keyword::As,
+    Keyword::Let,
 ];
 
 pub fn try_init_global_session() {
