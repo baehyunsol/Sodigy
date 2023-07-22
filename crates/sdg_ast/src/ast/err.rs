@@ -56,7 +56,7 @@ impl SodigyError for ASTError {
                 String::new()
             } else {
                 format!(
-                    "\n\n{}",
+                    "\n{}",
                     self.span1.render_err(session),
                 )
             },
@@ -64,7 +64,7 @@ impl SodigyError for ASTError {
                 String::new()
             } else {
                 format!(
-                    "\n\n{}",
+                    "\n{}",
                     self.span2.render_err(session),
                 )
             },

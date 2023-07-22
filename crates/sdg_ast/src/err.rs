@@ -205,7 +205,7 @@ impl SodigyError for ParseError {
             if self.span.is_dummy() {
                 String::new()
             } else {
-                format!("\n\n{}", self.span.render_err(session))
+                format!("\n{}", self.span.render_err(session))
             }
         )
     }

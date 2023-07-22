@@ -21,6 +21,10 @@ mod tests {
 
         match parse_file(&input, &mut session) {
             Ok(ast) => {
+                if !session.has_no_warning() {
+                    panic!("\n\n{}\n\n", session.render_warnings());
+                }
+
                 // TODO: run tests
             },
             Err(_) => panic!("\n\n{}\n\n", session.render_err()),

@@ -71,18 +71,15 @@ fn error_message_test() {
             break;
         };
         session.set_input(input.clone());
-        session.reset_errors();
         let error_msg = if let Ok(s) = read_string(&format!("./src/err/samples/{sample}.out")) { s } else {
             format!("`{sample}.out` is not found!")
         };
 
         if let Err(_) = parse_file(&input, &mut session) {
-            println!("{}", session.errors.len());
 
             if session.render_err() != error_msg {
                 panic!("expected\n{}\n\nactual\n{}", error_msg, session.render_err());
             }
-
         } else {
             panic!("{} is supposed to fail, but doesn't!", bytes_to_string(&input))
         }

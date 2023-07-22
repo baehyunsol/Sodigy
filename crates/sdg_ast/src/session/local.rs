@@ -39,8 +39,13 @@ impl LocalParseSession {
         }
     }
 
+    /// test purpose
     pub fn set_input(&mut self, input: Vec<u8>) {
         self.curr_file_data = input;
+
+        // it invalidates all the stuffs that are related to spans
+        self.errors = vec![];
+        self.warnings = vec![];
     }
 
     pub fn try_unwrap_keyword(&self, index: InternedString) -> Option<Keyword> {
@@ -110,6 +115,14 @@ impl LocalParseSession {
         }
     }
 
+    pub fn has_no_warning(&self) -> bool {
+        self.warnings.is_empty()
+    }
+
+    pub fn render_warnings(&self) -> String {
+        self.warnings.iter().map(|e| e.render_warning(self)).collect::<Vec<String>>().join("\n\n")
+    }
+
     pub fn add_error<E: SodigyError + 'static>(&mut self, error: E) {
         self.errors.push(Box::new(error) as Box<dyn SodigyError>);
     }
@@ -126,11 +139,6 @@ impl LocalParseSession {
 
     pub fn render_err(&self) -> String {
         self.errors.iter().map(|e| e.render_err(self)).collect::<Vec<String>>().join("\n\n")
-    }
-
-    // When writting a test, don't forget to reset errors if you're reusing a session
-    pub fn reset_errors(&mut self) {
-        self.errors = vec![];
     }
 
     pub fn get_file_path(&self, index: u64) -> String {
