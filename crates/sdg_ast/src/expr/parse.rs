@@ -108,12 +108,12 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 break;
             }
 
-            // `a.b` is valid, but `a.1` is not
-            if op == InfixOp::Path && !tokens.peek_identifier().is_some() {
-                let err_msg = "A name of a field or a method must be an identifier.
-`a.b` is valid, but `a.1` is not.".to_string();
+            if op == InfixOp::Path && !tokens.peek_identifier().is_some() && !tokens.peek_number().is_some() {
+                let err_msg = "A name of a field or a method must be an identifier or a number (for tuples).
+`a.b` is valid, but `a.(b)` is not.".to_string();
                 let expected = ExpectedToken::SpecificTokens(vec![
-                    TokenKind::dummy_identifier()
+                    TokenKind::dummy_identifier(),
+                    TokenKind::Number(1.into()),
                 ]);
 
                 if let Some(Token { kind, span }) = tokens.step() {

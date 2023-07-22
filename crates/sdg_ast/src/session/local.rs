@@ -115,6 +115,7 @@ impl LocalParseSession {
         #[cfg(test)]
         return "tests/test.sdg".to_string();
 
+        // TODO: cache this in the local session!
         #[cfg(not(test))]
         return unsafe {
             let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error 9C9003FC163");

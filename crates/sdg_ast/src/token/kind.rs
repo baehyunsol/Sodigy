@@ -42,6 +42,24 @@ impl TokenKind {
             )
         }
     }
+    pub fn is_number(&self) -> bool {
+        if let TokenKind::Number(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn unwrap_number(&self) -> Ratio {
+        if let TokenKind::Number(s) = self {
+            s.clone()
+        } else {
+            panic!(
+                "Internal Compiler Error F08E01AE8B0: {}",
+                self.render_err(&LocalParseSession::dummy()),
+            )
+        }
+    }
 
     pub fn is_string(&self) -> bool {
         if let TokenKind::String(_) = self {

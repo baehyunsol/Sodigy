@@ -60,3 +60,39 @@ callers have to be explicit about `?`.
 ```
 
 isn't it monad?
+
+---
+
+Pattern matching
+
+- `a = foo();`
+- `a: Foo = foo();`
+- `Foo { name, age } = foo();`
+  - `_tmp: Foo = foo(); name = _tmp.name; age = _tmp.age;`
+- `mod.Foo { name, age } = foo();`
+- `Foo { name: name_, .. } = foo();`
+- `Ok(n) = try_something();`
+  - only in `match`s
+- `Boolean.True = try_something();`
+  - only in `match`s
+- `[a, b] = foo();`
+- `[a, b]: List(Int) = foo();`
+  - what if `foo().len()` is greater than 2? do we reject that?
+- `[a, ..] = foo();`
+- `[a, .., b, c] = foo();`
+  - what if `foo().len() == 2`? do we reject that? if `a` and `b` point to the same object, that's non-sense
+- `(a, b) = foo();`
+- `(a, _) = foo();`
+  - we should treat `_` specially: it's not allowed as an identifier, except inside a pattern
+  - If inside pattern, it's ignored (no bindings)
+- `[Ok(Foo { name, age }), ..] = foo();`
+  - only in `match`s
+
+there must be `let` before a pattern, in block expressions
+
+if the pattern is `True`, how do we know whether it's a name binding or an enum variant? It's necessary if I'm to implement `match` statements
+
+- in block expressions, it must be a name binding
+- in `match`, let's first check whether the name `True` is in the scope
+  - if so, let's treat it as an enum variant
+  - otherwise, it's a name binding

@@ -152,21 +152,12 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ("1...", ParseErrorKind::UnexpectedChar('.'), 1),
         ("1 + ", ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression), 2),
         (
-            "a.1",
-            ParseErrorKind::UnexpectedToken {
-                got: TokenKind::Number(Ratio::one()),
-                expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::dummy_identifier()
-                ]),
-            },
-            2,
-        ),
-        (
             "a.(a)",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::List(Delimiter::Parenthesis, vec![]),
                 expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::dummy_identifier()
+                    TokenKind::dummy_identifier(),
+                    TokenKind::Number(1.into()),
                 ]),
             },
             2,

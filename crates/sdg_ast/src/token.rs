@@ -1,5 +1,6 @@
 use crate::session::InternedString;
 use crate::span::Span;
+use hmath::Ratio;
 
 mod kind;
 mod list;
@@ -21,6 +22,14 @@ impl Token {
 
     pub fn unwrap_identifier(&self) -> InternedString {
         self.kind.unwrap_identifier()
+    }
+
+    pub fn is_number(&self) -> bool {
+        self.kind.is_number()
+    }
+
+    pub fn unwrap_number(&self) -> Ratio {
+        self.kind.unwrap_number()
     }
 }
 

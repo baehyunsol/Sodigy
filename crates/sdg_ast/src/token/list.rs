@@ -6,6 +6,7 @@ use crate::session::InternedString;
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef};
 use crate::value::{parse_block_expr, ValueKind};
+use hmath::Ratio;
 
 pub struct TokenList {
     pub data: Vec<Token>,
@@ -95,6 +96,13 @@ impl TokenList {
     pub fn peek_identifier(&self) -> Option<InternedString> {
         match self.data.get(self.cursor) {
             Some(t) if t.is_identifier() => Some(t.unwrap_identifier()),
+            _ => None
+        }
+    }
+
+    pub fn peek_number(&self) -> Option<Ratio> {
+        match self.data.get(self.cursor) {
+            Some(t) if t.is_number() => Some(t.unwrap_number()),
             _ => None
         }
     }
