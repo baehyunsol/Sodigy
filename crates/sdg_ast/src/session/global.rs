@@ -35,7 +35,7 @@ impl GlobalParseSession {
     pub fn get_file_path(&self, index: u64) -> String {
         match self.files.get(&index) {
             Some(f) => f.to_string(),
-            _ => todo!()
+            _ => self.files.get(&index).map(|s| s.to_string()).unwrap_or(String::from("./TODO/What/Do/I/Do/In/This/Case"))
         }
     }
 }

@@ -73,6 +73,10 @@ impl Expr {
                     );
 
                     if let Some(names) = lambda_def.get_all_foreign_names() {
+                        // TODO: if `names` include something that's definitely a function, exclude them
+                        // eg: `{f1: \{x, f2(x - 1)}, f2: \{x, if x > 0 { f1(x - 1) } else { 0 }}, f1(100)}`
+                        // if `f1` or `f2` is a closure, both are so.
+                        // if none of them are closure, we don't have to treat `f1` and `f2` as foreign names
                         self.kind = ExprKind::Call(
                             Box::new(Expr {
                                 kind: ExprKind::Value(

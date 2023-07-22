@@ -72,6 +72,34 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             };",
             "Add(bar,Add(foz,Add(Add(Add(foo,baz),ciz),sol)))",
         ),
+        (
+            "def tester: Int = {
+                let adder = \\{x, \\{y, x + y}};
+                let adder1 = adder(1);
+                let adder2 = adder(2);
+              
+                adder1(20) + adder2(20)
+            };",
+            // TODO: hash value is very prone to change
+            "Add(Call(Call(@@LAMBDA__a0000000000003vvhvvvvjvvv9,1),20),Call(Call(@@LAMBDA__a0000000000003vvhvvvvjvvv9,2),20))",
+        ),
+        (
+            "def tester: Int = {
+                let fibo = \\{n, if n < 2 { 0 } else { fibo(n - 1) + fibo(n - 2) }};
+
+                fibo(20)
+            };",
+            "TODO",
+        ),
+        (
+            "def tester(n: Int): Int = {
+                let f1 = \\{x, f2(x - 1)};
+                let f2 = \\{x, if x > 0 { f1(x - n) } else { 0 } };
+
+                f1(100)
+            };",
+            "TODO",
+        ),
     ].into_iter().map(
         |(s1, s2)| (s1.as_bytes().to_vec(), s2.to_string())
     ).collect()

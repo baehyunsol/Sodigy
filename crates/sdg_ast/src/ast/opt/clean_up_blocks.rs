@@ -100,8 +100,15 @@ impl ExprKind {
                     let mut never_used = vec![];
                     let mut once_used = vec![];
 
-                    if let Some(name) = find_cycle(&graph) {
-                        return Err(ASTError::recursive_def(name, span));
+                    let cycles = find_cycles(&graph);
+
+                    if !cycles.is_empty() {
+
+                        // TODO: include all the nodes in the error
+                        for name in cycles.into_iter() {
+                            let span = get_span_by_name(name, defs);
+                            return Err(ASTError::recursive_def(name, span));
+                        }
                     }
 
                     for (def_name, usage) in graph.iter() {
@@ -360,16 +367,17 @@ fn is_simple_expr(e: &Expr) -> bool {
 
 }
 
-// If there are multiple cycles, it returns one arbitrary name included in one of the cycle
-fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<InternedString> {
+// It returns all the nodes that are in cycles
+fn find_cycles(graph: &HashMap<InternedString, Vec<InternedString>>) -> Vec<InternedString> {
+    let mut cycles = vec![];
 
     for (node, succ) in graph.iter() {
         let mut visited = HashSet::with_capacity(graph.len());
         let mut stack = vec![];
 
-        for node in succ.iter() {
-            visited.insert(*node);
-            stack.push(*node);
+        for succ_node in succ.iter() {
+            visited.insert(*succ_node);
+            stack.push(*succ_node);
         }
 
         while let Some(n) = stack.pop() {
@@ -380,7 +388,7 @@ fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<In
 
             for succ in graph.get(&n).expect("Internal Compiler Error 234AA43FC08").iter() {
                 if !visited.contains(succ) {
-                    visited.insert(*node);
+                    visited.insert(*succ);
                     stack.push(*succ);
                 }
             }
@@ -388,12 +396,12 @@ fn find_cycle(graph: &HashMap<InternedString, Vec<InternedString>>) -> Option<In
         }
 
         if visited.contains(node) {
-            return Some(*node);
+            cycles.push(*node);
         }
 
     }
 
-    None
+    cycles
 }
 
 fn get_span_by_name(name: InternedString, defs: &Vec<BlockDef>) -> Span {

@@ -1,10 +1,8 @@
 use super::{GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
-use std::collections::HashMap;
-
-#[cfg(not(test))]
 use sdg_fs::read_bytes;
+use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct LocalParseSession {
@@ -15,8 +13,8 @@ pub struct LocalParseSession {
 
     warnings: Vec<SodigyWarning>,
 
-    // no files, but just a direct input
-    #[cfg(test)]
+    // only for test purpose!
+    // don't use `#[cfg(test)]`: I want it to work on other crates
     curr_file_data: Vec<u8>,
 }
 
@@ -39,7 +37,6 @@ impl LocalParseSession {
         }
     }
 
-    #[cfg(test)]
     pub fn set_input(&mut self, input: Vec<u8>) {
         self.curr_file_data = input;
     }
@@ -130,15 +127,15 @@ impl LocalParseSession {
 
     // Expensive!
     pub fn get_file_raw_content(&self, index: u64) -> Vec<u8> {
-        #[cfg(test)]
-        return self.curr_file_data.clone();
+        if !self.curr_file_data.is_empty() {
+            self.curr_file_data.clone()
+        }
 
-        #[cfg(not(test))]
-        return {
+        else {
             let path = self.get_file_path(index);
 
             // What do we do here? There's no way the compiler can recover from this
             read_bytes(&path).expect("Internal Compiler Error D4A59FCCCE0")
-        };
+        }
     }
 }

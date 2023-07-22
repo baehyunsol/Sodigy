@@ -49,3 +49,12 @@ def big_number_test: Int = {
 
     a * a
 };
+
+def dirty_closure_test(n: Int): Int = {
+    let f1 = \{x, f2(x - 1)};
+    let f2 = \{x, if x > 0 { f1(x - n) } else { 0 } };
+
+    f1(100)
+};
+
+# TODO: write test for `dirty_closure_test`
