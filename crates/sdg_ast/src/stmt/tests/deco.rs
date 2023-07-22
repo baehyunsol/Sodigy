@@ -97,8 +97,8 @@ fn valid_decorator_tests() {
                 }
 
             },
-            Err(e) => {
-                panic!("sample: {sample}\nerror: {}", e.render_err(&session));
+            Err(_) => {
+                panic!("sample: {sample}\nerror: {}", session.render_err());
             }
         }
 

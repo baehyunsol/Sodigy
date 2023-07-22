@@ -1,4 +1,5 @@
 use super::{GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
+use crate::err::SodigyError;
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
 use sdg_fs::read_bytes;
@@ -12,6 +13,7 @@ pub struct LocalParseSession {
     pub(crate) is_dummy: bool,
 
     warnings: Vec<SodigyWarning>,
+    pub errors: Vec<Box<dyn SodigyError>>,
 
     // only for test purpose!
     // don't use `#[cfg(test)]`: I want it to work on other crates
@@ -106,6 +108,29 @@ impl LocalParseSession {
         for warning in warnings.into_iter() {
             self.warnings.push(warning);
         }
+    }
+
+    pub fn add_error<E: SodigyError + 'static>(&mut self, error: E) {
+        self.errors.push(Box::new(error) as Box<dyn SodigyError>);
+    }
+
+    pub fn try_add_error<T, E: SodigyError + 'static>(&mut self, error: Result<T, E>) {
+        if let Err(error) = error {
+            self.errors.push(Box::new(error) as Box<dyn SodigyError>);
+        }
+    }
+
+    pub fn has_no_error(&self) -> bool {
+        self.errors.is_empty()
+    }
+
+    pub fn render_err(&self) -> String {
+        self.errors.iter().map(|e| e.render_err(self)).collect::<Vec<String>>().join("\n\n")
+    }
+
+    // When writting a test, don't forget to reset errors if you're reusing a session
+    pub fn reset_errors(&mut self) {
+        self.errors = vec![];
     }
 
     pub fn get_file_path(&self, index: u64) -> String {

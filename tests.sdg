@@ -50,11 +50,18 @@ def big_number_test: Int = {
     a * a
 };
 
-def dirty_closure_test(n: Int): Int = {
+def dirty_closure(n: Int): Int = {
     let f1 = \{x, f2(x - 1)};
-    let f2 = \{x, if x > 0 { f1(x - n) } else { 0 } };
+    let f2 = \{x, if x > 0 { 1 + f1(x - n) } else { 0 } };
 
     f1(100)
 };
 
-# TODO: write test for `dirty_closure_test`
+@test.eq([17, 20, 25, 33, 50])
+def dirty_closure_test: List(Int) = [
+    dirty_closure(5),
+    dirty_closure(4),
+    dirty_closure(3),
+    dirty_closure(2),
+    dirty_closure(1),
+];

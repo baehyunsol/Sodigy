@@ -34,7 +34,7 @@ fn check_ast_of_tester(samples: Vec<(Vec<u8>, String)>) {
         session.set_input(sample.clone());
         let ast = match parse_file(&sample, &mut session) {
             Ok(a) => a,
-            Err(e) => panic!("{}", e.render_err(&session)),
+            Err(_) => panic!("{}", session.render_err()),
         };
 
         assert_eq!(ast.dump_ast_of_def(test_func_name.clone(), &session).unwrap(), desired);

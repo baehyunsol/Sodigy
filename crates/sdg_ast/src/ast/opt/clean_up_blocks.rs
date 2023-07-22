@@ -30,27 +30,39 @@ impl AST {
     // 1. If a definition is used only once, the value goes directly to the used place.
     // 2. If a definition is used 0 times, it's removed.
     // 3. If a value of a definition is simple, all the referents are replaced with the value.
-    //   - simple value: single identifier (or a path), small number (how small?), static values (contants)
+    //   - simple value: single identifier (or a path), small number (how small?), static values (constants)
     // 4. If a block has no defs, it unwraps the block.
     // 5. Check cycles
-    pub(crate) fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    //
+    // when it returns Err(()), the actual errors are in `session`
+    pub(crate) fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ()> {
 
         for func in self.defs.values_mut() {
-            func.ret_val.clean_up_blocks(session)?;
+            let e = func.ret_val.clean_up_blocks(session);
+            session.try_add_error(e);
 
             if let Some(ty) = &mut func.ret_type {
-                ty.clean_up_blocks(session)?;
+                let e = ty.clean_up_blocks(session);
+                session.try_add_error(e);
             }
 
             for ArgDef { ty, .. } in func.args.iter_mut() {
                 if let Some(ty) = ty {
-                    ty.clean_up_blocks(session)?;
+                    let e = ty.clean_up_blocks(session);
+                    session.try_add_error(e);
                 }
             }
 
         }
 
-        Ok(())
+        if session.has_no_error() {
+            Ok(())
+        }
+
+        else {
+            Err(())
+        }
+
     }
 }
 

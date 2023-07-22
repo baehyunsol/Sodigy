@@ -1,19 +1,32 @@
 use super::{Decorator, FuncDef, Stmt, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
 use std::collections::HashSet;
 
-pub fn parse_stmts(tokens: &mut TokenList) -> Result<Vec<Stmt>, ParseError> {
+/// If it returns `Err(())`, the actual errors are in `session`.
+pub fn parse_stmts(tokens: &mut TokenList, session: &mut LocalParseSession) -> Result<Vec<Stmt>, ()> {
     let mut result = vec![];
 
     while !tokens.is_eof() {
-        result.push(parse_stmt(tokens)?);
+        match parse_stmt(tokens) {
+            Ok(s) => { result.push(s); },
+            Err(e) => {
+                session.add_error(e);
+
+                // there' already an error, but it'd helpful for the programmer if the compiler can find more errors
+                tokens.march_until_stmt_begin();
+            }
+        }
     }
 
-    Ok(result)
+    if session.has_no_error() {
+        Ok(result)
+    } else {
+        Err(())
+    }
 }
 
 pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {

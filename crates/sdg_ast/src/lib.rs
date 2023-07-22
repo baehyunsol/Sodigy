@@ -19,15 +19,16 @@ pub use err::SodigyError;
 pub use session::{GlobalParseSession, LocalParseSession};
 pub use ast::AST;
 
+use err::ParseError;
 use lexer::lex_tokens;
 use stmt::parse_stmts;
 use token::TokenList;
 
-pub fn parse_file(s: &[u8], session: &mut LocalParseSession) -> Result<AST, Box<dyn SodigyError>> {
-    let tokens = lex_tokens(s, session).map_err(|e| Box::new(e) as Box<dyn SodigyError>)?;
+/// If it returns `Err(())`, the actual errors are in `session`.
+pub fn parse_file(s: &[u8], session: &mut LocalParseSession) -> Result<AST, ()> {
+    let tokens = lex_tokens(s, session).map_err(|e| session.try_add_error::<(), ParseError>(Err(e)))?;
     let mut tokens = TokenList::from_vec(tokens);
+    let stmts = parse_stmts(&mut tokens, session)?;
 
-    let stmts = parse_stmts(&mut tokens).map_err(|e| Box::new(e) as Box<dyn SodigyError>)?;
-
-    AST::from_stmts(stmts, session).map_err(|e| Box::new(e) as Box<dyn SodigyError>)
+    AST::from_stmts(stmts, session)
 }

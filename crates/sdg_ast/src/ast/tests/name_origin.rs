@@ -26,8 +26,8 @@ fn name_origin_test() {
         session.set_input(sample.clone());
         let ast = match parse_file(&sample, &mut session) {
             Ok(a) => a,
-            Err(e) => {
-                panic!("{}\n\n{}", bytes_to_string(&sample), e.render_err(&session))
+            Err(_) => {
+                panic!("{}\n\n{}", bytes_to_string(&sample), session.render_err())
             },
         };
 

@@ -23,7 +23,7 @@ mod tests {
             Ok(ast) => {
                 // TODO: run tests
             },
-            Err(e) => panic!("\n\n{}\n\n", e.render_err(&session)),
+            Err(_) => panic!("\n\n{}\n\n", session.render_err()),
         }
     }
 }

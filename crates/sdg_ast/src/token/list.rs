@@ -58,6 +58,16 @@ impl TokenList {
         self.data.append(&mut tokens);
     }
 
+    pub fn march_until_stmt_begin(&mut self) {
+        while let Some(token) = self.data.get(self.cursor) {
+            if token.kind.is_stmt_begin() {
+                return;
+            }
+
+            self.cursor += 1;
+        }
+    }
+
     // if the current token is `token`, it steps forward and returns true
     // it returns false otherwise
     // it's helpful if the borrow checker doesn't allow you to use `self.step`

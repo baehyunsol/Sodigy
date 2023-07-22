@@ -80,6 +80,14 @@ impl TokenKind {
         }
     }
 
+    pub fn is_stmt_begin(&self) -> bool {
+        match self {
+            TokenKind::Keyword(k) if *k == Keyword::Use || *k == Keyword::Def => true,
+            TokenKind::Operator(OpToken::At) => true,
+            _ => false,
+        }
+    }
+
     pub fn dummy_identifier() -> Self {
         TokenKind::Identifier(InternedString::dummy())
     }

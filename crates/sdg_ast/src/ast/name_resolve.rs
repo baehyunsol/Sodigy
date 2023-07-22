@@ -1,4 +1,4 @@
-use super::{AST, ASTError};
+use super::AST;
 use crate::prelude::get_preludes;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
@@ -194,15 +194,21 @@ impl From<&NameScopeKind> for NameOrigin {
 
 impl AST {
 
-    pub(crate) fn resolve_names(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    // If it returns `Err(())`, the actual errors are in `session`.
+    pub(crate) fn resolve_names(&mut self, session: &mut LocalParseSession) -> Result<(), ()> {
         let mut name_scope = NameScope::from_ast(self);
         let mut lambda_defs = HashMap::new();
 
         for func in self.defs.values_mut() {
-            func.resolve_names(&mut name_scope, &mut lambda_defs, session)?;
+            let e = func.resolve_names(&mut name_scope, &mut lambda_defs, session);
+            session.try_add_error(e);
         }
 
-        Ok(())
+        if session.has_no_error() {
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
 }

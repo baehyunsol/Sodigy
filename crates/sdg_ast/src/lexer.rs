@@ -13,7 +13,7 @@ pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token
         match skip_whitespaces_and_comments(s, cursor) {
             Ok(next_ind) => {
                 cursor = next_ind;
-        
+
                 let (token, next_ind) = lex_token(s, cursor, session)?;
                 tokens.push(token);
                 cursor = next_ind;
