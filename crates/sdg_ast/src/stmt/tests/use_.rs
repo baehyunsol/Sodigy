@@ -64,7 +64,7 @@ fn test_parse_use() {
                 );
             }
             Err(e) => {
-                if e.span.index != span {
+                if e.span.len() != 1 || e.span[0].index != span {
                     panic!("desired span: {span}\n\nactual error: {}", e.render_err(&session));
                 }
             }

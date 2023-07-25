@@ -19,6 +19,7 @@ Error: the name `tester` is defined more than once
   2 │ 
   3 │ @test.eq(1)
   4 │ module tester;
+
 ./src/err/samples/7.in:4:1
   0 │ @test.eq(1)
   1 │ def tester: Int = 0 + 1;

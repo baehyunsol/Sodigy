@@ -709,7 +709,9 @@ fn set_span_of_formatted_string(mut tokens: Vec<Token>, span: Span) -> Vec<Token
 }
 
 fn set_span_of_formatted_string_err(mut error: ParseError, span: Span) -> ParseError {
-    error.span = span.forward(error.span.index);
+    assert_eq!(error.span.len(), 1, "Internal Compiler Error 65E5150EF9D");
+
+    error.span[0] = span.forward(error.span[0].index);
 
     error
 }

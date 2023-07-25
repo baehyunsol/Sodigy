@@ -399,7 +399,7 @@ fn invalid_ast_dump_test() {
 
     for (input, err_kind, span) in invalid_samples() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
-            if !is_eq(&e.kind, &err_kind) || e.span.index != span {
+            if !is_eq(&e.kind, &err_kind) || e.span.len() != 1 || e.span[0].index != span {
                 panic!(
                     "input: {}\nexpected_err:{}\nexpected_span: {span}\ngot: {}",
                     bytes_to_string(&input),

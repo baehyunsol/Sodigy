@@ -24,7 +24,7 @@ pub use kind::{ParamType, ParseErrorKind};
 /// Actually it's both for parser and lexer
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,
-    pub(crate) span: Span,
+    pub(crate) span: Vec<Span>,
 
     // At least one of `ParseError`'s field must be private
     // I'll someday implement a checker that `ParseError` is initialized at most once during a compilation
@@ -37,7 +37,7 @@ impl ParseError {
     pub(crate) fn eof(span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEof,
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -45,7 +45,7 @@ impl ParseError {
     pub(crate) fn eof_msg(span: Span, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEof,
-            span,
+            span: vec![span],
             message,
         }
     }
@@ -53,7 +53,7 @@ impl ParseError {
     pub(crate) fn eoe(span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEoe(expected),
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -61,7 +61,7 @@ impl ParseError {
     pub(crate) fn eoe_msg(span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEoe(expected),
-            span,
+            span: vec![span],
             message,
         }
     }
@@ -89,7 +89,7 @@ impl ParseError {
     pub(crate) fn ch(c: char, span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedChar(c),
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -97,7 +97,7 @@ impl ParseError {
     pub(crate) fn ch_msg(c: char, span: Span, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedChar(c),
-            span,
+            span: vec![span],
             message,
         }
     }
@@ -105,7 +105,7 @@ impl ParseError {
     pub(crate) fn tok(got: TokenKind, span: Span, expected: ExpectedToken) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken { got, expected },
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -113,7 +113,7 @@ impl ParseError {
     pub(crate) fn tok_msg(got: TokenKind, span: Span, expected: ExpectedToken, message: String) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken { got, expected },
-            span,
+            span: vec![span],
             message,
         }
     }
@@ -121,7 +121,7 @@ impl ParseError {
     pub(crate) fn invalid_utf8(cs: Vec<u8>, span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::InvalidUTF8(cs),
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -129,7 +129,7 @@ impl ParseError {
     pub(crate) fn invalid_utf8_dummy_index(cs: Vec<u8>, ind: usize) -> Self {
         ParseError {
             kind: ParseErrorKind::InvalidUTF8(cs),
-            span: Span::dummy_index(ind),
+            span: vec![Span::dummy_index(ind)],
             message: String::new(),
         }
     }
@@ -137,7 +137,7 @@ impl ParseError {
     pub(crate) fn untyped_arg(arg_name: InternedString, func_name: InternedString, span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UntypedArg(arg_name, func_name),
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -145,7 +145,7 @@ impl ParseError {
     pub(crate) fn multi_def(name: InternedString, span: Span, param_type: ParamType) -> Self {
         ParseError {
             kind: ParseErrorKind::MultipleDefParam(name, param_type),
-            span,
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -153,14 +153,14 @@ impl ParseError {
     pub(crate) fn file(file_error: FileError) -> Self {
         ParseError {
             kind: ParseErrorKind::FileError(file_error),
-            span: Span::dummy(),
+            span: vec![],
             message: String::new(),
         }
     }
 
     pub(crate) fn set_span_of_eof(mut self, span: Span) -> Self {
-        if (self.is_eof() || self.is_eoe()) && self.span.is_dummy() {
-            self.span = span;
+        if (self.is_eof() || self.is_eoe()) && (self.span.is_empty() || self.span[0].is_dummy()) {
+            self.span = vec![span];
             self
         } else {
             self
@@ -168,10 +168,12 @@ impl ParseError {
     }
 
     pub(crate) fn set_ind_and_fileno(mut self, span: Span) -> Self {
-        if self.is_iutf8() && self.span.is_dummy_index() {
-            let offset = self.span.index;
-            self.span = span;
-            self.span.index += offset;
+        if self.is_iutf8() && self.span[0].is_dummy_index() {
+            assert_eq!(self.span.len(), 1, "Internal Compiler Error D8DFF0DF984");
+
+            let offset = self.span[0].index;
+            self.span[0] = span;
+            self.span[0].index += offset;
 
             self
         } else {
@@ -211,11 +213,9 @@ impl SodigyError for ParseError {
             } else {
                 String::new()
             },
-            if self.span.is_dummy() {
-                String::new()
-            } else {
-                format!("\n{}", self.span.render_err(session))
-            }
+            self.span.iter().map(
+                |span| format!("\n{}", span.render_err(session))
+            ).collect::<Vec<String>>().concat(),
         )
     }
 }

@@ -9,8 +9,7 @@ pub use kind::ASTErrorKind;
 
 pub struct ASTError {
     kind: ASTErrorKind,
-    span1: Span,
-    span2: Span,  // optional
+    span: Vec<Span>,
     message: String,
 }
 
@@ -18,8 +17,7 @@ impl ASTError {
     pub(crate) fn multi_def(name: InternedString, first_def: Span, second_def: Span) -> Self {
         ASTError {
             kind: ASTErrorKind::MultipleDef(name),
-            span1: first_def,
-            span2: second_def,
+            span: vec![first_def, second_def],
             message: String::new(),
         }
     }
@@ -27,8 +25,7 @@ impl ASTError {
     pub(crate) fn deco_use(span: Span) -> Self {
         ASTError {
             kind: ASTErrorKind::InvalidDecorator,
-            span1: span,
-            span2: Span::dummy(),
+            span: vec![span],
             message: String::from("Decorators can only decorate `def` statements,\nbut it's decorating a `use` statement here."),
         }
     }
@@ -36,8 +33,7 @@ impl ASTError {
     pub(crate) fn deco_mod(span: Span) -> Self {
         ASTError {
             kind: ASTErrorKind::InvalidDecorator,
-            span1: span,
-            span2: Span::dummy(),
+            span: vec![span],
             message: String::from("Decorators can only decorate `def` statements,\nbut it's decorating a `module` statement here."),
         }
     }
@@ -45,8 +41,7 @@ impl ASTError {
     pub(crate) fn no_def(name: InternedString, span: Span, name_scope: NameScope) -> Self {
         ASTError {
             kind: ASTErrorKind::UndefinedSymbol(name, name_scope),
-            span1: span,
-            span2: Span::dummy(),
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -54,8 +49,7 @@ impl ASTError {
     pub(crate) fn recursive_def(name: InternedString, span: Span) -> Self {
         ASTError {
             kind: ASTErrorKind::RecursiveDefInBlock(name),
-            span1: span,
-            span2: Span::dummy(),
+            span: vec![span],
             message: String::new(),
         }
     }
@@ -71,22 +65,14 @@ impl SodigyError for ASTError {
             } else {
                 format!("\n{}", self.message)
             },
-            if self.span1.is_dummy() {
-                String::new()
+            if self.span.is_empty() {
+                ""
             } else {
-                format!(
-                    "\n{}",
-                    self.span1.render_err(session),
-                )
+                "\n"
             },
-            if self.span2.is_dummy() {
-                String::new()
-            } else {
-                format!(
-                    "\n{}",
-                    self.span2.render_err(session),
-                )
-            },
+            self.span.iter().map(
+                |span| format!("{}", span.render_err(session))
+            ).collect::<Vec<String>>().join("\n\n"),
         )
     }
 }
