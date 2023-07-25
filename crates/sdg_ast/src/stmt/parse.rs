@@ -1,4 +1,4 @@
-use super::{Decorator, FuncDef, Stmt, Use, use_case_to_tokens};
+use super::{Decorator, FuncDef, ModDef, Stmt, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
 use crate::session::{InternedString, LocalParseSession};
@@ -56,6 +56,19 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         }
 
+    } else if tokens.consume(TokenKind::Keyword(Keyword::Module)) {
+        let module_name = match tokens.step_identifier_strict() {
+            Ok(id) => id,
+            Err(e) => {
+                return Err(e.set_span_of_eof(curr_span));
+            }
+        };
+
+        tokens
+            .consume_token_or_error(TokenKind::semi_colon())
+            .map_err(|e| e.set_span_of_eof(curr_span))?;
+
+        Ok(Stmt::Module(ModDef::new(module_name, curr_span)))
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
         let mut names = vec![];
 

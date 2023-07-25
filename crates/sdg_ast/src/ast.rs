@@ -1,5 +1,6 @@
 use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::{FuncDef, Stmt, Use};
+use crate::span::Span;
+use crate::stmt::{FuncDef, ModDef, Stmt, Use};
 use std::collections::HashMap;
 
 mod endec;
@@ -21,6 +22,7 @@ pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
 // it's safe to reuse previously generated AST unless the file
 // is modified.
 pub struct AST {
+    pub(crate) inner_modules: HashMap<InternedString, ModDef>,
     pub(crate) defs: HashMap<InternedString, FuncDef>,
     pub(crate) uses: HashMap<InternedString, Use>,
 }
@@ -31,6 +33,7 @@ impl AST {
     pub(crate) fn from_stmts(stmts: Vec<Stmt>, session: &mut LocalParseSession) -> Result<Self, ()> {
         let mut curr_decos = vec![];
         let mut ast = AST {
+            inner_modules: HashMap::new(),
             defs: HashMap::new(),
             uses: HashMap::new(),
         };
@@ -44,17 +47,7 @@ impl AST {
                         f.decorators = curr_decos;
                         curr_decos = vec![];
 
-                        if ast.defs.contains_key(&f.name) {
-                            let first_def = ast.defs.get(&f.name).expect(
-                                "Internal Compiler Error 32C4175D312"
-                            ).span;
-                            break 'inner_error Err(ASTError::multi_def(f.name, first_def, f.span));
-                        }
-
-                        else if ast.uses.contains_key(&f.name) {
-                            let first_def = ast.uses.get(&f.name).expect(
-                                "Internal Compiler Error 141662FE076"
-                            ).span;
+                        if let Some(first_def) = check_already_defined(&ast, &f.name) {
                             break 'inner_error Err(ASTError::multi_def(f.name, first_def, f.span));
                         }
 
@@ -63,30 +56,33 @@ impl AST {
                         }
 
                     }
-                    Stmt::Use(u) => {
-
+                    Stmt::Module(m) => {
                         if !curr_decos.is_empty() {
-                            break 'inner_error Err(ASTError::deco(u.span));
+                            session.add_error(ASTError::deco_mod(m.span));
+                            curr_decos = vec![];
                         }
 
-                        if ast.defs.contains_key(&u.alias) {
-                            let first_def = ast.defs.get(&u.alias).expect(
-                                "Internal Compiler Error DD2D5DD058A"
-                            ).span;
-                            break 'inner_error Err(ASTError::multi_def(u.alias, first_def, u.span));
+                        if let Some(first_def) = check_already_defined(&ast, &m.name) {
+                            break 'inner_error Err(ASTError::multi_def(m.name, first_def, m.span));
                         }
 
-                        else if ast.uses.contains_key(&u.alias) {
-                            let first_def = ast.uses.get(&u.alias).expect(
-                                "Internal Compiler Error 56D7C654ADC"
-                            ).span;
+                        else {
+                            ast.inner_modules.insert(m.name, m);
+                        }
+                    }
+                    Stmt::Use(u) => {
+                        if !curr_decos.is_empty() {
+                            session.add_error(ASTError::deco_use(u.span));
+                            curr_decos = vec![];
+                        }
+
+                        if let Some(first_def) = check_already_defined(&ast, &u.alias) {
                             break 'inner_error Err(ASTError::multi_def(u.alias, first_def, u.span));
                         }
 
                         else {
                             ast.uses.insert(u.alias, u);
                         }
-
                     }
                 }
 
@@ -95,6 +91,7 @@ impl AST {
             Ok(())
         };
 
+        // Don't return here: we want to provide as many error messages as possible even though the compilation fails
         if let Err(e) = e {
             session.add_error(e);
         }
@@ -106,4 +103,23 @@ impl AST {
         Ok(ast)
     }
 
+}
+
+// if already defined, it returns the span of the previous definition
+fn check_already_defined(ast: &AST, name: &InternedString) -> Option<Span> {
+    if let Some(f) = ast.defs.get(name) {
+        Some(f.span)
+    }
+
+    else if let Some(u) = ast.uses.get(name) {
+        Some(u.span)
+    }
+
+    else if let Some(m) = ast.inner_modules.get(name) {
+        Some(m.span)
+    }
+
+    else {
+        None
+    }
 }

@@ -2,6 +2,7 @@ use super::{ArgDef, Decorator};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
+use crate::module::ModulePath;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::warning::SodigyWarning;
@@ -13,6 +14,8 @@ pub struct FuncDef {
     pub span: Span,  // it points to `d` of `def`, or `\` of a lambda function
     pub name: InternedString,
     pub args: Vec<ArgDef>,
+
+    pub location: ModulePath,
 
     pub decorators: Vec<Decorator>,
 
@@ -47,6 +50,7 @@ impl FuncDef {
             ret_type: Some(ret_type),
             ret_val,
             span,
+            location: ModulePath::empty(),  // will be filled later
             kind,
             decorators: vec![],  // filled later
             id: UID::new_func_id(),
@@ -64,6 +68,7 @@ impl FuncDef {
 
         FuncDef {
             args, ret_val, span, id,
+            location: ModulePath::empty(),  // nobody cares!
             decorators: vec![],
             ret_type: None,  // has to be inferred later
             kind: FuncKind::Lambda,  // if it's a closure, it'll be handled later

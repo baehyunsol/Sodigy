@@ -71,23 +71,17 @@ impl GlobalParseSession {
 }
 
 fn keywords() -> Vec<Vec<u8>> {
-    vec![
-        b"if".to_vec(),
-        b"else".to_vec(),
-        b"def".to_vec(),
-        b"use".to_vec(),
-        b"as".to_vec(),
-        b"let".to_vec(),
-    ]
+    KEYWORDS.iter().map(|k| k.render_err().as_bytes().to_vec()).collect()
 }
 
-pub const KEYWORDS: [Keyword; 6] = [
+pub const KEYWORDS: [Keyword; 7] = [
     Keyword::If,
     Keyword::Else,
     Keyword::Def,
     Keyword::Use,
     Keyword::As,
     Keyword::Let,
+    Keyword::Module,
 ];
 
 pub fn try_init_global_session() {

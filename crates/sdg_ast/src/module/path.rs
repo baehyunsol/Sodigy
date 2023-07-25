@@ -6,6 +6,10 @@ use crate::token::{Token, TokenKind};
 pub struct ModulePath (Vec<InternedString>);
 
 impl ModulePath {
+    pub fn empty() -> Self {
+        ModulePath(vec![])
+    }
+
     pub fn from_names(names: Vec<InternedString>) -> Self {
         ModulePath(names)
     }

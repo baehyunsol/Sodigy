@@ -7,7 +7,7 @@ pub enum ASTErrorKind {
 
     // NameScope is used to suggest a similar name
     UndefinedSymbol(InternedString, NameScope),
-    DecoratorOnUse,
+    InvalidDecorator,
 
     RecursiveDefInBlock(InternedString),
 }
@@ -43,8 +43,8 @@ impl ASTErrorKind {
                     "cannot find name `{name}` in this scope{suggestions}",
                 )
             },
-            ASTErrorKind::DecoratorOnUse => format!(
-                "a `use` statement is not decoratable",
+            ASTErrorKind::InvalidDecorator => format!(
+                "invalid decorator",
             ),
             // TODO: we have to allow recursive block-defs
             ASTErrorKind::RecursiveDefInBlock(name) => format!(
