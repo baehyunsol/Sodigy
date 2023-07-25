@@ -69,9 +69,7 @@ impl AST {
 
 impl Expr {
     pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
-        let span = self.span;
-
-        self.kind.clean_up_blocks(span, session)?;
+        self.kind.clean_up_blocks(session)?;
 
         // in case `clean_up_blocks` removed all the blocks
         if self.is_block_with_0_defs() {
@@ -84,7 +82,7 @@ impl Expr {
 
 impl ExprKind {
 
-    pub fn clean_up_blocks(&mut self, span: Span, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
         match self {
             ExprKind::Value(v) => match v {
                 ValueKind::Identifier(_, _)
