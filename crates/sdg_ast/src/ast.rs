@@ -97,10 +97,31 @@ impl AST {
         }
 
         ast.resolve_names(session)?;
+        ast.resolve_recursive_funcs_in_block(session);
         ast.clean_up_blocks(session)?;
         ast.opt(session);
 
         Ok(ast)
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        let mut result = Vec::with_capacity(
+            self.defs.len() + self.uses.len() + self.inner_modules.len()
+        );
+
+        for module in self.inner_modules.values() {
+            result.push(module.dump(session));
+        }
+
+        for use_ in self.uses.values() {
+            result.push(use_.dump(session));
+        }
+
+        for def in self.defs.values() {
+            result.push(def.dump(session));
+        }
+
+        result.join("\n\n")
     }
 
 }

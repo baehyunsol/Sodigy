@@ -1,6 +1,6 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::Expr;
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{OpToken, TokenKind, TokenList};
 use crate::value::BlockDef;
@@ -14,6 +14,20 @@ pub struct ArgDef {
 
     // first character of the name
     pub span: Span,
+}
+
+impl ArgDef {
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        format!(
+            "{}{}",
+            self.name.to_string(session),
+            if let Some(ty) = &self.ty {
+                format!(": {}", ty.to_string(session))
+            } else {
+                String::new()
+            }
+        )
+    }
 }
 
 // NAME ':' TYPE

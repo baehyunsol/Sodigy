@@ -27,7 +27,7 @@ impl SdgHash for u32 {
     fn sdg_hash(&self) -> SdgHashResult {
         SdgHashResult(
             (
-                lfsr_24_3(*self / B_32) * B_32
+                (lfsr_24_3(*self / B_32) & 0xff) * B_32
                 | lfsr_24_3(*self % B_32)
             ) as u128
         )
@@ -38,7 +38,7 @@ impl SdgHash for u64 {
     fn sdg_hash(&self) -> SdgHashResult {
         SdgHashResult(
             (
-                lfsr_24_3((*self / BB_64) as u32) as u64 * BB_64
+                (lfsr_24_3((*self / BB_64) as u32) as u64 & 0xffff) * BB_64
                 | lfsr_24_3((*self / B_64 % B_64) as u32) as u64 * B_64
                 | lfsr_24_3((*self % B_64) as u32) as u64
             ) as u128
@@ -56,7 +56,7 @@ impl SdgHash for usize {
 impl SdgHash for u128 {
     fn sdg_hash(&self) -> SdgHashResult {
         SdgHashResult(
-            lfsr_24_3((*self / BBBBB_128) as u32) as u128 * BBBBB_128
+            (lfsr_24_3((*self / BBBBB_128) as u32) as u128 & 0xff) * BBBBB_128
             | lfsr_24_3((*self / BBBB_128 % B_128) as u32) as u128 * BBBB_128
             | lfsr_24_3((*self / BBB_128 % B_128) as u32) as u128 * BBB_128
             | lfsr_24_3((*self / BB_128 % B_128) as u32) as u128 * BB_128

@@ -1,3 +1,4 @@
+use crate::session::LocalParseSession;
 use crate::span::Span;
 use crate::value::ValueKind;
 
@@ -36,5 +37,9 @@ impl Expr {
             ExprKind::Value(ValueKind::Block { value, .. }) => *value.clone(),
             _ => panic!("Internal Compiler Error 0687238F1E8"),
         }
+    }
+
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        self.kind.to_string(session)
     }
 }

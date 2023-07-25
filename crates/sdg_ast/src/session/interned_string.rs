@@ -1,7 +1,4 @@
-#[cfg(test)]
 use super::LocalParseSession;
-
-#[cfg(test)]
 use crate::utils::bytes_to_string;
 
 /*
@@ -27,7 +24,6 @@ impl InternedString {
         self.0 == DUMMY_INDEX
     }
 
-    #[cfg(test)]
     pub fn to_string(&self, session: &LocalParseSession) -> String {
         bytes_to_string(&session.unintern_string(*self))
     }

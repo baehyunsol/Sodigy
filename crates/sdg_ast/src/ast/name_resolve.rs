@@ -209,6 +209,10 @@ impl AST {
             session.try_add_error(e);
         }
 
+        for (name, def) in lambda_defs.into_iter() {
+            self.defs.insert(name, def);
+        }
+
         if session.has_no_error() {
             Ok(())
         } else {

@@ -1,7 +1,7 @@
 use crate::ast::NameOrigin;
 use crate::expr::{Expr, ExprKind, InfixOp};
 use crate::module::ModulePath;
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 use crate::value::ValueKind;
@@ -40,6 +40,10 @@ impl Use {
 
     pub fn iter_path(&self) -> Iter<InternedString> {
         self.path.as_ref().iter()
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        format!("use {} as {};", self.path.to_string(session), self.alias.to_string(session))
     }
 }
 
@@ -121,7 +125,7 @@ macro_rules! new_path {
     };
 }
 
-// best optimization I can think of
+// the best optimization I can think of
 fn to_path_impl(path: &[InternedString]) -> ExprKind {
     assert!(!path.is_empty(), "Internal Compiler Error DD4626E9B3A");
 

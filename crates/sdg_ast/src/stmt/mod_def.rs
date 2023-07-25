@@ -1,4 +1,4 @@
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 
 pub struct ModDef {
@@ -11,5 +11,9 @@ pub struct ModDef {
 impl ModDef {
     pub fn new(name: InternedString, span: Span) -> Self {
         ModDef { name, span }
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        format!("module `{}`;", self.name.to_string(session))
     }
 }

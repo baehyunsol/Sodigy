@@ -19,7 +19,6 @@ pub struct Decorator {
 }
 
 impl Decorator {
-
     pub fn resolve_names(
         &mut self,
         name_scope: &mut NameScope,
@@ -55,4 +54,22 @@ impl Decorator {
         Ok(())
     }
 
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        format!(
+            "@{}{}",
+            self.names.iter().map(
+                |name| name.to_string(session)
+            ).collect::<Vec<String>>().join("."),
+            if self.no_args {
+                String::new()
+            } else {
+                format!(
+                    "({})",
+                    self.args.iter().map(
+                        |arg| arg.to_string(session)
+                    ).collect::<Vec<String>>().join(", ")
+                )
+            }
+        )
+    }
 }

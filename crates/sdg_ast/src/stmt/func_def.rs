@@ -166,8 +166,29 @@ impl FuncDef {
 
         result
     }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        format!(
+            "#kind: {:?}{}\ndef {}({}): {} = {};",
+            self.kind,
+            self.decorators.iter().map(
+                |deco| format!("\n{}", deco.to_string(session))
+            ).collect::<Vec<String>>().concat(),
+            self.name.to_string(session),
+            self.args.iter().map(
+                |arg| arg.to_string(session)
+            ).collect::<Vec<String>>().join(", "),
+            if let Some(ty) = &self.ret_type {
+                ty.to_string(session)
+            } else {
+                String::from("@DontKnow")
+            },
+            self.ret_val.to_string(session),
+        )
+    }
 }
 
+#[derive(Debug)]
 pub enum FuncKind {
 
     // def foo(n: Int): Int = n + 1;

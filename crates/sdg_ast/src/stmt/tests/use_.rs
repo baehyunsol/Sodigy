@@ -2,15 +2,9 @@ use crate::err::SodigyError;
 use crate::lexer::lex_tokens;
 use crate::session::LocalParseSession;
 use crate::span::Span;
-use crate::stmt::{parse_use, Use};
+use crate::stmt::parse_use;
 use crate::token::TokenList;
 use std::collections::HashSet;
-
-impl Use {
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
-        format!("use {} as {};", self.path.to_string(session), self.alias.to_string(session))
-    }
-}
 
 #[test]
 fn test_parse_use() {
@@ -37,7 +31,7 @@ fn test_parse_use() {
             }
         };
 
-        let result = uses.iter().map(|u| u.to_string(&session)).collect::<HashSet<String>>();
+        let result = uses.iter().map(|u| u.dump(&session)).collect::<HashSet<String>>();
 
         assert_eq!(result, desired);
     }
@@ -60,7 +54,7 @@ fn test_parse_use() {
             Ok(u) => {
                 panic!(
                     "sample: {sample:?} is supposed to panic, but returns {:?}",
-                    u.iter().map(|u| u.to_string(&session)).collect::<Vec<String>>()
+                    u.iter().map(|u| u.dump(&session)).collect::<Vec<String>>()
                 );
             }
             Err(e) => {

@@ -53,6 +53,7 @@ impl AST {
                 }
             }
 
+            // TODO: guess we have to iter decorators
         }
 
         if session.has_no_error() {

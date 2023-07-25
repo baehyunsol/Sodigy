@@ -50,6 +50,17 @@ def big_number_test: Int = {
     a * a
 };
 
+
+##!
+# Equivalent Python code
+
+```
+def dirty_closure(n):
+    f1 = lambda x: f2(x - 1)
+    f2 = lambda x: (1 + f1(x - n)) if x > 0 else 0
+    return f1(100)
+```
+!##
 def dirty_closure(n: Int): Int = {
     let f1 = \{x, f2(x - 1)};
     let f2 = \{x, if x > 0 { 1 + f1(x - n) } else { 0 } };
