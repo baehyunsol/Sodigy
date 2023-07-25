@@ -42,6 +42,14 @@ impl SdgHashResult {
     pub fn to_string(&self) -> String {
         String::from_utf8(self.to_bytes()).expect("Internal Compiler Error 732856577C3")
     }
+
+    pub fn to_u128(&self) -> u128 {
+        self.0
+    }
+
+    pub fn to_u64(&self) -> u64 {
+        (self.0 & (u64::MAX as u128)) as u64
+    }
 }
 
 impl std::ops::BitXor<SdgHashResult> for SdgHashResult {

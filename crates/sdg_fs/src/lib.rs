@@ -1,13 +1,13 @@
 use std::fs::{read, File, OpenOptions};
 use std::io::{self, Read, Write};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FileError {
     kind: FileErrorKind,
     given_path: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FileErrorKind {
     FileNotFound,
     PermissionDenied,
@@ -45,7 +45,6 @@ impl From<WriteMode> for OpenOptions {
 }
 
 impl FileError {
-
     pub fn init(e: io::Error, given_path: &str) -> Self {
         let kind = match e.kind() {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
@@ -59,6 +58,29 @@ impl FileError {
         }
     }
 
+    pub fn render_err(&self) -> String {
+        let path = match self.kind {
+            FileErrorKind::FileNotFound
+            | FileErrorKind::PermissionDenied
+            | FileErrorKind::AlreadyExists => {
+                self.given_path.as_ref().expect(
+                    "Internal Compiler Error AD3764202D8"
+                ).to_string()
+            },
+        };
+
+        match self.kind {
+            FileErrorKind::FileNotFound => format!(
+                "file not found: `{path}`"
+            ),
+            FileErrorKind::PermissionDenied => format!(
+                "permission denied: `{path}`",
+            ),
+            FileErrorKind::AlreadyExists => format!(
+                "file already exists: `{path}`"
+            ),
+        }
+    }
 }
 
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {

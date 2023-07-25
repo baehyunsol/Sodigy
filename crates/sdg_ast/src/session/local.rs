@@ -1,5 +1,5 @@
-use super::{GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
-use crate::err::SodigyError;
+use super::{DUMMY_FILE_INDEX, GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
+use crate::err::{ParseError, SodigyError};
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
 use sdg_fs::read_bytes;
@@ -15,8 +15,6 @@ pub struct LocalParseSession {
     warnings: Vec<SodigyWarning>,
     pub errors: Vec<Box<dyn SodigyError>>,
 
-    // only for test purpose!
-    // don't use `#[cfg(test)]`: I want it to work on other crates
     curr_file_data: Vec<u8>,
 }
 
@@ -25,7 +23,7 @@ impl LocalParseSession {
         try_init_global_session();
 
         LocalParseSession {
-            curr_file: u64::MAX, // null
+            curr_file: DUMMY_FILE_INDEX,
             is_dummy: false,
             ..Self::default()
         }
@@ -39,13 +37,38 @@ impl LocalParseSession {
         }
     }
 
-    /// test purpose
-    pub fn set_input(&mut self, input: Vec<u8>) {
+    pub fn set_direct_input(&mut self, input: Vec<u8>) {
+        self.curr_file = DUMMY_FILE_INDEX;
         self.curr_file_data = input;
 
         // it invalidates all the stuffs that are related to spans
         self.errors = vec![];
         self.warnings = vec![];
+    }
+
+    pub fn set_input(&mut self, path: &str) -> Result<(), ParseError> {
+
+        unsafe {
+            let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error 56241D4A08E");
+            let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 56241D4A08E");
+            self.curr_file = g.register_file(path);
+            drop(lock);
+        }
+
+        match read_bytes(path) {
+            Ok(b) => {
+                self.curr_file_data = b;
+            },
+            Err(e) => {
+                return Err(ParseError::file(e));
+            }
+        }
+
+        // it invalidates all the stuffs that are related to spans
+        self.errors = vec![];
+        self.warnings = vec![];
+
+        Ok(())
     }
 
     pub fn try_unwrap_keyword(&self, index: InternedString) -> Option<Keyword> {
@@ -142,11 +165,6 @@ impl LocalParseSession {
     }
 
     pub fn get_file_path(&self, index: u64) -> String {
-        #[cfg(test)]
-        return "tests/test.sdg".to_string();
-
-        // TODO: cache this in the local session!
-        #[cfg(not(test))]
         return unsafe {
             let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error 9C9003FC163");
             let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 721788AA0BA");
@@ -158,9 +176,12 @@ impl LocalParseSession {
         };
     }
 
-    // Expensive!
+    pub fn get_curr_file_content(&self) -> &[u8] {
+        &self.curr_file_data
+    }
+
     pub fn get_file_raw_content(&self, index: u64) -> Vec<u8> {
-        if !self.curr_file_data.is_empty() {
+        if index == DUMMY_FILE_INDEX {
             self.curr_file_data.clone()
         }
 

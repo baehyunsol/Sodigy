@@ -1,12 +1,16 @@
 use super::{InternedString, KEYWORD_START};
 use crate::prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
+use sdg_hash::SdgHash;
 use std::collections::HashMap;
+
+pub const DUMMY_FILE_INDEX: u64 = u64::MAX;
 
 pub struct GlobalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
     strings_rev: HashMap<Vec<u8>, InternedString>,
     files: HashMap<u64, String>,
+    files_rev: HashMap<String, u64>,
 }
 
 pub static mut GLOBAL_SESSION: *mut GlobalParseSession = std::ptr::null_mut();
@@ -32,10 +36,36 @@ impl GlobalParseSession {
         self.strings.get(&string).expect("Internal Compiler Error E634CD266D0").to_vec()
     }
 
+    // It registers the path to `files` and returns the index.
+    // If the path is already registered, it just returns the index from `files`.
+    pub fn register_file(&mut self, path: &str) -> u64 {
+        match self.files_rev.get(path) {
+            Some(i) => *i,
+            _ => {
+                let mut index = path.sdg_hash().to_u64();
+
+                // avoid hash collision
+                while self.files.contains_key(&index) || index == DUMMY_FILE_INDEX {
+                    index = index.sdg_hash().to_u64();
+                }
+
+                self.files.insert(index, path.to_string());
+                self.files_rev.insert(path.to_string(), index);
+
+                index
+            }
+        }
+    }
+
     pub fn get_file_path(&self, index: u64) -> String {
         match self.files.get(&index) {
             Some(f) => f.to_string(),
-            _ => self.files.get(&index).map(|s| s.to_string()).unwrap_or(String::from("./TODO/What/Do/I/Do/In/This/Case"))
+
+            _ => {
+                assert_eq!(index, DUMMY_FILE_INDEX, "Internal Compiler Error 4F5423CF234");
+
+                String::from("./tests/tests.sdg")
+            },
         }
     }
 }
@@ -84,7 +114,8 @@ pub fn try_init_global_session() {
             let result = Box::new(GlobalParseSession {
                 strings,
                 strings_rev,
-                files: HashMap::new(),  // TODO: How do we initialize this?
+                files: HashMap::new(),
+                files_rev: HashMap::new(),
             });
             GLOBAL_SESSION = Box::leak(result) as *mut GlobalParseSession;
 

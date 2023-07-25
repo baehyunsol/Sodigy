@@ -1,6 +1,5 @@
 Error: expected any kind of expression, found nothing
-
-tests/test.sdg:4:6
+./src/err/samples/1.in:4:6
   0 │ def test1: Int = [[
   1 │     1,
   2 │     2,

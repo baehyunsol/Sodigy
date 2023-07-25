@@ -1,6 +1,5 @@
 Error: [200, 200] is not a valid utf-8
-
-tests/test.sdg:0:3
+./src/err/samples/no_utf8_comment.in:0:3
     │   ▾
 ▸ 0 │ # ���
     │   ▴

@@ -14,3 +14,9 @@ impl SdgHash for &[u8] {
         SdgHashResult(result)
     }
 }
+
+impl SdgHash for &str {
+    fn sdg_hash(&self) -> SdgHashResult {
+        self.as_bytes().sdg_hash()
+    }
+}

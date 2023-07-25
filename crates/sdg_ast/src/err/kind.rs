@@ -2,6 +2,7 @@ use super::ExpectedToken;
 use crate::session::{InternedString, LocalParseSession};
 use crate::token::TokenKind;
 use crate::utils::bytes_to_string;
+use sdg_fs::FileError;
 
 #[derive(PartialEq)]
 pub enum ParseErrorKind {
@@ -9,6 +10,8 @@ pub enum ParseErrorKind {
     UnexpectedChar(char),
     UnexpectedEof,
     InvalidUTF8(Vec<u8>),
+
+    FileError(FileError),
 
     // expected something, but got nothing
     UnexpectedEoe(ExpectedToken),
@@ -63,6 +66,7 @@ impl ParseErrorKind {
                 bytes_to_string(&session.unintern_string(*name)),
                 param_type.render_err(),
             ),
+            ParseErrorKind::FileError(e) => e.render_err(),
         }
     }
 }

@@ -1,6 +1,5 @@
 Error: cannot find name `InvalidName` in this scope
-
-tests/test.sdg:3:26
+./src/err/samples/3.in:3:26
   0 │ # 한글 주석은 달아도 되지?
   1 │ 
   2 │ def lambda_test: Int = {

@@ -61,7 +61,7 @@ fn valid_decorator_tests() {
     let mut session = LocalParseSession::new();
 
     for (sample, decorators) in valid_samples().into_iter() {
-        session.set_input(sample.as_bytes().to_vec());
+        session.set_direct_input(sample.as_bytes().to_vec());
 
         match parse_file(sample.as_bytes(), &mut session) {
             Ok(ast) => {

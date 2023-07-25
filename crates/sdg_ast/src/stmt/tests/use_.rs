@@ -18,7 +18,7 @@ fn test_parse_use() {
 
     for (sample, desired) in sample().into_iter() {
         let input = sample.as_bytes().to_vec();
-        session.set_input(input.clone());
+        session.set_direct_input(input.clone());
         let tokens = match lex_tokens(&input, &mut session) {
             Ok(t) => t,
             Err(e) => {
@@ -44,7 +44,7 @@ fn test_parse_use() {
 
     for (sample, span) in invalid().into_iter() {
         let input = sample.as_bytes().to_vec();
-        session.set_input(input.clone());
+        session.set_direct_input(input.clone());
         let tokens = match lex_tokens(&input, &mut session) {
             Ok(t) => t,
             Err(e) => {

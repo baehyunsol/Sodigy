@@ -1,7 +1,6 @@
 Error: cannot find name `int` in this scope
 A similar name exists: `Int`
-
-tests/test.sdg:0:11
+./src/err/samples/0.in:0:11
     │           ▾
 ▸ 0 │ def ZERO: int = 0;
     │           ▴

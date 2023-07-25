@@ -6,7 +6,6 @@ const MAX_PREVIEW_LEN: usize = 96;
 
 #[derive(Copy, Clone)]
 pub struct Span {
-    // TODO: tell the programmer to change the name of a file when there's a collision
     file_no: u64,  // hash of the name of the file
 
     pub index: usize,

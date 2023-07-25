@@ -31,7 +31,7 @@ fn check_ast_of_tester(samples: Vec<(Vec<u8>, String)>) {
     let test_func_name = b"tester".to_vec();
 
     for (sample, desired) in samples.into_iter() {
-        session.set_input(sample.clone());
+        session.set_direct_input(sample.clone());
         let ast = match parse_file(&sample, &mut session) {
             Ok(a) => a,
             Err(_) => panic!("{}", session.render_err()),

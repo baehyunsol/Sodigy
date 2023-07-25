@@ -2,6 +2,7 @@ use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::TokenKind;
 use crate::utils::print_list;
+use sdg_fs::FileError;
 
 mod kind;
 
@@ -145,6 +146,14 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::MultipleDefParam(name, param_type),
             span,
+            message: String::new(),
+        }
+    }
+
+    pub(crate) fn file(file_error: FileError) -> Self {
+        ParseError {
+            kind: ParseErrorKind::FileError(file_error),
+            span: Span::dummy(),
             message: String::new(),
         }
     }

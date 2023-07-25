@@ -10,7 +10,7 @@ pub fn dump_ast_of_expr(
     input: Vec<u8>,
     session: &mut LocalParseSession,
 ) -> Result<Expr, ParseError> {
-    session.set_input(input.clone());
+    session.set_direct_input(input.clone());
 
     let tokens = lex_tokens(&input, session)?;
     let mut token_list = TokenList::from_vec(tokens);

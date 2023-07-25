@@ -51,3 +51,5 @@ Most error messages and warning messages are from Rust.
   - ``` identifier `a` is bound more than once in this parameter list ```
   - ``` conflicting implementations of trait `Endec` for type `(_, _, _)` ```
   - ``` unterminated block comment ```
+  - ``` file not found for module `asdf` ```
+  - ``` no field `path` on type `&FileError` ```

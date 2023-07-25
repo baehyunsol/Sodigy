@@ -23,7 +23,7 @@ fn name_origin_test() {
     let mut session = LocalParseSession::new();
 
     for sample in samples() {
-        session.set_input(sample.clone());
+        session.set_direct_input(sample.clone());
         let ast = match parse_file(&sample, &mut session) {
             Ok(a) => a,
             Err(_) => {

@@ -1,6 +1,5 @@
 Error: [200, 200] is not a valid utf-8
-
-tests/test.sdg:0:5
+./src/err/samples/no_utf8_ident.in:0:5
     │     ▾
 ▸ 0 │ def ���: String = 'ABC';
     │     ▴

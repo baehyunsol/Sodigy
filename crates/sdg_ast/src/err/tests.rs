@@ -2,7 +2,7 @@ use super::ParseErrorKind;
 use crate::parse_file;
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
-use sdg_fs::{read_bytes, read_string, write_bytes, WriteMode};
+use sdg_fs::{read_string, write_bytes, WriteMode};
 
 pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
 
@@ -27,6 +27,11 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
             ParseErrorKind::InvalidUTF8(e2) => e1 == e2,
             _ => false,
         },
+
+        ParseErrorKind::FileError(e1) => match k2 {
+            ParseErrorKind::FileError(e2) => e1 == e2,
+            _ => false,
+        }
 
         // the test runner cannot generate an InternedString before it actually parses a code
         ParseErrorKind::UntypedArg(_, _) => match k2 {
@@ -67,10 +72,12 @@ fn error_message_test() {
     write_bytes("./src/err/samples/no_utf8_comment.in", &no_utf8_comment, WriteMode::CreateOrTruncate).unwrap();
 
     for sample in samples.iter() {
-        let input = if let Ok(s) = read_bytes(&format!("./src/err/samples/{sample}.in")) { s } else {
+        if session.set_input(&format!("./src/err/samples/{sample}.in")).is_err() {
             break;
-        };
-        session.set_input(input.clone());
+        }
+
+        let input = session.get_curr_file_content().to_vec();
+
         let error_msg = if let Ok(s) = read_string(&format!("./src/err/samples/{sample}.out")) { s } else {
             format!("`{sample}.out` is not found!")
         };
