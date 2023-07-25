@@ -1,5 +1,5 @@
 use super::AST;
-use crate::prelude::get_preludes;
+use sdg_prelude::{get_prelude_buffs_len, get_prelude_index};
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
@@ -141,9 +141,14 @@ impl NameScope {
             defs: ast.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
             uses: ast.uses.clone(),
             name_stack: vec![],
-            preludes: get_preludes(),
+            preludes: get_all_preludes(),
         }
     }
+}
+
+// TODO: cache this
+fn get_all_preludes() -> HashSet<InternedString> {
+    (0..get_prelude_buffs_len()).map(|i| get_prelude_index(i).into()).collect()
 }
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]

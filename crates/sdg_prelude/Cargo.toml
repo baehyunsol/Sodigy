@@ -1,4 +1,4 @@
 [package]
-name = "sdg_hash"
+name = "sdg_prelude"
 version = "0.1.0"
 edition = "2021"

@@ -3,7 +3,6 @@ pub use sdg_ast::{
     parse_file,
 };
 
-// What I've just found out: `#[cfg(test)]` works only inside a crate
 #[cfg(test)]
 mod tests {
     use super::*;

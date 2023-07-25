@@ -1,13 +1,3 @@
-// TODO: independent crate
-
-use crate::session::InternedString;
-use std::collections::HashSet;
-
-// TODO: cache this
-pub fn get_preludes() -> HashSet<InternedString> {
-    (0..get_prelude_buffs_len()).map(|i| get_prelude_index(i).into()).collect()
-}
-
 #[inline]
 pub fn get_prelude_buffs_len() -> usize {
     5

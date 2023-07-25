@@ -8,4 +8,5 @@ hmath = "*"
 sdg_endec = { path = "../sdg_endec", version = "*" }
 sdg_fs = { path = "../sdg_fs", version = "*" }
 sdg_hash = { path = "../sdg_hash", version = "*" }
+sdg_prelude = { path = "../sdg_prelude", version = "*" }
 sdg_uid = { path = "../sdg_uid", version = "*" }

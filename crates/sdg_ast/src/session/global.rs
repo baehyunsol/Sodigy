@@ -1,5 +1,5 @@
 use super::{InternedString, KEYWORD_START};
-use crate::prelude::{get_prelude_buffs, get_prelude_index};
+use sdg_prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
 use sdg_hash::SdgHash;
 use std::collections::HashMap;
