@@ -97,7 +97,7 @@ impl AST {
         }
 
         ast.resolve_names(session)?;
-        ast.resolve_recursive_funcs_in_block(session);
+        ast.resolve_recursive_funcs_in_block(session)?;
         ast.clean_up_blocks(session)?;
         ast.opt(session);
 

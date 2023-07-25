@@ -1,9 +1,10 @@
 use super::super::{AST, ASTError, NameOrigin};
 use crate::err::ParamType;
 use crate::expr::{Expr, ExprKind};
+use crate::iter_mut_exprs_in_ast;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::stmt::ArgDef;
+use crate::stmt::{ArgDef, Decorator};
 use crate::value::{BlockDef, ValueKind};
 use crate::warning::SodigyWarning;
 use sdg_uid::UID;
@@ -25,47 +26,15 @@ TODO
 even though `x` is used twice (syntactically), it'll never be used twice (semantically)
 */
 
-impl AST {
-
-    // 1. If a definition is used only once, the value goes directly to the used place.
-    // 2. If a definition is used 0 times, it's removed.
-    // 3. If a value of a definition is simple, all the referents are replaced with the value.
-    //   - simple value: single identifier (or a path), small number (how small?), static values (constants)
-    // 4. If a block has no defs, it unwraps the block.
-    // 5. Check cycles
-    //
-    // when it returns Err(()), the actual errors are in `session`
-    pub(crate) fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ()> {
-
-        for func in self.defs.values_mut() {
-            let e = func.ret_val.clean_up_blocks(session);
-            session.try_add_error(e);
-
-            if let Some(ty) = &mut func.ret_type {
-                let e = ty.clean_up_blocks(session);
-                session.try_add_error(e);
-            }
-
-            for ArgDef { ty, .. } in func.args.iter_mut() {
-                if let Some(ty) = ty {
-                    let e = ty.clean_up_blocks(session);
-                    session.try_add_error(e);
-                }
-            }
-
-            // TODO: guess we have to iter decorators
-        }
-
-        if session.has_no_error() {
-            Ok(())
-        }
-
-        else {
-            Err(())
-        }
-
-    }
-}
+// 1. If a definition is used only once, the value goes directly to the used place.
+// 2. If a definition is used 0 times, it's removed.
+// 3. If a value of a definition is simple, all the referents are replaced with the value.
+//   - simple value: single identifier (or a path), small number (how small?), static values (constants)
+// 4. If a block has no defs, it unwraps the block.
+// 5. Check cycles
+//
+// when it returns Err(()), the actual errors are in `session`
+iter_mut_exprs_in_ast!(clean_up_blocks);
 
 impl Expr {
     pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {

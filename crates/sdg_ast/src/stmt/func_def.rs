@@ -10,6 +10,8 @@ use sdg_hash::SdgHash;
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
+pub const LAMBDA_FUNC_PREFIX: &str = "@@LAMBDA__";
+
 pub struct FuncDef {
     pub span: Span,  // it points to `d` of `def`, or `\` of a lambda function
     pub name: InternedString,
@@ -64,7 +66,7 @@ impl FuncDef {
         id: UID,
         session: &mut LocalParseSession,
     ) -> Self {
-        let lambda_func_name = format!("@@LAMBDA__{}", span.sdg_hash().to_string());
+        let lambda_func_name = format!("{LAMBDA_FUNC_PREFIX}{}", span.sdg_hash().to_string());
 
         FuncDef {
             args, ret_val, span, id,
