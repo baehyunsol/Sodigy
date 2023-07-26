@@ -9,7 +9,7 @@ fn samples() -> Vec<Vec<u8>> {
         def local___: Int = 3;
 
         @sub__(local___)
-        def local__(func__: List(Int), func___: List(Int), block_scoped: Int): Int = {
+        def local__<generic__>(func__: List(Int), func___: List(Int), block_scoped: Int): Int = {
             let block__ = 3;
             let block___ = 4;
             let block_scoped = 5;
@@ -40,6 +40,7 @@ fn name_origin_test() {
                     NameOrigin::SubPath => assert!(name.starts_with(b"sub")),
                     NameOrigin::Local => assert!(name.starts_with(b"local")),
                     NameOrigin::FuncArg(_) => assert!(name.starts_with(b"func")),
+                    NameOrigin::GenericArg(_) => assert!(name.starts_with(b"generic")),
                     NameOrigin::BlockDef(_) => assert!(name.starts_with(b"block")),
                     NameOrigin::Prelude => {},
                     NameOrigin::NotKnownYet => panic!("{}", bytes_to_string(&name)),
