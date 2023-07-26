@@ -2,7 +2,6 @@ use super::{Expr, ExprKind};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::expr::InfixOp;
 use crate::session::{InternedString, LocalParseSession};
-use crate::span::Span;
 use crate::stmt::{ArgDef, FuncDef, FuncKind};
 use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
@@ -48,6 +47,10 @@ impl Expr {
                     },
                     Err(()) => Err(ASTError::no_def(*id, self.span, name_scope.clone())),
                 },
+                ValueKind::Closure(_, _) => {
+                    // not generated yet
+                    unreachable!("Internal Compiler Error 34C5DBB43F6");
+                },
                 ValueKind::Lambda(args, expr) => {
                     let lambda_id = UID::new_lambda_id();
 
@@ -73,28 +76,15 @@ impl Expr {
                     );
 
                     if let Some(names) = lambda_def.get_all_foreign_names() {
-                        // TODO: if `names` include something that's definitely a function, exclude them
-                        // eg: `{f1: \{x, f2(x - 1)}, f2: \{x, if x > 0 { f1(x - 1) } else { 0 }}, f1(100)}`
-                        // if `f1` or `f2` is a closure, both are so.
-                        // if none of them are closure, we don't have to treat `f1` and `f2` as foreign names
-                        self.kind = ExprKind::Call(
-                            Box::new(Expr {
-                                kind: ExprKind::Value(
-                                    ValueKind::Identifier(lambda_def.name, NameOrigin::Local)
-                                ),
-                                span: self.span,
-                            }),
-                            names.into_iter().map(
-                                |name| Expr {
-                                    kind: ExprKind::Value(name.into()),
-                                    span: Span::dummy(),
-                                }
-                            ).collect()
+                        let names = names.into_iter().collect::<Vec<_>>();
+                        self.kind = ExprKind::Value(
+                            ValueKind::Closure(
+                                lambda_def.name,
+                                names.clone(),
+                            )
                         );
 
-                        // TODO: we have to record the result of `lambda_def.get_all_foreign_names` inside `lambda_def`
-
-                        lambda_def.kind = FuncKind::Closure;
+                        lambda_def.kind = FuncKind::Closure(names);
                     }
 
                     else {
@@ -191,6 +181,21 @@ impl Expr {
                         element.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
                     }
                 },
+
+                // nested closures are possible
+                ValueKind::Closure(_, captured_variables) => {
+                    for (name, origin) in captured_variables.iter() {
+                        match origin {
+                            NameOrigin::FuncArg(id) if *id != curr_func_id => {
+                                buffer.insert((*name, *origin));
+                            },
+                            NameOrigin::BlockDef(id) if !curr_blocks.contains(id) => {
+                                buffer.insert((*name, *origin));
+                            },
+                            _ => {}
+                        }
+                    }
+                }
                 ValueKind::Lambda(_, _) => {
                     // Inner lambdas have to be resolved before the outer ones, if the lambdas are nested
                     panic!("Internal Compiler Error 13D43ACBD32");

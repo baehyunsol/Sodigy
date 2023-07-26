@@ -84,6 +84,18 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "Add(Call(Call(@@LAMBDA__a0000000000003vvhvvvvjvvv9,1),20),Call(Call(@@LAMBDA__a0000000000003vvhvvvvjvvv9,2),20))",
         ),
         (
+            "
+            use foo, bar;
+            def tester: Int = {
+                let x = a + a + b + b;
+                let a = foo();
+                let b = bar();
+
+                a
+            };",
+            "Call(foo)"
+        ),
+        (
             "def tester: Int = {
                 let fibo = \\{n, if n < 2 { 0 } else { fibo(n - 1) + fibo(n - 2) }};
 

@@ -46,10 +46,10 @@ impl ASTError {
         }
     }
 
-    pub(crate) fn recursive_def(name: InternedString, span: Span) -> Self {
+    pub(crate) fn recursive_def(data: Vec<(InternedString, Span)>) -> Self {
         ASTError {
-            kind: ASTErrorKind::RecursiveDefInBlock(name),
-            span: vec![span],
+            kind: ASTErrorKind::RecursiveDefInBlock(data.iter().map(|(name, _)| *name).collect()),
+            span: data.iter().map(|(_, span)| *span).collect(),
             message: String::new(),
         }
     }

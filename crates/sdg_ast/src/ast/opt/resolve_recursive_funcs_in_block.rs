@@ -1,8 +1,8 @@
 use super::super::{AST, ASTError, NameOrigin};
 use crate::expr::{Expr, ExprKind};
 use crate::iter_mut_exprs_in_ast;
-use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::{ArgDef, Decorator, LAMBDA_FUNC_PREFIX};
+use crate::session::LocalParseSession;
+use crate::stmt::{ArgDef, Decorator};
 use crate::value::{BlockDef, ValueKind};
 
 /*
@@ -45,6 +45,19 @@ impl Expr {
                         element.resolve_recursive_funcs_in_block(session)?;
                     }
                 },
+                ValueKind::Closure(f, captured_variables) => {
+                    for (name, origin) in captured_variables.iter() {
+                        match origin {
+                            NameOrigin::BlockDef(id) => {
+                                // let's check whether it's a closure
+                                // if this value is a const-lambda (which looks like a closure)
+                            }
+                            _ => {
+                                // definitely a closure
+                            }
+                        }
+                    }
+                },
                 ValueKind::Lambda(args, val) => {
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
@@ -54,7 +67,7 @@ impl Expr {
 
                     val.resolve_recursive_funcs_in_block(session)?;
                 },
-                ValueKind::Block { defs, value, id } => {
+                ValueKind::Block { defs, value, .. } => {
 
                     for BlockDef { value, ty, .. } in defs.iter_mut() {
                         value.resolve_recursive_funcs_in_block(session)?;
@@ -84,46 +97,10 @@ impl Expr {
                 for arg in args.iter_mut() {
                     arg.resolve_recursive_funcs_in_block(session)?;
                 }
-
-                // if so, it's a closure
-                if f.is_lambda_function_name(session) {
-                    let functors = args.iter().filter(
-                        |arg| is_definitely_functor(arg, /* some kind of context*/)
-                    ).map(
-                        |arg| arg.clone()
-                    ).collect::<Vec<_>>();
-
-                    if functors.len() == args.len() {
-                        // it's not a closure any more
-                    }
-
-                    else if functors.len() > 0 {
-                        // remove arg: optimization anyway
-                    }
-
-                    // TODO: we have to change the shap of `f` in AST
-                }
             }
         }
 
         // though it doesn't return any error, it's return type is `Result`, due to the macro
         Ok(())
     }
-
-    fn is_lambda_function_name(&self, session: &LocalParseSession) -> bool {
-        match self.kind {
-            ExprKind::Value(ValueKind::Identifier(id, NameOrigin::Local)) if id.is_lambda_function_name(session) => true,
-            _ => false,
-        }
-    }
-}
-
-impl InternedString {
-    pub fn is_lambda_function_name(&self, session: &LocalParseSession) -> bool {
-        session.unintern_string(*self).starts_with(LAMBDA_FUNC_PREFIX.as_bytes())
-    }
-}
-
-fn is_definitely_functor(arg: &Expr) -> bool {
-    todo!()
 }

@@ -239,7 +239,7 @@ impl ExpectedToken {
                         &token_kinds.iter().map(
                             |kind| kind.render_err(session)
                         ).collect::<Vec<String>>(),
-                        "", "",
+                        "", "", "or"
                     ),
                 )
             }

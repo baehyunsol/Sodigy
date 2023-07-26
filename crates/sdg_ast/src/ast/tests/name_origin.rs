@@ -32,7 +32,7 @@ fn name_origin_test() {
         };
 
         ast.id_walker(
-            |name, origin| {
+            |name, origin, _| {
                 let name = session.unintern_string(*name);
 
                 match origin {
@@ -44,7 +44,8 @@ fn name_origin_test() {
                     NameOrigin::Prelude => {},
                     NameOrigin::NotKnownYet => panic!("{}", bytes_to_string(&name)),
                 }
-            }
+            },
+            &mut ()
         );
     }
 }

@@ -58,7 +58,8 @@ impl ExprKind {
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
-                | ValueKind::Bytes(_) => {},
+                | ValueKind::Bytes(_)
+                | ValueKind::Closure(_, _) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
@@ -76,70 +77,6 @@ impl ExprKind {
                     val.clean_up_blocks(session)?;
                 },
                 ValueKind::Block { defs, value, id } => {
-                    let graph = get_dep_graph(&defs, &value, *id);
-                    let mut never_used = vec![];
-                    let mut once_used = vec![];
-
-                    let cycles = find_cycles(&graph);
-
-                    if !cycles.is_empty() {
-
-                        // TODO: include all the nodes in the error
-                        for name in cycles.into_iter() {
-                            let span = get_span_by_name(name, defs);
-                            return Err(ASTError::recursive_def(name, span));
-                        }
-                    }
-
-                    for (def_name, usage) in graph.iter() {
-
-                        if usage.len() == 0 {
-                            never_used.push(*def_name);
-                        }
-
-                        else if usage.len() == 1 {
-                            once_used.push(*def_name);
-                        }
-
-                    }
-
-                    // remove `never_used` ones
-                    for never_used_name in never_used.iter() {
-                        session.add_warning(SodigyWarning::unused(*never_used_name, get_span_by_name(*never_used_name, defs), ParamType::BlockDef));
-
-                        defs.swap_remove(
-                            defs.iter().position(
-                                |BlockDef { name, .. }| name == never_used_name
-                            ).expect("Internal Compiler Error 3535BE1925D")
-                        );
-                    }
-
-                    for BlockDef { value, name, .. } in defs.iter() {
-                        if is_simple_expr(value) {
-                            once_used.push(*name);
-                        }
-                    }
-
-                    // remove duplicates
-                    let once_used_or_simple: HashSet<InternedString> = once_used.into_iter().collect();
-
-                    // substitute `once_used` ones and remove their defs
-                    // substitute `simple` ones and remove their defs
-                    for name_to_subs in once_used_or_simple.iter() {
-                        let ind = defs.iter().position(
-                            |BlockDef { name, .. }| name == name_to_subs
-                        ).expect("Internal Compiler Error E7C812E19B6");
-                        let BlockDef { value: value_to_subs, .. } = defs[ind].clone();
-
-                        for BlockDef { value, .. } in defs.iter_mut() {
-                            substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
-                        }
-
-                        substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
-
-                        defs.swap_remove(ind);
-                    }
-
                     for BlockDef { value, ty, .. } in defs.iter_mut() {
                         value.clean_up_blocks(session)?;
 
@@ -147,8 +84,76 @@ impl ExprKind {
                             ty.clean_up_blocks(session)?;
                         }
                     }
-
                     value.clean_up_blocks(session)?;
+
+                    // running this pass multiple times can reduce even more blocks!
+                    for i in 0..2 {
+                        let graph = get_dep_graph(&defs, &value, *id);
+                        let mut never_used = vec![];
+                        let mut once_used = vec![];
+
+                        if i != 0 {
+                            let cycles = find_cycles(&graph);
+
+                            if !cycles.is_empty() {
+                                let mut data = cycles.into_iter().map(
+                                    |name| (name, get_span_by_name(name, defs))
+                                ).collect::<Vec<(InternedString, Span)>>();
+                                data.sort_by_key(|(_, span)| span.index);
+
+                                return Err(ASTError::recursive_def(data));
+                            }
+                        }
+
+                        for (def_name, usage) in graph.iter() {
+
+                            if usage.len() == 0 {
+                                never_used.push(*def_name);
+                            }
+
+                            else if usage.len() == 1 {
+                                once_used.push(*def_name);
+                            }
+
+                        }
+
+                        // remove `never_used` ones
+                        for never_used_name in never_used.iter() {
+                            session.add_warning(SodigyWarning::unused(*never_used_name, get_span_by_name(*never_used_name, defs), ParamType::BlockDef));
+
+                            defs.swap_remove(
+                                defs.iter().position(
+                                    |BlockDef { name, .. }| name == never_used_name
+                                ).expect("Internal Compiler Error 3535BE1925D")
+                            );
+                        }
+
+                        for BlockDef { value, name, .. } in defs.iter() {
+                            if is_simple_expr(value) {
+                                once_used.push(*name);
+                            }
+                        }
+
+                        // remove duplicates
+                        let once_used_or_simple: HashSet<InternedString> = once_used.into_iter().collect();
+
+                        // substitute `once_used` ones and remove their defs
+                        // substitute `simple` ones and remove their defs
+                        for name_to_subs in once_used_or_simple.iter() {
+                            let ind = defs.iter().position(
+                                |BlockDef { name, .. }| name == name_to_subs
+                            ).expect("Internal Compiler Error E7C812E19B6");
+                            let BlockDef { value: value_to_subs, .. } = defs[ind].clone();
+
+                            for BlockDef { value, .. } in defs.iter_mut() {
+                                substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
+                            }
+
+                            substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
+
+                            defs.swap_remove(ind);
+                        }
+                    }
                 },
             },
             ExprKind::Prefix(_, v) => v.clean_up_blocks(session)?,
@@ -230,6 +235,13 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
                     count_occurrence(element, name, block_id, count);
                 }
             },
+            ValueKind::Closure(_, captured_variables) => {
+                for (name_, origin) in captured_variables.iter() {
+                    if *name_ == name && *origin == NameOrigin::BlockDef(block_id) {
+                        *count += 1;
+                    }
+                }
+            }
             ValueKind::Lambda(args, value) => {
                 count_occurrence(value.as_ref(), name, block_id, count);
 
@@ -285,7 +297,8 @@ fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: Int
             | ValueKind::Integer(_)
             | ValueKind::Real(_)
             | ValueKind::String(_)
-            | ValueKind::Bytes(_) => {},
+            | ValueKind::Bytes(_)
+            | ValueKind::Closure(_, _) => {},
             ValueKind::Format(elements)
             | ValueKind::List(elements)
             | ValueKind::Tuple(elements) => {

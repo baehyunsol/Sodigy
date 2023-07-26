@@ -9,7 +9,7 @@ pub enum ASTErrorKind {
     UndefinedSymbol(InternedString, NameScope),
     InvalidDecorator,
 
-    RecursiveDefInBlock(InternedString),
+    RecursiveDefInBlock(Vec<InternedString>),
 }
 
 impl ASTErrorKind {
@@ -26,7 +26,7 @@ impl ASTErrorKind {
             ASTErrorKind::UndefinedSymbol(d, names) => {
                 let suggestions = names.get_similar_name(*d, session);
                 let rendered_suggestions = print_list(
-                    &suggestions, "`", "`",
+                    &suggestions, "`", "`", "or",
                 );
                 let suggestions = if suggestions.is_empty() {
                     String::new()
@@ -46,10 +46,14 @@ impl ASTErrorKind {
             ASTErrorKind::InvalidDecorator => format!(
                 "invalid decorator",
             ),
-            // TODO: we have to allow recursive block-defs
-            ASTErrorKind::RecursiveDefInBlock(name) => format!(
-                "A block expression contains a recursively defined value: `{}`",
-                bytes_to_string(&session.unintern_string(*name)),
+            ASTErrorKind::RecursiveDefInBlock(names) => format!(
+                "a recursively defined value in a block expression: `{}`",
+                print_list(
+                    &names.iter().map(
+                        |name| bytes_to_string(&session.unintern_string(*name))
+                    ).collect::<Vec<String>>(),
+                    "`", "`", "and"
+                ),
             ),
         }
     }

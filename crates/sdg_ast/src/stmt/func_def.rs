@@ -80,7 +80,7 @@ impl FuncDef {
 
     fn is_anonymous(&self) -> bool {
         match self.kind {
-            FuncKind::Closure | FuncKind::Lambda => true,
+            FuncKind::Closure(_) | FuncKind::Lambda => true,
             FuncKind::Normal | FuncKind::Const
             | FuncKind::Enum | FuncKind::Struct
             | FuncKind::EnumVariant => false,
@@ -171,8 +171,8 @@ impl FuncDef {
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
         format!(
-            "#kind: {:?}{}\ndef {}({}): {} = {};",
-            self.kind,
+            "#kind: {}{}\ndef {}({}): {} = {};",
+            self.kind.to_string(session),
             self.decorators.iter().map(
                 |deco| format!("\n{}", deco.to_string(session))
             ).collect::<Vec<String>>().concat(),
@@ -190,7 +190,6 @@ impl FuncDef {
     }
 }
 
-#[derive(Debug)]
 pub enum FuncKind {
 
     // def foo(n: Int): Int = n + 1;
@@ -203,9 +202,29 @@ pub enum FuncKind {
     Lambda,
 
     // \{x, x + n}
-    Closure,
+    // the associated data is captured variables
+    Closure(Vec<(InternedString, NameOrigin)>),
 
     Enum,
     EnumVariant,
     Struct,
+}
+
+impl FuncKind {
+    pub fn to_string(&self, session: &LocalParseSession) -> String {
+        match self {
+            FuncKind::Normal => "normal".to_string(),
+            FuncKind::Const => "const".to_string(),
+            FuncKind::Lambda => "lambda".to_string(),
+            FuncKind::Enum => "enum".to_string(),
+            FuncKind::EnumVariant => "enum variant".to_string(),
+            FuncKind::Struct => "struct".to_string(),
+            FuncKind::Closure(captured_variables) => format!(
+                "closure({})",
+                captured_variables.iter().map(
+                    |(var, _)| var.to_string(session)
+                ).collect::<Vec<String>>().join(", ")
+            ),
+        }
+    }
 }
