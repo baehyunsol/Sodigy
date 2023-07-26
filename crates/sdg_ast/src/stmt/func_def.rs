@@ -21,8 +21,7 @@ pub struct FuncDef {
 
     pub decorators: Vec<Decorator>,
 
-    // TODO: raise error when there's a never-used generic def
-    // I don't know why but Rust does so
+    // TODO: is it a constant if it has generic params?
     pub generics: Vec<GenericDef>,
 
     // if it's None, it has to be inferred later (only lambda functions)
@@ -112,10 +111,10 @@ impl FuncDef {
             session.try_add_error(e);
         }
 
+        name_scope.push_names(&self.generics, NameScopeKind::GenericArg(self.id));
         name_scope.push_names(&self.args, NameScopeKind::FuncArg(self.id));
 
-        // TODO: `push_names(self.args)` before this line? or after this?
-        // dependent types?
+        // For now, types are dependent to the args
         for ArgDef { ty, .. } in self.args.iter_mut() {
             if let Some(ty) = ty {
                 let e = ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
@@ -133,6 +132,8 @@ impl FuncDef {
 
         session.add_warnings(self.get_unused_name_warnings(&used_args));
 
+        // one for args, one for generics
+        name_scope.pop_names();
         name_scope.pop_names();
 
         Ok(())
@@ -168,9 +169,13 @@ impl FuncDef {
         }
     }
 
-    pub fn get_unused_name_warnings(&self, used_names: &HashSet<(InternedString, NameOrigin)>) -> Vec<SodigyWarning> {
-        let mut result = vec![];
-        let self_name_origin = NameOrigin::FuncArg(self.id);
+    pub fn get_unused_name_warnings(
+        &self,
+        used_names: &HashSet<(InternedString, NameOrigin)>
+    ) -> Vec<SodigyWarning> {
+        let mut warnings = vec![];
+        let func_name_origin = NameOrigin::FuncArg(self.id);
+        let generic_name_origin = NameOrigin::GenericArg(self.id);
 
         let param_type = if self.is_anonymous() {
             ParamType::LambdaParam
@@ -179,22 +184,38 @@ impl FuncDef {
         };
 
         for ArgDef { name, span, .. } in self.args.iter() {
-            if !used_names.contains(&(*name, self_name_origin)) {
-                result.push(SodigyWarning::unused(*name, *span, param_type));
+            if !used_names.contains(&(*name, func_name_origin)) {
+                warnings.push(SodigyWarning::unused(*name, *span, param_type));
             }
         }
 
-        result
+        for GenericDef { name, span } in self.generics.iter() {
+            if !used_names.contains(&(*name, generic_name_origin)) {
+                warnings.push(SodigyWarning::unused(*name, *span, ParamType::FuncGeneric));
+            }
+        }
+
+        warnings
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
         format!(
-            "#kind: {}{}\ndef {}({}): {} = {};",
+            "#kind: {}{}\ndef {}{}({}): {} = {};",
             self.kind.to_string(session),
             self.decorators.iter().map(
                 |deco| format!("\n{}", deco.dump(session))
             ).collect::<Vec<String>>().concat(),
             self.name.to_string(session),
+            if self.generics.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "<{}>",
+                    self.generics.iter().map(
+                        |gen| gen.dump(session)
+                    ).collect::<Vec<String>>().join(", ")
+                )
+            },
             self.args.iter().map(
                 |arg| arg.dump(session)
             ).collect::<Vec<String>>().join(", "),

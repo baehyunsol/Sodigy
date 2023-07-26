@@ -155,7 +155,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .expect("Internal Compiler Error 3DB2B1546F6");
 
             block_tokens
-                .consume_token_or_error(TokenKind::Keyword(Keyword::Let))
+                .consume_token_or_error(vec![TokenKind::Keyword(Keyword::Let)])
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
 
             // points to the first character of the name (or the pattern)
@@ -183,13 +183,13 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             };
 
             block_tokens
-                .consume_token_or_error(TokenKind::assign())
+                .consume_token_or_error(vec![TokenKind::assign()])
                 .map_err(|e| e.set_span_of_eof(name_span))?;
 
             let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(name_span))?;
 
             block_tokens
-                .consume_token_or_error(TokenKind::semi_colon())
+                .consume_token_or_error(vec![TokenKind::semi_colon()])
                 .map_err(|e| e.set_span_of_eof(name_span))?;
 
             defs.push(BlockDef { name, ty, value: expr, span: name_span });
@@ -210,7 +210,6 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
     }
 }
 
-// TODO: `parse_block_expr` and `parse_lambda_def` are very similar
 fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     if tokens.is_eof() {
         Err(ParseError::eoe_msg(
@@ -252,7 +251,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             args.push(arg);
 
             tokens
-                .consume_token_or_error(TokenKind::comma())
+                .consume_token_or_error(vec![TokenKind::comma()])
                 .map_err(|e| e.set_span_of_eof(curr_span))?;
         }
 

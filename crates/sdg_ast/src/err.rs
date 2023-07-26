@@ -242,6 +242,11 @@ impl SodigyError for ParseError {
                     "If you want to use `..` as a prefix operator, try `0..a` instead of `..a`."
                 );
             },
+            ParseErrorKind::MultipleDefParam(_, ParamType::FuncGenericAndParam) => {
+                self.set_msg(
+                    "In Sodigy, types are first class objects, which means types and parameters are in the same name scope."
+                );
+            }
             _ => {}
         }
     }

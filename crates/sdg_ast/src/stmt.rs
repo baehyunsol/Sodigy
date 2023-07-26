@@ -10,7 +10,7 @@ mod tests;
 
 mod use_;
 
-pub use arg_def::{parse_arg_def, ArgDef, GetNameOfArg};
+pub use arg_def::{parse_arg_def, ArgDef};
 pub use decorator::Decorator;
 pub use func_def::{FuncDef, FuncKind, LAMBDA_FUNC_PREFIX};
 pub use generic_def::GenericDef;
@@ -20,6 +20,9 @@ pub use use_::{Use, use_case_to_tokens};
 
 #[cfg(test)]
 pub use parse::parse_use;
+
+use crate::session::InternedString;
+use crate::value::BlockDef;
 
 pub enum Stmt {
     // 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'
@@ -34,4 +37,32 @@ pub enum Stmt {
 
     // 'module' MODULE_NAME ';'
     Module(ModDef),
+}
+
+pub trait GetNameOfArg {
+    fn get_name_of_arg(&self) -> InternedString;
+}
+
+impl GetNameOfArg for ArgDef {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.name
+    }
+}
+
+impl GetNameOfArg for BlockDef {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.name
+    }
+}
+
+impl GetNameOfArg for GenericDef {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.name
+    }
+}
+
+impl<A: GetNameOfArg> GetNameOfArg for Box<A> {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.as_ref().get_name_of_arg()
+    }
 }

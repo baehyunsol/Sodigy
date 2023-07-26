@@ -151,6 +151,13 @@ impl LocalParseSession {
         self.errors.push(Box::new(error) as Box<dyn SodigyError>);
     }
 
+    pub fn add_errors<E: SodigyError + 'static>(&mut self, errors: Vec<E>) {
+        for mut error in errors.into_iter() {
+            error.try_add_more_helpful_message();
+            self.errors.push(Box::new(error) as Box<dyn SodigyError>);
+        }
+    }
+
     pub fn try_add_error<T, E: SodigyError + 'static>(&mut self, error: Result<T, E>) {
         if let Err(mut error) = error {
             error.try_add_more_helpful_message();

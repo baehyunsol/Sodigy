@@ -81,17 +81,19 @@ impl TokenList {
         }
     }
 
-    pub fn consume_token_or_error(&mut self, token_kind: TokenKind) -> Result<(), ParseError> {
+    // it only consumes one token
+    // the input is `Vec<TokenKind>` because it may expect multiple KINDs of A token
+    pub fn consume_token_or_error(&mut self, token_kinds: Vec<TokenKind>) -> Result<(), ParseError> {
         match self.step() {
-            Some(Token { kind, .. }) if *kind == token_kind => Ok(()),
+            Some(Token { kind, .. }) if token_kinds.contains(kind) => Ok(()),
             Some(Token { kind, span }) => Err(ParseError::tok(
                 kind.clone(),
                 *span,
-                ExpectedToken::SpecificTokens(vec![token_kind]),
+                ExpectedToken::SpecificTokens(token_kinds),
             )),
             None => Err(ParseError::eoe(
                 Span::dummy(),
-                ExpectedToken::SpecificTokens(vec![token_kind]),
+                ExpectedToken::SpecificTokens(token_kinds),
             )),
         }
     }
@@ -157,7 +159,7 @@ impl TokenList {
                 kind: TokenKind::Operator(OpToken::Lt),
                 span: generic_def_span,
             }) => {
-                self.cursor += 1;  // TODO: decrement it when it fails
+                self.cursor += 1;
                 let mut generics = vec![];
 
                 // no borrowck
@@ -183,9 +185,15 @@ impl TokenList {
                     } else if self.consume(TokenKind::Operator(OpToken::Gt)) {
                         break;
                     } else {
-                        todo!();
-                        // TODO: ExpectedToken::SpecificTokens(vec![comma, gt])
-                        // return Some(Err(ParseError::tok()))
+                        // must be an error
+                        if let Err(e) = self.consume_token_or_error(vec![
+                            TokenKind::comma(),
+                            TokenKind::Operator(OpToken::Gt),
+                        ]).map_err(
+                                |e| e.set_span_of_eof(generic_def_span)
+                        ) {
+                            return Some(Err(e));
+                        }
                     }
                 }
 

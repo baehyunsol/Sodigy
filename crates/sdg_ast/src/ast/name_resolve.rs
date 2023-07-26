@@ -159,6 +159,7 @@ pub enum NameOrigin {
     Local,    // `a` of `def a: _ = _;`
     Prelude,
     FuncArg(UID),
+    GenericArg(UID),
     BlockDef(UID),
 }
 
@@ -166,6 +167,7 @@ pub enum NameOrigin {
 pub enum NameScopeKind {
     Block(UID),
     FuncArg(UID),
+    GenericArg(UID),
     LambdaArg(UID),
 }
 
@@ -175,6 +177,7 @@ impl From<&NameScopeKind> for NameOrigin {
             NameScopeKind::Block(id) => NameOrigin::BlockDef(*id),
             NameScopeKind::FuncArg(id) => NameOrigin::FuncArg(*id),
             NameScopeKind::LambdaArg(id) => NameOrigin::FuncArg(*id),
+            NameScopeKind::GenericArg(id) => NameOrigin::GenericArg(*id),
         }
     }
 }

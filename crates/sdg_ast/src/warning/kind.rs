@@ -12,6 +12,10 @@ impl SodigyWarningKind {
                 let p_type = match p_type {
                     ParamType::FuncParam | ParamType::LambdaParam => "argument",
                     ParamType::BlockDef => "local name binding",
+                    ParamType::FuncGeneric => "generic argument",
+                    ParamType::FuncGenericAndParam => unreachable!(
+                        "5E7D383F172"
+                    ),
                 };
 
                 format!(

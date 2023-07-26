@@ -3,7 +3,6 @@ use crate::expr::Expr;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{OpToken, TokenKind, TokenList};
-use crate::value::BlockDef;
 
 #[derive(Clone)]
 pub struct ArgDef {
@@ -61,27 +60,4 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
         Ok(ArgDef { name, ty: None, span })
     }
 
-}
-
-// TODO: where should this belong?
-pub trait GetNameOfArg {
-    fn get_name_of_arg(&self) -> InternedString;
-}
-
-impl GetNameOfArg for ArgDef {
-    fn get_name_of_arg(&self) -> InternedString {
-        self.name
-    }
-}
-
-impl GetNameOfArg for BlockDef {
-    fn get_name_of_arg(&self) -> InternedString {
-        self.name
-    }
-}
-
-impl<A: GetNameOfArg> GetNameOfArg for Box<A> {
-    fn get_name_of_arg(&self) -> InternedString {
-        self.as_ref().get_name_of_arg()
-    }
 }

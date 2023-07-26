@@ -361,7 +361,6 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             3,
         ),
         (
-            // TODO: suggest `0..4` to the programmer
             "f(ls[..4])",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Operator(OpToken::DotDot),

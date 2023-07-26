@@ -65,7 +65,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         };
 
         tokens
-            .consume_token_or_error(TokenKind::semi_colon())
+            .consume_token_or_error(vec![TokenKind::semi_colon()])
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         Ok(Stmt::Module(ModDef::new(module_name, curr_span)))
@@ -126,9 +126,9 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         };
 
         let mut arg_names = HashSet::with_capacity(args.len());
+        let mut generic_names = HashSet::with_capacity(generics.len());
 
         for arg in args.iter() {
-
             if !arg_names.insert(arg.name) {
                 return Err(ParseError::multi_def(arg.name, arg.span, ParamType::FuncParam));
             }
@@ -138,8 +138,18 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         }
 
+        for generic in generics.iter() {
+            if !generic_names.insert(generic.name) {
+                return Err(ParseError::multi_def(generic.name, generic.span, ParamType::FuncGeneric));
+            }
+
+            if arg_names.contains(&generic.name) {
+                return Err(ParseError::multi_def(generic.name, generic.span, ParamType::FuncGenericAndParam));
+            }
+        }
+
         tokens
-            .consume_token_or_error(TokenKind::Operator(OpToken::Colon))
+            .consume_token_or_error(vec![TokenKind::colon()])
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         let ret_type = match tokens.step_type() {
@@ -157,13 +167,13 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         };
 
         tokens
-            .consume_token_or_error(TokenKind::assign())
+            .consume_token_or_error(vec![TokenKind::assign()])
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         let ret_val = parse_expr(tokens, 0)?;
 
         tokens
-            .consume_token_or_error(TokenKind::semi_colon())
+            .consume_token_or_error(vec![TokenKind::semi_colon()])
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
         Ok(Stmt::Def(FuncDef::new(

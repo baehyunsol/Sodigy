@@ -33,6 +33,8 @@ pub enum ParseErrorKind {
 pub enum ParamType {
     FuncParam,
     LambdaParam,
+    FuncGeneric,
+    FuncGenericAndParam,
     BlockDef,
 }
 
@@ -76,6 +78,9 @@ impl ParamType {
             ParamType::FuncParam => "a function parameter list",
             ParamType::LambdaParam => "a lambda parameter list",
             ParamType::BlockDef => "a block expression",
+            ParamType::FuncGeneric => "a function generic parameter list",
+            ParamType::FuncGenericAndParam =>
+                "a function generic parameter list and a parameter list",
         }.to_string()
     }
 }
