@@ -4,7 +4,7 @@ use crate::expr::{parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::stmt::{parse_arg_def, ArgDef};
+use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
 use crate::value::{parse_block_expr, ValueKind};
 use hmath::Ratio;
 
@@ -148,6 +148,50 @@ impl TokenList {
                     TokenKind::dummy_identifier(),
                 ]),
             ))
+        }
+    }
+
+    pub fn step_generic_defs(&mut self) -> Option<Result<Vec<GenericDef>, ParseError>> {
+        match self.data.get(self.cursor) {
+            Some(Token {
+                kind: TokenKind::Operator(OpToken::Lt),
+                span: generic_def_span,
+            }) => {
+                self.cursor += 1;  // TODO: decrement it when it fails
+                let mut generics = vec![];
+
+                // no borrowck
+                let generic_def_span = *generic_def_span;
+
+                loop {
+                    if self.consume(TokenKind::Operator(OpToken::Gt)) {
+                        break;
+                    }
+
+                    let name_span = self.peek_curr_span();
+                    let name = match self.step_identifier_strict() {
+                        Ok(n) => n,
+                        Err(e) => {
+                            return Some(Err(e.set_span_of_eof(generic_def_span)));
+                        }
+                    };
+                    let name_span = name_span.expect("Internal Compiler Error 0AA5B43F2C1");
+                    generics.push(GenericDef::new(name, name_span));
+
+                    if self.consume(TokenKind::comma()) {
+                        continue;
+                    } else if self.consume(TokenKind::Operator(OpToken::Gt)) {
+                        break;
+                    } else {
+                        todo!();
+                        // TODO: ExpectedToken::SpecificTokens(vec![comma, gt])
+                        // return Some(Err(ParseError::tok()))
+                    }
+                }
+
+                Some(Ok(generics))
+            },
+            _ => None,
         }
     }
 

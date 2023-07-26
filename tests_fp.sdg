@@ -4,7 +4,7 @@ The std is implemented in a way more efficient way (though not implemented yet)
 !##
 
 # TODO: append operator
-def zip_with(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
+def zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
     []
 } else {
     [f(a[0], b[0])] <> zip_with(
@@ -14,18 +14,18 @@ def zip_with(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty(
     )
 };
 
-def zip(a: List(T), b: List(U)): List((T, U)) = zip_with(
+def zip<T, U>(a: List(T), b: List(U)): List((T, U)) = zip_with(
     a, b,
     \{x, y, (x, y)}
 );
 
-def map(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
+def map<T, U>(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
     []
 } else {
     [f(ls[0])] <> map(ls[1..], f)
 };
 
-def filter(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
+def filter<T>(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
     []
 } else if f(ls[0]) {
     [ls[0]] <> filter(ls[1..], f)
@@ -33,13 +33,13 @@ def filter(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
     filter(ls[1..], f)
 };
 
-def foldl(ls: List(T), f: Func(U, T, U), base: U): U = if ls.is_empty() {
+def foldl<T, U>(ls: List(T), f: Func(U, T, U), base: U): U = if ls.is_empty() {
     base
 } else {
     foldl(ls[1..], f, f(base, ls[0]))
 };
 
-def foldr(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
+def foldr<T, U>(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
     base
 } else {
     foldr(ls[0..(-1)], f, f(ls[-1], base))
@@ -52,7 +52,7 @@ def sum(ls: List(Int)): Int = foldl(ls, \{a, b, a + b}, 0);
 def product(ls: List(Int)): Int = foldl(ls, \{a, b, a * b}, 0);
 
 # TODO: How do I annotate that `U` is comparable?
-def sort_by(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
+def sort_by<T, U>(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
     ls
 } else {
     let pivot = f(ls[-1]);
@@ -63,36 +63,36 @@ def sort_by(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
 };
 
 # TODO: How do I annotate that `U` is comparable?
-def sort(ls: List(T)): List(T) = sort_by(ls, \{ls, ls});
+def sort<T>(ls: List(T)): List(T) = sort_by(ls, \{ls, ls});
 
-def is_sorted_by(ls: List(T), f: Func(T, U)): Bool = if ls.len() < 2 {
+def is_sorted_by<T, U>(ls: List(T), f: Func(T, U)): Bool = if ls.len() < 2 {
     Bool.True
 } else {
     f(ls[0]) < f(ls[1]) && is_sorted_by(ls[1..], f)
 };
 
-def is_sorted(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
+def is_sorted<T>(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
 
-def reverse(ls: List(T)): List(T) = if ls.is_empty() {
+def reverse<T>(ls: List(T)): List(T) = if ls.is_empty() {
     []
 } else {
     ls[1..] <> [ls[0]]
 };
 
-def any(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+def any<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
     Bool.false  # just `false`?
 } else {
     f(ls[0]) || any(ls[1..], f)
 };
 
-def all(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+def all<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
     Bool.false  # just `false`?
 } else {
     f(ls[0]) && all(ls[1..], f)
 };
 
 ##!
-def first_index_that(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
+def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
     Option.None  # just `None`?
 } else if f(ls[0]) {
     Option.Some(0)

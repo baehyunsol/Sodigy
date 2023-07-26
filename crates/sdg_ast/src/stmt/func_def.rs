@@ -1,4 +1,4 @@
-use super::{ArgDef, Decorator};
+use super::{ArgDef, Decorator, GenericDef};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
@@ -21,6 +21,10 @@ pub struct FuncDef {
 
     pub decorators: Vec<Decorator>,
 
+    // TODO: raise error when there's a never-used generic def
+    // I don't know why but Rust does so
+    pub generics: Vec<GenericDef>,
+
     // if it's None, it has to be inferred later (only lambda functions)
     pub ret_type: Option<Expr>,
 
@@ -39,6 +43,7 @@ impl FuncDef {
         is_const: bool,
         ret_type: Expr,
         ret_val: Expr,
+        generics: Vec<GenericDef>,
         span: Span,
     ) -> Self {
         let kind = if is_const {
@@ -52,6 +57,7 @@ impl FuncDef {
             ret_type: Some(ret_type),
             ret_val,
             span,
+            generics,
             location: ModulePath::empty(),  // will be filled later
             kind,
             decorators: vec![],  // filled later
@@ -75,6 +81,7 @@ impl FuncDef {
             args, ret_val, span, id,
             location: ModulePath::empty(),  // nobody cares!
             decorators: vec![],
+            generics: vec![],
             ret_type: None,  // has to be inferred later
             kind: FuncKind::Lambda,  // if it's a closure, it'll be handled later
             name: session.intern_string(lambda_func_name.into()),

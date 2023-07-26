@@ -112,6 +112,11 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         };
 
+        let generics = match tokens.step_generic_defs() {
+            Some(generics) => generics?,
+            None => vec![],
+        };
+
         let (args, is_const) = match tokens.step_func_def_args() {
             Some(Ok(args)) => (args, false),
             Some(Err(e)) => {
@@ -163,7 +168,8 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         Ok(Stmt::Def(FuncDef::new(
             name, args, is_const,
-            ret_type, ret_val, curr_span,
+            ret_type, ret_val,
+            generics, curr_span,
         )))
     } else {
         let top_token = tokens.step().expect("Internal Compiler Error C9A5B07DC36");
