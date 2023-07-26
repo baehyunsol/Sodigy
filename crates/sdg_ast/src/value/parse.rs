@@ -97,7 +97,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             Delimiter::Bracket => Ok(ValueKind::List(
                 split_list_by_comma(elements).map_err(
                     |mut e| {
-                        e.set_expected_tokens(vec![
+                        e.set_expected_tokens_instead_of_nothing(vec![
                             TokenKind::Operator(OpToken::ClosingSquareBracket),
                             TokenKind::comma(),
                         ]);

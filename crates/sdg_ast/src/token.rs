@@ -1,4 +1,4 @@
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use hmath::Ratio;
 
@@ -30,6 +30,10 @@ impl Token {
 
     pub fn unwrap_number(&self) -> Ratio {
         self.kind.unwrap_number()
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        self.kind.dump(session)
     }
 }
 

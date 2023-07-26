@@ -5,8 +5,8 @@ Compiler should not panic in any case. If it panics, that's an error.
 - Rules for `unwrap`, `expect`, and `panic!`
   - `unwrap` should be avoided in any case.
   - If you want to unwrap something, use `expect("Internal Compiler Error XXXXXXXXXXX")`.
-    - `XXXXXXX` is an index for the ICE.
-    - An ICE index is a 7-chars hexadecimal number. It should be unique.
+    - `XXXXXXXXXXX` is an index for the ICE.
+    - An ICE index is a 11-chars hexadecimal number. It should be unique.
   - All the `panic!`s, `unreachable!`s, `assert!`, and similar stuffs shell have their own unique ICE index.
   - It's okay to panic without any index in tests.
 
@@ -30,6 +30,7 @@ Most error messages and warning messages are from Rust.
   - ``` function `read_bytes` is never used ```
   - ``` unreachable statement ```
 - Errors
+  - ``` could not compile `sdg_ast` (lib) due to 5 previous errors; 2 warnings emitted ```
   - ``` cannot find function `doto` in this scope ```
   - ``` cannot find macro `printll` in this scope ```
   - ``` no method named `write` found for struct `File` in the current scope ```
@@ -41,6 +42,8 @@ Most error messages and warning messages are from Rust.
   - ``` couldn't read test.rs: stream did not contain valid UTF-8 ```
   - ``` non-item in item list ```
     - when I placed `[]` after a method definition, for no reason
+  - ``` visibility qualifiers are not permitted here ```
+    - when I placed `pub` in front of `fn` in trait implementation
   - ``` unresolved import `crate::err::SodigyError` ```
     - ``` no `SodigyError` in `err` ```
   - ``` expected item after attributes ```

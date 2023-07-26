@@ -360,6 +360,15 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             ParseErrorKind::UnexpectedEof,
             3,
         ),
+        (
+            // TODO: suggest `0..4` to the programmer
+            "f(ls[..4])",
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::Operator(OpToken::DotDot),
+                expected: ExpectedToken::AnyExpression,
+            },
+            5,
+        ),
     ];
 
     let mut result: Vec<(Vec<u8>, ParseErrorKind, usize)> = result
@@ -383,7 +392,7 @@ fn valid_ast_dump_test() {
     for (input, ast, span) in valid_samples() {
         match dump_ast_of_expr(input, &mut session) {
             Ok(expr) => {
-                assert_eq!(expr.to_string(&session), ast);
+                assert_eq!(expr.dump(&session), ast);
                 assert_eq!(expr.span.index, span);
             }
             Err(err) => {
@@ -399,6 +408,8 @@ fn invalid_ast_dump_test() {
 
     for (input, err_kind, span) in invalid_samples() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
+            // It's a good practice to see how the error messages look like
+            // println!("{}", e.render_err(&session));
             if !is_eq(&e.kind, &err_kind) || e.span.len() != 1 || e.span[0].index != span {
                 panic!(
                     "input: {}\nexpected_err:{}\nexpected_span: {span}\ngot: {}",

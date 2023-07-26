@@ -1,5 +1,7 @@
 Error: [200] is not a valid utf-8
-./src/err/samples/no_utf8_str.in:0:28
+./src/err/samples/no_utf8_str.in:1:28
     │                            ▾
-▸ 0 │ def DUMB_STRING: String = '������';
+▸ 1 │ def DUMB_STRING: String = '������';
     │                            ▴
+
+Could not compile `./src/err/samples/no_utf8_str.in` due to a previous error.

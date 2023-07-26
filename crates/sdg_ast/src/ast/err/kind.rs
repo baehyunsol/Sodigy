@@ -46,15 +46,23 @@ impl ASTErrorKind {
             ASTErrorKind::InvalidDecorator => format!(
                 "invalid decorator",
             ),
-            ASTErrorKind::RecursiveDefInBlock(names) => format!(
-                "a recursively defined value in a block expression: `{}`",
-                print_list(
-                    &names.iter().map(
-                        |name| bytes_to_string(&session.unintern_string(*name))
-                    ).collect::<Vec<String>>(),
-                    "`", "`", "and"
-                ),
-            ),
+            ASTErrorKind::RecursiveDefInBlock(names) => {
+                let (a, s) = if names.len() == 1 {
+                    ("a ", "")
+                } else {
+                    ("", "s")
+                };
+
+                format!(
+                    "{a}recursively defined value{s} in a block expression: {}",
+                    print_list(
+                        &names.iter().map(
+                            |name| name.to_string(session)
+                        ).collect::<Vec<String>>(),
+                        "`", "`", "and"
+                    ),
+                )
+            },
         }
     }
 }

@@ -108,7 +108,7 @@ impl Span {
                     b" ".to_vec()
                 };
 
-                let line_no = format!(" {index:08} │ ").as_bytes().to_vec();
+                let line_no = format!(" {:08} │ ", index + 1).as_bytes().to_vec();
 
                 let content = if line.len() > MAX_PREVIEW_LEN {
                     vec![cut_char(&line, MAX_PREVIEW_LEN - 3).to_vec(), vec![b'.'; 3]].concat()
@@ -129,6 +129,7 @@ impl Span {
             |line| 
                 (line[0] == b' ' && line[2] == b'0')
                 || (line[0] == 0xe2 && line[4] == b'0')  // 0xe2 is the first byte of `▸`
+                || (line[0] == 0xe2 && line[4] == b'1' && line[5] == b' ')
         ) {
             preview = preview.iter_mut().map(
                     |line| {
@@ -146,7 +147,7 @@ impl Span {
         }
 
         if preview.len() == 1 && row == 0 {
-            preview[0] = vec!["▸ 0 │".as_bytes().to_vec(), preview[0][8..].to_vec()].concat()
+            preview[0] = vec!["▸ 1 │".as_bytes().to_vec(), preview[0][8..].to_vec()].concat()
         }
 
         preview = insert_col_markers(preview, col);
@@ -163,7 +164,8 @@ impl Span {
 fn render_pos(file_path: Vec<u8>, row: usize, col: usize) -> Vec<u8> {
     vec![
         file_path,
-        format!(":{row}:{col}").as_bytes().to_vec(),
+        // index starts with 0 in Rust, but with 1 in line_no
+        format!(":{}:{col}", row + 1).as_bytes().to_vec(),
     ].concat()
 }
 
@@ -192,7 +194,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
     }
 
     let line_no_len = if lines[0][0] == 0xe2 {  // the first byte of `│` and `▸` are the same...
-        assert_eq!(lines[0][4], b'0', "Internal Compiler Error 5A798E8FF9D");
+        assert_eq!(lines[0][4], b'1', "Internal Compiler Error 5A798E8FF9D");
         4
     } else {
         lines[0]

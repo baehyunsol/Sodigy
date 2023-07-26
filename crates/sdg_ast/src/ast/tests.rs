@@ -21,7 +21,7 @@ impl AST {
             return None;
         };
 
-        Some(func.ret_val.to_string(session))
+        Some(func.ret_val.dump(session))
     }
 
 }

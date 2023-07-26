@@ -1,0 +1,105 @@
+##!
+This code is not the actual implementation of the std lib. These're just test cases.
+The std is implemented in a way more efficient way (though not implemented yet)
+!##
+
+# TODO: append operator
+def zip_with(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
+    []
+} else {
+    [f(a[0], b[0])] <> zip_with(
+        a[1..],
+        b[1..],
+        f,
+    )
+};
+
+def zip(a: List(T), b: List(U)): List((T, U)) = zip_with(
+    a, b,
+    \{x, y, (x, y)}
+);
+
+def map(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
+    []
+} else {
+    [f(ls[0])] <> map(ls[1..], f)
+};
+
+def filter(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
+    []
+} else if f(ls[0]) {
+    [ls[0]] <> filter(ls[1..], f)
+} else {
+    filter(ls[1..], f)
+};
+
+def foldl(ls: List(T), f: Func(U, T, U), base: U): U = if ls.is_empty() {
+    base
+} else {
+    foldl(ls[1..], f, f(base, ls[0]))
+};
+
+def foldr(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
+    base
+} else {
+    foldr(ls[0..(-1)], f, f(ls[-1], base))
+};
+
+# TODO: I want it to be generic
+def sum(ls: List(Int)): Int = foldl(ls, \{a, b, a + b}, 0);
+
+# TODO: I want it to be generic
+def product(ls: List(Int)): Int = foldl(ls, \{a, b, a * b}, 0);
+
+# TODO: How do I annotate that `U` is comparable?
+def sort_by(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
+    ls
+} else {
+    let pivot = f(ls[-1]);
+
+    sort_by(filter(ls, \{n, f(n) < pivot}), f)
+    <> filter(ls, \{n, f(n) == pivot})
+    <> sort_by(filter(ls, \{n, f(n) > pivot}), f)
+};
+
+# TODO: How do I annotate that `U` is comparable?
+def sort(ls: List(T)): List(T) = sort_by(ls, \{ls, ls});
+
+def is_sorted_by(ls: List(T), f: Func(T, U)): Bool = if ls.len() < 2 {
+    Bool.True
+} else {
+    f(ls[0]) < f(ls[1]) && is_sorted_by(ls[1..], f)
+};
+
+def is_sorted(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
+
+def reverse(ls: List(T)): List(T) = if ls.is_empty() {
+    []
+} else {
+    ls[1..] <> [ls[0]]
+};
+
+def any(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+    Bool.false  # just `false`?
+} else {
+    f(ls[0]) || any(ls[1..], f)
+};
+
+def all(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+    Bool.false  # just `false`?
+} else {
+    f(ls[0]) && all(ls[1..], f)
+};
+
+##!
+def first_index_that(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
+    Option.None  # just `None`?
+} else if f(ls[0]) {
+    Option.Some(0)
+} else {
+    match first_index_that(ls[1..], f) {  # TODO: `match` syntax is not complete yet
+        Option.Some(n) => Option.Some(1 + n),
+        _ => None,
+    }
+};
+!##

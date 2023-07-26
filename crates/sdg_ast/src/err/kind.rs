@@ -1,10 +1,9 @@
 use super::ExpectedToken;
 use crate::session::{InternedString, LocalParseSession};
 use crate::token::TokenKind;
-use crate::utils::bytes_to_string;
 use sdg_fs::FileError;
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum ParseErrorKind {
     // only for lexer
     UnexpectedChar(char),
@@ -58,12 +57,12 @@ impl ParseErrorKind {
             ),
             ParseErrorKind::UntypedArg(arg, func) => format!(
                 "expected a type annotation, found nothing\nParameter `{}` of function `{}` has no type annotation.\nOnly lambda functions are allowed to omit type annotations.",
-                bytes_to_string(&session.unintern_string(*arg)),
-                bytes_to_string(&session.unintern_string(*func)),
+                arg.to_string(session),
+                func.to_string(session),
             ),
             ParseErrorKind::MultipleDefParam(name, param_type) => format!(
                 "identifier `{}` is bound more than once in {}",
-                bytes_to_string(&session.unintern_string(*name)),
+                name.to_string(session),
                 param_type.render_err(),
             ),
             ParseErrorKind::FileError(e) => e.render_err(),

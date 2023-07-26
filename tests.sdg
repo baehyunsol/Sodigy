@@ -92,3 +92,11 @@ def dirty_closure_test2: List(Int) = [
     dirty_closure2(2),
     dirty_closure2(1),
 ];
+
+@test.eq("3 + 4 = 7")
+def format_string_test: String = {
+    let a = 3;
+    let b = 4;
+
+    f"{a} + {b} = {a + b}"
+};

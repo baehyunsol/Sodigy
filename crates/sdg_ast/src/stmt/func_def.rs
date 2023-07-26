@@ -101,24 +101,28 @@ impl FuncDef {
         let mut used_args = HashSet::new();
 
         for decorator in self.decorators.iter_mut() {
-            decorator.resolve_names(name_scope, lambda_defs, session)?;
+            let e = decorator.resolve_names(name_scope, lambda_defs, session);
+            session.try_add_error(e);
         }
 
         name_scope.push_names(&self.args, NameScopeKind::FuncArg(self.id));
 
         // TODO: `push_names(self.args)` before this line? or after this?
         // dependent types?
-        self.ret_val.resolve_names(name_scope, lambda_defs, session, &mut used_args)?;
-
-        if let Some(ty) = &mut self.ret_type {
-            ty.resolve_names(name_scope, lambda_defs, session, &mut used_args)?;
-        }
-
         for ArgDef { ty, .. } in self.args.iter_mut() {
             if let Some(ty) = ty {
-                ty.resolve_names(name_scope, lambda_defs, session, &mut used_args)?;
+                let e = ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
+                session.try_add_error(e);
             }
         }
+
+        if let Some(ty) = &mut self.ret_type {
+            let e = ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
+            session.try_add_error(e);
+        }
+
+        let e = self.ret_val.resolve_names(name_scope, lambda_defs, session, &mut used_args);
+        session.try_add_error(e);
 
         session.add_warnings(self.get_unused_name_warnings(&used_args));
 
@@ -141,6 +145,10 @@ impl FuncDef {
                 if let Some(ty) = ty {
                     ty.get_all_foreign_names(self.id, &mut result, &mut blocks);
                 }
+            }
+
+            if let Some(ty) = &self.ret_type {
+                ty.get_all_foreign_names(self.id, &mut result, &mut blocks);
             }
 
             if result.is_empty() {
@@ -177,18 +185,18 @@ impl FuncDef {
             "#kind: {}{}\ndef {}({}): {} = {};",
             self.kind.to_string(session),
             self.decorators.iter().map(
-                |deco| format!("\n{}", deco.to_string(session))
+                |deco| format!("\n{}", deco.dump(session))
             ).collect::<Vec<String>>().concat(),
             self.name.to_string(session),
             self.args.iter().map(
-                |arg| arg.to_string(session)
+                |arg| arg.dump(session)
             ).collect::<Vec<String>>().join(", "),
             if let Some(ty) = &self.ret_type {
-                ty.to_string(session)
+                ty.dump(session)
             } else {
                 String::from("@DontKnow")
             },
-            self.ret_val.to_string(session),
+            self.ret_val.dump(session),
         )
     }
 }

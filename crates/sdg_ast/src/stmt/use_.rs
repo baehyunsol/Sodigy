@@ -43,7 +43,7 @@ impl Use {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
-        format!("use {} as {};", self.path.to_string(session), self.alias.to_string(session))
+        format!("use {} as {};", self.path.dump(session), self.alias.to_string(session))
     }
 }
 

@@ -39,7 +39,7 @@ impl Expr {
         }
     }
 
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
-        self.kind.to_string(session)
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        self.kind.dump(session)
     }
 }

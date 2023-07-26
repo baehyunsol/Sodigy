@@ -76,7 +76,7 @@ fn valid_decorator_tests() {
 
                 let actual_deco_args = actual_decos.iter().map(
                     |deco| deco.args.iter().map(
-                        |arg| arg.to_string(&session)
+                        |arg| arg.dump(&session)
                     ).collect::<Vec<String>>()
                 ).collect::<Vec<Vec<String>>>().concat();
 

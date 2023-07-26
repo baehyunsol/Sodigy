@@ -17,12 +17,12 @@ pub struct ArgDef {
 }
 
 impl ArgDef {
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession) -> String {
         format!(
             "{}{}",
             self.name.to_string(session),
             if let Some(ty) = &self.ty {
-                format!(": {}", ty.to_string(session))
+                format!(": {}", ty.dump(session))
             } else {
                 String::new()
             }

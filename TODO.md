@@ -113,3 +113,11 @@ if the pattern is `True`, how do we know whether it's a name binding or an enum 
 - in `match`, let's first check whether the name `True` is in the scope
   - if so, let's treat it as an enum variant
   - otherwise, it's a name binding
+
+---
+
+more testing
+
+How do I state this: ``` for all ls: List(Int), `ls.sum() == ls.sort().sum() && ls.len() == ls.sort().len() && ls.sort().is_sorted()` ```
+
+I want that to be attached to `List.sort`

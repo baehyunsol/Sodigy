@@ -1,6 +1,8 @@
 Error: [200, 200] is not a valid utf-8
-./src/err/samples/no_utf8_comment.in:0:3
+./src/err/samples/no_utf8_comment.in:1:3
     │   ▾
-▸ 0 │ # ���
+▸ 1 │ # ���
     │   ▴
-  1 │ def FOO: Int = 0;
+  2 │ def FOO: Int = 0;
+
+Could not compile `./src/err/samples/no_utf8_comment.in` due to a previous error.

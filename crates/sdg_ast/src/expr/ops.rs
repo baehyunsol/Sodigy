@@ -1,6 +1,5 @@
 use crate::session::{InternedString, LocalParseSession};
 use crate::token::OpToken;
-use crate::utils::bytes_to_string;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PrefixOp {
@@ -53,9 +52,9 @@ pub enum InfixOp {
 }
 
 impl InfixOp {
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession) -> String {
         if let InfixOp::ModifyField(field) = self {
-            format!("ModifyField({})", bytes_to_string(&session.unintern_string(*field)))
+            format!("ModifyField({})", field.to_string(session))
         }
         else {
             format!("{self:?}")

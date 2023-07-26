@@ -75,4 +75,14 @@ impl SodigyError for ASTError {
             ).collect::<Vec<String>>().join("\n\n"),
         )
     }
+
+    fn try_add_more_helpful_message(&mut self) {
+        if !self.message.is_empty() {
+            return;
+        }
+
+        match self.kind {
+            _ => {}
+        }
+    }
 }

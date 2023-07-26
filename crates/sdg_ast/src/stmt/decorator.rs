@@ -54,7 +54,7 @@ impl Decorator {
         Ok(())
     }
 
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession) -> String {
         format!(
             "@{}{}",
             self.names.iter().map(
@@ -66,7 +66,7 @@ impl Decorator {
                 format!(
                     "({})",
                     self.args.iter().map(
-                        |arg| arg.to_string(session)
+                        |arg| arg.dump(session)
                     ).collect::<Vec<String>>().join(", ")
                 )
             }

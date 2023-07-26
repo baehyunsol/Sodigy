@@ -35,30 +35,30 @@ impl ExprKind {
         }
     }
 
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession) -> String {
         match self {
-            ExprKind::Value(v) => v.to_string(session),
-            ExprKind::Prefix(op, expr) => format!("{op:?}({})", expr.to_string(session)),
+            ExprKind::Value(v) => v.dump(session),
+            ExprKind::Prefix(op, expr) => format!("{op:?}({})", expr.dump(session)),
             ExprKind::Infix(op, lhs, rhs) => format!(
                 "{}({},{})",
-                op.to_string(session),
-                lhs.to_string(session),
-                rhs.to_string(session),
+                op.dump(session),
+                lhs.dump(session),
+                rhs.dump(session),
             ),
-            ExprKind::Postfix(op, expr) => format!("{op:?}({})", expr.to_string(session)),
+            ExprKind::Postfix(op, expr) => format!("{op:?}({})", expr.dump(session)),
             ExprKind::Call(functor, args) => format!(
                 "Call({}{})",
-                functor.to_string(session),
+                functor.dump(session),
                 args.iter()
-                    .map(|arg| format!(",{}", arg.to_string(session)))
+                    .map(|arg| format!(",{}", arg.dump(session)))
                     .collect::<Vec<String>>()
                     .concat()
             ),
             ExprKind::Branch(cond, t, f) => format!(
                 "Branch({},{},{})",
-                cond.to_string(session),
-                t.to_string(session),
-                f.to_string(session)
+                cond.dump(session),
+                t.dump(session),
+                f.dump(session)
             ),
         }
     }

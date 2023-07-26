@@ -1,6 +1,5 @@
 use super::{Delimiter, Keyword, OpToken, Token};
 use crate::session::{InternedString, LocalParseSession};
-use crate::utils::bytes_to_string;
 use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
@@ -92,6 +91,45 @@ impl TokenKind {
         TokenKind::Identifier(InternedString::dummy())
     }
 
+    // dump vs render_err vs to_string
+    // dump is for compiler developers
+    // render_err is for compiler users
+    // to_string is somewhere in the middle
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        match self {
+            TokenKind::Number(n) => format!("{n}"),
+            TokenKind::String(s) => format!(
+                "{:?}",
+                s.iter().map(
+                    |n| char::from_u32(*n).unwrap()
+                ).collect::<String>()
+            ),
+            TokenKind::Bytes(b) => format!("Bytes({b:?})"),
+            TokenKind::FormattedString(s) => format!(
+                "Format({})",
+                s.iter().map(
+                    |s| format!(
+                        "[{}]",
+                        s.iter().map(
+                            |s| s.dump(session)
+                        ).collect::<Vec<String>>().join(", ")
+                    )
+                ).collect::<Vec<String>>().join(", "),
+            ),
+            TokenKind::List(delim, elements) => format!(
+                "{}{}{}",
+                delim.start() as char,
+                elements.iter().map(
+                    |e| e.dump(session)
+                ).collect::<Vec<String>>().join(", "),
+                delim.end() as char,
+            ),
+            TokenKind::Identifier(id) => id.to_string(session),
+            TokenKind::Operator(op) => op.render_err(),
+            TokenKind::Keyword(k) => k.render_err(),
+        }
+    }
+
     // preview of this token_kind for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
@@ -99,24 +137,28 @@ impl TokenKind {
             TokenKind::String(_) => "a string literal".to_string(),
             TokenKind::Bytes(_) => "a bytes literal".to_string(),
             TokenKind::FormattedString(_) => "a formatted string literal".to_string(),
-            TokenKind::List(delim, _) => match delim {
-                Delimiter::Parenthesis => "`(`",
-                Delimiter::Brace => "`{`",
-                Delimiter::Bracket => "`[`",
-            }
-            .to_string(),
+            TokenKind::List(delim, _) => format!("{}", delim.start() as char),
             TokenKind::Identifier(string) => {
                 if string.is_dummy() || session.is_dummy {
                     "an identifier".to_string()
                 } else {
                     format!(
                         "an identifier `{}`",
-                        bytes_to_string(&session.unintern_string(*string)),
+                        string.to_string(session),
                     )
                 }
             }
             TokenKind::Keyword(k) => format!("keyword `{}`", k.render_err()),
-            TokenKind::Operator(op) => format!("character `{}`", op.render_err()),
+            TokenKind::Operator(op) => {
+                let op = op.render_err();
+                let ch = if op.len() == 1 {
+                    "character"
+                } else {
+                    "characters"
+                };
+
+                format!("{ch} `{op}`")
+            },
         }
     }
 

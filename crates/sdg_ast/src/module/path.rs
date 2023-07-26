@@ -38,7 +38,7 @@ impl ModulePath {
         &self.0
     }
 
-    pub fn to_string(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession) -> String {
         self.0.iter().map(|s| s.to_string(session)).collect::<Vec<String>>().join(".")
     }
 }

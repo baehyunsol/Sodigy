@@ -20,12 +20,11 @@ macro_rules! iter_mut_exprs_in_ast {
             pub(crate) fn $method_name(&mut self, session: &mut LocalParseSession) -> Result<(), ()> {
 
                 for func in self.defs.values_mut() {
-                    let e = func.ret_val.$method_name(session);
-                    session.try_add_error(e);
-
-                    if let Some(ty) = &mut func.ret_type {
-                        let e = ty.$method_name(session);
-                        session.try_add_error(e);
+                    for Decorator { args, .. } in func.decorators.iter_mut() {
+                        for arg in args.iter_mut() {
+                            let e = arg.$method_name(session);
+                            session.try_add_error(e);
+                        }
                     }
 
                     for ArgDef { ty, .. } in func.args.iter_mut() {
@@ -35,13 +34,13 @@ macro_rules! iter_mut_exprs_in_ast {
                         }
                     }
 
-                    for Decorator { args, .. } in func.decorators.iter_mut() {
-                        for arg in args.iter_mut() {
-                            let e = arg.$method_name(session);
-                            session.try_add_error(e);
-                        }
+                    if let Some(ty) = &mut func.ret_type {
+                        let e = ty.$method_name(session);
+                        session.try_add_error(e);
                     }
 
+                    let e = func.ret_val.$method_name(session);
+                    session.try_add_error(e);
                 }
 
                 if session.has_no_error() {

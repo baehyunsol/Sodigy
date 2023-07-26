@@ -1,6 +1,5 @@
 use crate::err::ParamType;
 use crate::session::{InternedString, LocalParseSession};
-use crate::utils::bytes_to_string;
 
 pub enum SodigyWarningKind {
     UnusedParam(InternedString, ParamType),
@@ -17,7 +16,7 @@ impl SodigyWarningKind {
 
                 format!(
                     "unused {p_type}: `{}`",
-                    bytes_to_string(&session.unintern_string(*name)),
+                    name.to_string(session),
                 )
             },
         }

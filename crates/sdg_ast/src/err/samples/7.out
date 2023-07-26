@@ -1,30 +1,32 @@
 Error: invalid decorator
 Decorators can only decorate `def` statements,
 but it's decorating a `module` statement here.
-./src/err/samples/7.in:4:1
-  0 │ @test.eq(1)
-  1 │ def tester: Int = 0 + 1;
-  2 │ 
-  3 │ @test.eq(1)
+./src/err/samples/7.in:5:1
+  1 │ @test.eq(1)
+  2 │ def tester: Int = 0 + 1;
+  3 │ 
+  4 │ @test.eq(1)
     │ ▾
-▸ 4 │ module tester;
+▸ 5 │ module tester;
     │ ▴
 
 Error: the name `tester` is defined more than once
-./src/err/samples/7.in:1:1
-  0 │ @test.eq(1)
+./src/err/samples/7.in:2:1
+  1 │ @test.eq(1)
     │ ▾
-▸ 1 │ def tester: Int = 0 + 1;
+▸ 2 │ def tester: Int = 0 + 1;
     │ ▴
-  2 │ 
-  3 │ @test.eq(1)
-  4 │ module tester;
+  3 │ 
+  4 │ @test.eq(1)
+  5 │ module tester;
 
-./src/err/samples/7.in:4:1
-  0 │ @test.eq(1)
-  1 │ def tester: Int = 0 + 1;
-  2 │ 
-  3 │ @test.eq(1)
+./src/err/samples/7.in:5:1
+  1 │ @test.eq(1)
+  2 │ def tester: Int = 0 + 1;
+  3 │ 
+  4 │ @test.eq(1)
     │ ▾
-▸ 4 │ module tester;
+▸ 5 │ module tester;
     │ ▴
+
+Could not compile `./src/err/samples/7.in` due to 2 previous errors.

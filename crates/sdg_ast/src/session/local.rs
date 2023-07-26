@@ -146,12 +146,14 @@ impl LocalParseSession {
         self.warnings.iter().map(|e| e.render_warning(self)).collect::<Vec<String>>().join("\n\n")
     }
 
-    pub fn add_error<E: SodigyError + 'static>(&mut self, error: E) {
+    pub fn add_error<E: SodigyError + 'static>(&mut self, mut error: E) {
+        error.try_add_more_helpful_message();
         self.errors.push(Box::new(error) as Box<dyn SodigyError>);
     }
 
     pub fn try_add_error<T, E: SodigyError + 'static>(&mut self, error: Result<T, E>) {
-        if let Err(error) = error {
+        if let Err(mut error) = error {
+            error.try_add_more_helpful_message();
             self.errors.push(Box::new(error) as Box<dyn SodigyError>);
         }
     }
@@ -160,8 +162,28 @@ impl LocalParseSession {
         self.errors.is_empty()
     }
 
+    // TODO: I want to sort errors by span
     pub fn render_err(&self) -> String {
-        self.errors.iter().map(|e| e.render_err(self)).collect::<Vec<String>>().join("\n\n")
+        let mut errors = self.errors.iter().map(
+            |e| e.render_err(self)
+        ).collect::<Vec<String>>();
+
+        errors.push(format!(
+            "Could not compile `{}` due to {} previous error{}.",
+            self.get_file_path(self.curr_file),
+            if errors.len() == 1 {
+                "a".to_string()
+            } else {
+                format!("{}", errors.len())
+            },
+            if errors.len() == 1 {
+                ""
+            } else {
+                "s"
+            }
+        ));
+
+        errors.join("\n\n")
     }
 
     pub fn get_file_path(&self, index: u64) -> String {

@@ -2,7 +2,7 @@ use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
-use crate::session::InternedString;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef};
 use crate::value::{parse_block_expr, ValueKind};
@@ -466,7 +466,7 @@ impl TokenList {
                 let elements = match split_list_by_comma(elements) {
                     Ok(el) => el,
                     Err(mut er) => {
-                        er.set_expected_tokens(vec![
+                        er.set_expected_tokens_instead_of_nothing(vec![
                             TokenKind::Operator(OpToken::ClosingParenthesis),
                             TokenKind::comma(),
                         ]);
@@ -493,7 +493,7 @@ impl TokenList {
     pub fn step_index_op(&mut self) -> Option<Result<Expr, ParseError>> {
         self._step_list_expr(Delimiter::Bracket).map(
             |r| r.map_err(|mut e| {
-                e.set_expected_tokens(vec![
+                e.set_expected_tokens_instead_of_nothing(vec![
                     TokenKind::Operator(OpToken::ClosingSquareBracket),
                 ]);
 
@@ -515,7 +515,7 @@ impl TokenList {
                 Some(
                     split_list_by_comma(elements).map_err(
                         |mut e| {
-                            e.set_expected_tokens(vec![
+                            e.set_expected_tokens_instead_of_nothing(vec![
                                 TokenKind::Operator(OpToken::ClosingParenthesis),
                                 TokenKind::comma(),
                             ]);
@@ -542,5 +542,15 @@ impl TokenList {
             }
             _ => None,
         }
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        format!(
+            "({}, [{}])",
+            self.cursor,
+            self.data.iter().map(
+                |t| t.dump(session)
+            ).collect::<Vec<String>>().join(", ")
+        )
     }
 }

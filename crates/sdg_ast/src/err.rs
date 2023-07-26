@@ -1,6 +1,6 @@
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::token::TokenKind;
+use crate::token::{OpToken, TokenKind};
 use crate::utils::print_list;
 use sdg_fs::FileError;
 
@@ -10,7 +10,12 @@ mod kind;
 pub mod tests;
 
 pub trait SodigyError {
+    /// how it's shown to the programmer
     fn render_err(&self, session: &LocalParseSession) -> String;
+
+    /// if self.message.is_empty() && the compiler thinks there's a helpful message for this error_kind
+    /// add a message
+    fn try_add_more_helpful_message(&mut self);
 }
 
 pub use kind::{ParamType, ParseErrorKind};
@@ -22,6 +27,7 @@ pub use kind::{ParamType, ParseErrorKind};
  */
 
 /// Actually it's both for parser and lexer
+#[derive(Clone)]
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,
     pub(crate) span: Vec<Span>,
@@ -193,9 +199,9 @@ impl ParseError {
         self.message = message.to_string();
     }
 
-    pub(crate) fn set_expected_tokens(&mut self, tokens: Vec<TokenKind>) {
+    pub(crate) fn set_expected_tokens_instead_of_nothing(&mut self, tokens: Vec<TokenKind>) {
         match &mut self.kind {
-            ParseErrorKind::UnexpectedToken { expected, .. } => {
+            ParseErrorKind::UnexpectedToken { expected, .. } if expected == &ExpectedToken::Nothing => {
                 *expected = ExpectedToken::SpecificTokens(tokens);
             },
             _ => {},
@@ -205,22 +211,43 @@ impl ParseError {
 
 impl SodigyError for ParseError {
     fn render_err(&self, session: &LocalParseSession) -> String {
+        let mut e = self.clone();
+        e.try_add_more_helpful_message();
+
         format!(
             "Error: {}{}{}",
-            self.kind.render_err(session),
-            if self.message.len() > 0 {
-                format!("\n{}", self.message)
+            e.kind.render_err(session),
+            if e.message.len() > 0 {
+                format!("\n{}", e.message)
             } else {
                 String::new()
             },
-            self.span.iter().map(
+            e.span.iter().map(
                 |span| format!("\n{}", span.render_err(session))
             ).collect::<Vec<String>>().concat(),
         )
     }
+
+    fn try_add_more_helpful_message(&mut self) {
+        if !self.message.is_empty() {
+            return;
+        }
+
+        match &self.kind {
+            ParseErrorKind::UnexpectedToken {
+                got,
+                expected: ExpectedToken::AnyExpression,
+            } if got == &TokenKind::Operator(OpToken::DotDot) => {
+                self.set_msg(
+                    "If you want to use `..` as a prefix operator, try `0..a` instead of `..a`."
+                );
+            },
+            _ => {}
+        }
+    }
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum ExpectedToken {
     AnyExpression,
     SpecificTokens(Vec<TokenKind>),
