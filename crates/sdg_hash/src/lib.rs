@@ -1,42 +1,24 @@
 mod bytes;
 mod ints;
+mod sha256;
 
-#[derive(Copy, Clone, PartialEq)]
-pub struct SdgHashResult(u128);
+#[cfg(test)]
+mod tests;
+
+pub(crate) use sha256::Sha256;
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct SdgHashResult([u8; 32]);
 
 impl SdgHashResult {
     pub fn to_bytes(&self) -> Vec<u8> {
-        vec![
-            (self.0 >> 124) as u8 + b'a',
-            to_char(((self.0 >> 119) % 32) as u8),
-            to_char(((self.0 >> 114) % 32) as u8),
-            to_char(((self.0 >> 109) % 32) as u8),
+        self.0.iter().map(
+            |b| {
+                let (a, b) =  (*b / 16, *b % 16);
 
-            to_char(((self.0 >> 104) % 32) as u8),
-            to_char(((self.0 >> 99) % 32) as u8),
-            to_char(((self.0 >> 94) % 32) as u8),
-            to_char(((self.0 >> 89) % 32) as u8),
-            to_char(((self.0 >> 84) % 32) as u8),
-            to_char(((self.0 >> 79) % 32) as u8),
-            to_char(((self.0 >> 74) % 32) as u8),
-
-            to_char(((self.0 >> 69) % 32) as u8),
-            to_char(((self.0 >> 64) % 32) as u8),
-            to_char(((self.0 >> 59) % 32) as u8),
-            to_char(((self.0 >> 54) % 32) as u8),
-            to_char(((self.0 >> 49) % 32) as u8),
-            to_char(((self.0 >> 44) % 32) as u8),
-            to_char(((self.0 >> 39) % 32) as u8),
-            to_char(((self.0 >> 34) % 32) as u8),
-            to_char(((self.0 >> 29) % 32) as u8),
-
-            to_char(((self.0 >> 24) % 32) as u8),
-            to_char(((self.0 >> 19) % 32) as u8),
-            to_char(((self.0 >> 14) % 32) as u8),
-            to_char(((self.0 >>  9) % 32) as u8),
-            to_char(((self.0 >>  4) % 32) as u8),
-            to_char((self.0 % 16) as u8),
-        ]
+                [to_char(a), to_char(b)]
+            }
+        ).collect::<Vec<[u8; 2]>>().concat()
     }
 
     pub fn to_string(&self) -> String {
@@ -44,11 +26,25 @@ impl SdgHashResult {
     }
 
     pub fn to_u128(&self) -> u128 {
-        self.0
+        u128::from_ne_bytes([
+            self.0[0], self.0[1],
+            self.0[2], self.0[3],
+            self.0[4], self.0[5],
+            self.0[6], self.0[7],
+            self.0[8], self.0[9],
+            self.0[10], self.0[11],
+            self.0[12], self.0[13],
+            self.0[14], self.0[15],
+        ])
     }
 
     pub fn to_u64(&self) -> u64 {
-        (self.0 & (u64::MAX as u128)) as u64
+        u64::from_ne_bytes([
+            self.0[0], self.0[1],
+            self.0[2], self.0[3],
+            self.0[4], self.0[5],
+            self.0[6], self.0[7],
+        ])
     }
 }
 
@@ -56,13 +52,13 @@ impl std::ops::BitXor<SdgHashResult> for SdgHashResult {
     type Output = SdgHashResult;
 
     fn bitxor(self, rhs: SdgHashResult) -> Self::Output {
-        SdgHashResult(self.0 ^ rhs.0)
+        (self.to_u128() ^ rhs.to_u128()).sdg_hash()
     }
 }
 
 impl SdgHash for SdgHashResult {
     fn sdg_hash(&self) -> SdgHashResult {
-        self.0.sdg_hash()
+        (&self.0 as &[u8]).sdg_hash()
     }
 }
 

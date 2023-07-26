@@ -66,7 +66,10 @@ impl FuncDef {
         id: UID,
         session: &mut LocalParseSession,
     ) -> Self {
-        let lambda_func_name = format!("{LAMBDA_FUNC_PREFIX}{}", span.sdg_hash().to_string());
+        let lambda_func_name = format!(
+            "{LAMBDA_FUNC_PREFIX}{}",
+            String::from_utf8_lossy(&span.sdg_hash().to_bytes()[..24]),
+        );
 
         FuncDef {
             args, ret_val, span, id,
