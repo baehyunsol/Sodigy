@@ -71,6 +71,8 @@ fn error_message_test() {
     let no_utf8_comment = [35, 32, 200, 200, 200, 10, 100, 101, 102, 32, 70, 79, 79, 58, 32, 73, 110, 116, 32, 61, 32, 48, 59];
     write_bytes("./src/err/samples/no_utf8_comment.in", &no_utf8_comment, WriteMode::CreateOrTruncate).unwrap();
 
+    let mut failures = vec![];
+
     for sample in samples.iter() {
         if session.set_input(&format!("./src/err/samples/{sample}.in")).is_err() {
             break;
@@ -85,11 +87,14 @@ fn error_message_test() {
         if let Err(_) = parse_file(&input, &mut session) {
 
             if session.render_err() != error_msg {
-                panic!("expected\n{}\n\nactual\n{}", error_msg, session.render_err());
+                failures.push(format!("\n\n---\n\nexpected\n{}\n\nactual\n{}", error_msg, session.render_err()));
             }
         } else {
-            panic!("{} is supposed to fail, but doesn't!", bytes_to_string(&input))
+            failures.push(format!("\n\n---\n\n{} is supposed to fail, but doesn't!", bytes_to_string(&input)));
         }
     }
 
+    if !failures.is_empty() {
+        panic!("{}", failures.concat());
+    }
 }

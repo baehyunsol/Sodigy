@@ -54,6 +54,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         }
 
     } else if tokens.consume(TokenKind::Keyword(Keyword::Module)) {
+        let name_span = tokens.peek_curr_span();
         let module_name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
@@ -65,7 +66,10 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             .consume_token_or_error(vec![TokenKind::semi_colon()])
             .map_err(|e| e.set_span_of_eof(curr_span))?;
 
-        Ok(Stmt::Module(ModDef::new(module_name, curr_span)))
+        Ok(Stmt::Module(ModDef::new(
+            module_name, curr_span,
+            name_span.expect("Internal Compiler Error F3B157FA10B"),
+        )))
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
         let mut names = vec![];
 
@@ -102,6 +106,8 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             span: curr_span,
         }))
     } else if tokens.consume(TokenKind::keyword_def()) {
+        let name_span = tokens.peek_curr_span();
+
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
@@ -177,6 +183,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             name, args, is_const,
             ret_type, ret_val,
             generics, curr_span,
+            name_span.expect("Internal Compiler Error 16284110ECD"),
         )))
     } else {
         let top_token = tokens.step().expect("Internal Compiler Error C9A5B07DC36");

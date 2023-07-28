@@ -22,7 +22,7 @@ pub fn lex_tokens(s: &[u8], session: &mut LocalParseSession) -> Result<Vec<Token
                 break;
             },
             Err(e) => {
-                return Err(e.into_parse_error(Span::new(session.curr_file, 0)));
+                return Err(e.into_parse_error(Span::new(session.curr_file, 0, 0)));
             }
         }
     }
@@ -35,7 +35,7 @@ fn lex_token(
     mut ind: usize,
     session: &mut LocalParseSession,
 ) -> Result<(Token, usize), ParseError> {
-    let curr_span = Span::new(session.curr_file, ind);
+    let curr_span = Span::new(session.curr_file, ind, ind);
 
     match s[ind] {
         b'\'' | b'"' => {
@@ -47,13 +47,16 @@ fn lex_token(
 
             loop {
                 if ind >= s.len() {
-                    return Err(ParseError::eof_msg(curr_span, String::from("Unexpected EOF while parsing a string literal.")));
+                    return Err(ParseError::eof_msg(
+                        Span::new(session.curr_file, ind - 1, ind - 1),
+                        String::from("Unexpected EOF while parsing a string literal.")),
+                    );
                 }
 
                 if !escaped && s[ind] == marker {
                     return Ok((
                         Token {
-                            span: curr_span,
+                            span: curr_span.set_end(ind),
                             kind: TokenKind::String(
                                 bytes_to_v32(&buffer).map_err(
                                     |e| e.set_ind_and_fileno(curr_span)
@@ -127,7 +130,7 @@ fn lex_token(
             match Ratio::from_string(&string) {
                 Ok(n) => Ok((
                     Token {
-                        span: curr_span,
+                        span: curr_span.set_end(ind),
                         kind: TokenKind::Number(n),
                     },
                     ind,
@@ -171,7 +174,7 @@ fn lex_token(
 
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::List(marker, data),
                 },
                 ind + 1,
@@ -185,6 +188,7 @@ fn lex_token(
                     Some(c) if *c == b'\'' || *c == b'"' => {
                         let (string_literal, end_index) = lex_token(s, ind + 1, session)?;
 
+                        // TODO: span.set_end
                         return if s[ind] == b'b' {
                             Ok((
                                 string_to_bytes(string_literal)?,
@@ -220,7 +224,7 @@ fn lex_token(
             if let Some(k) = session.try_unwrap_keyword(string_index) {
                 Ok((
                     Token {
-                        span: curr_span,
+                        span: curr_span.set_end(ind - 1),
                         kind: TokenKind::Keyword(k),
                     },
                     ind,
@@ -228,7 +232,7 @@ fn lex_token(
             } else {
                 Ok((
                     Token {
-                        span: curr_span,
+                        span: curr_span.set_end(ind - 1),
                         kind: TokenKind::Identifier(string_index),
                     },
                     ind,
@@ -247,13 +251,13 @@ fn lex_op_tokens(
     ind: usize,
     session: &mut LocalParseSession,
 ) -> Result<(Token, usize), ParseError> {
-    let curr_span = Span::new(session.curr_file, ind);
+    let curr_span = Span::new(session.curr_file, ind, ind);
 
     if s[ind] == b'<' {
         if let Some(b'=') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Le),
                 },
                 ind + 2,
@@ -261,7 +265,7 @@ fn lex_op_tokens(
         } else if let Some(b'>') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Concat),
                 },
                 ind + 2,
@@ -269,7 +273,7 @@ fn lex_op_tokens(
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::Lt),
                 },
                 ind + 1,
@@ -279,7 +283,7 @@ fn lex_op_tokens(
         if let Some(b'=') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Ge),
                 },
                 ind + 2,
@@ -287,7 +291,7 @@ fn lex_op_tokens(
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::Gt),
                 },
                 ind + 1,
@@ -297,7 +301,7 @@ fn lex_op_tokens(
         if let Some(b'=') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Eq),
                 },
                 ind + 2,
@@ -305,7 +309,7 @@ fn lex_op_tokens(
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::Assign),
                 },
                 ind + 1,
@@ -315,7 +319,7 @@ fn lex_op_tokens(
         if let Some(b'=') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Ne),
                 },
                 ind + 2,
@@ -323,7 +327,7 @@ fn lex_op_tokens(
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::Not),
                 },
                 ind + 1,
@@ -332,7 +336,7 @@ fn lex_op_tokens(
     } else if s[ind] == b',' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Comma),
             },
             ind + 1,
@@ -340,7 +344,7 @@ fn lex_op_tokens(
     } else if s[ind] == b':' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Colon),
             },
             ind + 1,
@@ -348,7 +352,7 @@ fn lex_op_tokens(
     } else if s[ind] == b';' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::SemiColon),
             },
             ind + 1,
@@ -358,7 +362,7 @@ fn lex_op_tokens(
             if let Some(b'.') = s.get(ind + 2) {
                 Err(ParseError::ch_msg(
                     '.',
-                    curr_span,
+                    curr_span.set_end(ind + 2),
                     "`...` is not a valid syntax.
 For a range operator following a real number, try `1. ..` or `(1.)..`.
 For consecutive range operators (which is likely a semantic error), try `(1..)..`."
@@ -367,7 +371,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
             } else {
                 Ok((
                     Token {
-                        span: curr_span,
+                        span: curr_span.set_end(ind + 1),
                         kind: TokenKind::Operator(OpToken::DotDot),
                     },
                     ind + 2,
@@ -376,7 +380,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::dot(),
                 },
                 ind + 1,
@@ -385,7 +389,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'+' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Add),
             },
             ind + 1,
@@ -393,7 +397,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'-' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Sub),
             },
             ind + 1,
@@ -401,7 +405,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'*' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Mul),
             },
             ind + 1,
@@ -409,7 +413,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'/' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Div),
             },
             ind + 1,
@@ -417,7 +421,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'$' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::FieldModifier),
             },
             ind + 1,
@@ -425,7 +429,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'%' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::Rem),
             },
             ind + 1,
@@ -433,7 +437,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'@' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::At),
             },
             ind + 1,
@@ -441,7 +445,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
     } else if s[ind] == b'\\' {
         Ok((
             Token {
-                span: curr_span,
+                span: curr_span.set_end(ind),
                 kind: TokenKind::Operator(OpToken::BackSlash),
             },
             ind + 1,
@@ -450,7 +454,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         if let Some(b'&') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::AndAnd),
                 },
                 ind + 2,
@@ -458,7 +462,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::And),
                 },
                 ind + 1,
@@ -468,7 +472,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         if let Some(b'|') = s.get(ind + 1) {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::OrOr),
                 },
                 ind + 2,
@@ -476,7 +480,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         } else {
             Ok((
                 Token {
-                    span: curr_span,
+                    span: curr_span.set_end(ind),
                     kind: TokenKind::Operator(OpToken::Or),
                 },
                 ind + 1,
@@ -639,12 +643,21 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
                     if nested_braces == 0 {
                         let value_string = v32_to_bytes(&tmp_buffer);
                         let inner_value = lex_tokens(&value_string, session)
-                            .map(|tokens| set_span_of_formatted_string(tokens, span.forward(curr_start_span + 3)))
-                            .map_err(|error| set_span_of_formatted_string_err(error, span.forward(curr_start_span + 3)))?;
+                            .map(
+                                |tokens| forward_span_of_formatted_string(
+                                    tokens,
+                                    span.forward(curr_start_span + 3)
+                                )
+                            ).map_err(
+                                |error| forward_span_of_formatted_string_err(
+                                    error,
+                                    span.forward(curr_start_span + 3)
+                                )
+                            )?;
 
                         if inner_value.is_empty() {
                             return Err(ParseError::eoe(
-                                span.forward(curr_start_span + 2),
+                                span.forward(curr_start_span + 2).set_len(i - curr_start_span + 1),
                                 ExpectedToken::AnyExpression,
                             ));
                         }
@@ -699,19 +712,19 @@ enum FormatStringParseState {
     String, Value,
 }
 
-fn set_span_of_formatted_string(mut tokens: Vec<Token>, span: Span) -> Vec<Token> {
+fn forward_span_of_formatted_string(mut tokens: Vec<Token>, span: Span) -> Vec<Token> {
 
     for token in tokens.iter_mut() {
-        token.span = span.forward(token.span.index);
+        token.span = token.span.forward(span.start);
     }
 
     tokens
 }
 
-fn set_span_of_formatted_string_err(mut error: ParseError, span: Span) -> ParseError {
+fn forward_span_of_formatted_string_err(mut error: ParseError, span: Span) -> ParseError {
     assert_eq!(error.span.len(), 1, "Internal Compiler Error 65E5150EF9D");
 
-    error.span[0] = span.forward(error.span[0].index);
+    error.span[0] = error.span[0].forward(span.start);
 
     error
 }

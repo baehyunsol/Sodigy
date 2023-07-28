@@ -31,8 +31,6 @@ impl InternedString {
 
 impl From<usize> for InternedString {
     fn from(n: usize) -> Self {
-        assert!(n as u32 != DUMMY_INDEX, "Internal Compiler Error 8036B4B4D50");
-
         InternedString(n as u32)
     }
 }

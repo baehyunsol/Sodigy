@@ -172,9 +172,10 @@ impl ParseError {
         if self.is_iutf8() && self.span[0].is_dummy_index() {
             assert_eq!(self.span.len(), 1, "Internal Compiler Error D8DFF0DF984");
 
-            let offset = self.span[0].index;
+            let offset = self.span[0].start;
             self.span[0] = span;
-            self.span[0].index += offset;
+            self.span[0].start += offset;
+            self.span[0].end += offset;
 
             self
         } else {

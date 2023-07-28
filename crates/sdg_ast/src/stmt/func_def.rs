@@ -13,7 +13,8 @@ use std::collections::{HashMap, HashSet};
 pub const LAMBDA_FUNC_PREFIX: &str = "@@LAMBDA__";
 
 pub struct FuncDef {
-    pub span: Span,  // it points to `d` of `def`, or `\` of a lambda function
+    pub def_span: Span,  // it points to `d` of `def`, or `\` of a lambda function
+    pub name_span: Span,
     pub name: InternedString,
     pub args: Vec<ArgDef>,
 
@@ -43,7 +44,8 @@ impl FuncDef {
         ret_type: Expr,
         ret_val: Expr,
         generics: Vec<GenericDef>,
-        span: Span,
+        def_span: Span,
+        name_span: Span,
     ) -> Self {
         let kind = if is_const {
             FuncKind::Const
@@ -55,7 +57,8 @@ impl FuncDef {
             name, args,
             ret_type: Some(ret_type),
             ret_val,
-            span,
+            def_span,
+            name_span,
             generics,
             location: ModulePath::empty(),  // will be filled later
             kind,
@@ -67,17 +70,19 @@ impl FuncDef {
     pub fn create_anonymous_function(
         args: Vec<ArgDef>,
         ret_val: Expr,
-        span: Span,
+        def_span: Span,
         id: UID,
         session: &mut LocalParseSession,
     ) -> Self {
         let lambda_func_name = format!(
             "{LAMBDA_FUNC_PREFIX}{}",
-            String::from_utf8_lossy(&span.sdg_hash().to_bytes()[..24]),
+            String::from_utf8_lossy(&def_span.sdg_hash().to_bytes()[..24]),
         );
 
         FuncDef {
-            args, ret_val, span, id,
+            args, ret_val, id,
+            def_span,
+            name_span: Span::dummy(),
             location: ModulePath::empty(),  // nobody cares!
             decorators: vec![],
             generics: vec![],

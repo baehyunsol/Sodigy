@@ -8,68 +8,94 @@ const MAX_PREVIEW_LEN: usize = 96;
 pub struct Span {
     file_no: u64,  // hash of the name of the file
 
-    pub index: usize,
+    // both indices are inclusive
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Span {
-    pub fn new(file_no: u64, index: usize) -> Self {
-        Span { file_no, index }
+    pub fn new(file_no: u64, start: usize, end: usize) -> Self {
+        Span { file_no, start, end }
     }
 
     #[cfg(test)]
     pub fn first() -> Self {
-        Span { file_no: 0, index: 0 }
+        Span { file_no: 0, start: 0, end: 0 }
     }
 
     pub fn dummy() -> Self {
         Span {
             file_no: u64::MAX,
-            index: usize::MAX,
+            start: usize::MAX,
+            end: usize::MIN,
         }
     }
 
     pub fn is_dummy(&self) -> bool {
-        self.file_no == u64::MAX && self.index == usize::MAX
+        self.file_no == u64::MAX && self.start == usize::MAX && self.end == usize::MIN
     }
 
     // one must call `.set_ind_and_fileno` after initializing this!
-    pub fn dummy_index(index: usize) -> Self {
+    pub fn dummy_index(start: usize) -> Self {
         Span {
             file_no: u64::MAX,
-            index,
+            start,
+            end: start,
         }
     }
 
     pub fn is_dummy_index(&self) -> bool {
-        self.file_no == u64::MAX && self.index != usize::MAX
+        self.file_no == u64::MAX && self.start != usize::MAX && self.start == self.end
     }
 
+    #[must_use]
     pub fn set_index(&self, index: usize) -> Self {
         Span {
-            index,
+            start: index,
+            end: index,
             ..self.clone()
         }
     }
 
+    #[must_use]
+    pub fn set_end(&self, end: usize) -> Self {
+        Span {
+            end,
+            ..self.clone()
+        }
+    }
+
+    #[must_use]
+    pub fn set_len(&self, len: usize) -> Self {
+        Span {
+            end: self.start + len - 1,
+            ..self.clone()
+        }
+    }
+
+    #[must_use]
     pub fn backward(&self, offset: usize) -> Option<Self> {
 
-        if offset > self.index {
+        if offset > self.start {
             None
         }
 
         else {
             Some(Span {
                 file_no: self.file_no,
-                index: self.index - offset,
+                start: self.start - offset,
+                end: self.end - offset,
             })
         }
 
     }
 
+    #[must_use]
     pub fn forward(&self, offset: usize) -> Self {
         Span {
             file_no: self.file_no,
-            index: self.index + offset,
+            start: self.start + offset,
+            end: self.end + offset,
         }
     }
 
@@ -77,8 +103,10 @@ impl Span {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);
         let file_path = session.get_file_path(self.file_no).as_bytes().to_vec();
-        let mut row = 0;
-        let mut col = 0;
+        let mut row_start = 0;
+        let mut col_start = 0;
+        let mut row_end = usize::MAX;
+        let mut col_end = usize::MAX;
         let mut lines = vec![];
         let mut curr_line = vec![];
 
@@ -90,9 +118,14 @@ impl Span {
                 curr_line.push(*c);
             }
 
-            if self.index == i {
-                row = lines.len();
-                col = curr_line.len();
+            if self.start == i {
+                row_start = lines.len();
+                col_start = curr_line.len();
+            } 
+
+            if self.end == i {
+                row_end = lines.len();
+                col_end = curr_line.len();
             }
         }
 
@@ -102,7 +135,7 @@ impl Span {
             .into_iter()
             .enumerate()
             .map(|(index, line)| {
-                let marker = if index == row {
+                let marker = if row_start <= index && index <= row_end {
                     "▸".as_bytes().to_vec()
                 } else {
                     b" ".to_vec()
@@ -120,7 +153,7 @@ impl Span {
             })
             .collect::<Vec<Vec<u8>>>();
 
-        let preview_start_index = row.max(4) - 4;
+        let preview_start_index = row_start.max(4) - 4;
         let preview_end_index = (preview_start_index + 9).min(preview.len());
 
         let mut preview = preview[preview_start_index..preview_end_index].to_vec();
@@ -146,12 +179,12 @@ impl Span {
                 ).collect()
         }
 
-        if preview.len() == 1 && row == 0 {
+        if preview.len() == 1 && row_start == 0 {
             preview[0] = vec!["▸ 1 │".as_bytes().to_vec(), preview[0][8..].to_vec()].concat()
         }
 
-        preview = insert_col_markers(preview, col);
-        preview.insert(0, render_pos(file_path, row, col));
+        preview = insert_col_markers(preview, col_start, col_end);
+        preview.insert(0, render_pos(file_path, row_start, col_start));
 
         preview
             .iter()
@@ -188,8 +221,8 @@ fn cut_char(line: &[u8], length: usize) -> Vec<u8> {
     result
 }
 
-fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
-    if col >= MAX_PREVIEW_LEN - 3 {
+fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize) -> Vec<Vec<u8>> {
+    if col_start > MAX_PREVIEW_LEN - 3 || col_end > MAX_PREVIEW_LEN - 3 {
         return lines;
     }
 
@@ -203,25 +236,48 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
             .expect("Internal Compiler Error B1E7DE3656E")
     };
 
-    let highlight_line_index = lines
-        .iter()
-        .position(|line| line[0] == 0xe2)
-        .expect("Internal Compiler Error B8D98CD8735");  // the first byte of `▸`
+    let highlight_line_indices = lines
+        .iter().enumerate()
+        .filter(|(index, line)| line[0] == 0xe2)
+        .map(|(index, _)| index)
+        .collect::<Vec<usize>>();
 
-    let upper: Vec<u8> = format!("{}│{}▾", " ".repeat(line_no_len), " ".repeat(col))
+    let highlight_line_start = highlight_line_indices[0];
+    let highlight_line_end = highlight_line_indices[highlight_line_indices.len() - 1];
+
+    let upper_pre = " ".repeat(col_start);
+    let upper_arr = if highlight_line_indices.len() == 1 {
+        "▾".repeat(col_end - col_start + 1)
+    } else {
+        "▾".repeat(lines[highlight_line_start].len().min(MAX_PREVIEW_LEN - 3) - col_start + 1)
+    };
+
+    let upper: Vec<u8> = format!("{}│{upper_pre}{upper_arr}", " ".repeat(line_no_len))
         .as_bytes()
         .to_vec();
-    let lower: Vec<u8> = format!("{}│{}▴", " ".repeat(line_no_len), " ".repeat(col))
+
+    let lower_pre = if highlight_line_indices.len() == 1 {
+        " ".repeat(col_start)
+    } else {
+        String::new()
+    };
+    let lower_arr = if highlight_line_indices.len() == 1 {
+        "▴".repeat(col_end - col_start + 1)
+    } else {
+        "▴".repeat(col_end + 1)
+    };
+
+    let lower: Vec<u8> = format!("{}│{lower_pre}{lower_arr}", " ".repeat(line_no_len))
         .as_bytes()
         .to_vec();
 
     vec![
-        lines[0..highlight_line_index].to_vec(),
-        vec![upper],
-        vec![lines[highlight_line_index].clone()],
+        lines[0..highlight_line_start].to_vec(),
+        if highlight_line_indices.len() < 2 { vec![] } else { vec![upper] },
+        lines[highlight_line_start..(highlight_line_end + 1)].to_vec(),
         vec![lower],
-        if highlight_line_index + 1 < lines.len() {
-            lines[(highlight_line_index + 1)..].to_vec()
+        if highlight_line_end + 1 < lines.len() {
+            lines[(highlight_line_end + 1)..].to_vec()
         } else {
             vec![]
         },
@@ -231,6 +287,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col: usize) -> Vec<Vec<u8>> {
 
 impl SdgHash for Span {
     fn sdg_hash(&self) -> SdgHashResult {
-        self.file_no.sdg_hash() ^ self.index.sdg_hash()
+        // (self.end + 1) in case (self.start == self.end)
+        self.file_no.sdg_hash() ^ self.start.sdg_hash() ^ (self.end + 1).sdg_hash()
     }
 }

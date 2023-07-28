@@ -99,7 +99,7 @@ impl ExprKind {
                                 let mut data = cycles.into_iter().map(
                                     |name| (name, get_span_by_name(name, defs))
                                 ).collect::<Vec<(InternedString, Span)>>();
-                                data.sort_by_key(|(_, span)| span.index);
+                                data.sort_by_key(|(_, span)| span.start);
 
                                 return Err(ASTError::recursive_def(data));
                             }

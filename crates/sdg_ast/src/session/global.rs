@@ -106,6 +106,9 @@ pub fn try_init_global_session() {
                 strings_rev.insert(prelude.to_vec(), get_prelude_index(index).into());
             }
 
+            strings.insert(0.into(), b"@@DUMMY_STRING".to_vec());
+            strings_rev.insert(b"@@DUMMY_STRING".to_vec(), 0.into());
+
             let result = Box::new(GlobalParseSession {
                 strings,
                 strings_rev,

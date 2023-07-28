@@ -47,7 +47,7 @@ impl AST {
                     curr_decos = vec![];
 
                     if let Some(first_def) = check_already_defined(&ast, &f.name) {
-                        session.add_error(ASTError::multi_def(f.name, first_def, f.span));
+                        session.add_error(ASTError::multi_def(f.name, first_def, f.name_span));
                     }
 
                     else {
@@ -57,12 +57,12 @@ impl AST {
                 }
                 Stmt::Module(m) => {
                     if !curr_decos.is_empty() {
-                        session.add_error(ASTError::deco_mod(m.span));
+                        session.add_error(ASTError::deco_mod(m.def_span));
                         curr_decos = vec![];
                     }
 
                     if let Some(first_def) = check_already_defined(&ast, &m.name) {
-                        session.add_error(ASTError::multi_def(m.name, first_def, m.span));
+                        session.add_error(ASTError::multi_def(m.name, first_def, m.name_span));
                     }
 
                     else {
@@ -122,7 +122,7 @@ impl AST {
 // if already defined, it returns the span of the previous definition
 fn check_already_defined(ast: &AST, name: &InternedString) -> Option<Span> {
     if let Some(f) = ast.defs.get(name) {
-        Some(f.span)
+        Some(f.name_span)
     }
 
     else if let Some(u) = ast.uses.get(name) {
@@ -130,7 +130,7 @@ fn check_already_defined(ast: &AST, name: &InternedString) -> Option<Span> {
     }
 
     else if let Some(m) = ast.inner_modules.get(name) {
-        Some(m.span)
+        Some(m.name_span)
     }
 
     else {
