@@ -20,27 +20,16 @@ pub trait SodigyError {
     /// if the error doesn't have any span, it returns Span::dummy,
     /// if it has multiple ones, it returns the smallest one (Span implmenets PartialOrd),
     /// it need not be perfect, some errors in corner cases are tolerable (though not desired)
-    // TODO: sort error messages before rendering them (in sesssion)
     fn get_first_span(&self) -> Span;
 }
 
 pub use kind::{ParamType, ParseErrorKind};
-
-/*
- * The compiler assumes that a successful compilation never initializes a `T: SodigyError`.
- * That's why it's okay for `T: SodigyError` and its related functions to be expensive.
- * Please try not to break this assumption.
- */
 
 /// Actually it's both for parser and lexer
 #[derive(Clone)]
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,
     pub(crate) span: Vec<Span>,
-
-    // At least one of `ParseError`'s field must be private
-    // I'll someday implement a checker that `ParseError` is initialized at most once during a compilation
-    // To do that, I have to make sure that all the other players use constructor functions, instead of direct initialization
     message: String,
 }
 

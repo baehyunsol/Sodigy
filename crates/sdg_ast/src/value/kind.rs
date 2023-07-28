@@ -51,7 +51,7 @@ impl ValueKind {
             ValueKind::Lambda(_, _) | ValueKind::Closure(_, _) => TokenKind::Operator(OpToken::BackSlash),
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),
-            ValueKind::Block { .. } => TokenKind::Operator(OpToken::OpeningCurlyBrace),
+            ValueKind::Block { .. } => TokenKind::opening_curly_brace(),
         }
     }
 

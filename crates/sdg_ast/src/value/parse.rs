@@ -35,24 +35,9 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             // reset lifetime of `span`, so that borrowck doesn't stop me
             let span = *span;
 
-            match tokens.step() {
-                Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), .. }) => match parse_lambda_def(
-                    &mut TokenList::from_vec(elements.to_vec())
-                ) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(e),
-                },
-                Some(Token { kind, span }) => Err(ParseError::tok(
-                    kind.clone(), *span,
-                    ExpectedToken::SpecificTokens(vec![
-                        TokenKind::List(Delimiter::Brace, vec![])
-                    ])
-                )),
-                None => Err(ParseError::eoe(
-                    span, ExpectedToken::SpecificTokens(vec![
-                        TokenKind::List(Delimiter::Brace, vec![])
-                    ])
-                )),
+            match tokens.step_grouped_tokens_strict(Delimiter::Brace, span) {
+                Ok(mut tokens) => parse_lambda_def(&mut tokens),
+                Err(e) => Err(e),
             }
         },
         Some(Token {

@@ -231,7 +231,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         kind.clone(), *span,
                         ExpectedToken::SpecificTokens(vec![
                             TokenKind::dummy_identifier(),
-                            TokenKind::List(Delimiter::Brace, vec![]),
+                            TokenKind::opening_curly_brace(),
                         ])
                     ));
                 }
@@ -246,7 +246,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                             Span::dummy(),
                             ExpectedToken::SpecificTokens(vec![
                                 TokenKind::dummy_identifier(),
-                                TokenKind::List(Delimiter::Brace, vec![]),
+                                TokenKind::opening_curly_brace(),
                             ])
                         ));
                     }

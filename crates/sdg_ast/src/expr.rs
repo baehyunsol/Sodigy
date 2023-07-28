@@ -12,7 +12,7 @@ mod tests;
 
 pub use kind::{ExprKind, MatchBranch};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
-pub use parse::parse_expr;
+pub use parse::{parse_match_body, parse_expr};
 
 #[cfg(test)]
 pub use tests::dump_ast_of_expr;

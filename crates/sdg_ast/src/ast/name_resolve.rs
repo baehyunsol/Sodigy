@@ -51,8 +51,7 @@ impl NameScope {
 
     // rust/compiler/rustc_span/src/edit_distance.rs
     // THIS FUNCTION IS VERY EXPENSIVE!!
-    // It's okay for an error-related function to be very expensive!
-    // But don't call this function unless the compiler encounters an error!
+    // don't call this function unless the compiler encounters an error!
     pub fn get_similar_name(&self, name: InternedString, session: &LocalParseSession) -> Vec<String> {
         let name: Vec<u8> = session.unintern_string(name).into_iter().map(
             |mut c| { c.make_ascii_lowercase(); c }

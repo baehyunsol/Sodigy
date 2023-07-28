@@ -19,6 +19,7 @@ impl Pattern {
     //   - enum name, enum variant name, struct name, const
     // a `Pattern` may not include
     //   - local val, func call, 
+    // `Some($foo)` -> `Sodigy.Option.Some($foo)`
     pub fn resolve_names(&mut self, scope: &NameScope, session: &LocalParseSession) {
         todo!()
     }

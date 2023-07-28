@@ -116,3 +116,15 @@ more testing
 How do I state this: ``` for all ls: List(Int), `ls.sum() == ls.sort().sum() && ls.len() == ls.sort().len() && ls.sort().is_sorted()` ```
 
 I want that to be attached to `List.sort`
+
+---
+
+rand functions
+
+- pure one
+  - `State { curr: Int }`
+  - `.init(seed: Int): State = State { curr: seed };`
+  - `.next(self): (State, Int) = (self $curr hash(self.curr), self.curr);`
+- impure one
+  - `.rand_int(): Int`
+  - use it to initialize a pure one

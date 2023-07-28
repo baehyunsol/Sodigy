@@ -79,6 +79,14 @@ impl Delimiter {
         }
     }
 
+    pub fn opening_token_kind(&self) -> TokenKind {
+        match self {
+            Delimiter::Parenthesis => TokenKind::Operator(OpToken::OpeningParenthesis),
+            Delimiter::Bracket => TokenKind::Operator(OpToken::OpeningSquareBracket),
+            Delimiter::Brace => TokenKind::Operator(OpToken::OpeningCurlyBrace),
+        }
+    }
+
     pub fn closing_token_kind(&self) -> TokenKind {
         match self {
             Delimiter::Parenthesis => TokenKind::Operator(OpToken::ClosingParenthesis),

@@ -1,7 +1,8 @@
 use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
 use crate::err::{ExpectedToken, ParseError};
-use crate::expr::{parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
+use crate::expr::{parse_match_body, parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
+use crate::pattern::Pattern;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
@@ -134,6 +135,33 @@ impl TokenList {
         result
     }
 
+    // it turns `TokenKind::List(_, elements)` into `TokenList::from_vec(elements)`
+    pub fn step_grouped_tokens_strict(&mut self, delim: Delimiter, eof_span: Span) -> Result<TokenList, ParseError> {
+        match self.step() {
+            Some(Token {
+                kind: TokenKind::List(delim_, elements),
+                span: list_span,
+            }) if *delim_ == delim => Ok(TokenList::from_vec(elements.to_vec())),
+            Some(Token { kind, span }) => {
+                Err(ParseError::tok(
+                    kind.clone(),
+                    *span,
+                    ExpectedToken::SpecificTokens(vec![
+                        delim.opening_token_kind(),
+                    ]),
+                ))
+            }
+            None => {
+                Err(ParseError::eoe(
+                    eof_span,
+                    ExpectedToken::SpecificTokens(vec![
+                        delim.opening_token_kind(),
+                    ]),
+                ))
+            }
+        }
+    }
+
     pub fn step_identifier_strict(&mut self) -> Result<InternedString, ParseError> {
         match self.step() {
             Some(Token { kind, .. }) if kind.is_identifier() => Ok(kind.unwrap_identifier()),
@@ -255,6 +283,10 @@ impl TokenList {
             Some(_) => Some(parse_expr(self, 0)),
             None => None,
         }
+    }
+
+    pub fn step_pattern(&mut self) -> Option<Result<Pattern, ParseError>> {
+        todo!()
     }
 
     pub fn step_prefix_op(&mut self) -> Option<PrefixOp> {
@@ -385,7 +417,13 @@ impl TokenList {
                 }
             };
 
-            todo!()
+            match self.step_grouped_tokens_strict(Delimiter::Brace, match_span) {
+                Ok(mut tokens) => match parse_match_body(&mut tokens) {
+                    Ok(_) => todo!(),
+                    Err(e) => Some(Err(e)),
+                },
+                Err(e) => Some(Err(e)),
+            }
         }
 
         else {
@@ -410,36 +448,22 @@ impl TokenList {
                 }
             };
 
-            let true_expr = match self.step() {
-                Some(Token {
-                    kind: TokenKind::List(Delimiter::Brace, elements),
-                    span: true_expr_span,
-                }) => match parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
-                {
-                    Ok(t) => Expr {
-                        kind: t.block_to_expr_kind(),
-                        span: *true_expr_span,
-                    },
-                    Err(e) => {
-                        return Some(Err(e.set_span_of_eof(*true_expr_span)));
+            let true_expr = match self.step_grouped_tokens_strict(Delimiter::Brace, if_span) {
+                Ok(mut tokens) => {
+                    let true_expr_span = tokens.peek_curr_span().unwrap_or(if_span);
+
+                    match parse_block_expr(&mut tokens) {
+                        Ok(t) => Expr {
+                            kind: t.block_to_expr_kind(),
+                            span: true_expr_span,
+                        },
+                        Err(e) => {
+                            return Some(Err(e.set_span_of_eof(true_expr_span)));
+                        }
                     }
                 },
-                Some(Token { kind, span }) => {
-                    return Some(Err(ParseError::tok(
-                        kind.clone(),
-                        *span,
-                        ExpectedToken::SpecificTokens(vec![
-                            TokenKind::List(Delimiter::Brace, vec![]),
-                        ]),
-                    )));
-                }
-                None => {
-                    return Some(Err(ParseError::eoe(
-                        if_span,
-                        ExpectedToken::SpecificTokens(vec![
-                            TokenKind::Operator(OpToken::OpeningCurlyBrace),
-                        ]),
-                    )));
+                Err(e) => {
+                    return Some(Err(e));
                 }
             };
 
@@ -482,7 +506,7 @@ impl TokenList {
                             *span,
                             ExpectedToken::SpecificTokens(vec![
                                 TokenKind::keyword_if(),
-                                TokenKind::List(Delimiter::Brace, vec![]),
+                                TokenKind::opening_curly_brace(),
                             ]),
                         )))
                     }
@@ -491,7 +515,7 @@ impl TokenList {
                             else_span.expect("Internal Compiler Error A862F21BFAD"),
                             ExpectedToken::SpecificTokens(vec![
                                 TokenKind::keyword_if(),
-                                TokenKind::List(Delimiter::Brace, vec![]),
+                                TokenKind::opening_curly_brace(),
                             ]),
                         )));
                     }

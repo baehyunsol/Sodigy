@@ -115,8 +115,6 @@ impl Expr {
             ExprKind::Match(value, branches, match_id) => {
                 value.resolve_names(name_scope, lambda_defs, session, used_names);
 
-                // TODO: there should be name resolvings in patterns
-                // e.g. `Some($foo)` -> `Sodigy.Option.Some($foo)`
                 for MatchBranch { pattern, value, id: branch_id } in branches.iter_mut() {
                     // a pattern doesn't define any lambda def, and doesn't use any local value
                     pattern.resolve_names(name_scope, session);

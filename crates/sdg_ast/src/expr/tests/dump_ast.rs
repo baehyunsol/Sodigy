@@ -274,6 +274,11 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
             0,
         ),
         (
+            "{}",
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
+            0,
+        ),
+        (
             "f'ABC {}'",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             6,
@@ -290,7 +295,9 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize)> {  // (input, erro
         ),
         (
             "f'{1'",
-            ParseErrorKind::UnexpectedEoe(ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)])),
+            ParseErrorKind::UnexpectedEoe(ExpectedToken::SpecificTokens(vec![
+                TokenKind::Operator(OpToken::ClosingCurlyBrace),
+            ])),
             2,
         ),
         (

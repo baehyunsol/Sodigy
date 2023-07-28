@@ -1,8 +1,8 @@
 use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
 use crate::span::Span;
-use crate::token::{Token, TokenKind, TokenList};
-use crate::value::parse_value;
+use crate::token::{Delimiter, Token, TokenKind, TokenList};
+use crate::value::{parse_block_expr, parse_value};
 
 // pratt algorithm
 // https://github.com/matklad/minipratt
@@ -205,3 +205,36 @@ const COMP_EQ: u32 = 7;
 const MODIFY: u32 = 5;
 const LOGICAL_AND: u32 = 3;
 const LOGICAL_OR: u32 = 1;
+
+pub fn parse_match_body(tokens: &mut TokenList) -> Result<Vec<()>, ParseError> {
+    let mut branches = vec![];
+
+    loop {
+        let span_for_eof_error = tokens.peek_curr_span();
+        let curr_pattern = match tokens.step_pattern() {
+            Some(Ok(p)) => p,
+            Some(Err(e)) => { return Err(e); },
+            None => if branches.is_empty() {
+                // return error
+                todo!()
+            } else {
+                return Ok(branches);
+            },
+        };
+
+        let curr_value = match tokens.step_grouped_tokens_strict(
+            Delimiter::Brace,
+            span_for_eof_error.expect("Internal Compiler Error B0BB36C98C3"),
+        ) {
+            Ok(mut tokens) => match parse_block_expr(&mut tokens) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(e);
+                }
+            },
+            Err(e) => {
+                return Err(e);
+            }
+        };
+    }
+}
