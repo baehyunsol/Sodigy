@@ -10,7 +10,7 @@ mod name_resolve;
 #[cfg(test)]
 mod tests;
 
-pub use kind::ExprKind;
+pub use kind::{ExprKind, MatchBranch};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::parse_expr;
 

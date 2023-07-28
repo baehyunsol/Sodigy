@@ -43,6 +43,12 @@ pub trait GetNameOfArg {
     fn get_name_of_arg(&self) -> InternedString;
 }
 
+impl GetNameOfArg for InternedString {
+    fn get_name_of_arg(&self) -> InternedString {
+        *self
+    }
+}
+
 impl GetNameOfArg for ArgDef {
     fn get_name_of_arg(&self) -> InternedString {
         self.name

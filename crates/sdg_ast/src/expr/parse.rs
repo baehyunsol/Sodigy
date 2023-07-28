@@ -31,6 +31,12 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         }
 
         branch.map_err(|e| e.set_span_of_eof(lhs_span))?
+    } else if let Some(match_expr) = tokens.step_match_expr() {
+        if let Ok(Expr { kind, .. }) = &match_expr {
+            assert!(kind.is_match(), "Internal Compiler Error C88E377CD8D");
+        }
+
+        match_expr.map_err(|e| e.set_span_of_eof(lhs_span))?
     } else {
         Expr {
             span: lhs_span,

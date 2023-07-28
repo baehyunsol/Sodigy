@@ -161,6 +161,7 @@ pub enum NameOrigin {
     FuncArg(UID),
     GenericArg(UID),
     BlockDef(UID),
+    MatchBranch(UID, UID),
 }
 
 #[derive(Clone)]
@@ -169,6 +170,7 @@ pub enum NameScopeKind {
     FuncArg(UID),
     GenericArg(UID),
     LambdaArg(UID),
+    MatchBranch(UID, UID),  // (match id, branch id)
 }
 
 impl From<&NameScopeKind> for NameOrigin {
@@ -178,6 +180,7 @@ impl From<&NameScopeKind> for NameOrigin {
             NameScopeKind::FuncArg(id) => NameOrigin::FuncArg(*id),
             NameScopeKind::LambdaArg(id) => NameOrigin::FuncArg(*id),
             NameScopeKind::GenericArg(id) => NameOrigin::GenericArg(*id),
+            NameScopeKind::MatchBranch(m_id, b_id) => NameOrigin::MatchBranch(*m_id, *b_id),
         }
     }
 }

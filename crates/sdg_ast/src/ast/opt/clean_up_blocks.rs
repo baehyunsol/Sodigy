@@ -1,6 +1,6 @@
 use super::super::{AST, ASTError, NameOrigin};
 use crate::err::ParamType;
-use crate::expr::{Expr, ExprKind};
+use crate::expr::{Expr, ExprKind, MatchBranch};
 use crate::iter_mut_exprs_in_ast;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
@@ -162,6 +162,13 @@ impl ExprKind {
                 v1.clean_up_blocks(session)?;
                 v2.clean_up_blocks(session)?;
             },
+            ExprKind::Match(value, branches, _) => {
+                value.clean_up_blocks(session)?;
+
+                for MatchBranch { value, .. } in branches.iter_mut() {
+                    value.clean_up_blocks(session)?;
+                }
+            },
             ExprKind::Branch(c, t, f) => {
                 c.clean_up_blocks(session)?;
                 t.clean_up_blocks(session)?;
@@ -241,7 +248,7 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
                         *count += 1;
                     }
                 }
-            }
+            },
             ValueKind::Lambda(args, value) => {
                 count_occurrence(value.as_ref(), name, block_id, count);
 
@@ -271,6 +278,9 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
             count_occurrence(op1, name, block_id, count);
             count_occurrence(op2, name, block_id, count);
         },
+        ExprKind::Match(value, branches, _) => {
+            count_occurrence(value, name, block_id, count);
+        }
         ExprKind::Branch(c, t, f) => {
             count_occurrence(c, name, block_id, count);
             count_occurrence(t, name, block_id, count);
@@ -335,6 +345,13 @@ fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: Int
             substitute_local_def(op1, needle, name_to_replace, block_id);
             substitute_local_def(op2, needle, name_to_replace, block_id);
         },
+        ExprKind::Match(value, branches, _) => {
+            substitute_local_def(value, needle, name_to_replace, block_id);
+
+            for MatchBranch { value, .. } in branches.iter_mut() {
+                substitute_local_def(value, needle, name_to_replace, block_id);
+            }
+        }
         ExprKind::Branch(c, t, f) => {
             substitute_local_def(c, needle, name_to_replace, block_id);
             substitute_local_def(t, needle, name_to_replace, block_id);

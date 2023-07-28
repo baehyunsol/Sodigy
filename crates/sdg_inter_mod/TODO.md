@@ -4,6 +4,7 @@ inter-module name resolving
 enum ModuleOrDef {
     Def(UID),
     Module(HashMap<InternedString, ModuleOrDef>),
+    Enum(HashMap<InternedString, UID>),  // it makes `use Bool.True as true;` possible
 }
 
 root: HashMap<InternedString, ModuleOrDef>;

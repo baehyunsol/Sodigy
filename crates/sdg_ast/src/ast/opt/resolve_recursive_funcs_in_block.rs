@@ -1,5 +1,5 @@
 use super::super::{AST, ASTError, NameOrigin};
-use crate::expr::{Expr, ExprKind};
+use crate::expr::{Expr, ExprKind, MatchBranch};
 use crate::iter_mut_exprs_in_ast;
 use crate::session::LocalParseSession;
 use crate::stmt::{ArgDef, Decorator};
@@ -85,6 +85,13 @@ impl Expr {
             ExprKind::Infix(_, v1, v2) => {
                 v1.resolve_recursive_funcs_in_block(session)?;
                 v2.resolve_recursive_funcs_in_block(session)?;
+            },
+            ExprKind::Match(value, branches, _) => {
+                value.resolve_recursive_funcs_in_block(session)?;
+
+                for MatchBranch { value, .. } in branches.iter_mut() {
+                    value.resolve_recursive_funcs_in_block(session)?;
+                }
             },
             ExprKind::Branch(c, t, f) => {
                 c.resolve_recursive_funcs_in_block(session)?;

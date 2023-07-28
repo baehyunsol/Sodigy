@@ -1,7 +1,9 @@
 use super::{Expr, InfixOp, PostfixOp, PrefixOp};
 use crate::ast::NameOrigin;
+use crate::pattern::Pattern;
 use crate::session::LocalParseSession;
 use crate::value::ValueKind;
+use sdg_uid::UID;
 
 #[derive(Clone)]
 pub enum ExprKind {
@@ -15,11 +17,22 @@ pub enum ExprKind {
 
     // cond, true, false
     Branch(Box<Expr>, Box<Expr>, Box<Expr>),
+
+    // value, branches
+    Match(Box<Expr>, Vec<MatchBranch>, UID),
 }
 
 impl ExprKind {
     pub fn is_branch(&self) -> bool {
         if let ExprKind::Branch(_, _, _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_match(&self) -> bool {
+        if let ExprKind::Match(_, _, _) = self {
             true
         } else {
             false
@@ -54,6 +67,17 @@ impl ExprKind {
                     .collect::<Vec<String>>()
                     .concat()
             ),
+            ExprKind::Match(value, branches, _) => format!(
+                "Match({},[{}])",
+                value.dump(session),
+                branches.iter().map(
+                    |MatchBranch { pattern, value, .. }| format!(
+                        "{}{{{}}}",
+                        pattern.dump(session),
+                        value.dump(session),
+                    )
+                ).collect::<Vec<String>>().join(","),
+            ),
             ExprKind::Branch(cond, t, f) => format!(
                 "Branch({},{},{})",
                 cond.dump(session),
@@ -62,4 +86,12 @@ impl ExprKind {
             ),
         }
     }
+}
+
+// TODO: where should it belong?
+#[derive(Clone)]
+pub struct MatchBranch {
+    pub(crate) pattern: Pattern,
+    pub(crate) value: Expr,
+    pub(crate) id: UID,
 }

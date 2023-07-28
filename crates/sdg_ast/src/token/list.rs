@@ -368,6 +368,30 @@ impl TokenList {
             _ => None,
         }
     }
+    // Some(Err(_)) indicates that it's a match_expr but the inner expr has a syntax error
+    // if self.step() is `match`, it must return Some(_)
+    pub fn step_match_expr(&mut self) -> Option<Result<Expr, ParseError>> {
+        let match_span = if let Some(s) = self.peek_curr_span() {
+            s
+        } else {
+            return None;
+        };
+
+        if self.consume(TokenKind::keyword_match()) {
+            let value = match parse_expr(self, 0) {
+                Ok(expr) => expr,
+                Err(e) => {
+                    return Some(Err(e.set_span_of_eof(match_span)));
+                }
+            };
+
+            todo!()
+        }
+
+        else {
+            None
+        }
+    }
 
     // Some(Err(_)) indicates that it's a branch_expr but the inner expr has a syntax error
     // if self.step() is `if`, it must return Some(_)

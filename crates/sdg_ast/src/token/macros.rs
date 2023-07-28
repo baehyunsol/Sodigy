@@ -28,6 +28,7 @@ token_kind_impl!(Op, colon, Colon);
 token_kind_impl!(Op, assign, Assign);
 token_kind_impl!(Key, keyword_if, If);
 token_kind_impl!(Key, keyword_else, Else);
+token_kind_impl!(Key, keyword_match, Match);
 token_kind_impl!(Key, keyword_def, Def);
 token_kind_impl!(Key, keyword_use, Use);
 token_kind_impl!(Key, keyword_as, As);

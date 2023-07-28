@@ -1,4 +1,4 @@
-use super::{Expr, ExprKind};
+use super::{Expr, ExprKind, MatchBranch};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
 use crate::expr::InfixOp;
 use crate::session::{InternedString, LocalParseSession};
@@ -121,6 +121,22 @@ impl Expr {
                 },
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope, lambda_defs, session, used_names),
+            ExprKind::Match(value, branches, match_id) => {
+                value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+
+                // TODO: there should be name resolvings in patterns
+                // e.g. `Some($foo)` -> `Sodigy.Option.Some($foo)`
+                for MatchBranch { pattern, value, id: branch_id } in branches.iter_mut() {
+                    // a pattern doesn't define any lambda def, and doesn't use any local value
+                    pattern.resolve_names(name_scope, session)?;
+
+                    name_scope.push_names(&pattern.get_name_bindings(), NameScopeKind::MatchBranch(*match_id, *branch_id));
+                    value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                    name_scope.pop_names();
+                }
+
+                Ok(())
+            },
             ExprKind::Branch(cond, b1, b2) => {
                 cond.resolve_names(name_scope, lambda_defs, session, used_names)?;
                 b1.resolve_names(name_scope, lambda_defs, session, used_names)?;
@@ -161,7 +177,9 @@ impl Expr {
                     NameOrigin::FuncArg(id) if *id != curr_func_id => {
                         buffer.insert((*name, *origin));
                     },
-                    NameOrigin::BlockDef(id) if !curr_blocks.contains(id) => {
+                    NameOrigin::BlockDef(id)
+                    | NameOrigin::MatchBranch(id, _)
+                    if !curr_blocks.contains(id) => {
                         buffer.insert((*name, *origin));
                     },
                     NameOrigin::NotKnownYet => {
@@ -218,6 +236,15 @@ impl Expr {
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => {
                 operand.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
+            },
+            ExprKind::Match(value, branches, id) => {
+                value.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
+
+                for MatchBranch { value, .. } in branches.iter() {
+                    curr_blocks.push(*id);
+                    value.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
+                    curr_blocks.pop().expect("Internal Compiler Error 8AE4F98991B");
+                }
             },
             ExprKind::Branch(cond, b1, b2) => {
                 cond.get_all_foreign_names(curr_func_id, buffer, curr_blocks);

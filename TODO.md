@@ -21,8 +21,8 @@ becomes
 # syntax is WIP
 
 def foo(n: Option(Int)): Option(Int) = match n {
-  Some(n) => foofoo(n),
-  None => None,
+  Some($n) { foofoo(n) }
+  None { None }
 };
 ```
 
@@ -38,8 +38,8 @@ becomes
 # syntax is WIP
 
 def foo(n: T(A, C)): R(X, B) = match n {
-  T1(n) => foofoo(n),
-  T2(c) => R2(c as B),
+  T1($n) { foofoo(n) }
+  T2($c) { R2(c as B) }
 };
 ```
 
@@ -67,8 +67,8 @@ callers have to be explicit about `?`.
   [
     foo(val1),
     match val2 {
-      T1(val2) => foo(val2),
-      T2(c) => R2(c as B),
+      T1($val2) { foo(val2) }
+      T2($c) { R2(c as B) }
     }
   ]
 }
@@ -85,34 +85,29 @@ For this, we have to clarify the order of evaluation of args
 Pattern matching
 
 - `a = foo();`
+  - `$a = foo();` should be the one, but `a = foo();` is a syntactic sugar
+  - this syntactic sugar is only allowed in `let`s in a block expression. it's not allowed in match statements
 - `a: Foo = foo();`
 - `Foo { name, age } = foo();`
   - `_tmp: Foo = foo(); name = _tmp.name; age = _tmp.age;`
 - `mod.Foo { name, age } = foo();`
-- `Foo { name: name_, .. } = foo();`
-- `Ok(n) = try_something();`
+- `Foo { name: $x, .. } = foo();`
+- `Ok($n) = try_something();`
   - only in `match`s
-- `Boolean.True = try_something();`
+- `Bool.True = try_something();`
   - only in `match`s
-- `[a, b] = foo();`
-- `[a, b]: List(Int) = foo();`
+- `[$a, $b] = foo();`
+- `[$a, $b]: List(Int) = foo();`
   - what if `foo().len()` is greater than 2? do we reject that?
-- `[a, ..] = foo();`
-- `[a, .., b, c] = foo();`
+- `[$a, ..] = foo();`
+- `[$a, .., $b, $c] = foo();`
   - what if `foo().len() == 2`? do we reject that? if `a` and `b` point to the same object, that's non-sense
-- `(a, b) = foo();`
-- `(a, _) = foo();`
+- `($a, $b) = foo();`
+- `($a, _) = foo();`
   - we should treat `_` specially: it's not allowed as an identifier, except inside a pattern
   - If inside pattern, it's ignored (no bindings)
 - `[Ok(Foo { name, age }), ..] = foo();`
   - only in `match`s
-
-if the pattern is `True`, how do we know whether it's a name binding or an enum variant? It's necessary if I'm to implement `match` statements
-
-- in block expressions, it must be a name binding
-- in `match`, let's first check whether the name `True` is in the scope
-  - if so, let's treat it as an enum variant
-  - otherwise, it's a name binding
 
 ---
 

@@ -45,11 +45,11 @@ def foldr<T, U>(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
     foldr(ls[0..(-1)], f, f(ls[-1], base))
 };
 
-# TODO: I want it to be generic
-def sum(ls: List(Int)): Int = foldl(ls, \{a, b, a + b}, 0);
+# TODO: How Do I annotate that `add(T, T): U`?
+def sum<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a + b}, 0);
 
-# TODO: I want it to be generic
-def product(ls: List(Int)): Int = foldl(ls, \{a, b, a * b}, 0);
+# TODO: How Do I annotate that `mul(T, T): U`?
+def product<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a * b}, 0);
 
 # TODO: How do I annotate that `U` is comparable?
 def sort_by<T, U>(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
@@ -91,15 +91,13 @@ def all<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
     f(ls[0]) && all(ls[1..], f)
 };
 
-##!
 def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
     Option.None  # just `None`?
 } else if f(ls[0]) {
     Option.Some(0)
 } else {
     match first_index_that(ls[1..], f) {  # TODO: `match` syntax is not complete yet
-        Option.Some(n) => Option.Some(1 + n),
+        Option.Some($n) => Option.Some(1 + n),
         _ => None,
     }
 };
-!##
