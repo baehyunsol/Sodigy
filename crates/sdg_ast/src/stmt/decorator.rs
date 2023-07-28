@@ -24,7 +24,7 @@ impl Decorator {
         name_scope: &mut NameScope,
         lambda_defs: &mut HashMap<InternedString, FuncDef>,
         session: &mut LocalParseSession,
-    ) -> Result<(), ASTError> {
+    ) {
 
         match name_scope.search_name(self.names[0]) {
             Ok((Some(u), _)) => {
@@ -36,7 +36,7 @@ impl Decorator {
             },
             Ok((None, _)) => {},
             Err(_) => {
-                return Err(ASTError::no_def(
+                session.add_error(ASTError::no_def(
                     self.names[0],
                     self.span,
                     name_scope.clone(),
@@ -48,10 +48,8 @@ impl Decorator {
         let mut dummy = HashSet::new();
 
         for arg in self.args.iter_mut() {
-            arg.resolve_names(name_scope, lambda_defs, session, &mut dummy)?;
+            arg.resolve_names(name_scope, lambda_defs, session, &mut dummy);
         }
-
-        Ok(())
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {

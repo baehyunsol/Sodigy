@@ -38,68 +38,61 @@ impl AST {
             uses: HashMap::new(),
         };
 
-        let e = 'inner_error: {
-            for stmt in stmts.into_iter() {
+        for stmt in stmts.into_iter() {
 
-                match stmt {
-                    Stmt::Decorator(d) => { curr_decos.push(d); }
-                    Stmt::Def(mut f) => {
-                        f.decorators = curr_decos;
+            match stmt {
+                Stmt::Decorator(d) => { curr_decos.push(d); }
+                Stmt::Def(mut f) => {
+                    f.decorators = curr_decos;
+                    curr_decos = vec![];
+
+                    if let Some(first_def) = check_already_defined(&ast, &f.name) {
+                        session.add_error(ASTError::multi_def(f.name, first_def, f.span));
+                    }
+
+                    else {
+                        ast.defs.insert(f.name, f);
+                    }
+
+                }
+                Stmt::Module(m) => {
+                    if !curr_decos.is_empty() {
+                        session.add_error(ASTError::deco_mod(m.span));
                         curr_decos = vec![];
-
-                        if let Some(first_def) = check_already_defined(&ast, &f.name) {
-                            break 'inner_error Err(ASTError::multi_def(f.name, first_def, f.span));
-                        }
-
-                        else {
-                            ast.defs.insert(f.name, f);
-                        }
-
                     }
-                    Stmt::Module(m) => {
-                        if !curr_decos.is_empty() {
-                            session.add_error(ASTError::deco_mod(m.span));
-                            curr_decos = vec![];
-                        }
 
-                        if let Some(first_def) = check_already_defined(&ast, &m.name) {
-                            break 'inner_error Err(ASTError::multi_def(m.name, first_def, m.span));
-                        }
-
-                        else {
-                            ast.inner_modules.insert(m.name, m);
-                        }
+                    if let Some(first_def) = check_already_defined(&ast, &m.name) {
+                        session.add_error(ASTError::multi_def(m.name, first_def, m.span));
                     }
-                    Stmt::Use(u) => {
-                        if !curr_decos.is_empty() {
-                            session.add_error(ASTError::deco_use(u.span));
-                            curr_decos = vec![];
-                        }
 
-                        if let Some(first_def) = check_already_defined(&ast, &u.alias) {
-                            break 'inner_error Err(ASTError::multi_def(u.alias, first_def, u.span));
-                        }
-
-                        else {
-                            ast.uses.insert(u.alias, u);
-                        }
+                    else {
+                        ast.inner_modules.insert(m.name, m);
                     }
                 }
+                Stmt::Use(u) => {
+                    if !curr_decos.is_empty() {
+                        session.add_error(ASTError::deco_use(u.span));
+                        curr_decos = vec![];
+                    }
 
+                    if let Some(first_def) = check_already_defined(&ast, &u.alias) {
+                        session.add_error(ASTError::multi_def(u.alias, first_def, u.span));
+                    }
+
+                    else {
+                        ast.uses.insert(u.alias, u);
+                    }
+                }
             }
 
-            Ok(())
-        };
-
-        // Don't return here: we want to provide as many error messages as possible even though the compilation fails
-        if let Err(e) = e {
-            session.add_error(e);
         }
 
         ast.resolve_names(session)?;
         ast.resolve_recursive_funcs_in_block(session)?;
         ast.clean_up_blocks(session)?;
         ast.opt(session);
+
+        session.err_if_has_error()?;
 
         Ok(ast)
     }

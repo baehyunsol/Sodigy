@@ -85,4 +85,20 @@ impl SodigyError for ASTError {
             _ => {}
         }
     }
+
+    fn get_first_span(&self) -> Span {
+        if self.span.is_empty() {
+            Span::dummy()
+        } else {
+            let mut curr = self.span[0];
+
+            for span in self.span.iter() {
+                if *span < curr {
+                    curr = *span;
+                }
+            }
+
+            curr
+        }
+    }
 }

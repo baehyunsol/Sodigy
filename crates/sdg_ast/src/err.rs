@@ -16,6 +16,12 @@ pub trait SodigyError {
     /// if self.message.is_empty() && the compiler thinks there's a helpful message for this error_kind
     /// add a message
     fn try_add_more_helpful_message(&mut self);
+
+    /// if the error doesn't have any span, it returns Span::dummy,
+    /// if it has multiple ones, it returns the smallest one (Span implmenets PartialOrd),
+    /// it need not be perfect, some errors in corner cases are tolerable (though not desired)
+    // TODO: sort error messages before rendering them (in sesssion)
+    fn get_first_span(&self) -> Span;
 }
 
 pub use kind::{ParamType, ParseErrorKind};
@@ -248,6 +254,22 @@ impl SodigyError for ParseError {
                 );
             }
             _ => {}
+        }
+    }
+
+    fn get_first_span(&self) -> Span {
+        if self.span.is_empty() {
+            Span::dummy()
+        } else {
+            let mut curr = self.span[0];
+
+            for span in self.span.iter() {
+                if *span < curr {
+                    curr = *span;
+                }
+            }
+
+            curr
         }
     }
 }

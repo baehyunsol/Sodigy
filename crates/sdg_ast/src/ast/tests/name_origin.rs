@@ -44,6 +44,9 @@ fn name_origin_test() {
                     NameOrigin::BlockDef(_) => assert!(name.starts_with(b"block")),
                     NameOrigin::Prelude => {},
                     NameOrigin::NotKnownYet => panic!("{}", bytes_to_string(&name)),
+
+                    // TODO: add case for this
+                    NameOrigin::MatchBranch(_, _) => assert!(name.starts_with(b"match")),
                 }
             },
             &mut ()

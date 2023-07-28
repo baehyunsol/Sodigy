@@ -97,7 +97,7 @@ def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_e
     Option.Some(0)
 } else {
     match first_index_that(ls[1..], f) {  # TODO: `match` syntax is not complete yet
-        Option.Some($n) => Option.Some(1 + n),
-        _ => None,
+        Option.Some($n) { Option.Some(1 + n) }
+        _ { Option.None }
     }
 };

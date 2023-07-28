@@ -169,9 +169,20 @@ impl LocalParseSession {
         self.errors.is_empty()
     }
 
+    pub fn err_if_has_error(&self) -> Result<(), ()> {
+        if self.has_no_error() {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
     // TODO: I want to sort errors by span
     pub fn render_err(&self) -> String {
-        let mut errors = self.errors.iter().map(
+        let mut errors_sorted_by_span: Vec<&Box<dyn SodigyError>> = self.errors.iter().collect();
+        errors_sorted_by_span.sort_by_key(|err| err.get_first_span());
+
+        let mut errors = errors_sorted_by_span.iter().map(
             |e| e.render_err(self)
         ).collect::<Vec<String>>();
 

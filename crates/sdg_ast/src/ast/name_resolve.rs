@@ -211,19 +211,14 @@ impl AST {
         let mut lambda_defs = HashMap::new();
 
         for func in self.defs.values_mut() {
-            let e = func.resolve_names(&mut name_scope, &mut lambda_defs, session);
-            session.try_add_error(e);
+            func.resolve_names(&mut name_scope, &mut lambda_defs, session);
         }
 
         for (name, def) in lambda_defs.into_iter() {
             self.defs.insert(name, def);
         }
 
-        if session.has_no_error() {
-            Ok(())
-        } else {
-            Err(())
-        }
+        session.err_if_has_error()
     }
 
 }

@@ -8,44 +8,39 @@ use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
 impl Expr {
+
     pub fn resolve_names(
         &mut self,
         name_scope: &mut NameScope,
         lambda_defs: &mut HashMap<InternedString, FuncDef>,
         session: &mut LocalParseSession,
         used_names: &mut HashSet<(InternedString, NameOrigin)>,
-    ) -> Result<(), ASTError> {
+    ) {
         match &mut self.kind {
             ExprKind::Value(v) => match v {
                 ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
-                | ValueKind::Bytes(_) => {
-                    Ok(())
-                },
+                | ValueKind::Bytes(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
                     for elem in elements.iter_mut() {
-                        elem.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                        elem.resolve_names(name_scope, lambda_defs, session, used_names);
                     }
-
-                    Ok(())
                 },
                 ValueKind::Identifier(id, _) => match name_scope.search_name(*id) {
                     Ok((None, origin)) => {
                         used_names.insert((*id, origin));
                         self.kind.set_origin(origin);
-
-                        Ok(())
                     },
                     Ok((Some(alias), _)) => {
                         // its origin is handled by `.to_path`
                         self.kind = alias.to_path();
-
-                        Ok(())
                     },
-                    Err(()) => Err(ASTError::no_def(*id, self.span, name_scope.clone())),
+                    Err(()) => {
+                        session.add_error(ASTError::no_def(*id, self.span, name_scope.clone()));
+                    },
                 },
                 ValueKind::Closure(_, _) => {
                     // not generated yet
@@ -60,11 +55,11 @@ impl Expr {
 
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
-                            ty.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                            ty.resolve_names(name_scope, lambda_defs, session, used_names);
                         }
                     }
 
-                    expr.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                    expr.resolve_names(name_scope, lambda_defs, session, used_names);
                     name_scope.pop_names();
 
                     let mut lambda_def = FuncDef::create_anonymous_function(
@@ -100,66 +95,57 @@ impl Expr {
                     if let Some(_) = lambda_defs.insert(lambda_def.name, lambda_def) {
                         todo!();
                     }
-
-                    Ok(())
                 },
                 ValueKind::Block { defs, value, id } => {
                     name_scope.push_names(defs, NameScopeKind::Block(*id));
 
                     for BlockDef { value, ty, .. } in defs.iter_mut() {
-                        value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                        value.resolve_names(name_scope, lambda_defs, session, used_names);
 
                         if let Some(ty) = ty {
-                            ty.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                            ty.resolve_names(name_scope, lambda_defs, session, used_names);
                         }
                     }
 
-                    value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                    value.resolve_names(name_scope, lambda_defs, session, used_names);
                     name_scope.pop_names();
-
-                    Ok(())
                 },
             },
             ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope, lambda_defs, session, used_names),
             ExprKind::Match(value, branches, match_id) => {
-                value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                value.resolve_names(name_scope, lambda_defs, session, used_names);
 
                 // TODO: there should be name resolvings in patterns
                 // e.g. `Some($foo)` -> `Sodigy.Option.Some($foo)`
                 for MatchBranch { pattern, value, id: branch_id } in branches.iter_mut() {
                     // a pattern doesn't define any lambda def, and doesn't use any local value
-                    pattern.resolve_names(name_scope, session)?;
+                    pattern.resolve_names(name_scope, session);
 
                     name_scope.push_names(&pattern.get_name_bindings(), NameScopeKind::MatchBranch(*match_id, *branch_id));
-                    value.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                    value.resolve_names(name_scope, lambda_defs, session, used_names);
                     name_scope.pop_names();
                 }
-
-                Ok(())
             },
             ExprKind::Branch(cond, b1, b2) => {
-                cond.resolve_names(name_scope, lambda_defs, session, used_names)?;
-                b1.resolve_names(name_scope, lambda_defs, session, used_names)?;
-                b2.resolve_names(name_scope, lambda_defs, session, used_names)?;
-
-                Ok(())
+                cond.resolve_names(name_scope, lambda_defs, session, used_names);
+                b1.resolve_names(name_scope, lambda_defs, session, used_names);
+                b2.resolve_names(name_scope, lambda_defs, session, used_names);
             },
             ExprKind::Call(f, args) => {
-                f.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                f.resolve_names(name_scope, lambda_defs, session, used_names);
 
                 for arg in args.iter_mut() {
-                    arg.resolve_names(name_scope, lambda_defs, session, used_names)?;
+                    arg.resolve_names(name_scope, lambda_defs, session, used_names);
                 }
-
-                Ok(())
             },
             ExprKind::Infix(op, o1, o2) => match op {
 
                 // `a.b.c` -> `a` has to be resolved, but the others shall not
                 InfixOp::Path => o1.resolve_names(name_scope, lambda_defs, session, used_names),
+
                 _ => {
-                    o1.resolve_names(name_scope, lambda_defs, session, used_names)?;
-                    o2.resolve_names(name_scope, lambda_defs, session, used_names)
+                    o1.resolve_names(name_scope, lambda_defs, session, used_names);
+                    o2.resolve_names(name_scope, lambda_defs, session, used_names);
                 }
             },
         }
@@ -181,10 +167,6 @@ impl Expr {
                     | NameOrigin::MatchBranch(id, _)
                     if !curr_blocks.contains(id) => {
                         buffer.insert((*name, *origin));
-                    },
-                    NameOrigin::NotKnownYet => {
-                        // All the name has to be already resolved
-                        panic!("Internal Compiler Error D0D2C11F711");
                     },
                     _ => {}
                 },

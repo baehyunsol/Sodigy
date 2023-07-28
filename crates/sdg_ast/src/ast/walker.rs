@@ -83,6 +83,10 @@ impl ExprKind {
                     arg.kind.id_walker(f, ctxt);
                 }
             },
+
+            // TODO: What do I do with patterns?
+            ExprKind::Match(value, branches, _) => todo!(),
+
             ExprKind::Branch(c, t, fl) => {
                 c.kind.id_walker(f, ctxt);
                 t.kind.id_walker(f, ctxt);

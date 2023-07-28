@@ -1,5 +1,5 @@
 use super::{ArgDef, Decorator, GenericDef};
-use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
+use crate::ast::{NameOrigin, NameScope, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
 use crate::module::ModulePath;
@@ -101,14 +101,13 @@ impl FuncDef {
         name_scope: &mut NameScope,
         lambda_defs: &mut HashMap<InternedString, FuncDef>,
         session: &mut LocalParseSession,
-    ) -> Result<(), ASTError> {
+    ) {
 
         // it's used to emit `warning: unused arg ...`
         let mut used_args = HashSet::new();
 
         for decorator in self.decorators.iter_mut() {
-            let e = decorator.resolve_names(name_scope, lambda_defs, session);
-            session.try_add_error(e);
+            decorator.resolve_names(name_scope, lambda_defs, session);
         }
 
         name_scope.push_names(&self.generics, NameScopeKind::GenericArg(self.id));
@@ -117,26 +116,21 @@ impl FuncDef {
         // For now, types are dependent to the args
         for ArgDef { ty, .. } in self.args.iter_mut() {
             if let Some(ty) = ty {
-                let e = ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
-                session.try_add_error(e);
+                ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
             }
         }
 
         if let Some(ty) = &mut self.ret_type {
-            let e = ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
-            session.try_add_error(e);
+            ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
         }
 
-        let e = self.ret_val.resolve_names(name_scope, lambda_defs, session, &mut used_args);
-        session.try_add_error(e);
+        self.ret_val.resolve_names(name_scope, lambda_defs, session, &mut used_args);
 
         session.add_warnings(self.get_unused_name_warnings(&used_args));
 
         // one for args, one for generics
         name_scope.pop_names();
         name_scope.pop_names();
-
-        Ok(())
     }
 
     // It returns Some(_) only when the result is non-empty

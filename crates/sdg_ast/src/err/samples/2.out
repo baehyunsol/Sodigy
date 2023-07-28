@@ -8,5 +8,29 @@ A similar name exists: `babb`
     │            ▾
 ▸ 5 │ def func2: aabb = babb;
     │            ▴
+  6 │ 
+  7 │ def func3: bcbb = bcbb;
 
-Could not compile `./src/err/samples/2.in` due to a previous error.
+Error: cannot find name `bcbb` in this scope
+A similar name exists: `babb`
+./src/err/samples/2.in:7:12
+  3 │ def func1: babb = babb;
+  4 │ 
+  5 │ def func2: aabb = babb;
+  6 │ 
+    │            ▾
+▸ 7 │ def func3: bcbb = bcbb;
+    │            ▴
+
+Error: cannot find name `bcbb` in this scope
+A similar name exists: `babb`
+./src/err/samples/2.in:7:19
+  3 │ def func1: babb = babb;
+  4 │ 
+  5 │ def func2: aabb = babb;
+  6 │ 
+    │                   ▾
+▸ 7 │ def func3: bcbb = bcbb;
+    │                   ▴
+
+Could not compile `./src/err/samples/2.in` due to 3 previous errors.

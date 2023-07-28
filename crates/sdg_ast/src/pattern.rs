@@ -1,4 +1,4 @@
-use crate::ast::{ASTError, NameScope};
+use crate::ast::NameScope;
 use crate::session::{InternedString, LocalParseSession};
 
 #[derive(Clone)]
@@ -19,7 +19,7 @@ impl Pattern {
     //   - enum name, enum variant name, struct name, const
     // a `Pattern` may not include
     //   - local val, func call, 
-    pub fn resolve_names(&mut self, scope: &NameScope, session: &LocalParseSession) -> Result<(), ASTError> {
+    pub fn resolve_names(&mut self, scope: &NameScope, session: &LocalParseSession) {
         todo!()
     }
 }

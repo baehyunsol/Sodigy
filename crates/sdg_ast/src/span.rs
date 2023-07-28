@@ -4,7 +4,7 @@ use sdg_hash::{SdgHash, SdgHashResult};
 
 const MAX_PREVIEW_LEN: usize = 96;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Span {
     file_no: u64,  // hash of the name of the file
 

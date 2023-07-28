@@ -22,11 +22,8 @@ pub fn parse_stmts(tokens: &mut TokenList, session: &mut LocalParseSession) -> R
         }
     }
 
-    if session.has_no_error() {
-        Ok(result)
-    } else {
-        Err(())
-    }
+    session.err_if_has_error()?;
+    Ok(result)
 }
 
 pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
