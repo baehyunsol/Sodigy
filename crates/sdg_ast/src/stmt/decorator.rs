@@ -53,6 +53,9 @@ impl Decorator {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
+        #[cfg(test)]
+        assert_eq!(self.span.dump(session), "@");
+
         format!(
             "@{}{}",
             self.names.iter().map(

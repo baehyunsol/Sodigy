@@ -159,15 +159,6 @@ impl ParseError {
         }
     }
 
-    pub(crate) fn set_span_of_eof(mut self, span: Span) -> Self {
-        if (self.is_eof() || self.is_eoe()) && (self.span.is_empty() || self.span[0].is_dummy()) {
-            self.span = vec![span];
-            self
-        } else {
-            self
-        }
-    }
-
     pub(crate) fn set_ind_and_fileno(mut self, span: Span) -> Self {
         if self.is_iutf8() && self.span[0].is_dummy_index() {
             assert_eq!(self.span.len(), 1, "Internal Compiler Error D8DFF0DF984");

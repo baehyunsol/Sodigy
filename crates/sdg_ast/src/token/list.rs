@@ -12,11 +12,12 @@ use hmath::Ratio;
 pub struct TokenList {
     pub data: Vec<Token>,
     cursor: usize,
+    first_character: Span,
 }
 
 impl TokenList {
-    pub fn from_vec(data: Vec<Token>) -> Self {
-        TokenList { data, cursor: 0 }
+    pub fn from_vec(data: Vec<Token>, first_character: Span) -> Self {
+        TokenList { data, cursor: 0, first_character }
     }
 
     pub fn is_eof(&self) -> bool {
@@ -36,6 +37,14 @@ impl TokenList {
         match self.data.last() {
             Some(Token { kind, .. }) if *kind == token_kind => true,
             _ => false,
+        }
+    }
+
+    // when a parser throws an Eof or Eoe error, this function is used to calc the span
+    pub fn get_eof_span(&self) -> Span {
+        match self.data.last() {
+            Some(t) => t.span.last_character(),
+            _ => self.first_character,
         }
     }
 
@@ -93,7 +102,7 @@ impl TokenList {
                 ExpectedToken::SpecificTokens(token_kinds),
             )),
             None => Err(ParseError::eoe(
-                Span::dummy(),
+                self.get_eof_span(),
                 ExpectedToken::SpecificTokens(token_kinds),
             )),
         }
@@ -141,7 +150,7 @@ impl TokenList {
             Some(Token {
                 kind: TokenKind::List(delim_, elements),
                 span: list_span,
-            }) if *delim_ == delim => Ok(TokenList::from_vec(elements.to_vec())),
+            }) if *delim_ == delim => Ok(TokenList::from_vec(elements.to_vec(), list_span.first_character())),
             Some(Token { kind, span }) => {
                 Err(ParseError::tok(
                     kind.clone(),
@@ -173,7 +182,7 @@ impl TokenList {
                 ]),
             )),
             None => Err(ParseError::eoe(
-                Span::dummy(),
+                self.get_eof_span(),
                 ExpectedToken::SpecificTokens(vec![
                     TokenKind::dummy_identifier(),
                 ]),
@@ -202,7 +211,7 @@ impl TokenList {
                     let name = match self.step_identifier_strict() {
                         Ok(n) => n,
                         Err(e) => {
-                            return Some(Err(e.set_span_of_eof(generic_def_span)));
+                            return Some(Err(e));
                         }
                     };
                     let name_span = name_span.expect("Internal Compiler Error 0AA5B43F2C1");
@@ -217,9 +226,7 @@ impl TokenList {
                         if let Err(e) = self.consume_token_or_error(vec![
                             TokenKind::comma(),
                             TokenKind::Operator(OpToken::Gt),
-                        ]).map_err(
-                                |e| e.set_span_of_eof(generic_def_span)
-                        ) {
+                        ]) {
                             return Some(Err(e));
                         }
                     }
@@ -239,7 +246,7 @@ impl TokenList {
             }) => {
                 self.cursor += 1;
                 let mut args = vec![];
-                let mut args_tokens = TokenList::from_vec(elements.to_vec());
+                let mut args_tokens = TokenList::from_vec(elements.to_vec(), span.first_character());
 
                 while !args_tokens.is_eof() {
                     match parse_arg_def(&mut args_tokens) {
@@ -247,7 +254,7 @@ impl TokenList {
                             args.push(arg);
                         }
                         Err(e) => {
-                            return Some(Err(e.set_span_of_eof(*span)));
+                            return Some(Err(e));
                         }
                     }
 
@@ -312,14 +319,12 @@ impl TokenList {
                 kind: TokenKind::Operator(op),
                 span,
             }) => match *op {
-                OpToken::FieldModifier => {
+                OpToken::Dollar => {
                     self.cursor += 1;
                     let span = *span;
                     let field_name = match self.step_identifier_strict() {
                         Ok(f) => f,
-                        Err(e) => {
-                            let mut e = e.set_span_of_eof(span);
-
+                        Err(mut e) => {
                             if e.is_unexpected_token() {
                                 e.set_msg("A name of a field must follow `$`.");
                             }
@@ -400,6 +405,7 @@ impl TokenList {
             _ => None,
         }
     }
+
     // Some(Err(_)) indicates that it's a match_expr but the inner expr has a syntax error
     // if self.step() is `match`, it must return Some(_)
     pub fn step_match_expr(&mut self) -> Option<Result<Expr, ParseError>> {
@@ -413,7 +419,7 @@ impl TokenList {
             let value = match parse_expr(self, 0) {
                 Ok(expr) => expr,
                 Err(e) => {
-                    return Some(Err(e.set_span_of_eof(match_span)));
+                    return Some(Err(e));
                 }
             };
 
@@ -444,7 +450,7 @@ impl TokenList {
             let cond = match parse_expr(self, 0) {
                 Ok(expr) => expr,
                 Err(e) => {
-                    return Some(Err(e.set_span_of_eof(if_span)));
+                    return Some(Err(e));
                 }
             };
 
@@ -453,12 +459,9 @@ impl TokenList {
                     let true_expr_span = tokens.peek_curr_span().unwrap_or(if_span);
 
                     match parse_block_expr(&mut tokens) {
-                        Ok(t) => Expr {
-                            kind: t.block_to_expr_kind(),
-                            span: true_expr_span,
-                        },
+                        Ok(t) => t.try_unwrap_block_value(true_expr_span),
                         Err(e) => {
-                            return Some(Err(e.set_span_of_eof(true_expr_span)));
+                            return Some(Err(e));
                         }
                     }
                 },
@@ -490,14 +493,11 @@ impl TokenList {
                         kind: TokenKind::List(Delimiter::Brace, elements),
                         span: false_expr_span,
                     }) => match parse_block_expr(
-                        &mut TokenList::from_vec(elements.to_vec())
+                        &mut TokenList::from_vec(elements.to_vec(), false_expr_span.first_character())
                     ) {
-                        Ok(t) => Expr {
-                            kind: t.block_to_expr_kind(),
-                            span: *false_expr_span,
-                        },
+                        Ok(t) => t.try_unwrap_block_value(*false_expr_span),
                         Err(e) => {
-                            return Some(Err(e.set_span_of_eof(*false_expr_span)));
+                            return Some(Err(e));
                         }
                     }
                     Some(Token { kind, span }) => {
@@ -530,7 +530,7 @@ impl TokenList {
                         ]),
                     ))),
                     None => Some(Err(ParseError::eoe(
-                        if_span,
+                        self.get_eof_span(),
                         ExpectedToken::SpecificTokens(vec![
                             TokenKind::keyword_else(),
                         ]),
@@ -633,10 +633,10 @@ impl TokenList {
         match self.data.get(self.cursor) {
             Some(Token {
                 kind: TokenKind::List(delim_, elements),
-                ..
+                span,
             }) if *delim_ == delim => {
                 self.cursor += 1;
-                let mut tokens = TokenList::from_vec(elements.clone());
+                let mut tokens = TokenList::from_vec(elements.clone(), span.first_character());
 
                 Some(parse_expr_exhaustive(&mut tokens))
             }

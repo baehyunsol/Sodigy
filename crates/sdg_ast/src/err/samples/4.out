@@ -1,7 +1,6 @@
 Error: unexpected character: '한'
 ./src/err/samples/4.in:2:9
   1 │ def no_korean: String = {
-    │         ▾
 ▸ 2 │     let 한글노노 = 3;
     │         ▴
   3 │ 

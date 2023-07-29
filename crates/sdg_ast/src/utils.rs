@@ -303,6 +303,37 @@ pub fn edit_distance_impl(a: &[u8], b: &[u8], i: usize, j: usize, cache: &mut Ve
     result
 }
 
+// TODO: make sure that adjacent characters are not alphanumeric
+#[cfg(test)]
+pub fn assert_identifier(s: String) {
+    let mut is_identifier = !s.is_empty();
+
+    for (i, c) in s.chars().enumerate() {
+
+        if i == 0 && !(
+            c.is_ascii_alphabetic()
+            || c == '_'
+        ) {
+            is_identifier = false;
+        }
+
+        else if i != 0 && !(
+            c.is_ascii_alphanumeric()
+            || c == '_'
+        ) {
+            is_identifier = false;
+        }
+
+        if !is_identifier {
+            break;
+        }
+    }
+
+    if !is_identifier {
+        panic!("{s} is not an identifier");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -310,8 +341,6 @@ mod tests {
         bytes_to_string, bytes_to_v32,
         v32_to_bytes, v32_to_string,
     };
-    use crate::err::SodigyError;
-    use crate::session::LocalParseSession;
 
     #[test]
     fn into_char_test() {
@@ -343,12 +372,12 @@ mod tests {
         let s1 = String::from("aaaπa가a🦈a👨🏿‍🎓πaπππ가π🦈π👨🏿‍🎓가a가π가가가🦈가👨🏿‍🎓🦈a🦈π🦈가🦈🦈🦈👨🏿‍🎓👨🏿‍🎓a👨🏿‍🎓π👨🏿‍🎓가👨🏿‍🎓🦈👨🏿‍🎓👨🏿‍🎓");
         let b1 = s1.as_bytes().to_vec();
 
-        let v1 = bytes_to_v32(&b1).map_err(|e| e.render_err(&LocalParseSession::dummy())).unwrap();
+        let v1 = bytes_to_v32(&b1).unwrap_or(vec![]);
         let s2 = v32_to_string(&v1).unwrap();
         let s3 = bytes_to_string(&b1);
         let b2 = v32_to_bytes(&v1);
 
-        let v2 = bytes_to_v32(&b2).map_err(|e| e.render_err(&LocalParseSession::dummy())).unwrap();
+        let v2 = bytes_to_v32(&b2).unwrap_or(vec![]);
         let s4 = v32_to_string(&v2).unwrap();
         let s5 = bytes_to_string(&b2);
         let b3 = v32_to_bytes(&v2);

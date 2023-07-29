@@ -84,7 +84,7 @@ impl Expr {
 
                     else {
                         self.kind = ExprKind::Value(
-                            ValueKind::Identifier(lambda_def.name, NameOrigin::Local)
+                            ValueKind::Identifier(lambda_def.name, NameOrigin::AnonymousFunc)
                         );
                     }
 

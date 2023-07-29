@@ -5,9 +5,8 @@ A similar name exists: `babb`
   2 │ 
   3 │ def func1: babb = babb;
   4 │ 
-    │            ▾
 ▸ 5 │ def func2: aabb = babb;
-    │            ▴
+    │            ▴▴▴▴
   6 │ 
   7 │ def func3: bcbb = bcbb;
 
@@ -18,9 +17,8 @@ A similar name exists: `babb`
   4 │ 
   5 │ def func2: aabb = babb;
   6 │ 
-    │            ▾
 ▸ 7 │ def func3: bcbb = bcbb;
-    │            ▴
+    │            ▴▴▴▴
 
 Error: cannot find name `bcbb` in this scope
 A similar name exists: `babb`
@@ -29,8 +27,7 @@ A similar name exists: `babb`
   4 │ 
   5 │ def func2: aabb = babb;
   6 │ 
-    │                   ▾
 ▸ 7 │ def func3: bcbb = bcbb;
-    │                   ▴
+    │                   ▴▴▴▴
 
 Could not compile `./src/err/samples/2.in` due to 3 previous errors.

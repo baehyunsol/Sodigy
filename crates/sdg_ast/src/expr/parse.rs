@@ -1,6 +1,5 @@
 use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
-use crate::span::Span;
 use crate::token::{Delimiter, Token, TokenKind, TokenList};
 use crate::value::{parse_block_expr, parse_value};
 
@@ -12,35 +11,35 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
         span
     } else {
         // meaning there's no more token in the list
-        return Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression));
+        return Err(ParseError::eoe(tokens.get_eof_span(), ExpectedToken::AnyExpression));
     };
 
     let mut lhs = if let Some(op) = tokens.step_prefix_op() {
         let bp = prefix_binding_power(op);
-        let rhs = parse_expr(tokens, bp).map_err(|e| e.set_span_of_eof(lhs_span))?;
+        let rhs = parse_expr(tokens, bp)?;
 
         Expr {
             span: lhs_span,
             kind: ExprKind::Prefix(op, Box::new(rhs)),
         }
     } else if let Some(expr) = tokens.step_paren_expr() {
-        expr.map_err(|e| e.set_span_of_eof(lhs_span))?
+        expr?
     } else if let Some(branch) = tokens.step_branch_expr() {
         if let Ok(Expr { kind, .. }) = &branch {
             assert!(kind.is_branch(), "Internal Compiler Error 7DC70F8958E");
         }
 
-        branch.map_err(|e| e.set_span_of_eof(lhs_span))?
+        branch?
     } else if let Some(match_expr) = tokens.step_match_expr() {
         if let Ok(Expr { kind, .. }) = &match_expr {
             assert!(kind.is_match(), "Internal Compiler Error C88E377CD8D");
         }
 
-        match_expr.map_err(|e| e.set_span_of_eof(lhs_span))?
+        match_expr?
     } else {
         Expr {
             span: lhs_span,
-            kind: ExprKind::Value(parse_value(tokens).map_err(|e| e.set_span_of_eof(lhs_span))?),
+            kind: ExprKind::Value(parse_value(tokens)?),
         }
     };
 
@@ -79,7 +78,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 kind: ExprKind::Infix(
                     InfixOp::Index,
                     Box::new(lhs),
-                    Box::new(index.map_err(|e| e.set_span_of_eof(curr_span))?),
+                    Box::new(index?),
                 ),
             };
 
@@ -98,7 +97,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 span: curr_span,
                 kind: ExprKind::Call(
                     Box::new(lhs),
-                    args.map_err(|e| e.set_span_of_eof(curr_span))?,
+                    args?,
                 ),
             };
 
@@ -139,7 +138,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
 
             }
 
-            let rhs = parse_expr(tokens, r_bp).map_err(|e| e.set_span_of_eof(curr_span))?;
+            let rhs = parse_expr(tokens, r_bp)?;
 
             lhs = Expr {
                 span: curr_span,

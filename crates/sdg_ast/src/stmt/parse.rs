@@ -49,7 +49,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
                 Ok(Stmt::Use(cases[0].clone()))
             }
             Err(e) => {
-                return Err(e.set_span_of_eof(curr_span));
+                return Err(e);
             }
         }
 
@@ -58,13 +58,11 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         let module_name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
-                return Err(e.set_span_of_eof(curr_span));
+                return Err(e);
             }
         };
 
-        tokens
-            .consume_token_or_error(vec![TokenKind::semi_colon()])
-            .map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens.consume_token_or_error(vec![TokenKind::semi_colon()])?;
 
         Ok(Stmt::Module(ModDef::new(
             module_name, curr_span,
@@ -76,7 +74,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
-                return Err(e.set_span_of_eof(curr_span));
+                return Err(e);
             }
         };
 
@@ -86,7 +84,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             names.push(match tokens.step_identifier_strict() {
                 Ok(id) => id,
                 Err(e) => {
-                    return Err(e.set_span_of_eof(curr_span));
+                    return Err(e);
                 }
             });
         }
@@ -94,7 +92,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         let (args, no_args) = match tokens.step_func_args() {
             Some(Ok(args)) => (args, false),
             Some(Err(e)) => {
-                return Err(e.set_span_of_eof(curr_span));
+                return Err(e);
             }
             None => (vec![], true)
         };
@@ -111,7 +109,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         let name = match tokens.step_identifier_strict() {
             Ok(id) => id,
             Err(e) => {
-                return Err(e.set_span_of_eof(curr_span));
+                return Err(e);
             }
         };
 
@@ -151,9 +149,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         }
 
-        tokens
-            .consume_token_or_error(vec![TokenKind::colon()])
-            .map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens.consume_token_or_error(vec![TokenKind::colon()])?;
 
         let ret_type = match tokens.step_type() {
             Some(Ok(t)) => t,
@@ -169,15 +165,11 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         };
 
-        tokens
-            .consume_token_or_error(vec![TokenKind::assign()])
-            .map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens.consume_token_or_error(vec![TokenKind::assign()])?;
 
         let ret_val = parse_expr(tokens, 0)?;
 
-        tokens
-            .consume_token_or_error(vec![TokenKind::semi_colon()])
-            .map_err(|e| e.set_span_of_eof(curr_span))?;
+        tokens.consume_token_or_error(vec![TokenKind::semi_colon()])?;
 
         Ok(Stmt::Def(FuncDef::new(
             name, args, is_const,
@@ -217,7 +209,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     curr_state = ParseUseState::IdentEnd;
                 }
                 Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: brace_span }) => match parse_use(
-                    &mut TokenList::from_vec(elements.to_vec()), span, false
+                    &mut TokenList::from_vec(elements.to_vec(), brace_span.first_character()), span, false
                 ) {
                     Ok(uses) => {
 
@@ -230,7 +222,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         after_brace = true;
                     },
                     Err(e) => {
-                        return Err(e.set_span_of_eof(*brace_span));
+                        return Err(e);
                     }
                 }
                 Some(Token { kind, span }) => {
@@ -250,7 +242,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                     else {
                         return Err(ParseError::eoe(
-                            Span::dummy(),
+                            tokens.get_eof_span(),
                             ExpectedToken::SpecificTokens(vec![
                                 TokenKind::dummy_identifier(),
                                 TokenKind::opening_curly_brace(),
@@ -348,7 +340,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
                         if is_top {
                             return Err(ParseError::eoe(
-                                Span::dummy(),
+                                tokens.get_eof_span(),
                                 ExpectedToken::SpecificTokens(expected_tokens)
                             ));
                         }
@@ -385,7 +377,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                 }
                 None => {
                     return Err(ParseError::eoe(
-                        Span::dummy(),
+                        tokens.get_eof_span(),
                         ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()])
                     ))
                 }
@@ -419,7 +411,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     None => {
                         if is_top {
                             return Err(ParseError::eoe(
-                                Span::dummy(),
+                                tokens.get_eof_span(),
                                 ExpectedToken::SpecificTokens(expected),
                             ))
                         }

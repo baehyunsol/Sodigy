@@ -1,22 +1,29 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::expr::{parse_expr, Expr};
+use crate::span::Span;
 use crate::token::{Token, TokenKind, TokenList};
 
-pub fn split_tokens(tokens: &Vec<Token>, delim: TokenKind) -> Vec<Vec<Token>> {
+pub fn split_tokens(tokens: &Vec<Token>, delim: TokenKind) -> Vec<(Vec<Token>, Span)> {
+    if tokens.is_empty() {
+        return vec![];
+    }
+
     let mut result = vec![];
     let mut curr = vec![];
+    let mut span = tokens[0].span;
 
     for token in tokens.iter() {
         if token.kind == delim {
-            result.push(curr);
+            result.push((curr, span));
             curr = vec![];
+            span = token.span;
         } else {
             curr.push(token.clone());
         }
     }
 
     if curr.len() > 0 {
-        result.push(curr);
+        result.push((curr, span));
     }
 
     result
@@ -24,13 +31,12 @@ pub fn split_tokens(tokens: &Vec<Token>, delim: TokenKind) -> Vec<Vec<Token>> {
 
 // `elements` is that of `TokenKind::List(_, elements)`
 pub fn split_list_by_comma(elements: &Vec<Token>) -> Result<Vec<Expr>, ParseError> {
-    let elements = split_tokens(elements, TokenKind::comma())
-        .into_iter()
-        .map(|tokens| {
-            let mut tokens = TokenList::from_vec(tokens.to_vec());
-
+    let elements = split_tokens(elements, TokenKind::comma()).into_iter().map(
+        |(tokens, span)| {
+            let mut tokens = TokenList::from_vec(tokens.to_vec(), span);
             parse_expr_exhaustive(&mut tokens)
-        });
+        }
+        );
 
     let mut elements_buffer = Vec::with_capacity(elements.len());
 

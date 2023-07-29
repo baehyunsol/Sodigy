@@ -31,7 +31,7 @@ impl LocalParseSession {
 
     pub fn dummy() -> Self {
         LocalParseSession {
-            curr_file: 0,
+            curr_file: DUMMY_FILE_INDEX,
             is_dummy: true,
             ..Self::default()
         }

@@ -4,7 +4,6 @@ Error: expected any kind of expression, found nothing
   2 │     1,
   3 │     2,
   4 │     3,
-    │      ▾
 ▸ 5 │     4[],
     │      ▴
   6 │     5

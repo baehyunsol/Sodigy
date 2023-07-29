@@ -33,7 +33,38 @@ impl Token {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
-        self.kind.dump(session)
+        match &self.kind {
+            TokenKind::Number(n) => format!("{n}"),
+            TokenKind::String(s) => format!(
+                "{:?}",
+                s.iter().map(
+                    |n| char::from_u32(*n).unwrap()
+                ).collect::<String>()
+            ),
+            TokenKind::Bytes(b) => format!("Bytes({b:?})"),
+            TokenKind::FormattedString(s) => format!(
+                "Format({})",
+                s.iter().map(
+                    |s| format!(
+                        "[{}]",
+                        s.iter().map(
+                            |s| s.dump(session)
+                        ).collect::<Vec<String>>().join(", ")
+                    )
+                ).collect::<Vec<String>>().join(", "),
+            ),
+            TokenKind::List(delim, elements) => format!(
+                "{}{}{}",
+                delim.start() as char,
+                elements.iter().map(
+                    |e| e.dump(session)
+                ).collect::<Vec<String>>().join(", "),
+                delim.end() as char,
+            ),
+            TokenKind::Identifier(id) => id.to_string(session),
+            TokenKind::Operator(op) => op.render_err(),
+            TokenKind::Keyword(k) => k.render_err(),
+        }
     }
 }
 
@@ -163,8 +194,7 @@ pub enum OpToken {
     SemiColon,
     DotDot,
     BackSlash,
-
-    FieldModifier,  // $
+    Dollar,
 
     // below 4 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
@@ -203,7 +233,7 @@ impl OpToken {
             OpToken::SemiColon => ";",
             OpToken::DotDot => "..",
             OpToken::BackSlash => "\\",
-            OpToken::FieldModifier => "$",
+            OpToken::Dollar => "$",
             OpToken::Assign => "=",
             OpToken::OpeningSquareBracket => "[",
             OpToken::ClosingSquareBracket => "]",

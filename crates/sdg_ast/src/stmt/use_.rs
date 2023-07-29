@@ -12,7 +12,7 @@ pub struct Use {
     pub path: ModulePath,
     pub alias: InternedString,
 
-    pub span: Span,  // if points to `u` of `use`
+    pub span: Span,  // keyword `use`
 }
 
 impl Use {
@@ -43,6 +43,12 @@ impl Use {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
+        #[cfg(test)]
+        if self.span.dump(session) != "use" {
+            panic!("{}", self.span.render_err(session));
+        }
+        // assert_eq!(self.span.dump(session), "use");
+
         format!("use {} as {};", self.path.dump(session), self.alias.to_string(session))
     }
 }

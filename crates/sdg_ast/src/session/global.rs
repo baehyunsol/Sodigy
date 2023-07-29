@@ -1,10 +1,8 @@
-use super::{InternedString, KEYWORD_START};
+use super::{DUMMY_FILE_INDEX, InternedString, KEYWORD_START};
 use sdg_prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
 use sdg_hash::SdgHash;
 use std::collections::HashMap;
-
-pub const DUMMY_FILE_INDEX: u64 = u64::MAX;
 
 pub struct GlobalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,

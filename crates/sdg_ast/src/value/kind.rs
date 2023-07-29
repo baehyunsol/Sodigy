@@ -8,6 +8,9 @@ use crate::utils::v32_to_string;
 use hmath::{BigInt, Ratio};
 use sdg_uid::UID;
 
+#[cfg(test)]
+use crate::utils::assert_identifier;
+
 #[derive(Clone)]
 pub enum ValueKind {
     Identifier(InternedString, NameOrigin),
@@ -57,12 +60,18 @@ impl ValueKind {
 
     // `{x = 3; y = 4; x + y}` -> `{x = 3; y = 4; x + y}`
     // `{x + y}` -> `x + y`
-    pub fn block_to_expr_kind(self) -> ExprKind {
+    pub fn try_unwrap_block_value(self, self_span: Span) -> Expr {
         if let ValueKind::Block { defs, value, .. } = &self {
             if defs.is_empty() {
-                value.kind.clone()
+                Expr {
+                    kind: value.kind.clone(),
+                    span: value.span.clone(),
+                }
             } else {
-                ExprKind::Value(self)
+                Expr {
+                    kind: ExprKind::Value(self),
+                    span: self_span,
+                }
             }
         } else {
             panic!(
@@ -91,11 +100,24 @@ impl ValueKind {
             .render_err(&LocalParseSession::dummy())
     }
 
-    pub fn dump(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &LocalParseSession, span: Span) -> String {
         match self {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
-            ValueKind::Identifier(ind, _) => ind.to_string(session),
+            ValueKind::Identifier(ind, origin) => {
+                #[cfg(test)]
+                if !origin.is_made_by_compiler() {
+                    if ind.is_dummy() {
+                        assert!(span.is_dummy());
+                    }
+
+                    else {
+                        assert_identifier(span.dump(session));
+                    }
+                }
+
+                ind.to_string(session)
+            },
             ValueKind::String(buf) => format!(
                 "{:?}",
                 v32_to_string(buf)

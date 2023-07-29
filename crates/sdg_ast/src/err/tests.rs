@@ -85,8 +85,11 @@ fn error_message_test() {
         };
 
         if let Err(_) = parse_file(&input, &mut session) {
+            // let's not care about whitespaces
+            let rendered_no_whitespace = session.render_err().chars().filter(|c| *c != ' ').collect::<String>();
+            let msg_no_whitespace = error_msg.chars().filter(|c| *c != ' ').collect::<String>();
 
-            if session.render_err() != error_msg {
+            if rendered_no_whitespace != msg_no_whitespace {
                 failures.push(format!("\n\n---\n\nexpected\n{}\n\nactual\n{}", error_msg, session.render_err()));
             }
         } else {

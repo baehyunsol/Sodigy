@@ -3,9 +3,8 @@ Error: cannot find name `InvalidName` in this scope
   1 │ # 한글 주석은 달아도 되지?
   2 │ 
   3 │ def lambda_test: Int = {
-    │                          ▾
 ▸ 4 │     let l = \{x: Int, y: InvalidName, x + y + a + b};
-    │                          ▴
+    │                          ▴▴▴▴▴▴▴▴▴▴▴
   5 │     let a: Int = 3;
   6 │ 
   7 │     l(a)
@@ -16,7 +15,6 @@ Error: cannot find name `b` in this scope
   1 │ # 한글 주석은 달아도 되지?
   2 │ 
   3 │ def lambda_test: Int = {
-    │                                                   ▾
 ▸ 4 │     let l = \{x: Int, y: InvalidName, x + y + a + b};
     │                                                   ▴
   5 │     let a: Int = 3;

@@ -3,7 +3,6 @@ use crate::ast::NameOrigin;
 use crate::err::{ExpectedToken, ParseError, ParamType};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
-use crate::span::Span;
 use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
 use crate::value::BlockDef;
@@ -60,10 +59,11 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             else {
                 let exprs = tokens.iter().map(
                     |tokens| {
+                        // TODO: are you sure that `tokens` is not empty?
                         let start_span = tokens[0].span;
-                        let mut tokens = TokenList::from_vec(tokens.to_vec());
+                        let mut tokens = TokenList::from_vec(tokens.to_vec(), start_span.first_character());
 
-                        parse_expr_exhaustive(&mut tokens).map_err(|e| e.set_span_of_eof(start_span))
+                        parse_expr_exhaustive(&mut tokens)
                     }
                 );
                 let mut buffer = Vec::with_capacity(tokens.len());
@@ -92,8 +92,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 )?
             )),
             Delimiter::Brace => {
-                parse_block_expr(&mut TokenList::from_vec(elements.to_vec()))
-                    .map_err(|e| e.set_span_of_eof(*span))
+                parse_block_expr(&mut TokenList::from_vec(elements.to_vec(), span.first_character()))
             }
             Delimiter::Parenthesis => unreachable!("Internal Compiler Error 35C353D8706"), // This must be handled by `parse_expr`
         },
@@ -103,14 +102,14 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             ExpectedToken::AnyExpression,
         )),
 
-        None => Err(ParseError::eoe(Span::dummy(), ExpectedToken::AnyExpression)),
+        None => Err(ParseError::eoe(tokens.get_eof_span(), ExpectedToken::AnyExpression)),
     }
 }
 
 pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     if block_tokens.is_eof() {
         Err(ParseError::eoe_msg(
-            Span::dummy(),
+            block_tokens.get_eof_span(),
             ExpectedToken::AnyExpression,
             "A block cannot be empty.".to_string(),
         ))
@@ -139,9 +138,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
                 .peek_curr_span()
                 .expect("Internal Compiler Error 3DB2B1546F6");
 
-            block_tokens
-                .consume_token_or_error(vec![TokenKind::Keyword(Keyword::Let)])
-                .map_err(|e| e.set_span_of_eof(curr_span))?;
+            block_tokens.consume_token_or_error(vec![TokenKind::Keyword(Keyword::Let)])?;
 
             // points to the first character of the name (or the pattern)
             let name_span = block_tokens.peek_curr_span();
@@ -162,26 +159,22 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
 
             // type annotation is optional
             let ty = if block_tokens.consume(TokenKind::colon()) {
-                Some(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(name_span))?)
+                Some(parse_expr(block_tokens, 0)?)
             } else {
                 None
             };
 
-            block_tokens
-                .consume_token_or_error(vec![TokenKind::assign()])
-                .map_err(|e| e.set_span_of_eof(name_span))?;
+            block_tokens.consume_token_or_error(vec![TokenKind::assign()])?;
 
-            let expr = parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(name_span))?;
+            let expr = parse_expr(block_tokens, 0)?;
 
-            block_tokens
-                .consume_token_or_error(vec![TokenKind::semi_colon()])
-                .map_err(|e| e.set_span_of_eof(name_span))?;
+            block_tokens.consume_token_or_error(vec![TokenKind::semi_colon()])?;
 
             defs.push(BlockDef { name, ty, value: expr, span: name_span });
         }
 
         let value =
-            Box::new(parse_expr(block_tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?);
+            Box::new(parse_expr(block_tokens, 0)?);
 
         if let Some(Token { kind, span }) = block_tokens.step() {
             Err(ParseError::tok(
@@ -198,7 +191,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
 fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     if tokens.is_eof() {
         Err(ParseError::eoe_msg(
-            Span::dummy(),
+            tokens.get_eof_span(),
             ExpectedToken::AnyExpression,
             "A definition of a lambda function cannot be empty.".to_string(),
         ))
@@ -227,7 +220,7 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
                 .peek_curr_span()
                 .expect("Internal Compiler Error EF60F059587");
 
-            let arg = parse_arg_def(tokens).map_err(|e| e.set_span_of_eof(curr_span))?;
+            let arg = parse_arg_def(tokens)?;
 
             if !arg_names.insert(arg.name) {
                 return Err(ParseError::multi_def(arg.name, arg.span, ParamType::LambdaParam));
@@ -235,12 +228,10 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
 
             args.push(arg);
 
-            tokens
-                .consume_token_or_error(vec![TokenKind::comma()])
-                .map_err(|e| e.set_span_of_eof(curr_span))?;
+            tokens.consume_token_or_error(vec![TokenKind::comma()])?;
         }
 
-        let value = parse_expr(tokens, 0).map_err(|e| e.set_span_of_eof(first_span))?;
+        let value = parse_expr(tokens, 0)?;
 
         Ok(ValueKind::Lambda(args, Box::new(value)))
     }

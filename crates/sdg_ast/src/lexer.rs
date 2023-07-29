@@ -130,7 +130,7 @@ fn lex_token(
             match Ratio::from_string(&string) {
                 Ok(n) => Ok((
                     Token {
-                        span: curr_span.set_end(ind),
+                        span: curr_span.set_end(ind - 1),
                         kind: TokenKind::Number(n),
                     },
                     ind,
@@ -152,7 +152,7 @@ fn lex_token(
 
             loop {
                 ind = skip_whitespaces_and_comments(s, ind).map_err(
-                    |e| e.into_list_eof(curr_span, marker)
+                    |e| e.into_list_eof(curr_span, Span::new(session.curr_file, ind - 1, ind - 1), marker)
                 )?;
 
                 if s[ind] == end {
@@ -164,7 +164,7 @@ fn lex_token(
                 data.push(e);
 
                 ind = skip_whitespaces_and_comments(s, ind).map_err(
-                    |e| e.into_list_eof(curr_span, marker)
+                    |e| e.into_list_eof(curr_span, Span::new(session.curr_file, ind - 1, ind - 1), marker)
                 )?;
 
                 if s[ind] == end {
@@ -422,7 +422,7 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
         Ok((
             Token {
                 span: curr_span.set_end(ind),
-                kind: TokenKind::Operator(OpToken::FieldModifier),
+                kind: TokenKind::Operator(OpToken::Dollar),
             },
             ind + 1,
         ))
@@ -562,14 +562,14 @@ enum SkipWhiteSpaceCommentResult {
 }
 
 impl SkipWhiteSpaceCommentResult {
-    pub fn into_list_eof(&self, span: Span, marker: Delimiter) -> ParseError {
+    pub fn into_list_eof(&self, initial_span: Span, curr_span: Span, marker: Delimiter) -> ParseError {
         match self {
             SkipWhiteSpaceCommentResult::Eof => ParseError::eoe_msg(
-                span,
+                curr_span,
                 ExpectedToken::SpecificTokens(vec![marker.closing_token_kind()]),
                 format!("{marker} is unclosed."),
             ),
-            _ => self.into_parse_error(span),
+            _ => self.into_parse_error(initial_span),
         }
     }
     pub fn into_parse_error(&self, span: Span) -> ParseError {
@@ -595,7 +595,7 @@ fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
 
     Ok(Token {
         kind: TokenKind::Bytes(v32_to_bytes(t.kind.unwrap_string())),
-        span,
+        span: span.extend(1),
     })
 }
 
@@ -657,7 +657,7 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
 
                         if inner_value.is_empty() {
                             return Err(ParseError::eoe(
-                                span.forward(curr_start_span + 2).set_len(i - curr_start_span + 1),
+                                span.forward(curr_start_span + 2).set_len(1),
                                 ExpectedToken::AnyExpression,
                             ));
                         }
@@ -694,7 +694,7 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
             }
             FormatStringParseState::Value => {
                 return Err(ParseError::eoe(
-                    span.forward(curr_start_span + 2),  // 2 for `f"`
+                    span.forward(string.len() + 1).set_len(1),  // 2 for `f"`
                     ExpectedToken::SpecificTokens(vec![TokenKind::Operator(OpToken::ClosingCurlyBrace)]),
                 ));
             }
@@ -704,7 +704,7 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
 
     Ok(Token {
         kind: TokenKind::FormattedString(buffer),
-        span,
+        span: span.extend(1),
     })
 }
 

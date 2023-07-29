@@ -81,7 +81,7 @@ fn samples() -> Vec<(Vec<u8>, String)> {
                 adder1(20) + adder2(20)
             };",
             // TODO: hash value is very prone to change
-            "Add(Call(Call(@@LAMBDA__82d10d42beeeece8ffce7fa2,1),20),Call(Call(@@LAMBDA__82d10d42beeeece8ffce7fa2,2),20))",
+            "Add(Call(Call(@@LAMBDA__91c0c8c415220c7aac17de4d,1),20),Call(Call(@@LAMBDA__91c0c8c415220c7aac17de4d,2),20))",
         ),
         (
             "

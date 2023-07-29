@@ -11,12 +11,18 @@ pub struct ArgDef {
     // if it's None, it has to be inferred later
     pub ty: Option<Expr>,
 
-    // first character of the name
+    // span of the name
     pub span: Span,
 }
 
 impl ArgDef {
     pub fn dump(&self, session: &LocalParseSession) -> String {
+        #[cfg(test)]
+        assert_eq!(
+            self.span.dump(session),
+            self.name.to_string(session),
+        );
+
         format!(
             "{}{}",
             self.name.to_string(session),

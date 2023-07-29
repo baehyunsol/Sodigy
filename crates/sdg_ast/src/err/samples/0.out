@@ -1,8 +1,7 @@
 Error: cannot find name `int` in this scope
 A similar name exists: `Int`
 ./src/err/samples/0.in:1:11
-    │           ▾
 ▸ 1 │ def ZERO: int = 0;
-    │           ▴
+    │           ▴▴▴
 
 Could not compile `./src/err/samples/0.in` due to a previous error.

@@ -10,10 +10,13 @@ use sdg_hash::SdgHash;
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
+#[cfg(test)]
+use crate::utils::assert_identifier;
+
 pub const LAMBDA_FUNC_PREFIX: &str = "@@LAMBDA__";
 
 pub struct FuncDef {
-    pub def_span: Span,  // it points to `d` of `def`, or `\` of a lambda function
+    pub def_span: Span,  // keyword `def` or `\` in lambda
     pub name_span: Span,
     pub name: InternedString,
     pub args: Vec<ArgDef>,
@@ -198,6 +201,17 @@ impl FuncDef {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
+        #[cfg(test)]
+        {
+            let def = self.def_span.dump(session);
+
+            if def != "def" && def != "\\" {
+                panic!("{def}");
+            }
+
+            assert_identifier(self.name_span.dump(session));
+        }
+
         format!(
             "#kind: {}{}\ndef {}{}({}): {} = {};",
             self.kind.to_string(session),

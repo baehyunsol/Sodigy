@@ -1,11 +1,12 @@
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 
+#[cfg(test)]
+use crate::utils::assert_identifier;
+
 pub struct ModDef {
     pub(crate) name: InternedString,
-
-    // it points to `m` of `module`
-    pub(crate) def_span: Span,
+    pub(crate) def_span: Span,  // keyword `module`
     pub(crate) name_span: Span,
 }
 
@@ -15,6 +16,12 @@ impl ModDef {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
+        #[cfg(test)]
+        assert_eq!(self.def_span.dump(session), "module");
+
+        #[cfg(test)]
+        assert_identifier(self.name_span.dump(session));
+
         format!("module `{}`;", self.name.to_string(session))
     }
 }

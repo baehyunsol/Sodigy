@@ -1,6 +1,6 @@
 use crate::err::SodigyError;
 use crate::lexer::lex_tokens;
-use crate::session::LocalParseSession;
+use crate::session::{DUMMY_FILE_INDEX, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::parse_use;
 use crate::token::TokenList;
@@ -19,12 +19,13 @@ fn test_parse_use() {
                 panic!("ParseError at `lex_tokens`! sample: {sample:?}, desired: {desired:?}\n\n{}", e.render_err(&session));
             }
         };
-        let mut tokens = TokenList::from_vec(tokens);
+        let mut tokens = TokenList::from_vec(tokens, Span::new(session.curr_file, 0, 0));
 
         // skip `use`
         tokens.step().expect("Internal Compiler Error 7EBCD877039");
 
-        let uses = match parse_use(&mut tokens, Span::first(), true) {
+        // we have to make sure that `sample[0..3]` is `'use'`
+        let uses = match parse_use(&mut tokens, Span::new(DUMMY_FILE_INDEX, 0, 2), true) {
             Ok(u) => u,
             Err(e) => {
                 panic!("ParseError at `parse_use`! sample: {sample:?}, desired: {desired:?}\n\n{}", e.render_err(&session));
@@ -45,12 +46,13 @@ fn test_parse_use() {
                 panic!("ParseError at `lex_tokens`! sample: {sample:?}\n\n{}", e.render_err(&session));
             }
         };
-        let mut tokens = TokenList::from_vec(tokens);
+        let mut tokens = TokenList::from_vec(tokens, Span::new(session.curr_file, 0, 0));
 
         // skip `use`
         tokens.step().expect("Internal Compiler Error 6480C2EDCCB");
 
-        match parse_use(&mut tokens, Span::first(), true) {
+        // we have to make sure that `sample[0..3]` is `'use'`
+        match parse_use(&mut tokens, Span::new(DUMMY_FILE_INDEX, 0, 2), true) {
             Ok(u) => {
                 panic!(
                     "sample: {sample:?} is supposed to panic, but returns {:?}",

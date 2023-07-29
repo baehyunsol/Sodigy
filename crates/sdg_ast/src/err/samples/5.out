@@ -2,7 +2,6 @@ Error: cannot find name `z` in this scope
 ./src/err/samples/5.in:3:35
   1 │ use a.b.c;
   2 │ 
-    │                                   ▾
 ▸ 3 │ @c({let x = 3; let y = 4; x + y + z})
     │                                   ▴
   4 │ def tester: Int = 0;

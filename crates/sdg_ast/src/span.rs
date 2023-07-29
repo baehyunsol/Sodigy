@@ -1,4 +1,4 @@
-use crate::session::LocalParseSession;
+use crate::session::{DUMMY_FILE_INDEX, LocalParseSession};
 use crate::utils::bytes_to_string;
 use sdg_hash::{SdgHash, SdgHashResult};
 
@@ -20,32 +20,32 @@ impl Span {
 
     #[cfg(test)]
     pub fn first() -> Self {
-        Span { file_no: 0, start: 0, end: 0 }
+        Span { file_no: DUMMY_FILE_INDEX, start: 0, end: 0 }
     }
 
     pub fn dummy() -> Self {
         Span {
-            file_no: u64::MAX,
+            file_no: DUMMY_FILE_INDEX,
             start: usize::MAX,
             end: usize::MIN,
         }
     }
 
     pub fn is_dummy(&self) -> bool {
-        self.file_no == u64::MAX && self.start == usize::MAX && self.end == usize::MIN
+        self.file_no == DUMMY_FILE_INDEX && self.start == usize::MAX && self.end == usize::MIN
     }
 
     // one must call `.set_ind_and_fileno` after initializing this!
     pub fn dummy_index(start: usize) -> Self {
         Span {
-            file_no: u64::MAX,
+            file_no: DUMMY_FILE_INDEX,
             start,
             end: start,
         }
     }
 
     pub fn is_dummy_index(&self) -> bool {
-        self.file_no == u64::MAX && self.start != usize::MAX && self.start == self.end
+        self.file_no == DUMMY_FILE_INDEX && self.start != usize::MAX && self.start == self.end
     }
 
     #[must_use]
@@ -69,6 +69,14 @@ impl Span {
     pub fn set_len(&self, len: usize) -> Self {
         Span {
             end: self.start + len - 1,
+            ..self.clone()
+        }
+    }
+
+    #[must_use]
+    pub fn extend(&self, ex: usize) -> Self {
+        Span {
+            end: self.end + ex,
             ..self.clone()
         }
     }
@@ -99,6 +107,31 @@ impl Span {
         }
     }
 
+    #[must_use]
+    pub fn last_character(&self) -> Self {
+        Span {
+            start: self.end,
+            ..self.clone()
+        }
+    }
+
+    #[must_use]
+    pub fn first_character(&self) -> Self {
+        Span {
+            end: self.start,
+            ..self.clone()
+        }
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        if self.is_dummy() {
+            String::from("@@DUMMY_SPAN")
+        } else {
+            String::from_utf8_lossy(&session.get_file_raw_content(self.file_no)[self.start..(self.end + 1)]).to_string()
+        }
+    }
+
+    // TODO: dirty code
     // preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);
@@ -183,7 +216,7 @@ impl Span {
             preview[0] = vec!["▸ 1 │".as_bytes().to_vec(), preview[0][8..].to_vec()].concat()
         }
 
-        preview = insert_col_markers(preview, col_start, col_end);
+        preview = insert_col_markers(preview, col_start, col_end, preview_end_index < row_end);
         preview.insert(0, render_pos(file_path, row_start, col_start));
 
         preview
@@ -221,7 +254,7 @@ fn cut_char(line: &[u8], length: usize) -> Vec<u8> {
     result
 }
 
-fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize) -> Vec<Vec<u8>> {
+fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize, too_long_to_render: bool) -> Vec<Vec<u8>> {
     if col_start > MAX_PREVIEW_LEN - 3 || col_end > MAX_PREVIEW_LEN - 3 {
         return lines;
     }
@@ -249,7 +282,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize) -> 
     let upper_arr = if highlight_line_indices.len() == 1 {
         "▾".repeat(col_end - col_start + 1)
     } else {
-        "▾".repeat(lines[highlight_line_start].len().min(MAX_PREVIEW_LEN - 3) - col_start + 1)
+        "▾".repeat(lines[highlight_line_start].len().min(MAX_PREVIEW_LEN - 3) - col_start - line_no_len - 5)
     };
 
     let upper: Vec<u8> = format!("{}│{upper_pre}{upper_arr}", " ".repeat(line_no_len))
@@ -259,12 +292,12 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize) -> 
     let lower_pre = if highlight_line_indices.len() == 1 {
         " ".repeat(col_start)
     } else {
-        String::new()
+        String::from(" ")
     };
     let lower_arr = if highlight_line_indices.len() == 1 {
         "▴".repeat(col_end - col_start + 1)
     } else {
-        "▴".repeat(col_end + 1)
+        "▴".repeat(col_end)
     };
 
     let lower: Vec<u8> = format!("{}│{lower_pre}{lower_arr}", " ".repeat(line_no_len))
@@ -275,7 +308,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize) -> 
         lines[0..highlight_line_start].to_vec(),
         if highlight_line_indices.len() < 2 { vec![] } else { vec![upper] },
         lines[highlight_line_start..(highlight_line_end + 1)].to_vec(),
-        vec![lower],
+        if too_long_to_render { vec![] } else { vec![lower] },
         if highlight_line_end + 1 < lines.len() {
             lines[(highlight_line_end + 1)..].to_vec()
         } else {
