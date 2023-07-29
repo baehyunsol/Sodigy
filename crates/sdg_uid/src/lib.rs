@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct UID(u128);
 
 impl UID {
@@ -13,6 +13,10 @@ impl UID {
 
     pub fn new_lambda_id() -> Self {
         UID(rand::random::<u128>() & ZERO | LAMBDA)
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("{:x}", self.0)
     }
 
 }

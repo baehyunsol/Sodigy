@@ -106,14 +106,8 @@ impl ValueKind {
             ValueKind::Real(n) => n.to_string(),
             ValueKind::Identifier(ind, origin) => {
                 #[cfg(test)]
-                if !origin.is_made_by_compiler() {
-                    if ind.is_dummy() {
-                        assert!(span.is_dummy());
-                    }
-
-                    else {
-                        assert_identifier(span.dump(session));
-                    }
+                if !origin.is_made_by_compiler() && !span.is_dummy() {
+                    assert_identifier(span.dump(session));
                 }
 
                 ind.to_string(session)

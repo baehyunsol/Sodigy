@@ -14,8 +14,10 @@ fn samples() -> Vec<Vec<u8>> {
             let block__ = 3;
             let block___ = 4;
             let block_scoped = 5;
+            let block______ = sub__;
             let block_______ = \\{func__, func___, func__ + func___};
-            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped
+
+            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped + block______ + block_______(block__)
         };",
     ].into_iter().map(|s| s.as_bytes().to_vec()).collect()
 }

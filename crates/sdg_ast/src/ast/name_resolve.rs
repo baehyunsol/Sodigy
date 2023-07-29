@@ -150,7 +150,7 @@ fn get_all_preludes() -> HashSet<InternedString> {
     (0..get_prelude_buffs_len()).map(|i| get_prelude_index(i).into()).collect()
 }
 
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     NotKnownYet,
     Global,   // `a` of `use a.b.c;`
@@ -170,6 +170,18 @@ impl NameOrigin {
             true
         } else {
             false
+        }
+    }
+
+    pub fn dump(&self) -> String {
+        match self {
+            NameOrigin::NotKnownYet | NameOrigin::Global
+            | NameOrigin::SubPath | NameOrigin::Local
+            | NameOrigin::Prelude | NameOrigin::AnonymousFunc => format!("{self:?}"),
+            NameOrigin::FuncArg(id) => format!("FuncArg(func: {})", id.to_string()),
+            NameOrigin::GenericArg(id) => format!("GenericArg(func: {})", id.to_string()),
+            NameOrigin::BlockDef(id) => format!("BlockDef(block: {})", id.to_string()),
+            NameOrigin::MatchBranch(m_id, b_id) => format!("MatchBranch(m: {}, b: {})", m_id.to_string(), b_id.to_string()),
         }
     }
 }
