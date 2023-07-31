@@ -118,8 +118,10 @@ impl Expr {
                 for MatchBranch { pattern, value, id: branch_id } in branches.iter_mut() {
                     // a pattern doesn't define any lambda def, and doesn't use any local value
                     pattern.resolve_names(name_scope, session);
+                    let mut bindings = vec![];
+                    pattern.get_name_bindings(&mut bindings);
 
-                    name_scope.push_names(&pattern.get_name_bindings(), NameScopeKind::MatchBranch(*match_id, *branch_id));
+                    name_scope.push_names(&bindings, NameScopeKind::MatchBranch(*match_id, *branch_id));
                     value.resolve_names(name_scope, lambda_defs, session, used_names);
                     name_scope.pop_names();
                 }

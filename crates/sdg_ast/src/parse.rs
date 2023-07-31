@@ -33,10 +33,10 @@ pub fn split_tokens(tokens: &Vec<Token>, delim: TokenKind) -> Vec<(Vec<Token>, S
 pub fn split_list_by_comma(elements: &Vec<Token>) -> Result<Vec<Expr>, ParseError> {
     let elements = split_tokens(elements, TokenKind::comma()).into_iter().map(
         |(tokens, span)| {
-            let mut tokens = TokenList::from_vec(tokens.to_vec(), span);
+            let mut tokens = TokenList::from_vec(tokens.to_vec(), span.first_character());
             parse_expr_exhaustive(&mut tokens)
         }
-        );
+    );
 
     let mut elements_buffer = Vec::with_capacity(elements.len());
 

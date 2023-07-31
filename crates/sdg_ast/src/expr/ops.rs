@@ -43,12 +43,15 @@ pub enum InfixOp {
     BitwiseOr,
     LogicalAnd,
     LogicalOr,
-    Index,  // `[]`
-    Path,   // `.`
-    Concat, // `<>`
+    Index,    // `[]`
+    Path,     // `.`
+    Concat,   // `<>`
+    Append,   // `<+`
+    Prepend,  // `+>`
     Range,  // `..`
+    InclusiveRange,  // `..~`
 
-    ModifyField(InternedString),  // $foo
+    ModifyField(InternedString),  // `foo
 }
 
 impl InfixOp {
@@ -82,7 +85,10 @@ impl From<&OpToken> for InfixOp {
             OpToken::OrOr => InfixOp::LogicalOr,
             OpToken::Dot => InfixOp::Path,
             OpToken::Concat => InfixOp::Concat,
+            OpToken::Append => InfixOp::Append,
+            OpToken::Prepend => InfixOp::Prepend,
             OpToken::DotDot => InfixOp::Range,
+            OpToken::InclusiveRange => InfixOp::InclusiveRange,
             _ => unreachable!("Internal Compiler Error 01EC27D4304: {t:?}"),
         }
     }

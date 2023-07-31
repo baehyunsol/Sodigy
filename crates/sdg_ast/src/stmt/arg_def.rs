@@ -38,10 +38,9 @@ impl ArgDef {
 // NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error 07D37C4F06C");
-    let span = tokens.peek_curr_span().expect("Internal Compiler Error 485EC436A97");
 
-    let name = match tokens.step_identifier_strict() {
-        Ok(id) => id,
+    let (name, name_span) = match tokens.step_identifier_strict_with_span() {
+        Ok(ns) => ns,
         Err(e) => {
             assert!(!e.is_eoe(), "Internal Compiler Error 4FB91C7A34A");
 
@@ -59,11 +58,11 @@ pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
             }
         };
 
-        Ok(ArgDef { name, ty, span })
+        Ok(ArgDef { name, ty, span: name_span })
     }
 
     else {
-        Ok(ArgDef { name, ty: None, span })
+        Ok(ArgDef { name, ty: None, span: name_span })
     }
 
 }

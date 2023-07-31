@@ -135,7 +135,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize, usize)> {  // (input, AST, sp
         ("f\"ABC\"", "\"ABC\"", 0, 5,),
         ("f\"\"", "\"\"", 0, 2,),
         ("b\"\"", "Bytes()", 0, 2,),
-        ("me $age me.age + 1", "ModifyField(age)(me,Add(Path(me,age),1))", 3, 3,),
+        ("me `age me.age + 1", "ModifyField(age)(me,Add(Path(me,age),1))", 3, 3,),
         (
             "{let a: Int = 3; let b: String = \"abc\"; a + b} # Yeah, it's a type error, but this test is not for that",
             "{a:Int=3;b:String=\"abc\";Add(a,b)}",
@@ -354,7 +354,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize, usize)> {  // (inpu
             3, 23,
         ),
         (
-            "[0, 1, 2, 3] $10 1",
+            "[0, 1, 2, 3] `10 1",
             ParseErrorKind::UnexpectedToken {
                 got: TokenKind::Number(10.into()),
                 expected: ExpectedToken::SpecificTokens(vec![TokenKind::dummy_identifier()]),

@@ -1,7 +1,8 @@
 use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
-use crate::token::{Delimiter, Token, TokenKind, TokenList};
-use crate::value::{parse_block_expr, parse_value};
+use crate::pattern::Pattern;
+use crate::token::{Token, TokenKind, TokenList};
+use crate::value::parse_value;
 
 // pratt algorithm
 // https://github.com/matklad/minipratt
@@ -175,11 +176,12 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Path => (PATH, PATH + 1),
         InfixOp::Index => (INDEX, INDEX + 1),
         InfixOp::Concat => (CONCAT, CONCAT + 1),
-        InfixOp::Range => (RANGE, RANGE + 1),
+        InfixOp::Range | InfixOp::InclusiveRange => (RANGE, RANGE + 1),
         InfixOp::Gt | InfixOp::Lt | InfixOp::Ge | InfixOp::Le => (COMP, COMP + 1),
         InfixOp::Eq | InfixOp::Ne => (COMP_EQ, COMP_EQ + 1),
         InfixOp::BitwiseAnd => (BITWISE_AND, BITWISE_AND + 1),
         InfixOp::BitwiseOr => (BITWISE_OR, BITWISE_OR + 1),
+        InfixOp::Append | InfixOp::Prepend => (APPEND, APPEND + 1),
         InfixOp::ModifyField(_) => (MODIFY, MODIFY + 1),
         InfixOp::LogicalAnd => (LOGICAL_AND, LOGICAL_AND + 1),
         InfixOp::LogicalOr => (LOGICAL_OR, LOGICAL_OR + 1),
@@ -190,14 +192,15 @@ fn func_call_binding_power() -> (u32, u32) {
     (CALL, CALL + 1)
 }
 
-const PATH: u32 = 27;
-const CALL: u32 = 25;
-const INDEX: u32 = 23;
-const NEG: u32 = 21;
-const MUL: u32 = 19;
-const ADD: u32 = 17;
-const BITWISE_AND: u32 = 15;
-const BITWISE_OR: u32 = 13;
+const PATH: u32 = 29;
+const CALL: u32 = 27;
+const INDEX: u32 = 25;
+const NEG: u32 = 23;
+const MUL: u32 = 21;
+const ADD: u32 = 19;
+const BITWISE_AND: u32 = 17;
+const BITWISE_OR: u32 = 15;
+const APPEND: u32 = 13;
 const CONCAT: u32 = 11; const RANGE: u32 = 11;
 const COMP: u32 = 9;
 const COMP_EQ: u32 = 7;
@@ -205,35 +208,31 @@ const MODIFY: u32 = 5;
 const LOGICAL_AND: u32 = 3;
 const LOGICAL_OR: u32 = 1;
 
-pub fn parse_match_body(tokens: &mut TokenList) -> Result<Vec<()>, ParseError> {
+pub fn parse_match_body(tokens: &mut TokenList) -> Result<Vec<(Pattern, Expr)>, ParseError> {
     let mut branches = vec![];
 
     loop {
-        let span_for_eof_error = tokens.peek_curr_span();
         let curr_pattern = match tokens.step_pattern() {
             Some(Ok(p)) => p,
             Some(Err(e)) => { return Err(e); },
             None => if branches.is_empty() {
-                // return error
-                todo!()
+                return Err(ParseError::eoe(
+                    tokens.get_eof_span(),
+                    ExpectedToken::AnyPattern,
+                ));
             } else {
                 return Ok(branches);
             },
         };
 
-        let curr_value = match tokens.step_grouped_tokens_strict(
-            Delimiter::Brace,
-            span_for_eof_error.expect("Internal Compiler Error B0BB36C98C3"),
-        ) {
-            Ok(mut tokens) => match parse_block_expr(&mut tokens) {
-                Ok(v) => v,
-                Err(e) => {
-                    return Err(e);
-                }
-            },
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        tokens.consume_token_or_error(vec![TokenKind::right_arrow()])?;
+
+        let curr_value = parse_expr(tokens, 0)?;
+
+        branches.push((curr_pattern, curr_value));
+
+        if tokens.consume(TokenKind::comma()) {
+            continue;
+        }
     }
 }

@@ -16,8 +16,12 @@ fn samples() -> Vec<Vec<u8>> {
             let block_scoped = 5;
             let block______ = sub__;
             let block_______ = \\{func__, func___, func__ + func___};
+            let block_________ = match sub__ {
+                ($match__, $match___) => match__ + match___,
+                _ => 1,
+            };
 
-            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped + block______ + block_______(block__)
+            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped + block______ + block_______(block__) + block_________
         };",
     ].into_iter().map(|s| s.as_bytes().to_vec()).collect()
 }
@@ -40,21 +44,30 @@ fn name_origin_test() {
                 let name = session.unintern_string(*name);
 
                 match origin {
-                    NameOrigin::Global => assert!(name.starts_with(b"global")),
-                    NameOrigin::SubPath => assert!(name.starts_with(b"sub")),
-                    NameOrigin::Local => assert!(name.starts_with(b"local")),
-                    NameOrigin::FuncArg(_) => assert!(name.starts_with(b"func")),
-                    NameOrigin::GenericArg(_) => assert!(name.starts_with(b"generic")),
-                    NameOrigin::BlockDef(_) => assert!(name.starts_with(b"block")),
+                    NameOrigin::Global => assert_prefix(&name, b"global"),
+                    NameOrigin::SubPath => assert_prefix(&name, b"sub"),
+                    NameOrigin::Local => assert_prefix(&name, b"local"),
+                    NameOrigin::FuncArg(_) => assert_prefix(&name, b"func"),
+                    NameOrigin::GenericArg(_) => assert_prefix(&name, b"generic"),
+                    NameOrigin::BlockDef(_) => assert_prefix(&name, b"block"),
                     NameOrigin::Prelude => {},
                     NameOrigin::NotKnownYet => panic!("{}", bytes_to_string(&name)),
-                    NameOrigin::AnonymousFunc => assert!(name.starts_with(LAMBDA_FUNC_PREFIX.as_bytes())),
+                    NameOrigin::AnonymousFunc => assert_prefix(&name, LAMBDA_FUNC_PREFIX.as_bytes()),
 
                     // TODO: add case for this
-                    NameOrigin::MatchBranch(_, _) => assert!(name.starts_with(b"match")),
+                    NameOrigin::MatchBranch(_, _) => assert_prefix(&name, b"match"),
                 }
             },
             &mut ()
         );
+    }
+}
+
+fn assert_prefix(n: &[u8], prefix: &[u8]) {
+    if !n.starts_with(prefix) {
+        let n = bytes_to_string(n);
+        let prefix = bytes_to_string(prefix);
+
+        panic!("{n:?} doesn't start with {prefix:?}");
     }
 }

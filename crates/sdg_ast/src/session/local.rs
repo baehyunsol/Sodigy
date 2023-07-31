@@ -177,7 +177,6 @@ impl LocalParseSession {
         }
     }
 
-    // TODO: I want to sort errors by span
     pub fn render_err(&self) -> String {
         let mut errors_sorted_by_span: Vec<&Box<dyn SodigyError>> = self.errors.iter().collect();
         errors_sorted_by_span.sort_by_key(|err| err.get_first_span());

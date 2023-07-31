@@ -79,6 +79,17 @@ impl TokenKind {
         }
     }
 
+    pub fn unwrap_delimiter(&self) -> Delimiter {
+        if let TokenKind::List(d, _) = self {
+            *d
+        } else {
+            panic!(
+                "Internal Compiler Error B312A897171: {}",
+                self.render_err(&LocalParseSession::dummy()),
+            )
+        }
+    }
+
     pub fn is_stmt_begin(&self) -> bool {
         match self {
             TokenKind::Keyword(k) if *k == Keyword::Use || *k == Keyword::Def => true,

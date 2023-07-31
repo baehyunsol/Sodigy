@@ -55,3 +55,12 @@ pub struct MatchBranch {
     pub(crate) value: Expr,
     pub(crate) id: UID,
 }
+
+impl MatchBranch {
+    pub fn new(pattern: Pattern, value: Expr) -> Self {
+        MatchBranch {
+            pattern, value,
+            id: UID::new_match_branch_id(),
+        }
+    }
+}

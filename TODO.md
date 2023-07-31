@@ -111,6 +111,14 @@ Pattern matching
 
 ---
 
+syntax sugar for the below pattern
+
+```rust
+if let PATTERN = VALUE { true } else { false }
+```
+
+---
+
 more testing
 
 How do I state this: ``` for all ls: List(Int), `ls.sum() == ls.sort().sum() && ls.len() == ls.sort().len() && ls.sort().is_sorted()` ```

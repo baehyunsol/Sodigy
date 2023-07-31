@@ -3,11 +3,10 @@ This code is not the actual implementation of the std lib. These're just test ca
 The std is implemented in a way more efficient way (though not implemented yet)
 !##
 
-# TODO: append operator
 def zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
     []
 } else {
-    [f(a[0], b[0])] <> zip_with(
+    f(a[0], b[0]) +> zip_with(
         a[1..],
         b[1..],
         f,
@@ -22,13 +21,13 @@ def zip<T, U>(a: List(T), b: List(U)): List((T, U)) = zip_with(
 def map<T, U>(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
     []
 } else {
-    [f(ls[0])] <> map(ls[1..], f)
+    f(ls[0]) +> map(ls[1..], f)
 };
 
 def filter<T>(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
     []
 } else if f(ls[0]) {
-    [ls[0]] <> filter(ls[1..], f)
+    ls[0] +> filter(ls[1..], f)
 } else {
     filter(ls[1..], f)
 };
@@ -76,19 +75,69 @@ def is_sorted<T>(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
 def reverse<T>(ls: List(T)): List(T) = if ls.is_empty() {
     []
 } else {
-    ls[1..] <> [ls[0]]
+    reverse(ls[1..]) <> [ls[0]]
 };
 
 def any<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
-    Bool.false  # just `false`?
+    Bool.False  # just `false`?
 } else {
     f(ls[0]) || any(ls[1..], f)
 };
 
 def all<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
-    Bool.false  # just `false`?
+    Bool.False  # just `false`?
 } else {
     f(ls[0]) && all(ls[1..], f)
+};
+
+def contains<T>(ls: List(T), elem: T): Bool = if ls.is_empty() {
+    Bool.False
+} else if ls[0] == elem {
+    Bool.True
+} else {
+    contains(ls[1..], elem)
+};
+
+def concat<T>(ls: List(List(T))): List(T) = if ls.is_empty() {
+    []
+} else {
+    ls[0] <> concat(ls[1..])
+};
+
+def join<T>(ls: List(List(T)), delim: List(T)): List(T) = match ls.len() {
+    0 => [],
+    1 => ls[0],
+    _ => ls[0] <> delim <> join(ls[1..], delim),
+};
+
+def split<T>(ls: List(T), delim: T): List(List(T)) = split_impl(ls, delim, [], []);
+
+def split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T))): List(List(T)) = {
+    let tail = ls[1..];
+
+    if ls.is_empty() {
+        result <+ curr_elem
+    } else if ls[0] == delim {
+        split_impl(tail, delim, [], result <+ curr_elem)
+    } else {
+        split_impl(tail, delim, curr_elem <+ ls[0], result)
+    }
+};
+
+# [a, a, a, b, b, c, c, c, c, b] -> [a, b, c, b]
+def dedup(ls: List(T)): List(T) = match ls.len() {
+    0..~1 => ls,
+    _ => if ls[0] == ls[1] {
+        ls[1..]
+    } else {
+        let tail = dedup(ls[1..]);
+
+        if tail[0] == ls[0] {
+            tail
+        } else {
+            ls[0] +> tail
+        }
+    }
 };
 
 def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
@@ -97,7 +146,13 @@ def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_e
     Option.Some(0)
 } else {
     match first_index_that(ls[1..], f) {  # TODO: `match` syntax is not complete yet
-        Option.Some($n) { Option.Some(1 + n) }
-        _ { Option.None }
+        Option.Some($n) => Option.Some(1 + n),
+        _ => Option.None,
     }
 };
+
+def test_lists: List(List(Int)) = [
+    [], [0], [1],
+    [0, 1, 2, 3],
+] <> map((10..20).to_list(), \{len, (0..len).to_list()})
+<> map((10..20).to_list(), \{len, map((0..len).to_list(), \{n, (20 * len + n).hash()})});

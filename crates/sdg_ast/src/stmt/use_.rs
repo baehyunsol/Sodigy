@@ -1,6 +1,6 @@
 use crate::ast::NameOrigin;
 use crate::expr::{Expr, ExprKind, InfixOp};
-use crate::module::ModulePath;
+use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
@@ -9,23 +9,23 @@ use std::slice::Iter;
 
 #[derive(Clone)]
 pub struct Use {
-    pub path: ModulePath,
+    pub path: Path,
     pub alias: InternedString,
 
     pub span: Span,  // keyword `use`
 }
 
 impl Use {
-    pub fn new(path: Vec<InternedString>, alias: InternedString, span: Span) -> Self {
+    pub fn new(path: Vec<(InternedString, Span)>, alias: InternedString, span: Span) -> Self {
         assert!(!path.is_empty(), "Internal Compiler Error C992CA92C26");
 
         Use {
-            path: ModulePath::from_names(path),
+            path: Path::from_names(path),
             alias, span
         }
     }
 
-    pub fn push_front(mut self, path: &Vec<InternedString>) -> Self {
+    pub fn push_front(mut self, path: &Vec<(InternedString, Span)>) -> Self {
         self.path.push_front(&path);
 
         self
@@ -38,7 +38,7 @@ impl Use {
         to_path_impl(self.path.as_ref())
     }
 
-    pub fn iter_path(&self) -> Iter<InternedString> {
+    pub fn iter_path(&self) -> Iter<(InternedString, Span)> {
         self.path.as_ref().iter()
     }
 
@@ -86,7 +86,7 @@ pub fn use_case_to_tokens(Use { path, alias, span }: Use) -> Vec<Token> {
 
 macro_rules! new_path {
     ($p0: expr) => {
-        new_path!(global, $p0)
+        new_path!(global, $p0.0)
     };
     (global, $p0: expr) => {
         ExprKind::Value(ValueKind::Identifier($p0, NameOrigin::Global))
@@ -98,12 +98,12 @@ macro_rules! new_path {
         ExprKind::Infix(
             InfixOp::Path,
             Box::new(Expr {
-                kind: new_path!(global, $p0),
-                span: Span::dummy(),
+                kind: new_path!(global, $p0.0),
+                span: $p0.1,
             }),
             Box::new(Expr {
-                kind: new_path!(sub, $p1),
-                span: Span::dummy(),
+                kind: new_path!(sub, $p1.0),
+                span: $p1.1,
             }),
         )
     };
@@ -115,8 +115,8 @@ macro_rules! new_path {
                 span: Span::dummy(),
             }),
             Box::new(Expr {
-                kind: new_path!(sub, $pt),
-                span: Span::dummy(),
+                kind: new_path!(sub, $pt.0),
+                span: $pt.1,
             })
         )
     };
@@ -132,7 +132,7 @@ macro_rules! new_path {
 }
 
 // the best optimization I can think of
-fn to_path_impl(path: &[InternedString]) -> ExprKind {
+fn to_path_impl(path: &[(InternedString, Span)]) -> ExprKind {
     assert!(!path.is_empty(), "Internal Compiler Error DD4626E9B3A");
 
     if path.len() < 4 {

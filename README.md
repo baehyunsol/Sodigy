@@ -120,6 +120,22 @@ Byte literals are like that of Rust (as far as I know). A letter `b` followed by
 
 TODO: example
 
+### `if` expressions
+
+### `match` expressions
+
+The syntax resembles that of Rust, except that it requires `$` before a name binding.
+
+```
+match foo() {
+    Option.Some([$a, $b, ..]) => $a + $b + 1,  # more than 2 elements
+    Option.Some([$a, $b]) => $a + $b,  # exactly 2 elements
+    Option.Some([]) => 0,
+    Option.Some(_) => -1,  # matches any
+    Option.None => -2,
+}
+```
+
 ## Types
 
 Types in Sodigy are first-class objects. The type checker (which is not implmeneted yet) evaluates the type signatures in compile time, and calls `.is_subtype_of()`.
@@ -134,16 +150,16 @@ Sodigy doesn't use floating points, but rational numbers.
 
 ## Operators
 
-### `$`
+### `` ` ``
 
-`$` is an infix operator, which modifies a value of a field.
+`` ` `` is an infix operator, which modifies a value of a field.
 
 Its lhs operand is the object you want to modify. Unlike the other infix operators, it has 2 rhs operands: the name of the field and the new value.
 
 ```
 # TODO: add definition of `Person`
 
-def set_age(p: Person, new_age: Int): Person = p $age new_age;
+def set_age(p: Person, new_age: Int): Person = p `age new_age;
 
 @test.eq(Person("Bae", 23))
 def set_age_test: Person = set_age(
@@ -151,7 +167,27 @@ def set_age_test: Person = set_age(
 );
 ```
 
-You can use whitespaces between `$` and the name of the field, but I recommend you not to do so, for the sake of readability.
+You can use whitespaces between `` ` `` and the name of the field, but I recommend you not to do so, for the sake of readability.
+
+### `<>`
+
+TODO: docs for concat operator
+
+### `+>`
+
+WIP: prepend operator
+
+### `<+`
+
+WIP: append operator
+
+### `..`
+
+TODO: docs for range operator
+
+### `..~`
+
+WIP: inclusive range operator
 
 ## Comments
 

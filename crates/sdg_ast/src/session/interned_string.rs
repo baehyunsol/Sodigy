@@ -1,5 +1,6 @@
 use super::LocalParseSession;
 use crate::utils::bytes_to_string;
+use sdg_prelude::UNDERBAR_INDEX;
 
 /*
  * 0: dummy
@@ -22,6 +23,10 @@ impl InternedString {
 
     pub fn is_dummy(&self) -> bool {
         self.0 == DUMMY_INDEX
+    }
+
+    pub fn is_underbar(&self) -> bool {
+        self.0 == UNDERBAR_INDEX as u32
     }
 
     pub fn to_string(&self, session: &LocalParseSession) -> String {

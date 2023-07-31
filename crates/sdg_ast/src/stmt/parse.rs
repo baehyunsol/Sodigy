@@ -1,6 +1,7 @@
 use super::{Decorator, FuncDef, ModDef, Stmt, Use, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
+use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
@@ -54,9 +55,8 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         }
 
     } else if tokens.consume(TokenKind::Keyword(Keyword::Module)) {
-        let name_span = tokens.peek_curr_span();
-        let module_name = match tokens.step_identifier_strict() {
-            Ok(id) => id,
+        let (module_name, name_span) = match tokens.step_identifier_strict_with_span() {
+            Ok(ns) => ns,
             Err(e) => {
                 return Err(e);
             }
@@ -66,23 +66,23 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 
         Ok(Stmt::Module(ModDef::new(
             module_name, curr_span,
-            name_span.expect("Internal Compiler Error F3B157FA10B"),
+            name_span,
         )))
     } else if tokens.consume(TokenKind::Operator(OpToken::At)) {
         let mut names = vec![];
 
-        let name = match tokens.step_identifier_strict() {
-            Ok(id) => id,
+        let name_and_span = match tokens.step_identifier_strict_with_span() {
+            Ok(ns) => ns,
             Err(e) => {
                 return Err(e);
             }
         };
 
-        names.push(name);
+        names.push(name_and_span);
 
         while tokens.consume(TokenKind::dot()) {
-            names.push(match tokens.step_identifier_strict() {
-                Ok(id) => id,
+            names.push(match tokens.step_identifier_strict_with_span() {
+                Ok(ns) => ns,
                 Err(e) => {
                     return Err(e);
                 }
@@ -98,16 +98,15 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         };
 
         Ok(Stmt::Decorator(Decorator {
-            names,
+            deco_name: Path::from_names(names),
             args,
             no_args,
             span: curr_span,
         }))
     } else if tokens.consume(TokenKind::keyword_def()) {
-        let name_span = tokens.peek_curr_span();
 
-        let name = match tokens.step_identifier_strict() {
-            Ok(id) => id,
+        let (name, name_span) = match tokens.step_identifier_strict_with_span() {
+            Ok(ns) => ns,
             Err(e) => {
                 return Err(e);
             }
@@ -175,7 +174,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             name, args, is_const,
             ret_type, ret_val,
             generics, curr_span,
-            name_span.expect("Internal Compiler Error 16284110ECD"),
+            name_span,
         )))
     } else {
         let top_token = tokens.step().expect("Internal Compiler Error C9A5B07DC36");
@@ -195,7 +194,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
 // See test cases
 pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec<Use>, ParseError> {
     let mut curr_paths: Vec<Use> = vec![];
-    let mut curr_path: Vec<InternedString> = vec![];
+    let mut curr_path: Vec<(InternedString, Span)> = vec![];
     let mut curr_state = ParseUseState::IdentReady;
     let mut after_brace = false;
     let mut trailing_comma = false;
@@ -204,8 +203,8 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
 
         match curr_state {
             ParseUseState::IdentReady => match tokens.step() {
-                Some(Token { kind, .. }) if kind.is_identifier() => {
-                    curr_path.push(kind.unwrap_identifier());
+                Some(Token { kind, span }) if kind.is_identifier() => {
+                    curr_path.push((kind.unwrap_identifier(), *span));
                     curr_state = ParseUseState::IdentEnd;
                 }
                 Some(Token { kind: TokenKind::List(Delimiter::Brace, elements), span: brace_span }) => match parse_use(
@@ -288,7 +287,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         }
 
                         else {
-                            let alias = *curr_path.last().expect("Internal Compiler Error A57ABC5F7D7");
+                            let alias = curr_path.last().expect("Internal Compiler Error A57ABC5F7D7").0;
                             curr_paths.push(Use::new(curr_path, alias, span));
     
                             curr_path = vec![];
@@ -300,7 +299,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), span: colon_span }) => {
 
                         if curr_path.len() > 0 {
-                            let alias = *curr_path.last().expect("Internal Compiler Error 52A9A947304");
+                            let alias = curr_path.last().expect("Internal Compiler Error 52A9A947304").0;
                             curr_paths.push(Use::new(curr_path, alias, span));
                         }
 
@@ -348,7 +347,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                         else {
 
                             if curr_path.len() > 0 {
-                                let alias = *curr_path.last().expect("Internal Compiler Error 42A7CAA8F86");
+                                let alias = curr_path.last().expect("Internal Compiler Error 42A7CAA8F86").0;
                                 curr_paths.push(Use::new(curr_path, alias, span));
                             }
 

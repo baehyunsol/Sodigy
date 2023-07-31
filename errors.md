@@ -57,3 +57,4 @@ Most error messages and warning messages are from Rust.
   - ``` file not found for module `asdf` ```
   - ``` no field `path` on type `&FileError` ```
   - ``` the name `T` is already used for a generic parameter in this item's generic parameters ```
+  - ``` `..` can only be used once per tuple pattern ```

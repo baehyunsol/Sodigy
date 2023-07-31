@@ -1,19 +1,23 @@
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct UID(u128);
 
+macro_rules! def_new_uid {
+    ($method_name: ident, $const_name: ident) => {
+        impl UID {
+            pub fn $method_name() -> Self {
+                UID(rand::random::<u128>() & ZERO | $const_name)
+            }
+        }
+    }
+}
+
+def_new_uid!(new_block_id, BLOCK);
+def_new_uid!(new_func_id, FUNC);
+def_new_uid!(new_lambda_id, LAMBDA);
+def_new_uid!(new_match_id, MATCH);
+def_new_uid!(new_match_branch_id, MATCH_BRANCH);
+
 impl UID {
-
-    pub fn new_block_id() -> Self {
-        UID(rand::random::<u128>() & ZERO | BLOCK)
-    }
-
-    pub fn new_func_id() -> Self {
-        UID(rand::random::<u128>() & ZERO | FUNC)
-    }
-
-    pub fn new_lambda_id() -> Self {
-        UID(rand::random::<u128>() & ZERO | LAMBDA)
-    }
 
     pub fn to_string(&self) -> String {
         format!("{:x}", self.0)
@@ -25,3 +29,5 @@ const ZERO: u128 = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_F000;
 const BLOCK: u128  = 0x000;
 const FUNC: u128   = 0x001;
 const LAMBDA: u128 = 0x002;
+const MATCH: u128 = 0x003;
+const MATCH_BRANCH: u128 = 0x004;

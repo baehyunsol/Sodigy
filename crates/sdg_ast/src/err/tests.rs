@@ -1,5 +1,6 @@
 use super::ParseErrorKind;
 use crate::parse_file;
+use crate::pattern::is_eq_pat_err;
 use crate::session::LocalParseSession;
 use crate::utils::bytes_to_string;
 use sdg_fs::{read_string, write_bytes, WriteMode};
@@ -42,6 +43,10 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
             ParseErrorKind::MultipleDefParam(_, t2) => t1 == t2,
             _ => false,
         },
+        ParseErrorKind::InvalidPattern(p1) => match k2 {
+            ParseErrorKind::InvalidPattern(p2) => is_eq_pat_err(p1, p2),
+            _ => false,
+        }
     }
 
 }

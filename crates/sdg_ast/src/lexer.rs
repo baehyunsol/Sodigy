@@ -240,7 +240,7 @@ fn lex_token(
             }
         }
         b'+' | b'-' | b'*' | b'/' | b'%' | b'!' | b'=' | b'<' | b'>' | b',' | b'.' | b':'
-        | b';' | b'&' | b'|' | b'@' | b'\\' | b'$' => lex_op_tokens(s, ind, session),
+        | b';' | b'&' | b'|' | b'@' | b'\\' | b'$' | b'`' => lex_op_tokens(s, ind, session),
         _ => Err(ParseError::ch(into_char(s, ind).map_err(|e| e.set_ind_and_fileno(curr_span))?, curr_span)),
     }
 }
@@ -267,6 +267,14 @@ fn lex_op_tokens(
                 Token {
                     span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Concat),
+                },
+                ind + 2,
+            ))
+        } else if let Some(b'+') = s.get(ind + 1) {
+            Ok((
+                Token {
+                    span: curr_span.set_end(ind + 1),
+                    kind: TokenKind::Operator(OpToken::Append),
                 },
                 ind + 2,
             ))
@@ -303,6 +311,14 @@ fn lex_op_tokens(
                 Token {
                     span: curr_span.set_end(ind + 1),
                     kind: TokenKind::Operator(OpToken::Eq),
+                },
+                ind + 2,
+            ))
+        } else if let Some(b'>') = s.get(ind + 1) {
+            Ok((
+                Token {
+                    span: curr_span.set_end(ind + 1),
+                    kind: TokenKind::Operator(OpToken::RArrow),
                 },
                 ind + 2,
             ))
@@ -368,6 +384,14 @@ For a range operator following a real number, try `1. ..` or `(1.)..`.
 For consecutive range operators (which is likely a semantic error), try `(1..)..`."
                         .to_string(),
                 ))
+            } else if let Some(b'~') = s.get(ind + 2) {
+                Ok((
+                    Token {
+                        span: curr_span.set_end(ind + 2),
+                        kind: TokenKind::Operator(OpToken::InclusiveRange),
+                    },
+                    ind + 3,
+                ))
             } else {
                 Ok((
                     Token {
@@ -387,13 +411,23 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
             ))
         }
     } else if s[ind] == b'+' {
-        Ok((
-            Token {
-                span: curr_span.set_end(ind),
-                kind: TokenKind::Operator(OpToken::Add),
-            },
-            ind + 1,
-        ))
+        if let Some(b'>') = s.get(ind + 1) {
+            Ok((
+                Token {
+                    span: curr_span.set_end(ind + 1),
+                    kind: TokenKind::Operator(OpToken::Prepend),
+                },
+                ind + 2,
+            ))
+        } else {
+            Ok((
+                Token {
+                    span: curr_span.set_end(ind),
+                    kind: TokenKind::Operator(OpToken::Add),
+                },
+                ind + 1,
+            ))
+        }
     } else if s[ind] == b'-' {
         Ok((
             Token {
@@ -486,6 +520,14 @@ For consecutive range operators (which is likely a semantic error), try `(1..)..
                 ind + 1,
             ))
         }
+    } else if s[ind] == b'`' {
+        Ok((
+            Token {
+                span: curr_span.set_end(ind),
+                kind: TokenKind::Operator(OpToken::BackTick),
+            },
+            ind + 1
+        ))
     } else {
         unreachable!("Internal Compiler Error D8D928EFE31: {:?}", s[ind])
     }

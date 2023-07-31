@@ -1,13 +1,13 @@
 use super::FuncDef;
-use crate::ast::{ASTError, NameScope};
+use crate::ast::NameScope;
 use crate::expr::Expr;
+use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use std::collections::{HashMap, HashSet};
 
 pub struct Decorator {
-    // a path consists of many names
-    pub names: Vec<InternedString>,
+    pub deco_name: Path,
     pub args: Vec<Expr>,
 
     // 0-args and no_args are different
@@ -25,24 +25,7 @@ impl Decorator {
         lambda_defs: &mut HashMap<InternedString, FuncDef>,
         session: &mut LocalParseSession,
     ) {
-
-        match name_scope.search_name(self.names[0]) {
-            Ok((Some(u), _)) => {
-                if self.names.len() == 1 {
-                    self.names = u.iter_path().map(|i| *i).collect();
-                } else {
-                    self.names = u.iter_path().chain(self.names[1..].iter()).map(|i| *i).collect();
-                }
-            },
-            Ok((None, _)) => {},
-            Err(_) => {
-                session.add_error(ASTError::no_def(
-                    self.names[0],
-                    self.span,
-                    name_scope.clone(),
-                ));
-            }
-        }
+        self.deco_name.resolve_names(name_scope, session);
 
         // we don't have to track names here
         let mut dummy = HashSet::new();
@@ -58,9 +41,7 @@ impl Decorator {
 
         format!(
             "@{}{}",
-            self.names.iter().map(
-                |name| name.to_string(session)
-            ).collect::<Vec<String>>().join("."),
+            self.deco_name.dump(session),
             if self.no_args {
                 String::new()
             } else {

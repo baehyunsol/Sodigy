@@ -1,5 +1,5 @@
 use super::{AST, NameOrigin};
-use crate::expr::ExprKind;
+use crate::expr::{ExprKind, MatchBranch};
 use crate::session::InternedString;
 use crate::stmt::{ArgDef, Decorator};
 use crate::value::{BlockDef, ValueKind};
@@ -85,7 +85,13 @@ impl ExprKind {
             },
 
             // TODO: What do I do with patterns?
-            ExprKind::Match(value, branches, _) => todo!(),
+            ExprKind::Match(value, branches, _) => {
+                value.kind.id_walker(f, ctxt);
+
+                for MatchBranch { value, .. } in branches.iter() {
+                    value.kind.id_walker(f, ctxt);
+                }
+            },
 
             ExprKind::Branch(c, t, fl) => {
                 c.kind.id_walker(f, ctxt);

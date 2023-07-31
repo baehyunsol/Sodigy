@@ -1,7 +1,9 @@
+use crate::pattern::{PatternErrorKind, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::token::{OpToken, TokenKind};
+use crate::token::{OpToken, Token, TokenKind};
 use crate::utils::print_list;
+use hmath::Ratio;
 use sdg_fs::FileError;
 
 mod kind;
@@ -65,10 +67,6 @@ impl ParseError {
             span: vec![span],
             message,
         }
-    }
-
-    pub(crate) fn is_eof(&self) -> bool {
-        self.kind == ParseErrorKind::UnexpectedEof
     }
 
     pub(crate) fn is_eoe(&self) -> bool {
@@ -157,6 +155,51 @@ impl ParseError {
             span: vec![],
             message: String::new(),
         }
+    }
+
+    pub(crate) fn non_integer_in_range(t: Token) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::NonIntegerInRange(t.unwrap_number())),
+            span: vec![t.span],
+            message: String::from("Only integers are allowed in range patterns."),
+        }
+    }
+
+    pub(crate) fn invalid_int_range(n1: Ratio, n2: Ratio, range_type: RangeType, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::InvalidIntegerRange(n1, n2, range_type)),
+            span: vec![span],
+            message: String::new(),
+        }
+    }
+
+    pub(crate) fn only_char_in_range(s: Token) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::OnlyCharsAllowedInRange(s.unwrap_string().to_vec())),
+            span: vec![s.span],
+            message: String::from("Only characters are allowed in range patterns."),
+        }
+    }
+
+    pub(crate) fn invalid_char_range(c1: u32, c2: u32, range_type: RangeType, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::InvalidCharRange(c1, c2, range_type)),
+            span: vec![span],
+            message: String::new(),
+        }
+    }
+
+    pub(crate) fn multiple_shorthand_in_pattern(spans: Vec<Span>) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::MultipleShorthands),
+            span: spans,
+            message: String::new(),
+        }
+    }
+
+    // TODO: I want to raise an actual type error
+    pub(crate) fn unmatched_type_in_range(t1: Token, t2: Token) -> Self {
+        todo!()
     }
 
     pub(crate) fn set_ind_and_fileno(mut self, span: Span) -> Self {
@@ -258,6 +301,7 @@ impl SodigyError for ParseError {
 #[derive(Clone, PartialEq)]
 pub enum ExpectedToken {
     AnyExpression,
+    AnyPattern,
     SpecificTokens(Vec<TokenKind>),
     Nothing,
 }
@@ -266,6 +310,7 @@ impl ExpectedToken {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             ExpectedToken::AnyExpression => "expected any kind of expression".to_string(),
+            ExpectedToken::AnyPattern => "expected any kind of pattern".to_string(),
             ExpectedToken::Nothing => "expected no tokens".to_string(),
             ExpectedToken::SpecificTokens(token_kinds) => {
                 format!(
@@ -285,7 +330,8 @@ impl ExpectedToken {
     pub fn is_same_type(&self, other: &ExpectedToken) -> bool {
         match (self, other) {
             (ExpectedToken::AnyExpression, ExpectedToken::AnyExpression)
-            | (ExpectedToken::Nothing, ExpectedToken::Nothing) => true,
+            | (ExpectedToken::Nothing, ExpectedToken::Nothing)
+            | (ExpectedToken::AnyPattern, ExpectedToken::AnyPattern) => true,
 
             // for test runners, the order of the tokens do not matter
             // for test functions, we do not have to care about their performance... really?

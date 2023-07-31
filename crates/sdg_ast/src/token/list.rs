@@ -1,12 +1,13 @@
 use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
 use crate::err::{ExpectedToken, ParseError};
-use crate::expr::{parse_match_body, parse_expr, Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
-use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
-use crate::pattern::Pattern;
+use crate::expr::{parse_match_body, parse_expr, Expr, ExprKind, InfixOp, MatchBranch, PostfixOp, PrefixOp};
+use crate::parse::{parse_expr_exhaustive, split_list_by_comma, split_tokens};
+use crate::pattern::{Pattern, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
 use crate::value::{parse_block_expr, ValueKind};
+use sdg_uid::UID;
 use hmath::Ratio;
 
 pub struct TokenList {
@@ -111,6 +112,10 @@ impl TokenList {
     // `peek_XXX` functions don't move the cursor
     // it returns None if the cursor is not pointing to the data
 
+    pub fn peek(&self) -> Option<&Token> {
+        self.data.get(self.cursor)
+    }
+
     pub fn peek_curr_span(&self) -> Option<Span> {
         self.data.get(self.cursor).map(|t| t.span)
     }
@@ -171,9 +176,9 @@ impl TokenList {
         }
     }
 
-    pub fn step_identifier_strict(&mut self) -> Result<InternedString, ParseError> {
+    pub fn step_identifier_strict_with_span(&mut self) -> Result<(InternedString, Span), ParseError> {
         match self.step() {
-            Some(Token { kind, .. }) if kind.is_identifier() => Ok(kind.unwrap_identifier()),
+            Some(Token { kind, span }) if kind.is_identifier() => Ok((kind.unwrap_identifier(), *span)),
             Some(Token { kind, span }) => Err(ParseError::tok(
                 kind.clone(),
                 *span,
@@ -207,14 +212,12 @@ impl TokenList {
                         break;
                     }
 
-                    let name_span = self.peek_curr_span();
-                    let name = match self.step_identifier_strict() {
-                        Ok(n) => n,
+                    let (name, name_span) = match self.step_identifier_strict_with_span() {
+                        Ok(ns) => ns,
                         Err(e) => {
                             return Some(Err(e));
                         }
                     };
-                    let name_span = name_span.expect("Internal Compiler Error 0AA5B43F2C1");
                     generics.push(GenericDef::new(name, name_span));
 
                     if self.consume(TokenKind::comma()) {
@@ -293,7 +296,229 @@ impl TokenList {
     }
 
     pub fn step_pattern(&mut self) -> Option<Result<Pattern, ParseError>> {
-        todo!()
+        match self.peek() {
+            Some(Token {
+                kind: TokenKind::Operator(OpToken::Dollar),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::Identifier(_),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::String(_),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::Number(_),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::Operator(OpToken::DotDot),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::List(Delimiter::Parenthesis, _),
+                ..
+            }) | Some(Token {
+                kind: TokenKind::List(Delimiter::Bracket, _),
+                ..
+            }) => {
+                // this way of impl looks ugly,
+                // but it's better to recurse in this way
+                let pattern = self.step_pattern_strict();
+
+                match pattern {
+                    Ok(p) => match p.check_validity() {
+                        Ok(()) => Some(Ok(p)),
+                        Err(e) => Some(Err(e)),
+                    },
+                    Err(e) => Some(Err(e))
+                }
+            },
+            _ => None,
+        }
+    }
+
+    pub fn step_pattern_strict(&mut self) -> Result<Pattern, ParseError> {
+        match self.step() {
+            Some(Token {
+                kind: TokenKind::Operator(OpToken::Dollar),
+                span,
+            }) => {
+                let span = *span;
+                let (name, _) = self.step_identifier_strict_with_span()?;
+
+                Ok(Pattern::binding(name, span))
+            },
+            Some(Token {
+                kind: TokenKind::Operator(OpToken::InclusiveRange),
+                span,
+            }) => {
+                let span = *span;
+
+                match self.step() {
+                    Some(t) if t.is_string() || t.is_number() => Ok(Pattern::range(
+                        None, Some(t.clone()), RangeType::Inclusive, span.merge(&t.span)
+                    )),
+                    Some(Token { kind, span }) => Err(ParseError::tok_msg(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::String(vec![]), TokenKind::Number(0.into())]),
+                        String::from("A range pattern cannot be empty."),
+                    )),
+                    None => Err(ParseError::eoe_msg(
+                        self.get_eof_span(),
+                        ExpectedToken::SpecificTokens(vec![TokenKind::String(vec![]), TokenKind::Number(0.into())]),
+                        String::from("A range pattern cannot be empty."),
+                    )),
+                }
+            }
+            Some(Token {
+                kind: TokenKind::Operator(OpToken::DotDot),
+                span,
+            }) => {
+                let span = *span;
+
+                match self.step() {
+                    Some(t) if t.is_string() || t.is_number() => {
+                        return Ok(Pattern::range(None, Some(t.clone()), RangeType::Exclusive, span.merge(&t.span)));
+                    },
+                    Some(t) => {
+                        self.backward();
+                    },
+                    None => {}
+                }
+
+                Ok(Pattern::shorthand(span))
+            },
+            Some(Token {
+                kind: TokenKind::List(Delimiter::Parenthesis, elements),
+                span,
+            }) | Some(Token {
+                kind: TokenKind::List(Delimiter::Bracket, elements),
+                span, 
+            }) => {
+                let span = *span;
+                let patterns = split_tokens(elements, TokenKind::comma()).into_iter().map(
+                    |(tokens, span)| {
+                        let mut tokens = TokenList::from_vec(tokens, span.first_character());
+                        tokens.step_pattern_strict()
+                    }
+                ).collect::<Vec<Result<Pattern, ParseError>>>();
+
+                let mut result = Vec::with_capacity(patterns.len());
+
+                let delim_kind = {
+                    self.backward();
+
+                    self.step().expect("Internal Compiler Error 3D5A65CCE23").unwrap_delimiter()
+                };
+
+                for pat in patterns.into_iter() {
+                    result.push(pat?);
+                }
+
+                if let Delimiter::Parenthesis = delim_kind {
+                    Ok(Pattern::tuple(result, span))
+                } else {
+                    Ok(Pattern::slice(result, span))
+                }
+            },
+            Some(Token {
+                kind: TokenKind::Identifier(id),
+                span,
+            }) => {
+                let mut path = vec![(*id, *span)];
+
+                if id.is_underbar() {
+                    return Ok(Pattern::wildcard(*span));
+                }
+
+                // a
+                // a.b.c
+                // a()
+                // a.b.c()
+                // a{}
+                // a.b.c{}
+                loop {
+                    match self.step() {
+                        Some(Token {
+                            kind: TokenKind::Operator(OpToken::Dot),
+                            ..
+                        }) => {
+                            match self.step_identifier_strict_with_span() {
+                                Ok(name_and_span) => {
+                                    path.push(name_and_span);
+                                },
+                                Err(e) => {
+                                    return Err(e);
+                                }
+                            }
+
+                            continue;
+                        },
+                        Some(Token {
+                            kind: TokenKind::List(Delimiter::Parenthesis, _),
+                            ..
+                        }) => {
+                            self.backward();
+                            let tuple = self.step_pattern_strict()?;
+
+                            return Ok(Pattern::enum_tuple(
+                                path,
+                                tuple.get_patterns().expect("Internal Compiler Error 60882597FD3")
+                            ));
+                        },
+                        Some(Token {
+                            kind: TokenKind::List(Delimiter::Brace, elements),
+                            ..
+                        }) => todo!(),
+                        Some(_) => {
+                            self.backward();
+                            return Ok(Pattern::path(path));
+                        },
+                        None => {
+                            return Ok(Pattern::path(path));
+                        }
+                    }
+                }
+            },
+            Some(t) if t.is_string() || t.is_number() => {
+                let this_token = t.clone();
+                let is_string = t.is_string();
+
+                match self.peek() {
+                    Some(t) if t.is_dotdot() || t.is_inclusive_range() => {
+                        let is_dotdot = t.is_dotdot();
+                        let dotdot_span = t.span;
+                        self.cursor += 1;
+
+                        let next_token = match self.step() {
+                            Some(t) if t.is_string() || t.is_number() => Some(t.clone()),
+                            Some(t) => {
+                                self.backward();
+                                None
+                            },
+                            None => None,
+                        };
+
+                        let range_type = if is_dotdot {
+                            RangeType::Exclusive
+                        } else {
+                            RangeType::Inclusive
+                        };
+
+                        let span = if let Some(t) = &next_token {
+                            this_token.span.merge(&t.span)
+                        } else {
+                            this_token.span.merge(&dotdot_span)
+                        };
+
+                        Ok(Pattern::range(Some(this_token), next_token, range_type, span))
+                    },
+                    _ => Ok(Pattern::constant(this_token)),
+                }
+            },
+            Some(Token { kind, span }) => Err(ParseError::tok(
+                kind.clone(), *span, ExpectedToken::AnyPattern,
+            )),
+            None => Err(ParseError::eoe(self.get_eof_span(), ExpectedToken::AnyPattern)),
+        }
     }
 
     pub fn step_prefix_op(&mut self) -> Option<PrefixOp> {
@@ -319,14 +544,14 @@ impl TokenList {
                 kind: TokenKind::Operator(op),
                 span,
             }) => match *op {
-                OpToken::Dollar => {
+                OpToken::BackTick => {
                     self.cursor += 1;
                     let span = *span;
-                    let field_name = match self.step_identifier_strict() {
-                        Ok(f) => f,
+                    let field_name = match self.step_identifier_strict_with_span() {
+                        Ok((f, _)) => f,
                         Err(mut e) => {
                             if e.is_unexpected_token() {
-                                e.set_msg("A name of a field must follow `$`.");
+                                e.set_msg("A name of a field must follow a modify operator (`).");
                             }
 
                             return Some(Err(e));
@@ -348,7 +573,10 @@ impl TokenList {
                 | OpToken::Le
                 | OpToken::Dot
                 | OpToken::DotDot
+                | OpToken::InclusiveRange
                 | OpToken::Concat
+                | OpToken::Append
+                | OpToken::Prepend
                 | OpToken::And
                 | OpToken::AndAnd
                 | OpToken::Or
@@ -369,7 +597,7 @@ impl TokenList {
                 ..
             }) => match op {
                 // `..` can either be infix or postfix, it depends on the context
-                OpToken::DotDot => match self.data.get(self.cursor + 1) {
+                OpToken::DotDot | OpToken::InclusiveRange => match self.data.get(self.cursor + 1) {
                     // postfix
                     None => {
                         self.cursor += 1;
@@ -417,7 +645,7 @@ impl TokenList {
 
         if self.consume(TokenKind::keyword_match()) {
             let value = match parse_expr(self, 0) {
-                Ok(expr) => expr,
+                Ok(expr) => Box::new(expr),
                 Err(e) => {
                     return Some(Err(e));
                 }
@@ -425,7 +653,16 @@ impl TokenList {
 
             match self.step_grouped_tokens_strict(Delimiter::Brace, match_span) {
                 Ok(mut tokens) => match parse_match_body(&mut tokens) {
-                    Ok(_) => todo!(),
+                    Ok(branches) => Some(Ok(Expr {
+                        kind: ExprKind::Match(
+                            value,
+                            branches.into_iter().map(
+                                |(pattern, value)| MatchBranch::new(pattern, value)
+                            ).collect(),
+                            UID::new_match_id(),
+                        ),
+                        span: match_span,
+                    })),
                     Err(e) => Some(Err(e)),
                 },
                 Err(e) => Some(Err(e)),

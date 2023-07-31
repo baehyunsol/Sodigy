@@ -1,4 +1,5 @@
 use super::ExpectedToken;
+use crate::pattern::PatternErrorKind;
 use crate::session::{InternedString, LocalParseSession};
 use crate::token::TokenKind;
 use sdg_fs::FileError;
@@ -27,6 +28,8 @@ pub enum ParseErrorKind {
     // \{x: Int, x: Int, x + x}
     // {x = 3; x = 4; x + x}
     MultipleDefParam(InternedString, ParamType),
+
+    InvalidPattern(PatternErrorKind),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -36,6 +39,7 @@ pub enum ParamType {
     FuncGeneric,
     FuncGenericAndParam,
     BlockDef,
+    PatternNameBinding,
 }
 
 impl ParseErrorKind {
@@ -68,6 +72,7 @@ impl ParseErrorKind {
                 param_type.render_err(),
             ),
             ParseErrorKind::FileError(e) => e.render_err(),
+            ParseErrorKind::InvalidPattern(p) => p.render_err(session),
         }
     }
 }
@@ -79,6 +84,7 @@ impl ParamType {
             ParamType::LambdaParam => "a lambda parameter list",
             ParamType::BlockDef => "a block expression",
             ParamType::FuncGeneric => "a function generic parameter list",
+            ParamType::PatternNameBinding => "a pattern name binding list",
             ParamType::FuncGenericAndParam =>
                 "a function generic parameter list and a parameter list",
         }.to_string()

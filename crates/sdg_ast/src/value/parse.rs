@@ -123,9 +123,6 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             "An expression must come at the end of a block.".to_string(),
         ))
     } else {
-        let first_span = block_tokens
-            .peek_curr_span()
-            .expect("Internal Compiler Error 5450834BC6F");
         let defs_count =
             block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
 
@@ -133,25 +130,14 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
         let mut names = HashSet::with_capacity(defs_count);
 
         for _ in 0..defs_count {
-            // points to `let`
-            let curr_span = block_tokens
-                .peek_curr_span()
-                .expect("Internal Compiler Error 3DB2B1546F6");
-
             block_tokens.consume_token_or_error(vec![TokenKind::Keyword(Keyword::Let)])?;
-
-            // points to the first character of the name (or the pattern)
-            let name_span = block_tokens.peek_curr_span();
 
             // TODO: allow pattern matchings for assignments
             // -> Don't change the shape of `BlockDef`,
             //    Just convert a pattern into 1 or more `BlockDef`s in this function
             // -> ex: `Person { age, name } = foo();`
             //    into `_tmp: Person = foo(); age = _tmp.age; name = _tmp.name;`
-            let name = block_tokens.step_identifier_strict()?;
-
-            // Now it's guaranteed that it's not None
-            let name_span = name_span.expect("Internal Compiler Error A455FA3AFC7");
+            let (name, name_span) = block_tokens.step_identifier_strict_with_span()?;
 
             if !names.insert(name) {
                 return Err(ParseError::multi_def(name, name_span, ParamType::BlockDef));
@@ -206,9 +192,6 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             "Trailing commas in lambda definition is not allowed.".to_string(),
         ))
     } else {
-        let first_span = tokens
-            .peek_curr_span()
-            .expect("Internal Compiler Error 92BC0C79DD6");
         let args_count =
             tokens.count_tokens_non_recursive(TokenKind::comma());
 
@@ -216,10 +199,6 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         let mut arg_names = HashSet::with_capacity(args_count);
 
         for _ in 0..args_count {
-            let curr_span = tokens
-                .peek_curr_span()
-                .expect("Internal Compiler Error EF60F059587");
-
             let arg = parse_arg_def(tokens)?;
 
             if !arg_names.insert(arg.name) {

@@ -2,7 +2,7 @@ use super::{ArgDef, Decorator, GenericDef};
 use crate::ast::{NameOrigin, NameScope, NameScopeKind};
 use crate::err::ParamType;
 use crate::expr::Expr;
-use crate::module::ModulePath;
+use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::warning::SodigyWarning;
@@ -21,7 +21,7 @@ pub struct FuncDef {
     pub name: InternedString,
     pub args: Vec<ArgDef>,
 
-    pub location: ModulePath,
+    pub location: Path,
 
     pub decorators: Vec<Decorator>,
 
@@ -63,7 +63,7 @@ impl FuncDef {
             def_span,
             name_span,
             generics,
-            location: ModulePath::empty(),  // will be filled later
+            location: Path::empty(),  // will be filled later
             kind,
             decorators: vec![],  // filled later
             id: UID::new_func_id(),
@@ -86,7 +86,7 @@ impl FuncDef {
             args, ret_val, id,
             def_span,
             name_span: Span::dummy(),
-            location: ModulePath::empty(),  // nobody cares!
+            location: Path::empty(),  // nobody cares!
             decorators: vec![],
             generics: vec![],
             ret_type: None,  // has to be inferred later

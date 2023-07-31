@@ -13,6 +13,7 @@ impl SodigyWarningKind {
                     ParamType::FuncParam | ParamType::LambdaParam => "argument",
                     ParamType::BlockDef => "local name binding",
                     ParamType::FuncGeneric => "generic argument",
+                    ParamType::PatternNameBinding => "pattern name binding",
                     ParamType::FuncGenericAndParam => unreachable!(
                         "5E7D383F172"
                     ),

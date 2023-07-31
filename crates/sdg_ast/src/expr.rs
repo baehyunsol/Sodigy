@@ -63,7 +63,7 @@ impl Expr {
                 value.dump(session),
                 branches.iter().map(
                     |MatchBranch { pattern, value, .. }| format!(
-                        "{}{{{}}}",
+                        "{} => {}",
                         pattern.dump(session),
                         value.dump(session),
                     )

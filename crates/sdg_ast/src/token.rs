@@ -32,6 +32,18 @@ impl Token {
         self.kind.unwrap_number()
     }
 
+    pub fn unwrap_delimiter(&self) -> Delimiter {
+        self.kind.unwrap_delimiter()
+    }
+
+    pub fn is_string(&self) -> bool {
+        self.kind.is_string()
+    }
+
+    pub fn unwrap_string(&self) -> &Vec<u32> {
+        self.kind.unwrap_string()
+    }
+
     pub fn dump(&self, session: &LocalParseSession) -> String {
         match &self.kind {
             TokenKind::Number(n) => format!("{n}"),
@@ -195,6 +207,11 @@ pub enum OpToken {
     DotDot,
     BackSlash,
     Dollar,
+    BackTick,
+    InclusiveRange,  // `..~`
+    RArrow,   // `=>`
+    Append,   // `<+`
+    Prepend,  // `+>`
 
     // below 4 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
@@ -234,7 +251,12 @@ impl OpToken {
             OpToken::DotDot => "..",
             OpToken::BackSlash => "\\",
             OpToken::Dollar => "$",
+            OpToken::BackTick => "`",
+            OpToken::InclusiveRange => "..~",
             OpToken::Assign => "=",
+            OpToken::RArrow => "=>",
+            OpToken::Append => "<+",
+            OpToken::Prepend => "+>",
             OpToken::OpeningSquareBracket => "[",
             OpToken::ClosingSquareBracket => "]",
             OpToken::OpeningParenthesis => "(",

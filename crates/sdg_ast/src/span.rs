@@ -99,6 +99,17 @@ impl Span {
     }
 
     #[must_use]
+    pub fn merge(&self, other: &Span) -> Self {
+        assert_eq!(self.file_no, other.file_no);
+
+        Span {
+            file_no: self.file_no,
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        }
+    }
+
+    #[must_use]
     pub fn forward(&self, offset: usize) -> Self {
         Span {
             file_no: self.file_no,
@@ -271,7 +282,7 @@ fn insert_col_markers(lines: Vec<Vec<u8>>, col_start: usize, col_end: usize, too
 
     let highlight_line_indices = lines
         .iter().enumerate()
-        .filter(|(index, line)| line[0] == 0xe2)
+        .filter(|(_, line)| line[0] == 0xe2)
         .map(|(index, _)| index)
         .collect::<Vec<usize>>();
 
