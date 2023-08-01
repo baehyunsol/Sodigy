@@ -1,4 +1,4 @@
-use super::{Decorator, FuncDef, ModDef, Stmt, Use, use_case_to_tokens};
+use super::{Decorator, EnumDef, FuncDef, ModDef, Stmt, Use, VariantDef, use_case_to_tokens};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::parse_expr;
 use crate::path::Path;
@@ -12,7 +12,7 @@ pub fn parse_stmts(tokens: &mut TokenList, session: &mut LocalParseSession) -> R
     let mut result = vec![];
 
     while !tokens.is_eof() {
-        match parse_stmt(tokens) {
+        match parse_stmt(tokens, session) {
             Ok(s) => { result.push(s); },
             Err(e) => {
                 session.add_error(e);
@@ -27,7 +27,7 @@ pub fn parse_stmts(tokens: &mut TokenList, session: &mut LocalParseSession) -> R
     Ok(result)
 }
 
-pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
+pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result<Stmt, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error 9C5927A4A12");
 
     let curr_span = tokens
@@ -54,6 +54,106 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
             }
         }
 
+    } else if tokens.consume(TokenKind::Keyword(Keyword::Enum)) {
+        let (enum_name, name_span) = match tokens.step_identifier_strict_with_span() {
+            Ok(ns) => ns,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+
+        if tokens.consume(TokenKind::semi_colon()) {
+            return Ok(Stmt::Enum(EnumDef::empty(curr_span, name_span, enum_name)));
+        }
+
+        let mut enum_body_tokens = tokens.step_grouped_tokens_strict(Delimiter::Brace, name_span)?;
+        let mut variants = vec![];
+
+        loop {
+            let (var_name, var_span) = match enum_body_tokens.step() {
+                Some(Token { kind, span }) if kind.is_identifier() => (kind.unwrap_identifier(), *span),
+                Some(Token { kind, span }) => {
+                    let mut err = ParseError::tok(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::dummy_identifier(),
+                            TokenKind::closing_curly_brace()
+                        ]),
+                    );
+
+                    if kind.is_at() {
+                        err.set_msg("Decorators for enum variants are not allowed. Try decorate the enum.");
+                    }
+
+                    return Err(err);
+                },
+                None => {
+                    break;
+                },
+            };
+
+            if enum_body_tokens.consume(TokenKind::comma()) {
+                variants.push(VariantDef::new_no_field(var_name, var_span));
+                continue;
+            }
+
+            let mut variant_tuple_tokens = enum_body_tokens.step_grouped_tokens_strict(Delimiter::Parenthesis, var_span)?;
+            let mut variant_tuple = vec![];
+
+            while let Some(ty) = variant_tuple_tokens.step_type() {
+                variant_tuple.push(ty?);
+
+                match variant_tuple_tokens.step() {
+                    Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {},
+                    Some(Token { kind, span }) => {
+                        return Err(ParseError::tok(
+                            kind.clone(), *span,
+                            ExpectedToken::SpecificTokens(vec![TokenKind::comma()]),
+                        ));
+                    },
+                    _ => { break; }
+                }
+            }
+
+            variants.push(VariantDef::new(var_name, var_span, variant_tuple));
+
+            if enum_body_tokens.consume(TokenKind::comma()) {
+                continue;
+            }
+
+            match enum_body_tokens.peek() {
+                Some(Token { kind, span }) => {
+                    return Err(ParseError::tok(
+                        kind.clone(), *span,
+                        ExpectedToken::SpecificTokens(vec![TokenKind::comma()]),
+                    ));
+                }
+                None => {
+                    break;
+                }
+            }
+        }
+
+        match tokens.peek() {
+            // it's just being nice to the programmers
+            Some(Token { kind: TokenKind::Operator(OpToken::SemiColon), span }) => {
+                return Err(ParseError::tok_msg(
+                    TokenKind::semi_colon(), *span,
+                    ExpectedToken::AnyStatement,
+                    format!(
+                        "Please remove a `;` after an enum definition.\n`;` is necessary only when the enum definition is empty.{}",
+                        if variants.is_empty() {
+                            format!("\nTry `enum {};`", enum_name.to_string(session))
+                        } else {
+                            String::new()
+                        },
+                    ),
+                ));
+            },
+            _ => {}
+        }
+
+        Ok(Stmt::Enum(EnumDef::new(curr_span, name_span, enum_name, variants)))
     } else if tokens.consume(TokenKind::Keyword(Keyword::Module)) {
         let (module_name, name_span) = match tokens.step_identifier_strict_with_span() {
             Ok(ns) => ns,
@@ -182,11 +282,7 @@ pub fn parse_stmt(tokens: &mut TokenList) -> Result<Stmt, ParseError> {
         Err(ParseError::tok(
             top_token.kind.clone(),
             top_token.span,
-            ExpectedToken::SpecificTokens(vec![
-                TokenKind::keyword_use(),
-                TokenKind::keyword_def(),
-                TokenKind::Operator(OpToken::At),
-            ]),
+            ExpectedToken::AnyStatement,
         ))
     }
 }

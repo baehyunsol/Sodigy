@@ -158,6 +158,7 @@ pub enum Keyword {
     As,
     Let,
     Module,
+    Enum,
     Match,
 }
 
@@ -172,6 +173,7 @@ impl Keyword {
             Keyword::As => "as",
             Keyword::Let => "let",
             Keyword::Module => "module",
+            Keyword::Enum => "enum",
             Keyword::Match => "match",
         }.to_string()
     }

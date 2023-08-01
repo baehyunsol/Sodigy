@@ -1,7 +1,7 @@
 use crate::pattern::{PatternErrorKind, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::token::{OpToken, Token, TokenKind};
+use crate::token::{Keyword, OpToken, Token, TokenKind};
 use crate::utils::print_list;
 use hmath::Ratio;
 use sdg_fs::FileError;
@@ -302,6 +302,7 @@ impl SodigyError for ParseError {
 pub enum ExpectedToken {
     AnyExpression,
     AnyPattern,
+    AnyStatement,
     SpecificTokens(Vec<TokenKind>),
     Nothing,
 }
@@ -312,6 +313,17 @@ impl ExpectedToken {
             ExpectedToken::AnyExpression => "expected any kind of expression".to_string(),
             ExpectedToken::AnyPattern => "expected any kind of pattern".to_string(),
             ExpectedToken::Nothing => "expected no tokens".to_string(),
+            ExpectedToken::AnyStatement => {
+                let e = ExpectedToken::SpecificTokens(vec![
+                    TokenKind::Operator(OpToken::At),
+                    TokenKind::Keyword(Keyword::Use),
+                    TokenKind::Keyword(Keyword::Def),
+                    TokenKind::Keyword(Keyword::Module),
+                    TokenKind::Keyword(Keyword::Enum),
+                ]);
+
+                e.render_err(session)
+            },
             ExpectedToken::SpecificTokens(token_kinds) => {
                 format!(
                     "expected {}",

@@ -42,6 +42,7 @@ token_kind_impl!(Op, colon, Colon);
 token_kind_impl!(Op, assign, Assign);
 token_kind_impl!(Op, right_arrow, RArrow);
 token_kind_impl!(Op, opening_curly_brace, OpeningCurlyBrace);
+token_kind_impl!(Op, closing_curly_brace, ClosingCurlyBrace);
 token_kind_impl!(Key, keyword_if, If);
 token_kind_impl!(Key, keyword_else, Else);
 token_kind_impl!(Key, keyword_match, Match);

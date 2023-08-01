@@ -1,4 +1,5 @@
 mod arg_def;
+mod enum_def;
 mod decorator;
 mod func_def;
 mod generic_def;
@@ -9,14 +10,17 @@ mod parse;
 mod tests;
 
 mod use_;
+mod variant_def;
 
 pub use arg_def::{parse_arg_def, ArgDef};
+pub use enum_def::EnumDef;
 pub use decorator::Decorator;
 pub use func_def::{FuncDef, FuncKind, LAMBDA_FUNC_PREFIX};
 pub use generic_def::GenericDef;
 pub use mod_def::ModDef;
 pub use parse::parse_stmts;
 pub use use_::{Use, use_case_to_tokens};
+pub use variant_def::VariantDef;
 
 #[cfg(test)]
 pub use parse::parse_use;
@@ -37,6 +41,10 @@ pub enum Stmt {
 
     // 'module' MODULE_NAME ';'
     Module(ModDef),
+
+    // 'enum' ENUM_NAME ';'
+    // 'enum' ENUM_NAME '{' (ENUM_VAR ',')* '}'
+    Enum(EnumDef),
 }
 
 pub trait GetNameOfArg {

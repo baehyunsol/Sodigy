@@ -102,6 +102,14 @@ impl TokenKind {
         TokenKind::Identifier(InternedString::dummy())
     }
 
+    pub fn is_at(&self) -> bool {
+        if let TokenKind::Operator(OpToken::At) = self {
+            true
+        } else {
+            false
+        }
+    }
+
     // dump vs render_err vs to_string
     // dump is for compiler developers
     // render_err is for compiler users

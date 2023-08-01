@@ -72,7 +72,7 @@ fn keywords() -> Vec<Vec<u8>> {
     KEYWORDS.iter().map(|k| k.render_err().as_bytes().to_vec()).collect()
 }
 
-pub const KEYWORDS: [Keyword; 8] = [
+pub const KEYWORDS: [Keyword; 9] = [
     Keyword::If,
     Keyword::Else,
     Keyword::Def,
@@ -80,6 +80,7 @@ pub const KEYWORDS: [Keyword; 8] = [
     Keyword::As,
     Keyword::Let,
     Keyword::Module,
+    Keyword::Enum,
     Keyword::Match,
 ];
 

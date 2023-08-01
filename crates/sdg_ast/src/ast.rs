@@ -85,6 +85,20 @@ impl AST {
                         ast.uses.insert(u.alias, u);
                     }
                 }
+                Stmt::Enum(mut e) => {
+                    e.decorators = curr_decos;
+                    curr_decos = vec![];
+
+                    if let Some(first_def) = check_already_defined(&ast, &e.name) {
+                        session.add_error(ASTError::multi_def(e.name, first_def, e.name_span));
+                    }
+
+                    else {
+                        for def in e.to_defs() {
+                            ast.defs.insert(def.name, def);
+                        }
+                    }
+                },
             }
 
         }
