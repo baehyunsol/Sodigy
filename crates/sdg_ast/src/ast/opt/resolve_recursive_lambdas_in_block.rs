@@ -1,8 +1,10 @@
 use super::super::{AST, ASTError, NameOrigin};
+use super::substitute_local_def;
 use crate::expr::{Expr, ExprKind, MatchBranch};
 use crate::iter_mut_exprs_in_ast;
 use crate::session::{InternedString, LocalParseSession};
-use crate::stmt::{ArgDef, Decorator};
+use crate::span::Span;
+use crate::stmt::{ArgDef, Decorator, FuncKind};
 use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
 use std::collections::HashMap;
@@ -204,9 +206,21 @@ impl AST {
     pub fn modify_closure_defs(&mut self, closure_collector: &ClosureToLambdaInfo) {
 
         for (closure_name, captured_vars) in closure_collector.iter() {
+            let substitutions = captured_vars.iter().map(
+                |(name, closure_name)| (
+                    name.clone(),
+                    Expr::identifier(*closure_name, NameOrigin::AnonymousFunc, Span::dummy()),
+                )
+            ).collect();
+
             match self.defs.get_mut(closure_name) {
-                Some(closure_def) => {},
-                _ => {},  // unreachable
+                Some(closure_def) => {
+                    substitute_local_def(&mut closure_def.ret_val, &substitutions);
+                    closure_def.kind = FuncKind::Lambda;
+                },
+                _ => unreachable!(
+                    "Internal Compiler Error B7F15A8FD91"
+                ),
             }
         }
 

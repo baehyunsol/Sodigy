@@ -65,3 +65,11 @@ def format_string_test: String = {
 
     f"{a} + {b} = {a + b}"
 };
+
+def add1(x: Int, y: Int, z: Int): Int = \{x + y + z + 1};
+
+@test.eq([13, 14])
+def add1_test: List(Int) = [
+    add1(3, 4, 5)(),
+    add1(3, 4, 6)(),
+];

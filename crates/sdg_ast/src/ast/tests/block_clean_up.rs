@@ -112,6 +112,15 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             };",
             "Call(@@LAMBDA__d30f25c7e0fd323345abffaf,x)",
         ),
+        (
+            "def tester<T>(x: T): T = {
+                let f = \\{n: T, n + x};
+
+                f(x)
+            };",
+            // for now, generics are stored in the captured environment
+            "Call(Closure(@@LAMBDA__f9e7b76fb8bb02bea8f393a1,T,x),x)",
+        ),
     ].into_iter().map(
         |(s1, s2)| (s1.as_bytes().to_vec(), s2.to_string())
     ).collect()

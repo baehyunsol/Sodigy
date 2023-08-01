@@ -1,4 +1,5 @@
 use super::super::{AST, ASTError, NameOrigin};
+use super::substitute_local_def;
 use crate::err::ParamType;
 use crate::expr::{Expr, ExprKind, MatchBranch};
 use crate::iter_mut_exprs_in_ast;
@@ -103,7 +104,15 @@ impl ExprKind {
                                 ).collect::<Vec<(InternedString, Span)>>();
                                 data.sort_by_key(|(_, span)| span.start);
 
-                                return Err(ASTError::recursive_def(data));
+                                let mut err = ASTError::recursive_def(data.clone());
+
+                                if data.iter().any(|(name, _)| is_closure(name, &defs)) {
+                                    err.set_msg(
+                                        String::from("Sodigy doesn't implement recursive closures currently.\nIf that's what you want, please try another way.")
+                                    );
+                                }
+
+                                return Err(err);
                             }
                         }
 
@@ -139,6 +148,9 @@ impl ExprKind {
                         // remove duplicates
                         let once_used_or_simple: HashSet<InternedString> = once_used.into_iter().collect();
 
+                        // HashMap<from, to>
+                        let mut substitutions: HashMap<(InternedString, NameOrigin), Expr> = HashMap::with_capacity(once_used_or_simple.len());
+
                         // substitute `once_used` ones and remove their defs
                         // substitute `simple` ones and remove their defs
                         for name_to_subs in once_used_or_simple.iter() {
@@ -146,15 +158,27 @@ impl ExprKind {
                                 |BlockDef { name, .. }| name == name_to_subs
                             ).expect("Internal Compiler Error E7C812E19B6");
                             let BlockDef { value: value_to_subs, .. } = defs[ind].clone();
-
-                            for BlockDef { value, .. } in defs.iter_mut() {
-                                substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
-                            }
-
-                            substitute_local_def(value, &value_to_subs, *name_to_subs, *id);
+                            substitutions.insert((*name_to_subs, NameOrigin::BlockDef(*id)), value_to_subs);
 
                             defs.swap_remove(ind);
                         }
+
+                        let subst_names = substitutions.keys().map(|ns| ns.clone()).collect::<Vec<_>>();
+
+                        // it has to be done because there may be recursive substitutions
+                        // e.g. (a -> 3), (b -> a), (c -> a) we have to make sure that `b` becomes `3`, not `a`.
+                        for subst_name in subst_names.iter() {
+                            // borrowck...
+                            let mut subst_val = substitutions.get_mut(subst_name).unwrap().clone();
+                            substitute_local_def(&mut subst_val, &substitutions);
+                            *substitutions.get_mut(subst_name).unwrap() = subst_val;
+                        }
+
+                        for BlockDef { value, .. } in defs.iter_mut() {
+                            substitute_local_def(value, &substitutions);
+                        }
+
+                        substitute_local_def(value, &substitutions);
                     }
                 },
             },
@@ -292,77 +316,6 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
     }
 }
 
-fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: InternedString, block_id: UID) {
-    match &mut haystack.kind {
-        ExprKind::Value(v) => match v {
-            ValueKind::Identifier(name, NameOrigin::BlockDef(id_)) if *name == name_to_replace && *id_ == block_id => {
-                *haystack = needle.clone();
-                return;
-            },
-            ValueKind::Identifier(_, _)
-            | ValueKind::Integer(_)
-            | ValueKind::Real(_)
-            | ValueKind::String(_)
-            | ValueKind::Bytes(_)=> {},
-            ValueKind::Format(elements)
-            | ValueKind::List(elements)
-            | ValueKind::Tuple(elements)
-            | ValueKind::Closure(_, elements) => {
-                for element in elements.iter_mut() {
-                    substitute_local_def(element, needle, name_to_replace, block_id);
-                }
-            },
-            ValueKind::Lambda(args, value) => {
-                substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
-
-                for ArgDef { ty, .. } in args.iter_mut() {
-                    if let Some(ty) = ty {
-                        substitute_local_def(ty, needle, name_to_replace, block_id);
-                    }
-                }
-
-            },
-            ValueKind::Block { defs, value, .. } => {
-                substitute_local_def(value.as_mut(), needle, name_to_replace, block_id);
-
-                for BlockDef { value, ty, .. } in defs.iter_mut() {
-                    substitute_local_def(value, needle, name_to_replace, block_id);
-
-                    if let Some(ty) = ty {
-                        substitute_local_def(ty, needle, name_to_replace, block_id);
-                    }
-                }
-            }
-        },
-        ExprKind::Prefix(_, op) | ExprKind::Postfix(_, op) => {
-            substitute_local_def(op, needle, name_to_replace, block_id);
-        },
-        ExprKind::Infix(_, op1, op2) => {
-            substitute_local_def(op1, needle, name_to_replace, block_id);
-            substitute_local_def(op2, needle, name_to_replace, block_id);
-        },
-        ExprKind::Match(value, branches, _) => {
-            substitute_local_def(value, needle, name_to_replace, block_id);
-
-            for MatchBranch { value, .. } in branches.iter_mut() {
-                substitute_local_def(value, needle, name_to_replace, block_id);
-            }
-        }
-        ExprKind::Branch(c, t, f) => {
-            substitute_local_def(c, needle, name_to_replace, block_id);
-            substitute_local_def(t, needle, name_to_replace, block_id);
-            substitute_local_def(f, needle, name_to_replace, block_id);
-        },
-        ExprKind::Call(f, args) => {
-            substitute_local_def(f, needle, name_to_replace, block_id);
-
-            for arg in args.iter_mut() {
-                substitute_local_def(arg, needle, name_to_replace, block_id);
-            }
-        },
-    }
-}
-
 fn is_simple_expr(e: &Expr) -> bool {
 
     match e.kind {
@@ -431,4 +384,31 @@ fn dump_graph(graph: &HashMap<InternedString, Vec<InternedString>>, session: &Lo
     }
 
     format!("({})", buf.join(", "))
+}
+
+fn dump_substitutions(sbst: &HashMap<(InternedString, NameOrigin), Expr>, session: &LocalParseSession) -> String {
+    let mut buf = Vec::with_capacity(sbst.len());
+
+    for ((name, origin), val) in sbst.iter() {
+        buf.push(format!(
+            "({}, {}): {}",
+            name.to_string(session),
+            "TODO",
+            val.dump(session),
+        ));
+    }
+
+    format!("({})", buf.join(", "))
+}
+
+// it's used to tell programmers that
+// Sodigy doesn't implement recursive closures
+fn is_closure(name: &InternedString, defs: &Vec<BlockDef>) -> bool {
+    for BlockDef { name: name_, value, .. } in defs.iter() {
+        if name == name_ {
+            return value.is_closure();
+        }
+    }
+
+    false
 }

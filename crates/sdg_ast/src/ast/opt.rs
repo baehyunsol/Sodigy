@@ -1,5 +1,9 @@
-use super::AST;
-use crate::session::LocalParseSession;
+use super::{AST, NameOrigin};
+use crate::expr::{Expr, ExprKind, MatchBranch};
+use crate::session::{InternedString, LocalParseSession};
+use crate::stmt::ArgDef;
+use crate::value::{BlockDef, ValueKind};
+use std::collections::HashMap;
 
 mod clean_up_blocks;
 mod resolve_recursive_lambdas_in_block;
@@ -55,5 +59,78 @@ macro_rules! iter_mut_exprs_in_ast {
 
             }
         }
+    }
+}
+
+pub fn substitute_local_def(haystack: &mut Expr, substitutions: &HashMap<(InternedString, NameOrigin), Expr>) {
+    match &mut haystack.kind {
+        ExprKind::Value(v) => match v {
+            ValueKind::Identifier(name, origin) => match substitutions.get(&(*name, *origin)) {
+                Some(v) => {
+                    *haystack = v.clone();
+                }
+                _ => {}
+            },
+            ValueKind::Identifier(_, _)
+            | ValueKind::Integer(_)
+            | ValueKind::Real(_)
+            | ValueKind::String(_)
+            | ValueKind::Bytes(_)=> {},
+            ValueKind::Format(elements)
+            | ValueKind::List(elements)
+            | ValueKind::Tuple(elements)
+            | ValueKind::Closure(_, elements) => {
+                for element in elements.iter_mut() {
+                    substitute_local_def(element, substitutions);
+                }
+            },
+            ValueKind::Lambda(args, value) => {
+                substitute_local_def(value.as_mut(), substitutions);
+
+                for ArgDef { ty, .. } in args.iter_mut() {
+                    if let Some(ty) = ty {
+                        substitute_local_def(ty, substitutions);
+                    }
+                }
+
+            },
+            ValueKind::Block { defs, value, .. } => {
+                substitute_local_def(value.as_mut(), substitutions);
+
+                for BlockDef { value, ty, .. } in defs.iter_mut() {
+                    substitute_local_def(value, substitutions);
+
+                    if let Some(ty) = ty {
+                        substitute_local_def(ty, substitutions);
+                    }
+                }
+            }
+        },
+        ExprKind::Prefix(_, op) | ExprKind::Postfix(_, op) => {
+            substitute_local_def(op, substitutions);
+        },
+        ExprKind::Infix(_, op1, op2) => {
+            substitute_local_def(op1, substitutions);
+            substitute_local_def(op2, substitutions);
+        },
+        ExprKind::Match(value, branches, _) => {
+            substitute_local_def(value, substitutions);
+
+            for MatchBranch { value, .. } in branches.iter_mut() {
+                substitute_local_def(value, substitutions);
+            }
+        }
+        ExprKind::Branch(c, t, f) => {
+            substitute_local_def(c, substitutions);
+            substitute_local_def(t, substitutions);
+            substitute_local_def(f, substitutions);
+        },
+        ExprKind::Call(f, args) => {
+            substitute_local_def(f, substitutions);
+
+            for arg in args.iter_mut() {
+                substitute_local_def(arg, substitutions);
+            }
+        },
     }
 }

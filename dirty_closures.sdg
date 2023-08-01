@@ -77,7 +77,7 @@ def yet_another_factorial(x: Int, y: Int): Int = {
     let fac1 = \{n, if n < 2 { x } else { x + fac2(n - 1) }};
     let fac2 = \{n, if n < 2 { x } else { x + fac1(n - 1) }};
 
-    fac1(y)
+    fac1(y) + fac2(y)
 };
 
 @test.eq((3923023104000, 35280))

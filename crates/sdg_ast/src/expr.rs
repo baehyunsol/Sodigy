@@ -1,3 +1,4 @@
+use crate::ast::NameOrigin;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::value::ValueKind;
@@ -55,47 +56,14 @@ impl Expr {
         self.kind.unwrap_closure_name()
     }
 
-    pub fn dump(&self, session: &LocalParseSession) -> String {
-        match &self.kind {
-            ExprKind::Value(v) => v.dump(session, self.span),
-            ExprKind::Prefix(op, expr) => format!("{op:?}({})", expr.dump(session)),
-            ExprKind::Infix(op, lhs, rhs) => format!(
-                "{}({},{})",
-                op.dump(session),
-                lhs.dump(session),
-                rhs.dump(session),
-            ),
-            ExprKind::Postfix(op, expr) => format!("{op:?}({})", expr.dump(session)),
-            ExprKind::Call(functor, args) => format!(
-                "Call({}{})",
-                functor.dump(session),
-                args.iter()
-                    .map(|arg| format!(",{}", arg.dump(session)))
-                    .collect::<Vec<String>>()
-                    .concat()
-            ),
-            ExprKind::Match(value, branches, _) => format!(
-                "Match({},[{}])",
-                value.dump(session),
-                branches.iter().map(
-                    |MatchBranch { pattern, value, .. }| format!(
-                        "{} => {}",
-                        pattern.dump(session),
-                        value.dump(session),
-                    )
-                ).collect::<Vec<String>>().join(","),
-            ),
-            ExprKind::Branch(cond, t, f) => {
-                #[cfg(test)]
-                assert_eq!(self.span.dump(session), "if");
-
-                format!(
-                    "Branch({},{},{})",
-                    cond.dump(session),
-                    t.dump(session),
-                    f.dump(session)
-                )
-            },
+    pub fn identifier(name: InternedString, origin: NameOrigin, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Value(ValueKind::Identifier(name, origin)),
+            span,
         }
+    }
+
+    pub fn dump(&self, session: &LocalParseSession) -> String {
+        self.kind.dump(session, self.span)
     }
 }

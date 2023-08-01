@@ -108,16 +108,19 @@ impl AST {
         );
 
         for module in self.inner_modules.values() {
-            result.push(module.dump(session));
+            result.push((module.def_span, module.dump(session)));
         }
 
         for use_ in self.uses.values() {
-            result.push(use_.dump(session));
+            result.push((use_.span, use_.dump(session)));
         }
 
         for def in self.defs.values() {
-            result.push(def.dump(session));
+            result.push((def.def_span, def.dump(session)));
         }
+
+        result.sort_by_key(|(span, _)| *span);
+        let result: Vec<String> = result.into_iter().map(|(_, content)| content).collect();
 
         result.join("\n\n")
     }

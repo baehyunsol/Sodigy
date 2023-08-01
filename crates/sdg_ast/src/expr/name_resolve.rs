@@ -72,15 +72,17 @@ impl Expr {
                     );
 
                     if let Some(names) = lambda_def.get_all_foreign_names() {
-                        let names = names.into_iter().collect::<Vec<_>>();
+                        let mut names = names.into_iter().collect::<Vec<_>>();
+
+                        // we have to make sure that the order is deterministic
+                        // calling `to_string` is a bad practice, but I can't think of any better way
+                        names.sort_by_key(|(name, _)| name.to_string(session));
+
                         self.kind = ExprKind::Value(
                             ValueKind::Closure(
                                 lambda_def.name,
                                 names.iter().map(
-                                    |(name, origin)| Expr {
-                                        kind: ExprKind::Value(ValueKind::Identifier(*name, *origin)),
-                                        span: Span::dummy(),
-                                    }
+                                    |(name, origin)| Expr::identifier(*name, *origin, Span::dummy())
                                 ).collect(),
                             )
                         );
@@ -188,6 +190,9 @@ impl Expr {
                     NameOrigin::BlockDef(id)
                     | NameOrigin::MatchBranch(id, _)
                     if !curr_blocks.contains(id) => {
+                        buffer.insert((*name, *origin));
+                    },
+                    NameOrigin::GenericArg(_) => {
                         buffer.insert((*name, *origin));
                     },
                     _ => {}

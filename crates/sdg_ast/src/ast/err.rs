@@ -53,6 +53,10 @@ impl ASTError {
             message: String::new(),
         }
     }
+
+    pub(crate) fn set_msg(&mut self, message: String) {
+        self.message = message;
+    }
 }
 
 impl SodigyError for ASTError {
