@@ -1,6 +1,7 @@
 use super::{Expr, InfixOp, PostfixOp, PrefixOp};
 use crate::ast::NameOrigin;
 use crate::pattern::Pattern;
+use crate::session::InternedString;
 use crate::value::ValueKind;
 use sdg_uid::UID;
 
@@ -35,6 +36,40 @@ impl ExprKind {
             true
         } else {
             false
+        }
+    }
+
+    pub fn is_closure(&self) -> bool {
+        if let ExprKind::Value(ValueKind::Closure(_, _)) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn unwrap_closure_name(&self) -> InternedString {
+        if let ExprKind::Value(ValueKind::Closure(name, _)) = self {
+            *name
+        } else {
+            unreachable!("Internal Compiler Error F77F5A131D0")
+        }
+    }
+
+    pub fn is_lambda(&self) -> bool {
+        if let ExprKind::Value(ValueKind::Lambda(_, _)) = self {
+            true
+        } else if let ExprKind::Value(ValueKind::Identifier(_, origin)) = self {
+            *origin == NameOrigin::AnonymousFunc
+        } else {
+            false
+        }
+    }
+
+    pub fn unwrap_lambda_name(&self) -> InternedString {
+        if let ExprKind::Value(ValueKind::Identifier(name, _)) = self {
+            *name
+        } else {
+            unreachable!("Internal Compiler Error C8FB679F0CB")
         }
     }
 

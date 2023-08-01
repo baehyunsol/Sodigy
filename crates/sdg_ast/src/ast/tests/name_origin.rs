@@ -5,23 +5,23 @@ use crate::utils::bytes_to_string;
 
 fn samples() -> Vec<Vec<u8>> {
     vec![
-        "use global__.sub__.sub__;
+        "use global_2.sub_2.sub_2;
 
-        def local___: Int = 3;
+        def local_3: Int = 3;
 
-        @sub__(local___)
-        def local__<generic__>(func__: List(Int), func___: List(Int), block_scoped: Int): Int = {
-            let block__ = 3;
-            let block___ = 4;
+        @sub_2(local_3)
+        def local_2<generic_2>(func_2: List(Int), func_3: List(Int), block_scoped: Int): Int = {
+            let block_2 = 3;
+            let block_3 = 4;
             let block_scoped = 5;
-            let block______ = sub__;
-            let block_______ = \\{func__, func___, func__ + func___};
-            let block_________ = match sub__ {
-                ($match__, $match___) => match__ + match___,
+            let block_6 = sub_2;
+            let block_7 = \\{func_2, func_3, func_2 + func_3};
+            let block_8 = match sub_2 {
+                ($match_2, $match_3) => match_2 + match_3,
                 _ => 1,
             };
 
-            func__[local___] + func___[local___ + 1] + block__ + block___ + block_scoped + block______ + block_______(block__) + block_________
+            func_2[local_3] + func_3[local_3 + 1] + block_2 + block_3 + block_scoped + block_6 + block_7(block_2) + block_8
         };",
     ].into_iter().map(|s| s.as_bytes().to_vec()).collect()
 }
@@ -53,8 +53,6 @@ fn name_origin_test() {
                     NameOrigin::Prelude => {},
                     NameOrigin::NotKnownYet => panic!("{}", bytes_to_string(&name)),
                     NameOrigin::AnonymousFunc => assert_prefix(&name, LAMBDA_FUNC_PREFIX.as_bytes()),
-
-                    // TODO: add case for this
                     NameOrigin::MatchBranch(_, _) => assert_prefix(&name, b"match"),
                 }
             },

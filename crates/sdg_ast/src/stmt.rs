@@ -49,6 +49,12 @@ impl GetNameOfArg for InternedString {
     }
 }
 
+impl<T> GetNameOfArg for (InternedString, T) {
+    fn get_name_of_arg(&self) -> InternedString {
+        self.0
+    }
+}
+
 impl GetNameOfArg for ArgDef {
     fn get_name_of_arg(&self) -> InternedString {
         self.name

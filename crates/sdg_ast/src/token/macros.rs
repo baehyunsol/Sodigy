@@ -36,7 +36,6 @@ macro_rules! token_op_checker {
 }
 
 token_kind_impl!(Op, dot, Dot);
-token_kind_impl!(Op, dotdot, DotDot);
 token_kind_impl!(Op, comma, Comma);
 token_kind_impl!(Op, semi_colon, SemiColon);
 token_kind_impl!(Op, colon, Colon);

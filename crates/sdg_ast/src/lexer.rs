@@ -188,10 +188,9 @@ fn lex_token(
                     Some(c) if *c == b'\'' || *c == b'"' => {
                         let (string_literal, end_index) = lex_token(s, ind + 1, session)?;
 
-                        // TODO: span.set_end
                         return if s[ind] == b'b' {
                             Ok((
-                                string_to_bytes(string_literal)?,
+                                string_to_bytes(string_literal),
                                 end_index,
                             ))
                         }
@@ -631,14 +630,14 @@ impl SkipWhiteSpaceCommentResult {
     }
 }
 
-fn string_to_bytes(t: Token) -> Result<Token, ParseError> {
+fn string_to_bytes(t: Token) -> Token {
     // t.span points to `"` of `b"`, but it should point to `b`.
     let span = t.span.backward(1).expect("Internal Compiler Error FAEDCCA5948");
 
-    Ok(Token {
+    Token {
         kind: TokenKind::Bytes(v32_to_bytes(t.kind.unwrap_string())),
         span: span.extend(1),
-    })
+    }
 }
 
 fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Token, ParseError> {

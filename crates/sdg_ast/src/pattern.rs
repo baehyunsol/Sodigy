@@ -1,10 +1,9 @@
 use crate::ast::NameScope;
-use crate::err::{ParamType, ParseError};
+use crate::err::ParseError;
 use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::Token;
-use std::collections::HashSet;
 
 mod err;
 mod kind;
@@ -209,17 +208,10 @@ impl Pattern {
             PatternKind::Slice(patterns)
             | PatternKind::Tuple(patterns)
             | PatternKind::EnumTuple(_, patterns) => {
-                let mut names = HashSet::new();
                 let mut shorthand_spans = vec![];
 
                 for pat in patterns.iter() {
                     pat.check_validity()?;
-
-                    if let PatternKind::Binding(name) = &pat.kind {
-                        if !names.insert(*name) {
-                            return Err(ParseError::multi_def(*name, pat.span, ParamType::PatternNameBinding));
-                        }
-                    }
 
                     if let PatternKind::Shorthand = &pat.kind {
                         shorthand_spans.push(pat.span);
@@ -238,7 +230,7 @@ impl Pattern {
         }
     }
 
-    pub fn get_name_bindings(&self, buffer: &mut Vec<InternedString>) {
+    pub fn get_name_bindings(&self, buffer: &mut Vec<(InternedString, Span)>) {
         match &self.kind {
             PatternKind::WildCard
             | PatternKind::Shorthand
@@ -246,7 +238,7 @@ impl Pattern {
             | PatternKind::Constant(_)
             | PatternKind::Range(_, _, _) => {},
             PatternKind::Binding(name) => {
-                buffer.push(*name);
+                buffer.push((*name, self.span));
             },
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns)

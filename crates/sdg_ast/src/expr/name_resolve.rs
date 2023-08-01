@@ -1,9 +1,12 @@
 use super::{Expr, ExprKind, MatchBranch};
 use crate::ast::{ASTError, NameOrigin, NameScope, NameScopeKind};
+use crate::err::{ParamType, ParseError};
 use crate::expr::InfixOp;
 use crate::session::{InternedString, LocalParseSession};
+use crate::span::Span;
 use crate::stmt::{ArgDef, FuncDef, FuncKind};
 use crate::value::{BlockDef, ValueKind};
+use crate::warning::SodigyWarning;
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
@@ -49,16 +52,14 @@ impl Expr {
                 ValueKind::Lambda(args, expr) => {
                     let lambda_id = UID::new_lambda_id();
 
-                    // TODO: `name_scope.push_names` after `ty.resolve_names`?
-                    // -> dependent types?
-                    name_scope.push_names(args, NameScopeKind::LambdaArg(lambda_id));
-
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
                             ty.resolve_names(name_scope, lambda_defs, session, used_names);
                         }
                     }
 
+                    // no dependent types
+                    name_scope.push_names(args, NameScopeKind::LambdaArg(lambda_id));
                     expr.resolve_names(name_scope, lambda_defs, session, used_names);
                     name_scope.pop_names();
 
@@ -75,7 +76,12 @@ impl Expr {
                         self.kind = ExprKind::Value(
                             ValueKind::Closure(
                                 lambda_def.name,
-                                names.clone(),
+                                names.iter().map(
+                                    |(name, origin)| Expr {
+                                        kind: ExprKind::Value(ValueKind::Identifier(*name, *origin)),
+                                        span: Span::dummy(),
+                                    }
+                                ).collect(),
                             )
                         );
 
@@ -120,9 +126,25 @@ impl Expr {
                     pattern.resolve_names(name_scope, session);
                     let mut bindings = vec![];
                     pattern.get_name_bindings(&mut bindings);
+                    let mut unique_name_counter = HashSet::with_capacity(bindings.len());
+
+                    // find multi-def names
+                    for (name, span) in bindings.iter() {
+                        if !unique_name_counter.insert(*name) {
+                            session.add_error(ParseError::multi_def(*name, *span, ParamType::PatternNameBinding));
+                        }
+                    }
 
                     name_scope.push_names(&bindings, NameScopeKind::MatchBranch(*match_id, *branch_id));
                     value.resolve_names(name_scope, lambda_defs, session, used_names);
+
+                    // find unsued names
+                    for (name, span) in bindings.iter() {
+                        if !used_names.contains(&(*name, NameOrigin::MatchBranch(*match_id, *branch_id))) {
+                            session.add_warning(SodigyWarning::unused(*name, *span, ParamType::PatternNameBinding));
+                        }
+                    }
+
                     name_scope.pop_names();
                 }
             },
@@ -176,26 +198,13 @@ impl Expr {
                 | ValueKind::Bytes(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
-                | ValueKind::Format(elements) => {
+                | ValueKind::Format(elements)
+                // nested closures are possible
+                | ValueKind::Closure(_, elements) => {
                     for element in elements.iter() {
                         element.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
                     }
                 },
-
-                // nested closures are possible
-                ValueKind::Closure(_, captured_variables) => {
-                    for (name, origin) in captured_variables.iter() {
-                        match origin {
-                            NameOrigin::FuncArg(id) if *id != curr_func_id => {
-                                buffer.insert((*name, *origin));
-                            },
-                            NameOrigin::BlockDef(id) if !curr_blocks.contains(id) => {
-                                buffer.insert((*name, *origin));
-                            },
-                            _ => {}
-                        }
-                    }
-                }
                 ValueKind::Lambda(_, _) => {
                     // Inner lambdas have to be resolved before the outer ones, if the lambdas are nested
                     panic!("Internal Compiler Error 13D43ACBD32");

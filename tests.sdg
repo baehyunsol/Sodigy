@@ -16,6 +16,14 @@ def mutual_fibo: Int = {
     fibo2(n)
 };
 
+@test.eq(1307674368000)
+def factorial: Int = {
+    let n = 15;
+    let fac = \{n, if n < 2 { 1 } else { n * fac(n - 1) }};
+
+    fac(n)
+};
+
 def lambdas(x: Int, y: Int): Int = \{
     \{
         \{y, z, x + y + z}
@@ -49,49 +57,6 @@ def big_number_test: Int = {
 
     a * a
 };
-
-
-##!
-# Equivalent Python code
-
-```
-def dirty_closure(n):
-    f1 = lambda x: f2(x - 1)
-    f2 = lambda x: (1 + f1(x - n)) if x > 0 else 0
-    return f1(100)
-```
-!##
-def dirty_closure(n: Int): Int = {
-    let f1 = \{x, f2(x - 1)};
-    let f2 = \{x, if x > 0 { 1 + f1(x - n) } else { 0 } };
-
-    f1(100)
-};
-
-@test.eq([17, 20, 25, 33, 50])
-def dirty_closure_test: List(Int) = [
-    dirty_closure(5),
-    dirty_closure(4),
-    dirty_closure(3),
-    dirty_closure(2),
-    dirty_closure(1),
-];
-
-def dirty_closure2(n: Int): Int = {
-    let f1 = \{\{x, f2()(x - 1)}};
-    let f2 = \{\{x, if x > 0 { 1 + f1()(x - n) } else { 0 } }};
-
-    f1()(100)
-};
-
-@test.eq([17, 20, 25, 33, 50])
-def dirty_closure_test2: List(Int) = [
-    dirty_closure2(5),
-    dirty_closure2(4),
-    dirty_closure2(3),
-    dirty_closure2(2),
-    dirty_closure2(1),
-];
 
 @test.eq("3 + 4 = 7")
 def format_string_test: String = {

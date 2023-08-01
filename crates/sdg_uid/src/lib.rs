@@ -11,6 +11,16 @@ macro_rules! def_new_uid {
     }
 }
 
+impl UID {
+    pub fn dummy() -> Self {
+        UID(DUMMY)
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.0 == DUMMY
+    }
+}
+
 def_new_uid!(new_block_id, BLOCK);
 def_new_uid!(new_func_id, FUNC);
 def_new_uid!(new_lambda_id, LAMBDA);
@@ -25,9 +35,11 @@ impl UID {
 
 }
 
+const DUMMY: u128 = 0;
+
 const ZERO: u128 = 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_F000;
-const BLOCK: u128  = 0x000;
-const FUNC: u128   = 0x001;
-const LAMBDA: u128 = 0x002;
-const MATCH: u128 = 0x003;
-const MATCH_BRANCH: u128 = 0x004;
+const BLOCK: u128  = 0x001;
+const FUNC: u128   = 0x002;
+const LAMBDA: u128 = 0x003;
+const MATCH: u128 = 0x004;
+const MATCH_BRANCH: u128 = 0x005;

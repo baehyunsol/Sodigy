@@ -114,7 +114,10 @@ Pattern matching
 syntax sugar for the below pattern
 
 ```rust
-if let PATTERN = VALUE { true } else { false }
+match val {
+  PATTERN => true,
+  _ => false,
+}
 ```
 
 ---

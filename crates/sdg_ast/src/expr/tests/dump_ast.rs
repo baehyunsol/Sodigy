@@ -389,6 +389,13 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize, usize)> {  // (inpu
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             2, 2,
         ),
+        // TODO: it doesn't work with this test suite because this test suite doesn't call `resolve_names`
+        // TODO: make a test suite for that
+        // (
+        //     "match x {($a, $a) => a + 1, _ => 100}",
+        //     ParseErrorKind::MultipleDefParam(InternedString::dummy(), ParamType::PatternNameBinding),
+        //     0, 0,
+        // ),
     ];
 
     let mut result: Vec<(Vec<u8>, ParseErrorKind, usize, usize)> = result

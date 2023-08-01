@@ -1,4 +1,4 @@
-use crate::session::LocalParseSession;
+use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::value::ValueKind;
 
@@ -37,6 +37,22 @@ impl Expr {
             ExprKind::Value(ValueKind::Block { value, .. }) => *value.clone(),
             _ => panic!("Internal Compiler Error 0687238F1E8"),
         }
+    }
+
+    pub fn is_closure(&self) -> bool {
+        self.kind.is_closure()
+    }
+
+    pub fn unwrap_lambda_name(&self) -> InternedString {
+        self.kind.unwrap_lambda_name()
+    }
+
+    pub fn is_lambda(&self) -> bool {
+        self.kind.is_lambda()
+    }
+
+    pub fn unwrap_closure_name(&self) -> InternedString {
+        self.kind.unwrap_closure_name()
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {

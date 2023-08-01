@@ -34,11 +34,12 @@ even though `x` is used twice (syntactically), it'll never be used twice (semant
 // 5. Check cycles
 //
 // when it returns Err(()), the actual errors are in `session`
-iter_mut_exprs_in_ast!(clean_up_blocks);
+iter_mut_exprs_in_ast!(clean_up_blocks, ());
 
 impl Expr {
-    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
-        self.kind.clean_up_blocks(session)?;
+    // the last argument is due to the definition of the macro
+    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession, _: &mut ()) -> Result<(), ASTError> {
+        self.kind.clean_up_blocks(session, &mut ())?;
 
         // in case `clean_up_blocks` removed all the blocks
         if self.is_block_with_0_defs() {
@@ -51,40 +52,41 @@ impl Expr {
 
 impl ExprKind {
 
-    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession) -> Result<(), ASTError> {
+    // the last argument is due to the definition of the macro
+    pub fn clean_up_blocks(&mut self, session: &mut LocalParseSession, ctxt: &mut ()) -> Result<(), ASTError> {
         match self {
             ExprKind::Value(v) => match v {
                 ValueKind::Identifier(_, _)
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
-                | ValueKind::Bytes(_)
-                | ValueKind::Closure(_, _) => {},
+                | ValueKind::Bytes(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
-                | ValueKind::Format(elements) => {
+                | ValueKind::Format(elements)
+                | ValueKind::Closure(_, elements) => {
                     for element in elements.iter_mut() {
-                        element.clean_up_blocks(session)?;
+                        element.clean_up_blocks(session, ctxt)?;
                     }
                 },
                 ValueKind::Lambda(args, val) => {
                     for ArgDef { ty, .. } in args.iter_mut() {
                         if let Some(ty) = ty {
-                            ty.clean_up_blocks(session)?;
+                            ty.clean_up_blocks(session, ctxt)?;
                         }
                     }
 
-                    val.clean_up_blocks(session)?;
+                    val.clean_up_blocks(session, ctxt)?;
                 },
                 ValueKind::Block { defs, value, id } => {
                     for BlockDef { value, ty, .. } in defs.iter_mut() {
-                        value.clean_up_blocks(session)?;
+                        value.clean_up_blocks(session, ctxt)?;
 
                         if let Some(ty) = ty {
-                            ty.clean_up_blocks(session)?;
+                            ty.clean_up_blocks(session, ctxt)?;
                         }
                     }
-                    value.clean_up_blocks(session)?;
+                    value.clean_up_blocks(session, ctxt)?;
 
                     // running this pass multiple times can reduce even more blocks!
                     for i in 0..2 {
@@ -156,29 +158,29 @@ impl ExprKind {
                     }
                 },
             },
-            ExprKind::Prefix(_, v) => v.clean_up_blocks(session)?,
-            ExprKind::Postfix(_, v) => v.clean_up_blocks(session)?,
+            ExprKind::Prefix(_, v) => v.clean_up_blocks(session, ctxt)?,
+            ExprKind::Postfix(_, v) => v.clean_up_blocks(session, ctxt)?,
             ExprKind::Infix(_, v1, v2) => {
-                v1.clean_up_blocks(session)?;
-                v2.clean_up_blocks(session)?;
+                v1.clean_up_blocks(session, ctxt)?;
+                v2.clean_up_blocks(session, ctxt)?;
             },
             ExprKind::Match(value, branches, _) => {
-                value.clean_up_blocks(session)?;
+                value.clean_up_blocks(session, ctxt)?;
 
                 for MatchBranch { value, .. } in branches.iter_mut() {
-                    value.clean_up_blocks(session)?;
+                    value.clean_up_blocks(session, ctxt)?;
                 }
             },
             ExprKind::Branch(c, t, f) => {
-                c.clean_up_blocks(session)?;
-                t.clean_up_blocks(session)?;
-                f.clean_up_blocks(session)?;
+                c.clean_up_blocks(session, ctxt)?;
+                t.clean_up_blocks(session, ctxt)?;
+                f.clean_up_blocks(session, ctxt)?;
             },
             ExprKind::Call(f, args) => {
-                f.clean_up_blocks(session)?;
+                f.clean_up_blocks(session, ctxt)?;
 
                 for arg in args.iter_mut() {
-                    arg.clean_up_blocks(session)?;
+                    arg.clean_up_blocks(session, ctxt)?;
                 }
 
             }
@@ -237,16 +239,10 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
             | ValueKind::Bytes(_) => {},
             ValueKind::Format(elements)
             | ValueKind::List(elements)
-            | ValueKind::Tuple(elements) => {
+            | ValueKind::Tuple(elements)
+            | ValueKind::Closure(_, elements) => {
                 for element in elements.iter() {
                     count_occurrence(element, name, block_id, count);
-                }
-            },
-            ValueKind::Closure(_, captured_variables) => {
-                for (name_, origin) in captured_variables.iter() {
-                    if *name_ == name && *origin == NameOrigin::BlockDef(block_id) {
-                        *count += 1;
-                    }
                 }
             },
             ValueKind::Lambda(args, value) => {
@@ -307,11 +303,11 @@ fn substitute_local_def(haystack: &mut Expr, needle: &Expr, name_to_replace: Int
             | ValueKind::Integer(_)
             | ValueKind::Real(_)
             | ValueKind::String(_)
-            | ValueKind::Bytes(_)
-            | ValueKind::Closure(_, _) => {},
+            | ValueKind::Bytes(_)=> {},
             ValueKind::Format(elements)
             | ValueKind::List(elements)
-            | ValueKind::Tuple(elements) => {
+            | ValueKind::Tuple(elements)
+            | ValueKind::Closure(_, elements) => {
                 for element in elements.iter_mut() {
                     substitute_local_def(element, needle, name_to_replace, block_id);
                 }
@@ -421,4 +417,18 @@ fn get_span_by_name(name: InternedString, defs: &Vec<BlockDef>) -> Span {
         }
     }
     panic!("Internal Compiler Error D679C5FEB5E");
+}
+
+fn dump_graph(graph: &HashMap<InternedString, Vec<InternedString>>, session: &LocalParseSession) -> String {
+    let mut buf = Vec::with_capacity(graph.len());
+
+    for (key, val) in graph.iter() {
+        buf.push(format!(
+            "{}: [{}]",
+            key.to_string(session),
+            val.iter().map(|v| v.to_string(session)).collect::<Vec<String>>().join(", "),
+        ));
+    }
+
+    format!("({})", buf.join(", "))
 }

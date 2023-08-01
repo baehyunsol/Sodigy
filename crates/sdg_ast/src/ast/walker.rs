@@ -49,8 +49,8 @@ impl ExprKind {
                     }
                 },
                 ValueKind::Closure(_, captured_variables) => {
-                    for (name, origin) in captured_variables.iter() {
-                        f(name, origin, ctxt)
+                    for var in captured_variables.iter() {
+                        var.kind.id_walker(f, ctxt);
                     }
                 },
                 ValueKind::Lambda(_, _) => {
@@ -83,8 +83,6 @@ impl ExprKind {
                     arg.kind.id_walker(f, ctxt);
                 }
             },
-
-            // TODO: What do I do with patterns?
             ExprKind::Match(value, branches, _) => {
                 value.kind.id_walker(f, ctxt);
 

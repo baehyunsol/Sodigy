@@ -119,9 +119,7 @@ impl FuncDef {
         }
 
         name_scope.push_names(&self.generics, NameScopeKind::GenericArg(self.id));
-        name_scope.push_names(&self.args, NameScopeKind::FuncArg(self.id));
 
-        // For now, types are dependent to the args
         for ArgDef { ty, .. } in self.args.iter_mut() {
             if let Some(ty) = ty {
                 ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
@@ -131,6 +129,9 @@ impl FuncDef {
         if let Some(ty) = &mut self.ret_type {
             ty.resolve_names(name_scope, lambda_defs, session, &mut used_args);
         }
+
+        // no dependent types
+        name_scope.push_names(&self.args, NameScopeKind::FuncArg(self.id));
 
         self.ret_val.resolve_names(name_scope, lambda_defs, session, &mut used_args);
 

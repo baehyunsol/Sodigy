@@ -96,21 +96,21 @@ fn samples() -> Vec<(Vec<u8>, String)> {
             "Call(foo)"
         ),
         (
-            "def tester: Int = {
+            "def tester(x: Int): Int = {
                 let fibo = \\{n, if n < 2 { 0 } else { fibo(n - 1) + fibo(n - 2) }};
 
-                fibo(20)
+                fibo(x)
             };",
-            "TODO",
+            "Call(@@LAMBDA__d30f25c7e0fd323345abffaf,x)",
         ),
         (
-            "def tester(n: Int): Int = {
-                let f1 = \\{x, f2(x - 1)};
-                let f2 = \\{x, if x > 0 { f1(x - n) } else { 0 } };
+            "def tester(x: Int): Int = {
+                let fac1 = \\{n, if n < 2 { 1 } else { 1 + fac2(n - 1) }};
+                let fac2 = \\{n, if n < 2 { 1 } else { 1 + fac1(n - 1) }};
 
-                f1(100)
+                fac1(x)
             };",
-            "TODO",
+            "Call(@@LAMBDA__d30f25c7e0fd323345abffaf,x)",
         ),
     ].into_iter().map(
         |(s1, s2)| (s1.as_bytes().to_vec(), s2.to_string())

@@ -8,6 +8,8 @@ mod err;
 mod name_resolve;
 mod opt;
 
+use opt::ClosureCollector;
+
 #[cfg(test)]
 mod walker;
 
@@ -87,9 +89,12 @@ impl AST {
 
         }
 
+        let mut closure_collector = ClosureCollector::new();
+
         ast.resolve_names(session)?;
-        ast.resolve_recursive_funcs_in_block(session)?;
-        ast.clean_up_blocks(session)?;
+        ast.resolve_recursive_lambdas_in_block(session, &mut closure_collector)?;
+        ast.modify_closure_defs(&closure_collector.closure_to_lambda_info);
+        ast.clean_up_blocks(session, &mut ())?;
         ast.opt(session);
 
         session.err_if_has_error()?;
