@@ -62,8 +62,14 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
             }
         };
 
+        let generics = match tokens.step_generic_defs() {
+            Some(generics) => generics?,
+            None => vec![],
+        };
+
         if tokens.consume(TokenKind::semi_colon()) {
-            return Ok(Stmt::Enum(EnumDef::empty(curr_span, name_span, enum_name)));
+            // TODO: check unused generics (did i already impl it?)
+            return Ok(Stmt::Enum(EnumDef::empty(curr_span, name_span, enum_name, generics)));
         }
 
         let mut enum_body_tokens = tokens.step_grouped_tokens_strict(Delimiter::Brace, name_span)?;
@@ -115,6 +121,7 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
                 }
             }
 
+            // TODO: check unused generics (did i already impl it?)
             variants.push(VariantDef::new(var_name, var_span, variant_tuple));
 
             if enum_body_tokens.consume(TokenKind::comma()) {
@@ -153,7 +160,7 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
             _ => {}
         }
 
-        Ok(Stmt::Enum(EnumDef::new(curr_span, name_span, enum_name, variants)))
+        Ok(Stmt::Enum(EnumDef::new(curr_span, name_span, enum_name, variants, generics)))
     } else if tokens.consume(TokenKind::Keyword(Keyword::Module)) {
         let (module_name, name_span) = match tokens.step_identifier_strict_with_span() {
             Ok(ns) => ns,

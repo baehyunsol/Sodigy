@@ -73,3 +73,23 @@ def add1_test: List(Int) = [
     add1(3, 4, 5)(),
     add1(3, 4, 6)(),
 ];
+
+enum MyOption<T> {
+    None,
+    Some(T)
+}
+
+def my_map<T, U>(opt: MyOption(T), f: Func(T, U)): MyOption(U) = match opt {
+    MyOption.Some($x) => MyOption.Some(f(x)),
+    _ => MyOption.None,
+};
+
+@test.eq([MyOption.Some(5), MyOption.None])
+def my_map_test: List(MyOption(Int)) = {
+    let f = \{n, n + 1};
+
+    [
+        my_map(MyOption.Some(4), f),
+        my_map(MyOption.None, f),
+    ]
+};

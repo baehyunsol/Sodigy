@@ -1,6 +1,6 @@
 #[inline]
 pub fn get_prelude_buffs_len() -> usize {
-    7
+    8
 }
 
 // Some context has to figure out whether an `InternedString` is underbar or not without session
@@ -13,6 +13,7 @@ pub fn get_prelude_buffs() -> Vec<Vec<u8>> {
         b"String".to_vec(),
         b"List".to_vec(),
         b"Bool".to_vec(),
+        b"Option".to_vec(),
         b"Func".to_vec(),
         b"test".to_vec(),
     ]
