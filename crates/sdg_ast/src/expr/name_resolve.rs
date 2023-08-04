@@ -24,7 +24,8 @@ impl Expr {
                 ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
-                | ValueKind::Bytes(_) => {},
+                | ValueKind::Bytes(_)
+                | ValueKind::Object(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
@@ -82,7 +83,7 @@ impl Expr {
                             ValueKind::Closure(
                                 lambda_def.name,
                                 names.iter().map(
-                                    |(name, origin)| Expr::identifier(*name, *origin, Span::dummy())
+                                    |(name, origin)| Expr::new_identifier(*name, *origin, Span::dummy())
                                 ).collect(),
                             )
                         );
@@ -200,7 +201,8 @@ impl Expr {
                 ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_) 
-                | ValueKind::Bytes(_) => {},
+                | ValueKind::Bytes(_)
+                | ValueKind::Object(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements)

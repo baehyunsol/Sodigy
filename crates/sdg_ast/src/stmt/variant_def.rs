@@ -3,9 +3,9 @@ use crate::session::InternedString;
 use crate::span::Span;
 
 pub struct VariantDef {
-    name: InternedString,
-    span: Span,
-    fields: Option<Vec<Expr>>,
+    pub(crate) name: InternedString,
+    pub(crate) span: Span,
+    pub(crate) fields: Option<Vec<Expr>>,
 }
 
 impl VariantDef {
@@ -15,6 +15,7 @@ impl VariantDef {
             fields: Some(fields),
         }
     }
+
     pub fn new_no_field(name: InternedString, span: Span) -> Self {
         VariantDef {
             name, span,

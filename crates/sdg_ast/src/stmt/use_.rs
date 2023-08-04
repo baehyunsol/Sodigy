@@ -25,8 +25,8 @@ impl Use {
         }
     }
 
-    pub fn push_front(mut self, path: &Vec<(InternedString, Span)>) -> Self {
-        self.path.push_front(&path);
+    pub fn append_front(mut self, path: &Vec<(InternedString, Span)>) -> Self {
+        self.path.append_front(&path);
 
         self
     }

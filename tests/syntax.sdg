@@ -1,3 +1,6 @@
+module fp;
+module math;
+
 @test.eq(43)
 def functor_test: Int = {
   let adder = \{x, \{y, x + y}};
@@ -76,7 +79,7 @@ def add1_test: List(Int) = [
 
 enum MyOption<T> {
     None,
-    Some(T)
+    Some(T),
 }
 
 def my_map<T, U>(opt: MyOption(T), f: Func(T, U)): MyOption(U) = match opt {

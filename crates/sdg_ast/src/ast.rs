@@ -39,6 +39,7 @@ impl AST {
             defs: HashMap::new(),
             uses: HashMap::new(),
         };
+        let curr_location = session.curr_name_path().clone();
 
         for stmt in stmts.into_iter() {
 
@@ -46,6 +47,7 @@ impl AST {
                 Stmt::Decorator(d) => { curr_decos.push(d); }
                 Stmt::Def(mut f) => {
                     f.decorators = curr_decos;
+                    f.set_location(&curr_location);
                     curr_decos = vec![];
 
                     if let Some(first_def) = check_already_defined(&ast, &f.name) {
@@ -94,7 +96,7 @@ impl AST {
                     }
 
                     else {
-                        for def in e.to_defs() {
+                        for def in e.to_defs(&curr_location, session) {
                             ast.defs.insert(def.name, def);
                         }
                     }

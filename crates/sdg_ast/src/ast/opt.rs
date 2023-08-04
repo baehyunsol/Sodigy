@@ -71,11 +71,11 @@ pub fn substitute_local_def(haystack: &mut Expr, substitutions: &HashMap<(Intern
                 }
                 _ => {}
             },
-            ValueKind::Identifier(_, _)
-            | ValueKind::Integer(_)
+            ValueKind::Integer(_)
             | ValueKind::Real(_)
             | ValueKind::String(_)
-            | ValueKind::Bytes(_)=> {},
+            | ValueKind::Bytes(_)
+            | ValueKind::Object(_) => {},
             ValueKind::Format(elements)
             | ValueKind::List(elements)
             | ValueKind::Tuple(elements)

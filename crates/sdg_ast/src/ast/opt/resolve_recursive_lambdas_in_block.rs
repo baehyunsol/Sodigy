@@ -46,7 +46,8 @@ impl Expr {
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
-                | ValueKind::Bytes(_) => {},
+                | ValueKind::Bytes(_)
+                | ValueKind::Object(_) => {},
                 ValueKind::List(elements)
                 | ValueKind::Tuple(elements)
                 | ValueKind::Format(elements) => {
@@ -143,7 +144,8 @@ impl Expr {
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
                 | ValueKind::Bytes(_)
-                | ValueKind::Identifier(_, _) => {},
+                | ValueKind::Identifier(_, _)
+                | ValueKind::Object(_) => {},
                 ValueKind::Format(elems)
                 | ValueKind::List(elems)
                 | ValueKind::Tuple(elems) => {
@@ -209,7 +211,7 @@ impl AST {
             let substitutions = captured_vars.iter().map(
                 |(name, closure_name)| (
                     name.clone(),
-                    Expr::identifier(*closure_name, NameOrigin::AnonymousFunc, Span::dummy()),
+                    Expr::new_identifier(*closure_name, NameOrigin::AnonymousFunc, Span::dummy()),
                 )
             ).collect();
 

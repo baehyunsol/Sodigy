@@ -125,6 +125,7 @@ def split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T
 };
 
 # [a, a, a, b, b, c, c, c, c, b] -> [a, b, c, b]
+@test.expected(([0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 2]), [0, 1, 2, 3, 2])
 def dedup<T>(ls: List(T)): List(T) = match ls.len() {
     0..~1 => ls,
     _ => if ls[0] == ls[1] {
@@ -139,11 +140,6 @@ def dedup<T>(ls: List(T)): List(T) = match ls.len() {
         }
     }
 };
-
-@test.eq([0, 1, 2, 3, 2])
-def dedup_test: List(Int) = dedup(
-    [0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 2]
-);
 
 def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
     Option.None  # just `None`?

@@ -58,3 +58,5 @@ Most error messages and warning messages are from Rust.
   - ``` no field `path` on type `&FileError` ```
   - ``` the name `T` is already used for a generic parameter in this item's generic parameters ```
   - ``` `..` can only be used once per tuple pattern ```
+  - ``` parameter `T` is never used ```
+    - if there's an unused generic arg in an enum def

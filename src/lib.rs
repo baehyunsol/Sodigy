@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn parse_tests() {
         let mut session = LocalParseSession::new();
-        session.set_input("./tests.sdg").map_err(|e| e.render_err(&session)).unwrap();
+        session.set_input("./tests/syntax.sdg").map_err(|e| e.render_err(&session)).unwrap();
         let input = session.get_curr_file_content().to_vec();
 
         match parse_file(&input, &mut session) {

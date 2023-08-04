@@ -11,7 +11,26 @@ It's still under development. Only parser and lexer are (partially) complete.
 
 ### Decorators
 
-Decorators decorate functions (and others WIP). For now, only built-in decorators are available. I don't have any plan for custom decorators in near future.
+Decorators decorate functions and enums. For now, only built-in decorators are available. I don't have any plan for custom decorators in near future.
+
+| shape                         | applied to    | what it does                     |
+|-------------------------------|---------------|----------------------------------|
+| `test.eq(val)`                | function `f`  | asserts that `f == val` or `f() == val`.    |
+| `test.expected(args, value)`  | function `f`  | asserts that `f(args) == value`, `args` is a tuple of arguments.  |
+| `test.false`                  | function `f`  | alias for `test.eq(Bool.False)`.  |
+| `test.true`                   | function `f`  | alias for `test.eq(Bool.True)`.   |
+
+```
+# A decorator decorates the following function.
+# A decorator is not followed by a semi colon.
+@test.eq(4)
+def add_test: Int = 2 + 2;
+
+# Multiple decorators may decorate a function.
+@test.eq(Bool.True)
+@test.true
+def add_test2: Bool = 2 + 2 == 4;
+```
 
 ### Lambda Functions
 
@@ -148,6 +167,24 @@ Sodigy uses arbitrary-width integers.
 
 Sodigy doesn't use floating points, but rational numbers.
 
+### Enums
+
+TODO: add description
+
+```
+enum Option<T> {
+    None,
+    Some(T),
+}
+
+Option.None         # valid
+Option.Some(5)      # valid
+Option(Int).Some(5) # valid
+Option(Int).None    # valid expression, invalid pattern
+Option(Int).Some("abc")  # type error
+Option.Some(Int)  # invalid
+```
+
 ## Operators
 
 ### `` ` ``
@@ -175,11 +212,11 @@ TODO: docs for concat operator
 
 ### `+>`
 
-WIP: prepend operator
+TODO: docs for prepend operator
 
 ### `<+`
 
-WIP: append operator
+TODO: docs for append operator
 
 ### `..`
 
@@ -187,7 +224,7 @@ TODO: docs for range operator
 
 ### `..~`
 
-WIP: inclusive range operator
+TODO: docs for inclusive range operator
 
 ## Comments
 

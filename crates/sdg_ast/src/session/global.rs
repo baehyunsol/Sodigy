@@ -40,11 +40,11 @@ impl GlobalParseSession {
         match self.files_rev.get(path) {
             Some(i) => *i,
             _ => {
-                let mut index = path.sdg_hash().to_u64();
+                let index = path.sdg_hash().to_u64();
 
-                // avoid hash collision
-                while self.files.contains_key(&index) || index == DUMMY_FILE_INDEX {
-                    index = index.sdg_hash().to_u64();
+                // avoid hash collision (can we?)
+                if self.files.contains_key(&index) {
+                    todo!()
                 }
 
                 self.files.insert(index, path.to_string());

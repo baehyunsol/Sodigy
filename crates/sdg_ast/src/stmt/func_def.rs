@@ -21,6 +21,7 @@ pub struct FuncDef {
     pub name: InternedString,
     pub args: Vec<ArgDef>,
 
+    // TODO: using a reference would save ton of time and memory
     pub location: Path,
 
     pub decorators: Vec<Decorator>,
@@ -100,8 +101,13 @@ impl FuncDef {
             FuncKind::Closure(_) | FuncKind::Lambda => true,
             FuncKind::Normal | FuncKind::Const
             | FuncKind::Enum | FuncKind::Struct
-            | FuncKind::EnumVariant => false,
+            | FuncKind::EnumVariant(_)
+            | FuncKind::EnumVariantTuple(_) => false,
         }
+    }
+
+    pub fn set_location(&mut self, location: &Path) {
+        self.location = location.clone();
     }
 
     pub fn resolve_names(
@@ -259,7 +265,12 @@ pub enum FuncKind {
     Closure(Vec<(InternedString, NameOrigin)>),
 
     Enum,
-    EnumVariant,
+
+    // Option.None
+    EnumVariant(UID),  // uid of parent
+
+    // Option.Some(5)
+    EnumVariantTuple(UID),  // uid of parent
     Struct,
 }
 
@@ -270,7 +281,8 @@ impl FuncKind {
             FuncKind::Const => "const".to_string(),
             FuncKind::Lambda => "lambda".to_string(),
             FuncKind::Enum => "enum".to_string(),
-            FuncKind::EnumVariant => "enum variant".to_string(),
+            FuncKind::EnumVariant(_)
+            | FuncKind::EnumVariantTuple(_) => "enum variant".to_string(),
             FuncKind::Struct => "struct".to_string(),
             FuncKind::Closure(captured_variables) => format!(
                 "closure({})",

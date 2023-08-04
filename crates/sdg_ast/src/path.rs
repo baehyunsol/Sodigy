@@ -5,7 +5,7 @@ use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Path(Vec<(InternedString, Span)>);
 
 impl Path {
@@ -17,11 +17,15 @@ impl Path {
         Path(names)
     }
 
-    pub fn push_front(&mut self, path: &Vec<(InternedString, Span)>) {
+    pub fn append_front(&mut self, path: &Vec<(InternedString, Span)>) {
         self.0 = vec![
             path.clone(),
             self.0.clone(),
         ].concat();
+    }
+
+    pub fn push(&mut self, path: (InternedString, Span)) {
+        self.0.push(path);
     }
 
     pub fn get_name_by_index(&self, index: usize) -> InternedString {

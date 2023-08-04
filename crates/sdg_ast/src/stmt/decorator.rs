@@ -6,6 +6,7 @@ use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use std::collections::{HashMap, HashSet};
 
+#[derive(Clone)]
 pub struct Decorator {
     pub deco_name: Path,
     pub args: Vec<Expr>,

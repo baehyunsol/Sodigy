@@ -40,6 +40,16 @@ pub enum ValueKind {
         value: Box<Expr>,
         id: UID,
     },
+
+    /*
+     * All the `FuncDef`s have their own unique UID.
+     * Identifiers and paths are converted to Object(UID) during compilation, if possible.
+     * For example, `Call(Identifier("foo"), 3)` and `Call(Object(1234), 3)` is equivalent, assuming
+     * that `1234` is the UID of `foo`.
+     * `sdg_inter_mod` is responsible for this conversion. An instance of `ValueKind::Object` shall
+     * not exist before `sdg_inter_mod` is invoked.
+     */
+    Object(UID),
 }
 
 impl ValueKind {
@@ -55,6 +65,9 @@ impl ValueKind {
             ValueKind::List(_) => TokenKind::Operator(OpToken::OpeningSquareBracket),
             ValueKind::Tuple(_) => TokenKind::Operator(OpToken::OpeningParenthesis),
             ValueKind::Block { .. } => TokenKind::opening_curly_brace(),
+
+            // after sdg_inter_mod, don't deal with tokens
+            ValueKind::Object(_) => unreachable!("Internal Compiler Error 970793A7672"),
         }
     }
 
@@ -183,7 +196,12 @@ impl ValueKind {
                     .concat();
 
                 format!("{}{defs}{}{}", '{', value.dump(session), '}',)
-            }
+            },
+
+            // TODO: not very helpful for debugging
+            ValueKind::Object(id) => format!(
+                "Object({})", id.to_string(),
+            ),
         }
     }
 }

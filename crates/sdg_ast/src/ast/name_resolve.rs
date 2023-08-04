@@ -6,7 +6,6 @@ use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
-// TODO: where should it belong?
 #[derive(Clone)]
 pub struct NameScope {
     defs: HashSet<InternedString>,

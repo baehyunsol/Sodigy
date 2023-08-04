@@ -15,6 +15,9 @@ mod utils;
 mod value;
 mod warning;
 
+#[cfg(test)]
+mod tests;
+
 pub use err::SodigyError;
 pub use session::{GlobalParseSession, LocalParseSession};
 pub use ast::AST;

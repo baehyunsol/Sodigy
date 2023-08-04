@@ -316,7 +316,7 @@ pub fn parse_use(tokens: &mut TokenList, span: Span, is_top: bool) -> Result<Vec
                     Ok(uses) => {
 
                         for use_case in uses.into_iter() {
-                            curr_paths.push(use_case.push_front(&curr_path));
+                            curr_paths.push(use_case.append_front(&curr_path));
                         }
 
                         curr_path = vec![];

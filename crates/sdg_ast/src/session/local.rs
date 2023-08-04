@@ -1,5 +1,6 @@
 use super::{DUMMY_FILE_INDEX, GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
 use crate::err::{ParseError, SodigyError};
+use crate::path::Path;
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
 use sdg_fs::read_bytes;
@@ -11,6 +12,10 @@ pub struct LocalParseSession {
     strings_rev: HashMap<Vec<u8>, InternedString>,
     pub(crate) curr_file: u64,
     pub(crate) is_dummy: bool,
+
+    // it's not the actual path of file system
+    // it's a sodigy style path, of the namespace
+    name_path: Path,
 
     warnings: Vec<SodigyWarning>,
     pub errors: Vec<Box<dyn SodigyError>>,
@@ -201,6 +206,10 @@ impl LocalParseSession {
         ));
 
         errors.join("\n\n")
+    }
+
+    pub(crate) fn curr_name_path(&self) -> &Path {
+        &self.name_path
     }
 
     pub fn get_file_path(&self, index: u64) -> String {

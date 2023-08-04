@@ -2,6 +2,7 @@ use crate::ast::NameOrigin;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::value::ValueKind;
+use sdg_uid::UID;
 
 mod kind;
 mod ops;
@@ -56,10 +57,33 @@ impl Expr {
         self.kind.unwrap_closure_name()
     }
 
-    pub fn identifier(name: InternedString, origin: NameOrigin, span: Span) -> Self {
+    pub fn new_identifier(name: InternedString, origin: NameOrigin, span: Span) -> Self {
         Expr {
             kind: ExprKind::Value(ValueKind::Identifier(name, origin)),
             span,
+        }
+    }
+
+    pub fn new_object(id: UID, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Value(ValueKind::Object(id)),
+            span,
+        }
+    }
+
+    pub fn new_call(f: Expr, args: Vec<Expr>, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Call(Box::new(f), args),
+            span,
+        }
+    }
+
+    // TODO: it should belong to another file
+    pub fn new_type_instance(type_id: UID) -> Self {
+        Expr {
+            // TODO: how should I impl it?
+            kind: ExprKind::Value(ValueKind::Integer(type_id.to_u128().into())),
+            span: Span::dummy(),
         }
     }
 
