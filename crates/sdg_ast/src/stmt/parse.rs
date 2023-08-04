@@ -5,7 +5,7 @@ use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 /// If it returns `Err(())`, the actual errors are in `session`.
 pub fn parse_stmts(tokens: &mut TokenList, session: &mut LocalParseSession) -> Result<Vec<Stmt>, ()> {
@@ -68,7 +68,6 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
         };
 
         if tokens.consume(TokenKind::semi_colon()) {
-            // TODO: check unused generics (did i already impl it?)
             return Ok(Stmt::Enum(EnumDef::empty(curr_span, name_span, enum_name, generics)));
         }
 
@@ -121,7 +120,6 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
                 }
             }
 
-            // TODO: check unused generics (did i already impl it?)
             variants.push(VariantDef::new(var_name, var_span, variant_tuple));
 
             if enum_body_tokens.consume(TokenKind::comma()) {
@@ -232,12 +230,17 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
             None => (vec![], true),
         };
 
-        let mut arg_names = HashSet::with_capacity(args.len());
-        let mut generic_names = HashSet::with_capacity(generics.len());
+        let mut arg_names = HashMap::with_capacity(args.len());
 
         for arg in args.iter() {
-            if !arg_names.insert(arg.name) {
-                return Err(ParseError::multi_def(arg.name, arg.span, ParamType::FuncParam));
+            match arg_names.insert(arg.name, arg.span) {
+                Some(prev) => {
+                    return Err(ParseError::multi_def(
+                        arg.name, prev, arg.span,
+                        ParamType::FuncParam,
+                    ));
+                },
+                _ => {}
             }
 
             if arg.ty.is_none() {
@@ -246,12 +249,14 @@ pub fn parse_stmt(tokens: &mut TokenList, session: &LocalParseSession) -> Result
         }
 
         for generic in generics.iter() {
-            if !generic_names.insert(generic.name) {
-                return Err(ParseError::multi_def(generic.name, generic.span, ParamType::FuncGeneric));
-            }
-
-            if arg_names.contains(&generic.name) {
-                return Err(ParseError::multi_def(generic.name, generic.span, ParamType::FuncGenericAndParam));
+            match arg_names.get(&generic.name) {
+                Some(sp) => {
+                    return Err(ParseError::multi_def(
+                        generic.name, *sp, generic.span,
+                        ParamType::FuncGenericAndParam,
+                    ));
+                }
+                _ => {}
             }
         }
 

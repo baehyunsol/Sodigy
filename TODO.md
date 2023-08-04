@@ -139,3 +139,7 @@ rand functions
 - impure one
   - `.rand_int(): Int`
   - use it to initialize a pure one
+
+---
+
+distinguish string and char

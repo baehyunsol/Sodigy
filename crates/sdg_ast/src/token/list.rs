@@ -1,5 +1,5 @@
 use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
-use crate::err::{ExpectedToken, ParseError};
+use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::{parse_match_body, parse_expr, Expr, ExprKind, InfixOp, MatchBranch, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma, split_tokens};
 use crate::pattern::{Pattern, RangeType};
@@ -9,6 +9,7 @@ use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
 use crate::value::{parse_block_expr, ValueKind};
 use sdg_uid::UID;
 use hmath::Ratio;
+use std::collections::HashMap;
 
 pub struct TokenList {
     pub data: Vec<Token>,
@@ -199,13 +200,11 @@ impl TokenList {
         match self.data.get(self.cursor) {
             Some(Token {
                 kind: TokenKind::Operator(OpToken::Lt),
-                span: generic_def_span,
+                ..
             }) => {
                 self.cursor += 1;
                 let mut generics = vec![];
-
-                // no borrowck
-                let generic_def_span = *generic_def_span;
+                let mut names = HashMap::new();
 
                 loop {
                     if self.consume(TokenKind::Operator(OpToken::Gt)) {
@@ -213,7 +212,19 @@ impl TokenList {
                     }
 
                     let (name, name_span) = match self.step_identifier_strict_with_span() {
-                        Ok(ns) => ns,
+                        Ok((name, span)) => {
+                            match names.insert(name, span) {
+                                Some(prev) => {
+                                    return Some(Err(ParseError::multi_def(
+                                        name, prev, span,
+                                        ParamType::FuncGeneric,
+                                    )));
+                                }
+                                _ => {}
+                            }
+
+                            (name, span)
+                        },
                         Err(e) => {
                             return Some(Err(e));
                         }
@@ -378,7 +389,7 @@ impl TokenList {
                     Some(t) if t.is_string() || t.is_number() => {
                         return Ok(Pattern::range(None, Some(t.clone()), RangeType::Exclusive, span.merge(&t.span)));
                     },
-                    Some(t) => {
+                    Some(_) => {
                         self.backward();
                     },
                     None => {}
@@ -480,7 +491,6 @@ impl TokenList {
             },
             Some(t) if t.is_string() || t.is_number() => {
                 let this_token = t.clone();
-                let is_string = t.is_string();
 
                 match self.peek() {
                     Some(t) if t.is_dotdot() || t.is_inclusive_range() => {
@@ -490,7 +500,7 @@ impl TokenList {
 
                         let next_token = match self.step() {
                             Some(t) if t.is_string() || t.is_number() => Some(t.clone()),
-                            Some(t) => {
+                            Some(_) => {
                                 self.backward();
                                 None
                             },
@@ -542,11 +552,10 @@ impl TokenList {
         match self.data.get(self.cursor) {
             Some(Token {
                 kind: TokenKind::Operator(op),
-                span,
+                ..
             }) => match *op {
                 OpToken::BackTick => {
                     self.cursor += 1;
-                    let span = *span;
                     let field_name = match self.step_identifier_strict_with_span() {
                         Ok((f, _)) => f,
                         Err(mut e) => {

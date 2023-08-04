@@ -7,7 +7,7 @@ use crate::stmt::parse_arg_def;
 use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
 use crate::value::BlockDef;
 use sdg_uid::UID;
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
     match tokens.step() {
@@ -127,7 +127,7 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             block_tokens.count_tokens_non_recursive(TokenKind::semi_colon());
 
         let mut defs = Vec::with_capacity(defs_count);
-        let mut names = HashSet::with_capacity(defs_count);
+        let mut names = HashMap::with_capacity(defs_count);
 
         for _ in 0..defs_count {
             block_tokens.consume_token_or_error(vec![TokenKind::Keyword(Keyword::Let)])?;
@@ -139,8 +139,14 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             //    into `_tmp: Person = foo(); age = _tmp.age; name = _tmp.name;`
             let (name, name_span) = block_tokens.step_identifier_strict_with_span()?;
 
-            if !names.insert(name) {
-                return Err(ParseError::multi_def(name, name_span, ParamType::BlockDef));
+            match names.insert(name, name_span) {
+                Some(prev) => {
+                    return Err(ParseError::multi_def(
+                        name, prev, name_span,
+                        ParamType::BlockDef,
+                    ));
+                }
+                _ => {}
             }
 
             // type annotation is optional
@@ -196,13 +202,21 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             tokens.count_tokens_non_recursive(TokenKind::comma());
 
         let mut args = Vec::with_capacity(args_count);
-        let mut arg_names = HashSet::with_capacity(args_count);
+        let mut arg_names = HashMap::with_capacity(args_count);
 
         for _ in 0..args_count {
             let arg = parse_arg_def(tokens)?;
 
-            if !arg_names.insert(arg.name) {
-                return Err(ParseError::multi_def(arg.name, arg.span, ParamType::LambdaParam));
+            match arg_names.insert(arg.name, arg.span) {
+                Some(prev) => {
+                    return Err(ParseError::multi_def(
+                        arg.name,
+                        prev,
+                        arg.span,
+                        ParamType::LambdaParam,
+                    ));
+                },
+                _ => {}
             }
 
             args.push(arg);

@@ -1,9 +1,13 @@
 use super::{ArgDef, Decorator, FuncDef, FuncKind, GenericDef, VariantDef};
+use crate::ast::NameOrigin;
+use crate::err::ParamType;
 use crate::expr::Expr;
 use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
+use crate::warning::SodigyWarning;
 use sdg_uid::UID;
+use std::collections::HashSet;
 
 // it's later converted to multiple `FuncDef`s
 pub struct EnumDef {
@@ -68,13 +72,37 @@ impl EnumDef {
         let mut var_path = location.clone();
         var_path.push((enum_def.name, enum_def.name_span));
 
-        let mut variants: Vec<FuncDef> = self.variants.iter().map(
-            |variant| FuncDef::enum_var(&self, variant, session, &var_path)
+        let mut variants: Vec<FuncDef> = self.variants.iter().enumerate().map(
+            |(index, variant)| FuncDef::enum_var(&self, variant, session, &var_path, index)
         ).collect();
 
         variants.push(enum_def);
 
         variants
+    }
+
+    // enum Foo<T> { A, B(C.T, D) }  -> `T` is unused, but can it catch that?
+    pub fn check_unused_generics(&self, session: &mut LocalParseSession) {
+        let mut used_names = HashSet::new();
+
+        for var in self.variants.iter() {
+            if let Some(fields) = &var.fields {
+                for field in fields.iter() {
+                    field.kind.id_walker(
+                        &|&name, &origin, used_names: &mut HashSet<(InternedString, NameOrigin)>| {
+                            used_names.insert((name, origin));
+                        },
+                        &mut used_names,
+                    );
+                }
+            }
+        }
+
+        for GenericDef { name, span } in self.generics.iter() {
+            if !used_names.contains(&(*name, NameOrigin::NotKnownYet)) {
+                session.add_warning(SodigyWarning::unused(*name, *span, ParamType::FuncGeneric));
+            }
+        }
     }
 }
 
@@ -100,21 +128,27 @@ impl FuncDef {
         variant: &VariantDef,
         session: &mut LocalParseSession,
         var_path: &Path,
+        index: usize,
     ) -> FuncDef {
         let self_uid = UID::new_enum_var_id();
-        let (args, kind) = if let Some(fields) = &variant.fields {
+        let (args, kind, ret_val) = if let Some(fields) = &variant.fields {
             (
                 fields.iter().enumerate().map(
                     |(index, ty)| ArgDef {
-                        name: session.intern_string(format!("e{index}").as_bytes().to_vec()),
+                        name: session.intern_string(format!("@@e{index}").as_bytes()),
                         ty: Some(ty.clone()),
                         span: ty.span,
                     }
                 ).collect(),
                 FuncKind::EnumVariantTuple(parent.id),
+                Expr::new_enum_variant(parent.id, self_uid, index, fields, session),
             )
         } else {
-            (vec![], FuncKind::EnumVariant(parent.id))
+            (
+                vec![],
+                FuncKind::EnumVariant(parent.id),
+                Expr::new_enum_variant(parent.id, self_uid, index, &vec![], session),
+            )
         };
 
         let ret_type = if parent.generics.is_empty() {
@@ -138,7 +172,7 @@ impl FuncDef {
             decorators: vec![],  // TODO: does it need decorators?
             generics: parent.generics.clone(),
             ret_type,
-            ret_val: todo!(),
+            ret_val,
             location: var_path.clone(),
             id: self_uid,
         }

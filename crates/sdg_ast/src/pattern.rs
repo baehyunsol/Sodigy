@@ -45,6 +45,14 @@ impl Pattern {
         }
     }
 
+    pub fn is_tuple(&self) -> bool {
+        if let PatternKind::Tuple(_) = self.kind {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn slice(patterns: Vec<Pattern>, span: Span) -> Self {
         Pattern {
             kind: PatternKind::Slice(patterns),
@@ -256,7 +264,38 @@ impl Pattern {
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
-        todo!()
+        match &self.kind {
+            PatternKind::WildCard => "_".to_string(),
+            PatternKind::Shorthand => "..".to_string(),
+            PatternKind::Constant(t) => t.dump(session),
+            PatternKind::Binding(b) => format!("${}", b.to_string(session)),
+            PatternKind::Path(p) => p.dump(session),
+            PatternKind::Tuple(ps)
+            | PatternKind::Slice(ps) => {
+                let (s, e) = if self.is_tuple() {
+                    ("(", ")")
+                } else {
+                    ("[", "]")
+                };
+
+                format!(
+                    "{s}{}{e}",
+                    ps.iter().map(
+                        |pat| pat.dump(session)
+                    ).collect::<Vec<String>>().join(",")
+                )
+            },
+            PatternKind::EnumTuple(p, ps) => {
+                format!(
+                    "{}({})",
+                    p.dump(session),
+                    ps.iter().map(
+                        |pat| pat.dump(session)
+                    ).collect::<Vec<String>>().join(",")
+                )
+            },
+            _ => todo!(),
+        }
     }
 
     // a `Pattern` may include

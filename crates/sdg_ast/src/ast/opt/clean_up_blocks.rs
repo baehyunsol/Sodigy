@@ -302,6 +302,11 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
         },
         ExprKind::Match(value, branches, _) => {
             count_occurrence(value, name, block_id, count);
+
+            // it only counts BlockDef(id), which doesn't appear inside patterns
+            for MatchBranch { value, .. } in branches.iter() {
+                count_occurrence(value, name, block_id, count);
+            }
         }
         ExprKind::Branch(c, t, f) => {
             count_occurrence(c, name, block_id, count);

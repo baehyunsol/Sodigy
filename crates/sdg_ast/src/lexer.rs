@@ -218,7 +218,7 @@ fn lex_token(
                 ind += 1;
             }
 
-            let string_index = session.intern_string(buffer);
+            let string_index = session.intern_string(&buffer);
 
             if let Some(k) = session.try_unwrap_keyword(string_index) {
                 Ok((

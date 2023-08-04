@@ -15,15 +15,15 @@ pub static mut GLOBAL_SESSION: *mut GlobalParseSession = std::ptr::null_mut();
 pub static mut GLOBAL_SESSION_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 impl GlobalParseSession {
-    pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
-        match self.strings_rev.get(&string) {
+    pub fn intern_string(&mut self, string: &[u8]) -> InternedString {
+        match self.strings_rev.get(string) {
             Some(i) => *i,
             None => {
                 let index = self.strings.len() + KEYWORD_START as usize;
                 let index: InternedString = index.into();
 
-                self.strings.insert(index, string.clone());
-                self.strings_rev.insert(string.clone(), index);
+                self.strings.insert(index, string.to_vec());
+                self.strings_rev.insert(string.to_vec(), index);
 
                 index
             }

@@ -208,7 +208,12 @@ You can use whitespaces between `` ` `` and the name of the field, but I recomme
 
 ### `<>`
 
-TODO: docs for concat operator
+`<>` concatonates 2 lists or strings. You can also overload this operator (WIP).
+
+```
+@test.eq([1, 2, 3, 4, 5, 6])
+def concat_test: List(Int) = [1, 2, 3] <> [4, 5, 6];
+```
 
 ### `+>`
 
@@ -220,11 +225,15 @@ TODO: docs for append operator
 
 ### `..`
 
-TODO: docs for range operator
+`..` makes an exclusive range. For example, `1..4` is a range from 1 to 3, and `'a'..'c'` is `'a'` and `'b'`. An extra argument can set the step of the range. For example, `1..10..2` is `1`, `3`, `5`, `7`, and `9`. Negative steps are also possible.
+
+You can index lists and strings with a range. For example, `a[0..3]` takes the first 3 elements of `a`. Or, `a[-3..]` takes the last 3 elements.
 
 ### `..~`
 
-TODO: docs for inclusive range operator
+`..~` is like `..`, but includes the last index. For example, `1..~3` is `1`, `2` and `3`.
+
+It's very useful in some cases. For example, if you want a pattern that covers lower case alphabets, it's either `'a'..'{'` or `'a'..~'z'`. The second one looks much better, doesn't it?
 
 ## Comments
 

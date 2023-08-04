@@ -141,6 +141,21 @@ def dedup<T>(ls: List(T)): List(T) = match ls.len() {
     }
 };
 
+@test.expected(
+    ([5, 6, 7, 8, 9, 10]),
+    [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9), (5, 10)]
+)
+def enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
+    []
+} else if ls.len() == 1 {
+    [(0, ls[0])]
+} else {
+    let head = (0, ls[0]);
+    let tail = enumerate(ls[1..]);
+
+    head +> tail.map(\{p, (p.0 + 1, p.1)})
+};
+
 def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
     Option.None  # just `None`?
 } else if f(ls[0]) {

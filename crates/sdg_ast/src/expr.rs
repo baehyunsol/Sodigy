@@ -2,6 +2,7 @@ use crate::ast::NameOrigin;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::value::ValueKind;
+use hmath::BigInt;
 use sdg_uid::UID;
 
 mod kind;
@@ -57,9 +58,23 @@ impl Expr {
         self.kind.unwrap_closure_name()
     }
 
+    pub fn new_integer(n: BigInt, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Value(ValueKind::Integer(n)),
+            span,
+        }
+    }
+
     pub fn new_identifier(name: InternedString, origin: NameOrigin, span: Span) -> Self {
         Expr {
             kind: ExprKind::Value(ValueKind::Identifier(name, origin)),
+            span,
+        }
+    }
+
+    pub fn new_tuple(elements: Vec<Expr>, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Value(ValueKind::Tuple(elements)),
             span,
         }
     }
@@ -80,9 +95,46 @@ impl Expr {
 
     // TODO: it should belong to another file
     pub fn new_type_instance(type_id: UID) -> Self {
+        // TODO: below is just a dummy impl
+        Expr::new_integer(type_id.to_u128().into(), Span::dummy())
+    }
+
+    // TODO: it should belong to another file
+    pub fn new_enum_variant(
+        type_id: UID,
+        enum_var_id: UID,
+        index: usize,
+        variants: &Vec<Expr>,
+        session: &mut LocalParseSession,
+    ) -> Self {
         Expr {
-            // TODO: how should I impl it?
-            kind: ExprKind::Value(ValueKind::Integer(type_id.to_u128().into())),
+            // `Option.None` -> `Option.variant(0, ())`
+            // `Option.Some(3)` -> `Option.variant(1, (3,))`
+            kind: ExprKind::Call(
+                Box::new(Expr {
+                    kind: ExprKind::Infix(
+                        InfixOp::Path,
+                        Box::new(Expr::new_object(type_id, Span::dummy())),
+                        Box::new(Expr::new_identifier(session.intern_string(b"@@variant"), NameOrigin::SubPath, Span::dummy())),
+                    ),
+                    span: Span::dummy(),
+                }),
+                vec![
+                    Expr::new_integer(index.into(), Span::dummy()),
+                    Expr::new_tuple(
+                        variants.iter().enumerate().map(
+                            |(ind, var)| {
+                                let s = session.intern_string(
+                                    format!("@@e{ind}").as_bytes()
+                                );
+
+                                Expr::new_identifier(s, NameOrigin::FuncArg(enum_var_id), var.span)
+                            }
+                        ).collect(),
+                        Span::dummy(),
+                    ),
+                ],
+            ),
             span: Span::dummy(),
         }
     }

@@ -67,6 +67,7 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize, usize)> {  // (input, AST, sp
             "Concat(Index(a,Range(1,2)),Index(b,Range(1)))",
             8, 9,
         ),
+        ("1..2..3", "Range(Range(1,2),3)", 4, 5),
         (
             "[1.2.., 1.2..3.4, 1. .. 3.]",
             "[Range(1.2),Range(1.2,3.4),Range(1,3)]",
@@ -424,7 +425,13 @@ fn valid_ast_dump_test() {
                 // println!("{}", expr.span.render_err(&session));
                 if expr.dump(&session) != ast
                 || (expr.span.start, expr.span.end) != (span_start, span_end) {
-                    failures.push(format!("\n\n---\n\ninput\n{}\nspan\n({}, {}) vs ({span_start}, {span_end})", bytes_to_string(&input), expr.span.start, expr.span.end));
+                    failures.push(format!(
+                        "\n\n---\n\ninput\n{}\nspan\n({}, {}) vs ({span_start}, {span_end})\n({}) vs ({ast})",
+                        bytes_to_string(&input),
+                        expr.span.start,
+                        expr.span.end,
+                        expr.dump(&session),
+                    ));
                 }
             }
             Err(err) => {
@@ -447,7 +454,7 @@ fn invalid_ast_dump_test() {
         if let Err(e) = dump_ast_of_expr(input.clone(), &mut session) {
             // It's a good practice to see how the error messages look like
             // println!("{}\n", e.render_err(&session));
-            if !is_eq(&e.kind, &err_kind) || e.span.len() != 1 || e.span[0].start != span_start || e.span[0].end != span_end {
+            if !is_eq(&e.kind, &err_kind) || !e.span.iter().any(|span| span.start == span_start && span.end == span_end) {
                 failures.push(format!(
                     "\n\n---\n\ninput: {}\nexpected_err: {}\nexpected_span: ({span_start}, {span_end})\ngot: {}\ngot_span:({}, {})",
                     bytes_to_string(&input),

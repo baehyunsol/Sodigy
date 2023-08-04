@@ -62,7 +62,7 @@ pub fn use_case_to_tokens(Use { path, alias, span }: Use) -> Vec<Token> {
         kind: TokenKind::keyword_use(),
     });
 
-    for token in path.tokens(span) {
+    for token in path.tokens() {
         tokens.push(token);
     }
 

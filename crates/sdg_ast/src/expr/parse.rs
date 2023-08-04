@@ -1,8 +1,8 @@
-use super::{Expr, ExprKind, InfixOp, PostfixOp, PrefixOp};
+use super::{Expr, ExprKind, InfixOp, NameOrigin, PostfixOp, PrefixOp};
 use crate::err::{ExpectedToken, ParseError};
 use crate::pattern::Pattern;
 use crate::token::{Token, TokenKind, TokenList};
-use crate::value::parse_value;
+use crate::value::{parse_value, ValueKind};
 
 // pratt algorithm
 // https://github.com/matklad/minipratt
@@ -114,32 +114,43 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 break;
             }
 
-            if op == InfixOp::Path && !tokens.peek_identifier().is_some() && !tokens.peek_number().is_some() {
-                let err_msg = "A name of a field or a method must be an identifier or a number (for tuples).
-`a.b` is valid, but `a.(b)` is not.".to_string();
-                let expected = ExpectedToken::SpecificTokens(vec![
-                    TokenKind::dummy_identifier(),
-                    TokenKind::Number(1.into()),
-                ]);
+            let rhs = if op == InfixOp::Path {
 
-                if let Some(Token { kind, span }) = tokens.step() {
-                    return Err(ParseError::tok_msg(
-                        kind.clone(), *span,
-                        expected, err_msg,
-                    ));
+                if !tokens.peek_identifier().is_some() && !tokens.peek_number().is_some() {
+                    let err_msg = "A name of a field or a method must be an identifier or a number (for tuples).
+    `a.b` is valid, but `a.(b)` is not.".to_string();
+                    let expected = ExpectedToken::SpecificTokens(vec![
+                        TokenKind::dummy_identifier(),
+                        TokenKind::Number(1.into()),
+                    ]);
+
+                    if let Some(Token { kind, span }) = tokens.step() {
+                        return Err(ParseError::tok_msg(
+                            kind.clone(), *span,
+                            expected, err_msg,
+                        ));
+                    }
+
+                    else {
+                        return Err(ParseError::eoe_msg(
+                            curr_span,
+                            expected,
+                            err_msg,
+                        ));
+                    }
                 }
 
-                else {
-                    return Err(ParseError::eoe_msg(
-                        curr_span,
-                        expected,
-                        err_msg,
-                    ));
+                let mut rhs = parse_expr(tokens, r_bp)?;
+
+                // it has to be done for `EnumDef::check_unused_generics`'s favor
+                if let Expr { kind: ExprKind::Value(ValueKind::Identifier(_, origin)), .. } = &mut rhs {
+                    *origin = NameOrigin::SubPath;
                 }
 
-            }
-
-            let rhs = parse_expr(tokens, r_bp)?;
+                rhs
+            } else {
+                parse_expr(tokens, r_bp)?
+            };
 
             lhs = Expr {
                 span: curr_span,

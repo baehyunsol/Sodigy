@@ -89,22 +89,22 @@ impl LocalParseSession {
     }
 
     // Expensive (if it has to write to a GlobalCache)
-    pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
-        match self.strings_rev.get(&string) {
+    pub fn intern_string(&mut self, string: &[u8]) -> InternedString {
+        match self.strings_rev.get(string) {
             Some(n) => *n,
             _ => {
                 let result = unsafe {
                     let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error CB9665F9D46");
                     let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error 77C4E2EDBE9");
 
-                    let r = g.intern_string(string.clone());
+                    let r = g.intern_string(string);
                     drop(lock);
 
                     r
                 };
 
-                self.strings.insert(result, string.clone());
-                self.strings_rev.insert(string.clone(), result);
+                self.strings.insert(result, string.to_vec());
+                self.strings_rev.insert(string.to_vec(), result);
 
                 result
             }

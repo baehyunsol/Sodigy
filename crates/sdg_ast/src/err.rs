@@ -141,10 +141,10 @@ impl ParseError {
         }
     }
 
-    pub(crate) fn multi_def(name: InternedString, span: Span, param_type: ParamType) -> Self {
+    pub(crate) fn multi_def(name: InternedString, span1: Span, span2: Span, param_type: ParamType) -> Self {
         ParseError {
             kind: ParseErrorKind::MultipleDefParam(name, param_type),
-            span: vec![span],
+            span: vec![span1, span2],
             message: String::new(),
         }
     }

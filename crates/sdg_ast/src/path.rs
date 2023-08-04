@@ -44,7 +44,7 @@ impl Path {
         self.0.len()
     }
 
-    pub fn tokens(&self, span: Span) -> Vec<Token> {
+    pub fn tokens(&self) -> Vec<Token> {
         self.0.iter().map(
             |(name, span)| Token {
                 span: *span,

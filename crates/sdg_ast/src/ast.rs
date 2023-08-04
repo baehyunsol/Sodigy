@@ -7,11 +7,9 @@ mod endec;
 mod err;
 mod name_resolve;
 mod opt;
+mod walker;
 
 use opt::ClosureCollector;
-
-#[cfg(test)]
-mod walker;
 
 #[cfg(test)]
 mod tests;
@@ -96,6 +94,8 @@ impl AST {
                     }
 
                     else {
+                        e.check_unused_generics(session);
+
                         for def in e.to_defs(&curr_location, session) {
                             ast.defs.insert(def.name, def);
                         }

@@ -129,12 +129,18 @@ impl Expr {
                     pattern.resolve_names(name_scope, session);
                     let mut bindings = vec![];
                     pattern.get_name_bindings(&mut bindings);
-                    let mut unique_name_counter = HashSet::with_capacity(bindings.len());
+                    let mut unique_name_counter = HashMap::with_capacity(bindings.len());
 
                     // find multi-def names
                     for (name, span) in bindings.iter() {
-                        if !unique_name_counter.insert(*name) {
-                            session.add_error(ParseError::multi_def(*name, *span, ParamType::PatternNameBinding));
+                        match unique_name_counter.insert(name, span) {
+                            Some(prev) => {
+                                session.add_error(ParseError::multi_def(
+                                    *name, *prev, *span,
+                                    ParamType::PatternNameBinding,
+                                ));
+                            }
+                            _ => {}
                         }
                     }
 

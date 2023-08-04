@@ -16,8 +16,7 @@ impl ASTErrorKind {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             ASTErrorKind::MultipleDef(d) => {
-                let name = session.unintern_string(*d);
-                let name = bytes_to_string(&name);
+                let name = d.to_string(session);
 
                 format!(
                     "the name `{name}` is defined more than once",
