@@ -1,7 +1,7 @@
 use crate::err::{ExpectedToken, ParseError};
 use crate::session::LocalParseSession;
 use crate::span::Span;
-use crate::token::{Delimiter, OpToken, Token, TokenKind};
+use crate::token::{Delimiter, OpToken, QuoteKind, Token, TokenKind};
 use crate::utils::{bytes_to_string, bytes_to_v32, into_char, v32_to_bytes};
 use hmath::{ConversionError, Ratio};
 
@@ -54,17 +54,37 @@ fn lex_token(
                 }
 
                 if !escaped && s[ind] == marker {
-                    return Ok((
-                        Token {
-                            span: curr_span.set_end(ind),
-                            kind: TokenKind::String(
-                                bytes_to_v32(&buffer).map_err(
-                                    |e| e.set_ind_and_fileno(curr_span)
-                                )?
-                            ),
-                        },
-                        ind + 1,
-                    ));
+                    let buffer = bytes_to_v32(&buffer).map_err(
+                        |e| e.set_ind_and_fileno(curr_span)
+                    )?;
+
+                    if marker == b'\'' {
+                        if buffer.len() == 1 {
+                            return Ok((
+                                Token {
+                                    span: curr_span.set_end(ind),
+                                    kind: TokenKind::String(
+                                        QuoteKind::Single,
+                                        buffer,
+                                    ),
+                                },
+                                ind + 1,
+                            ));
+                        } else {
+                            return Err(ParseError::invalid_char_literal(buffer, curr_span.set_end(ind)));
+                        }
+                    } else {
+                        return Ok((
+                            Token {
+                                span: curr_span.set_end(ind),
+                                kind: TokenKind::String(
+                                    QuoteKind::Double,
+                                    buffer,
+                                ),
+                            },
+                            ind + 1,
+                        ));
+                    }
                 }
 
                 if !escaped && s[ind] == b'\\' {
@@ -185,7 +205,7 @@ fn lex_token(
             // byte string literals and formatted string literals
             if s[ind] == b'b' || s[ind] == b'f' {
                 match s.get(ind + 1) {
-                    Some(c) if *c == b'\'' || *c == b'"' => {
+                    Some(c) if *c == b'"' => {
                         let (string_literal, end_index) = lex_token(s, ind + 1, session)?;
 
                         return if s[ind] == b'b' {
@@ -660,7 +680,7 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
 
                     if !tmp_buffer.is_empty() {
                         buffer.push(vec![Token {
-                            kind: TokenKind::String(tmp_buffer),
+                            kind: TokenKind::String(QuoteKind::Double, tmp_buffer),
                             span: span.forward(curr_start_span + 2),  // 2 for `f"`
                         }]);
                     }
@@ -729,7 +749,7 @@ fn string_to_formatted(t: Token, session: &mut LocalParseSession) -> Result<Toke
         match curr_state {
             FormatStringParseState::String => {
                 buffer.push(vec![Token {
-                    kind: TokenKind::String(tmp_buffer),
+                    kind: TokenKind::String(QuoteKind::Double, tmp_buffer),
                     span: span.forward(curr_start_span + 2),  // 2 for `f"`
                 }]);
             }

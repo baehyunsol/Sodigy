@@ -46,6 +46,7 @@ impl Expr {
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
+                | ValueKind::Char(_)
                 | ValueKind::Bytes(_)
                 | ValueKind::Object(_) => {},
                 ValueKind::List(elements)
@@ -143,6 +144,7 @@ impl Expr {
                 ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
+                | ValueKind::Char(_)
                 | ValueKind::Bytes(_)
                 | ValueKind::Identifier(_, _)
                 | ValueKind::Object(_) => {},

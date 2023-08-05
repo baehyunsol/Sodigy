@@ -126,14 +126,8 @@ impl Pattern {
             | PatternKind::Path(_) => Ok(()),
             PatternKind::Range(from, to, range_type) => match (&from, &to) {
                 (None, None) => unreachable!("Internal Compiler Error 43CC27E1FF7"),
-                (Some(t), None) | (None, Some(t)) => if t.is_string() {
-                    let s = t.unwrap_string();
-
-                    if s.len() != 1 {
-                        Err(ParseError::only_char_in_range(t.clone()))
-                    } else {
-                        Ok(())
-                    }
+                (Some(t), None) | (None, Some(t)) => if t.is_character() {
+                    Ok(())
                 } else {
                     let n = t.unwrap_number();
 
@@ -144,28 +138,18 @@ impl Pattern {
                     }
                 },
                 (Some(t1), Some(t2)) => {
-                    if t1.is_string() && !t2.is_string()
-                    || !t1.is_string() && t2.is_string() {
+                    if t1.is_character() && !t2.is_character()
+                    || !t1.is_character() && t2.is_character() {
                         return Err(ParseError::unmatched_type_in_range(t1.clone(), t2.clone()));
                     }
 
-                    if t1.is_string() {
-                        let s1 = t1.unwrap_string();
-                        let s2 = t2.unwrap_string();
+                    if t1.is_character() {
+                        let s1 = t1.unwrap_character();
+                        let mut s2 = t2.unwrap_character();
+                        if let RangeType::Inclusive = range_type { s2 += 1; }
 
-                        if s1.len() != 1 {
-                            return Err(ParseError::only_char_in_range(t1.clone()));
-                        }
-
-                        if s2.len() != 1 {
-                            return Err(ParseError::only_char_in_range(t2.clone()));
-                        }
-
-                        let mut end = s2[0];
-                        if let RangeType::Inclusive = range_type { end += 1; }
-
-                        if s1[0] >= end {
-                            return Err(ParseError::invalid_char_range(s1[0], s2[0], *range_type, self.span));
+                        if s1 >= s2 {
+                            return Err(ParseError::invalid_char_range(s1, s2, *range_type, self.span));
                         }
                     } else {
                         let n1 = t1.unwrap_number();
@@ -193,13 +177,7 @@ impl Pattern {
                 },
             },
 
-            PatternKind::Constant(t) => if t.is_string() {
-                let s = t.unwrap_string();
-
-                if s.len() != 1 {
-                    return Err(ParseError::only_char_in_range(t.clone()));
-                }
-
+            PatternKind::Constant(t) => if t.is_character() {
                 Ok(())
             } else if t.is_number() {
                 let n = t.unwrap_number();

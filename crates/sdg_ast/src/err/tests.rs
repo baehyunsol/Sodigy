@@ -32,7 +32,11 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
         ParseErrorKind::FileError(e1) => match k2 {
             ParseErrorKind::FileError(e2) => e1 == e2,
             _ => false,
-        }
+        },
+        ParseErrorKind::InvalidCharLiteral(s1) => match k2 {
+            ParseErrorKind::InvalidCharLiteral(s2) => s1 == s2,
+            _ => false,
+        },
 
         // the test runner cannot generate an InternedString before it actually parses a code
         ParseErrorKind::UntypedArg(_, _) => match k2 {
@@ -46,7 +50,7 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
         ParseErrorKind::InvalidPattern(p1) => match k2 {
             ParseErrorKind::InvalidPattern(p2) => is_eq_pat_err(p1, p2),
             _ => false,
-        }
+        },
     }
 
 }

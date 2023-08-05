@@ -3,7 +3,7 @@ use crate::expr::{Expr, ExprKind};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::ArgDef;
-use crate::token::{OpToken, TokenKind};
+use crate::token::{OpToken, QuoteKind, TokenKind};
 use crate::utils::v32_to_string;
 use hmath::{BigInt, Ratio};
 use sdg_uid::UID;
@@ -17,6 +17,7 @@ pub enum ValueKind {
     Integer(BigInt),
     Real(Ratio),
     String(Vec<u32>),
+    Char(u32),
     Bytes(Vec<u8>),
     Format(Vec<Expr>),
     List(Vec<Expr>),
@@ -58,7 +59,8 @@ impl ValueKind {
             ValueKind::Identifier(i, _) => TokenKind::Identifier(*i),
             ValueKind::Integer(n) => TokenKind::Number(n.clone().into()),
             ValueKind::Real(n) => TokenKind::Number(n.clone()),
-            ValueKind::String(_) => TokenKind::String(vec![]),
+            ValueKind::String(_) => TokenKind::String(QuoteKind::Double, vec![]),
+            ValueKind::Char(_) => TokenKind::String(QuoteKind::Single, vec![]),
             ValueKind::Bytes(_) => TokenKind::Bytes(vec![]),
             ValueKind::Format(_) => TokenKind::FormattedString(vec![]),
             ValueKind::Lambda(_, _) | ValueKind::Closure(_, _) => TokenKind::Operator(OpToken::BackSlash),
@@ -129,6 +131,10 @@ impl ValueKind {
                 "{:?}",
                 v32_to_string(buf)
                     .expect("Internal Compiler Error 5F6D16DDCB7: {buf:?}"),
+            ),
+            ValueKind::Char(c) => format!(
+                "{:?}",
+                char::from_u32(*c),
             ),
             ValueKind::Bytes(b) => format!(
                 "Bytes({})",

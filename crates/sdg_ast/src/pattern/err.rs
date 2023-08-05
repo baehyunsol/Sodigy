@@ -11,9 +11,6 @@ pub enum PatternErrorKind {
     // 5..3
     InvalidIntegerRange(Ratio, Ratio, RangeType),
 
-    // "a".."bc"
-    OnlyCharsAllowedInRange(Vec<u32>),
-
     // "z".."a"
     InvalidCharRange(u32, u32, RangeType),
 
@@ -29,10 +26,6 @@ impl PatternErrorKind {
             ),
             PatternErrorKind::InvalidIntegerRange(from, to, rt) => format!(
                 "{from}{rt}{to} is an invalid range",
-            ),
-            PatternErrorKind::OnlyCharsAllowedInRange(s) => format!(
-                "expected a character, found {}",
-                v32_to_string(s).expect("Internal Compiler Error 6C99674AC36"),
             ),
             PatternErrorKind::InvalidCharRange(from, to, rt) => format!(
                 "{:?}{rt}{:?} is an invalid range",

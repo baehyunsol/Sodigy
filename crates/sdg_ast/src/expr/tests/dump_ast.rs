@@ -3,7 +3,7 @@ use crate::expr::{parse_expr, Expr};
 use crate::lexer::lex_tokens;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
-use crate::token::{Delimiter, OpToken, TokenKind, TokenList};
+use crate::token::{Delimiter, OpToken, QuoteKind, TokenKind, TokenList};
 use crate::utils::bytes_to_string;
 
 pub fn dump_ast_of_expr(
@@ -116,23 +116,16 @@ fn valid_samples() -> Vec<(Vec<u8>, String, usize, usize)> {  // (input, AST, sp
         ("(3, 4)", "Tuple(3,4)", 0, 5,),
         ("(3, 4,)", "Tuple(3,4)", 0, 6,),
         ("()", "Tuple()", 0, 1,),
-        ("'한글 입력 테스트'", "\"한글 입력 테스트\"", 0, 24,),
+        ("\"한글 입력 테스트\"", "\"한글 입력 테스트\"", 0, 24,),
         (
             "b\"ABC 한글 DEF\"",
             "Bytes(65,66,67,32,237,149,156,234,184,128,32,68,69,70)",
             0, 16,
         ),
-        (
-            "b\'ABC 한글 DEF\'",
-            "Bytes(65,66,67,32,237,149,156,234,184,128,32,68,69,70)",
-            0, 16,
-        ),
         ("f\"{a} + {b} = {a + b}\"", "Format(a,\" + \",b,\" = \",Add(a,b))", 0, 21,),
-        ("f'{a} + {b} = {a + b}'", "Format(a,\" + \",b,\" = \",Add(a,b))", 0, 21,),
         ("f\"{{{3}}}\"", "Format(3)", 0, 9,),
         ("f\"{3}\"", "Format(3)", 0, 5,),
         ("f\"{3} + {4}\"", "Format(3,\" + \",4)", 0, 11,),
-        ("f'A, B, {C}, D'", "Format(\"A, B, \",C,\", D\")", 0, 14,),
         ("f\"ABC\"", "\"ABC\"", 0, 5,),
         ("f\"\"", "\"\"", 0, 2,),
         ("b\"\"", "Bytes()", 0, 2,),
@@ -289,22 +282,27 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize, usize)> {  // (inpu
             0, 0,
         ),
         (
-            "f'ABC {}'",
+            "f'{a} + {b} = {a + b}'",
+            ParseErrorKind::InvalidCharLiteral(19),
+            1, 21,
+        ),
+        (
+            "f\"ABC {}\"",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             6, 6,
         ),
         (
-            "f'ABC {1 + }'",
+            "f\"ABC {1 + }\"",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             9, 9,
         ),
         (
-            "f'ABC { [][]}'",
+            "f\"ABC { [][]}\"",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::AnyExpression),
             10, 10,
         ),
         (
-            "f'{1'",
+            "f\"{1\"",
             ParseErrorKind::UnexpectedEoe(ExpectedToken::SpecificTokens(vec![
                 TokenKind::Operator(OpToken::ClosingCurlyBrace),
             ])),
@@ -313,18 +311,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize, usize)> {  // (inpu
         (
             "(b \"ABC 한글 DEF\")",
             ParseErrorKind::UnexpectedToken {
-                got: TokenKind::String(vec![]),
-                expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Operator(OpToken::ClosingParenthesis),
-                    TokenKind::comma(),
-                ]),
-            },
-            3, 18,
-        ),
-        (
-            "(b \'ABC 한글 DEF\')",
-            ParseErrorKind::UnexpectedToken {
-                got: TokenKind::String(vec![]),
+                got: TokenKind::String(QuoteKind::Double, vec![]),
                 expected: ExpectedToken::SpecificTokens(vec![
                     TokenKind::Operator(OpToken::ClosingParenthesis),
                     TokenKind::comma(),
@@ -335,18 +322,7 @@ fn invalid_samples() -> Vec<(Vec<u8>, ParseErrorKind, usize, usize)> {  // (inpu
         (
             "(f \"{a} + {b} = {a + b}\")",
             ParseErrorKind::UnexpectedToken {
-                got: TokenKind::String(vec![]),
-                expected: ExpectedToken::SpecificTokens(vec![
-                    TokenKind::Operator(OpToken::ClosingParenthesis),
-                    TokenKind::comma(),
-                ]),
-            },
-            3, 23,
-        ),
-        (
-            "(f \'{a} + {b} = {a + b}\')",
-            ParseErrorKind::UnexpectedToken {
-                got: TokenKind::String(vec![]),
+                got: TokenKind::String(QuoteKind::Double, vec![]),
                 expected: ExpectedToken::SpecificTokens(vec![
                     TokenKind::Operator(OpToken::ClosingParenthesis),
                     TokenKind::comma(),

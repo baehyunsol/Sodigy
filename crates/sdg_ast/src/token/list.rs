@@ -6,6 +6,7 @@ use crate::pattern::{Pattern, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
+use crate::token::QuoteKind;
 use crate::value::{parse_block_expr, ValueKind};
 use sdg_uid::UID;
 use hmath::Ratio;
@@ -315,7 +316,7 @@ impl TokenList {
                 kind: TokenKind::Identifier(_),
                 ..
             }) | Some(Token {
-                kind: TokenKind::String(_),
+                kind: TokenKind::String(QuoteKind::Single, _),
                 ..
             }) | Some(Token {
                 kind: TokenKind::Number(_),
@@ -364,17 +365,23 @@ impl TokenList {
                 let span = *span;
 
                 match self.step() {
-                    Some(t) if t.is_string() || t.is_number() => Ok(Pattern::range(
+                    Some(t) if t.is_character() || t.is_number() => Ok(Pattern::range(
                         None, Some(t.clone()), RangeType::Inclusive, span.merge(&t.span)
                     )),
                     Some(Token { kind, span }) => Err(ParseError::tok_msg(
                         kind.clone(), *span,
-                        ExpectedToken::SpecificTokens(vec![TokenKind::String(vec![]), TokenKind::Number(0.into())]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::dummy_string(QuoteKind::Single),
+                            TokenKind::Number(0.into())
+                        ]),
                         String::from("A range pattern cannot be empty."),
                     )),
                     None => Err(ParseError::eoe_msg(
                         self.get_eof_span(),
-                        ExpectedToken::SpecificTokens(vec![TokenKind::String(vec![]), TokenKind::Number(0.into())]),
+                        ExpectedToken::SpecificTokens(vec![
+                            TokenKind::dummy_string(QuoteKind::Single),
+                            TokenKind::Number(0.into())
+                        ]),
                         String::from("A range pattern cannot be empty."),
                     )),
                 }
@@ -386,7 +393,7 @@ impl TokenList {
                 let span = *span;
 
                 match self.step() {
-                    Some(t) if t.is_string() || t.is_number() => {
+                    Some(t) if t.is_character() || t.is_number() => {
                         return Ok(Pattern::range(None, Some(t.clone()), RangeType::Exclusive, span.merge(&t.span)));
                     },
                     Some(_) => {
@@ -489,7 +496,7 @@ impl TokenList {
                     }
                 }
             },
-            Some(t) if t.is_string() || t.is_number() => {
+            Some(t) if t.is_character() || t.is_number() => {
                 let this_token = t.clone();
 
                 match self.peek() {
@@ -499,7 +506,7 @@ impl TokenList {
                         self.cursor += 1;
 
                         let next_token = match self.step() {
-                            Some(t) if t.is_string() || t.is_number() => Some(t.clone()),
+                            Some(t) if t.is_character() || t.is_number() => Some(t.clone()),
                             Some(_) => {
                                 self.backward();
                                 None

@@ -125,6 +125,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn invalid_char_literal(buf: Vec<u32>, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidCharLiteral(buf.len()),
+            span: vec![span],
+            message: String::new(),
+        }
+    }
+
     pub(crate) fn invalid_utf8_dummy_index(cs: Vec<u8>, ind: usize) -> Self {
         ParseError {
             kind: ParseErrorKind::InvalidUTF8(cs),
@@ -170,14 +178,6 @@ impl ParseError {
             kind: ParseErrorKind::InvalidPattern(PatternErrorKind::InvalidIntegerRange(n1, n2, range_type)),
             span: vec![span],
             message: String::new(),
-        }
-    }
-
-    pub(crate) fn only_char_in_range(s: Token) -> Self {
-        ParseError {
-            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::OnlyCharsAllowedInRange(s.unwrap_string().to_vec())),
-            span: vec![s.span],
-            message: String::from("Only characters are allowed in range patterns."),
         }
     }
 
@@ -269,12 +269,17 @@ impl SodigyError for ParseError {
                 expected: ExpectedToken::AnyExpression,
             } if got == &TokenKind::Operator(OpToken::DotDot) => {
                 self.set_msg(
-                    "If you want to use `..` as a prefix operator, try `0..a` instead of `..a`."
+                    "If you meant to use `..` as a prefix operator, try `0..a` instead of `..a`."
                 );
             },
             ParseErrorKind::MultipleDefParam(_, ParamType::FuncGenericAndParam) => {
                 self.set_msg(
                     "In Sodigy, types are first class objects, which means types and parameters are in the same name scope."
+                );
+            }
+            ParseErrorKind::InvalidCharLiteral(len) if *len > 1 => {
+                self.set_msg(
+                    "If you meant to write a string literal, use double quotes."
                 );
             }
             _ => {}

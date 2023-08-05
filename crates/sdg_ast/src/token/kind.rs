@@ -1,11 +1,11 @@
-use super::{Delimiter, Keyword, OpToken, Token};
+use super::{Delimiter, Keyword, OpToken, QuoteKind, Token};
 use crate::session::{InternedString, LocalParseSession};
 use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
 pub enum TokenKind {
     Number(Ratio),
-    String(Vec<u32>),  // in Sodigy, Strings are just List(Char), where Char is an Int
+    String(QuoteKind, Vec<u32>),  // in Sodigy, Strings are just List(Char), where Char is an Int
 
     // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
     List(Delimiter, Vec<Token>),
@@ -61,7 +61,7 @@ impl TokenKind {
     }
 
     pub fn is_string(&self) -> bool {
-        if let TokenKind::String(_) = self {
+        if let TokenKind::String(QuoteKind::Double, _) = self {
             true
         } else {
             false
@@ -69,8 +69,27 @@ impl TokenKind {
     }
 
     pub fn unwrap_string(&self) -> &Vec<u32> {
-        if let TokenKind::String(v) = self {
+        if let TokenKind::String(QuoteKind::Double, v) = self {
             v
+        } else {
+            panic!(
+                "Internal Compiler Error 15A94FFFA14: {}",
+                self.render_err(&LocalParseSession::dummy()),
+            )
+        }
+    }
+
+    pub fn is_character(&self) -> bool {
+        if let TokenKind::String(QuoteKind::Single, _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn unwrap_character(&self) -> u32 {
+        if let TokenKind::String(QuoteKind::Single, v) = self {
+            v[0]
         } else {
             panic!(
                 "Internal Compiler Error E58B67B9AFA: {}",
@@ -102,6 +121,10 @@ impl TokenKind {
         TokenKind::Identifier(InternedString::dummy())
     }
 
+    pub fn dummy_string(q: QuoteKind) -> Self {
+        TokenKind::String(q, vec![])
+    }
+
     pub fn is_at(&self) -> bool {
         if let TokenKind::Operator(OpToken::At) = self {
             true
@@ -119,7 +142,8 @@ impl TokenKind {
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             TokenKind::Number(_) => "a number literal".to_string(),
-            TokenKind::String(_) => "a string literal".to_string(),
+            TokenKind::String(QuoteKind::Double, _) => "a string literal".to_string(),
+            TokenKind::String(QuoteKind::Single, _) => "a character literal".to_string(),
             TokenKind::Bytes(_) => "a bytes literal".to_string(),
             TokenKind::FormattedString(_) => "a formatted string literal".to_string(),
             TokenKind::List(delim, _) => format!("{}", delim.start() as char),
@@ -159,7 +183,7 @@ impl TokenKind {
             (TokenKind::List(m, _), TokenKind::List(n, _)) => m == n,
 
             // test runners cannot generate the same string: they cannot access the ParseSession
-            (TokenKind::String(_), TokenKind::String(_)) => true,
+            (TokenKind::String(d1, _), TokenKind::String(d2, _)) => d1 == d2,
 
             // test runners cannot generate the same identifier: they cannot access the ParseSession
             (TokenKind::Identifier(_), TokenKind::Identifier(_)) => true,

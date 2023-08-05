@@ -6,6 +6,7 @@ use crate::value::{BlockDef, ValueKind};
 use std::collections::HashMap;
 
 mod clean_up_blocks;
+mod intra_inter_mod;
 mod resolve_recursive_lambdas_in_block;
 
 pub use resolve_recursive_lambdas_in_block::ClosureCollector;
@@ -74,6 +75,7 @@ pub fn substitute_local_def(haystack: &mut Expr, substitutions: &HashMap<(Intern
             ValueKind::Integer(_)
             | ValueKind::Real(_)
             | ValueKind::String(_)
+            | ValueKind::Char(_)
             | ValueKind::Bytes(_)
             | ValueKind::Object(_) => {},
             ValueKind::Format(elements)

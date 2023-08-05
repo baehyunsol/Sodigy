@@ -39,6 +39,7 @@ impl ExprKind {
                 ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
+                | ValueKind::Char(_)
                 | ValueKind::Bytes(_)
                 | ValueKind::Object(_) => {},
                 ValueKind::Identifier(name, origin) => f(name, origin, ctxt),

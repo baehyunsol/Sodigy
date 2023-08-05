@@ -60,3 +60,6 @@ Most error messages and warning messages are from Rust.
   - ``` `..` can only be used once per tuple pattern ```
   - ``` parameter `T` is never used ```
     - if there's an unused generic arg in an enum def
+  - ``` character literal may only contain one codepoint ```
+    - ``` if you meant to write a `str` literal, use double quotes ```
+  - ``` empty character literal ```

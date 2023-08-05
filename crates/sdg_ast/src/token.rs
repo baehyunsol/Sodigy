@@ -36,22 +36,28 @@ impl Token {
         self.kind.unwrap_delimiter()
     }
 
-    pub fn is_string(&self) -> bool {
-        self.kind.is_string()
+    pub fn is_character(&self) -> bool {
+        self.kind.is_character()
     }
 
-    pub fn unwrap_string(&self) -> &Vec<u32> {
-        self.kind.unwrap_string()
+    pub fn unwrap_character(&self) -> u32 {
+        self.kind.unwrap_character()
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
         match &self.kind {
             TokenKind::Number(n) => format!("{n}"),
-            TokenKind::String(s) => format!(
-                "{:?}",
-                s.iter().map(
-                    |n| char::from_u32(*n).unwrap()
-                ).collect::<String>()
+            TokenKind::String(q, s) => format!(
+                "{q}{:?}{q}",
+                {
+                    let content = s.iter().map(
+                        |n| char::from_u32(*n).unwrap()
+                    ).collect::<String>();
+                    let content = format!("{content:?}").chars().collect::<Vec<char>>();
+                    let content = content[1..(content.len() - 2)].iter().collect::<String>();
+
+                    content
+                }
             ),
             TokenKind::Bytes(b) => format!("Bytes({b:?})"),
             TokenKind::FormattedString(s) => format!(
@@ -145,6 +151,27 @@ impl Display for Delimiter {
 
     fn fmt(&self, fmt: &mut Formatter) -> Result<(), FmtError> {
         write!(fmt, "{}", self.start() as char)
+    }
+
+}
+
+#[derive(Clone, PartialEq)]
+pub enum QuoteKind {
+    Single,
+    Double,
+}
+
+impl Display for QuoteKind {
+
+    fn fmt(&self, fmt: &mut Formatter) -> Result<(), FmtError> {
+        match self {
+            QuoteKind::Single => {
+                write!(fmt, "'")
+            }
+            QuoteKind::Double => {
+                write!(fmt, "\"")
+            }
+        }
     }
 
 }

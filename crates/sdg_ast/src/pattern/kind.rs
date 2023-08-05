@@ -10,7 +10,7 @@ pub enum PatternKind {
     Constant(Token),  // only int, real, and string
 
     // 1..10     -> only integers, no reals
-    // "a".."z"  -> both side has to be only 1 char
+    // 'a'..'z'
     // 1..~10    -> inclusive
     // 1..
     // ..100     -> can open either end (not both)

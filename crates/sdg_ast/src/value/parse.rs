@@ -4,7 +4,7 @@ use crate::err::{ExpectedToken, ParseError, ParamType};
 use crate::expr::parse_expr;
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma};
 use crate::stmt::parse_arg_def;
-use crate::token::{Delimiter, Keyword, OpToken, Token, TokenKind, TokenList};
+use crate::token::{Delimiter, Keyword, OpToken, QuoteKind, Token, TokenKind, TokenList};
 use crate::value::BlockDef;
 use sdg_uid::UID;
 use std::collections::HashMap;
@@ -20,9 +20,13 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
             Ok(ValueKind::Real(n.clone()))
         },
         Some(Token {
-            kind: TokenKind::String(buf),
+            kind: TokenKind::String(QuoteKind::Double, buf),
             ..
         }) => Ok(ValueKind::String(buf.to_vec())),
+        Some(Token {
+            kind: TokenKind::String(QuoteKind::Single, buf),
+            span,
+        }) => Ok(ValueKind::Char(buf[0])),  // the lexer guarantees that buf.len is 1
         Some(Token {
             kind: TokenKind::Identifier(ind),
             ..

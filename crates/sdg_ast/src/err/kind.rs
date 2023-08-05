@@ -13,6 +13,9 @@ pub enum ParseErrorKind {
 
     FileError(FileError),
 
+    // 'abc' and '' are invalid, it must be a single character
+    InvalidCharLiteral(usize),  // length of the given literal
+
     // expected something, but got nothing
     UnexpectedEoe(ExpectedToken),
 
@@ -61,6 +64,11 @@ impl ParseErrorKind {
             ParseErrorKind::InvalidUTF8(chars) => format!(
                 "{chars:?} is not a valid utf-8"
             ),
+            ParseErrorKind::InvalidCharLiteral(len) => if *len == 0 {
+                "empty character literal".to_string()
+            } else {
+                "character literal may only contain one codepoint".to_string()
+            },
             ParseErrorKind::UntypedArg(arg, func) => format!(
                 "expected a type annotation, found nothing\nParameter `{}` of function `{}` has no type annotation.\nOnly lambda functions are allowed to omit type annotations.",
                 arg.to_string(session),

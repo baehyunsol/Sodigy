@@ -61,6 +61,7 @@ impl ExprKind {
                 | ValueKind::Integer(_)
                 | ValueKind::Real(_)
                 | ValueKind::String(_)
+                | ValueKind::Char(_)
                 | ValueKind::Bytes(_)
                 | ValueKind::Object(_) => {},
                 ValueKind::List(elements)
@@ -261,6 +262,7 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
             | ValueKind::Integer(_)
             | ValueKind::Real(_)
             | ValueKind::String(_)
+            | ValueKind::Char(_)
             | ValueKind::Bytes(_)
             | ValueKind::Object(_) => {},
             ValueKind::Format(elements)
