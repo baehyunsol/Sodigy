@@ -1,3 +1,4 @@
+use crate::ast::NameOrigin;
 use crate::pattern::{PatternErrorKind, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
@@ -197,6 +198,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn pattern_from_arg(name: InternedString, origin: NameOrigin, span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::PatternFromArg(name, origin),
+            span: vec![span],
+            message: String::new(),
+        }
+    }
+
     // TODO: I want to raise an actual type error
     pub(crate) fn unmatched_type_in_range(t1: Token, t2: Token) -> Self {
         todo!()
@@ -276,12 +285,20 @@ impl SodigyError for ParseError {
                 self.set_msg(
                     "In Sodigy, types are first class objects, which means types and parameters are in the same name scope."
                 );
-            }
+            },
+            ParseErrorKind::PatternFromArg(_, origin) => {
+                self.set_msg(
+                    &format!(
+                        "It expected a name of an enum variant or a struct, but got {}.", 
+                        origin.render_err(),
+                    )
+                );
+            },
             ParseErrorKind::InvalidCharLiteral(len) if *len > 1 => {
                 self.set_msg(
                     "If you meant to write a string literal, use double quotes."
                 );
-            }
+            },
             _ => {}
         }
     }

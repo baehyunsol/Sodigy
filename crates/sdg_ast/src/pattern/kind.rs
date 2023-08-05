@@ -1,5 +1,5 @@
 use super::Pattern;
-use crate::path::Path;
+use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::token::Token;
 
@@ -15,12 +15,18 @@ pub enum PatternKind {
     // 1..
     // ..100     -> can open either end (not both)
     Range(Option<Token>, Option<Token>, RangeType),
-    Path(Path),       // a.b.c
+
+    // it's a subset of `Expr`
+    // Value::Identifier, Value::Object, or Path
+    Identifier(Box<Expr>),  // a.b.c
     Binding(InternedString),    // $a
     Tuple(Vec<Pattern>),    // ($a, $b, .., $c)
     Slice(Vec<Pattern>),    // [$a, $b, .., $c]
-    EnumTuple(Path, Vec<Pattern>),  // a.b.c($a, $b, $c)
-    Struct(Path, Vec<(InternedString, Pattern)>),  // a.b.c { a: ($a, $b, $c), b: $b, c: _ }
+
+    // `Box<Expr>` of enums and structs is a subset of `Expr`
+    // Value::Identifier, Value::Object, or Path
+    EnumTuple(Box<Expr>, Vec<Pattern>),  // a.b.c($a, $b, $c)
+    Struct(Box<Expr>, Vec<(InternedString, Pattern)>),  // a.b.c { a: ($a, $b, $c), b: $b, c: _ }
 }
 
 #[derive(Copy, Clone, PartialEq)]

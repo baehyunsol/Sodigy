@@ -20,8 +20,6 @@ impl NameScope {
     // Err() -> invalid name
     pub fn search_name(&self, name: InternedString) -> Result<(Option<&Use>, NameOrigin), ()> {
 
-        // the order of the stack doesn't matter because
-        // we'll search all of them in the end anyway
         for (names, name_scope_kind) in self.name_stack.iter().rev() {
 
             if names.contains(&name) {
@@ -31,7 +29,15 @@ impl NameScope {
         }
 
         if let Some(u) = self.uses.get(&name) {
-            Ok((Some(u), NameOrigin::SubPath))
+            // if a module has `enum Foo { A, B }` and `use Foo.A as X;`, it should be `NameOrigin::Local`
+            // otherwise, it's `NameOrigin::Global`
+            let origin = if self.defs.contains(&u.get_first_name()) {
+                NameOrigin::Local
+            } else {
+                NameOrigin::Global
+            };
+
+            Ok((Some(u), origin))
         }
 
         else if self.defs.contains(&name) {
@@ -169,6 +175,37 @@ impl NameOrigin {
             true
         } else {
             false
+        }
+    }
+
+    pub fn render_err(&self) -> String {
+        match self {
+            NameOrigin::NotKnownYet => "an unresolved name",
+            NameOrigin::Global => "a name defined in another module",
+            NameOrigin::Local => "a name defined within this module",
+            NameOrigin::Prelude => "a name defined inside the Sodigy std lib",
+            NameOrigin::SubPath => "a name in a path",
+            NameOrigin::AnonymousFunc => "a temporary name of an anonymous function",
+            NameOrigin::FuncArg(_) => "an argument of a function",
+            NameOrigin::GenericArg(_) => "a name of a generic argument",
+            NameOrigin::BlockDef(_) => "a name binding in a block expression",
+            NameOrigin::MatchBranch(_, _) => "a name binding in a match expression",
+        }.to_string()
+    }
+
+    pub fn is_same_kind(&self, other: &NameOrigin) -> bool {
+        match (self, other) {
+            (NameOrigin::NotKnownYet, NameOrigin::NotKnownYet)
+            | (NameOrigin::Global, NameOrigin::Global)
+            | (NameOrigin::Local, NameOrigin::Local)
+            | (NameOrigin::Prelude, NameOrigin::Prelude)
+            | (NameOrigin::SubPath, NameOrigin::SubPath)
+            | (NameOrigin::AnonymousFunc, NameOrigin::AnonymousFunc)
+            | (NameOrigin::FuncArg(_), NameOrigin::FuncArg(_))
+            | (NameOrigin::GenericArg(_), NameOrigin::GenericArg(_))
+            | (NameOrigin::BlockDef(_), NameOrigin::BlockDef(_))
+            | (NameOrigin::MatchBranch(_, _), NameOrigin::MatchBranch(_, _)) => true,
+            _ => false,
         }
     }
 

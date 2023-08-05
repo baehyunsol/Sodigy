@@ -1,5 +1,7 @@
 use super::super::NameOrigin;
-use crate::{LocalParseSession, parse_file};
+use crate::ast::Opt;
+use crate::parse_file;
+use crate::session::LocalParseSession;
 use crate::stmt::LAMBDA_FUNC_PREFIX;
 use crate::utils::bytes_to_string;
 
@@ -23,12 +25,21 @@ fn samples() -> Vec<Vec<u8>> {
 
             func_2[local_3] + func_3[local_3 + 1] + block_2 + block_3 + block_scoped + block_6 + block_7(block_2) + block_8
         };",
+        "
+        use local_0.sub_0.sub_0 as local_1;
+        use global_3;
+        use global_type;
+
+        def local_0: global_type = global_3();
+        def local_2: Int = local_1 + local_1;
+        ",
     ].into_iter().map(|s| s.as_bytes().to_vec()).collect()
 }
 
 #[test]
 fn name_origin_test() {
     let mut session = LocalParseSession::new();
+    session.toggle(Opt::IntraInterMod, false);
 
     for sample in samples() {
         session.set_direct_input(sample.clone());
@@ -68,4 +79,8 @@ fn assert_prefix(n: &[u8], prefix: &[u8]) {
 
         panic!("{n:?} doesn't start with {prefix:?}");
     }
+
+    let n = bytes_to_string(n);
+    let prefix = bytes_to_string(prefix);
+    println!("{n:?} does start with {prefix:?}");
 }

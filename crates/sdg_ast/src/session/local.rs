@@ -1,4 +1,5 @@
 use super::{DUMMY_FILE_INDEX, GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
+use crate::ast::Opt;
 use crate::err::{ParseError, SodigyError};
 use crate::path::Path;
 use crate::token::Keyword;
@@ -20,6 +21,8 @@ pub struct LocalParseSession {
     warnings: Vec<SodigyWarning>,
     pub errors: Vec<Box<dyn SodigyError>>,
 
+    optimizations: HashMap<Opt, bool>,
+
     curr_file_data: Vec<u8>,
 }
 
@@ -27,11 +30,24 @@ impl LocalParseSession {
     pub fn new() -> Self {
         try_init_global_session();
 
+        let mut optimizations = HashMap::new();
+        optimizations.insert(Opt::IntraInterMod, true);
+
         LocalParseSession {
             curr_file: DUMMY_FILE_INDEX,
             is_dummy: false,
+            optimizations,
             ..Self::default()
         }
+    }
+
+    pub fn toggle(&mut self, opt: Opt, flag: bool) {
+        self.optimizations.insert(opt, flag);
+    }
+
+    // it should have all the optimizations in the hashmap
+    pub fn is_enabled(&self, opt: Opt) -> bool {
+        *self.optimizations.get(&opt).expect("Internal Compiler Error 7235E377BB9")
     }
 
     pub fn dummy() -> Self {

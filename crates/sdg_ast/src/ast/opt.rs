@@ -1,6 +1,6 @@
-use super::{AST, NameOrigin};
+use super::NameOrigin;
 use crate::expr::{Expr, ExprKind, MatchBranch};
-use crate::session::{InternedString, LocalParseSession};
+use crate::session::InternedString;
 use crate::stmt::ArgDef;
 use crate::value::{BlockDef, ValueKind};
 use std::collections::HashMap;
@@ -10,13 +10,11 @@ mod intra_inter_mod;
 mod resolve_recursive_lambdas_in_block;
 
 pub use resolve_recursive_lambdas_in_block::ClosureCollector;
+pub use intra_inter_mod::LocalUIDs;
 
-impl AST {
-
-    pub(crate) fn opt(&mut self, session: &mut LocalParseSession) {
-        // TODO
-    }
-
+#[derive(Eq, Hash, PartialEq)]
+pub enum Opt {
+    IntraInterMod,
 }
 
 #[macro_export]

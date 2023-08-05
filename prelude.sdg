@@ -1,0 +1,18 @@
+# This file is just a brain-storming
+
+def String: Type = List(Char);
+
+@new_type
+def Char: Type = Int;
+
+enum Bool {
+    True, False,
+}
+
+enum Option<T> {
+    None, Some(T),
+}
+
+enum Result<T, E> {
+    Ok(T), Err(E),
+}

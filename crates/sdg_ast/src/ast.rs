@@ -16,6 +16,7 @@ mod tests;
 
 pub use err::ASTError;
 pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
+pub use opt::{LocalUIDs, Opt};
 
 // It represents a single file.
 // It doesn't have any data from other files, meaning that
@@ -111,7 +112,11 @@ impl AST {
         ast.resolve_recursive_lambdas_in_block(session, &mut closure_collector)?;
         ast.modify_closure_defs(&closure_collector.closure_to_lambda_info);
         ast.clean_up_blocks(session, &mut ())?;
-        ast.opt(session);
+
+        if session.is_enabled(Opt::IntraInterMod) {
+            let mut local_uids = ast.get_local_uids();
+            ast.intra_inter_mod(session, &mut local_uids)?;
+        }
 
         session.err_if_has_error()?;
 

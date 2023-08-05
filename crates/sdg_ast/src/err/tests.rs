@@ -51,6 +51,10 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
             ParseErrorKind::InvalidPattern(p2) => is_eq_pat_err(p1, p2),
             _ => false,
         },
+        ParseErrorKind::PatternFromArg(_, o1) => match k2 {
+            ParseErrorKind::PatternFromArg(_, o2) => o1.is_same_kind(o2),
+            _ => false,
+        },
     }
 
 }

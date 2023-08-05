@@ -1,4 +1,5 @@
 use super::ExpectedToken;
+use crate::ast::NameOrigin;
 use crate::pattern::PatternErrorKind;
 use crate::session::{InternedString, LocalParseSession};
 use crate::token::TokenKind;
@@ -31,6 +32,8 @@ pub enum ParseErrorKind {
     // \{x: Int, x: Int, x + x}
     // {x = 3; x = 4; x + x}
     MultipleDefParam(InternedString, ParamType),
+
+    PatternFromArg(InternedString, NameOrigin),
 
     InvalidPattern(PatternErrorKind),
 }
@@ -79,8 +82,12 @@ impl ParseErrorKind {
                 name.to_string(session),
                 param_type.render_err(),
             ),
+            ParseErrorKind::PatternFromArg(name, _) => format!(
+                "cannot use `{}` inside a pattern",
+                name.to_string(session),
+            ),
             ParseErrorKind::FileError(e) => e.render_err(),
-            ParseErrorKind::InvalidPattern(p) => p.render_err(session),
+            ParseErrorKind::InvalidPattern(p) => p.render_err(),
         }
     }
 }

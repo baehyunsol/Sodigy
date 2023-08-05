@@ -115,14 +115,14 @@ impl ValueKind {
             .render_err(&LocalParseSession::dummy())
     }
 
-    pub fn dump(&self, session: &LocalParseSession, span: Span) -> String {
+    pub fn dump(&self, session: &LocalParseSession, _span: Span) -> String {
         match self {
             ValueKind::Integer(n) => n.to_string(),
             ValueKind::Real(n) => n.to_string(),
             ValueKind::Identifier(ind, _origin) => {
                 #[cfg(test)]
-                if !_origin.is_made_by_compiler() && !span.is_dummy() {
-                    assert_identifier(span.dump(session));
+                if !_origin.is_made_by_compiler() && !_span.is_dummy() {
+                    assert_identifier(_span.dump(session));
                 }
 
                 ind.to_string(session)

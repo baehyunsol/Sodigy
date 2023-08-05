@@ -39,9 +39,9 @@ impl Expr {
                         used_names.insert((*id, origin));
                         self.kind.set_origin(origin);
                     },
-                    Ok((Some(alias), _)) => {
-                        // its origin is handled by `.to_path`
-                        self.kind = alias.to_path();
+                    Ok((Some(alias), origin)) => {
+                        // if there's `use a.b.c as d;` in a file, `a` could either be local or global
+                        self.kind = alias.to_path(origin);
                     },
                     Err(()) => {
                         session.add_error(ASTError::no_def(*id, self.span, name_scope.clone()));
@@ -121,13 +121,14 @@ impl Expr {
                     name_scope.pop_names();
                 },
             },
-            ExprKind::Prefix(_, operand) | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope, lambda_defs, session, used_names),
+            ExprKind::Prefix(_, operand)
+            | ExprKind::Postfix(_, operand) => operand.resolve_names(name_scope, lambda_defs, session, used_names),
             ExprKind::Match(value, branches, match_id) => {
                 value.resolve_names(name_scope, lambda_defs, session, used_names);
 
                 for MatchBranch { pattern, value, id: branch_id } in branches.iter_mut() {
                     // a pattern doesn't define any lambda def, and doesn't use any local value
-                    pattern.resolve_names(name_scope, session);
+                    pattern.resolve_names(name_scope, lambda_defs, session, used_names);
                     let mut bindings = vec![];
                     pattern.get_name_bindings(&mut bindings);
                     let mut unique_name_counter = HashMap::with_capacity(bindings.len());

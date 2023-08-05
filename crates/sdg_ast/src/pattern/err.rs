@@ -1,6 +1,4 @@
 use super::RangeType;
-use crate::session::LocalParseSession;
-use crate::utils::v32_to_string;
 use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
@@ -19,7 +17,7 @@ pub enum PatternErrorKind {
 }
 
 impl PatternErrorKind {
-    pub fn render_err(&self, session: &LocalParseSession) -> String {
+    pub fn render_err(&self) -> String {
         match self {
             PatternErrorKind::NonIntegerInRange(n) => format!(
                 "expected an integer, found {n}",

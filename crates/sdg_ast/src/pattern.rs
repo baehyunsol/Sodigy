@@ -1,4 +1,4 @@
-use crate::ast::NameScope;
+use crate::ast::LocalUIDs;
 use crate::err::ParseError;
 use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
@@ -7,6 +7,7 @@ use crate::token::Token;
 
 mod err;
 mod kind;
+mod name_resolve;
 
 #[cfg(test)]
 mod tests;
@@ -60,11 +61,13 @@ impl Pattern {
         }
     }
 
-    pub fn path(path: Vec<(InternedString, Span)>) -> Self {
+    pub fn identifier(path: Vec<(InternedString, Span)>) -> Self {
         let span = path[0].1;
 
         Pattern {
-            kind: PatternKind::Path(Path::from_names(path)),
+            kind: PatternKind::Identifier(
+                Box::new(Path::from_names(path).into_expr())
+            ),
             span,
         }
     }
@@ -73,7 +76,10 @@ impl Pattern {
         let span = path[0].1;
 
         Pattern {
-            kind: PatternKind::EnumTuple(Path::from_names(path), patterns),
+            kind: PatternKind::EnumTuple(
+                Box::new(Path::from_names(path).into_expr()),
+                patterns,
+            ),
             span,
         }
     }
@@ -110,7 +116,7 @@ impl Pattern {
             ).collect()),
             PatternKind::Shorthand
             | PatternKind::WildCard
-            | PatternKind::Path(_)
+            | PatternKind::Identifier(_)
             | PatternKind::Binding(_)
             | PatternKind::Constant(_)
             | PatternKind::Range(_, _, _) => None
@@ -123,7 +129,7 @@ impl Pattern {
             PatternKind::WildCard
             | PatternKind::Shorthand
             | PatternKind::Binding(_)
-            | PatternKind::Path(_) => Ok(()),
+            | PatternKind::Identifier(_) => Ok(()),
             PatternKind::Range(from, to, range_type) => match (&from, &to) {
                 (None, None) => unreachable!("Internal Compiler Error 43CC27E1FF7"),
                 (Some(t), None) | (None, Some(t)) => if t.is_character() {
@@ -220,7 +226,7 @@ impl Pattern {
         match &self.kind {
             PatternKind::WildCard
             | PatternKind::Shorthand
-            | PatternKind::Path(_)
+            | PatternKind::Identifier(_)
             | PatternKind::Constant(_)
             | PatternKind::Range(_, _, _) => {},
             PatternKind::Binding(name) => {
@@ -247,7 +253,7 @@ impl Pattern {
             PatternKind::Shorthand => "..".to_string(),
             PatternKind::Constant(t) => t.dump(session),
             PatternKind::Binding(b) => format!("${}", b.to_string(session)),
-            PatternKind::Path(p) => p.dump(session),
+            PatternKind::Identifier(name) => name.dump(session),
             PatternKind::Tuple(ps)
             | PatternKind::Slice(ps) => {
                 let (s, e) = if self.is_tuple() {
@@ -276,39 +282,36 @@ impl Pattern {
         }
     }
 
-    // a `Pattern` may include
-    //   - enum name, enum variant name, struct name, const
-    // a `Pattern` may not include
-    //   - local val, func call, 
-    // `Some($foo)` -> `Sodigy.Option.Some($foo)`
-    pub fn resolve_names(&mut self, scope: &NameScope, session: &mut LocalParseSession) {
+    // read the comments in `sdg_ast::ast::opt::intra_inter_mod`
+    // it finds tuple and struct names in patterns, and converts them to `ValueKind::Object(id)`
+    pub fn intra_inter_mod(&mut self, session: &LocalParseSession, ctxt: &LocalUIDs) {
         match &mut self.kind {
             PatternKind::WildCard
             | PatternKind::Shorthand
             | PatternKind::Binding(_)
             | PatternKind::Constant(_)
             | PatternKind::Range(_, _, _) => {},
-            PatternKind::Path(p) => {
-                p.resolve_names(scope, session);
-            },
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns) => {
                 for pat in patterns.iter_mut() {
-                    pat.resolve_names(scope, session);
+                    pat.intra_inter_mod(session, ctxt);
                 }
             },
-            PatternKind::EnumTuple(path, patterns) => {
-                path.resolve_names(scope, session);
+            PatternKind::Identifier(name) => {
+                name.intra_inter_mod(session, ctxt);
+            },
+            PatternKind::EnumTuple(name, patterns) => {
+                name.intra_inter_mod(session, ctxt);
 
                 for pat in patterns.iter_mut() {
-                    pat.resolve_names(scope, session);
+                    pat.intra_inter_mod(session, ctxt);
                 }
-            }
-            PatternKind::Struct(path, patterns) => {
-                path.resolve_names(scope, session);
+            },
+            PatternKind::Struct(name, patterns) => {
+                name.intra_inter_mod(session, ctxt);
 
                 for (_, pat) in patterns.iter_mut() {
-                    pat.resolve_names(scope, session);
+                    pat.intra_inter_mod(session, ctxt);
                 }
             },
         }

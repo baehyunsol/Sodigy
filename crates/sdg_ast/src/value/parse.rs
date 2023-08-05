@@ -25,7 +25,7 @@ pub fn parse_value(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         }) => Ok(ValueKind::String(buf.to_vec())),
         Some(Token {
             kind: TokenKind::String(QuoteKind::Single, buf),
-            span,
+            ..
         }) => Ok(ValueKind::Char(buf[0])),  // the lexer guarantees that buf.len is 1
         Some(Token {
             kind: TokenKind::Identifier(ind),

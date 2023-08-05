@@ -488,10 +488,10 @@ impl TokenList {
                         }) => todo!(),
                         Some(_) => {
                             self.backward();
-                            return Ok(Pattern::path(path));
+                            return Ok(Pattern::identifier(path));
                         },
                         None => {
-                            return Ok(Pattern::path(path));
+                            return Ok(Pattern::identifier(path));
                         }
                     }
                 }

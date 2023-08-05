@@ -1,9 +1,11 @@
 // not file path, but Sodigy path, like `a.b.c`
 
-use crate::ast::{ASTError, NameScope};
+use crate::ast::{ASTError, NameOrigin, NameScope};
+use crate::expr::{Expr, ExprKind, InfixOp};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::{Token, TokenKind};
+use crate::value::ValueKind;
 
 #[derive(Clone, Default)]
 pub struct Path(Vec<(InternedString, Span)>);
@@ -51,6 +53,44 @@ impl Path {
                 kind: TokenKind::Identifier(*name),
             }
         ).collect()
+    }
+
+    // TODO: `Use::to_path`'s implementation and this impl are very similar
+    pub fn into_expr(&self) -> Expr {
+        match self.0.len() {
+            0 => unreachable!(
+                "Internal Compiler Error 34F9745739F"
+            ),
+            1 => Expr {
+                kind: ExprKind::Value(ValueKind::Identifier(self.0[0].0, NameOrigin::NotKnownYet)),
+                span: self.0[0].1,
+            },
+            2 => Expr {
+                kind: ExprKind::Infix(
+                    InfixOp::Path,
+                    Box::new(Expr {
+                        kind: ExprKind::Value(ValueKind::Identifier(self.0[0].0, NameOrigin::NotKnownYet)),
+                        span: self.0[0].1,
+                    }),
+                    Box::new(Expr {
+                        kind: ExprKind::Value(ValueKind::Identifier(self.0[1].0, NameOrigin::SubPath)),
+                        span: self.0[1].1,
+                    }),
+                ),
+                span: Span::dummy(),
+            },
+            _ => Expr {
+                kind: ExprKind::Infix(
+                    InfixOp::Path,
+                    Box::new(Path(self.0[..(self.0.len() - 1)].to_vec()).into_expr()),
+                    Box::new(Expr {
+                        kind: ExprKind::Value(ValueKind::Identifier(self.0[self.0.len() - 1].0, NameOrigin::SubPath)),
+                        span: self.0[self.0.len() - 1].1,
+                    }),
+                ),
+                span: Span::dummy(),
+            },
+        }
     }
 
     pub fn resolve_names(&mut self, name_scope: &NameScope, session: &mut LocalParseSession) {
