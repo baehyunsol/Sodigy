@@ -15,6 +15,12 @@ impl Path {
         Path(vec![])
     }
 
+    pub fn root(session: &mut LocalParseSession) -> Self {
+        Path(vec![
+            (session.intern_string(b"root"), Span::dummy()),
+        ])
+    }
+
     pub fn from_names(names: Vec<(InternedString, Span)>) -> Self {
         Path(names)
     }
@@ -55,6 +61,26 @@ impl Path {
         ).collect()
     }
 
+    pub fn try_from_expr(e: &Expr) -> Option<Self> {
+        match &e.kind {
+            ExprKind::Value(ValueKind::Identifier(name, _)) => Some(Path(vec![(*name, e.span)])),
+            // TODO: O(n^2)
+            ExprKind::Infix(InfixOp::Path, op1, op2) => {
+                let ex1 = Path::try_from_expr(&op1);
+                let ex2 = Path::try_from_expr(&op2);
+
+                match (ex1, ex2) {
+                    (Some(ex1), Some(ex2)) => Some(Path(vec![
+                        ex1.0,
+                        ex2.0,
+                    ].concat())),
+                    _ => None,
+                }
+            },
+            _ => None,
+        }
+    }
+
     // TODO: `Use::to_path`'s implementation and this impl are very similar
     pub fn into_expr(&self) -> Expr {
         match self.0.len() {
@@ -93,7 +119,7 @@ impl Path {
         }
     }
 
-    pub fn resolve_names(&mut self, name_scope: &NameScope, session: &mut LocalParseSession) {
+    pub fn resolve_names(&mut self, name_scope: &mut NameScope, session: &mut LocalParseSession) {
         match name_scope.search_name(self.get_name_by_index(0)) {
             Ok((Some(u), _)) => {
                 if self.len() == 1 {

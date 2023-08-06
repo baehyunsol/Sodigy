@@ -132,7 +132,7 @@ impl ExprKind {
 
                         // remove `never_used` ones
                         for never_used_name in never_used.iter() {
-                            session.add_warning(SodigyWarning::unused(*never_used_name, get_span_by_name(*never_used_name, defs), ParamType::BlockDef));
+                            session.add_warning(SodigyWarning::unused_param(*never_used_name, get_span_by_name(*never_used_name, defs), ParamType::BlockDef));
 
                             defs.swap_remove(
                                 defs.iter().position(

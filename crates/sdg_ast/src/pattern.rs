@@ -266,7 +266,7 @@ impl Pattern {
                     "{s}{}{e}",
                     ps.iter().map(
                         |pat| pat.dump(session)
-                    ).collect::<Vec<String>>().join(",")
+                    ).collect::<Vec<String>>().join(", ")
                 )
             },
             PatternKind::EnumTuple(p, ps) => {
@@ -275,7 +275,7 @@ impl Pattern {
                     p.dump(session),
                     ps.iter().map(
                         |pat| pat.dump(session)
-                    ).collect::<Vec<String>>().join(",")
+                    ).collect::<Vec<String>>().join(", ")
                 )
             },
             _ => todo!(),
@@ -298,17 +298,17 @@ impl Pattern {
                 }
             },
             PatternKind::Identifier(name) => {
-                name.intra_inter_mod(session, ctxt);
+                let _ = name.intra_inter_mod(session, ctxt);
             },
             PatternKind::EnumTuple(name, patterns) => {
-                name.intra_inter_mod(session, ctxt);
+                let _ = name.intra_inter_mod(session, ctxt);
 
                 for pat in patterns.iter_mut() {
                     pat.intra_inter_mod(session, ctxt);
                 }
             },
             PatternKind::Struct(name, patterns) => {
-                name.intra_inter_mod(session, ctxt);
+                let _ = name.intra_inter_mod(session, ctxt);
 
                 for (_, pat) in patterns.iter_mut() {
                     pat.intra_inter_mod(session, ctxt);

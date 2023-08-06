@@ -281,6 +281,27 @@ impl SodigyError for ParseError {
                     "If you meant to use `..` as a prefix operator, try `0..a` instead of `..a`."
                 );
             },
+            ParseErrorKind::UnexpectedToken {
+                got: TokenKind::Keyword(keyword), expected,
+            } => {
+                let mut is_expecting_identifier = expected == &ExpectedToken::AnyExpression
+                    || expected == &ExpectedToken::AnyPattern;
+
+                if let ExpectedToken::SpecificTokens(tokens) = expected {
+                    if tokens.iter().any(
+                        |t| if let TokenKind::Identifier(_) = t { true } else { false }
+                    ) {
+                        is_expecting_identifier = true;
+                    }
+                }
+
+                if is_expecting_identifier {
+                    let k = keyword.render_err();
+                    self.set_msg(&format!(
+                        "`{k}` is a keyword, not an identifier.\nIf you meant to use `{k}` as an identifier, try `{k}_`.",
+                    ));
+                }
+            },
             ParseErrorKind::MultipleDefParam(_, ParamType::FuncGenericAndParam) => {
                 self.set_msg(
                     "In Sodigy, types are first class objects, which means types and parameters are in the same name scope."

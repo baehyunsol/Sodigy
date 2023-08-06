@@ -397,9 +397,12 @@ fn valid_ast_dump_test() {
     for (input, ast, span_start, span_end) in valid_samples() {
         match dump_ast_of_expr(input.clone(), &mut session) {
             Ok(expr) => {
+                let expr_no_whitespace = expr.dump(&session).chars().filter(|c| *c != ' ').collect::<String>();
+                let ast_no_whitespace = ast.chars().filter(|c| *c != ' ').collect::<String>();
+
                 // it's a good practice to see how the span looks like
                 // println!("{}", expr.span.render_err(&session));
-                if expr.dump(&session) != ast
+                if expr_no_whitespace != ast_no_whitespace
                 || (expr.span.start, expr.span.end) != (span_start, span_end) {
                     failures.push(format!(
                         "\n\n---\n\ninput\n{}\nspan\n({}, {}) vs ({span_start}, {span_end})\n({}) vs ({ast})",

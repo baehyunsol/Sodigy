@@ -200,17 +200,25 @@ impl FuncDef {
 
         for ArgDef { name, span, .. } in self.args.iter() {
             if !used_names.contains(&(*name, func_name_origin)) {
-                warnings.push(SodigyWarning::unused(*name, *span, param_type));
+                warnings.push(SodigyWarning::unused_param(*name, *span, param_type));
             }
         }
 
         for GenericDef { name, span } in self.generics.iter() {
             if !used_names.contains(&(*name, generic_name_origin)) {
-                warnings.push(SodigyWarning::unused(*name, *span, ParamType::FuncGeneric));
+                warnings.push(SodigyWarning::unused_param(*name, *span, ParamType::FuncGeneric));
             }
         }
 
         warnings
+    }
+
+    // helper function for `dump`
+    pub(crate) fn pretty_name(&self, session: &LocalParseSession) -> String {
+        let mut l = self.location.clone();
+        l.push((self.name, Span::dummy()));
+
+        l.dump(session)
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
@@ -226,11 +234,13 @@ impl FuncDef {
         }
 
         format!(
-            "#kind: {}{}\ndef {}{}({}): {} = {};",
+            "#kind: {}{}\n#path: {}\n#uid: {}\ndef {}{}({}): {} = {};",
             self.kind.to_string(session),
             self.decorators.iter().map(
                 |deco| format!("\n{}", deco.dump(session))
             ).collect::<Vec<String>>().concat(),
+            self.location.dump(session),
+            self.id.to_string(),
             self.name.to_string(session),
             if self.generics.is_empty() {
                 String::new()

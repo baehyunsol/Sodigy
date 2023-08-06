@@ -8,14 +8,22 @@ pub use kind::SodigyWarningKind;
 
 pub struct SodigyWarning {
     kind: SodigyWarningKind,
-    span: Span,
+    pub(crate) span: Span,
     message: String,
 }
 
 impl SodigyWarning {
-    pub fn unused(name: InternedString, span: Span, param_type: ParamType) -> Self {
+    pub fn unused_param(name: InternedString, span: Span, param_type: ParamType) -> Self {
         SodigyWarning {
             kind: SodigyWarningKind::UnusedParam(name, param_type),
+            span,
+            message: String::new(),
+        }
+    }
+
+    pub fn unused_use(name: InternedString, span: Span) -> Self {
+        SodigyWarning {
+            kind: SodigyWarningKind::UnusedUse(name),
             span,
             message: String::new(),
         }

@@ -15,7 +15,7 @@ mod tests {
 
         match parse_file(&input, &mut session) {
             Ok(ast) => {
-                println!("{}", ast.dump(&session));
+                println!("{}", ast.dump(&mut session));
                 if !session.has_no_warning() {
                     panic!("\n\n{}\n\n", session.render_warnings());
                 }

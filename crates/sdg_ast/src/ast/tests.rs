@@ -37,7 +37,15 @@ fn check_ast_of_tester(samples: Vec<(Vec<u8>, String)>) {
             Err(_) => panic!("{}", session.render_err()),
         };
 
-        assert_eq!(ast.dump_ast_of_def(test_func_name.clone(), &session).unwrap(), desired);
+        let ast_no_whitespace = ast.dump_ast_of_def(test_func_name.clone(), &session).unwrap().chars().filter(
+            |c| *c != ' '
+        ).collect::<String>();
+
+        let desired_no_whitespace = desired.chars().filter(
+            |c| *c != ' '
+        ).collect::<String>();
+
+        assert_eq!(ast_no_whitespace, desired_no_whitespace);
     }
 
 }

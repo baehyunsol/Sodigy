@@ -88,7 +88,7 @@ impl ExprKind {
             ExprKind::Value(v) => v.dump(session, span),
             ExprKind::Prefix(op, expr) => format!("{op:?}({})", expr.dump(session)),
             ExprKind::Infix(op, lhs, rhs) => format!(
-                "{}({},{})",
+                "{}({}, {})",
                 op.dump(session),
                 lhs.dump(session),
                 rhs.dump(session),
@@ -98,12 +98,12 @@ impl ExprKind {
                 "Call({}{})",
                 functor.dump(session),
                 args.iter()
-                    .map(|arg| format!(",{}", arg.dump(session)))
+                    .map(|arg| format!(", {}", arg.dump(session)))
                     .collect::<Vec<String>>()
                     .concat()
             ),
             ExprKind::Match(value, branches, _) => format!(
-                "Match({},[{}])",
+                "Match({}, [{}])",
                 value.dump(session),
                 branches.iter().map(
                     |MatchBranch { pattern, value, .. }| format!(
@@ -111,14 +111,14 @@ impl ExprKind {
                         pattern.dump(session),
                         value.dump(session),
                     )
-                ).collect::<Vec<String>>().join(","),
+                ).collect::<Vec<String>>().join(", "),
             ),
             ExprKind::Branch(cond, t, f) => {
                 #[cfg(test)]
                 assert_eq!(span.dump(session), "if");
 
                 format!(
-                    "Branch({},{},{})",
+                    "Branch({}, {}, {})",
                     cond.dump(session),
                     t.dump(session),
                     f.dump(session)

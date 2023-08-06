@@ -3,6 +3,7 @@ use crate::session::{InternedString, LocalParseSession};
 
 pub enum SodigyWarningKind {
     UnusedParam(InternedString, ParamType),
+    UnusedUse(InternedString),
 }
 
 impl SodigyWarningKind {
@@ -24,6 +25,10 @@ impl SodigyWarningKind {
                     name.to_string(session),
                 )
             },
+            SodigyWarningKind::UnusedUse(name) => format!(
+                "unused import: `{}`",
+                name.to_string(session),
+            ),
         }
     }
 }

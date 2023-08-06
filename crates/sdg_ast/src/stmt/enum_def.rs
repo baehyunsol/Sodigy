@@ -100,7 +100,7 @@ impl EnumDef {
 
         for GenericDef { name, span } in self.generics.iter() {
             if !used_names.contains(&(*name, NameOrigin::NotKnownYet)) {
-                session.add_warning(SodigyWarning::unused(*name, *span, ParamType::FuncGeneric));
+                session.add_warning(SodigyWarning::unused_param(*name, *span, ParamType::FuncGeneric));
             }
         }
     }

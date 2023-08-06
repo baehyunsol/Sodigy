@@ -3,6 +3,7 @@ use sdg_prelude::{get_prelude_buffs_len, get_prelude_index};
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{GetNameOfArg, Use};
 use crate::utils::{bytes_to_string, edit_distance, substr_edit_distance};
+use crate::warning::SodigyWarning;
 use sdg_uid::UID;
 use std::collections::{HashMap, HashSet};
 
@@ -10,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 pub struct NameScope {
     defs: HashSet<InternedString>,
     uses: HashMap<InternedString, Use>,
+    used_uses: HashSet<InternedString>,
     pub(crate) name_stack: Vec<(HashSet<InternedString>, NameScopeKind)>,
     preludes: HashSet<InternedString>,
 }
@@ -18,7 +20,7 @@ impl NameScope {
     // Ok(None) -> valid name, no alias
     // Ok(Some(u)) -> valid name, and has alias `u`
     // Err() -> invalid name
-    pub fn search_name(&self, name: InternedString) -> Result<(Option<&Use>, NameOrigin), ()> {
+    pub fn search_name(&mut self, name: InternedString) -> Result<(Option<&Use>, NameOrigin), ()> {
 
         for (names, name_scope_kind) in self.name_stack.iter().rev() {
 
@@ -36,6 +38,8 @@ impl NameScope {
             } else {
                 NameOrigin::Global
             };
+
+            self.used_uses.insert(name);
 
             Ok((Some(u), origin))
         }
@@ -144,6 +148,7 @@ impl NameScope {
         NameScope {
             defs: ast.defs.keys().map(|k| *k).collect::<HashSet<InternedString>>(),
             uses: ast.uses.clone(),
+            used_uses: HashSet::new(),
             name_stack: vec![],
             preludes: get_all_preludes(),
         }
@@ -274,6 +279,12 @@ impl AST {
 
         for (name, def) in lambda_defs.into_iter() {
             self.defs.insert(name, def);
+        }
+
+        for (name, use_) in self.uses.iter() {
+            if !name_scope.used_uses.contains(name) {
+                session.add_warning(SodigyWarning::unused_use(*name, use_.span));
+            }
         }
 
         session.err_if_has_error()

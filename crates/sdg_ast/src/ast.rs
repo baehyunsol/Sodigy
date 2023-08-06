@@ -123,10 +123,30 @@ impl AST {
         Ok(ast)
     }
 
-    pub fn dump(&self, session: &LocalParseSession) -> String {
+    pub fn dump(&self, session: &mut LocalParseSession) -> String {
         let mut result = Vec::with_capacity(
             self.defs.len() + self.uses.len() + self.inner_modules.len()
         );
+
+        // there are tons of `Object(XXXXX)` in the dumped result, which are not readable
+        // we should translate `Object(XXXX)` into a readable name
+        // we need some kind of context that has such table: UID -> FuncDef
+        // but generating such table is expensive, so we have to make sure that
+        // the table is generated only when something is dumped
+        // I guess this is the only place to generate the table
+        // after generating the table, we can just inject that to session
+        // other `dump` methods will check whether the table is initialized when they encounter `Object(XXXX)`
+        // if so, they'd dump a readable name, otherwise they'd just dump `Object(XXXXX)`
+        let mut uid_to_name_table = HashMap::new();
+
+        for def in self.defs.values() {
+            uid_to_name_table.insert(
+                def.id,
+                def.pretty_name(session),
+            );
+        }
+
+        session.update_uid_to_name_table(uid_to_name_table);
 
         for module in self.inner_modules.values() {
             result.push((module.def_span, module.dump(session)));

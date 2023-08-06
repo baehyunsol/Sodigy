@@ -155,7 +155,7 @@ impl ValueKind {
                         .iter()
                         .map(|element| element.dump(session))
                         .collect::<Vec<String>>()
-                        .join(",")
+                        .join(", ")
                 )
             },
             ValueKind::Lambda(args, value) => {
@@ -163,12 +163,12 @@ impl ValueKind {
                     .iter()
                     .map(|ArgDef { name, ty, .. }| if let Some(ty) = ty {
                             format!(
-                                "{}:{},",
+                                "{}:{}, ",
                                 name.to_string(session),
                                 ty.dump(session),
                             )
                         } else {
-                            format!("{},", name.to_string(session))
+                            format!("{}, ", name.to_string(session))
                         }
                     )
                     .collect::<Vec<String>>()
@@ -188,10 +188,10 @@ impl ValueKind {
                     .iter()
                     .map(|BlockDef{ name, ty, value, .. }| {
                         format!(
-                            "{}{}={};",
+                            "{}{} = {}; ",
                             name.to_string(session),
                             if let Some(ty) = ty {
-                                format!(":{}", ty.dump(session))
+                                format!(": {}", ty.dump(session))
                             } else {
                                 String::new()
                             },
@@ -203,11 +203,12 @@ impl ValueKind {
 
                 format!("{}{defs}{}{}", '{', value.dump(session), '}',)
             },
-
-            // TODO: not very helpful for debugging
-            ValueKind::Object(id) => format!(
-                "Object({})", id.to_string(),
-            ),
+            ValueKind::Object(uid) => match session.get_name_from_uid(uid) {
+                Some(name) => name,
+                None => format!(
+                    "Object({})", uid.to_string(),
+                ),
+            },
         }
     }
 }

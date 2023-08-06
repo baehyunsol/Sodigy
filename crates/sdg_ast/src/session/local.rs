@@ -5,6 +5,7 @@ use crate::path::Path;
 use crate::token::Keyword;
 use crate::warning::SodigyWarning;
 use sdg_fs::read_bytes;
+use sdg_uid::UID;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -23,6 +24,9 @@ pub struct LocalParseSession {
 
     optimizations: HashMap<Opt, bool>,
 
+    // it's only used for `dump` methods
+    uid_to_name_table: HashMap<UID, String>,
+
     curr_file_data: Vec<u8>,
 }
 
@@ -33,12 +37,17 @@ impl LocalParseSession {
         let mut optimizations = HashMap::new();
         optimizations.insert(Opt::IntraInterMod, true);
 
-        LocalParseSession {
+        let mut result = LocalParseSession {
             curr_file: DUMMY_FILE_INDEX,
             is_dummy: false,
             optimizations,
             ..Self::default()
-        }
+        };
+
+        let root_path = Path::root(&mut result);
+        result.name_path = root_path;
+
+        result
     }
 
     pub fn toggle(&mut self, opt: Opt, flag: bool) {
@@ -164,7 +173,29 @@ impl LocalParseSession {
     }
 
     pub fn render_warnings(&self) -> String {
-        self.warnings.iter().map(|e| e.render_warning(self)).collect::<Vec<String>>().join("\n\n")
+        let mut warnings: Vec<_> = self.warnings.iter().map(|w| (w.render_warning(self), w.span)).collect();
+        warnings.sort_by_key(|(_, s)| *s);
+
+        let mut warnings: Vec<_> = warnings.into_iter().map(|(m, _)| m).collect();
+        warnings.push(format!(
+            "`{}` generated {} warning{}",
+
+            // TODO: the errors may be from multiple files!
+            self.get_file_path(self.curr_file),
+
+            if warnings.len() == 1 {
+                "a".to_string()
+            } else {
+                format!("{}", warnings.len())
+            },
+            if warnings.len() == 1 {
+                ""
+            } else {
+                "s"
+            }
+        ));
+
+        warnings.join("\n\n")
     }
 
     pub fn add_error<E: SodigyError + 'static>(&mut self, mut error: E) {
@@ -208,7 +239,10 @@ impl LocalParseSession {
 
         errors.push(format!(
             "Could not compile `{}` due to {} previous error{}.",
+
+            // TODO: the errors may be from multiple files!
             self.get_file_path(self.curr_file),
+
             if errors.len() == 1 {
                 "a".to_string()
             } else {
@@ -255,5 +289,15 @@ impl LocalParseSession {
             // What do we do here? There's no way the compiler can recover from this
             read_bytes(&path).expect("Internal Compiler Error D4A59FCCCE0")
         }
+    }
+
+    pub fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
+        for (k, v) in table.into_iter() {
+            self.uid_to_name_table.insert(k, v);
+        }
+    }
+
+    pub fn get_name_from_uid(&self, uid: &UID) -> Option<String> {
+        self.uid_to_name_table.get(uid).map(|s| s.to_string())
     }
 }

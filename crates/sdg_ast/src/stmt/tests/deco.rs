@@ -69,12 +69,16 @@ fn valid_decorator_tests() {
                 assert_eq!(actual_decos.len(), decorators.len());
 
                 let actual_deco_names = actual_decos.iter().map(
-                    |deco| deco.deco_name.dump(&session)
+                    |deco| deco.deco_name.dump(&session).chars().filter(
+                        |c| *c != ' '
+                    ).collect()
                 ).collect::<Vec<String>>();
 
                 let actual_deco_args = actual_decos.iter().map(
                     |deco| deco.args.iter().map(
-                        |arg| arg.dump(&session)
+                        |arg| arg.dump(&session).chars().filter(
+                            |c| *c != ' '
+                        ).collect()
                     ).collect::<Vec<String>>()
                 ).collect::<Vec<Vec<String>>>().concat();
 

@@ -21,6 +21,7 @@ Unused names, always true (in branch)
 Most error messages and warning messages are from Rust.
 
 - Warnings
+  - ``` `sdg_ast` (lib) generated 16 warnings (run `cargo fix --lib -p sdg_ast` to apply 10 suggestions) ```
   - ``` unused variable: `b` ```
   - ``` unused import: `std::fs::File` ```
   - ``` methods `is_identifier` and `get_first_token` are never used ```

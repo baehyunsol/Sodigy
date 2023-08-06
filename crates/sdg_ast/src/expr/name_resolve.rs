@@ -152,7 +152,7 @@ impl Expr {
                     // find unsued names
                     for (name, span) in bindings.iter() {
                         if !used_names.contains(&(*name, NameOrigin::MatchBranch(*match_id, *branch_id))) {
-                            session.add_warning(SodigyWarning::unused(*name, *span, ParamType::PatternNameBinding));
+                            session.add_warning(SodigyWarning::unused_param(*name, *span, ParamType::PatternNameBinding));
                         }
                     }
 
