@@ -87,7 +87,7 @@ impl ParseErrorKind {
                 name.to_string(session),
             ),
             ParseErrorKind::FileError(e) => e.render_err(),
-            ParseErrorKind::InvalidPattern(p) => p.render_err(),
+            ParseErrorKind::InvalidPattern(p) => p.render_err(session),
         }
     }
 }

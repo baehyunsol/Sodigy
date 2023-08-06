@@ -31,7 +31,6 @@ impl LocalUIDs {
         }
     }
 
-    // TODO
     // let's say `p` is `aa.bb.cc`
     // 1. if it has uid for `aa.bb.cc`, it returns `Some(Object(X))`
     //    -> `X` is uid of `aa.bb.cc`

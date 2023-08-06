@@ -1,4 +1,5 @@
 use super::RangeType;
+use crate::session::{InternedString, LocalParseSession};
 use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
@@ -14,10 +15,13 @@ pub enum PatternErrorKind {
 
     // ($a, .., $b, .., $c)
     MultipleShorthands,
+
+    // Foo { a, a }
+    MultiFieldBindingInPattern(InternedString),
 }
 
 impl PatternErrorKind {
-    pub fn render_err(&self) -> String {
+    pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             PatternErrorKind::NonIntegerInRange(n) => format!(
                 "expected an integer, found {n}",
@@ -31,6 +35,10 @@ impl PatternErrorKind {
                 char::from_u32(*to).expect("Internal Compiler Error 0F80EE9FADE"),
             ),
             PatternErrorKind::MultipleShorthands => String::from("`..` can only be used once per pattern"),
+            PatternErrorKind::MultiFieldBindingInPattern(name) => format!(
+                "field `{}` bound multiple times in the pattern",
+                name.to_string(session),
+            ),
         }
     }
 }

@@ -64,3 +64,4 @@ Most error messages and warning messages are from Rust.
   - ``` character literal may only contain one codepoint ```
     - ``` if you meant to write a `str` literal, use double quotes ```
   - ``` empty character literal ```
+  - ``` field `got` bound multiple times in the pattern ```

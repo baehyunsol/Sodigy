@@ -4,8 +4,10 @@ use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::token::Token;
+use std::collections::HashMap;
 
 mod err;
+mod field_pattern_def;
 mod kind;
 mod name_resolve;
 
@@ -13,6 +15,7 @@ mod name_resolve;
 mod tests;
 
 pub use err::PatternErrorKind;
+pub use field_pattern_def::FieldPatternDef;
 pub use kind::{PatternKind, RangeType};
 
 #[cfg(test)]
@@ -72,13 +75,27 @@ impl Pattern {
         }
     }
 
-    pub fn enum_tuple(path: Vec<(InternedString, Span)>, patterns: Vec<Pattern>) -> Self {
-        let span = path[0].1;
-
+    pub fn enum_tuple(path: Vec<(InternedString, Span)>, patterns: Vec<Pattern>, span: Span) -> Self {
         Pattern {
             kind: PatternKind::EnumTuple(
                 Box::new(Path::from_names(path).into_expr()),
                 patterns,
+            ),
+            span,
+        }
+    }
+
+    pub fn struct_(
+        path: Vec<(InternedString, Span)>,
+        elements: Vec<FieldPatternDef>,
+        has_shorthand: bool,
+        span: Span,
+    ) -> Self {
+        Pattern {
+            kind: PatternKind::Struct(
+                Box::new(Path::from_names(path).into_expr()),
+                elements,
+                has_shorthand,
             ),
             span,
         }
@@ -111,8 +128,8 @@ impl Pattern {
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns)
             | PatternKind::EnumTuple(_, patterns) => Some(patterns),
-            PatternKind::Struct(_, patterns) => Some(patterns.into_iter().map(
-                |(_, pattern)| pattern
+            PatternKind::Struct(_, patterns, _) => Some(patterns.into_iter().map(
+                |FieldPatternDef { pattern, .. }| pattern
             ).collect()),
             PatternKind::Shorthand
             | PatternKind::WildCard
@@ -202,11 +219,11 @@ impl Pattern {
             | PatternKind::EnumTuple(_, patterns) => {
                 let mut shorthand_spans = vec![];
 
-                for pat in patterns.iter() {
-                    pat.check_validity()?;
+                for pattern in patterns.iter() {
+                    pattern.check_validity()?;
 
-                    if let PatternKind::Shorthand = &pat.kind {
-                        shorthand_spans.push(pat.span);
+                    if let PatternKind::Shorthand = &pattern.kind {
+                        shorthand_spans.push(pattern.span);
                     }
 
                 }
@@ -218,7 +235,22 @@ impl Pattern {
                 Ok(())
             },
 
-            PatternKind::Struct(_, _) => todo!(),
+            PatternKind::Struct(_, field_and_patterns, _) => {
+                let mut field_names = HashMap::new();
+
+                for FieldPatternDef { field_name, pattern, field_span } in field_and_patterns.iter() {
+                    pattern.check_validity()?;
+
+                    match field_names.insert(*field_name, *field_span) {
+                        Some(span) => {
+                            return Err(ParseError::multi_field_binding_in_pattern(*field_name, vec![span, *field_span]));
+                        },
+                        _ => {},
+                    }
+                }
+
+                todo!();
+            },
         }
     }
 
@@ -235,13 +267,13 @@ impl Pattern {
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns)
             | PatternKind::EnumTuple(_, patterns) => {
-                for pat in patterns.iter() {
-                    pat.get_name_bindings(buffer);
+                for pattern in patterns.iter() {
+                    pattern.get_name_bindings(buffer);
                 }
             },
-            PatternKind::Struct(_, patterns) => {
-                for (_, pat) in patterns.iter() {
-                    pat.get_name_bindings(buffer);
+            PatternKind::Struct(_, patterns, _) => {
+                for FieldPatternDef { pattern, .. } in patterns.iter() {
+                    pattern.get_name_bindings(buffer);
                 }
             },
         }
@@ -278,6 +310,24 @@ impl Pattern {
                     ).collect::<Vec<String>>().join(", ")
                 )
             },
+            PatternKind::Range(start, end, range_ty) => {
+                let start = if let Some(t) = start {
+                    t.dump(session)
+                } else {
+                    String::new()
+                };
+                let end = if let Some(t) = end {
+                    t.dump(session)
+                } else {
+                    String::new()
+                };
+                let range = match range_ty {
+                    RangeType::Inclusive => "..~",
+                    RangeType::Exclusive => "..",
+                };
+
+                format!("{start}{range}{end}")
+            },
             _ => todo!(),
         }
     }
@@ -293,8 +343,8 @@ impl Pattern {
             | PatternKind::Range(_, _, _) => {},
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns) => {
-                for pat in patterns.iter_mut() {
-                    pat.intra_inter_mod(session, ctxt);
+                for pattern in patterns.iter_mut() {
+                    pattern.intra_inter_mod(session, ctxt);
                 }
             },
             PatternKind::Identifier(name) => {
@@ -303,15 +353,15 @@ impl Pattern {
             PatternKind::EnumTuple(name, patterns) => {
                 let _ = name.intra_inter_mod(session, ctxt);
 
-                for pat in patterns.iter_mut() {
-                    pat.intra_inter_mod(session, ctxt);
+                for pattern in patterns.iter_mut() {
+                    pattern.intra_inter_mod(session, ctxt);
                 }
             },
-            PatternKind::Struct(name, patterns) => {
+            PatternKind::Struct(name, patterns, _) => {
                 let _ = name.intra_inter_mod(session, ctxt);
 
-                for (_, pat) in patterns.iter_mut() {
-                    pat.intra_inter_mod(session, ctxt);
+                for FieldPatternDef { pattern, .. } in patterns.iter_mut() {
+                    pattern.intra_inter_mod(session, ctxt);
                 }
             },
         }

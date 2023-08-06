@@ -1,4 +1,4 @@
-use super::{Pattern, PatternKind};
+use super::{FieldPatternDef, Pattern, PatternKind};
 use crate::ast::{NameOrigin, NameScope};
 use crate::err::ParseError;
 use crate::expr::{Expr, ExprKind, InfixOp};
@@ -43,8 +43,8 @@ impl Pattern {
             },
             PatternKind::Tuple(patterns)
             | PatternKind::Slice(patterns) => {
-                for pat in patterns.iter_mut() {
-                    pat.resolve_names(name_scope, lambda_defs, session, used_names);
+                for pattern in patterns.iter_mut() {
+                    pattern.resolve_names(name_scope, lambda_defs, session, used_names);
                 }
             },
             PatternKind::EnumTuple(name, patterns) => {
@@ -62,11 +62,11 @@ impl Pattern {
                     }
                 }
 
-                for pat in patterns.iter_mut() {
-                    pat.resolve_names(name_scope, lambda_defs, session, used_names);
+                for pattern in patterns.iter_mut() {
+                    pattern.resolve_names(name_scope, lambda_defs, session, used_names);
                 }
             }
-            PatternKind::Struct(name, patterns) => {
+            PatternKind::Struct(name, patterns, _) => {
                 name.resolve_names(name_scope, lambda_defs, session, used_names);
 
                 if let Err(e) = name.is_valid_pattern() {
@@ -81,8 +81,8 @@ impl Pattern {
                     }
                 }
 
-                for (_, pat) in patterns.iter_mut() {
-                    pat.resolve_names(name_scope, lambda_defs, session, used_names);
+                for FieldPatternDef { pattern, .. } in patterns.iter_mut() {
+                    pattern.resolve_names(name_scope, lambda_defs, session, used_names);
                 }
             },
         }

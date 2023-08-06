@@ -1,4 +1,4 @@
-use super::Pattern;
+use super::{FieldPatternDef, Pattern};
 use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::token::Token;
@@ -26,7 +26,9 @@ pub enum PatternKind {
     // `Box<Expr>` of enums and structs is a subset of `Expr`
     // Value::Identifier, Value::Object, or Path
     EnumTuple(Box<Expr>, Vec<Pattern>),  // a.b.c($a, $b, $c)
-    Struct(Box<Expr>, Vec<(InternedString, Pattern)>),  // a.b.c { a: ($a, $b, $c), b: $b, c: _ }
+
+    // (name_of_struct, field_defs, has_shorthand)
+    Struct(Box<Expr>, Vec<FieldPatternDef>, bool),  // a.b.c { a: ($a, $b, $c), b: $b, c: _ }
 }
 
 #[derive(Copy, Clone, PartialEq)]

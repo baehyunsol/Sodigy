@@ -2,7 +2,7 @@ use super::{Delimiter, Keyword, OpToken, Token, TokenKind};
 use crate::err::{ExpectedToken, ParamType, ParseError};
 use crate::expr::{parse_match_body, parse_expr, Expr, ExprKind, InfixOp, MatchBranch, PostfixOp, PrefixOp};
 use crate::parse::{parse_expr_exhaustive, split_list_by_comma, split_tokens};
-use crate::pattern::{Pattern, RangeType};
+use crate::pattern::{FieldPatternDef, Pattern, RangeType};
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{parse_arg_def, ArgDef, GenericDef};
@@ -472,20 +472,70 @@ impl TokenList {
                         },
                         Some(Token {
                             kind: TokenKind::List(Delimiter::Parenthesis, _),
-                            ..
+                            span,
                         }) => {
+                            let span = *span;
                             self.backward();
                             let tuple = self.step_pattern_strict()?;
+                            let span = path[0].1.merge(&span);
 
                             return Ok(Pattern::enum_tuple(
                                 path,
-                                tuple.get_patterns().expect("Internal Compiler Error 60882597FD3")
+                                tuple.get_patterns().expect("Internal Compiler Error 60882597FD3"),
+                                span,
                             ));
                         },
                         Some(Token {
                             kind: TokenKind::List(Delimiter::Brace, elements),
-                            ..
-                        }) => todo!(),
+                            span,
+                        }) => {
+                            let mut struct_pattern_tokens = TokenList::from_vec(elements.to_vec(), *span);
+                            let mut elements = vec![];
+                            let mut has_shorthand = false;
+                            let span = path[0].1.merge(span);
+
+                            while !struct_pattern_tokens.is_eof() {
+                                if struct_pattern_tokens.consume(TokenKind::dotdot()) {
+                                    if has_shorthand {
+                                        struct_pattern_tokens.backward();
+                                        let shorthand_span = struct_pattern_tokens.peek_curr_span().expect(
+                                            "Internal Compiler Error 6C20299B460"
+                                        );
+                                        return Err(ParseError::multiple_shorthand_in_pattern(vec![shorthand_span]));
+                                    } else {
+                                        has_shorthand = true;
+                                    }
+                                } else {
+                                    let curr = struct_pattern_tokens.step_field_pattern_strict()?;
+                                    elements.push(curr);
+                                }
+
+                                match struct_pattern_tokens.step() {
+                                    Some(Token { kind: TokenKind::Operator(OpToken::Comma), .. }) => {
+                                        continue;
+                                    }
+                                    None => {
+                                        break;
+                                    }
+                                    Some(Token { kind, span }) => {
+                                        return Err(ParseError::tok(
+                                            kind.clone(), *span,
+                                            ExpectedToken::SpecificTokens(vec![
+                                                TokenKind::comma(),
+                                                TokenKind::closing_curly_brace(),
+                                            ])
+                                        ));
+                                    }
+                                }
+                            }
+
+                            return Ok(Pattern::struct_(
+                                path,
+                                elements,
+                                has_shorthand,
+                                span,
+                            ));
+                        },
                         Some(_) => {
                             self.backward();
                             return Ok(Pattern::identifier(path));
@@ -535,6 +585,19 @@ impl TokenList {
                 kind.clone(), *span, ExpectedToken::AnyPattern,
             )),
             None => Err(ParseError::eoe(self.get_eof_span(), ExpectedToken::AnyPattern)),
+        }
+    }
+
+    pub fn step_field_pattern_strict(&mut self) -> Result<FieldPatternDef, ParseError> {
+        let (field_name, field_span) = self.step_identifier_strict_with_span()?;
+
+        if self.consume(TokenKind::colon()) {
+            let pattern = self.step_pattern_strict()?;
+
+            Ok(FieldPatternDef { field_name, field_span, pattern })
+        } else {
+            // syntactic sugar:  `a` -> `a: $a`
+            Ok(FieldPatternDef { field_name, pattern: Pattern::binding(field_name, field_span), field_span })
         }
     }
 

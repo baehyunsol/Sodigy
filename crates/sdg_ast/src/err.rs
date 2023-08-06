@@ -206,6 +206,14 @@ impl ParseError {
         }
     }
 
+    pub(crate) fn multi_field_binding_in_pattern(name: InternedString, spans: Vec<Span>) -> Self {
+        ParseError {
+            kind: ParseErrorKind::InvalidPattern(PatternErrorKind::MultiFieldBindingInPattern(name)),
+            span: spans,
+            message: String::new(),
+        }
+    }
+
     // TODO: I want to raise an actual type error
     pub(crate) fn unmatched_type_in_range(t1: Token, t2: Token) -> Self {
         todo!()
@@ -276,7 +284,7 @@ impl SodigyError for ParseError {
             ParseErrorKind::UnexpectedToken {
                 got,
                 expected: ExpectedToken::AnyExpression,
-            } if got == &TokenKind::Operator(OpToken::DotDot) => {
+            } if got == &TokenKind::dotdot() => {
                 self.set_msg(
                     "If you meant to use `..` as a prefix operator, try `0..a` instead of `..a`."
                 );
