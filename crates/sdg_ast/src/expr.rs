@@ -139,6 +139,17 @@ impl Expr {
         }
     }
 
+    pub fn set_head_of_path(&mut self, new_head: Expr) {
+        match &mut self.kind {
+            ExprKind::Infix(InfixOp::Path, head, _) => {
+                head.set_head_of_path(new_head);
+            },
+            _ => {
+                *self = new_head;
+            }
+        }
+    }
+
     pub fn dump(&self, session: &LocalParseSession) -> String {
         self.kind.dump(session, self.span)
     }

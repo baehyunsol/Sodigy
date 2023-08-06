@@ -106,6 +106,21 @@ impl FuncDef {
         }
     }
 
+    pub fn is_enum_var(&self) -> bool {
+        match self.kind {
+            FuncKind::EnumVariant(_)
+            | FuncKind::EnumVariantTuple(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn unwrap_parent_name(&self) -> InternedString {
+        match self.location.last() {
+            Some((n, _)) => n,
+            None => panic!("Internal Compiler Error CB077112453"),
+        }
+    }
+
     pub fn set_location(&mut self, location: &Path) {
         self.location = location.clone();
     }

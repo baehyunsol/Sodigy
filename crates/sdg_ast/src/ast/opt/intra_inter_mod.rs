@@ -4,6 +4,7 @@ use crate::iter_mut_exprs_in_ast;
 use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::stmt::{ArgDef, Decorator};
+use crate::span::Span;
 use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
 use std::collections::HashMap;
@@ -33,8 +34,11 @@ impl LocalUIDs {
     // TODO
     // let's say `p` is `aa.bb.cc`
     // 1. if it has uid for `aa.bb.cc`, it returns `Some(Object(X))`
+    //    -> `X` is uid of `aa.bb.cc`
     // 2. if it has uid for `aa.bb`, it returns `Some(Object(X).cc)`
+    //    -> `X` is uid of `aa.bb`
     // 3. if it has uid for `aa`, it returns `Some(Object(X).bb.cc)`
+    //    -> `X` is uid of `aa`
     // 4. otherwise it returns `None`
     // when converted, it has to preserve the spans
     pub fn try_subst_uid_in_path(&self, p: &Path) -> Option<Expr> {
@@ -46,7 +50,17 @@ impl LocalUIDs {
             let i = names.len() - i;
 
             if let Some(id) = self.paths.get(&names[0..i]) {
-                todo!();
+                // let's get the span of the previous Expr
+                let name_and_spans = p.slice_to(i);
+                let span = name_and_spans[0].1.merge(&name_and_spans[i - 1].1);
+
+                let mut dummy_path = Path::from_names(vec![(InternedString::dummy(), Span::dummy())]);
+                dummy_path.append_back(p.slice_from(i));
+
+                let mut result = dummy_path.into_expr();
+                result.set_head_of_path(Expr::new_object(*id, span));
+
+                return Some(result);
             }
         }
 
@@ -62,8 +76,14 @@ impl AST {
 
         let preludes = session.get_prelude_uid_table().clone();
 
-        // TODO: init this
-        let paths = HashMap::new();
+        let paths: HashMap<_, _> = self.defs.iter().filter(
+            |(_, def)| def.is_enum_var()
+        ).map(
+            |(name, def)| (
+                vec![def.unwrap_parent_name(), def.name],
+                def.id,
+            )
+        ).collect();
 
         LocalUIDs {
             locals,

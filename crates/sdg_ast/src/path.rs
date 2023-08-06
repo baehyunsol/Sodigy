@@ -25,10 +25,17 @@ impl Path {
         Path(names)
     }
 
-    pub fn append_front(&mut self, path: &Vec<(InternedString, Span)>) {
+    pub fn append_front(&mut self, path: &[(InternedString, Span)]) {
         self.0 = vec![
-            path.clone(),
+            path.to_vec(),
             self.0.clone(),
+        ].concat();
+    }
+
+    pub fn append_back(&mut self, path: &[(InternedString, Span)]) {
+        self.0 = vec![
+            self.0.clone(),
+            path.to_vec(),
         ].concat();
     }
 
@@ -46,6 +53,14 @@ impl Path {
 
     pub fn slice_from(&self, index: usize) -> &[(InternedString, Span)] {
         &self.0[index..]
+    }
+
+    pub fn slice_to(&self, index: usize) -> &[(InternedString, Span)] {
+        &self.0[..index]
+    }
+
+    pub fn last(&self) -> Option<(InternedString, Span)> {
+        self.0.last().map(|(n, s)| (*n, *s))
     }
 
     pub fn len(&self) -> usize {
