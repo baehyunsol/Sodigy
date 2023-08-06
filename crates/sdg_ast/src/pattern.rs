@@ -249,7 +249,7 @@ impl Pattern {
                     }
                 }
 
-                todo!();
+                Ok(())
             },
         }
     }
