@@ -114,7 +114,7 @@ impl AST {
         ast.clean_up_blocks(session, &mut ())?;
 
         if session.is_enabled(Opt::IntraInterMod) {
-            let mut local_uids = ast.get_local_uids();
+            let mut local_uids = ast.get_local_uids(session);
             ast.intra_inter_mod(session, &mut local_uids)?;
         }
 
@@ -143,6 +143,15 @@ impl AST {
             uid_to_name_table.insert(
                 def.id,
                 def.pretty_name(session),
+            );
+        }
+
+        let prelude_uid_table = session.get_prelude_uid_table().clone();
+
+        for (name, uid) in prelude_uid_table.iter() {
+            uid_to_name_table.insert(
+                *uid,
+                format!("prelude.{}", name.to_string(session)),
             );
         }
 

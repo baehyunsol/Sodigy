@@ -291,13 +291,28 @@ impl LocalParseSession {
         }
     }
 
-    pub fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
+    pub(crate) fn get_prelude_uid_table(&self) -> &HashMap<InternedString, UID> {
+        unsafe {
+            let lock = GLOBAL_SESSION_LOCK.lock().expect("Internal Compiler Error 03F7671B422");
+            let g = GLOBAL_SESSION.as_mut().expect("Internal Compiler Error DB0D3DEFA4B");
+
+            let result = g.get_prelude_uid_table();
+
+            drop(lock);
+
+            result
+        }
+    }
+
+    // helper function for `dump` methods
+    pub(crate) fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
         for (k, v) in table.into_iter() {
             self.uid_to_name_table.insert(k, v);
         }
     }
 
-    pub fn get_name_from_uid(&self, uid: &UID) -> Option<String> {
+    // helper function for `dump` methods
+    pub(crate) fn get_name_from_uid(&self, uid: &UID) -> Option<String> {
         self.uid_to_name_table.get(uid).map(|s| s.to_string())
     }
 }

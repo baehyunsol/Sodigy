@@ -55,13 +55,14 @@ impl LocalUIDs {
 }
 
 impl AST {
-    pub(crate) fn get_local_uids(&self) -> LocalUIDs {
+    pub(crate) fn get_local_uids(&self, session: &LocalParseSession) -> LocalUIDs {
         let locals = self.defs.iter().map(
             |(name, def)| (*name, def.id)
         ).collect();
 
-        // TODO: init these
-        let preludes = HashMap::new();
+        let preludes = session.get_prelude_uid_table().clone();
+
+        // TODO: init this
         let paths = HashMap::new();
 
         LocalUIDs {

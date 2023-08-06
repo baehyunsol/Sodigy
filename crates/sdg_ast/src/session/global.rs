@@ -1,7 +1,8 @@
 use super::{DUMMY_FILE_INDEX, InternedString, KEYWORD_START};
-use sdg_prelude::{get_prelude_buffs, get_prelude_index};
 use crate::token::Keyword;
 use sdg_hash::SdgHash;
+use sdg_prelude::{get_prelude_buffs, get_prelude_index};
+use sdg_uid::UID;
 use std::collections::HashMap;
 
 pub struct GlobalParseSession {
@@ -9,6 +10,7 @@ pub struct GlobalParseSession {
     strings_rev: HashMap<Vec<u8>, InternedString>,
     files: HashMap<u64, String>,
     files_rev: HashMap<String, u64>,
+    prelude_uid_table: HashMap<InternedString, UID>,
 }
 
 pub static mut GLOBAL_SESSION: *mut GlobalParseSession = std::ptr::null_mut();
@@ -66,6 +68,10 @@ impl GlobalParseSession {
             },
         }
     }
+
+    pub fn get_prelude_uid_table(&self) -> &HashMap<InternedString, UID> {
+        &self.prelude_uid_table
+    }
 }
 
 fn keywords() -> Vec<Vec<u8>> {
@@ -108,11 +114,16 @@ pub fn try_init_global_session() {
             strings.insert(0.into(), b"@@DUMMY_STRING".to_vec());
             strings_rev.insert(b"@@DUMMY_STRING".to_vec(), 0.into());
 
+            let prelude_uid_table = init_prelude_uid_table(&strings_rev);
+
+            assert_eq!(prelude_uid_table.len(), preludes.len(), "Internal Compiler Error 5290FB7C21D");
+
             let result = Box::new(GlobalParseSession {
                 strings,
                 strings_rev,
                 files: HashMap::new(),
                 files_rev: HashMap::new(),
+                prelude_uid_table,
             });
             GLOBAL_SESSION = Box::leak(result) as *mut GlobalParseSession;
 
@@ -120,4 +131,27 @@ pub fn try_init_global_session() {
         }
 
     }
+}
+
+pub fn init_prelude_uid_table(interned_strings: &HashMap<Vec<u8>, InternedString>) -> HashMap<InternedString, UID> {
+    let table = vec![
+        ("_", UID::dummy()),
+        ("Type", sdg_uid::prelude::type_()),
+        ("Int", sdg_uid::prelude::int()),
+        ("Bool", sdg_uid::prelude::bool()),
+        ("Func", sdg_uid::prelude::func()),
+        ("List", sdg_uid::prelude::list()),
+        ("String", sdg_uid::prelude::string()),
+        ("Option", sdg_uid::prelude::option()),
+        ("test", sdg_uid::prelude::test_()),
+    ];
+
+    table.into_iter().map(
+        |(prelude, uid)| (
+            *interned_strings.get(prelude.as_bytes()).expect(
+                "Internal Compiler Error 87E78E3157A"
+            ),
+            uid
+        )
+    ).collect()
 }
