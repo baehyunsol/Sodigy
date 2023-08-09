@@ -25,6 +25,10 @@ impl Path {
         Path(names)
     }
 
+    pub fn to_names(&self) -> Vec<InternedString> {
+        self.0.iter().map(|(name, _)| *name).collect()
+    }
+
     pub fn append_front(&mut self, path: &[(InternedString, Span)]) {
         self.0 = vec![
             path.to_vec(),

@@ -14,6 +14,8 @@ pub use intra_inter_mod::LocalUIDs;
 
 #[derive(Eq, Hash, PartialEq)]
 pub enum Opt {
+
+    // TODO: we'd better always enable this
     IntraInterMod,
 }
 

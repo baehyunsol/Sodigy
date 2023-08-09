@@ -3,6 +3,11 @@ pub use sdg_ast::{
     parse_file,
 };
 
+pub use sdg_inter_mod::{
+    InterModuleContext,
+    dump_module,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -15,7 +20,14 @@ mod tests {
 
         match parse_file(&input, &mut session) {
             Ok(ast) => {
-                println!("{}", ast.dump(&mut session));
+                // ast test
+                // println!("{}", ast.dump(&mut session));
+
+                // inter_mod test
+                // let mut ctxt = InterModuleContext::new();
+                // ctxt.collect_ast(&ast);
+                // panic!("{}", dump_module(&ctxt.namespace, &session));
+
                 if !session.has_no_warning() {
                     panic!("\n\n{}\n\n", session.render_warnings());
                 }

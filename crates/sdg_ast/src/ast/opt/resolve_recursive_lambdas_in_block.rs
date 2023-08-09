@@ -9,6 +9,8 @@ use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
 use std::collections::HashMap;
 
+// TODO: it complicates some unused name warnings!!
+
 /*
 ```
 {

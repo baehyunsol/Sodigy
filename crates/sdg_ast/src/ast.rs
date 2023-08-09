@@ -24,7 +24,7 @@ pub use opt::{LocalUIDs, Opt};
 // is modified.
 pub struct AST {
     pub(crate) inner_modules: HashMap<InternedString, ModDef>,
-    pub(crate) defs: HashMap<InternedString, FuncDef>,
+    pub defs: HashMap<InternedString, FuncDef>,
     pub(crate) uses: HashMap<InternedString, Use>,
 }
 

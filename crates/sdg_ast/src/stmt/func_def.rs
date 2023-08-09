@@ -15,6 +15,7 @@ use crate::utils::assert_identifier;
 
 pub const LAMBDA_FUNC_PREFIX: &str = "@@LAMBDA__";
 
+#[derive(Clone)]
 pub struct FuncDef {
     pub def_span: Span,  // keyword `def` or `\` in lambda
     pub name_span: Span,
@@ -34,7 +35,7 @@ pub struct FuncDef {
 
     pub ret_val: Expr,
 
-    pub(crate) kind: FuncKind,
+    pub kind: FuncKind,
 
     pub id: UID,
 }
@@ -228,12 +229,16 @@ impl FuncDef {
         warnings
     }
 
+    pub fn get_full_path(&self) -> Path {
+        let mut p = self.location.clone();
+        p.push((self.name, self.name_span));
+
+        p
+    }
+
     // helper function for `dump`
     pub(crate) fn pretty_name(&self, session: &LocalParseSession) -> String {
-        let mut l = self.location.clone();
-        l.push((self.name, Span::dummy()));
-
-        l.dump(session)
+        self.get_full_path().dump(session)
     }
 
     pub fn dump(&self, session: &LocalParseSession) -> String {
@@ -280,6 +285,7 @@ impl FuncDef {
     }
 }
 
+#[derive(Clone)]
 pub enum FuncKind {
 
     // def foo(n: Int): Int = n + 1;
@@ -306,6 +312,21 @@ pub enum FuncKind {
 }
 
 impl FuncKind {
+    pub fn is_enum_def(&self) -> bool {
+        if let FuncKind::Enum = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_enum_var(&self) -> bool {
+        match self {
+            FuncKind::EnumVariant(_)
+            | FuncKind::EnumVariantTuple(_) => true,
+            _ => false,
+        }
+    }
     pub fn to_string(&self, session: &LocalParseSession) -> String {
         match self {
             FuncKind::Normal => "normal".to_string(),

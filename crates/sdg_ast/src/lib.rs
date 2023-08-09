@@ -18,9 +18,10 @@ mod warning;
 #[cfg(test)]
 mod tests;
 
-pub use err::SodigyError;
-pub use session::{GlobalParseSession, LocalParseSession};
 pub use ast::AST;
+pub use err::SodigyError;
+pub use session::{GlobalParseSession, InternedString, LocalParseSession};
+pub use stmt::{FuncDef, FuncKind};
 
 use err::ParseError;
 use lexer::lex_tokens;

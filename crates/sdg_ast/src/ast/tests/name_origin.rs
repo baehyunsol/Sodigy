@@ -79,4 +79,8 @@ fn assert_prefix(n: &[u8], prefix: &[u8]) {
 
         panic!("{n:?} doesn't start with {prefix:?}");
     }
+
+    // let n = bytes_to_string(n);
+    // let prefix = bytes_to_string(prefix);
+    // println!("{n:?} does start with {prefix:?}");
 }

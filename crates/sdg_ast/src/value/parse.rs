@@ -141,6 +141,13 @@ pub fn parse_block_expr(block_tokens: &mut TokenList) -> Result<ValueKind, Parse
             //    Just convert a pattern into 1 or more `BlockDef`s in this function
             // -> ex: `Person { age, name } = foo();`
             //    into `_tmp: Person = foo(); age = _tmp.age; name = _tmp.name;`
+            // rust allows `let (x, y): (u32, i32) = (3, 4);`
+            // rust does not allow `let (x: u32, y: i32) = (3, 4);`
+
+            // TODO: the parser cannot check the validity and irrefutability of a pattern! it needs information about types
+            // save not only block_defs from the pattern, but also the original patterns
+            // use the original patterns to check the type validity, and use the block_defs
+            // that means block_defs need some kind of pointer to the pattern
             let (name, name_span) = block_tokens.step_identifier_strict_with_span()?;
 
             match names.insert(name, name_span) {
@@ -233,3 +240,18 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
         Ok(ValueKind::Lambda(args, Box::new(value)))
     }
 }
+
+/*
+ * let Person { name, age } = foo();
+ * let tmp_: Person = foo();
+ * let name = tmp_.name;
+ * let age = tmp_.age;
+ * # TODO: make sure that `name` and `age` are exhaustive!
+ *
+ * let ($x, $y) = foo();
+ * let tmp_ = foo();
+ * let x = tmp_.0;
+ * let y = tmp_.1;
+ * # TODO: if foo returns `(1, 2, 3)`, how does it know that there's a type error?
+ *
+ */

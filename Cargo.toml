@@ -11,6 +11,7 @@ members = [
     "crates/sdg_endec",
     "crates/sdg_fs",
     "crates/sdg_hash",
+    "crates/sdg_inter_mod",
     "crates/sdg_prelude",
     "crates/sdg_uid",
 ]
@@ -20,5 +21,6 @@ sdg_ast = { path = "./crates/sdg_ast", version = "*" }
 sdg_endec = { path = "./crates/sdg_endec", version = "*" }
 sdg_fs = { path = "./crates/sdg_fs", version = "*" }
 sdg_hash = { path = "./crates/sdg_hash", version = "*" }
+sdg_inter_mod = { path = "./crates/sdg_inter_mod", version = "*" }
 sdg_prelude = { path = "./crates/sdg_prelude", version = "*" }
 sdg_uid = { path = "./crates/sdg_uid", version = "*" }
