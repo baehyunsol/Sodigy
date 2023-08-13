@@ -32,8 +32,8 @@ fn underbar_index() {
     assert_eq!(get_prelude_buffs()[index], b"_");
 }
 
-// get_prelude_index(i) == j, where
-// InternedString(j) == get_prelude_buffs()[i]
+/// get_prelude_index(i) == j, where
+/// InternedString(j) == get_prelude_buffs()[i]
 pub fn get_prelude_index(i: usize) -> usize {
     i + 1
 }

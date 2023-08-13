@@ -9,8 +9,8 @@ use crate::value::{BlockDef, ValueKind};
 use sdg_uid::UID;
 use std::collections::HashMap;
 
-// It does what `sdg_inter_mod` does, but for locals and preludes. It lessens the burden of compiler because
-// `sdg_ast` runs in parallel and takes the advantage of incremental compilation.
+/// It does what `sdg_inter_mod` does, but for locals and preludes. It lessens the burden of compiler because
+/// `sdg_ast` runs in parallel and takes the advantage of incremental compilation.
 
 pub struct LocalUIDs {
     locals: HashMap<InternedString, UID>,
@@ -31,15 +31,15 @@ impl LocalUIDs {
         }
     }
 
-    // let's say `p` is `aa.bb.cc`
-    // 1. if it has uid for `aa.bb.cc`, it returns `Some(Object(X))`
-    //    -> `X` is uid of `aa.bb.cc`
-    // 2. if it has uid for `aa.bb`, it returns `Some(Object(X).cc)`
-    //    -> `X` is uid of `aa.bb`
-    // 3. if it has uid for `aa`, it returns `Some(Object(X).bb.cc)`
-    //    -> `X` is uid of `aa`
-    // 4. otherwise it returns `None`
-    // when converted, it has to preserve the spans
+    /// let's say `p` is `aa.bb.cc`
+    /// 1. if it has uid for `aa.bb.cc`, it returns `Some(Object(X))`
+    ///    -> `X` is uid of `aa.bb.cc`
+    /// 2. if it has uid for `aa.bb`, it returns `Some(Object(X).cc)`
+    ///    -> `X` is uid of `aa.bb`
+    /// 3. if it has uid for `aa`, it returns `Some(Object(X).bb.cc)`
+    ///    -> `X` is uid of `aa`
+    /// 4. otherwise it returns `None`
+    /// when converted, it has to preserve the spans
     pub fn try_subst_uid_in_path(&self, p: &Path) -> Option<Expr> {
         let names: Vec<InternedString> = p.as_ref().iter().map(
             |(name, _)| *name

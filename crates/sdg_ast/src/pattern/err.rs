@@ -4,19 +4,20 @@ use hmath::Ratio;
 
 #[derive(Clone, PartialEq)]
 pub enum PatternErrorKind {
-    // `1.5 .. 2.0`
+    /// `1.5 .. 2.0`
     NonIntegerInRange(Ratio),
 
-    // 5..3
+    /// 5..3
     InvalidIntegerRange(Ratio, Ratio, RangeType),
 
-    // "z".."a"
+    /// "z".."a"
     InvalidCharRange(u32, u32, RangeType),
 
-    // ($a, .., $b, .., $c)
+    /// ($a, .., $b, .., $c)
     MultipleShorthands,
 
-    // Foo { a, a }
+    /// Foo { a, a }\
+    /// ($a, $a)
     MultiFieldBindingInPattern(InternedString),
 }
 

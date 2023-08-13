@@ -9,7 +9,7 @@ use crate::warning::SodigyWarning;
 use sdg_uid::UID;
 use std::collections::HashSet;
 
-// it's later converted to multiple `FuncDef`s
+/// it's later converted to multiple `FuncDef`s
 pub struct EnumDef {
     def_span: Span,
     generics: Vec<GenericDef>,
@@ -81,7 +81,7 @@ impl EnumDef {
         variants
     }
 
-    // enum Foo<T> { A, B(C.T, D) }  -> `T` is unused, but can it catch that?
+    // TODO: enum Foo<T> { A, B(C.T, D) }  -> `T` is unused, but can it catch that?
     pub fn check_unused_generics(&self, session: &mut LocalParseSession) {
         let mut used_names = HashSet::new();
 

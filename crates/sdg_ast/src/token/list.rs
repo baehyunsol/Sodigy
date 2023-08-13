@@ -43,7 +43,7 @@ impl TokenList {
         }
     }
 
-    // when a parser throws an Eof or Eoe error, this function is used to calc the span
+    /// when a parser throws an Eof or Eoe error, this function is used to calc the span
     pub fn get_eof_span(&self) -> Span {
         match self.data.last() {
             Some(t) => t.span.last_character(),
@@ -81,9 +81,9 @@ impl TokenList {
         }
     }
 
-    // if the current token is `token`, it steps forward and returns true
-    // it returns false otherwise
-    // it's helpful if the borrow checker doesn't allow you to use `self.step`
+    /// if the current token is `token`, it steps forward and returns true\
+    /// it returns false otherwise\
+    /// it's helpful if the borrow checker doesn't allow you to use `self.step`
     pub fn consume(&mut self, token: TokenKind) -> bool {
         match self.data.get(self.cursor) {
             Some(t) if t.kind == token => {
@@ -94,8 +94,8 @@ impl TokenList {
         }
     }
 
-    // it only consumes one token
-    // the input is `Vec<TokenKind>` because it may expect multiple KINDs of A token
+    /// it only consumes one token\
+    /// the input is `Vec<TokenKind>` because it may expect multiple KINDs of A token
     pub fn consume_token_or_error(&mut self, token_kinds: Vec<TokenKind>) -> Result<(), ParseError> {
         match self.step() {
             Some(Token { kind, .. }) if token_kinds.contains(kind) => Ok(()),
@@ -151,7 +151,7 @@ impl TokenList {
         result
     }
 
-    // it turns `TokenKind::List(_, elements)` into `TokenList::from_vec(elements)`
+    /// it turns `TokenKind::List(_, elements)` into `TokenList::from_vec(elements)`
     pub fn step_grouped_tokens_strict(&mut self, delim: Delimiter, eof_span: Span) -> Result<TokenList, ParseError> {
         match self.step() {
             Some(Token {
@@ -197,6 +197,7 @@ impl TokenList {
         }
     }
 
+    /// it returns `Some(_)` iff curr token is `<`
     pub fn step_generic_defs(&mut self) -> Option<Result<Vec<GenericDef>, ParseError>> {
         match self.data.get(self.cursor) {
             Some(Token {
@@ -253,6 +254,7 @@ impl TokenList {
         }
     }
 
+    /// it returns `Some(_)` iff curr token is `(`
     pub fn step_func_def_args(&mut self) -> Option<Result<Vec<ArgDef>, ParseError>> {
         match self.data.get(self.cursor) {
             Some(Token {
@@ -299,7 +301,8 @@ impl TokenList {
         }
     }
 
-    // it returns `None` only when there's no token to parse
+    /// it returns `None` iff there's no token to parse.
+    /// for now, a type is just an expression
     pub fn step_type(&mut self) -> Option<Result<Expr, ParseError>> {
         match self.data.get(self.cursor) {
             Some(_) => Some(parse_expr(self, 0)),
@@ -346,6 +349,8 @@ impl TokenList {
             _ => None,
         }
     }
+
+    // TODO: `or` patterns
 
     pub fn step_pattern_strict(&mut self) -> Result<Pattern, ParseError> {
         match self.step() {

@@ -10,11 +10,11 @@ use std::collections::HashMap;
 pub enum ModuleOrDef {
     Def(UID),
 
-    // names of child modules or defs
+    /// names of child modules or defs
     Module(HashMap<InternedString, ModuleOrDef>),
 
-    // name of variants -> UID of variant defs
-    // the first uid -> uid of the enum
+    /// name of variants -> UID of variant defs\
+    /// the first uid -> uid of the enum
     Enum(UID, HashMap<InternedString, UID>),
 }
 

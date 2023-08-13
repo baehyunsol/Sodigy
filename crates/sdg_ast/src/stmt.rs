@@ -29,21 +29,21 @@ use crate::session::InternedString;
 use crate::value::BlockDef;
 
 pub enum Stmt {
-    // 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'
+    /// 'def' NAME ('(' ARGS ')')? ':' TYPE '=' EXPR ';'
     Def(FuncDef),
 
-    // has many aliases
-    // 'use' PATH 'as' NAME ';'
+    /// has many aliases\
+    /// 'use' PATH 'as' NAME ';'
     Use(Use),
 
-    // '@' DECORATOR_NAME ('(' DECORATOR_ARGS ')')?
+    /// '@' DECORATOR_NAME ('(' DECORATOR_ARGS ')')?
     Decorator(Decorator),
 
-    // 'module' MODULE_NAME ';'
+    /// 'module' MODULE_NAME ';'
     Module(ModDef),
 
-    // 'enum' ENUM_NAME ';'
-    // 'enum' ENUM_NAME '{' (ENUM_VAR ',')* '}'
+    /// 'enum' ENUM_NAME ';'\
+    /// 'enum' ENUM_NAME '{' (ENUM_VAR ',')* '}'
     Enum(EnumDef),
 }
 

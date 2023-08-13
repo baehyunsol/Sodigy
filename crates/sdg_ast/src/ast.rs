@@ -18,10 +18,10 @@ pub use err::ASTError;
 pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
 pub use opt::{LocalUIDs, Opt};
 
-// It represents a single file.
-// It doesn't have any data from other files, meaning that
-// it's safe to reuse previously generated AST unless the file
-// is modified.
+/// It represents a single file.\
+/// It doesn't have any data from other files, meaning that\
+/// it's safe to reuse previously generated AST unless the file\
+/// is modified.
 pub struct AST {
     pub(crate) inner_modules: HashMap<InternedString, ModDef>,
     pub defs: HashMap<InternedString, FuncDef>,
@@ -30,7 +30,7 @@ pub struct AST {
 
 impl AST {
 
-    // if it has an error, they're in `session`, but not returned
+    /// if it has an error, they're in `session`, but not returned
     pub(crate) fn from_stmts(stmts: Vec<Stmt>, session: &mut LocalParseSession) -> Result<Self, ()> {
         let mut curr_decos = vec![];
         let mut ast = AST {

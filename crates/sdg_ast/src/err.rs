@@ -16,13 +16,14 @@ pub trait SodigyError {
     /// how it's shown to the programmer
     fn render_err(&self, session: &LocalParseSession) -> String;
 
-    /// if self.message.is_empty() && the compiler thinks there's a helpful message for this error_kind
+    /// if self.message.is_empty() && the compiler thinks there's a helpful message for this error_kind,
     /// add a message
     fn try_add_more_helpful_message(&mut self);
 
-    /// if the error doesn't have any span, it returns Span::dummy,
-    /// if it has multiple ones, it returns the smallest one (Span implmenets PartialOrd),
-    /// it need not be perfect, some errors in corner cases are tolerable (though not desired)
+    /// if the error doesn't have any span, it returns Span::dummy\
+    /// if it has multiple ones, it returns the smallest one (Span implmenets PartialOrd)\
+    /// it need not be perfect, some errors in corner cases are tolerable (though not desired)\
+    /// it's used to sort the error messages
     fn get_first_span(&self) -> Span;
 }
 
@@ -37,7 +38,6 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    // `span` must point to the start of the token it's parsing, not just the end of the file
     pub(crate) fn eof(span: Span) -> Self {
         ParseError {
             kind: ParseErrorKind::UnexpectedEof,

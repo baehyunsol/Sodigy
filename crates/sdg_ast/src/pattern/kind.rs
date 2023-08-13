@@ -3,6 +3,16 @@ use crate::expr::Expr;
 use crate::session::InternedString;
 use crate::token::Token;
 
+// TODO
+// Inspired by Python
+// `[3, 4, ..$a]` -> `a: List(Int) = val[2..]`
+// `(1 | 2 | 3)` -> `|`s inside a pattern
+// `(1 | 2 | 3, 4) as $a` -> name binding for the whole pattern
+// pattern not only for char, but for string (like regex)
+// Clojure: https://github.com/clojure/core.match/wiki/Understanding-the-algorithm
+// Elixir: multiple name bindings (same name) are possible: they must all have the same value
+// Elixir: `x` is already bound: `^x` is a pattern where the value should be the same as `x`
+
 #[derive(Clone)]
 pub enum PatternKind {
     WildCard,         // _

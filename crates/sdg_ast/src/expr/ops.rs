@@ -43,15 +43,30 @@ pub enum InfixOp {
     BitwiseOr,
     LogicalAnd,
     LogicalOr,
-    Index,    // `[]`
-    Path,     // `.`
-    Concat,   // `<>`
-    Append,   // `<+`
-    Prepend,  // `+>`
-    Range,  // `..`
-    InclusiveRange,  // `..~`
 
-    ModifyField(InternedString),  // `foo
+    /// `[]`
+    Index,
+
+    /// `.`
+    Path,
+
+    /// `<>`
+    Concat,
+
+    /// `<+`
+    Append,
+
+    /// `+>`
+    Prepend,
+
+    /// `..`
+    Range,
+
+    /// `..~`
+    InclusiveRange,
+
+    /// `` ` ``
+    ModifyField(InternedString),
 }
 
 impl InfixOp {
@@ -96,13 +111,18 @@ impl From<&OpToken> for InfixOp {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PostfixOp {
-    Range, // `..`
+    /// `..`
+    Range,
+
+    /// `..~`
+    InclusiveRange,
 }
 
 impl From<&OpToken> for PostfixOp {
     fn from(t: &OpToken) -> PostfixOp {
         match t {
             OpToken::DotDot => PostfixOp::Range,
+            OpToken::InclusiveRange => PostfixOp::InclusiveRange,
             _ => unreachable!("Internal Compiler Error 0BA3488EA42: {t:?}"),
         }
     }

@@ -29,7 +29,7 @@ pub fn split_tokens(tokens: &Vec<Token>, delim: TokenKind) -> Vec<(Vec<Token>, S
     result
 }
 
-// `elements` is that of `TokenKind::List(_, elements)`
+/// `elements` is that of `TokenKind::List(_, elements)`
 pub fn split_list_by_comma(elements: &Vec<Token>) -> Result<Vec<Expr>, ParseError> {
     let elements = split_tokens(elements, TokenKind::comma()).into_iter().map(
         |(tokens, span)| {

@@ -36,8 +36,8 @@ impl GlobalParseSession {
         self.strings.get(&string).expect("Internal Compiler Error E634CD266D0").to_vec()
     }
 
-    // It registers the path to `files` and returns the index.
-    // If the path is already registered, it just returns the index from `files`.
+    /// It registers the path to `files` and returns the index.
+    /// If the path is already registered, it just returns the index from `files`.
     pub fn register_file(&mut self, path: &str) -> u64 {
         match self.files_rev.get(path) {
             Some(i) => *i,

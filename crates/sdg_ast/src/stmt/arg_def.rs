@@ -8,10 +8,10 @@ use crate::token::{OpToken, TokenKind, TokenList};
 pub struct ArgDef {
     pub name: InternedString,
 
-    // if it's None, it has to be inferred later
+    /// if it's None, it has to be inferred later
     pub ty: Option<Expr>,
 
-    // span of the name
+    /// span of the name
     pub span: Span,
 }
 
@@ -35,7 +35,7 @@ impl ArgDef {
     }
 }
 
-// NAME ':' TYPE
+/// NAME ':' TYPE
 pub fn parse_arg_def(tokens: &mut TokenList) -> Result<ArgDef, ParseError> {
     assert!(!tokens.is_eof(), "Internal Compiler Error 07D37C4F06C");
 

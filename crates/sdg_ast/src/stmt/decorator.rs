@@ -11,11 +11,11 @@ pub struct Decorator {
     pub deco_name: Path,
     pub args: Vec<Expr>,
 
-    // 0-args and no_args are different
-    // `@deco` vs `@deco()`
+    /// 0-args and no_args are different\
+    /// `@deco` vs `@deco()`
     pub no_args: bool,
 
-    // of `@`
+    /// of `@
     pub span: Span,
 }
 

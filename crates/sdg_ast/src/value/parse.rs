@@ -252,6 +252,12 @@ fn parse_lambda_def(tokens: &mut TokenList) -> Result<ValueKind, ParseError> {
  * let tmp_ = foo();
  * let x = tmp_.0;
  * let y = tmp_.1;
- * # TODO: if foo returns `(1, 2, 3)`, how does it know that there's a type error?
+ * # TODO: make sure that `foo` returns `(X, Y)`, not `(X, Y, Z)`
+ *
+ * let [_, $x, .., $y] = foo();
+ * let tmp_ = foo();
+ * let x = tmp_[1];
+ * let y = tmp_[-1];
+ * # TODO: make sure that `foo.len() >= 3`
  *
  */

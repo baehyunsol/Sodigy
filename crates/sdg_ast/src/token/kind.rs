@@ -5,9 +5,11 @@ use hmath::Ratio;
 #[derive(Clone, PartialEq)]
 pub enum TokenKind {
     Number(Ratio),
-    String(QuoteKind, Vec<u32>),  // in Sodigy, Strings are just List(Char), where Char is an Int
 
-    // It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
+    /// in Sodigy, Strings are just List(Char), where Char is an Int
+    String(QuoteKind, Vec<u32>),
+
+    /// It doesn't care how the inside looks like. It only guarantees that the opening and the closing are properly matched.
     List(Delimiter, Vec<Token>),
 
     Identifier(InternedString),
@@ -15,10 +17,10 @@ pub enum TokenKind {
 
     Operator(OpToken),
 
-    // b"ABC" -> [65, 66, 67]
+    /// b"가" -> [234, 176, 128]
     Bytes(Vec<u8>),
 
-    // f"{a} + {b} = {a + b}" -> a.to_string() <> " + " <> b.to_string() <> " = " <> (a + b).to_string()
+    /// f"{a} + {b} = {a + b}" -> a.to_string() <> " + " <> b.to_string() <> " = " <> (a + b).to_string()
     FormattedString(Vec<Vec<Token>>),
 }
 
@@ -138,7 +140,7 @@ impl TokenKind {
     // render_err is for compiler users
     // to_string is somewhere in the middle
 
-    // preview of this token_kind for error messages
+    /// preview of this token_kind for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         match self {
             TokenKind::Number(_) => "a number literal".to_string(),

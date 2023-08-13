@@ -13,13 +13,13 @@ pub enum ExprKind {
     Infix(InfixOp, Box<Expr>, Box<Expr>),
     Postfix(PostfixOp, Box<Expr>),
 
-    // (Functor, Args)
+    /// (Functor, Args)
     Call(Box<Expr>, Vec<Expr>),
 
-    // cond, true, false
+    /// cond, true, false
     Branch(Box<Expr>, Box<Expr>, Box<Expr>),
 
-    // value, branches
+    /// value, branches
     Match(Box<Expr>, Vec<MatchBranch>, UID),
 }
 

@@ -210,7 +210,7 @@ pub fn bytes_to_string(b: &[u8]) -> String {
     String::from_utf8_lossy(b).to_string()
 }
 
-// https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance
+/// https://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance
 pub fn edit_distance(a: &[u8], b: &[u8]) -> usize {
 
     if a.is_empty() {

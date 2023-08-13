@@ -17,7 +17,9 @@ pub const LAMBDA_FUNC_PREFIX: &str = "@@LAMBDA__";
 
 #[derive(Clone)]
 pub struct FuncDef {
-    pub def_span: Span,  // keyword `def` or `\` in lambda
+    /// keyword `def` or `\` in lambda
+    pub def_span: Span,
+
     pub name_span: Span,
     pub name: InternedString,
     pub args: Vec<ArgDef>,
@@ -30,7 +32,7 @@ pub struct FuncDef {
     // TODO: is it a constant if it has generic params?
     pub generics: Vec<GenericDef>,
 
-    // if it's None, it has to be inferred later (only lambda functions)
+    /// if it's None, it has to be inferred later (only lambda functions)
     pub ret_type: Option<Expr>,
 
     pub ret_val: Expr,

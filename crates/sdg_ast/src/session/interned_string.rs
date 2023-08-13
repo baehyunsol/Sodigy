@@ -3,6 +3,8 @@ use crate::utils::bytes_to_string;
 use sdg_prelude::UNDERBAR_INDEX;
 
 /*
+ * TODO: cleaner way?
+ *
  * 0: dummy
  * 1 ~ 0xff_fff: builtins and preludes
  *    indices of builtins do not change across compilations, but it might change when the Sodigy version changes.

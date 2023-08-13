@@ -206,8 +206,8 @@ impl Keyword {
     }
 }
 
-// It doesn't care whether it's binary or unary,
-// but it cares whether it's `<` or `<=`
+/// It doesn't care whether it's binary or unary,
+/// but it cares whether it's `<` or `<=`
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OpToken {
     At, // `@`
@@ -237,12 +237,20 @@ pub enum OpToken {
     BackSlash,
     Dollar,
     BackTick,
-    InclusiveRange,  // `..~`
-    RArrow,   // `=>`
-    Append,   // `<+`
-    Prepend,  // `+>`
 
-    // below 4 are not used by lexer, but by `get_first_token`
+    /// `..~`
+    InclusiveRange,
+
+    /// `=>`
+    RArrow,
+
+    /// `<+`
+    Append,
+
+    /// `+>`
+    Prepend,
+
+    /// below 6 are not used by lexer, but by `get_first_token`
     OpeningSquareBracket,
     ClosingSquareBracket,
     OpeningParenthesis,
@@ -252,7 +260,7 @@ pub enum OpToken {
 }
 
 impl OpToken {
-    // preview of this token for error messages
+    /// preview of this token for error messages
     pub fn render_err(&self) -> String {
         match self {
             OpToken::At => "@",

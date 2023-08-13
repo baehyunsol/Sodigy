@@ -6,7 +6,9 @@ use crate::utils::assert_identifier;
 
 pub struct ModDef {
     pub(crate) name: InternedString,
-    pub(crate) def_span: Span,  // keyword `module`
+
+    /// keyword `module`
+    pub(crate) def_span: Span,
     pub(crate) name_span: Span,
 }
 

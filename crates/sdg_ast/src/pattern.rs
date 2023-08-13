@@ -332,8 +332,8 @@ impl Pattern {
         }
     }
 
-    // read the comments in `sdg_ast::ast::opt::intra_inter_mod`
-    // it finds tuple and struct names in patterns, and converts them to `ValueKind::Object(id)`
+    /// it finds tuple and struct names in patterns, and converts them to `ValueKind::Object(id)`
+    /// - read the comments in `sdg_ast::ast::opt::intra_inter_mod`
     pub fn intra_inter_mod(&mut self, session: &LocalParseSession, ctxt: &LocalUIDs) {
         match &mut self.kind {
             PatternKind::WildCard

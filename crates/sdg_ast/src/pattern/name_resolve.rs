@@ -8,11 +8,12 @@ use crate::value::ValueKind;
 use std::collections::{HashSet, HashMap};
 
 impl Pattern {
-    // a `Pattern` may include
-    //   - enum name, enum variant name, struct name, const
-    // a `Pattern` may not include
-    //   - local val, func call, 
-    // `Some($foo)` -> `Sodigy.Option.Some($foo)`
+    /// - a `Pattern` may include
+    ///   - enum name, enum variant name, struct name, const
+    /// - a `Pattern` may not include
+    ///   - local val, func call, 
+    ///
+    /// `Some($foo)` -> `Sodigy.Option.Some($foo)`
     pub fn resolve_names(
         &mut self,
         name_scope: &mut NameScope,

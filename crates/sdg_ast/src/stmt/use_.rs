@@ -12,7 +12,8 @@ pub struct Use {
     pub path: Path,
     pub alias: InternedString,
 
-    pub span: Span,  // keyword `use`
+    /// keyword `use`
+    pub span: Span,
 }
 
 impl Use {

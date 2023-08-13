@@ -6,9 +6,10 @@ const MAX_PREVIEW_LEN: usize = 96;
 
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Span {
-    file_no: u64,  // hash of the name of the file
+    /// hash of the name of the file
+    file_no: u64,
 
-    // both indices are inclusive
+    /// both indices are inclusive
     pub start: usize,
     pub end: usize,
 }
@@ -35,7 +36,7 @@ impl Span {
         self.file_no == DUMMY_FILE_INDEX && self.start == usize::MAX && self.end == usize::MIN
     }
 
-    // one must call `.set_ind_and_fileno` after initializing this!
+    /// one must call `.set_ind_and_fileno` after initializing this!
     pub fn dummy_index(start: usize) -> Self {
         Span {
             file_no: DUMMY_FILE_INDEX,
@@ -143,7 +144,7 @@ impl Span {
     }
 
     // TODO: dirty code
-    // preview of this span for error messages
+    /// preview of this span for error messages
     pub fn render_err(&self, session: &LocalParseSession) -> String {
         let buffer = session.get_file_raw_content(self.file_no);
         let file_path = session.get_file_path(self.file_no).as_bytes().to_vec();

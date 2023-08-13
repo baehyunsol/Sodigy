@@ -15,8 +15,8 @@ pub struct LocalParseSession {
     pub(crate) curr_file: u64,
     pub(crate) is_dummy: bool,
 
-    // it's not the actual path of file system
-    // it's a sodigy style path, of the namespace
+    /// it's not the actual path of file system\
+    /// it's a sodigy style path, of the namespace
     name_path: Path,
 
     warnings: Vec<SodigyWarning>,
@@ -113,7 +113,7 @@ impl LocalParseSession {
         }
     }
 
-    // Expensive (if it has to write to a GlobalCache)
+    /// Expensive (if it has to write to a GlobalCache)
     pub fn intern_string(&mut self, string: &[u8]) -> InternedString {
         match self.strings_rev.get(string) {
             Some(n) => *n,
@@ -304,14 +304,14 @@ impl LocalParseSession {
         }
     }
 
-    // helper function for `dump` methods
+    /// helper function for `dump` methods
     pub(crate) fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
         for (k, v) in table.into_iter() {
             self.uid_to_name_table.insert(k, v);
         }
     }
 
-    // helper function for `dump` methods
+    /// helper function for `dump` methods
     pub(crate) fn get_name_from_uid(&self, uid: &UID) -> Option<String> {
         self.uid_to_name_table.get(uid).map(|s| s.to_string())
     }

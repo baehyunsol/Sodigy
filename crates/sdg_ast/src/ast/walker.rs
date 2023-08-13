@@ -41,7 +41,10 @@ impl ExprKind {
                 | ValueKind::String(_)
                 | ValueKind::Char(_)
                 | ValueKind::Bytes(_)
+
+                // TODO: inspect the origin of the uid
                 | ValueKind::Object(_) => {},
+
                 ValueKind::Identifier(name, origin) => f(name, origin, ctxt),
                 ValueKind::Format(elems)
                 | ValueKind::List(elems)

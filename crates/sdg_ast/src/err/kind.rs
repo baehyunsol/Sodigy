@@ -7,17 +7,18 @@ use sdg_fs::FileError;
 
 #[derive(Clone, PartialEq)]
 pub enum ParseErrorKind {
-    // only for lexer
+    /// only for lexer
     UnexpectedChar(char),
     UnexpectedEof,
     InvalidUTF8(Vec<u8>),
 
     FileError(FileError),
 
-    // 'abc' and '' are invalid, it must be a single character
-    InvalidCharLiteral(usize),  // length of the given literal
+    /// 'abc' and '' are invalid, it must be a single character\
+    /// `usize` is for length of the given literal
+    InvalidCharLiteral(usize),
 
-    // expected something, but got nothing
+    /// expected something, but got nothing
     UnexpectedEoe(ExpectedToken),
 
     UnexpectedToken {
@@ -25,12 +26,12 @@ pub enum ParseErrorKind {
         got: TokenKind,
     },
 
-    // A definition of a lambda may omit type notations, but `def` may not
+    /// A definition of a lambda may omit type notations, but `def` may not
     UntypedArg(InternedString, InternedString),
 
-    // def foo(x: Int, x: Int)
-    // \{x: Int, x: Int, x + x}
-    // {x = 3; x = 4; x + x}
+    /// `def foo(x: Int, x: Int)`\
+    /// `\{x: Int, x: Int, x + x}`\
+    /// `{x = 3; x = 4; x + x}`\
     MultipleDefParam(InternedString, ParamType),
 
     PatternFromArg(InternedString, NameOrigin),

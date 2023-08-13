@@ -20,7 +20,6 @@ pub use parse::{parse_match_body, parse_expr};
 #[cfg(test)]
 pub use tests::dump_ast_of_expr;
 
-// `span` points to the first character of the operator
 #[derive(Clone)]
 pub struct Expr {
     pub span: Span,

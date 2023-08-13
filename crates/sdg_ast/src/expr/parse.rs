@@ -4,9 +4,9 @@ use crate::pattern::Pattern;
 use crate::token::{Token, TokenKind, TokenList};
 use crate::value::{parse_value, ValueKind};
 
-// pratt algorithm
-// https://github.com/matklad/minipratt
-// https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html
+/// pratt algorithm\
+/// https://github.com/matklad/minipratt\
+/// https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html\
 pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseError> {
     let lhs_span = if let Some(span) = tokens.peek_curr_span() {
         span
@@ -169,6 +169,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
 fn postfix_binding_power(op: PostfixOp) -> u32 {
     match op {
         PostfixOp::Range => RANGE,
+        PostfixOp::InclusiveRange => RANGE,
     }
 }
 
@@ -178,8 +179,8 @@ fn prefix_binding_power(op: PrefixOp) -> u32 {
     }
 }
 
-// ref: https://doc.rust-lang.org/reference/expressions.html#expression-precedence
-// ref: https://hexdocs.pm/elixir/main/operators.html
+/// ref: https://doc.rust-lang.org/reference/expressions.html#expression-precedence\
+/// ref: https://hexdocs.pm/elixir/main/operators.html\
 fn infix_binding_power(op: InfixOp) -> (u32, u32) {
     match op {
         InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
