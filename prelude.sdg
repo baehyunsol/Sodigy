@@ -1,5 +1,11 @@
 # This file is just a brain-storming
 
+# TODO: syntax for structs
+struct Number {
+    denom: Int,
+    numer: Int,
+}
+
 def String: Type = List(Char);
 
 @new_type

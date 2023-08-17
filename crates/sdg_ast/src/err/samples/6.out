@@ -5,4 +5,4 @@ Only lambda functions are allowed to omit type annotations.
 ▸ 1 │ def untyped_arg(x, y): Int = x + y;
     │                 ▴
 
-Could not compile `./src/err/samples/6.in` due to a previous error.
+Could not compile this session due to a previous error.

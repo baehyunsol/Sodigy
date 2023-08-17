@@ -3,4 +3,4 @@ Error: [200, 200] is not a valid utf-8
 ▸ 1 │ def ���: String = 'ABC';
     │     ▴
 
-Could not compile `./src/err/samples/no_utf8_ident.in` due to a previous error.
+Could not compile this session due to a previous error.

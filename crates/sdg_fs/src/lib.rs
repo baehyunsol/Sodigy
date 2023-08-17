@@ -50,7 +50,7 @@ impl FileError {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
             io::ErrorKind::PermissionDenied => FileErrorKind::PermissionDenied,
             io::ErrorKind::AlreadyExists => FileErrorKind::AlreadyExists,
-            _ => panic!("{e:?}"),
+            _ => panic!("e: {e:?}, path: {given_path}"),
         };
 
         FileError {

@@ -4,6 +4,10 @@ use crate::span::Span;
 #[cfg(test)]
 use crate::utils::assert_identifier;
 
+/// Module path structure.
+/// - Top level file: `./main.sdg`
+/// - `module foo` in `main.sdg`: `./foo.sdg`
+/// - `module bar` in `foo.sdg`: `./foo/bar.sdg`
 pub struct ModDef {
     pub(crate) name: InternedString,
 

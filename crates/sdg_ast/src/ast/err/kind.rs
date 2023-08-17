@@ -5,7 +5,7 @@ use crate::utils::{bytes_to_string, print_list};
 pub enum ASTErrorKind {
     MultipleDef(InternedString),
 
-    // NameScope is used to suggest a similar name
+    // NameScope is used to suggest similar names
     UndefinedSymbol(InternedString, NameScope),
     InvalidDecorator,
 

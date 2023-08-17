@@ -30,4 +30,4 @@ A similar name exists: `babb`
 ▸ 7 │ def func3: bcbb = bcbb;
     │                   ▴▴▴▴
 
-Could not compile `./src/err/samples/2.in` due to 3 previous errors.
+Could not compile this session due to 3 previous errors.

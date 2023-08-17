@@ -87,6 +87,8 @@ fn error_message_test() {
     let mut failures = vec![];
 
     for sample in samples.iter() {
+        session.remove_errors_and_warnings();
+
         if session.set_input(&format!("./src/err/samples/{sample}.in")).is_err() {
             break;
         }

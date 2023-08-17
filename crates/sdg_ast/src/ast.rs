@@ -2,6 +2,8 @@ use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
 use crate::stmt::{FuncDef, ModDef, Stmt, Use};
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 mod endec;
 mod err;
@@ -23,17 +25,21 @@ pub use opt::{LocalUIDs, Opt};
 /// it's safe to reuse previously generated AST unless the file\
 /// is modified.
 pub struct AST {
+
+    /// hash value of the (file system) path of the current file
+    file_no: u64,
+
     pub(crate) inner_modules: HashMap<InternedString, ModDef>,
     pub defs: HashMap<InternedString, FuncDef>,
     pub(crate) uses: HashMap<InternedString, Use>,
 }
 
 impl AST {
-
     /// if it has an error, they're in `session`, but not returned
     pub(crate) fn from_stmts(stmts: Vec<Stmt>, session: &mut LocalParseSession) -> Result<Self, ()> {
         let mut curr_decos = vec![];
         let mut ast = AST {
+            file_no: session.curr_file,
             inner_modules: HashMap::new(),
             defs: HashMap::new(),
             uses: HashMap::new(),
@@ -123,18 +129,27 @@ impl AST {
         Ok(ast)
     }
 
+    pub fn get_path_of_inner_modules(&self, session: &LocalParseSession) -> Vec<String> {
+        let ast_path: PathBuf = session.get_file_path(self.file_no).into();
+        let sub_path = into_sub_path(&ast_path);
+
+        self.inner_modules.keys().map(
+            |module_name| join_module_path(&sub_path, &module_name.to_string(session))
+        ).collect()
+    }
+
     pub fn dump(&self, session: &mut LocalParseSession) -> String {
         let mut result = Vec::with_capacity(
             self.defs.len() + self.uses.len() + self.inner_modules.len()
         );
 
-        // there are tons of `Object(XXXXX)` in the dumped result, which are not readable
-        // we should translate `Object(XXXX)` into a readable name
+        // there are tons of `Object(XXXXX)` in the dumped result, which are not readable.
+        // we should translate `Object(XXXX)` into a readable name.
         // we need some kind of context that has such table: UID -> FuncDef
         // but generating such table is expensive, so we have to make sure that
-        // the table is generated only when something is dumped
-        // I guess this is the only place to generate the table
-        // after generating the table, we can just inject that to session
+        // the table is generated only when something is dumped.
+        // I guess this is the only place to generate the table.
+        // after generating the table, we can just inject that to session.
         // other `dump` methods will check whether the table is initialized when they encounter `Object(XXXX)`
         // if so, they'd dump a readable name, otherwise they'd just dump `Object(XXXXX)`
         let mut uid_to_name_table = HashMap::new();
@@ -174,7 +189,6 @@ impl AST {
 
         result.join("\n\n")
     }
-
 }
 
 // if already defined, it returns the span of the previous definition
@@ -194,4 +208,32 @@ fn check_already_defined(ast: &AST, name: &InternedString) -> Option<Span> {
     else {
         None
     }
+}
+
+/// `./main.sdg` -> `./`\
+/// `./foo.sdg` -> `./foo/`
+fn into_sub_path(path: &PathBuf) -> PathBuf {
+    // it assumes that `path` is always valid
+    let file_name = path.file_stem().expect("Internal Compiler Error A6D794A8F15").to_str().expect(
+        "Internal Compiler Error 259DA55524B"
+    );
+    let parent = path.parent().expect("Internal Compiler Error 36D20D5F150").to_path_buf();
+
+    if file_name == "main" {
+        parent
+    } else {
+        parent.join(
+            // it's infallible
+            PathBuf::from_str(file_name).unwrap()
+            .into_os_string().into_string()
+            .expect("Internal Compiler Error E5D26AFFBAC")
+        )
+    }
+}
+
+fn join_module_path(sub_path: &PathBuf, module_name: &str) -> String {
+    // PathBuf::from_str is infallible
+    let sub_module = PathBuf::from_str(&format!("{module_name}.sdg")).unwrap();
+
+    sub_path.join(&sub_module).into_os_string().into_string().expect("Internal Compiler Error 4B12F592B01")
 }

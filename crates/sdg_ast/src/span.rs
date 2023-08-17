@@ -7,7 +7,7 @@ const MAX_PREVIEW_LEN: usize = 96;
 #[derive(Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Span {
     /// hash of the name of the file
-    file_no: u64,
+    pub(crate) file_no: u64,
 
     /// both indices are inclusive
     pub start: usize,

@@ -7,4 +7,4 @@ Error: unexpected character: '한'
   4 │     "여기는 한글 됨"
   5 │ };
 
-Could not compile `./src/err/samples/4.in` due to a previous error.
+Could not compile this session due to a previous error.

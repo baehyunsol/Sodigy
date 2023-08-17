@@ -6,4 +6,4 @@ Error: cannot find name `z` in this scope
     │                                   ▴
   4 │ def tester: Int = 0;
 
-Could not compile `./src/err/samples/5.in` due to a previous error.
+Could not compile this session due to a previous error.

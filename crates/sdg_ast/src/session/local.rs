@@ -12,7 +12,10 @@ use std::collections::HashMap;
 pub struct LocalParseSession {
     strings: HashMap<InternedString, Vec<u8>>,
     strings_rev: HashMap<Vec<u8>, InternedString>,
+
+    /// hash value of the (file system) path of the current file
     pub(crate) curr_file: u64,
+
     pub(crate) is_dummy: bool,
 
     /// it's not the actual path of file system\
@@ -71,9 +74,7 @@ impl LocalParseSession {
         self.curr_file = DUMMY_FILE_INDEX;
         self.curr_file_data = input;
 
-        // it invalidates all the stuffs that are related to spans
-        self.errors = vec![];
-        self.warnings = vec![];
+        self.remove_errors_and_warnings_from_dummy();
     }
 
     pub fn set_input(&mut self, path: &str) -> Result<(), ParseError> {
@@ -93,10 +94,6 @@ impl LocalParseSession {
                 return Err(ParseError::file(e));
             }
         }
-
-        // it invalidates all the stuffs that are related to spans
-        self.errors = vec![];
-        self.warnings = vec![];
 
         Ok(())
     }
@@ -178,11 +175,7 @@ impl LocalParseSession {
 
         let mut warnings: Vec<_> = warnings.into_iter().map(|(m, _)| m).collect();
         warnings.push(format!(
-            "`{}` generated {} warning{}",
-
-            // TODO: the errors may be from multiple files!
-            self.get_file_path(self.curr_file),
-
+            "this compile session generated {} warning{}",
             if warnings.len() == 1 {
                 "a".to_string()
             } else {
@@ -229,6 +222,33 @@ impl LocalParseSession {
         }
     }
 
+    pub fn remove_errors_and_warnings(&mut self) {
+        self.errors = vec![];
+        self.warnings = vec![];
+    }
+
+    pub fn remove_errors_and_warnings_from_dummy(&mut self) {
+        let mut index = 0;
+
+        while index < self.errors.len() {
+            if self.errors[index].get_first_span().file_no == DUMMY_FILE_INDEX {
+                self.errors.swap_remove(index);
+            } else {
+                index += 1;
+            }
+        }
+
+        index = 0;
+
+        while index < self.warnings.len() {
+            if self.warnings[index].span.file_no == DUMMY_FILE_INDEX {
+                self.warnings.swap_remove(index);
+            } else {
+                index += 1;
+            }
+        }
+    }
+
     pub fn render_err(&self) -> String {
         let mut errors_sorted_by_span: Vec<&Box<dyn SodigyError>> = self.errors.iter().collect();
         errors_sorted_by_span.sort_by_key(|err| err.get_first_span());
@@ -238,11 +258,7 @@ impl LocalParseSession {
         ).collect::<Vec<String>>();
 
         errors.push(format!(
-            "Could not compile `{}` due to {} previous error{}.",
-
-            // TODO: the errors may be from multiple files!
-            self.get_file_path(self.curr_file),
-
+            "Could not compile this session due to {} previous error{}.",
             if errors.len() == 1 {
                 "a".to_string()
             } else {

@@ -4,4 +4,4 @@ A similar name exists: `Int`
 ▸ 1 │ def ZERO: int = 0;
     │           ▴▴▴
 
-Could not compile `./src/err/samples/0.in` due to a previous error.
+Could not compile this session due to a previous error.

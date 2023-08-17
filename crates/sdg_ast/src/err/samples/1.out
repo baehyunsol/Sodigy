@@ -9,4 +9,4 @@ Error: expected any kind of expression, found nothing
   6 │     5
   7 │ ]];
 
-Could not compile `./src/err/samples/1.in` due to a previous error.
+Could not compile this session due to a previous error.

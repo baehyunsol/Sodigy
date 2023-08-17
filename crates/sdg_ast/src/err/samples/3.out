@@ -22,4 +22,4 @@ Error: cannot find name `b` in this scope
   7 │     l(a)
   8 │ };
 
-Could not compile `./src/err/samples/3.in` due to 2 previous errors.
+Could not compile this session due to 2 previous errors.

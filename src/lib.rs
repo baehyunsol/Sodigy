@@ -1,6 +1,6 @@
 pub use sdg_ast::{
     AST, GlobalParseSession, LocalParseSession, SodigyError,
-    parse_file,
+    parse_file, parse_files,
 };
 
 pub use sdg_inter_mod::{
@@ -13,27 +13,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_tests() {
+    fn parse_test() {
         let mut session = LocalParseSession::new();
-        session.set_input("./tests/syntax.sdg").map_err(|e| e.render_err(&session)).unwrap();
-        let input = session.get_curr_file_content().to_vec();
-
-        match parse_file(&input, &mut session) {
-            Ok(ast) => {
-                // ast test
-                // println!("{}", ast.dump(&mut session));
-
-                // inter_mod test
-                // let mut ctxt = InterModuleContext::new();
-                // ctxt.collect_ast(&ast);
-                // panic!("{}", dump_module(&ctxt.namespace, &session));
-
+        match parse_files("./tests/main.sdg".into(), &mut session) {
+            Ok(asts) => {
                 if !session.has_no_warning() {
                     panic!("\n\n{}\n\n", session.render_warnings());
                 }
 
-                // TODO: run tests
-            },
+                for ast in asts.into_iter() {
+                    // ast test
+                    // println!("{}", ast.dump(&mut session));
+
+                    // inter_mod test
+                    // let mut ctxt = InterModuleContext::new();
+                    // ctxt.collect_ast(&ast);
+                    // panic!("{}", dump_module(&ctxt.namespace, &session));
+
+                    // TODO: run tests
+                }
+            }
             Err(_) => panic!("\n\n{}\n\n", session.render_err()),
         }
     }

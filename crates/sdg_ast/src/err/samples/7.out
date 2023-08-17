@@ -26,4 +26,4 @@ but it's decorating a `module` statement here.
 ▸ 5 │ module tester;
     │ ▴▴▴▴▴▴
 
-Could not compile `./src/err/samples/7.in` due to 2 previous errors.
+Could not compile this session due to 2 previous errors.

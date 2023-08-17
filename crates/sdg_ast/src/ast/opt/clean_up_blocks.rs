@@ -25,16 +25,21 @@ TODO
 }
 
 even though `x` is used twice (syntactically), it'll never be used twice (semantically)
+
+---
+
+All the optimization has to be done after all the other analysis are complete.
+e.g. there's a type error in an unused block def
 */
 
-/// 1. If a definition is used only once, the value goes directly to the used place.
-/// 2. If a definition is used 0 times, it's removed.
-/// 3. If a value of a definition is simple, all the referents are replaced with the value.
-///   - simple value: single identifier (or a path), small number (how small?), static values (constants)
-/// 4. If a block has no defs, it unwraps the block.
-/// 5. Check cycles
-///
-/// when it returns Err(()), the actual errors are in `session`
+// 1. If a definition is used only once, the value goes directly to the used place.
+// 2. If a definition is used 0 times, it's removed.
+// 3. If a value of a definition is simple, all the referents are replaced with the value.
+//   - simple value: single identifier (or a path), small number (how small?), static values (constants)
+// 4. If a block has no defs, it unwraps the block.
+// 5. Check cycles
+//
+// when it returns Err(()), the actual errors are in `session`
 iter_mut_exprs_in_ast!(clean_up_blocks, ());
 
 impl Expr {
