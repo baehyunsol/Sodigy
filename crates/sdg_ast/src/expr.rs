@@ -13,7 +13,7 @@ mod name_resolve;
 #[cfg(test)]
 mod tests;
 
-pub use kind::{ExprKind, MatchBranch};
+pub use kind::{ExprKind, MatchBranch, TailCall};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_match_body, parse_expr};
 
@@ -85,9 +85,9 @@ impl Expr {
         }
     }
 
-    pub fn new_call(f: Expr, args: Vec<Expr>, span: Span) -> Self {
+    pub fn new_call(f: Expr, args: Vec<Expr>, span: Span, tail: TailCall) -> Self {
         Expr {
-            kind: ExprKind::Call(Box::new(f), args),
+            kind: ExprKind::Call(Box::new(f), args, tail),
             span,
         }
     }
@@ -133,6 +133,7 @@ impl Expr {
                         Span::dummy(),
                     ),
                 ],
+                TailCall::NoTail,
             ),
             span: Span::dummy(),
         }

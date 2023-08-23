@@ -30,6 +30,7 @@ even though `x` is used twice (syntactically), it'll never be used twice (semant
 
 All the optimization has to be done after all the other analysis are complete.
 e.g. there's a type error in an unused block def
+
 */
 
 // 1. If a definition is used only once, the value goes directly to the used place.
@@ -207,7 +208,7 @@ impl ExprKind {
                 t.clean_up_blocks(session, ctxt)?;
                 f.clean_up_blocks(session, ctxt)?;
             },
-            ExprKind::Call(f, args) => {
+            ExprKind::Call(f, args, _) => {
                 f.clean_up_blocks(session, ctxt)?;
 
                 for arg in args.iter_mut() {
@@ -320,7 +321,7 @@ fn count_occurrence(expr: &Expr, name: InternedString, block_id: UID, count: &mu
             count_occurrence(t, name, block_id, count);
             count_occurrence(f, name, block_id, count);
         },
-        ExprKind::Call(f, args) => {
+        ExprKind::Call(f, args, _) => {
             count_occurrence(f, name, block_id, count);
 
             for arg in args.iter() {

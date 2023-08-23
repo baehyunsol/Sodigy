@@ -163,7 +163,7 @@ impl Expr {
                 let _ = t.intra_inter_mod(session, ctxt);
                 let _ = f.intra_inter_mod(session, ctxt);
             },
-            ExprKind::Call(f, args) => {
+            ExprKind::Call(f, args, _) => {
                 let _ = f.intra_inter_mod(session, ctxt);
 
                 for arg in args.iter_mut() {

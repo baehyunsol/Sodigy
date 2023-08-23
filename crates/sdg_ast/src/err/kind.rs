@@ -34,6 +34,8 @@ pub enum ParseErrorKind {
     /// `{x = 3; x = 4; x + x}`\
     MultipleDefParam(InternedString, ParamType),
 
+    LambdaHashCollision,
+
     PatternFromArg(InternedString, NameOrigin),
 
     InvalidPattern(PatternErrorKind),
@@ -82,6 +84,9 @@ impl ParseErrorKind {
                 "identifier `{}` is bound more than once in {}",
                 name.to_string(session),
                 param_type.render_err(),
+            ),
+            ParseErrorKind::LambdaHashCollision => String::from(
+                "hash collision in lambda functions"
             ),
             ParseErrorKind::PatternFromArg(name, _) => format!(
                 "cannot use `{}` inside a pattern",

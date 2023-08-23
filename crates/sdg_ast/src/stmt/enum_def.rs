@@ -1,7 +1,7 @@
 use super::{ArgDef, Decorator, FuncDef, FuncKind, GenericDef, VariantDef};
 use crate::ast::NameOrigin;
 use crate::err::ParamType;
-use crate::expr::Expr;
+use crate::expr::{Expr, TailCall};
 use crate::path::Path;
 use crate::session::{InternedString, LocalParseSession};
 use crate::span::Span;
@@ -161,6 +161,7 @@ impl FuncDef {
                     |g| g.to_expr(self_uid)
                 ).collect(),
                 Span::dummy(),
+                TailCall::NoTail,
             ))
         };
 

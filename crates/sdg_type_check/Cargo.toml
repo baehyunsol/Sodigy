@@ -1,0 +1,7 @@
+[package]
+name = "sdg_type_check"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sdg_ast = { path = "../sdg_ast", version = "*" }

@@ -100,10 +100,11 @@ impl Expr {
 
                     session.add_warnings(lambda_def.get_unused_name_warnings(used_names));
 
-                    // No hash collision between programmer-defined names and newly generated name: the new ones have special characters
-                    // But there may be collisions between newly generated ones -> TODO: what then?
+                    // No hash collision between programmer-defined names and compiler-generated name
+                    //   -> the compiler ones have special characters
+                    // But there may be collisions between compiler-generated ones
                     if let Some(_) = lambda_defs.insert(lambda_def.name, lambda_def) {
-                        todo!();
+                        session.add_error(ParseError::lambda_hash_collision(self.span));
                     }
                 },
                 ValueKind::Block { defs, value, id } => {
@@ -164,7 +165,7 @@ impl Expr {
                 b1.resolve_names(name_scope, lambda_defs, session, used_names);
                 b2.resolve_names(name_scope, lambda_defs, session, used_names);
             },
-            ExprKind::Call(f, args) => {
+            ExprKind::Call(f, args, _) => {
                 f.resolve_names(name_scope, lambda_defs, session, used_names);
 
                 for arg in args.iter_mut() {
@@ -258,7 +259,7 @@ impl Expr {
                 b1.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
                 b2.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
             },
-            ExprKind::Call(f, args) => {
+            ExprKind::Call(f, args, _) => {
                 f.get_all_foreign_names(curr_func_id, buffer, curr_blocks);
 
                 for arg in args.iter() {

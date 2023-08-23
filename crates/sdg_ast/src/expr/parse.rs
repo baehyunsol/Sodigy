@@ -1,4 +1,4 @@
-use super::{Expr, ExprKind, InfixOp, NameOrigin, PostfixOp, PrefixOp};
+use super::{Expr, ExprKind, InfixOp, NameOrigin, PostfixOp, PrefixOp, TailCall};
 use crate::err::{ExpectedToken, ParseError};
 use crate::pattern::Pattern;
 use crate::token::{Token, TokenKind, TokenList};
@@ -99,6 +99,7 @@ pub fn parse_expr(tokens: &mut TokenList, min_bp: u32) -> Result<Expr, ParseErro
                 kind: ExprKind::Call(
                     Box::new(lhs),
                     args?,
+                    TailCall::NoTail,
                 ),
             };
 

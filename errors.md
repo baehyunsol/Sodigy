@@ -65,3 +65,4 @@ Most error messages and warning messages are from Rust.
     - ``` if you meant to write a `str` literal, use double quotes ```
   - ``` empty character literal ```
   - ``` field `got` bound multiple times in the pattern ```
+  - ``` this function takes 0 arguments but 1 argument was supplied ```

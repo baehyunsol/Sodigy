@@ -14,7 +14,7 @@ pub enum ExprKind {
     Postfix(PostfixOp, Box<Expr>),
 
     /// (Functor, Args)
-    Call(Box<Expr>, Vec<Expr>),
+    Call(Box<Expr>, Vec<Expr>, TailCall),
 
     /// cond, true, false
     Branch(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -94,8 +94,9 @@ impl ExprKind {
                 rhs.dump(session),
             ),
             ExprKind::Postfix(op, expr) => format!("{op:?}({})", expr.dump(session)),
-            ExprKind::Call(functor, args) => format!(
-                "Call({}{})",
+            ExprKind::Call(functor, args, tail) => format!(
+                "{}({}{})",
+                if tail.is_tail() { "TailCall" } else { "Call" },
                 functor.dump(session),
                 args.iter()
                     .map(|arg| format!(", {}", arg.dump(session)))
@@ -142,5 +143,16 @@ impl MatchBranch {
             pattern, value,
             id: UID::new_match_branch_id(),
         }
+    }
+}
+
+#[derive(Clone)]
+pub enum TailCall {
+    Tail, NoTail,
+}
+
+impl TailCall {
+    pub fn is_tail(&self) -> bool {
+        if let TailCall::Tail = self { true } else { false }
     }
 }

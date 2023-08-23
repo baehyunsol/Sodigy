@@ -1,5 +1,5 @@
 use super::{DUMMY_FILE_INDEX, GLOBAL_SESSION, GLOBAL_SESSION_LOCK, InternedString, KEYWORDS, KEYWORD_START, try_init_global_session};
-use crate::ast::Opt;
+use crate::ast::TransformationKind;
 use crate::err::{ParseError, SodigyError};
 use crate::path::Path;
 use crate::token::Keyword;
@@ -25,10 +25,13 @@ pub struct LocalParseSession {
     warnings: Vec<SodigyWarning>,
     pub errors: Vec<Box<dyn SodigyError>>,
 
-    optimizations: HashMap<Opt, bool>,
+    optimizations: HashMap<TransformationKind, bool>,
 
-    // it's only used for `dump` methods
+    /// it's only used for `dump` methods
     uid_to_name_table: HashMap<UID, String>,
+
+    /// it need not initialized multiple times
+    is_prelude_uid_table_init: bool,
 
     curr_file_data: Vec<u8>,
 }
@@ -38,11 +41,12 @@ impl LocalParseSession {
         try_init_global_session();
 
         let mut optimizations = HashMap::new();
-        optimizations.insert(Opt::IntraInterMod, true);
+        optimizations.insert(TransformationKind::IntraInterMod, true);
 
         let mut result = LocalParseSession {
             curr_file: DUMMY_FILE_INDEX,
             is_dummy: false,
+            is_prelude_uid_table_init: false,
             optimizations,
             ..Self::default()
         };
@@ -53,13 +57,13 @@ impl LocalParseSession {
         result
     }
 
-    pub fn toggle(&mut self, opt: Opt, flag: bool) {
-        self.optimizations.insert(opt, flag);
+    pub fn toggle(&mut self, t: TransformationKind, flag: bool) {
+        self.optimizations.insert(t, flag);
     }
 
     // it should have all the optimizations in the hashmap
-    pub fn is_enabled(&self, opt: Opt) -> bool {
-        *self.optimizations.get(&opt).expect("Internal Compiler Error 7235E377BB9")
+    pub fn is_enabled(&self, t: TransformationKind) -> bool {
+        *self.optimizations.get(&t).expect("Internal Compiler Error 7235E377BB9")
     }
 
     pub fn dummy() -> Self {
@@ -321,10 +325,27 @@ impl LocalParseSession {
     }
 
     /// helper function for `dump` methods
-    pub(crate) fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
+    pub fn update_uid_to_name_table(&mut self, table: HashMap<UID, String>) {
         for (k, v) in table.into_iter() {
             self.uid_to_name_table.insert(k, v);
         }
+    }
+
+    pub fn update_prelude_uid_table(&mut self) {
+        if self.is_prelude_uid_table_init {
+            return;
+        }
+
+        let prelude_uid_table = self.get_prelude_uid_table().clone();
+
+        for (name, uid) in prelude_uid_table.iter() {
+            self.uid_to_name_table.insert(
+                *uid,
+                format!("prelude.{}", name.to_string(self)),
+            );
+        }
+
+        self.is_prelude_uid_table_init = true;
     }
 
     /// helper function for `dump` methods

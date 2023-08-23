@@ -8,17 +8,17 @@ use std::str::FromStr;
 mod endec;
 mod err;
 mod name_resolve;
-mod opt;
+mod transformation;
 mod walker;
 
-use opt::ClosureCollector;
+use transformation::ClosureCollector;
 
 #[cfg(test)]
 mod tests;
 
 pub use err::ASTError;
 pub use name_resolve::{NameOrigin, NameScope, NameScopeKind};
-pub use opt::{LocalUIDs, Opt};
+pub use transformation::{LocalUIDs, TransformationKind};
 
 /// It represents a single file.\
 /// It doesn't have any data from other files, meaning that\
@@ -115,26 +115,33 @@ impl AST {
         let mut closure_collector = ClosureCollector::new();
 
         ast.resolve_names(session)?;
+
         ast.resolve_recursive_lambdas_in_block(session, &mut closure_collector)?;
         ast.modify_closure_defs(&closure_collector.closure_to_lambda_info);
-        ast.clean_up_blocks(session, &mut ())?;
 
-        if session.is_enabled(Opt::IntraInterMod) {
+        // TODO: `clean_up_blocks` has to be called later, after type-checking
+        // ast.clean_up_blocks(session, &mut ())?;
+
+        // TODO: always enable this
+        if session.is_enabled(TransformationKind::IntraInterMod) {
             let mut local_uids = ast.get_local_uids(session);
             ast.intra_inter_mod(session, &mut local_uids)?;
         }
+
+        ast.mark_tail_calls();
 
         session.err_if_has_error()?;
 
         Ok(ast)
     }
 
-    pub fn get_path_of_inner_modules(&self, session: &LocalParseSession) -> Vec<String> {
+    /// The span is used when there's an error with the inner module (e.g: file doesn't exist)
+    pub fn get_path_of_inner_modules(&self, session: &LocalParseSession) -> Vec<(String, Span)> {
         let ast_path: PathBuf = session.get_file_path(self.file_no).into();
         let sub_path = into_sub_path(&ast_path);
 
-        self.inner_modules.keys().map(
-            |module_name| join_module_path(&sub_path, &module_name.to_string(session))
+        self.inner_modules.iter().map(
+            |(module_name, mod_def)| (join_module_path(&sub_path, &module_name.to_string(session)), mod_def.name_span)
         ).collect()
     }
 
@@ -161,16 +168,8 @@ impl AST {
             );
         }
 
-        let prelude_uid_table = session.get_prelude_uid_table().clone();
-
-        for (name, uid) in prelude_uid_table.iter() {
-            uid_to_name_table.insert(
-                *uid,
-                format!("prelude.{}", name.to_string(session)),
-            );
-        }
-
         session.update_uid_to_name_table(uid_to_name_table);
+        session.update_prelude_uid_table();
 
         for module in self.inner_modules.values() {
             result.push((module.def_span, module.dump(session)));

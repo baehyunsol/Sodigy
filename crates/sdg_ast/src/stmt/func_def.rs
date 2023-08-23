@@ -239,7 +239,7 @@ impl FuncDef {
     }
 
     // helper function for `dump`
-    pub(crate) fn pretty_name(&self, session: &LocalParseSession) -> String {
+    pub fn pretty_name(&self, session: &LocalParseSession) -> String {
         self.get_full_path().dump(session)
     }
 

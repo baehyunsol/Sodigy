@@ -110,3 +110,33 @@ rand functions
 - impure one
   - `.rand_int(): Int`
   - use it to initialize a pure one
+
+---
+
+warn when prelude names are re-defined
+
+---
+
+log decorator
+
+```
+@log
+def foo(x: Int, y: Int) = bar(x, y);
+```
+
+```
+# `gen_id` is an impure function (builtin for compiler and runtime)
+# let's use another impure function that manages indentations
+def foo_logged(x: Int, y: Int) = {
+  let id = gen_id();
+  let result = foo(x, y);
+
+  logger(
+    f"foo(x: {x}, y: {y})  # id {id}",
+    result,
+    f"# `foo` id {id} returned {result}",
+  )
+};
+
+# TODO: how do we make sure that it's logged before called?
+```

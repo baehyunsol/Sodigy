@@ -81,7 +81,7 @@ impl ExprKind {
                 op1.kind.id_walker(f, ctxt);
                 op2.kind.id_walker(f, ctxt);
             },
-            ExprKind::Call(func, args) => {
+            ExprKind::Call(func, args, _) => {
                 func.kind.id_walker(f, ctxt);
 
                 for arg in args.iter() {

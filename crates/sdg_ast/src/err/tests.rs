@@ -47,6 +47,10 @@ pub fn is_eq(k1: &ParseErrorKind, k2: &ParseErrorKind) -> bool {
             ParseErrorKind::MultipleDefParam(_, t2) => t1 == t2,
             _ => false,
         },
+        ParseErrorKind::LambdaHashCollision => match k2 {
+            ParseErrorKind::LambdaHashCollision => true,
+            _ => false,
+        },
         ParseErrorKind::InvalidPattern(p1) => match k2 {
             ParseErrorKind::InvalidPattern(p2) => is_eq_pat_err(p1, p2),
             _ => false,

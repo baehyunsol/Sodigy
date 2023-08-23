@@ -8,12 +8,13 @@ use std::collections::HashMap;
 mod clean_up_blocks;
 mod intra_inter_mod;
 mod resolve_recursive_lambdas_in_block;
+mod tail_call;
 
 pub use resolve_recursive_lambdas_in_block::ClosureCollector;
 pub use intra_inter_mod::LocalUIDs;
 
 #[derive(Eq, Hash, PartialEq)]
-pub enum Opt {
+pub enum TransformationKind {
 
     // TODO: we'd better always enable this
     IntraInterMod,
@@ -127,7 +128,7 @@ pub fn substitute_local_def(haystack: &mut Expr, substitutions: &HashMap<(Intern
             substitute_local_def(t, substitutions);
             substitute_local_def(f, substitutions);
         },
-        ExprKind::Call(f, args) => {
+        ExprKind::Call(f, args, _) => {
             substitute_local_def(f, substitutions);
 
             for arg in args.iter_mut() {

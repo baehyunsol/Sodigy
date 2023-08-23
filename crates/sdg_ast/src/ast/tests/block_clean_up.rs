@@ -1,5 +1,6 @@
 use super::check_ast_of_tester;
 
+// TODO: now `block_clean_up` is called after type-checking...
 fn samples() -> Vec<(Vec<u8>, String)> {
     vec![
         (

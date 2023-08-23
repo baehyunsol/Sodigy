@@ -9,6 +9,12 @@ use sdg_fs::FileError;
 
 mod kind;
 
+// I want it to be in `sdg_type_check`, but it cannot be done because
+// `sdg_ast` cannot depend on `sdg_type_check`
+mod ty_err;
+
+pub use ty_err::TypeError;
+
 #[cfg(test)]
 pub mod tests;
 
@@ -115,6 +121,14 @@ impl ParseError {
             kind: ParseErrorKind::UnexpectedToken { got, expected },
             span: vec![span],
             message,
+        }
+    }
+
+    pub(crate) fn lambda_hash_collision(span: Span) -> Self {
+        ParseError {
+            kind: ParseErrorKind::LambdaHashCollision,
+            span: vec![span],
+            message: String::new(),
         }
     }
 
@@ -246,6 +260,10 @@ impl ParseError {
         self.message = message.to_string();
     }
 
+    pub(crate) fn set_span(&mut self, span: Vec<Span>) {
+        self.span = span;
+    }
+
     pub(crate) fn set_expected_tokens_instead_of_nothing(&mut self, tokens: Vec<TokenKind>) {
         match &mut self.kind {
             ParseErrorKind::UnexpectedToken { expected, .. } if expected == &ExpectedToken::Nothing => {
@@ -313,6 +331,11 @@ impl SodigyError for ParseError {
             ParseErrorKind::MultipleDefParam(_, ParamType::FuncGenericAndParam) => {
                 self.set_msg(
                     "In Sodigy, types are first class objects, which means types and parameters are in the same name scope."
+                );
+            },
+            ParseErrorKind::LambdaHashCollision => {
+                self.set_msg(
+                    "The compiler generates hash value for each lambda function, and there's a collision in hash values.\nThis is very rare situation, you're unlucky.\nPlease try again after inserting a whitespace or comments BEFORE the lambda function."
                 );
             },
             ParseErrorKind::PatternFromArg(_, origin) => {

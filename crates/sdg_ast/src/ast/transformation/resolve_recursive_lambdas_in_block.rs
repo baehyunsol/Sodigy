@@ -127,7 +127,7 @@ impl Expr {
                 t.resolve_recursive_lambdas_in_block(session, ctxt)?;
                 f.resolve_recursive_lambdas_in_block(session, ctxt)?;
             },
-            ExprKind::Call(f, args) => {
+            ExprKind::Call(f, args, _) => {
                 f.resolve_recursive_lambdas_in_block(session, ctxt)?;
 
                 for arg in args.iter_mut() {
@@ -184,7 +184,7 @@ impl Expr {
                 op1.replace_closure_with_lambda(ctxt);
                 op2.replace_closure_with_lambda(ctxt);
             },
-            ExprKind::Call(func, args) => {
+            ExprKind::Call(func, args, _) => {
                 func.replace_closure_with_lambda(ctxt);
 
                 for arg in args.iter_mut() {
@@ -254,9 +254,16 @@ enum BlockValue {
 
 pub struct ClosureCollector {
     block_stack: Vec<UID>,
+
+    /// `UID` is of a block.
+    /// If a block contains closures or lambdas, their names and values are stored in the hashmap.
     block_values: HashMap<UID, HashMap<InternedString, BlockValue>>,
+
+    /// `UID` is of a block, the vector contains all the closures in the block
     closures_by_block: HashMap<UID, Vec<ClosureName>>,
     curr_closure_solve_state: HashMap<ClosureName, SolveState>,
+
+    /// captured variables (name and origin) of closures
     curr_closures: HashMap<ClosureName, Vec<(InternedString, NameOrigin)>>,
 
     // this info is later used to modify the ast of lambda defs
@@ -419,6 +426,12 @@ fn solve_closure_impl(closure: ClosureName, ctxt: &mut ClosureCollector) -> bool
             for (var_name, var_origin) in curr_context.into_iter() {
                 match var_origin {
                     NameOrigin::BlockDef(id) => {
+                        // TODO: Err 5493D3F0E85
+                        /*
+                         *  let pns = [2, 3, 5, 7];
+                         *  let npns = (1..100).filter(\{n, !pns.contains(n)});
+                         *  # when solving `npns`, `pns` is not in the context yet
+                         */
                         match ctxt.block_values.get(&id).expect(
                             "Internal Compiler Error 5493D3F0E85"
                         ).get(&var_name).expect(

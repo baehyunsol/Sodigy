@@ -20,8 +20,10 @@ mod tests;
 
 pub use ast::AST;
 pub use err::SodigyError;
+pub use expr::{Expr, ExprKind};
 pub use session::{GlobalParseSession, InternedString, LocalParseSession};
 pub use stmt::{FuncDef, FuncKind};
+pub use value::ValueKind;
 
 use err::ParseError;
 use lexer::lex_tokens;
@@ -41,18 +43,23 @@ pub fn parse_file(s: &[u8], session: &mut LocalParseSession) -> Result<AST, ()> 
 }
 
 pub fn parse_files(path: String, session: &mut LocalParseSession) -> Result<Vec<AST>, ()> {
-    let mut paths_to_check = vec![path];
+    let mut paths_to_check = vec![(path, Span::dummy())];
     let mut asts = vec![];
 
-    while let Some(p) = paths_to_check.pop() {
-        session.set_input(&p);
+    while let Some((path, span)) = paths_to_check.pop() {
+        if let Err(mut e) = session.set_input(&path) {
+            e.set_span(vec![span]);
+            session.add_error(e);
+            continue;
+        }
+
         let input = session.get_curr_file_content().to_vec();
 
         // it continues parsing files even though a file has an error.
         // so that it can find as many errors as possible
         if let Ok(ast) = parse_file(&input, session) {
-            for path in ast.get_path_of_inner_modules(session).into_iter() {
-                paths_to_check.push(path);
+            for path_and_span in ast.get_path_of_inner_modules(session).into_iter() {
+                paths_to_check.push(path_and_span);
             }
 
             asts.push(ast);
