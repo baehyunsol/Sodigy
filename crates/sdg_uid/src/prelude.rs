@@ -18,12 +18,12 @@ pub fn int() -> UID {
 
 // list type (builtin)
 pub fn list() -> UID {
-    UID((0x0003 << 32) & ZERO | STRUCT)
+    UID((0x0003 << 32) & ZERO | FUNC)  // generic types are functions
 }
 
 // function type (builtin)
 pub fn func() -> UID {
-    UID((0x0004 << 32) & ZERO | STRUCT)
+    UID((0x0004 << 32) & ZERO | FUNC)  // generic types are functions
 }
 
 // string type `def String: Type = List(Char)`
@@ -44,4 +44,25 @@ pub fn option() -> UID {
 // test decorator (builtin)
 pub fn test_() -> UID {
     UID((0x0008 << 32) & ZERO | FUNC)  // TODO: is it FUNC?
+}
+
+// number type `struct Number { denom: Int, numer: Int }`
+pub fn number() -> UID {
+    UID((0x0009 << 32) & ZERO | STRUCT)
+}
+
+// result type `enum Result<T, E> { Ok(T), Err(E) }`
+pub fn result() -> UID {
+    UID((0x000a << 32) & ZERO | ENUM)
+}
+
+// char type `def Char: Type = Int;`
+pub fn char() -> UID {
+    UID((0x000b << 32) & ZERO | FUNC)  // TODO: is it FUNC?
+}
+
+// bytes type
+// TODO: how do I define it?
+pub fn bytes() -> UID {
+    UID((0x000c << 32) & ZERO | FUNC)  // TODO: is it FUNC?
 }

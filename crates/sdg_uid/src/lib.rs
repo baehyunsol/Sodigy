@@ -1,6 +1,8 @@
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub struct UID(pub(crate) u128);
 
+// TODO: make everything const if it has no randomness
+
 pub mod prelude;
 
 macro_rules! def_new_uid {

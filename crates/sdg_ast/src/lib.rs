@@ -11,23 +11,23 @@ mod session;
 mod span;
 mod stmt;
 mod token;
-mod utils;
+pub mod utils;
 mod value;
 mod warning;
 
 #[cfg(test)]
 mod tests;
 
-pub use ast::AST;
-pub use err::SodigyError;
-pub use expr::{Expr, ExprKind};
+pub use ast::{AST, NameOrigin};
+pub use err::{SodigyError, TypeError};
+pub use expr::{Expr, ExprKind, TailCall};
 pub use session::{GlobalParseSession, InternedString, LocalParseSession};
+pub use span::Span;
 pub use stmt::{FuncDef, FuncKind};
-pub use value::ValueKind;
+pub use value::{BlockDef, ValueKind};
 
 use err::ParseError;
 use lexer::lex_tokens;
-use span::Span;
 use stmt::parse_stmts;
 use token::TokenList;
 

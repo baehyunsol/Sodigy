@@ -66,6 +66,10 @@ impl InterModuleContext {
         }
     }
 
+    pub fn search_by_id(&self, id: UID) -> Option<&FuncDef> {
+        self.func_defs.get(&id)
+    }
+
     pub fn collect_ast(&mut self, ast: &AST) {
         for (name, def) in ast.defs.iter() {
             // TODO: cloning would be too expensive!

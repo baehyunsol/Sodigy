@@ -221,9 +221,9 @@ impl From<(InternedString, NameOrigin)> for ValueKind {
 
 #[derive(Clone)]
 pub struct BlockDef {
-    pub(crate) name: InternedString,
-    pub(crate) ty: Option<Expr>,
-    pub(crate) value: Expr,
+    pub name: InternedString,
+    pub ty: Option<Expr>,
+    pub value: Expr,
 
     /// points to the name
     pub(crate) span: Span,

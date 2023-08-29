@@ -71,6 +71,13 @@ impl Expr {
         }
     }
 
+    pub fn new_list(elements: Vec<Expr>, span: Span) -> Self {
+        Expr {
+            kind: ExprKind::Value(ValueKind::List(elements)),
+            span,
+        }
+    }
+
     pub fn new_tuple(elements: Vec<Expr>, span: Span) -> Self {
         Expr {
             kind: ExprKind::Value(ValueKind::Tuple(elements)),
@@ -85,7 +92,7 @@ impl Expr {
         }
     }
 
-    pub fn new_call(f: Expr, args: Vec<Expr>, span: Span, tail: TailCall) -> Self {
+    pub fn new_call(f: Expr, args: Vec<Expr>, tail: TailCall, span: Span) -> Self {
         Expr {
             kind: ExprKind::Call(Box::new(f), args, tail),
             span,

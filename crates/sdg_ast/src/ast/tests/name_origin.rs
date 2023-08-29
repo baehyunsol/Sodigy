@@ -1,5 +1,5 @@
 use super::super::NameOrigin;
-use crate::ast::Opt;
+use crate::ast::TransformationKind;
 use crate::parse_file;
 use crate::session::LocalParseSession;
 use crate::stmt::LAMBDA_FUNC_PREFIX;
@@ -39,7 +39,7 @@ fn samples() -> Vec<Vec<u8>> {
 #[test]
 fn name_origin_test() {
     let mut session = LocalParseSession::new();
-    session.toggle(Opt::IntraInterMod, false);
+    session.toggle(TransformationKind::IntraInterMod, false);
 
     for sample in samples() {
         session.set_direct_input(sample.clone());

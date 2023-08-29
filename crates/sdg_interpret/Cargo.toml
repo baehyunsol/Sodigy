@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 sdg_ast = { path = "../sdg_ast", version = "*" }
+sdg_inter_mod = { path = "../sdg_inter_mod", version = "*" }
+sdg_uid = { path = "../sdg_uid", version = "*" }

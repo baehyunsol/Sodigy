@@ -24,5 +24,4 @@ sdg_hash = { path = "./crates/sdg_hash", version = "*" }
 sdg_inter_mod = { path = "./crates/sdg_inter_mod", version = "*" }
 sdg_interpret = { path = "./crates/sdg_interpret", version = "*" }
 sdg_prelude = { path = "./crates/sdg_prelude", version = "*" }
-sdg_type_check = { path = "./crates/sdg_type_check", version = "*" }
 sdg_uid = { path = "./crates/sdg_uid", version = "*" }

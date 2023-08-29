@@ -160,8 +160,8 @@ impl FuncDef {
                 parent.generics.iter().map(
                     |g| g.to_expr(self_uid)
                 ).collect(),
-                Span::dummy(),
                 TailCall::NoTail,
+                Span::dummy(),
             ))
         };
 
