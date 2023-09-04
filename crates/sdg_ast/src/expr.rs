@@ -22,8 +22,8 @@ pub use tests::dump_ast_of_expr;
 
 #[derive(Clone)]
 pub struct Expr {
-    pub span: Span,
     pub kind: ExprKind,
+    pub span: Span,
 }
 
 impl Expr {
@@ -142,6 +142,16 @@ impl Expr {
                 ],
                 TailCall::NoTail,
             ),
+            span: Span::dummy(),
+        }
+    }
+
+    /// Use this when you're sure that it'll never be read
+    pub fn dummy() -> Self {
+        Expr {
+            // For now, it's a simpe hack: I assume that 7140632 is never used elsewhere
+            // so if you see one, that must be a dummy expr
+            kind: ExprKind::Value(ValueKind::Integer(7140632.into())),
             span: Span::dummy(),
         }
     }

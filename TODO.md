@@ -140,3 +140,31 @@ def foo_logged(x: Int, y: Int) = {
 
 # TODO: how do we make sure that it's logged before called?
 ```
+
+---
+
+`Any` type?
+
+`[]` -> `List(Any)` vs infer
+
+If I allow `List(Any)`, `[3, 4, "a", True]` is not a type error. Can I handle it when it's compiled?
+
+In that case, `[3, 4, "a", True][0]` and `3` are different when compiled. The first one is wrapped in a container, while the later one is just an integer (maybe 32 bit).
+
+---
+
+Operator Overloading: Do we need this?
+
+- There are 3 types of overloading
+  - let's say `Int` is builtin, and `Foo` is custom
+  - `Int + Int`
+    - If someone tries to re-impl this, it must be rejected
+    - what if someone wants to impl `Int <> Int`, which is not built-in?
+      - it's not allowed in Rust, either the type or the trait must be intra-module
+  - `Foo + Foo`
+    - If that's now allowed, what else can be allowed?
+    - Let's say `Foo` is defined in module `X`, and some other module `Y` tries to impl `Foo + Foo`. is that ok?
+      - what if `X` and `Y` are completely different modules?
+      - what if `Z` also impl `Foo + Foo`? `X, Y` are compatible and `X, Z` are, but not `Y, Z`. are we ok with this?
+  - `Foo + Int`
+    - ...

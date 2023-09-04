@@ -1,10 +1,12 @@
 use sdg_ast::{
     AST, FuncDef,
+    Expr,
     InternedString,
     LocalParseSession,
     FuncKind,
+    Span,
 };
-use sdg_uid::UID;
+use sdg_uid::{UID, prelude};
 use std::collections::HashMap;
 
 pub enum ModuleOrDef {
@@ -56,14 +58,34 @@ pub fn dump_module(module: &HashMap<InternedString, ModuleOrDef>, session: &Loca
 pub struct InterModuleContext {
     pub namespace: HashMap<InternedString, ModuleOrDef>,
     func_defs: HashMap<UID, FuncDef>,
+
+    /// `table[Eq].get(Int, Int) -> Some(Bool)`\
+    /// `table[Add].get(Int, Int) -> Some(Int)`\
+    /// `table[ToString].get(List(Real)) -> Some(String)`\
+    /// `table[Add].get(Char, Int) -> None`
+    trait_table: HashMap<TraitId, TraitImpls>,
 }
 
 impl InterModuleContext {
-    pub fn new() -> Self {
-        InterModuleContext {
+    pub fn new(session: &mut LocalParseSession) -> Self {
+        let mut result = InterModuleContext {
             namespace: HashMap::new(),
             func_defs: HashMap::new(),
-        }
+            trait_table: HashMap::new(),
+        };
+
+        result.func_defs.insert(
+            prelude::int(),
+            FuncDef::new_builtin(
+                session.intern_string(b"Int"),
+                prelude::int(),
+                true,
+                vec![],
+                Expr::new_object(prelude::type_(), Span::dummy()),
+            ),
+        );
+
+        result
     }
 
     pub fn search_by_id(&self, id: UID) -> Option<&FuncDef> {
@@ -146,3 +168,9 @@ fn insert_path(curr: &mut HashMap<InternedString, ModuleOrDef>, path: &[Interned
         },
     }
 }
+
+// TODO
+pub enum TraitId {}
+
+// TODO
+pub struct TraitImpls;

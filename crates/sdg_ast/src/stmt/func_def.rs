@@ -99,6 +99,33 @@ impl FuncDef {
         }
     }
 
+    pub fn new_builtin(name: InternedString, id: UID, is_const: bool, arg_types: Vec<Expr>, ret_type: Expr) -> Self {
+        let kind = if is_const {
+            FuncKind::Const
+        } else {
+            FuncKind::Normal
+        };
+
+        FuncDef {
+            name, id,
+            args: arg_types.into_iter().map(
+                |ty| ArgDef {
+                    name: InternedString::dummy(),
+                    ty: Some(ty),
+                    span: Span::dummy(),
+                }
+            ).collect(),
+            ret_type: Some(ret_type),
+            decorators: vec![],
+            def_span: Span::dummy(),
+            name_span: Span::dummy(),
+            kind,
+            generics: vec![],  // TODO: some needs generics though
+            location: Path::empty(),  // TODO: does it need one?
+            ret_val: Expr::dummy(),
+        }
+    }
+
     fn is_anonymous(&self) -> bool {
         match self.kind {
             FuncKind::Closure(_) | FuncKind::Lambda => true,

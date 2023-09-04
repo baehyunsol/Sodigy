@@ -55,3 +55,4 @@ pub(crate) const STRUCT: u128 = 0x005;
 pub(crate) const LAMBDA: u128 = 0x006;
 pub(crate) const MATCH: u128  = 0x007;
 pub(crate) const MATCH_BRANCH: u128 = 0x008;
+pub(crate) const PRELUDE: u128 = 0x009;

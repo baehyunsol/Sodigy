@@ -8,6 +8,9 @@ mod typeck;
 
 use ctxt::EvalCtxt;
 
+pub use ctxt::TypeCkCtxt;
+pub use typeck::type_check_ast;
+
 // It has lots of `clone`s, that's due to the difference between
 // Sodigy's immutable Rc-based system and Rust's ownership system.
 

@@ -15,7 +15,8 @@ mod tests {
     #[test]
     fn parse_test() {
         let mut session = LocalParseSession::new();
-        let mut inter_mod_ctxt = InterModuleContext::new();
+        let mut inter_mod_ctxt = InterModuleContext::new(&mut session);
+        let mut ty_ctxt = sdg_interpret::TypeCkCtxt::new();
 
         match parse_files("./tests/main.sdg".into(), &mut session) {
             Ok(asts) => {
@@ -23,7 +24,9 @@ mod tests {
                     inter_mod_ctxt.collect_ast(&ast);
 
                     // ast test
-                    // println!("{}", ast.dump(&mut session));
+                    println!("{}", ast.dump(&mut session));
+
+                    sdg_interpret::type_check_ast(&ast, &mut session, &inter_mod_ctxt, &mut ty_ctxt).unwrap();
 
                     // TODO: run tests
                 }

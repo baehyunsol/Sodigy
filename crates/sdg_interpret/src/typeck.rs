@@ -1,21 +1,68 @@
 use crate::builtins::BuiltIns;
 use crate::ctxt::TypeCkCtxt;
-use sdg_ast::{Expr, ExprKind, LocalParseSession, Span, TailCall, TypeError, ValueKind};
+use sdg_ast::{AST, Expr, ExprKind, FuncKind, LocalParseSession, Span, TailCall, TypeError, ValueKind};
 use sdg_inter_mod::InterModuleContext;
+
+pub fn type_check_ast(ast: &AST, session: &mut LocalParseSession, funcs: &InterModuleContext, ctxt: &mut TypeCkCtxt) -> Result<(), ()> {
+
+    'funcs: for (_, func) in ast.defs.iter() {
+
+        for arg in func.args.iter() {
+            match &arg.ty {
+                Some(ty) => match type_check_expr(ty, session, funcs, ctxt) {
+                    Ok(ty_) => {
+                        if ty_.is_type() {
+                            ctxt.register_func_arg(arg.name, ty.clone());
+                        } else {
+                            session.add_error(TypeError::type_anno_not_type(
+                                ty.span,
+                                ty_.to_string().to_rust_string().expect(
+                                    "Internal Compiler Error F6546B8870C"
+                                ),
+                            ));
+                        }
+                    },
+                    Err(_) => {
+                        continue 'funcs;
+                    }
+                },
+
+                // what here? 'guess we should call the type-infer engine beforehand
+                None => todo!(),
+            }
+        }
+
+        // it has to move on even though a functin has a type error
+        // so that it can find as many type errors as possible
+        let _ = type_check_expr(&func.ret_val, session, funcs, ctxt);
+
+        ctxt.remove_func_args();
+    }
+
+    session.err_if_has_error()
+}
 
 /// If there's no type error, it returns Ok(ty).\
 /// If there's an error, it adds the error to `session`, and continue.\
 /// It continues until it cannot proceed, so that it can find as many errors as possible.
-pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterModuleContext, ctxt: &mut TypeCkCtxt) -> Result<Expr, ()> {
+pub fn type_check_expr(expr: &Expr, session: &mut LocalParseSession, funcs: &InterModuleContext, ctxt: &mut TypeCkCtxt) -> Result<Expr, ()> {
     match &expr.kind {
         ExprKind::Value(v) => match v {
-            // TODO: we need some kind of context to know the type
-            ValueKind::Identifier(name, origin) => Ok(ctxt.get_type_of_identifier(*name, *origin)),
+            ValueKind::Identifier(name, origin) => Ok(ctxt.get_type_of_identifier(*name, *origin).clone()),
 
             ValueKind::Object(id) => match funcs.search_by_id(*id) {
-                Some(func) => todo!(),
+                Some(func) => match &func.kind {
+                    FuncKind::Const => if let Some(ty) = &func.ret_type {
+                        Ok(ty.clone())
+                    } else {
+                        // we have to call the infer-engine before typeck
+                        todo!()
+                    },
+                    _ => todo!(),
+                },
                 None => unreachable!(
-                    "Internal Compiler Error 077A8CA855E"
+                    "Internal Compiler Error 077A8CA855E: {}",
+                    id.to_string(),
                 ),
             },
 
@@ -28,7 +75,7 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
             ValueKind::Format(elements) => {
                 // TODO: check that all the elements implement `to_string`
                 for element in elements.iter() {
-                    type_check(element, session, funcs, ctxt)?;
+                    type_check_expr(element, session, funcs, ctxt)?;
                 }
 
                 Ok(Expr::new_object(sdg_uid::prelude::string(), Span::dummy()))
@@ -39,10 +86,10 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
                 // how about `List(Any)`, where `Any` is subtype of every type?
                 todo!()
             } else {
-                let mut elem_type = type_check(&elements[0], session, funcs, ctxt)?;
+                let mut elem_type = type_check_expr(&elements[0], session, funcs, ctxt)?;
 
                 for element in elements[1..].iter() {
-                    let curr_elem_type = type_check(element, session, funcs, ctxt)?;
+                    let curr_elem_type = type_check_expr(element, session, funcs, ctxt)?;
 
                     if elem_type.is_subtype_of(&curr_elem_type) {
                         elem_type = curr_elem_type;
@@ -65,7 +112,7 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
                 let mut types = Vec::with_capacity(elements.len());
 
                 for element in elements.iter() {
-                    types.push(type_check(element, session, funcs, ctxt)?);
+                    types.push(type_check_expr(element, session, funcs, ctxt)?);
                 }
 
                 Ok(Expr::new_tuple(types, Span::dummy()))
@@ -78,18 +125,18 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
                     ctxt.register_block_defs(block_def, *id, session, funcs)?;
                 }
 
-                let result = type_check(value, session, funcs, ctxt);
+                let result = type_check_expr(value, session, funcs, ctxt);
                 ctxt.drop_block_defs(*id);
 
                 result
             },
         },
         ExprKind::Branch(cond, t, f) => {
-            if let Ok(cond_type) = type_check(&cond, session, funcs, ctxt) {
+            if let Ok(cond_type) = type_check_expr(&cond, session, funcs, ctxt) {
                 // TODO: if `cond_type` is not `prelude.Bool`, return error
             }
 
-            if let (Ok(true_expr_type), Ok(false_expr_type)) = (type_check(&t, session, funcs, ctxt), type_check(&f, session, funcs, ctxt)) {
+            if let (Ok(true_expr_type), Ok(false_expr_type)) = (type_check_expr(&t, session, funcs, ctxt), type_check_expr(&f, session, funcs, ctxt)) {
                 // TODO: if `true_expr_type` is subtype of `false_expr_type` or vice versa,
                 // return the smaller type, return error otherwise
             }
@@ -98,11 +145,27 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
             Err(())
         },
         ExprKind::Prefix(_, _) => todo!(),
-        ExprKind::Infix(_, _, _) => todo!(),
+        ExprKind::Infix(op, lhs, rhs) => {
+            let lhs_type = type_check_expr(lhs, session, funcs, ctxt)?;
+            let rhs_type = type_check_expr(lhs, session, funcs, ctxt)?;
+
+            // There must be a big table
+            // Table[op] gives all the implementation of the given `op`.
+            // We should find the proper one that matches the type of lhs and rhs.
+            // TODO: what if there are multiple implementations?
+            //    eg. add(A, B) and add(C, D)
+            //        A, B, C, D are all different types, but lhs and rhs are subtypes of multiple of them.
+
+            println!("op: {}", expr.dump(session));
+            println!("lhs_type: {}", lhs_type.dump(session));
+            println!("rhs_type: {}", rhs_type.dump(session));
+
+            todo!()
+        },
         ExprKind::Postfix(_, _) => todo!(),
         ExprKind::Match(_, _, _) => todo!(),
         ExprKind::Call(func, args, _) => {
-            let func_type = type_check(&func, session, funcs, ctxt)?;
+            let func_type = type_check_expr(&func, session, funcs, ctxt)?;
 
             if !is_callable(&func_type) {
                 session.add_error(TypeError::not_callable(
@@ -120,7 +183,7 @@ pub fn type_check(expr: &Expr, session: &mut LocalParseSession, funcs: &InterMod
             let mut given_arg_types = Vec::with_capacity(args.len());
 
             for arg in args.iter() {
-                given_arg_types.push((type_check(arg, session, funcs, ctxt)?, arg.span));
+                given_arg_types.push((type_check_expr(arg, session, funcs, ctxt)?, arg.span));
             }
 
             check_func_arg_types(arg_types, given_arg_types, session, func.span)?;

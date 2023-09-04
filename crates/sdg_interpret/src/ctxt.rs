@@ -1,5 +1,5 @@
 use crate::builtins::BuiltIns;
-use crate::typeck::type_check;
+use crate::typeck::type_check_expr;
 use sdg_ast::{BlockDef, Expr, InternedString, LocalParseSession, NameOrigin, SodigyError};
 use sdg_inter_mod::InterModuleContext;
 use sdg_uid::UID;
@@ -27,11 +27,38 @@ impl EvalCtxt {
 
 pub struct TypeCkCtxt {
     block_defs: HashMap<(UID, InternedString), Expr>,
+    curr_func_args: HashMap<InternedString, Expr>,
 }
 
 impl TypeCkCtxt {
-    pub fn get_type_of_identifier(&self, name: InternedString, origin: NameOrigin) -> Expr {
-        todo!()
+    pub fn new() -> Self {
+        TypeCkCtxt {
+            block_defs: HashMap::new(),
+            curr_func_args: HashMap::new(),
+        }
+    }
+
+    pub fn register_func_arg(&mut self, name: InternedString, ty: Expr) {
+        self.curr_func_args.insert(name, ty);
+    }
+
+    pub fn remove_func_args(&mut self) {
+        self.curr_func_args = HashMap::new();
+    }
+
+    pub fn get_type_of_identifier(&self, name: InternedString, origin: NameOrigin) -> &Expr {
+        // all the name errors must be caught very long ago
+        match origin {
+            NameOrigin::BlockDef(id) => self.block_defs.get(&(id, name)).expect(
+                // it must be pushed when the type checker sees a block-expression
+                "Internal Compiler Error 4A4FD5F963A"
+            ),
+            NameOrigin::FuncArg(_) => self.curr_func_args.get(&name).expect(
+                // it must be pushed when the type checker iterates AST
+                "Internal Compiler Error 29157754095"
+            ),
+            _ => todo!(),
+        }
     }
 
     pub fn register_block_defs(
@@ -41,7 +68,7 @@ impl TypeCkCtxt {
         session: &mut LocalParseSession,
         funcs: &InterModuleContext,
     ) -> Result<(), ()> {
-        let block_def_type = type_check(&block_def.value, session, funcs, self)?;
+        let block_def_type = type_check_expr(&block_def.value, session, funcs, self)?;
 
         if let Some(ty) = &block_def.ty {
             if !block_def_type.is_subtype_of(ty) {

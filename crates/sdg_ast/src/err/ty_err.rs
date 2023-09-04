@@ -20,6 +20,15 @@ impl TypeError {
         }
     }
 
+    pub fn type_anno_not_type(span: Span, got: String) -> Self {
+        TypeError {
+            kind: TypeErrorKind::TypeAnnoNotType,
+            span,
+            expected: TypeNameOrExpr::None,  // Trivial
+            got: TypeNameOrExpr::TypeName(got),
+        }
+    }
+
     pub fn wrong_number_of_arg(span: Span, expected_num: usize, got_num: usize) -> Self {
         TypeError {
             kind: TypeErrorKind::WrongNumberOfArg(expected_num, got_num),
@@ -80,6 +89,9 @@ enum TypeErrorKind {
 
     /// when `foo` in `foo()` is not callable
     NotCallable,
+
+    /// in `foo(x: A, y: B): C`, `A`, `B`, and `C` must be types.
+    TypeAnnoNotType,
 
     /// `usize` is the index of the missing arg\
     /// for now, it only works when there's 1 missing arg
