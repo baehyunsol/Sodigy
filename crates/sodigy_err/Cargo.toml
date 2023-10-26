@@ -1,0 +1,11 @@
+[package]
+name = "sodigy_err"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sodigy_files = { path = "../sodigy_files" }
+sodigy_intern = { path = "../sodigy_intern" }
+sodigy_span = { path = "../sodigy_span" }

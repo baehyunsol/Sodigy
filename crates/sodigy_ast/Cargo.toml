@@ -1,0 +1,17 @@
+[package]
+name = "sodigy_ast"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sodigy_err = { path = "../sodigy_err" }
+sodigy_keyword = { path = "../sodigy_keyword" }
+sodigy_lex = { path = "../sodigy_lex" }
+sodigy_intern = { path = "../sodigy_intern" }
+sodigy_parse = { path = "../sodigy_parse" }
+sodigy_span = { path = "../sodigy_span" }
+
+[dev-dependencies]
+sodigy_files = { path = "../sodigy_files" }

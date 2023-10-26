@@ -1,0 +1,13 @@
+[package]
+name = "sodigy_lex"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sodigy_data_structures = { path = "../sodigy_data_structures" }
+sodigy_err = { path = "../sodigy_err" }
+sodigy_intern = { path = "../sodigy_intern" }
+sodigy_span = { path = "../sodigy_span" }
+sodigy_test = { path = "../sodigy_test" }

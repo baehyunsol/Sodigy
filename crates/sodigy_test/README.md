@@ -1,0 +1,3 @@
+I don't know how to apply `#[cfg(test)]` crate-wide...
+
+so this crate has to be configured manually: set `TEST_MODE` to true when developing. set it false before release

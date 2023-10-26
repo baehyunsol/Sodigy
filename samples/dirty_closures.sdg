@@ -1,0 +1,88 @@
+##!
+# Equivalent Python code
+
+```
+def dirty_closure(n):
+    f1 = lambda x: f2(x - 1)
+    f2 = lambda x: (1 + f1(x - n)) if x > 0 else 0
+    return f1(100)
+```
+!##
+
+def dirty_closure(n: Int): Int = {
+    let f1 = \{x, f2(x - 1)};
+    let f2 = \{x, if x > 0 { 1 + f1(x - n) } else { 0 } };
+
+    f1(100)
+};
+
+@test.eq([17, 20, 25, 33, 50])
+def dirty_closure_test: List(Int) = [
+    dirty_closure(5),
+    dirty_closure(4),
+    dirty_closure(3),
+    dirty_closure(2),
+    dirty_closure(1),
+];
+
+def dirty_closure2(n: Int): Int = {
+    let f1 = \{\{x, f2()(x - 1)}};
+    let f2 = \{\{x, if x > 0 { 1 + f1()(x - n) } else { 0 } }};
+
+    f1()(100)
+};
+
+@test.eq([17, 20, 25, 33, 50])
+def dirty_closure_test2: List(Int) = [
+    dirty_closure2(5),
+    dirty_closure2(4),
+    dirty_closure2(3),
+    dirty_closure2(2),
+    dirty_closure2(1),
+];
+
+@test.eq(3)
+def yet_another_closure_test: Int = {
+    # None of them are closure
+    let f1 = \{n, n + 1};
+    let f2 = \{n, f1(n) + 1};
+    let f3 = \{n, f2(n) + 1};
+
+    f3(0)
+};
+
+def yet_another_closure_test2_impl(x: Int): Int = {
+    let f1 = \{n, n + x};
+    let f2 = \{n, f1(n) + 1};
+    let f3 = \{n, f2(n) + 1};
+
+    f3(0)
+};
+
+@test.eq(6)
+def yet_another_closure_test2: Int = yet_another_closure_test2_impl(4);
+
+##!
+def compile_error: Int = {let f = \{ f() }; f()};
+!##
+
+@test.eq(10946)
+def yet_another_fibonacci: Int = {
+    let fibo1 = \{n, if n < 2 { 1 } else { fibo1(n - 1) + fibo2(n - 2) }};
+    let fibo2 = \{n, if n < 2 { 1 } else { fibo2(n - 1) + fibo1(n - 2) }};
+
+    \{n, fibo2(n)}(20)
+};
+
+def yet_another_factorial(x: Int, y: Int): Int = {
+    let fac1 = \{n, if n < 2 { x } else { x + fac2(n - 1) }};
+    let fac2 = \{n, if n < 2 { x } else { x + fac1(n - 1) }};
+
+    fac1(y) + fac2(y)
+};
+
+@test.eq((3923023104000, 35280))
+def yet_another_factorial_test: (Int, Int) = (
+    yet_another_factorial(3, 15),
+    yet_another_factorial(7, 7)
+);
