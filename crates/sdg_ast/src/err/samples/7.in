@@ -1,5 +1,0 @@
-@test.eq(1)
-def tester: Int = 0 + 1;
-
-@test.eq(1)
-module tester;

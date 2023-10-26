@@ -1,8 +1,0 @@
-Error: expected a type annotation, found nothing
-Parameter `x` of function `untyped_arg` has no type annotation.
-Only lambda functions are allowed to omit type annotations.
-./src/err/samples/6.in:1:17
-▸ 1 │ def untyped_arg(x, y): Int = x + y;
-    │                 ▴
-
-Could not compile this session due to a previous error.

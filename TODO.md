@@ -1,170 +1,113 @@
-- Parsers of block_expr and lambda_def rely on the fact that commas and semi-colons do not appear in expressions. They only appear inside `{}`s, `[]`s or `()`s. -> How do I guarantee that using code?
+- lex
+  - code -> token
+- parse tree
+  - token -> token tree
+- parse
+  - token tree -> AST
 
-- incremental compilation
-  - reuse intermediate result from previous compilations
-- background compilation
-  - daemon iterates all the files regularly
-    - period: 5 seconds -> very long for CPU, but short enough for programmers
-  - if it finds a modified file, it tries to generate an intermediate result
-    - if succeeds, update the intermediate result
-    - if fails, let programmers use information from the error messages
+---
+
+spec
+
+기존 Sodigy의 스펙 최대한 따라가기!!
+
+추가사항
+
+`##>`: Doc comment (how about `##!>` for multi-line doc comments?)
+
+pattern guard -> rust와 동일, match 안에서만 사용 가능 (let에서는 사용 불가능)
+
+tuple에서 field 접근 -> `.0`, `.1` 말고 `._0`, `._1` 하자...
+
+generic type annotation: `Some(3)`, `Some(Int, 3)`
+  - distinguish by the number of arguments
+
+---
+
+rustc: termcolor라는 crate 쓰는구만...
+
+---
+
+`let x = 3;` vs `let $x = 3;`
+
+1. `($x, $y)`에서는 `$` 붙이고 `x`에서는 안 붙이면 헷갈린다.
+2. 정의는 `$x`로 하고 쓸 때는 `x`로 쓰면 헷갈린다.
 
 ---
 
 ```
-def foo(n: Int?): Option(Int) = foofoo(n);
+def foo(x?: Int, y?: String): Result(Int, Err) = Result.Ok(bar(x, y));
 ```
 
-becomes
-
 ```
-# syntax is WIP
-
-def foo(n: Option(Int)): Option(Int) = match n {
-  Option.Some($n) => foofoo(n),
-  Option.None => Option.None,
-};
-```
-
-more generalization
-
-```
-def foo(n?: A): R(X, B) = foofoo(n);
-```
-
-becomes
-
-```
-# syntax is WIP
-
-def foo(n: T(A, C)): R(X, B) = match n {
-  T1($n) => foofoo(n),
-  T2($c) => R2(c as B),
-};
-```
-
-we want `n` to be anytype that implements `?`, not just `T`. We also want `R` to implement `?`, because we have to choose either `T2(c) => R1(c as X)` or `T2(c) => T2(c as B)`.
-
-callers have to be explicit about `?`.
-
-```rust
-{
-  let val1: A = _;
-  let val2: T(A, C) = _;
-
-  [
-    foo(val1),
-    foo(val2?),
-  ]
-}
+foo(val1?, val2?)
 
 # becomes
 
-{
-  let val1: A = _;
-  let val2: T(A, C) = _;
-
-  [
-    foo(val1),
-    match val2 {
-      T1($val2) => foo(val2),
-      T2($c) => R2(c as B),
-    }
-  ]
+match val1 {
+  T.T1($n) => match val2 {
+    V.V1($s) => Result.Ok(bar(n, s)),
+    V.V2($err) => Result.Err(err as Err),
+  },
+  T.T2($err) => Result.Err(err as Err),
 }
 ```
 
-isn't it monad?
-
-For this, we have to clarify the order of evaluation of args
-
-`foo(a?, b?, c?)`: what if all the args are erroneous?
-
----
-
-syntax sugar for the below pattern
-
-```rust
-match val {
-  PATTERN => true,
-  _ => false,
-}
-```
-
----
-
-more testing
-
-How do I state this: ``` for all ls: List(Int), `ls.sum() == ls.sort().sum() && ls.len() == ls.sort().len() && ls.sort().is_sorted()` ```
-
-I want that to be attached to `List.sort`
-
----
-
-rand functions
-
-- pure one
-  - `State { curr: Int }`
-  - `.init(seed: Int): State = State { curr: seed };`
-  - `.next(self): (State, Int) = (self $curr hash(self.curr), self.curr);`
-- impure one
-  - `.rand_int(): Int`
-  - use it to initialize a pure one
-
----
-
-warn when prelude names are re-defined
-
----
-
-log decorator
+how about `foo(foo(val1?, val2?)?, val3?)`?
 
 ```
-@log
-def foo(x: Int, y: Int) = bar(x, y);
-```
-
-```
-# `gen_id` is an impure function (builtin for compiler and runtime)
-# let's use another impure function that manages indentations
-def foo_logged(x: Int, y: Int) = {
-  let id = gen_id();
-  let result = foo(x, y);
-
-  logger(
-    f"foo(x: {x}, y: {y})  # id {id}",
-    result,
-    f"# `foo` id {id} returned {result}",
-  )
+let v1 = match val1 {
+  T.T1($n) => match val2 {
+    V.V1($s) => Result.Ok(bar(n, s)),
+    V.V2($err2) => Result.Err(err2 as Err),
+  },
+  T.T2($err1) => Result.Err(err1 as Err),
 };
 
-# TODO: how do we make sure that it's logged before called?
+match v1 {
+  Result.Ok($n) => match val3 {
+    V.V1($s) => Result.Ok(bar(n, s)),
+    V.V2($err3) => Result.Err(err3 as Err),
+  },
+  Result.Err($err) => Result.Err(err as Err),
+}
 ```
 
----
+There's a problem when multiple `?`s fail: which `Err` does it return?
 
-`Any` type?
+There's another problem: see below
 
-`[]` -> `List(Any)` vs infer
+```
+let $val1 = val1?;
 
-If I allow `List(Any)`, `[3, 4, "a", True]` is not a type error. Can I handle it when it's compiled?
+foo(val1, val2?)
+```
 
-In that case, `[3, 4, "a", True][0]` and `3` are different when compiled. The first one is wrapped in a container, while the later one is just an integer (maybe 32 bit).
+and
 
----
+```
+foo(val1?, val2?)
+```
 
-Operator Overloading: Do we need this?
+are different -> what's even worse is that optimizations may change the result
 
-- There are 3 types of overloading
-  - let's say `Int` is builtin, and `Foo` is custom
-  - `Int + Int`
-    - If someone tries to re-impl this, it must be rejected
-    - what if someone wants to impl `Int <> Int`, which is not built-in?
-      - it's not allowed in Rust, either the type or the trait must be intra-module
-  - `Foo + Foo`
-    - If that's now allowed, what else can be allowed?
-    - Let's say `Foo` is defined in module `X`, and some other module `Y` tries to impl `Foo + Foo`. is that ok?
-      - what if `X` and `Y` are completely different modules?
-      - what if `Z` also impl `Foo + Foo`? `X, Y` are compatible and `X, Z` are, but not `Y, Z`. are we ok with this?
-  - `Foo + Int`
-    - ...
+Actually, there's no problem at all
+
+1. `?` is an OPERATOR: `x?` changes the value and type of `x`.
+2. If `x`'s type is `T(X, Y)`, then `x?` has type `Question(T(X, Y))`.
+3. If `foo(x?: X)` exists, then `foo`'s result changes according to the type of the first arg (which is solid)
+  - that would be like below
+
+```
+def foo(x:? X): Y = bar(x);
+
+# becomes
+
+def foo_real(x: X): Y = bar(x);
+
+# each `T` creates new one
+def foo_quest(x: T(X, Y)): Y = match x {
+  T.T1($x) => bar(x),
+  T.T2($err) => ##! there must be a variant of Y for this case !## .. ,
+};
+```

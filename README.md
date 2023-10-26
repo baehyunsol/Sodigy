@@ -1,6 +1,6 @@
 # Sodigy
 
-Sodigy is a very abstracted, purely functional programming language.
+Purely functional Rust-like programming language.
 
 It's still under development. Only parser and lexer are (partially) complete.
 
@@ -64,9 +64,9 @@ Second, `PI_CONST` is static, while `PI_FUNC` is not. It means that `PI_CONST` i
 
 ## Values
 
-### Block Expressions
+### Scoped block expressions
 
-Block expressions let you create lexical scopes. Its syntax is very similar to that of Rust and C/C++, but works very differently.
+Scoped block expressions let you create lexical scopes. Its syntax is very similar to that of Rust and C/C++, but works very differently.
 
 ```rust
 {
@@ -189,12 +189,13 @@ Option.Some(Int)  # invalid
 
 ### `` ` ``
 
-`` ` `` is an infix operator, which modifies a value of a field.
-
-Its lhs operand is the object you want to modify. Unlike the other infix operators, it has 2 rhs operands: the name of the field and the new value.
+You can make an infix-operator using `` ` ``. An operator is `` ` `` followed by an identifier without whitespace. The operator modifies a value of a field. The identifier is a name of a field that you want to modify. See how `` `age `` works below.
 
 ```
-# TODO: add definition of `Person`
+struct Person {
+    age: Int,
+    name: String,
+}
 
 def set_age(p: Person, new_age: Int): Person = p `age new_age;
 
@@ -203,8 +204,6 @@ def set_age_test: Person = set_age(
     Person("Bae", 21), 23
 );
 ```
-
-You can use whitespaces between `` ` `` and the name of the field, but I recommend you not to do so, for the sake of readability.
 
 ### `<>`
 
@@ -237,7 +236,7 @@ It's very useful in some cases. For example, if you want a pattern that covers l
 
 ## Comments
 
-`#` for a single line comment, and `##!` \~ `!##` for a multiline comment.
+`#` for a single line comment, `##>` for a doc-comment and `##!` \~ `!##` for a multiline comment.
 
 ```
 # This is a comment
@@ -246,4 +245,9 @@ def add_1_2: Int = 1 + 2;
 ##!
 This is also a comment
 !##
+
+##> This function adds two numbers.
+def add(x: Int, y: Int): Int = x + y;
 ```
+
+## For Rust programmers

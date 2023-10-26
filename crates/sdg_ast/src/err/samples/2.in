@@ -1,7 +1,0 @@
-use a as babb;
-
-def func1: babb = babb;
-
-def func2: aabb = babb;
-
-def func3: bcbb = bcbb;

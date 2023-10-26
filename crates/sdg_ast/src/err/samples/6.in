@@ -1,1 +1,0 @@
-def untyped_arg(x, y): Int = x + y;

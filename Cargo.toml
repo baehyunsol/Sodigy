@@ -5,23 +5,34 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# more candidates: mir, collect_modules, bytes
 [workspace]
 members = [
-    "crates/sdg_ast",
-    "crates/sdg_endec",
-    "crates/sdg_fs",
-    "crates/sdg_hash",
-    "crates/sdg_inter_mod",
-    "crates/sdg_prelude",
-    "crates/sdg_uid",
+    "crates/sodigy_ast",
+    "crates/sodigy_data_structures",
+    "crates/sodigy_err",
+    "crates/sodigy_files",
+    "crates/sodigy_high_ir",
+    "crates/sodigy_intern",
+    "crates/sodigy_keyword",
+    "crates/sodigy_lex",
+    "crates/sodigy_number",
+    "crates/sodigy_parse",
+    "crates/sodigy_span",
+    "crates/sodigy_test",
 ]
 
 [dependencies]
-sdg_ast = { path = "./crates/sdg_ast", version = "*" }
-sdg_endec = { path = "./crates/sdg_endec", version = "*" }
-sdg_fs = { path = "./crates/sdg_fs", version = "*" }
-sdg_hash = { path = "./crates/sdg_hash", version = "*" }
-sdg_inter_mod = { path = "./crates/sdg_inter_mod", version = "*" }
-sdg_interpret = { path = "./crates/sdg_interpret", version = "*" }
-sdg_prelude = { path = "./crates/sdg_prelude", version = "*" }
-sdg_uid = { path = "./crates/sdg_uid", version = "*" }
+
+sodigy_ast = { path = "crates/sodigy_ast" }
+sodigy_data_structures = { path = "crates/sodigy_data_structures" }
+sodigy_err = { path = "crates/sodigy_err" }
+sodigy_files = { path = "crates/sodigy_files" }
+sodigy_high_ir = { path = "crates/sodigy_high_ir" }
+sodigy_intern = { path = "crates/sodigy_intern" }
+sodigy_keyword = { path = "crates/sodigy_keyword" }
+sodigy_lex = { path = "crates/sodigy_lex" }
+sodigy_number = { path = "crates/sodigy_number" }
+sodigy_parse = { path = "crates/sodigy_parse" }
+sodigy_span = { path = "crates/sodigy_span" }
+sodigy_test = { path = "crates/sodigy_test" }
