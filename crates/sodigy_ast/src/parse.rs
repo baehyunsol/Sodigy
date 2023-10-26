@@ -1679,8 +1679,9 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
         match tokens.step() {
             Some(Token {
                 kind: TokenKind::Group { delim, tokens: type_tokens, prefix: b'\0' },
-                ..
+                span: group_span,
             }) => {
+                let group_span = *group_span;
                 let mut type_tokens = type_tokens.to_vec();
                 let mut type_tokens = Tokens::from_vec(&mut type_tokens);
 
@@ -1740,7 +1741,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                     // TODO: there must be something cool I can do with square brackets
                     Delim::Bracket => {
                         session.push_error(AstError::unexpected_token(
-                            Token::new_group(),
+                            Token::new_group(Delim::Bracket, group_span),
                             ExpectedToken::paren_brace_or_comma(),
                         ).set_err_context(
                             ErrorContext::ParsingEnumBody

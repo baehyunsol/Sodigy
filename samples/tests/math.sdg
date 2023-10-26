@@ -96,10 +96,3 @@ def log_test: List(Int) = {
         }}
     )
 };
-
-enum XX {
-    x, y,
-    z(),
-    w{},
-    k[],
-}

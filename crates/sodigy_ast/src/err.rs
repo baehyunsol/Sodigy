@@ -253,6 +253,22 @@ impl ExpectedToken {
         ExpectedToken::Specific(vec![TokenKind::Punct(Punct::Comma), TokenKind::Punct(Punct::Colon)])
     }
 
+    pub fn paren_brace_or_comma() -> Self {
+        ExpectedToken::Specific(vec![
+            TokenKind::Group {
+                delim: Delim::Paren,
+                tokens: vec![],
+                prefix: b'\0',
+            },
+            TokenKind::Group {
+                delim: Delim::Brace,
+                tokens: vec![],
+                prefix: b'\0',
+            },
+            TokenKind::Punct(Punct::Comma),
+        ])
+    }
+
     pub fn comma_or_paren() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::Punct(Punct::Comma),

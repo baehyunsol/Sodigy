@@ -34,6 +34,17 @@ impl TokenTree {
         }
     }
 
+    pub fn new_group(delim: Delim, span: SpanRange) -> Self {
+        TokenTree {
+            kind: TokenTreeKind::Group {
+                delim,
+                tokens: vec![],
+                prefix: b'\0',
+            },
+            span,
+        }
+    }
+
     pub fn remove_prefix(&mut self) {
         self.kind.remove_prefix();
     }
