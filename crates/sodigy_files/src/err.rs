@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::io;
 
+// TODO: impl SodigyError for this type
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileError {
     kind: FileErrorKind,
@@ -29,7 +30,7 @@ impl FileError {
         }
     }
 
-    pub fn os_str_err(os_str: OsString) -> Self {
+    pub(crate) fn os_str_err(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
             given_path: None,

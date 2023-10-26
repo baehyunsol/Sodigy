@@ -1,9 +1,11 @@
+mod cache;
 mod err;
 mod funcs;
 mod session;
 
 use std::sync::Mutex;
 
+pub use err::*;
 pub use funcs::*;
 pub use session::{
     FileHash,

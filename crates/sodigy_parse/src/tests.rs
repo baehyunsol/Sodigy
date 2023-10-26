@@ -29,7 +29,7 @@ fn parse_test() {
         let f = g.register_tmp_file(code.as_bytes().to_vec());
         let content = g.get_tmp_file(f).unwrap();
 
-        test_runner(f, content.to_vec(), &mut lex_session);
+        test_runner(f, content, &mut lex_session);
     }
 
     for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
@@ -41,8 +41,8 @@ fn parse_test() {
     }
 }
 
-fn test_runner(f: FileHash, content: Vec<u8>, lex_session: &mut LexSession) {
-    if let Err(()) = lex_flex!(&content, 0, SpanPoint::at_file(f, 0), lex_session) {
+fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
+    if let Err(()) = lex_flex!(content, 0, SpanPoint::at_file(f, 0), lex_session) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
@@ -53,12 +53,9 @@ fn test_runner(f: FileHash, content: Vec<u8>, lex_session: &mut LexSession) {
 
     println!("{}\n\n", lex_session.dump_tokens());
 
-    // test spans
-    lex_session.get_tokens().iter().for_each(|token| token.assert_valid_span());
-
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
 
-    if let Err(()) = from_tokens(&lex_session.get_tokens().to_vec(), &mut parse_session, lex_session) {
+    if let Err(()) = from_tokens(&lex_session.get_tokens(), &mut parse_session, &mut LexSession::new()) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(

@@ -17,7 +17,7 @@ fn ast_test() {
         lex_flex!(&content, 0, SpanPoint::at_file(f, 0), &mut lex_session).unwrap();
 
         let mut parse_session = ParseSession::from_lex_session(&lex_session);
-        from_tokens(&lex_session.get_tokens().to_vec(), &mut parse_session, &mut lex_session).unwrap();
+        from_tokens(lex_session.get_tokens(), &mut parse_session, &mut LexSession::new()).unwrap();
 
         let mut ast_session = AstSession::from_parse_session(&parse_session);
         let mut tokens = parse_session.get_tokens().to_vec();

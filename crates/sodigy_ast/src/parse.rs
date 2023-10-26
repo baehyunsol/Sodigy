@@ -1252,7 +1252,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
 
         let pattern = parse_pattern(tokens, session, false)?;
         let mut guard = None;
-        let mut rarrow_span = None;
+        let rarrow_span;
 
         match tokens.step() {
             Some(Token {
@@ -1737,8 +1737,15 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                             Ok(()) => {},
                         }
                     },
+                    // TODO: there must be something cool I can do with square brackets
                     Delim::Bracket => {
-                        // TODO: anything else?
+                        session.push_error(AstError::unexpected_token(
+                            Token::new_group(),
+                            ExpectedToken::paren_brace_or_comma(),
+                        ).set_err_context(
+                            ErrorContext::ParsingEnumBody
+                        ).to_owned());
+                        return Err(());
                     },
                 }
             },
