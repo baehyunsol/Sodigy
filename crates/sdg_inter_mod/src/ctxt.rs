@@ -103,6 +103,15 @@ impl InterModuleContext {
         }
     }
 
+    pub fn search_trait_impl<'a>(&'a self, id: TraitId, ty1: &Expr, ty2: &Expr) -> TraitImplSearchResult<'a> {
+        match self.trait_table.get(&id) {
+            Some(t) => t.search(ty1, ty2),
+
+            // it has to be unreachable when the implementation is complete
+            None => todo!(),
+        }
+    }
+
     pub fn dump(&self, session: &mut LocalParseSession) -> String {
         // see the comment in `ast::dump` to see what
         // `uid_to_name_table` does
@@ -169,8 +178,19 @@ fn insert_path(curr: &mut HashMap<InternedString, ModuleOrDef>, path: &[Interned
     }
 }
 
-// TODO
-pub enum TraitId {}
+#[derive(Eq, Hash, PartialEq)]
+pub enum TraitId {
+    InfixOp(sdg_ast::InfixOp),
+}
 
 // TODO
 pub struct TraitImpls;
+
+/// let's say `Add(A, B): C` is implemented and the code wants `Add(D, E)`.
+/// if `A == D` and `B == E`, it returns `Concrete(C)`
+/// if `A != D` or `B != E`, but they're subtypes of `A` and `B`, it returns `Sub(C)`
+pub enum TraitImplSearchResult<'a> {
+    NotImpled,
+    Concrete(&'a Expr),
+    Sub(&'a Expr),
+}

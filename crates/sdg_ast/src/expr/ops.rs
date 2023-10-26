@@ -26,7 +26,7 @@ impl From<&PrefixOp> for OpToken {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
 pub enum InfixOp {
     Add,
     Sub,

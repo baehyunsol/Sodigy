@@ -1,3 +1,7 @@
 mod ctxt;
 
-pub use ctxt::{InterModuleContext, dump_module};
+pub use ctxt::{
+    InterModuleContext,
+    TraitId, TraitImplSearchResult,
+    dump_module,
+};

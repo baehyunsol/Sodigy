@@ -20,7 +20,7 @@ mod tests;
 
 pub use ast::{AST, NameOrigin};
 pub use err::{SodigyError, TypeError};
-pub use expr::{Expr, ExprKind, TailCall};
+pub use expr::{Expr, ExprKind, InfixOp, TailCall};
 pub use session::{GlobalParseSession, InternedString, LocalParseSession};
 pub use span::Span;
 pub use stmt::{FuncDef, FuncKind};

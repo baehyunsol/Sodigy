@@ -1,7 +1,7 @@
 use crate::builtins::BuiltIns;
 use crate::ctxt::TypeCkCtxt;
 use sdg_ast::{AST, Expr, ExprKind, FuncKind, LocalParseSession, Span, TailCall, TypeError, ValueKind};
-use sdg_inter_mod::InterModuleContext;
+use sdg_inter_mod::{InterModuleContext, TraitId, TraitImplSearchResult};
 
 pub fn type_check_ast(ast: &AST, session: &mut LocalParseSession, funcs: &InterModuleContext, ctxt: &mut TypeCkCtxt) -> Result<(), ()> {
 
@@ -160,7 +160,11 @@ pub fn type_check_expr(expr: &Expr, session: &mut LocalParseSession, funcs: &Int
             println!("lhs_type: {}", lhs_type.dump(session));
             println!("rhs_type: {}", rhs_type.dump(session));
 
-            todo!()
+            match funcs.search_trait_impl(TraitId::InfixOp(*op), &lhs_type, &rhs_type) {
+                TraitImplSearchResult::NotImpled => todo!(),
+                TraitImplSearchResult::Concrete(ty)
+                | TraitImplSearchResult::Sub(ty) => Ok(ty.clone()),
+            }
         },
         ExprKind::Postfix(_, _) => todo!(),
         ExprKind::Match(_, _, _) => todo!(),
