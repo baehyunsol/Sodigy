@@ -1,4 +1,6 @@
 use super::{FormattedStringElement, TokenTree, TokenTreeKind};
+use sodigy_intern::InternedString;
+use sodigy_span::SpanRange;
 use std::fmt;
 
 impl fmt::Display for TokenTree {
@@ -55,5 +57,37 @@ impl fmt::Display for TokenTreeKind {
                 TokenTreeKind::DocComment(content) => format!("##>{content}\n"),
             },
         )
+    }
+}
+
+impl TokenTreeKind {
+    /// `fmt::Display` for error messages
+    pub fn render_error(&self) -> String {
+        match self {
+            TokenTreeKind::Identifier(_)
+            | TokenTreeKind::Keyword(_)
+            | TokenTreeKind::Number(_)
+            | TokenTreeKind::Punct(_) => format!("{self}"),
+            TokenTreeKind::Group { delim, prefix, .. } => format!(
+                "{}",
+                TokenTreeKind::Group {
+                    delim: *delim,
+                    prefix: *prefix,
+                    tokens: vec![
+                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy()),
+                    ],
+                }
+            ),
+            TokenTreeKind::String { kind, content, is_binary } => format!(
+                "{}",
+                TokenTreeKind::String {
+                    kind: *kind,
+                    is_binary: *is_binary,
+                    content: InternedString::dotdotdot(),
+                },
+            ),
+            TokenTreeKind::FormattedString(_) => String::from("f\"...\""),
+            TokenTreeKind::DocComment(_) => String::from("##> ..."),
+        }
     }
 }

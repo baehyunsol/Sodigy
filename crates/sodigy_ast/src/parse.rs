@@ -1943,8 +1943,20 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
 
         let comma_span = tokens.peek_span();
 
-        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Colon)) {
-            return None;
+        if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Colon)) {
+            if is_struct_init {
+                session.push_error(
+                    e.set_err_context(
+                        ErrorContext::ParsingStructInit
+                    ).to_owned()
+                );
+
+                return Some(Err(()));
+            }
+
+            else {
+                return None;
+            }
         }
 
         // Now we're sure that it's a struct initialization,

@@ -13,6 +13,12 @@ pub struct TokenTree {
 }
 
 impl TokenTree {
+    pub fn new_ident(ident: InternedString, span: SpanRange) -> Self {
+        TokenTree {
+            kind: TokenTreeKind::Identifier(ident),
+            span,
+        }
+    }
     pub fn new_keyword(keyword: Keyword, span: SpanRange) -> Self {
         TokenTree {
             kind: TokenTreeKind::Keyword(keyword),

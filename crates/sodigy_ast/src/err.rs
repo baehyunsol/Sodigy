@@ -172,7 +172,7 @@ pub enum AstErrorKind {
 impl SodigyErrorKind for AstErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            AstErrorKind::UnexpectedToken(token, expected) => format!("expected {expected}, got `{token}`"),
+            AstErrorKind::UnexpectedToken(token, expected) => format!("expected {expected}, got `{}`", token.render_error()),
             AstErrorKind::UnexpectedEnd(expected) => format!("expected {expected}, got nothing"),
             AstErrorKind::EmptyGenericList => String::from("empty generic parameter list"),
             AstErrorKind::BinaryChar => String::from("binary character literal"),

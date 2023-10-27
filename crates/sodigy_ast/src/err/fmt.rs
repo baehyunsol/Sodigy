@@ -17,7 +17,7 @@ impl fmt::Display for ExpectedToken {
                 ExpectedToken::PostExpr => "a postfix operator or an infix operator".to_string(),
                 ExpectedToken::FuncArgs => "arguments".to_string(),
                 ExpectedToken::Specific(tokens) => concat_commas(
-                    &tokens.iter().map(|t| format!("{t}")).collect::<Vec<String>>(),
+                    &tokens.iter().map(|t| t.render_error()).collect::<Vec<String>>(),
                     "or",
                     "`",
                     "`",
