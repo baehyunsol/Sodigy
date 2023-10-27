@@ -164,7 +164,12 @@ pub fn index_binding_power() -> (u32, u32) {
     (INDEX, INDEX + 1)
 }
 
-const PATH: u32 = 31;
+pub fn struct_init_binding_power() -> (u32, u32) {
+    (STRUCT_INIT, STRUCT_INIT + 1)
+}
+
+const PATH: u32 = 33;
+const STRUCT_INIT: u32 = 31;
 const CALL: u32 = 29;
 const INDEX: u32 = 27;
 const QUESTION: u32 = 25;

@@ -107,6 +107,14 @@ impl AstError {
         }
     }
 
+    pub fn empty_struct_body(span: SpanRange) -> Self {
+        AstError {
+            kind: AstErrorKind::EmptyStructBody,
+            spans: vec![span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingStructBody),
+        }
+    }
+
     pub fn func_arg_without_type(func_name: InternedString, arg: IdentWithSpan) -> Self {
         AstError {
             kind: AstErrorKind::FuncArgWithoutType { arg_name: *arg.id(), func_name },
@@ -156,6 +164,7 @@ pub enum AstErrorKind {
     TooLongCharLiteral,
     EmptyScopeBlock,
     EmptyMatchBody,
+    EmptyStructBody,
     FuncArgWithoutType { arg_name: InternedString, func_name: InternedString },
     TODO(String),
 }
@@ -169,8 +178,9 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::BinaryChar => String::from("binary character literal"),
             AstErrorKind::EmptyCharLiteral => String::from("empty character literal"),
             AstErrorKind::TooLongCharLiteral => String::from("too long character literal"),
-            AstErrorKind::EmptyScopeBlock => String::from("expected an expression or local values, got nothing"),
-            AstErrorKind::EmptyMatchBody => String::from("expected a pattern, got nothing"),
+            AstErrorKind::EmptyScopeBlock => String::from("expected expressions or local values, got nothing"),
+            AstErrorKind::EmptyMatchBody => String::from("expected patterns, got nothing"),
+            AstErrorKind::EmptyStructBody => String::from("expected fields, got nothing"),
             AstErrorKind::FuncArgWithoutType { .. } => String::from("a function argument without a type annotation"),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -183,6 +193,7 @@ impl SodigyErrorKind for AstErrorKind {
             | AstErrorKind::EmptyScopeBlock
             | AstErrorKind::EmptyMatchBody
             | AstErrorKind::TODO(_) => String::new(),
+            AstErrorKind::EmptyStructBody => String::from("A struct must have at least one field."),
             AstErrorKind::EmptyGenericList => String::from("Try remove angle brackets."),
             AstErrorKind::BinaryChar => String::from("Try remove prefix `b`."),
             AstErrorKind::FuncArgWithoutType { arg_name, func_name } => format!(

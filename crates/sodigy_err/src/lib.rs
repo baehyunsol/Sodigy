@@ -61,6 +61,7 @@ pub enum ErrorContext {
     ParsingFuncArgs,
     ParsingEnumBody,
     ParsingStructBody,
+    ParsingStructInit,
     ParsingMatchBody,
     ParsingLambdaBody,
     ParsingScopeBlock,

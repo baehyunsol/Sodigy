@@ -15,6 +15,7 @@ use crate::{
         path_binding_power,
         postfix_binding_power,
         prefix_binding_power,
+        struct_init_binding_power,
         InfixOp,
         PostfixOp,
         PrefixOp,
@@ -35,6 +36,7 @@ use crate::{
         VariantDef,
         VariantKind,
     },
+    StructInitDef,
     tokens::Tokens, Token, TokenKind,
     TypeDef,
     value::ValueKind,
@@ -232,7 +234,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                                 // struct
                                 else {
-                                    match parse_struct_body(&mut tokens, session) {
+                                    match parse_struct_body(&mut tokens, session, last_span) {
                                         Ok(fields) => {
                                             span = span.merge(last_span);
 
@@ -909,9 +911,44 @@ pub fn parse_expr(
                             };
                             continue;
                         },
+
+                        // there are multiple cases:
+                        // `if foo { 3 }` is valid, but it's not a struct initialization
+                        // `if foo { bar: 3 }` is valid, and is a struct initialization
                         Delim::Brace => {
-                            tokens.backward().unwrap();
-                            break;
+                            let (l_bp, _) = struct_init_binding_power();
+
+                            if l_bp < min_bp {
+                                tokens.backward().unwrap();
+                                break;
+                            }
+
+                            let mut struct_init_tokens = Tokens::from_vec(&mut inner_tokens);
+
+                            match try_parse_struct_init(&mut struct_init_tokens, session) {
+                                Some(Ok(s)) => {
+                                    lhs = Expr {
+                                        kind: ExprKind::StructInit {
+                                            struct_: Box::new(lhs),
+                                            init: s,
+                                        },
+                                        span,
+                                    };
+                                    continue;
+                                },
+
+                                // it's a struct initialization,
+                                // but there's a synax error
+                                Some(Err(_)) => {
+                                    return Err(());
+                                },
+
+                                // not a struct initialization
+                                None => {
+                                    tokens.backward().unwrap();
+                                    break;
+                                },
+                            }
                         },
                     }
                 }
@@ -1548,12 +1585,20 @@ fn parse_use(tokens: &mut Tokens, session: &mut AstSession, span: SpanRange) -> 
 }
 
 // tokens inside `{ ... }`
-fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<FieldDef>, ()> {
+fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: SpanRange) -> Result<Vec<FieldDef>, ()> {
     let mut fields = vec![];
 
     loop {
         if tokens.is_finished() {
-            return Ok(fields);
+            // A struct cannot be empty. See the comments in `try_parse_struct_init`
+            if fields.is_empty() {
+                session.push_error(AstError::empty_struct_body(group_span));
+                return Err(());
+            }
+
+            else {
+                return Ok(fields);
+            }
         }
 
         let mut attributes = vec![];
@@ -1713,7 +1758,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                         }
                     },
                     Delim::Brace => {
-                        let args = parse_struct_body(&mut type_tokens, session)?;
+                        let args = parse_struct_body(&mut type_tokens, session, group_span)?;
 
                         variants.push(VariantDef {
                             name: variant_name,
@@ -1848,6 +1893,100 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
 
                 return Err(());
             },
+        }
+    }
+}
+
+// returns None if it's not a struct initialization at all. In that case, it could be a syntax error,
+// but the check is done later.
+// if it's surely a struct init, it returns Some. Some(Err) is an initialization with a syntax error,
+// and Some(Ok) is one without an error
+fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Option<Result<Vec<StructInitDef>, ()>> {
+    // `if foo {}` is a syntax error, but the compiler doesn't know the programmer's intent
+    // the intent can either be:
+    // 1. `foo` is a struct, but the programmer forgot to init its fields
+    //    - Sodigy doesn't allow structs without any field, because of this reason.
+    //    - If so, the compiler would raise a very awkward error message in this case.
+    // 2. `foo` is the condition and the programmer forgot the value of the `if` expression
+    //
+    // for now, it assumes that the intention is 2
+    let mut is_struct_init = false;
+    let mut fields = vec![];
+
+    loop {
+        if tokens.is_finished() {
+            if is_struct_init {
+                return Some(Ok(fields));
+            }
+
+            else {
+                return None;
+            }
+        }
+
+        let field_name = match tokens.expect_ident() {
+            Ok(n) => n,
+            Err(mut e) => {
+                if is_struct_init {
+                    session.push_error(e.set_err_context(
+                        ErrorContext::ParsingStructInit
+                    ).to_owned());
+
+                    return Some(Err(()));
+                }
+
+                else {
+                    return None;
+                }
+            },
+        };
+
+        let comma_span = tokens.peek_span();
+
+        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Colon)) {
+            return None;
+        }
+
+        // Now we're sure that it's a struct initialization,
+        // since that it has `IDENT: `.
+        else {
+            is_struct_init = true;
+        }
+
+        let value = match parse_expr(
+            tokens,
+            session,
+            0,
+            false,
+            Some(ErrorContext::ParsingStructInit),
+            comma_span.unwrap(),
+        ) {
+            Ok(v) => v,
+            Err(_) => {
+                return Some(Err(()));
+            },
+        };
+
+        fields.push(StructInitDef {
+            field: field_name,
+            value,
+        });
+
+        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+            Err(AstError {
+                kind: AstErrorKind::UnexpectedEnd(_),
+                ..
+            }) => {
+                continue;
+            },
+            Err(mut e) => {
+                session.push_error(
+                    e.set_err_context(
+                        ErrorContext::ParsingStructInit
+                    ).to_owned()
+                );
+            },
+            Ok(_) => {},
         }
     }
 }

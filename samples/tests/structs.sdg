@@ -1,0 +1,16 @@
+struct Foo {
+    bar: Int,
+    baz: Int,
+}
+
+def init_foo(x: Int, y: Int): Foo = Foo { bar: x, baz: y };
+
+# consecutive curly braces!!
+def curly_braces(f: Foo, x: Int, y: Int) = if f == Foo { bar: x, baz: y } {
+    Foo {
+        bar: y,
+        baz: x,
+    }
+} else {
+    f
+};

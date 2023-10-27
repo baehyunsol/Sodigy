@@ -1,4 +1,4 @@
-use crate::{BranchArm, IdentWithSpan, MatchArm, ops::{InfixOp, PostfixOp, PrefixOp}};
+use crate::{BranchArm, IdentWithSpan, MatchArm, ops::{InfixOp, PostfixOp, PrefixOp}, StructInitDef};
 use crate::value::ValueKind;
 use sodigy_span::SpanRange;
 
@@ -28,6 +28,13 @@ pub enum ExprKind {
     // a.b
     Path { pre: Box<Expr>, post: IdentWithSpan },
     Call { functor: Box<Expr>, args: Vec<Expr> },
+
+    // foo { bar: 3, baz: 4 }
+    StructInit {
+        struct_: Box<Expr>,
+        init: Vec<StructInitDef>,
+    },
+
     Branch(Vec<BranchArm>),
 
     // Don't do anything in this stage

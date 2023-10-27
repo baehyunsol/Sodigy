@@ -95,6 +95,12 @@ pub struct BranchArm {
 #[derive(Clone)]
 pub struct Pattern {}
 
+#[derive(Clone)]
+pub struct StructInitDef {
+    pub field: IdentWithSpan,
+    pub value: Expr,
+}
+
 // TODO: where should this function belong?
 fn format_string_into_expr(
     f: &FormattedStringElement,

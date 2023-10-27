@@ -13,6 +13,7 @@ impl fmt::Display for ErrorContext {
             ErrorContext::ParsingFuncArgs => "parsing function arguments",
             ErrorContext::ParsingEnumBody => "parsing an enum body",
             ErrorContext::ParsingStructBody => "parsing a struct body",
+            ErrorContext::ParsingStructInit => "parsing a struct initialization",
             ErrorContext::ParsingMatchBody => "parsing a body of a match expression",
             ErrorContext::ParsingLambdaBody => "parsing a body of a lambda function",
             ErrorContext::ParsingScopeBlock => "parsing a scope block",
