@@ -1,10 +1,11 @@
-use crate::{read_bytes, FileHash};
+use crate::{DUMMY_FILE_HASH, read_bytes, FileHash};
 use crate::err::FileError;
-
-#[cfg(test)]
-use crate::DUMMY_FILE_HASH;
+use sodigy_test::sodigy_assert_eq;
+use std::sync::Mutex;
 
 const FILE_CACHE_SIZE: usize = 32;
+const SIZE_LIMIT: usize = 64 * 1024 * 1024;
+static mut CACHE_LOCK: Mutex<()> = Mutex::new(());
 
 pub(crate) struct FileCache {
     data: [(FileHash, Vec<u8>); FILE_CACHE_SIZE],
@@ -17,7 +18,6 @@ pub(crate) struct FileCache {
     cursor: usize,
 
     // sum of data's len
-    // TODO: do something when `total_size` is too big
     total_size: usize,
 }
 
@@ -32,7 +32,16 @@ impl FileCache {
         }
     }
 
+    // TODO: lifetime of `self` and `[u8]` are different,
+    // but the compiler doesn't know that
     pub fn get(&mut self, hash: FileHash) -> Option<&[u8]> {
+        sodigy_assert_eq!(
+            self.data.iter().map(
+                |(_, file)| file.len()
+            ).sum::<usize>(),
+            self.total_size,
+        );
+
         for i in 0..FILE_CACHE_SIZE {
             if self.data[i].0 == hash {
                 self.count[i] += 1;
@@ -47,13 +56,23 @@ impl FileCache {
         loop {
             if self.count[self.cursor] == 0 {
                 match read_bytes(path) {
-                    Ok(f) => {
+                    Ok(f) => unsafe {
+                        let lock = CACHE_LOCK.lock();
                         self.total_size -= self.data[self.cursor].1.len();
                         self.total_size += f.len();
 
                         self.data[self.cursor] = (hash, f);
                         self.count[self.cursor] = 1;
                         self.cursor += 1;
+
+                        if self.total_size > SIZE_LIMIT {
+                            self.total_size -= self.data[self.cursor].1.len();
+                            self.data[self.cursor] = (DUMMY_FILE_HASH, vec![]);
+                            self.count[self.cursor] = 0;
+                        }
+
+                        drop(lock);
+
                         return Ok(());
                     },
                     Err(e) => {

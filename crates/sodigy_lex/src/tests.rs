@@ -7,12 +7,14 @@ impl Token {
 
         match &self.kind {
             TokenKind::Identifier(id) => sodigy_assert_eq!(
-                original_code, sodigy_intern::unintern_string(*id)
+                original_code,
+                sodigy_intern::unintern_string(*id),
             ),
             TokenKind::Whitespace => {},
             TokenKind::Punct(p)
             | TokenKind::Grouper(p) => sodigy_assert_eq!(
-                original_code, vec![*p]
+                original_code,
+                vec![*p],
             ),
             TokenKind::Comment { kind, .. } => match kind {
                 CommentKind::Single => sodigy_assert!(original_code.starts_with(b"#")),
