@@ -78,7 +78,7 @@ impl TokenTreeKind {
                     ],
                 }
             ),
-            TokenTreeKind::String { kind, content, is_binary } => format!(
+            TokenTreeKind::String { kind, is_binary, .. } => format!(
                 "{}",
                 TokenTreeKind::String {
                     kind: *kind,

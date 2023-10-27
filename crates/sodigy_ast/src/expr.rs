@@ -36,7 +36,5 @@ pub enum ExprKind {
     },
 
     Branch(Vec<BranchArm>),
-
-    // Don't do anything in this stage
     Match { value: Box<Expr>, arms: Vec<MatchArm> },
 }

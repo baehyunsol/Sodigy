@@ -122,7 +122,7 @@ impl SodigyErrorKind for ParseErrorKind {
             ParseErrorKind::ThreeDots => "invalid literal: `...`".to_string(),
             ParseErrorKind::NumericExpOverflow => "too large numeric literal".to_string(),
             ParseErrorKind::LonelyBacktick => "field modifier without a field name".to_string(),
-            ParseErrorKind::LonelyBackslash => "unexpected character: `\\`".to_string(),
+            ParseErrorKind::LonelyBackslash => "unexpected character `\\`".to_string(),
         }
     }
 

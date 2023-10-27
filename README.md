@@ -177,12 +177,25 @@ enum Option<T> {
     Some(T),
 }
 
-Option.None         # valid
-Option.Some(5)      # valid
-Option(Int).Some(5) # valid
-Option(Int).None    # valid expression, invalid pattern
-Option(Int).Some("abc")  # type error
-Option.Some(Int)  # invalid
+Option.None            # valid
+Option.Some(5)         # valid
+Option(Int).Some(5)    # valid
+Option(Int).None       # valid expression, invalid pattern
+Option(Int).Some("abc")     # type error
+Option.Some(Int)       # invalid
+Option.Some(Int, 5)    # valid
+Option.Some(Int, "abc) # type error
+```
+
+### Struct
+
+TODO: add description
+
+```
+struct Person {
+    name: String,
+    age: Int,
+}
 ```
 
 ## Operators

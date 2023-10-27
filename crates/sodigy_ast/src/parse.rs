@@ -260,6 +260,24 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                 continue;
                             },
                         }
+
+                        if tokens.is_curr_token(TokenKind::Punct(Punct::SemiColon)) {
+                            session.push_error(AstError::unexpected_token(
+                                tokens.peek().unwrap().clone(),
+                                ExpectedToken::stmt(),
+                            ).set_message(
+                                format!(
+                                    "{} definitions are not followed by a semi-colon. Try remove `;`.",
+                                    if let Keyword::Enum = def_type {
+                                        "Enum"
+                                    } else {
+                                        "Struct"
+                                    },
+                                )
+                            ).to_owned());
+                            tokens.march_until_stmt();
+                            continue;
+                        }
                     },
                     Keyword::Module => {
                         // 'module' IDENTIFIER ';'
@@ -300,10 +318,16 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                         }
                     },
                     unexpected_keyword => {
-                        session.push_error(AstError::unexpected_token(
+                        let mut e = AstError::unexpected_token(
                             Token::new_keyword(unexpected_keyword, keyword_span),
                             ExpectedToken::stmt(),
-                        ));
+                        );
+
+                        if unexpected_keyword == Keyword::Let {
+                            e.set_message(String::from("`let` is for local values. Try `def`."));
+                        }
+
+                        session.push_error(e);
                         tokens.march_until_stmt();
                         continue;
                     },
@@ -1094,7 +1118,7 @@ fn parse_scope_block(
         let let_span = tokens.peek_span().unwrap();
         tokens.step().unwrap();
 
-        let pattern = parse_pattern(tokens, session, true)?;
+        let pattern = parse_pattern(tokens, session)?;
         let assign_span = tokens.peek_span();
 
         if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Assign)) {
@@ -1287,7 +1311,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
             }
         }
 
-        let pattern = parse_pattern(tokens, session, false)?;
+        let pattern = parse_pattern(tokens, session)?;
         let mut guard = None;
         let rarrow_span;
 
@@ -1371,19 +1395,12 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
     }
 }
 
-type LetMode = bool;
-
-// `let_mode` tells the function how to deal with a single-ident pattern
-// in `let a = foo();`, `a` is a newly-bound name.
-// in `match foo() { a => 3 }`, `a` is a name of an already-defined variant.
-
 // TODO: type annotations in patterns e.g. let ($x: Int, $y: Int) = foo();
 // -> any pattern may have a type annotation
 // -> I need full spec for patterns
 fn parse_pattern(
     tokens: &mut Tokens,
     session: &mut AstSession,
-    let_mode: LetMode,
 ) -> Result<Pattern, ()> {
     // TODO
     session.push_error(AstError::todo("pattern", tokens.peek_span().unwrap().clone()));
