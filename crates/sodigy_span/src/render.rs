@@ -161,8 +161,14 @@ impl Line {
     }
 
     pub fn get_pos(&self) -> (usize, usize) {
-        // human index starts with 1
-        (self.index + 1, self.buffer.iter().position(|c| *c >= 128).unwrap() + 1)
+        (
+            // human index starts with 1
+            self.index + 1,
+
+            // TODO: it maybe None
+            // for ex, when indentation > MAX_LINE_LEN
+            self.buffer.iter().position(|c| *c >= 128).unwrap() + 1,
+        )
     }
 
     pub fn render(&self) -> String {
