@@ -22,7 +22,7 @@ pub use pattern::{Pattern, PatternKind};
 pub use session::AstSession;
 pub use stmt::*;
 pub use tokens::Tokens;
-use value::ValueKind;
+pub use value::ValueKind;
 
 pub use sodigy_parse::{TokenTree as Token, TokenTreeKind as TokenKind};
 

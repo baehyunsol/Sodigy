@@ -22,6 +22,10 @@ impl AstSession {
         self.stmts.push(stmt);
     }
 
+    pub fn get_stmts(&self) -> &Vec<Stmt> {
+        &self.stmts
+    }
+
     pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
         self.interner.intern_string(string)
     }

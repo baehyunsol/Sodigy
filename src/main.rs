@@ -1,6 +1,7 @@
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_err::SodigyError;
 use sodigy_files::{get_all_sdg, global_file_session};
+use sodigy_high_ir::{from_stmts, HirSession};
 use sodigy_lex::{lex, lex_flex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_span::SpanPoint;
@@ -51,6 +52,16 @@ fn run(input: &[u8], file: u64) {
 
     if let Err(()) = parse_stmts(&mut tokens, &mut ast_session) {
         for error in ast_session.get_errors() {
+            println!("{}\n\n", error.render_error());
+        }
+
+        return;
+    }
+
+    let mut hir_session = HirSession::new();
+
+    if let Err(()) = from_stmts(ast_session.get_stmts(), &mut hir_session) {
+        for error in hir_session.get_errors() {
             println!("{}\n\n", error.render_error());
         }
 

@@ -118,12 +118,14 @@ struct Line {
     has_highlighted_char: bool,
 }
 
+const MAX_LINE_LEN: usize = 80;
+
 impl Line {
     pub fn new(index: usize, buffer: &[u8]) -> Self {
         let has_highlighted_char = buffer.iter().any(|c| *c >= 128);
-        let mut buffer = if buffer.len() > 80 {
+        let mut buffer = if buffer.len() > MAX_LINE_LEN {
             vec![
-                buffer[0..80].to_vec(),
+                buffer[0..(MAX_LINE_LEN - 3)].to_vec(),
                 b"...".to_vec(),
             ].concat()
         } else {
@@ -143,7 +145,7 @@ impl Line {
 
         Line {
             index,
-            buffer: buffer[0..buffer.len().min(80)].to_vec(),
+            buffer: buffer[0..buffer.len().min(MAX_LINE_LEN)].to_vec(),
             has_highlighted_char,
         }
     }

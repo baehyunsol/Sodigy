@@ -1395,7 +1395,6 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
     }
 }
 
-// TODO: type annotations in patterns e.g. let ($x: Int, $y: Int) = foo();
 // -> any pattern may have a type annotation
 // -> I need full spec for patterns
 fn parse_pattern(
@@ -1928,7 +1927,6 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                             Ok(()) => {},
                         }
                     },
-                    // TODO: there must be something cool I can do with square brackets
                     Delim::Bracket => {
                         session.push_error(AstError::unexpected_token(
                             Token::new_group(Delim::Bracket, group_span),

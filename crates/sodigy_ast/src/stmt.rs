@@ -22,6 +22,18 @@ pub enum StmtKind {
     DocComment(InternedString),
 }
 
+impl StmtKind {
+    pub fn get_id(&self) -> Option<&IdentWithSpan> {
+        match self {
+            StmtKind::Func(func) => Some(&func.name),
+            StmtKind::Module(m) => Some(m),
+            StmtKind::Enum(en) => Some(&en.name),
+            StmtKind::Struct(st) => Some(&st.name),
+            _ => None,
+        }
+    }
+}
+
 pub struct FuncDef {
     pub name: IdentWithSpan,
     pub generics: Vec<GenericDef>,
