@@ -7,6 +7,7 @@ mod err;
 mod expr;
 mod ops;
 mod parse;
+mod pattern;
 mod session;
 mod stmt;
 mod tokens;
@@ -17,6 +18,7 @@ mod tests;
 
 pub use expr::{Expr, ExprKind};
 pub use parse::{parse_expr, parse_stmts};
+pub use pattern::{Pattern, PatternKind};
 pub use session::AstSession;
 pub use stmt::*;
 pub use tokens::Tokens;
@@ -91,9 +93,6 @@ pub struct BranchArm {
     pub cond: Option<Expr>,
     pub value: Expr,
 }
-
-#[derive(Clone)]
-pub struct Pattern {}
 
 #[derive(Clone)]
 pub struct StructInitDef {

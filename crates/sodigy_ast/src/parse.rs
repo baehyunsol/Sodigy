@@ -20,7 +20,7 @@ use crate::{
         PostfixOp,
         PrefixOp,
     },
-    Pattern,
+    pattern::{Pattern, PatternKind},
     ScopeDef,
     session::AstSession,
     stmt::{
@@ -1402,9 +1402,137 @@ fn parse_pattern(
     tokens: &mut Tokens,
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
-    // TODO
-    session.push_error(AstError::todo("pattern", tokens.peek_span().unwrap().clone()));
-    Err(())
+    let mut curr_pattern: Pattern;
+
+    match tokens.step() {
+        Some(Token {
+            kind: TokenKind::Identifier(id),
+            span: id_span,
+        }) => {
+            let mut entire_span = *id_span;
+
+            if id.is_underbar() {
+                curr_pattern = Pattern {
+                    kind: PatternKind::Wildcard,
+                    ty: None,
+                    span: entire_span,
+                    bind: None,
+                };
+            }
+
+            else {
+                let mut names = vec![
+                    IdentWithSpan::new(*id, *id_span),
+                ];
+
+                while tokens.is_curr_token(TokenKind::Punct(Punct::Dot)) {
+                    tokens.step().unwrap();
+
+                    let id = match tokens.expect_ident() {
+                        Ok(id) => id,
+                        Err(e) => {
+                            session.push_error(e);
+                            return Err(());
+                        },
+                    };
+
+                    entire_span = entire_span.merge(*id.span());
+                    names.push(id);
+                }
+
+                if names.len() == 1 {
+                    curr_pattern = Pattern {
+                        kind: PatternKind::Identifier(*names[0].id()),
+                        ty: None,
+                        span: *names[0].span(),
+                        bind: None,
+                    };
+                }
+
+                else {
+                    curr_pattern = Pattern {
+                        kind: PatternKind::Path(names),
+                        ty: None,
+                        span: entire_span,
+                        bind: None,
+                    }
+                }
+            }
+        },
+        Some(Token {
+            kind: TokenKind::Number(n),
+            span: number_span,
+        }) => {
+            curr_pattern = Pattern {
+                kind: PatternKind::Number(*n),
+                ty: None,
+                span: *number_span,
+                bind: None,
+            };
+        },
+        Some(Token {
+            kind: TokenKind::Punct(Punct::Dollar),
+            span: dollar_span,
+        }) => {
+            let dollar_span = *dollar_span;
+            let bind_name = match tokens.expect_ident() {
+                Ok(id) => id,
+                Err(e) => {
+                    session.push_error(e);
+                    return Err(());
+                },
+            };
+
+            if tokens.is_curr_token(TokenKind::Punct(Punct::At)) {
+                tokens.step().unwrap();
+
+                let mut rhs = parse_pattern(tokens, session)?;
+                rhs.bind_name(bind_name);
+
+                curr_pattern = rhs;
+            }
+
+            else {
+                curr_pattern = Pattern {
+                    kind: PatternKind::Binding(*bind_name.id()),
+                    ty: None,
+                    span: dollar_span.merge(*bind_name.span()),
+                    bind: None,
+                };
+            }
+        },
+        Some(token) => {
+            session.push_error(AstError::todo(
+                &format!("pattern: {}", token),
+                token.span,
+            ));
+            return Err(());
+        },
+        None => {
+            session.push_error(AstError::unexpected_end(
+                tokens.span_end().unwrap(),
+                ExpectedToken::pattern(),
+            ));
+            return Err(());
+        },
+    }
+
+    let colon_span = tokens.peek_span();
+
+    if tokens.is_curr_token(TokenKind::Punct(Punct::Colon)) {
+        tokens.step().unwrap();
+
+        curr_pattern.set_ty(parse_type_def(tokens, session, None, colon_span.unwrap())?);
+    }
+
+    if tokens.is_curr_token(TokenKind::Punct(Punct::Or)) {
+        tokens.step().unwrap();
+        let rhs = parse_pattern(tokens, session)?;
+
+        curr_pattern = Pattern::or(curr_pattern, rhs);
+    }
+
+    Ok(curr_pattern)
 }
 
 // it expects either `if` or `{ ... }`

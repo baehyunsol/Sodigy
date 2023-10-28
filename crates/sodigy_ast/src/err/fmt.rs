@@ -11,6 +11,7 @@ impl fmt::Display for ExpectedToken {
                 ExpectedToken::AnyExpression => "an expression".to_string(),
                 ExpectedToken::AnyIdentifier => "an identifier".to_string(),
                 ExpectedToken::AnyStatement => "a statement".to_string(),
+                ExpectedToken::AnyPattern => "a pattern".to_string(),
                 ExpectedToken::AnyDocComment => "a doc-comment".to_string(),
                 ExpectedToken::IdentOrBrace => "an identifier or `{}`".to_string(),
                 ExpectedToken::Nothing => "nothing".to_string(),

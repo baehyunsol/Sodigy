@@ -1,4 +1,4 @@
-use crate::{string::{DOTDOTDOT, STRING_B, STRING_F}, InternedString};
+use crate::{string::{DOTDOTDOT, UNDERBAR, STRING_B, STRING_F}, InternedString};
 use sodigy_keyword::{Keyword, keywords};
 
 const KEYWORD_LEN: usize = keywords().len();
@@ -22,6 +22,10 @@ impl InternedString {
     // character 'f'
     pub fn is_f(&self) -> bool {
         self.0 == STRING_F
+    }
+
+    pub fn is_underbar(&self) -> bool {
+        self.0 == UNDERBAR
     }
 
     pub fn dotdotdot() -> Self {

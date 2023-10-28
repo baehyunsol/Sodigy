@@ -153,7 +153,7 @@ def enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
     let head = (0, ls[0]);
     let tail = enumerate(ls[1..]);
 
-    head +> tail.map(\{p, (p.0 + 1, p.1)})
+    head +> tail.map(\{p, (p._0 + 1, p._1)})
 };
 
 def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {

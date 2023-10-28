@@ -3,6 +3,7 @@ mod fmt;
 pub(crate) const STRING_B: u32 = 100;
 pub(crate) const STRING_F: u32 = 101;
 pub(crate) const DOTDOTDOT: u32 = 102;
+pub(crate) const UNDERBAR: u32 = 103;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct InternedString(pub(crate) u32);

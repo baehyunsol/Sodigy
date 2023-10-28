@@ -211,6 +211,7 @@ pub enum ExpectedToken {
     AnyExpression,
     AnyStatement,
     AnyDocComment,
+    AnyPattern,
     IdentOrBrace,
     Nothing,
 
@@ -237,6 +238,10 @@ impl ExpectedToken {
 
     pub fn stmt() -> Self {
         ExpectedToken::AnyStatement
+    }
+
+    pub fn pattern() -> Self {
+        ExpectedToken::AnyPattern
     }
 
     pub fn nothing() -> Self {
