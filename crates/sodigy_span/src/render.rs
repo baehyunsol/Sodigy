@@ -60,15 +60,29 @@ pub fn render_spans(spans: &[SpanRange]) -> String {
         rendered_lines = remove_consecutive_underlines(rendered_lines);
         rendered_lines = push_underlines(rendered_lines);
 
+        let mut result = Vec::with_capacity(rendered_lines.len());
+
+        for line in rendered_lines.iter() {
+            line.render(&mut result);
+        }
+
+        // remove leading whitespaces
+        // TODO: O(n^2)
+        while result.iter().all(
+            |line| line.chars().next() == Some(' ')
+        ) {
+            result = result.iter().map(
+                |line| line.get(1..).unwrap().to_string()
+            ).collect();
+        }
+
         let (row, col) = pos.unwrap();
 
         messages.push(
             format!(
                 "{}:{row}:{col}\n{}",
                 file_session.render_file_hash(*file),
-                rendered_lines.iter().map(
-                    |line| line.render()
-                ).collect::<Vec<String>>().join("\n"),
+                result.join("\n"),
             )
         );
     }
@@ -86,21 +100,29 @@ enum RenderedLine {
 }
 
 impl RenderedLine {
-    pub fn render(&self) -> String {
+    pub fn render(&self, buffer: &mut Vec<String>) {
         match self {
-            RenderedLine::Normal(line) => line.render(),
+            RenderedLine::Normal(line) => {
+                buffer.push(line.render());
+            },
             RenderedLine::Dots => {
                 let dots = format!("      │   ...");
                 let empty = format!("      │ ");
 
-                format!("{empty}\n{dots}\n{empty}")
+                buffer.push(empty.clone());
+                buffer.push(dots);
+                buffer.push(empty);
             },
-            RenderedLine::Underline(mask) => format!(
-                "      │ {}",
-                mask.iter().map(
-                    |b| if *b { '^' } else { ' ' }
-                ).collect::<String>(),
-            ),
+            RenderedLine::Underline(mask) => {
+                let line = format!(
+                    "      │ {}",
+                    mask.iter().map(
+                        |b| if *b { '^' } else { ' ' }
+                    ).collect::<String>(),
+                );
+
+                buffer.push(line);
+            },
         }
     }
 }
