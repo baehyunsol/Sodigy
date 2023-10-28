@@ -1,0 +1,25 @@
+def match_num(n: Int): Int = match n {
+    0 | 1 | 2 => 0,
+    3..10 => 100,
+    10..~=20 => 200,
+    $etc => etc + 1,
+};
+
+def match_char(c: Char): String = match c {
+    '0'..~'9' => "Digit",
+    'a'..~'z' => "Lower",
+    'A'..~'Z' => "Upper",
+    $c if c <= '~' => "Ascii Punct",
+    _ => "Non Ascii",
+};
+
+def unwrap_or_0(n: Option(Int)): Int = match n {
+    Option.Some($n) => n,
+    Option.None => 0,
+};
+
+def name_bindings(x: Int, y: Int, z: Int): (Int, Int) = match (x, y, z) {
+    (3, $res @ ..) => res,
+    ($res @ ..) => (res._0, res._1),
+    _ => (2, 3),
+};
