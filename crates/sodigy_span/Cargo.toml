@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 sodigy_files = { path = "../sodigy_files" }
 sodigy_test = { path = "../sodigy_test" }
+colored = "2.0.4"

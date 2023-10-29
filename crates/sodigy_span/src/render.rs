@@ -4,6 +4,13 @@ use std::collections::HashMap;
 
 // TODO: color line numbers and underlines -> use color schemes of Rust
 
+#[derive(Clone, Copy)]
+pub enum ColorScheme {
+    None,
+    Red,     // errors
+    Yellow,  // warnings
+}
+
 // render spans for error messages
 // (line numbers, underlines, path, ... etc)
 pub fn render_spans(spans: &[SpanRange]) -> String {
@@ -63,7 +70,7 @@ pub fn render_spans(spans: &[SpanRange]) -> String {
         let mut result = Vec::with_capacity(rendered_lines.len());
 
         for line in rendered_lines.iter() {
-            line.render(&mut result);
+            line.render(&mut result, ColorScheme::None);
         }
 
         // remove leading whitespaces
@@ -100,14 +107,18 @@ enum RenderedLine {
 }
 
 impl RenderedLine {
-    pub fn render(&self, buffer: &mut Vec<String>) {
+    pub fn render(&self, buffer: &mut Vec<String>, colors: ColorScheme) {
+        let bar = colors.bar();  // │
+        let underline = colors.underline();
+        let empty = String::from(" ");
+
         match self {
             RenderedLine::Normal(line) => {
-                buffer.push(line.render());
+                buffer.push(line.render(colors));
             },
             RenderedLine::Dots => {
-                let dots = format!("      │   ...");
-                let empty = format!("      │ ");
+                let dots = format!("      {bar}   ...");
+                let empty = format!("      {bar} ");
 
                 buffer.push(empty.clone());
                 buffer.push(dots);
@@ -115,10 +126,10 @@ impl RenderedLine {
             },
             RenderedLine::Underline(mask) => {
                 let line = format!(
-                    "      │ {}",
+                    "      {bar} {}",
                     mask.iter().map(
-                        |b| if *b { '^' } else { ' ' }
-                    ).collect::<String>(),
+                        |b| if *b { &underline } else { &empty }
+                    ).collect::<Vec<&String>>().concat(),
                 );
 
                 buffer.push(line);
@@ -193,10 +204,12 @@ impl Line {
         )
     }
 
-    pub fn render(&self) -> String {
+    pub fn render(&self, colors: ColorScheme) -> String {
+        let bar = colors.bar();
+
         format!(
-            "{:5} │ {}",
-            self.index + 1,  // human index starts with 1
+            "{} {bar} {}",
+            colors.render_num(self.index + 1),  // human index starts with 1
             self.buffer.iter().map(
                 |c| {
                     let c = if *c >= 128 {
