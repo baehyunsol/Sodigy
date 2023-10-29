@@ -1,3 +1,4 @@
+use colored::*;
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
@@ -80,6 +81,21 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn err_kind(&self) -> &K;
 
+    // override this when it's a warning
+    fn is_warning(&self) -> bool {
+        false
+    }
+
+    fn color_scheme(&self) -> ColorScheme {
+        if self.is_warning() {
+            ColorScheme::warning()
+        }
+
+        else {
+            ColorScheme::error()
+        }
+    }
+
     fn set_err_context(&mut self, context: ErrorContext) -> &mut Self {
         self.get_mut_error_info().set_err_context(context);
 
@@ -132,14 +148,22 @@ pub trait SodigyError<K: SodigyErrorKind> {
             |s| *s
         ).collect::<Vec<SpanRange>>();
 
+        let color_scheme = self.color_scheme();
+
         let span = match &self.get_error_info().show_span {
             _ if spans.is_empty() => String::from("<DUMMY SPAN>"),
-            true => render_spans(&spans, ColorScheme::error()),
+            true => render_spans(&spans, color_scheme),
             false => show_file_names(&spans),
         };
 
+        let title = if self.is_warning() {
+            format!("[Warning]").yellow()
+        } else {
+            format!("[Error{context}]").red()
+        };
+
         format!(
-            "[Error{context}]\n{msg}{help}{extra_msg}\n{span}",
+            "{title}\n{msg}{help}{extra_msg}\n{span}",
         )
     }
 }

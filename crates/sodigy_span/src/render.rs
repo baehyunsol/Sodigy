@@ -8,6 +8,7 @@ enum Color {
     None,
     Red,
     Blue,
+    Yellow,
 }
 
 #[derive(Clone, Copy)]
@@ -31,6 +32,13 @@ impl ColorScheme {
         }
     }
 
+    pub fn warning() -> Self {
+        ColorScheme {
+            line_no: Color::Blue,
+            underline: Color::Yellow,
+        }
+    }
+
     pub(crate) fn bar(&self) -> String {
         match &self.line_no {
             Color::None => String::from("│"),
@@ -51,6 +59,16 @@ impl ColorScheme {
         match &self.underline {
             Color::None => String::from("^"),
             Color::Red => format!("{}", "^".red()),
+            Color::Yellow => format!("{}", "^".yellow()),
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn l_arrow(&self) -> String {
+        match &self.underline {
+            Color::None => String::from(">"),
+            Color::Red => format!("{}", ">".red()),
+            Color::Yellow => format!("{}", ">".yellow()),
             _ => todo!(),
         }
     }
@@ -182,11 +200,16 @@ impl RenderedLine {
                 buffer.push(empty);
             },
             RenderedLine::Underline(mask) => {
-                let line = format!(
-                    "         {bar} {}",
+                let underline = if mask.iter().all(|b| !*b) {
+                    format!("{}{}", " ".repeat(MAX_LINE_LEN - 3), colors.l_arrow().repeat(3))
+                } else {
                     mask.iter().map(
                         |b| if *b { underline.clone() } else { no_underline.clone() }
-                    ).collect::<Vec<String>>().concat(),
+                    ).collect::<Vec<String>>().concat()
+                };
+
+                let line = format!(
+                    "         {bar} {underline}",
                 );
 
                 buffer.push(line);
@@ -212,7 +235,7 @@ struct Line {
 const MAX_LINE_LEN: usize = 80;
 
 impl Line {
-    pub fn new(index: usize, buffer: &[u8], color: ColorScheme) -> Self {
+    pub fn new(index: usize, buffer: &[u8]) -> Self {
         let has_highlighted_char = buffer.iter().any(|c| *c >= 128);
         let mut need_dots = false;
         let mut buffer = if buffer.len() > MAX_LINE_LEN {
@@ -256,10 +279,7 @@ impl Line {
         (
             // human index starts with 1
             self.index + 1,
-
-            // TODO: it maybe None
-            // for ex, when indentation > MAX_LINE_LEN
-            self.buffer.iter().position(|c| *c >= 128).unwrap() + 1,
+            self.buffer.iter().position(|c| *c >= 128).unwrap_or(0) + 1,
         )
     }
 
@@ -296,7 +316,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>, color: ColorScheme) 
 
     for (i, c) in content.iter().enumerate() {
         if *c == b'\n' {
-            lines.push(Line::new(line_no, &curr_line, color));
+            lines.push(Line::new(line_no, &curr_line));
             curr_line = vec![];
             line_no += 1;
             continue;
@@ -325,7 +345,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>, color: ColorScheme) 
     }
 
     if !curr_line.is_empty() {
-        lines.push(Line::new(line_no, &curr_line, color));
+        lines.push(Line::new(line_no, &curr_line));
     }
 
     lines

@@ -9,3 +9,4 @@ edition = "2021"
 sodigy_files = { path = "../sodigy_files" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_span = { path = "../sodigy_span" }
+colored = "2.0.4"

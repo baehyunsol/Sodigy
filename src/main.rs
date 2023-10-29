@@ -59,8 +59,13 @@ fn run(input: &[u8], file: u64) {
     }
 
     let mut hir_session = HirSession::new();
+    let res = from_stmts(ast_session.get_stmts(), &mut hir_session);
 
-    if let Err(()) = from_stmts(ast_session.get_stmts(), &mut hir_session) {
+    for warning in hir_session.get_warnings() {
+        println!("{}\n\n", warning.render_error());
+    }
+
+    if let Err(()) = res {
         for error in hir_session.get_errors() {
             println!("{}\n\n", error.render_error());
         }

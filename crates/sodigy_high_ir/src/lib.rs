@@ -6,9 +6,11 @@ mod err;
 mod expr;
 mod names;
 mod session;
+mod warn;
 
 use err::HirError;
 pub use session::HirSession;
+use warn::HirWarning;
 
 pub fn from_stmts(
     stmts: &Vec<ast::Stmt>,
@@ -17,6 +19,9 @@ pub fn from_stmts(
     let mut curr_doc_comments = vec![];
     let mut curr_decorators = vec![];
     let mut module_defs = HashMap::new();
+
+    // only for warnings
+    let preludes = session.get_prelude_names();
 
     // it's only for name-collision checking
     let mut names: HashMap<InternedString, IdentWithSpan> = HashMap::new();
@@ -35,7 +40,6 @@ pub fn from_stmts(
                 for (from, to) in u.unfold_alias().iter() {
                     if let Some(collision) = names.insert(*from.id(), *from) {
                         session.push_error(HirError::name_collision(*from, collision));
-                        return Err(());
                     }
 
                     use_cases.insert(*from, to.to_vec());
@@ -46,9 +50,14 @@ pub fn from_stmts(
 
                 if let Some(collision) = names.insert(*id.id(), *id) {
                     session.push_error(HirError::name_collision(*id, collision));
-                    return Err(());
                 }
             },
+        }
+    }
+
+    for id in names.values() {
+        if preludes.contains(id.id()) {
+            session.push_warning(HirWarning::redef_prelude(*id));
         }
     }
 
@@ -78,6 +87,5 @@ pub fn from_stmts(
         }
     }
 
-    // TODO
-    Ok(())
+    session.err_if_has_err()
 }
