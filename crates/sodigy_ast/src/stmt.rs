@@ -60,6 +60,25 @@ pub enum Use {
     },
 }
 
+impl Use {
+    pub fn unfold_alias(&self) -> Vec<(IdentWithSpan, Vec<InternedString>)> {
+        match self {
+            // `use a.b.c;` -> `use c as a.b.c;`
+            Use::Unit(names) => vec![(
+                *names.last().unwrap(),
+                names.iter().map(|n| *n.id()).collect(),
+            )],
+
+            Use::Alias { from, to } => vec![(
+                *to,
+                from.iter().map(|n| *n.id()).collect(),
+            )],
+
+            Use::Group { .. } => todo!(),
+        }
+    }
+}
+
 // attributes of enums and structs are collected later
 // in ast level, it only collects attributes of variants and fields
 pub enum Attribute {

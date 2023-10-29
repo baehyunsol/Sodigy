@@ -26,7 +26,7 @@ pub use value::ValueKind;
 
 pub use sodigy_parse::{TokenTree as Token, TokenTreeKind as TokenKind};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct IdentWithSpan(InternedString, SpanRange);
 
 impl IdentWithSpan {

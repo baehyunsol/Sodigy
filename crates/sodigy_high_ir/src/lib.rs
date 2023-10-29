@@ -21,6 +21,9 @@ pub fn from_stmts(
     // it's only for name-collision checking
     let mut names: HashMap<InternedString, IdentWithSpan> = HashMap::new();
 
+    // `use x.y.z as z;` -> use_cases['z'] = ['x', 'y', 'z']
+    let mut use_cases: HashMap<IdentWithSpan, Vec<InternedString>> = HashMap::new();
+
     // first iteration:
     // collect names from definitions and check name collisions
     // unfold all the `use`s: convert them into basic forms (`use x.y.z as z;`)
@@ -29,7 +32,14 @@ pub fn from_stmts(
             StmtKind::Decorator(_)
             | StmtKind::DocComment(_) => { /* nop */ },
             StmtKind::Use(u) => {
-                // TODO
+                for (from, to) in u.unfold_alias().iter() {
+                    if let Some(collision) = names.insert(*from.id(), *from) {
+                        session.push_error(HirError::name_collision(*from, collision));
+                        return Err(());
+                    }
+
+                    use_cases.insert(*from, to.to_vec());
+                }
             },
             stmt_kind => {
                 let id = stmt_kind.get_id().unwrap();
@@ -57,8 +67,6 @@ pub fn from_stmts(
                 curr_decorators.push(d.clone());
             },
             StmtKind::Module(m) => {
-                // TODO: check name collision
-
                 // TODO: merge doc_comments
                 // TODO: merge decorators
                 // TODO: set modules's doc and decorators

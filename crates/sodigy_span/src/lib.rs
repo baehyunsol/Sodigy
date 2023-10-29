@@ -6,7 +6,7 @@ mod render;
 
 pub use render::render_spans;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanPoint {
     file: FileHash,
     index: usize,
@@ -55,7 +55,7 @@ impl SpanPoint {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanRange {
     pub file: FileHash,
     start: usize,  // inclusive

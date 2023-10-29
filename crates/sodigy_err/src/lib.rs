@@ -120,7 +120,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let msg = kind.msg(&mut intern_session);
         let help = match kind.help(&mut intern_session) {
             s if s.is_empty() => String::new(),
-            s => format!("\n{s}"),
+            s => format!("\nHelp: {s}"),
         };
         let extra_msg = match &self.get_error_info().msg {
             s if s.is_empty() => String::new(),
@@ -139,7 +139,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
         };
 
         format!(
-            "[Error{context}] {msg}{help}{extra_msg}\n{span}",
+            "[Error{context}]\n{msg}{help}{extra_msg}\n{span}",
         )
     }
 }
