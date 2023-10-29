@@ -1,6 +1,6 @@
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
-use sodigy_span::{SpanRange, render_spans};
+use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::HashSet;
 
 mod fmt;
@@ -134,7 +134,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
         let span = match &self.get_error_info().show_span {
             _ if spans.is_empty() => String::from("<DUMMY SPAN>"),
-            true => render_spans(&spans),
+            true => render_spans(&spans, ColorScheme::error()),
             false => show_file_names(&spans),
         };
 

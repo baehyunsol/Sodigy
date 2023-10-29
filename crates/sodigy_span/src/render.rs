@@ -1,19 +1,76 @@
 use crate::SpanRange;
+use colored::*;
 use sodigy_files::global_file_session;
 use std::collections::HashMap;
 
-// TODO: color line numbers and underlines -> use color schemes of Rust
+#[derive(Clone, Copy)]
+enum Color {
+    None,
+    Red,
+    Blue,
+}
 
 #[derive(Clone, Copy)]
-pub enum ColorScheme {
-    None,
-    Red,     // errors
-    Yellow,  // warnings
+pub struct ColorScheme {
+    line_no: Color,
+    underline: Color,
+}
+
+impl ColorScheme {
+    pub fn none() -> Self {
+        ColorScheme {
+            line_no: Color::None,
+            underline: Color::None,
+        }
+    }
+
+    pub fn error() -> Self {
+        ColorScheme {
+            line_no: Color::Blue,
+            underline: Color::Red,
+        }
+    }
+
+    pub(crate) fn bar(&self) -> String {
+        match &self.line_no {
+            Color::None => String::from("│"),
+            Color::Blue => format!("{}", "│".blue()),
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn dots(&self) -> String {
+        match &self.line_no {
+            Color::None => String::from("..."),
+            Color::Blue => format!("{}", "...".blue()),
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn underline(&self) -> String {
+        match &self.underline {
+            Color::None => String::from("^"),
+            Color::Red => format!("{}", "^".red()),
+            _ => todo!(),
+        }
+    }
+
+    pub(crate) fn render_num(&self, n: usize) -> String {
+        let n = format!("{n}");
+        let pre = " ".repeat(8 - n.len());
+
+        // do not color whitespaces!
+        match &self.line_no {
+            Color::None => format!("{pre}{n}"),
+            Color::Blue => format!("{pre}{}", format!("{n}").blue()),
+            _ => todo!(),
+        }
+    }
 }
 
 // render spans for error messages
 // (line numbers, underlines, path, ... etc)
-pub fn render_spans(spans: &[SpanRange]) -> String {
+pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
     let mut spans_by_file: HashMap<u64, Vec<(usize, usize)>> = HashMap::new();
 
     for span in spans.iter() {
@@ -32,7 +89,7 @@ pub fn render_spans(spans: &[SpanRange]) -> String {
 
     for (file, spans) in spans_by_file.iter() {
         let content = file_session.get_file_content(*file).unwrap();
-        let lines = single_file(&content, spans);
+        let lines = single_file(&content, spans, color);
         let lines_len = lines.len();
         let mut rendered_lines = Vec::with_capacity(lines_len * 2);
         let mut pos = None;
@@ -70,7 +127,7 @@ pub fn render_spans(spans: &[SpanRange]) -> String {
         let mut result = Vec::with_capacity(rendered_lines.len());
 
         for line in rendered_lines.iter() {
-            line.render(&mut result, ColorScheme::None);
+            line.render(&mut result, color);
         }
 
         // remove leading whitespaces
@@ -108,17 +165,17 @@ enum RenderedLine {
 
 impl RenderedLine {
     pub fn render(&self, buffer: &mut Vec<String>, colors: ColorScheme) {
-        let bar = colors.bar();  // │
+        let bar = colors.bar();
         let underline = colors.underline();
-        let empty = String::from(" ");
+        let no_underline = String::from(" ");
 
         match self {
             RenderedLine::Normal(line) => {
                 buffer.push(line.render(colors));
             },
             RenderedLine::Dots => {
-                let dots = format!("      {bar}   ...");
-                let empty = format!("      {bar} ");
+                let dots = format!("         {bar} {}", colors.dots());
+                let empty = format!("         {bar} ");
 
                 buffer.push(empty.clone());
                 buffer.push(dots);
@@ -126,10 +183,10 @@ impl RenderedLine {
             },
             RenderedLine::Underline(mask) => {
                 let line = format!(
-                    "      {bar} {}",
+                    "         {bar} {}",
                     mask.iter().map(
-                        |b| if *b { &underline } else { &empty }
-                    ).collect::<Vec<&String>>().concat(),
+                        |b| if *b { underline.clone() } else { no_underline.clone() }
+                    ).collect::<Vec<String>>().concat(),
                 );
 
                 buffer.push(line);
@@ -148,19 +205,20 @@ struct Line {
     // if b { 128 } else { 0 }
     buffer: Vec<u8>,
 
+    need_dots: bool,
     has_highlighted_char: bool,
 }
 
 const MAX_LINE_LEN: usize = 80;
 
 impl Line {
-    pub fn new(index: usize, buffer: &[u8]) -> Self {
+    pub fn new(index: usize, buffer: &[u8], color: ColorScheme) -> Self {
         let has_highlighted_char = buffer.iter().any(|c| *c >= 128);
+        let mut need_dots = false;
         let mut buffer = if buffer.len() > MAX_LINE_LEN {
-            vec![
-                buffer[0..(MAX_LINE_LEN - 3)].to_vec(),
-                b"...".to_vec(),
-            ].concat()
+            need_dots = true;
+
+            buffer[0..(MAX_LINE_LEN - 3)].to_vec()
         } else {
             buffer.to_vec()
         };
@@ -178,8 +236,9 @@ impl Line {
 
         Line {
             index,
-            buffer: buffer[0..buffer.len().min(MAX_LINE_LEN)].to_vec(),
+            buffer,
             has_highlighted_char,
+            need_dots,
         }
     }
 
@@ -208,7 +267,7 @@ impl Line {
         let bar = colors.bar();
 
         format!(
-            "{} {bar} {}",
+            "{} {bar} {}{}",
             colors.render_num(self.index + 1),  // human index starts with 1
             self.buffer.iter().map(
                 |c| {
@@ -225,18 +284,19 @@ impl Line {
                     }
                 }
             ).collect::<String>(),
+            if self.need_dots { colors.dots() } else { String::new() },
         )
     }
 }
 
-fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
+fn single_file(content: &[u8], spans: &Vec<(usize, usize)>, color: ColorScheme) -> Vec<Line> {
     let mut lines = vec![];
     let mut curr_line = vec![];
     let mut line_no = 0;
 
     for (i, c) in content.iter().enumerate() {
         if *c == b'\n' {
-            lines.push(Line::new(line_no, &curr_line));
+            lines.push(Line::new(line_no, &curr_line, color));
             curr_line = vec![];
             line_no += 1;
             continue;
@@ -265,7 +325,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
     }
 
     if !curr_line.is_empty() {
-        lines.push(Line::new(line_no, &curr_line));
+        lines.push(Line::new(line_no, &curr_line, color));
     }
 
     lines
@@ -300,6 +360,14 @@ fn remove_consecutive_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> 
     }
 
     if !consec.is_empty() {
+        if consec.len() > 5 {
+            consec = vec![
+                consec[0..2].to_vec(),
+                vec![RenderedLine::Dots],
+                consec[(consec.len() - 2)..consec.len()].to_vec(),
+            ].concat();
+        }
+
         buf.extend(consec);
     }
 

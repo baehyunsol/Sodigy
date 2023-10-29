@@ -4,7 +4,7 @@ use sodigy_test::{sodigy_assert, sodigy_assert_eq};
 mod fmt;
 mod render;
 
-pub use render::render_spans;
+pub use render::{ColorScheme, render_spans};
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct SpanPoint {
