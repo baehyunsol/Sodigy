@@ -1,5 +1,5 @@
 use sodigy_ast::IdentWithSpan;
-use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
@@ -14,6 +14,17 @@ impl HirError {
         HirError {
             kind: HirErrorKind::NameCollision(*id1.id()),
             spans: vec![*id1.span(), *id2.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn undefined_name(name: IdentWithSpan, suggestions: Vec<InternedString>) -> Self {
+        HirError {
+            kind: HirErrorKind::UndefinedName {
+                name: *name.id(),
+                suggestions,
+            },
+            spans: vec![*name.span()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -43,17 +54,43 @@ impl SodigyError<HirErrorKind> for HirError {
 
 pub enum HirErrorKind {
     NameCollision(InternedString),
+    UndefinedName {
+        name: InternedString,
+        suggestions: Vec<InternedString>,
+    },
 }
 
 impl SodigyErrorKind for HirErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
+            HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
         }
     }
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
+            HirErrorKind::UndefinedName {
+                suggestions,
+                ..
+            } => match suggestions.len() {
+                0 => String::new(),
+                1 => format!(
+                    "A similar name exists in the current scope: {}",
+                    suggestions[0],
+                ),
+                _ => format!(
+                    "Similar names exist in the current scope: {}",
+                    concat_commas(
+                        &suggestions.iter().map(
+                            |s| format!("{s}")
+                        ).collect::<Vec<String>>(),
+                        "and",
+                        "`",
+                        "`",
+                    ),
+                ),
+            },
             _ => String::new(),
         }
     }

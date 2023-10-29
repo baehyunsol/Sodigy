@@ -17,6 +17,7 @@ mod value;
 mod tests;
 
 pub use expr::{Expr, ExprKind};
+pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_expr, parse_stmts};
 pub use pattern::{Pattern, PatternKind};
 pub use session::AstSession;

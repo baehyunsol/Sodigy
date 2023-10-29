@@ -85,6 +85,13 @@ def format_string_test: String = {
     f"{a} + {b} = {a + b}"
 };
 
+@test.eq(["7", "{3 + 4}", "{7}"])
+def format_string_test2: String = [
+    f"{3 + 4}",
+    f"{{3 + 4}}",
+    f"{{{3 + 4}}}",
+];
+
 def add1(x: Int, y: Int, z: Int): Int = \{x + y + z + 1};
 
 @test.eq([13, 14])
@@ -112,3 +119,9 @@ def my_map_test: List(MyOption(Int)) = {
         my_map(MyOption.None, f),
     ]
 };
+
+@test.eq(())
+def EMPTY_TUPLE: () = ();
+
+@test.eq([])
+def EMPTY_LIST: List(Int) = [];

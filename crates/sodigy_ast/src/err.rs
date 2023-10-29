@@ -27,7 +27,7 @@ impl AstError {
                     | ExpectedToken::AnyExpression
                     | ExpectedToken::IdentOrBrace => {
                         extra.set_message(format!(
-                            "`{k}` is a keyword, not an identifier. If you want to use `{k}` as an identifier, try `{k}_`"
+                            "`{k}` is a keyword, not an identifier. If you want to use `{k}` as an identifier, try `{k}_`."
                         ));
                     },
                     _ => {},
@@ -200,7 +200,7 @@ impl SodigyErrorKind for AstErrorKind {
                 "Argument `{arg_name}` of `{func_name}` needs a type annotation."
             ),
             AstErrorKind::EmptyCharLiteral
-            | AstErrorKind::TooLongCharLiteral => String::from("If you meant to write a string literal, use double quotes."),
+            | AstErrorKind::TooLongCharLiteral => String::from("If you meant a string literal, use double quotes."),
         }
     }
 }

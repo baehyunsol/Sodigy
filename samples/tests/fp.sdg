@@ -125,7 +125,7 @@ def split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T
 };
 
 # [a, a, a, b, b, c, c, c, c, b] -> [a, b, c, b]
-@test.expected(([0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 2]), [0, 1, 2, 3, 2])
+@test.expected(([0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 2], ), [0, 1, 2, 3, 2])
 def dedup<T>(ls: List(T)): List(T) = match ls.len() {
     0..~1 => ls,
     _ => if ls[0] == ls[1] {
@@ -142,7 +142,7 @@ def dedup<T>(ls: List(T)): List(T) = match ls.len() {
 };
 
 @test.expected(
-    ([5, 6, 7, 8, 9, 10]),
+    ([5, 6, 7, 8, 9, 10], ),
     [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9), (5, 10)]
 )
 def enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {

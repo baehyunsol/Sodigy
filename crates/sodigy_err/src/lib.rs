@@ -124,7 +124,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
         };
         let extra_msg = match &self.get_error_info().msg {
             s if s.is_empty() => String::new(),
-            s => format!("\n{s}"),
+            s => format!("\nNote: {s}"),
         };
         let spans = self.get_spans().iter().filter(
             |s| !s.is_dummy()
