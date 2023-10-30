@@ -43,7 +43,8 @@ impl ColorScheme {
         match &self.line_no {
             Color::None => String::from("│"),
             Color::Blue => format!("{}", "│".blue()),
-            _ => todo!(),
+            Color::Red => format!("{}", "│".red()),
+            Color::Yellow => format!("{}", "│".yellow()),
         }
     }
 
@@ -51,25 +52,26 @@ impl ColorScheme {
         match &self.line_no {
             Color::None => String::from("..."),
             Color::Blue => format!("{}", "...".blue()),
-            _ => todo!(),
+            Color::Red => format!("{}", "...".red()),
+            Color::Yellow => format!("{}", "...".yellow()),
         }
     }
 
     pub(crate) fn underline(&self) -> String {
         match &self.underline {
             Color::None => String::from("^"),
+            Color::Blue => format!("{}", "^".blue()),
             Color::Red => format!("{}", "^".red()),
             Color::Yellow => format!("{}", "^".yellow()),
-            _ => todo!(),
         }
     }
 
     pub(crate) fn l_arrow(&self) -> String {
         match &self.underline {
             Color::None => String::from(">"),
+            Color::Blue => format!("{}", ">".blue()),
             Color::Red => format!("{}", ">".red()),
             Color::Yellow => format!("{}", ">".yellow()),
-            _ => todo!(),
         }
     }
 
@@ -107,7 +109,7 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
 
     for (file, spans) in spans_by_file.iter() {
         let content = file_session.get_file_content(*file).unwrap();
-        let lines = single_file(&content, spans, color);
+        let lines = single_file(&content, spans);
         let lines_len = lines.len();
         let mut rendered_lines = Vec::with_capacity(lines_len * 2);
         let mut pos = None;
@@ -309,7 +311,7 @@ impl Line {
     }
 }
 
-fn single_file(content: &[u8], spans: &Vec<(usize, usize)>, color: ColorScheme) -> Vec<Line> {
+fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
     let mut lines = vec![];
     let mut curr_line = vec![];
     let mut line_no = 0;
@@ -317,7 +319,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>, color: ColorScheme) 
     for (i, c) in content.iter().enumerate() {
         if *c == b'\n' {
             lines.push(Line::new(line_no, &curr_line));
-            curr_line = vec![];
+            curr_line.clear();
             line_no += 1;
             continue;
         }

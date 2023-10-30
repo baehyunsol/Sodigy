@@ -47,6 +47,7 @@ use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 
 pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), ()> {
     loop {
@@ -620,7 +621,10 @@ pub fn parse_expr(
                         let mut tokens = Tokens::from_vec(&mut tokens);
 
                         Expr {
-                            kind: ExprKind::Value(ValueKind::Scope(parse_scope_block(&mut tokens, session, span)?)),
+                            kind: ExprKind::Value(ValueKind::Scope {
+                                scope: parse_scope_block(&mut tokens, session, span)?,
+                                uid: Uid::new_scope(),
+                            }),
                             span,
                         }
                     },
@@ -673,7 +677,7 @@ pub fn parse_expr(
                     ).to_owned());
                     return Err(());
                 } else {
-                    let mut chars = session.unintern_string(*content).unwrap().iter();
+                    let mut chars = session.unintern_string_fast(*content).unwrap().iter();
                     let first_c = match chars.next() {
                         Some(c) => c,
                         None => {
@@ -763,7 +767,7 @@ pub fn parse_expr(
                 let punct_span = *span;
 
                 match PostfixOp::try_from(punct) {
-                    // `..` can both be inclusive and exclusive!
+                    // `..` can both be infix and postfix!
                     Ok(op @ PostfixOp::Range) => {
                         let bp = postfix_binding_power(op);
 
@@ -978,6 +982,7 @@ pub fn parse_expr(
                 }
             },
             _ => {
+                tokens.backward().unwrap();
                 break;
             }
         }
@@ -1077,7 +1082,13 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
         }
 
         match tokens.consume(TokenKind::Punct(Punct::Comma)) {
-            Ok(()) => {},
+            Ok(()) => {
+                args.push(ArgDef {
+                    name: arg_name,
+                    ty: arg_type,
+                    has_question_mark,
+                });
+            },
             Err(AstError {
                 kind: AstErrorKind::UnexpectedEnd(_),
                 ..
@@ -1563,9 +1574,12 @@ fn parse_branch_arm(
                     let mut val_tokens = Tokens::from_vec(&mut val_tokens);
                     let span = span.unwrap();
 
-                    let value = parse_scope_block(&mut val_tokens, session, span)?;
+                    let scope = parse_scope_block(&mut val_tokens, session, span)?;
                     let value = Expr {
-                        kind: ExprKind::Value(ValueKind::Scope(value)),
+                        kind: ExprKind::Value(ValueKind::Scope {
+                            scope,
+                            uid: Uid::new_scope(),
+                        }),
                         span,
                     };
 
@@ -1592,9 +1606,12 @@ fn parse_branch_arm(
             let mut val_tokens = val_tokens.to_vec();
             let mut val_tokens = Tokens::from_vec(&mut val_tokens);
 
-            let value = parse_scope_block(&mut val_tokens, session, span)?;
+            let scope = parse_scope_block(&mut val_tokens, session, span)?;
             let value = Expr {
-                kind: ExprKind::Value(ValueKind::Scope(value)),
+                kind: ExprKind::Value(ValueKind::Scope {
+                    scope,
+                    uid: Uid::new_scope(),
+                }),
                 span,
             };
 

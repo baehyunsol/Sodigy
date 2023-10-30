@@ -1,5 +1,5 @@
 use crate::{err::ParseError, from_tokens, ParseSession, TokenTree};
-use sodigy_lex::{lex, lex_flex, LexError, LexSession};
+use sodigy_lex::{lex, LexError, LexSession};
 use sodigy_span::SpanPoint;
 
 mod fmt;
@@ -68,9 +68,9 @@ pub fn parse_str(
                         match check_fstring_type(&curr_buf) {
                             t @ (FstringType::Normal | FstringType::NestedNested) => {
                                 lex_session.flush_tokens();
-                                let span_start = span_start.offset(f_string_start_index as i32);
+                                let f_string_start_span = span_start.offset(f_string_start_index as i32);
 
-                                lex_flex!(&curr_buf, 0, span_start, lex_session)?;
+                                lex(&curr_buf, 0, f_string_start_span, lex_session)?;
 
                                 let tokens = lex_session.get_tokens().to_vec();
 
@@ -90,7 +90,7 @@ pub fn parse_str(
 
                                 if tokens.is_empty() {
                                     parse_session.push_error(ParseError::empty_f_string(
-                                        span_start.extend(span_start.offset(i as i32))
+                                        f_string_start_span.offset(-1).extend(span_start.offset(i as i32 + 1))
                                     ));
 
                                     return Err(());
@@ -107,7 +107,7 @@ pub fn parse_str(
                                 }
 
                                 curr_state = ParseState::Literal;
-                                curr_buf = vec![];
+                                curr_buf.clear();
                             },
                             FstringType::Nested => {
                                 result.push(FormattedStringElement::Literal(String::from_utf8(curr_buf).unwrap()));

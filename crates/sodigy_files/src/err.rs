@@ -1,3 +1,4 @@
+use crate::FileHash;
 use std::ffi::OsString;
 use std::io;
 
@@ -14,6 +15,8 @@ pub enum FileErrorKind {
     PermissionDenied,
     AlreadyExists,
     OsStrErr(OsString),
+
+    InvalidFileHash(FileHash),  // Sodigy specific
 }
 
 impl FileError {
@@ -30,6 +33,13 @@ impl FileError {
         }
     }
 
+    pub fn invalid_file_hash(hash: FileHash) -> Self {
+        FileError {
+            kind: FileErrorKind::InvalidFileHash(hash),
+            given_path: None,
+        }
+    }
+
     pub(crate) fn os_str_err(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
@@ -42,11 +52,10 @@ impl FileError {
             FileErrorKind::FileNotFound
             | FileErrorKind::PermissionDenied
             | FileErrorKind::AlreadyExists => {
-                self.given_path.as_ref().expect(
-                    "Internal Compiler Error AD3764202D8"
-                ).to_string()
+                self.given_path.as_ref().unwrap().to_string()
             },
-            FileErrorKind::OsStrErr(_) => String::new(),
+            FileErrorKind::OsStrErr(_)
+            | FileErrorKind::InvalidFileHash(_) => String::new(),
         };
 
         match &self.kind {
@@ -61,6 +70,9 @@ impl FileError {
             ),
             FileErrorKind::OsStrErr(os_str) => format!(
                 "error converting os_str: `{os_str:?}`"
+            ),
+            FileErrorKind::InvalidFileHash(hash) => format!(
+                "invalid file hash: {hash}"
             ),
         }
     }

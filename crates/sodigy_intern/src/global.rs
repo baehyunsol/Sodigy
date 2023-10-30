@@ -85,7 +85,9 @@ impl GlobalInternSession {
     }
 
     fn get_new_string_index(&self) -> InternedString {
-        InternedString(self.strings.len() as u32 | 0xff00_0000)
+        let data = self.strings.len() as u32 & DATA_MASK;
+
+        InternedString(data)
     }
 
     pub fn intern_numeric(&mut self, numeric: SodigyNumber) -> InternedNumeric {
@@ -95,7 +97,7 @@ impl GlobalInternSession {
             match self.numerics.get(&numeric) {
                 Some(ii) => *ii,
                 None => {
-                    let ii = self.get_new_numeric_index();
+                    let ii = self.get_new_numeric_index(numeric.is_integer);
 
                     self.numerics.insert(numeric.clone(), ii);
                     self.numerics_rev.insert(ii, numeric);
@@ -108,7 +110,17 @@ impl GlobalInternSession {
         }
     }
 
-    fn get_new_numeric_index(&self) -> InternedNumeric {
-        InternedNumeric(self.numerics.len() as u32 | 0xff00_0000)
+    fn get_new_numeric_index(&self, is_integer: bool) -> InternedNumeric {
+        let data = self.numerics.len() as u32 & DATA_MASK;
+        let is_integer = is_integer as u32 * IS_INTEGER;
+
+        InternedNumeric(data | is_integer)
     }
 }
+
+pub(crate) const DATA_MASK: u32 = 0x00ff_ffff;
+
+pub(crate) const SPECIAL_STRINGS: u32 = 0xff00_0000;
+
+// metadata for numerics
+pub(crate) const IS_INTEGER: u32 = 0x1000_0000;

@@ -30,8 +30,8 @@ impl AstSession {
         self.interner.intern_string(string)
     }
 
-    pub fn unintern_string(&mut self, string: InternedString) -> Option<&[u8]> {
-        self.interner.unintern_string(string)
+    pub fn unintern_string_fast(&mut self, string: InternedString) -> Option<&[u8]> {
+        self.interner.unintern_string_fast(string)
     }
 
     pub fn push_error(&mut self, error: AstError) {

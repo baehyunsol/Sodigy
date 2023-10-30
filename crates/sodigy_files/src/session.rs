@@ -78,22 +78,43 @@ impl Session {
         hash
     }
 
-    pub fn get_tmp_file(&self, hash: FileHash) -> Option<&[u8]> {
+    pub fn get_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {
+        match self.get_fs_file_content(hash) {
+            // it's just `Ok(v)`
+            // the compiler thinks `v` and `self.get_fs_file_content` violates the borrow rules,
+            // but they don't! It's a limitation of the current borrow checker
+            // the Rust team says the next version of the borrow checker will fix this
+            Ok(v) => unsafe { Ok(&*(v as *const [u8])) },
+            Err(e) => match self.get_tmp_file(hash) {
+                Some(b) => Ok(b),
+                None => Err(e),
+            }
+        }
+    }
+
+    fn get_tmp_file(&self, hash: FileHash) -> Option<&[u8]> {
         self.tmp_files.get(&hash).map(|f| f as &[u8])
     }
 
-    pub fn get_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {
+    fn get_fs_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {
         match self.file_cache.get(hash) {
             // it's just `Ok(v)`
-            // the compiler thinks `v` and `self.get_file_content` violates the borrow rules,
+            // the compiler thinks `v` and `self.get_fs_file_content` violates the borrow rules,
             // but they don't! It's a limitation of the current borrow checker
             // the Rust team says the next version of the borrow checker will fix this
             Some(v) => unsafe { Ok(&*(v as *const [u8])) },
 
             None => {
-                self.file_cache.insert(hash, self.files.get(&hash).unwrap())?;
+                let path = match self.files.get(&hash) {
+                    Some(p) => p,
+                    None => {
+                        return Err(FileError::invalid_file_hash(hash));
+                    },
+                };
 
-                self.get_file_content(hash)
+                self.file_cache.insert(hash, path)?;
+
+                self.get_fs_file_content(hash)
             },
         }
     }

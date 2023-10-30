@@ -23,6 +23,67 @@ impl Pattern {
         self.ty = Some(ty);
     }
 
+    pub fn get_name_bindings(&self) -> Vec<IdentWithSpan> {
+        let mut bindings = vec![];
+
+        match &self.kind {
+            PatternKind::Identifier(_)
+            | PatternKind::Number(_)
+            | PatternKind::Char(_)
+            | PatternKind::Path(_)
+            | PatternKind::Wildcard
+            | PatternKind::Shorthand => { /* nop */ },
+            PatternKind::Binding(name) => {
+                bindings.push(IdentWithSpan::new(*name, self.span));
+            },
+            PatternKind::Range { from, to, .. } => {
+                for binding in from.as_ref().map(|pat| pat.get_name_bindings()).unwrap_or(vec![]) {
+                    bindings.push(binding);
+                }
+
+                for binding in to.as_ref().map(|pat| pat.get_name_bindings()).unwrap_or(vec![]) {
+                    bindings.push(binding);
+                }
+            },
+            PatternKind::Tuple(patterns)
+            | PatternKind::Slice(patterns)
+            | PatternKind::TupleStruct {
+                fields: patterns,
+                ..
+            } => {
+                for pattern in patterns.iter() {
+                    for binding in pattern.get_name_bindings() {
+                        bindings.push(binding);
+                    }
+                }
+            },
+            PatternKind::Struct {
+                fields, ..
+            } => {
+                for PatField { value, .. } in fields.iter() {
+                    for binding in value.get_name_bindings() {
+                        bindings.push(binding);
+                    }
+                }
+            },
+            PatternKind::Or(left, right) => {
+                for binding in left.get_name_bindings() {
+                    bindings.push(binding);
+                }
+
+                for binding in right.get_name_bindings() {
+                    bindings.push(binding);
+                }
+            },
+        }
+
+        if let Some(id) = &self.bind {
+            bindings.push(*id);
+        }
+
+        bindings
+    }
+
     pub fn bind_name(&mut self, name: IdentWithSpan) {
         self.bind = Some(name);
     }

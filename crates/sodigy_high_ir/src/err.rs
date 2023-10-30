@@ -3,6 +3,7 @@ use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
+#[derive(Clone)]
 pub struct HirError {
     kind: HirErrorKind,
     spans: Vec<SpanRange>,
@@ -52,6 +53,7 @@ impl SodigyError<HirErrorKind> for HirError {
     }
 }
 
+#[derive(Clone)]
 pub enum HirErrorKind {
     NameCollision(InternedString),
     UndefinedName {
@@ -76,7 +78,7 @@ impl SodigyErrorKind for HirErrorKind {
             } => match suggestions.len() {
                 0 => String::new(),
                 1 => format!(
-                    "A similar name exists in the current scope: {}",
+                    "A similar name exists in the current scope: `{}`",
                     suggestions[0],
                 ),
                 _ => format!(

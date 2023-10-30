@@ -52,12 +52,23 @@ impl Session {
     }
 
     /// it only searches the local session
-    pub fn unintern_string(&self, string: InternedString) -> Option<&[u8]> {
+    pub fn unintern_string_fast(&self, string: InternedString) -> Option<&[u8]> {
         self.local_string_table_rev.get(&string).map(|s| s as &[u8])
     }
 
+    pub fn unintern_string(&mut self, string: InternedString) -> Option<&[u8]> {
+        match self.unintern_string_fast(string) {
+            Some(s) => Some(s),
+            None => unsafe {
+                let g = global_intern_session();
+
+                g.strings_rev.get(&string).map(|s| s as &[u8])
+            },
+        }
+    }
+
     /// it only searches the local session
-    pub fn unintern_numeric(&self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
+    pub fn unintern_numeric_fast(&self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
         self.local_numeric_table_rev.get(&numeric)
     }
 }

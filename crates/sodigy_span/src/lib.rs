@@ -119,16 +119,9 @@ impl SpanRange {
         unsafe {
             let g = global_file_session();
 
-            match g.get_tmp_file(self.file) {
-                Some(buf) => {
-                    buf[self.start..self.end].to_vec()
-                },
-                _ => match g.get_file_content(self.file) {
-                    Ok(buf) => {
-                        buf[self.start..self.end].to_vec()
-                    },
-                    Err(e) => panic!("{e:?}"),
-                },
+            match g.get_file_content(self.file) {
+                Ok(buf) => buf[self.start..self.end].to_vec(),
+                Err(e) => panic!("{e:?}"),
             }
         }
     }

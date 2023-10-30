@@ -1,28 +1,48 @@
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_err::SodigyError;
-use sodigy_files::{get_all_sdg, global_file_session};
+use sodigy_files::{get_all_sdg, global_file_session, FileHash};
 use sodigy_high_ir::{from_stmts, HirSession};
-use sodigy_lex::{lex, lex_flex, LexSession};
+use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_span::SpanPoint;
 
 fn main() {
-    let file_session = unsafe { global_file_session() };
+    // tests
+
+    compile_input("
+        def korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";
+    ".as_bytes().to_vec());
 
     for file in get_all_sdg(
         "./samples/err", false, "in"
     ).unwrap().iter().chain(
         get_all_sdg("./samples", true, "sdg").unwrap().iter()
     ) {
-        let file_hash = file_session.register_file(&file);
-        run(&file_session.get_file_content(file_hash).unwrap(), file_hash);
+        compile_file(file.to_string());
     }
 }
 
-fn run(input: &[u8], file: u64) {
+fn compile_file(path: String) {
+    let file_session = unsafe { global_file_session() };
+    let file = file_session.register_file(&path);
+
+    compile(file)
+}
+
+fn compile_input(input: Vec<u8>) {
+    let file_session = unsafe { global_file_session() };
+    let file = file_session.register_tmp_file(input);
+
+    compile(file)
+}
+
+fn compile(file_hash: FileHash) {
+    let file_session = unsafe { global_file_session() };
+    let input = file_session.get_file_content(file_hash).unwrap();
+
     let mut lex_session = LexSession::new();
 
-    if let Err(()) = lex_flex!(input, 0, SpanPoint::at_file(file, 0), &mut lex_session) {
+    if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         for error in lex_session.get_errors() {
             println!("{}\n\n", error.render_error());
         }

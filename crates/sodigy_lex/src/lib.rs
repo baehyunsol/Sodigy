@@ -7,7 +7,6 @@ mod session;
 pub use err::LexError;
 use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 
-use sodigy_data_structures::FixedVec;
 use sodigy_err::{ErrorContext, SodigyError};
 use sodigy_span::SpanPoint;
 use sodigy_test::{sodigy_assert, TEST_MODE};
@@ -56,14 +55,14 @@ impl From<u8> for QuoteKind {
     }
 }
 
-pub fn lex<const N: usize>(
+pub fn lex(
     input: &[u8],
     mut index: usize,
     span_start: SpanPoint,  // span of `input[0]`
     session: &mut LexSession,
 ) -> Result<(), ()> {
     let mut curr_state = LexState::Init;
-    let mut tmp_buf: FixedVec<u8, N> = FixedVec::init(0);
+    let mut tmp_buf = Vec::with_capacity(256);
     let mut curr_token_span_start = span_start;
 
     loop {
@@ -147,7 +146,7 @@ pub fn lex<const N: usize>(
                         }
 
                         else if c == *marker {
-                            let content = match String::from_utf8(tmp_buf.to_vec()) {
+                            let content = match String::from_utf8(tmp_buf.clone()) {
                                 Ok(c) => c,
                                 Err(_) => {
                                     session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
@@ -163,7 +162,7 @@ pub fn lex<const N: usize>(
                                 span: curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
                             });
 
-                            tmp_buf.flush();
+                            tmp_buf.clear();
                             curr_state = LexState::Init;
                         }
 
@@ -176,7 +175,7 @@ pub fn lex<const N: usize>(
                         match comment_kind {
                             CommentKind::Single | CommentKind::Doc => {
                                 if c == b'\n' {
-                                    let content = match String::from_utf8(tmp_buf.to_vec()) {
+                                    let content = match String::from_utf8(tmp_buf.clone()) {
                                         Ok(c) => c,
                                         Err(_) => {
                                             session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
@@ -192,7 +191,7 @@ pub fn lex<const N: usize>(
                                         span: curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
                                     });
 
-                                    tmp_buf.flush();
+                                    tmp_buf.clear();
                                     curr_state = LexState::Init;
                                 }
 
@@ -214,7 +213,7 @@ pub fn lex<const N: usize>(
                                     *nest -= 1;
 
                                     if *nest == 0 {
-                                        if let Err(_) = String::from_utf8(tmp_buf.to_vec()) {
+                                        if let Err(_) = String::from_utf8(tmp_buf.clone()) {
                                             session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
                                             return Err(());
                                         }
@@ -227,7 +226,7 @@ pub fn lex<const N: usize>(
                                         });
 
                                         index += 2;
-                                        tmp_buf.flush();
+                                        tmp_buf.clear();
                                         curr_state = LexState::Init;
                                     }
                                 }
@@ -249,12 +248,12 @@ pub fn lex<const N: usize>(
 
                         else {
                             let token = Token {
-                                kind: TokenKind::Identifier(session.intern_string(tmp_buf.to_vec())),
+                                kind: TokenKind::Identifier(session.intern_string(tmp_buf.clone())),
                                 span: curr_token_span_start.extend(span_start.offset(index as i32)),
                             };
 
                             session.push_token(token);
-                            tmp_buf.flush();
+                            tmp_buf.clear();
                             curr_state = LexState::Init;
                             continue;
                         }
@@ -288,10 +287,10 @@ pub fn lex<const N: usize>(
                             },
                             _ => {
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -334,10 +333,10 @@ pub fn lex<const N: usize>(
                             },
                             _ => {
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -358,14 +357,14 @@ pub fn lex<const N: usize>(
                             },
                             b'.' => {
                                 // likely to be reading `3..4` -> it's (`3`, `..`, `4`), not (`3.`, `.`, `4`)
-                                tmp_buf.pop();
+                                tmp_buf.pop().unwrap();
                                 index -= 1;
 
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -384,10 +383,10 @@ pub fn lex<const N: usize>(
                             },
                             _ => {
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -418,10 +417,10 @@ pub fn lex<const N: usize>(
                             },
                             _ => {
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -466,10 +465,10 @@ pub fn lex<const N: usize>(
                             },
                             _ => {
                                 session.push_token(Token {
-                                    kind: TokenKind::Number(tmp_buf.to_vec()),
+                                    kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -495,7 +494,7 @@ pub fn lex<const N: usize>(
                                 return Err(());
                             },
                             _ => {
-                                let result = match bin_to_dec(&tmp_buf.to_vec()[2..]) {
+                                let result = match bin_to_dec(&tmp_buf[2..]) {
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
@@ -509,7 +508,7 @@ pub fn lex<const N: usize>(
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -535,7 +534,7 @@ pub fn lex<const N: usize>(
                                 return Err(());
                             },
                             _ => {
-                                let result = match oct_to_dec(&tmp_buf.to_vec()[2..]) {
+                                let result = match oct_to_dec(&tmp_buf[2..]) {
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
@@ -549,7 +548,7 @@ pub fn lex<const N: usize>(
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -575,7 +574,7 @@ pub fn lex<const N: usize>(
                                 return Err(());
                             },
                             _ => {
-                                let result = match hex_to_dec(&tmp_buf.to_vec()[2..]) {
+                                let result = match hex_to_dec(&tmp_buf[2..]) {
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
@@ -589,7 +588,7 @@ pub fn lex<const N: usize>(
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
-                                tmp_buf.flush();
+                                tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
                             },
@@ -614,7 +613,7 @@ pub fn lex<const N: usize>(
                     },
                     LexState::Identifier => {
                         let token = Token {
-                            kind: TokenKind::Identifier(session.intern_string(tmp_buf.to_vec())),
+                            kind: TokenKind::Identifier(session.intern_string(tmp_buf.clone())),
                             span: curr_token_span_start.extend(span_start.offset(index as i32)),
                         };
 
@@ -626,7 +625,7 @@ pub fn lex<const N: usize>(
                     | LexState::NumberDecimalPoint
                     | LexState::NumberExp => {
                         session.push_token(Token {
-                            kind: TokenKind::Number(tmp_buf.to_vec()),
+                            kind: TokenKind::Number(tmp_buf.clone()),
                             span: curr_token_span_start.extend(span_start.offset(index as i32)),
                         });
                     },
@@ -655,7 +654,7 @@ pub fn lex<const N: usize>(
 
                         else {
                             session.push_token(Token {
-                                kind: TokenKind::Number(tmp_buf.to_vec()),
+                                kind: TokenKind::Number(tmp_buf.clone()),
                                 span: curr_token_span_start.extend(span_start.offset(index as i32)),
                             });
                         }
@@ -754,36 +753,4 @@ fn try_get_char(buf: &[u8], index: usize) -> Option<char> {
             Err(_) => None,
         }
     }
-}
-
-#[macro_export]
-macro_rules! lex_flex {
-    ($input: expr, $index: expr, $span_start: expr, $session: expr) => {
-        lex_flex!(256, 1024, 4096, 16384, $input, $index, $span_start, $session)
-    };
-    ($n1: expr, $n2: expr, $n3: expr, $n4: expr, $input: expr, $index: expr, $span_start: expr, $session: expr) => {
-        {
-            let len = $input.len();
-
-            if len < $n2 {
-                if len < $n1 {
-                    lex::<$n1>($input, $index, $span_start, $session)
-                }
-
-                else {
-                    lex::<$n2>($input, $index, $span_start, $session)
-                }
-            }
-
-            else {
-                if len < $n3 {
-                    lex::<$n3>($input, $index, $span_start, $session)
-                }
-
-                else {
-                    lex::<$n4>($input, $index, $span_start, $session)
-                }
-            }
-        }
-    };
 }

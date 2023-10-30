@@ -12,6 +12,7 @@ sodigy_lex = { path = "../sodigy_lex" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_parse = { path = "../sodigy_parse" }
 sodigy_span = { path = "../sodigy_span" }
+sodigy_uid = { path = "../sodigy_uid" }
 
 [dev-dependencies]
 sodigy_files = { path = "../sodigy_files" }

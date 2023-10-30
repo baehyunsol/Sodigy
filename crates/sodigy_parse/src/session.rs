@@ -39,7 +39,7 @@ impl ParseSession {
     }
 
     pub fn flush_tokens(&mut self) {
-        self.tokens = vec![];
+        self.tokens.clear();
     }
 
     /// EXPENSIVE

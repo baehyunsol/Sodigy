@@ -9,7 +9,6 @@ edition = "2021"
 [workspace]
 members = [
     "crates/sodigy_ast",
-    "crates/sodigy_data_structures",
     "crates/sodigy_err",
     "crates/sodigy_files",
     "crates/sodigy_high_ir",
@@ -25,7 +24,6 @@ members = [
 [dependencies]
 
 sodigy_ast = { path = "crates/sodigy_ast" }
-sodigy_data_structures = { path = "crates/sodigy_data_structures" }
 sodigy_err = { path = "crates/sodigy_err" }
 sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }

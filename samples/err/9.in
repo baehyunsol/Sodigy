@@ -1,0 +1,8 @@
+def def_name_collision() = _;
+def def_name_collision() = _;
+
+def name_collision1(x: Int, x: Int): Int = x;
+
+def name_collision2<T, T>(x: Int): Int = x;
+
+def name_collision3<T>(T: Int): Int = T;

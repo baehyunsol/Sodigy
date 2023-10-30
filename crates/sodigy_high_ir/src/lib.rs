@@ -1,14 +1,21 @@
+use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan, StmtKind};
+use sodigy_err::SodigyError;
 use sodigy_intern::InternedString;
-use std::collections::HashMap;
+use sodigy_span::SpanRange;
+use std::collections::{HashMap, HashSet};
 
 mod err;
 mod expr;
 mod names;
+mod pattern;
 mod session;
 mod warn;
 
 use err::HirError;
+pub use expr::Expr;
+use expr::lower_ast_expr;
+use names::{NameOrigin, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
 
@@ -18,7 +25,6 @@ pub fn from_stmts(
 ) -> Result<(), ()> {
     let mut curr_doc_comments = vec![];
     let mut curr_decorators = vec![];
-    let mut module_defs = HashMap::new();
 
     // only for warnings
     let preludes = session.get_prelude_names();
@@ -27,7 +33,10 @@ pub fn from_stmts(
     let mut names: HashMap<InternedString, IdentWithSpan> = HashMap::new();
 
     // `use x.y.z as z;` -> use_cases['z'] = ['x', 'y', 'z']
-    let mut use_cases: HashMap<IdentWithSpan, Vec<InternedString>> = HashMap::new();
+    let mut use_cases: HashMap<InternedString, (SpanRange, Vec<InternedString>)> = HashMap::new();
+
+    // It's used to generate unused_name warnings
+    let mut used_names: HashSet<(InternedString, NameOrigin)> = HashSet::new();
 
     // first iteration:
     // collect names from definitions and check name collisions
@@ -42,7 +51,7 @@ pub fn from_stmts(
                         session.push_error(HirError::name_collision(*from, collision));
                     }
 
-                    use_cases.insert(*from, to.to_vec());
+                    use_cases.insert(*from.id(), (*from.span(), to.to_vec()));
                 }
             },
             stmt_kind => {
@@ -61,6 +70,9 @@ pub fn from_stmts(
         }
     }
 
+    // TODO: init name_space using the collected names
+    let mut name_space = NameSpace::new();
+
     // second iteration
     // collect doc comments and decorators and find where they belong to
     // lower all the AST exprs to HIR exprs
@@ -75,11 +87,16 @@ pub fn from_stmts(
             StmtKind::Decorator(d) => {
                 curr_decorators.push(d.clone());
             },
-            StmtKind::Module(m) => {
-                // TODO: merge doc_comments
-                // TODO: merge decorators
-                // TODO: set modules's doc and decorators
-                module_defs.insert(*m.id(), m.clone());
+            StmtKind::Func(f) => {
+                // TODO: what do we do with it?
+                lower_func_def(
+                    f,
+                    session,
+                    &mut used_names,
+                    &use_cases,
+                    &vec![],  // TODO: collect decorators
+                    &mut name_space,
+                );
             },
             _ => {
                 // TODO
@@ -88,4 +105,57 @@ pub fn from_stmts(
     }
 
     session.err_if_has_err()
+}
+
+pub fn lower_func_def(
+    f: &ast::FuncDef,
+    session: &mut HirSession,
+    used_names: &mut HashSet<(InternedString, NameOrigin)>,
+    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
+    decorators: &Vec<ast::Decorator>,
+    name_space: &mut NameSpace,
+) -> Result<(), ()> {
+    name_space.enter_new_func_def();
+
+    for generic in f.generics.iter() {
+        if let Err([name1, name2]) = name_space.push_generic(generic) {
+            session.push_error(HirError::name_collision(name1, name2));
+        }
+    }
+
+    if let Some(args) = &f.args {
+        for arg in args.iter() {
+            if let Err([name1, name2]) = name_space.push_arg(arg) {
+                session.push_error(HirError::name_collision(name1, name2));
+            }
+        }
+    }
+
+    if let Err([name1, name2]) = name_space.find_arg_generic_name_collision() {
+        session.push_error(
+            HirError::name_collision(name1, name2).set_message(
+                String::from("Generic parameters and function arguments are in the same namespace. You cannot use the same names.")
+            ).to_owned()
+        );
+    }
+
+    // lower all the exprs in this func
+    let ret_val = lower_ast_expr(
+        &f.ret_val,
+        session,
+        used_names,
+        use_cases,
+        name_space,
+    );
+
+    // find unused names
+
+    name_space.leave_func_def();
+
+    Ok(())
+}
+
+// TODO: independent module for this
+struct FuncDef {
+    ret_val: hir::Expr,
 }

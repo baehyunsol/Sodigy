@@ -1,9 +1,12 @@
-use super::{Expr, ExprKind};
+use super::{Expr, ExprKind, LocalDef, Scope};
 use crate::err::HirError;
-use crate::names::{NameOrigin, NameSpace};
+use crate::names::{NameBindingType, NameOrigin, NameSpace};
+use crate::pattern::lower_ast_local_def;
 use crate::session::HirSession;
+use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
+use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
 pub fn lower_ast_expr(
@@ -12,7 +15,8 @@ pub fn lower_ast_expr(
     used_names: &mut HashSet<(InternedString, NameOrigin)>,
 
     // `use z as x.y.z;` -> {'z': ['x', 'y', 'z']}
-    use_cases: &HashMap<InternedString, Vec<InternedString>>,
+    // span is later used for error messages
+    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
 
     name_space: &mut NameSpace,
 ) -> Result<Expr, ()> {
@@ -36,13 +40,29 @@ pub fn lower_ast_expr(
                 else {
                     session.push_error(HirError::undefined_name(
                         IdentWithSpan::new(*id, e.span),
-                        vec![],  // TODO: suggestions
+
+                        // This is VERY EXPENSIVE
+                        // make sure it's called only when the compilation fails
+                        name_space.find_similar_names(*id),
                     ));
                     return Err(());
                 }
             },
-            ValueKind::Number(n) => todo!(),
-            ValueKind::String { s, is_binary } => todo!(),
+            ValueKind::Number(n) => if n.is_integer() {
+                Expr {
+                    kind: ExprKind::Integer(*n),
+                    span: e.span,
+                }
+            } else {
+                Expr {
+                    kind: ExprKind::Ratio(*n),
+                    span: e.span,
+                }
+            },
+            ValueKind::String { s, is_binary } => Expr {
+                kind: ExprKind::String { s: *s, is_binary: *is_binary },
+                span: e.span,
+            },
             ValueKind::Char(c) => todo!(),
             ValueKind::List(elems) => todo!(),
             ValueKind::Tuple(elems) => todo!(),
@@ -56,12 +76,82 @@ pub fn lower_ast_expr(
                 // check unused-names
                 todo!();
             },
-            ValueKind::Scope(scope) => {
-                // Push names defined in this scope, then recurs
-                todo!();
+            ValueKind::Scope { scope, uid } => {
+                let mut name_bindings = HashSet::new();
+                let mut name_collision_checker = HashMap::new();
 
-                // check unused-names
-                todo!();
+                // push name bindings to the name space
+                // find name collisions
+                for ast::LocalDef { pattern, .. } in scope.defs.iter() {
+                    for def in pattern.get_name_bindings().iter() {
+                        match name_collision_checker.get(def.id()) {
+                            Some(id) => {
+                                session.push_error(HirError::name_collision(*def, *id));
+                            },
+                            None => {
+                                name_collision_checker.insert(*def.id(), *def);
+                            },
+                        }
+
+                        name_bindings.insert(*def.id());
+                    }
+                }
+
+                name_space.push_locals(
+                    *uid,
+                    name_bindings,
+                );
+
+                // lower defs and values
+                let local_defs: Vec<Result<LocalDef, ()>> = scope.defs.iter().map(
+                    |local_def| lower_ast_local_def(local_def, session)
+                ).collect();
+
+                let value = lower_ast_expr(
+                    scope.value.as_ref(),
+                    session,
+                    used_names,
+                    use_cases,
+                    name_space,
+                );
+
+                // find unused names
+                for (id, id_with_span) in name_collision_checker.iter() {
+                    if !used_names.contains(&(*id, NameOrigin::Local { origin: *uid })) {
+                        session.push_warning(HirWarning::unused_name(*id_with_span, NameBindingType::LocalScope));
+                    }
+                }
+
+                // we have to unwrap errors as late as possible
+                // so that we can find as many as possible
+                let mut has_error = false;
+
+                let local_defs = local_defs.into_iter().filter_map(
+                    |d| match d {
+                        Ok(d) => Some(d),
+                        Err(_) => {
+                            has_error = true;
+                            None
+                        }
+                    }
+                ).collect();
+
+                let value = value?;
+
+                if has_error {
+                    return Err(());
+                }
+
+                name_space.pop_locals();
+
+                Expr {
+                    kind: ExprKind::Scope(Scope {
+                        defs: local_defs,
+                        value: Box::new(value),
+                        uid: *uid,
+                    }),
+                    span: e.span,
+                }
             },
         },
         ast::ExprKind::PrefixOp(op, expr) => Expr {

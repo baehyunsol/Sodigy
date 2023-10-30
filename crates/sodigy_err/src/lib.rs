@@ -4,7 +4,10 @@ use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::HashSet;
 
+mod dist;
 mod fmt;
+
+pub use dist::substr_edit_distance;
 
 #[derive(Clone)]
 pub struct ExtraErrInfo {

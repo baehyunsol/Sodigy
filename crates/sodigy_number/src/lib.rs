@@ -11,7 +11,7 @@ pub struct SodigyNumber {
     // exp 10
     exp: i64,
 
-    is_integer: bool,
+    pub is_integer: bool,
 }
 
 enum ParseState {

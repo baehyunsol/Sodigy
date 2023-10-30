@@ -24,6 +24,24 @@ generic type annotation: `Some(3)`, `Some(Int, 3)`
 
 ---
 
+```
+# it checks `x > 0` on runtime, everytime the function is called
+@assert(x > 0)
+def foo(x: Int) = math.sqrt(x);
+
+# it applies the function to the return value on runtime, everytime the function returns
+@assert.return_value(\{x, x > 0})
+def return_positive(x: Int) = x * x + 1;
+```
+
+`assert` guard checks the condition everytime the function is called
+
+how do I inline this?
+
+how do I enable/disable this?
+
+---
+
 rustc: termcolor라는 crate 쓰는구만...
 
 ---
