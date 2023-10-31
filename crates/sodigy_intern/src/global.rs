@@ -97,7 +97,7 @@ impl GlobalInternSession {
             match self.numerics.get(&numeric) {
                 Some(ii) => *ii,
                 None => {
-                    let ii = self.get_new_numeric_index(numeric.is_integer);
+                    let ii = self.get_new_numeric_index(numeric.is_integer());
 
                     self.numerics.insert(numeric.clone(), ii);
                     self.numerics_rev.insert(ii, numeric);
@@ -120,7 +120,8 @@ impl GlobalInternSession {
 
 pub(crate) const DATA_MASK: u32 = 0x00ff_ffff;
 
-pub(crate) const SPECIAL_STRINGS: u32 = 0xff00_0000;
+// metadata for strings
+pub(crate) const SPECIAL_STRINGS: u32 = 0x1000_0000;
 
 // metadata for numerics
 pub(crate) const IS_INTEGER: u32 = 0x1000_0000;

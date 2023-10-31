@@ -1,6 +1,8 @@
 // #![allow(dead_code)]
 use crate::err::FileError;
+use std::collections::hash_map;
 use std::fs::{self, File, OpenOptions};
+use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -152,6 +154,23 @@ pub fn exists(path: &str) -> bool {
     match PathBuf::from_str(path) {
         Err(_) => false,
         Ok(path) => path.exists(),
+    }
+}
+
+// it only returns the hash value of the modified time
+pub fn last_modified(path: &str) -> Result<u64, FileError> {
+    match fs::metadata(path) {
+        Ok(m) => match m.modified() {
+            Ok(m) => {
+                let mut hasher = hash_map::DefaultHasher::new();
+                m.hash(&mut hasher);
+                let hash = hasher.finish();
+
+                Ok(hash)
+            },
+            Err(e) => Err(FileError::init(e, path)),
+        },
+        Err(e) => Err(FileError::init(e, path)),
     }
 }
 

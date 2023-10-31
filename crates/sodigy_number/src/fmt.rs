@@ -1,8 +1,21 @@
-use super::SodigyNumber;
+use super::{BigNumber, SodigyNumber};
 use sodigy_test::sodigy_assert_eq;
 use std::fmt;
 
-impl fmt::Debug for SodigyNumber {
+impl fmt::Display for SodigyNumber {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "{}",
+            match self {
+                SodigyNumber::Big(n) => format!("{n}"),
+                SodigyNumber::Small(n) => format!("{n}"),
+            },
+        )
+    }
+}
+
+impl fmt::Debug for BigNumber {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             fmt,
@@ -14,7 +27,7 @@ impl fmt::Debug for SodigyNumber {
     }
 }
 
-impl fmt::Display for SodigyNumber {
+impl fmt::Display for BigNumber {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let mut digits = self.digits.clone();
         let mut exp = self.exp;

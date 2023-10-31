@@ -1,13 +1,15 @@
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_err::SodigyError;
 use sodigy_files::{get_all_sdg, global_file_session, FileHash};
-use sodigy_high_ir::{from_stmts, HirSession};
+use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_span::SpanPoint;
 
 fn main() {
     // tests
+
+    compile_file("./samples/easy.sdg".to_string());
 
     compile_input("
         def korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";
@@ -79,7 +81,7 @@ fn compile(file_hash: FileHash) {
     }
 
     let mut hir_session = HirSession::new();
-    let res = from_stmts(ast_session.get_stmts(), &mut hir_session);
+    let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
 
     for warning in hir_session.get_warnings() {
         println!("{}\n\n", warning.render_error());

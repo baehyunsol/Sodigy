@@ -1,7 +1,7 @@
 use super::*;
 use sodigy_err::SodigyError;
 use sodigy_files::{get_all_sdg, global_file_session};
-use sodigy_lex::{lex, lex_flex, LexSession};
+use sodigy_lex::{lex, LexSession};
 use sodigy_span::SpanPoint;
 use sodigy_parse::{from_tokens, ParseSession};
 
@@ -14,7 +14,7 @@ fn ast_test() {
         let f = g.register_file(&path.to_string());
         let content = g.get_file_content(f).unwrap();
 
-        lex_flex!(&content, 0, SpanPoint::at_file(f, 0), &mut lex_session).unwrap();
+        lex(&content, 0, SpanPoint::at_file(f, 0), &mut lex_session).unwrap();
 
         let mut parse_session = ParseSession::from_lex_session(&lex_session);
         from_tokens(lex_session.get_tokens(), &mut parse_session, &mut LexSession::new()).unwrap();

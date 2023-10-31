@@ -2,6 +2,7 @@ use sodigy_err::ErrorContext;
 use sodigy_intern::InternedString;
 use sodigy_parse::FormattedStringElement;
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 
 mod err;
 mod expr;
@@ -87,11 +88,13 @@ pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub value: Expr,
+    pub uid: Uid,
 }
 
 #[derive(Clone)]
 pub struct BranchArm {
     pub cond: Option<Expr>,
+    pub let_bind: Option<Pattern>,  // `if let` let_bind = cond { value }
     pub value: Expr,
 }
 

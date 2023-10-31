@@ -26,6 +26,7 @@ pub enum ExprKind {
     },
 
     Scope(Scope),
+    Match(Match),
 
     PrefixOp(PrefixOp, Box<Expr>),
     PostfixOp(PostfixOp, Box<Expr>),
@@ -42,4 +43,15 @@ pub struct LocalDef {
     pub pattern: Pattern,
     pub value: Expr,
     pub let_span: SpanRange,
+}
+
+pub struct Match {
+    arms: Vec<MatchArm>,
+    value: Box<Expr>,
+}
+
+pub struct MatchArm {
+    pub pattern: Pattern,
+    pub value: Expr,
+    pub guard: Option<Expr>,
 }

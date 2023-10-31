@@ -19,7 +19,7 @@ use names::{NameOrigin, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
 
-pub fn from_stmts(
+pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
     session: &mut HirSession
 ) -> Result<(), ()> {

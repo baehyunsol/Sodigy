@@ -77,6 +77,20 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             },
                         };
 
+                        match tokens.peek() {
+                            Some(Token {
+                                kind: TokenKind::Punct(Punct::Concat),
+                                span,
+                            }) => {
+                                session.push_error(AstError::empty_generic_list(
+                                    *span,
+                                ));
+                                tokens.march_until_stmt();
+                                continue;
+                            },
+                            _ => {},
+                        }
+
                         let generics = if tokens.is_curr_token(TokenKind::Punct(Punct::Lt)) {
                             match parse_generic_param_list(tokens, session) {
                                 Ok(g) => g,
@@ -999,6 +1013,15 @@ pub fn parse_type_def(
     // when `tokens` is empty, it uses this span for the error message
     parent_span: SpanRange,
 ) -> Result<TypeDef, ()> {
+    // this branch doesn't do anything but provides better error message
+    if tokens.is_finished() {
+        session.push_error(AstError::unexpected_end(
+            tokens.span_end().unwrap_or(parent_span),
+            ExpectedToken::ty(),
+        ));
+        return Err(());
+    }
+
     Ok(TypeDef::from_expr(parse_expr(
         tokens,
         session,
@@ -1166,6 +1189,15 @@ fn parse_scope_block(
         Some(ErrorContext::ParsingScopeBlock),
         span,
     )?;
+
+    if !tokens.is_finished() {
+        session.push_error(AstError::unexpected_token(
+            tokens.peek().unwrap().clone(),
+            ExpectedToken::Nothing,
+        ));
+
+        return Err(());
+    }
 
     Ok(ScopeDef { defs, value: Box::new(value) })
 }
@@ -1362,6 +1394,26 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 ).set_err_context(
                     ErrorContext::ParsingMatchBody
                 ).to_owned());
+
+                // check typo: `->` instead of `=>`
+                if token.kind == TokenKind::Punct(Punct::Sub) {
+                    let token = token.clone();
+
+                    if tokens.is_curr_token(TokenKind::Punct(Punct::Gt)) {
+                        session.pop_error().unwrap();
+
+                        session.push_error(AstError::unexpected_token(
+                            token,
+                            ExpectedToken::specific(TokenKind::Punct(Punct::RArrow)),
+                        ).set_err_context(
+                            ErrorContext::ParsingMatchBody
+                        ).set_message(
+                            String::from("Use `=>` instead of `->`.")
+                        ).to_owned());
+                        return Err(());
+                    }
+                }
+
                 return Err(());
             },
             None => {
@@ -1386,6 +1438,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
 
         arms.push(MatchArm {
             pattern, value, guard,
+            uid: Uid::new_match_arm(),
         });
 
         match tokens.consume(TokenKind::Punct(Punct::Comma)) {
@@ -1585,6 +1638,7 @@ fn parse_branch_arm(
 
                     Ok(BranchArm {
                         cond: Some(cond),
+                        let_bind: None,  // TODO
                         value,
                     })
                 },
@@ -1617,6 +1671,7 @@ fn parse_branch_arm(
 
             Ok(BranchArm {
                 cond: None,
+                let_bind: None,  // TODO
                 value,
             })
         },
@@ -1999,6 +2054,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
 
     let mut params = vec![];
 
+    // TODO: does it allow trailing commas?
     loop {
         if tokens.is_finished() {
             if params.is_empty() {
@@ -2017,6 +2073,15 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
         params.push(
             match tokens.expect_ident() {
                 Ok(id) => id,
+                Err(e @ AstError {
+                    kind: AstErrorKind::UnexpectedToken(TokenKind::Punct(Punct::Gt), _),
+                    ..
+                }) if params.is_empty() => {
+                    session.push_error(AstError::empty_generic_list(
+                        e.get_first_span()
+                    ));
+                    return Err(());
+                },
                 Err(e) => {
                     session.push_error(e);
                     return Err(());
@@ -2029,6 +2094,11 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
                 kind: TokenKind::Punct(Punct::Comma),
                 ..
             }) => {
+                if tokens.is_curr_token(TokenKind::Punct(Punct::Gt)) {
+                    tokens.step().unwrap();  // step `>`
+                    return Ok(params);
+                }
+
                 continue;
             },
             Some(Token {

@@ -38,6 +38,10 @@ impl AstSession {
         self.errors.push(error);
     }
 
+    pub fn pop_error(&mut self) -> Option<AstError> {
+        self.errors.pop()
+    }
+
     pub fn get_errors(&self) -> &Vec<AstError> {
         &self.errors
     }

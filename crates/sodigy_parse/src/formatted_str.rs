@@ -68,9 +68,12 @@ pub fn parse_str(
                         match check_fstring_type(&curr_buf) {
                             t @ (FstringType::Normal | FstringType::NestedNested) => {
                                 lex_session.flush_tokens();
-                                let f_string_start_span = span_start.offset(f_string_start_index as i32);
+                                let f_string_start_span = span_start.offset(
+                                    f_string_start_index as i32
+                                    + (t == FstringType::NestedNested) as i32
+                                );
 
-                                lex(&curr_buf, 0, f_string_start_span, lex_session)?;
+                                lex(pill_braces(&curr_buf, t), 0, f_string_start_span, lex_session)?;
 
                                 let tokens = lex_session.get_tokens().to_vec();
 
@@ -124,6 +127,15 @@ pub fn parse_str(
     Ok(result)
 }
 
+fn pill_braces(buf: &[u8], f_string_type: FstringType) -> &[u8] {
+    match f_string_type {
+        FstringType::Normal => buf,
+        FstringType::NestedNested => &buf[1..(buf.len() - 1)],
+        _ => unreachable!(),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
 enum FstringType {
     Normal,        // f"{3 + 4}" -> "7"
     Nested,        // f"{{3 + 4}}" -> "{3 + 4}"

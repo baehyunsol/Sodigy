@@ -14,8 +14,6 @@ pub enum ValueKind {
     List(Vec<Expr>),
     Tuple(Vec<Expr>),
     Format(Vec<Expr>),
-
-    // Later inspect -> closures and recursive lambdas
     Lambda {
         args: Vec<ArgDef>,
         value: Box<Expr>,

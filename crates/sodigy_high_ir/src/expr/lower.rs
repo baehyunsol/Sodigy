@@ -1,7 +1,7 @@
-use super::{Expr, ExprKind, LocalDef, Scope};
+use super::{Expr, ExprKind, LocalDef, Match, MatchArm, Scope};
 use crate::err::HirError;
 use crate::names::{NameBindingType, NameOrigin, NameSpace};
-use crate::pattern::lower_ast_local_def;
+use crate::pattern::{lower_ast_local_def, lower_ast_pattern};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
@@ -104,7 +104,13 @@ pub fn lower_ast_expr(
 
                 // lower defs and values
                 let local_defs: Vec<Result<LocalDef, ()>> = scope.defs.iter().map(
-                    |local_def| lower_ast_local_def(local_def, session)
+                    |local_def| lower_ast_local_def(
+                        local_def,
+                        session,
+                        used_names,
+                        use_cases,
+                        name_space,
+                    )
                 ).collect();
 
                 let value = lower_ast_expr(
@@ -126,7 +132,7 @@ pub fn lower_ast_expr(
                 // so that we can find as many as possible
                 let mut has_error = false;
 
-                let local_defs = local_defs.into_iter().filter_map(
+                let local_defs: Vec<LocalDef> = local_defs.into_iter().filter_map(
                     |d| match d {
                         Ok(d) => Some(d),
                         Err(_) => {
@@ -136,21 +142,29 @@ pub fn lower_ast_expr(
                     }
                 ).collect();
 
+                name_space.pop_locals();
+
                 let value = value?;
 
                 if has_error {
                     return Err(());
                 }
 
-                name_space.pop_locals();
+                // very simple optimization: `{ x }` -> `x`
+                // TODO: make ALL the optimizations configurable
+                if local_defs.is_empty() {
+                    value
+                }
 
-                Expr {
-                    kind: ExprKind::Scope(Scope {
-                        defs: local_defs,
-                        value: Box::new(value),
-                        uid: *uid,
-                    }),
-                    span: e.span,
+                else {
+                    Expr {
+                        kind: ExprKind::Scope(Scope {
+                            defs: local_defs,
+                            value: Box::new(value),
+                            uid: *uid,
+                        }),
+                        span: e.span,
+                    }
                 }
             },
         },
@@ -218,11 +232,87 @@ pub fn lower_ast_expr(
             todo!();
         },
         ast::ExprKind::Match { value, arms } => {
-            // Push names defined in the arms, then recurs
-            todo!();
+            let result_value = lower_ast_expr(
+                value,
+                session,
+                used_names,
+                use_cases,
+                name_space,
+            );
+            let mut result_arms = Vec::with_capacity(arms.len());
 
-            // check unused-names
-            todo!();
+            for ast::MatchArm {
+                pattern,
+                guard,
+                value,
+                uid,
+            } in arms.iter() {
+                // TODO: it's a copy-paste of ast::ExprKind::Scope
+                let mut name_bindings = HashSet::new();
+                let mut name_collision_checker = HashMap::new();
+
+                for def in pattern.get_name_bindings().iter() {
+                    match name_collision_checker.get(def.id()) {
+                        Some(id) => {
+                            session.push_error(HirError::name_collision(*def, *id));
+                        },
+                        None => {
+                            name_collision_checker.insert(*def.id(), *def);
+                        },
+                    }
+
+                    name_bindings.insert(*def.id());
+                }
+
+                name_space.push_locals(
+                    *uid,
+                    name_bindings,
+                );
+
+                let value = lower_ast_expr(
+                    value,
+                    session,
+                    used_names,
+                    use_cases,
+                    name_space,
+                );
+
+                let pattern = lower_ast_pattern(
+                    pattern,
+                    session,
+                );
+
+                let guard = guard.as_ref().map(|g| lower_ast_expr(
+                    g,
+                    session,
+                    used_names,
+                    use_cases,
+                    name_space,
+                ));
+
+                // find unused names
+                for (id, id_with_span) in name_collision_checker.iter() {
+                    if !used_names.contains(&(*id, NameOrigin::Local { origin: *uid })) {
+                        session.push_warning(HirWarning::unused_name(*id_with_span, NameBindingType::MatchArm));
+                    }
+                }
+
+                name_space.pop_locals();
+
+                result_arms.push(MatchArm {
+                    value: value?,
+                    pattern: pattern?,
+                    guard: if let Some(g) = guard { Some(g?) } else { None },
+                });
+            }
+
+            Expr {
+                kind: ExprKind::Match(Match {
+                    arms: result_arms,
+                    value: Box::new(result_value?),
+                }),
+                span: e.span,
+            }
         },
     };
 

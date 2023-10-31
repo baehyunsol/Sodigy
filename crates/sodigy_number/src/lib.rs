@@ -3,8 +3,36 @@ mod fmt;
 
 pub use err::NumericParseError;
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum SodigyNumber {
+    Big(BigNumber),
+    Small(u64),
+}
+
+impl SodigyNumber {
+    // `s` is guaranteed to be a valid, decimal number. `s` may contain `e` or a decimal separator.
+    pub fn from_string(s: &[u8]) -> Result<Self, NumericParseError> {
+        if s.len() < 16 {
+            if let Ok(s) = String::from_utf8(s.to_vec()) {
+                if let Ok(n) = s.parse::<u64>() {
+                    return Ok(SodigyNumber::Small(n));
+                }
+            }
+        }
+
+        Ok(SodigyNumber::Big(BigNumber::from_string(s)?))
+    }
+
+    pub fn is_integer(&self) -> bool {
+        match self {
+            SodigyNumber::Big(n) => n.is_integer,
+            SodigyNumber::Small(_) => true,
+        }
+    }
+}
+
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct SodigyNumber {
+pub struct BigNumber {
     // it's in decimal
     digits: Vec<u8>,
 
@@ -20,9 +48,9 @@ enum ParseState {
     Exp,
 }
 
-impl SodigyNumber {
+impl BigNumber {
     // `s` is guaranteed to be a valid, decimal number. `s` may contain `e` or a decimal separator.
-    pub fn from_string(s: &[u8]) -> Result<Self, NumericParseError> {
+    fn from_string(s: &[u8]) -> Result<Self, NumericParseError> {
         let mut digits = Vec::with_capacity(s.len());
         let mut exp_digits = vec![];
         let mut exp = 0;
@@ -97,7 +125,7 @@ impl SodigyNumber {
             exp = 0;
         }
 
-        Ok(SodigyNumber {
+        Ok(BigNumber {
             digits,
             exp,
             is_integer,
@@ -124,8 +152,8 @@ mod tests {
 
         for (s, digits, exp, is_integer) in samples.into_iter() {
             assert_eq!(
-                SodigyNumber::from_string(s.as_bytes()).unwrap(),
-                SodigyNumber {
+                BigNumber::from_string(s.as_bytes()).unwrap(),
+                BigNumber {
                     digits: digits.as_bytes().to_vec(),
                     exp,
                     is_integer,
