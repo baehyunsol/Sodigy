@@ -1,11 +1,15 @@
 use crate::{IdentWithSpan, Token, TokenKind};
-use sodigy_err::{ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_err::{substr_edit_distance, ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_keyword::Keyword;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
 
 mod fmt;
+
+const STMT_START_KEYWORDS: [&'static str; 5] = [
+    "def", "enum", "struct", "module", "use"
+];
 
 #[derive(Clone)]
 pub struct AstError {
@@ -35,8 +39,19 @@ impl AstError {
             },
             TokenKind::Identifier(id) => {
                 match expected_token {
+                    // This is very expensive. Make sure that compilation has already failed when this branch is reached.
                     ExpectedToken::AnyStatement => {
-                        // TODO: if it seems like that `id` is a typo, tell them
+                        let mut sess = InternSession::new();
+                        let id = match sess.unintern_string(id) {
+                            Some(s) => s.to_vec(),
+                            _ => b"Unexpected error, but I don't want it to mess up any other stuff.".to_vec(),
+                        };
+
+                        for stmt_start in STMT_START_KEYWORDS.iter() {
+                            if substr_edit_distance(&id, stmt_start.as_bytes()) < 2 {
+                                extra.set_message(format!("Did you mean `{stmt_start}`?"));
+                            }
+                        }
                     },
                     _ => {},
                 }

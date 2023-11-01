@@ -1,6 +1,7 @@
 use crate::{ArgDef, Expr, GenericDef, IdentWithSpan, TypeDef};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 
 pub struct Stmt {
     pub kind: StmtKind,
@@ -40,6 +41,7 @@ pub struct FuncDef {
     pub args: Option<Vec<ArgDef>>,
     pub ret_type: Option<TypeDef>,
     pub ret_val: Expr,
+    pub uid: Uid,
 }
 
 pub enum Use {

@@ -199,39 +199,47 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
 
                     // `b"123"` is okay, but `b "123"` is not.
                     match tokens.get(index + 1) {
-                        Some(Token { kind: TokenKind::String { kind: QuoteKind::Double, content }, span: span2 }) => {
+                        Some(Token { kind: TokenKind::String { kind: quote_kind, content }, span: span2 }) => {
                             let span2 = *span2;
+                            let quote_kind = *quote_kind;
 
-                            if id.is_b() {
-                                let content = session.intern_string(content.as_bytes().to_vec());
+                            if quote_kind == QuoteKind::Double {
+                                if id.is_b() {
+                                    let content = session.intern_string(content.as_bytes().to_vec());
 
-                                session.push_token(
-                                    TokenTree {
-                                        kind: TokenTreeKind::String {
-                                            kind: QuoteKind::Double,
-                                            content,
-                                            is_binary: true,
-                                        },
+                                    session.push_token(
+                                        TokenTree {
+                                            kind: TokenTreeKind::String {
+                                                kind: QuoteKind::Double,
+                                                content,
+                                                is_binary: true,
+                                            },
+                                            span: token.span.merge(span2),
+                                        }
+                                    );
+                                }
+
+                                else {
+                                    let f_s = parse_str(
+                                        content.as_bytes(),
+                                        span2.start().offset(1),  // skip `"`
+                                        lex_session,
+                                        session,
+                                    )?;
+
+                                    session.push_token(TokenTree {
+                                        kind: TokenTreeKind::FormattedString(f_s),
                                         span: token.span.merge(span2),
-                                    }
-                                );
+                                    });
+                                }
+
+                                index += 1;
                             }
 
                             else {
-                                let f_s = parse_str(
-                                    content.as_bytes(),
-                                    span2.start().offset(1),  // skip `"`
-                                    lex_session,
-                                    session,
-                                )?;
-
-                                session.push_token(TokenTree {
-                                    kind: TokenTreeKind::FormattedString(f_s),
-                                    span: token.span.merge(span2),
-                                });
+                                session.push_error(ParseError::f_string_single_quote(span2));
+                                return Err(());
                             }
-
-                            index += 1;
                         },
                         _ => {
                             let token = match id.try_into_keyword() {

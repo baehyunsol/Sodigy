@@ -38,13 +38,23 @@ pub fn lower_ast_expr(
                 }
 
                 else {
-                    session.push_error(HirError::undefined_name(
-                        IdentWithSpan::new(*id, e.span),
+                    // `def foo(x: Int, y: x)`: no dependent types
+                    if name_space.func_args_locked && name_space.is_func_arg_name(id) {
+                        session.push_error(HirError::no_dependent_types(
+                            IdentWithSpan::new(*id, e.span),
+                        ));
+                    }
 
-                        // This is VERY EXPENSIVE
-                        // make sure it's called only when the compilation fails
-                        name_space.find_similar_names(*id),
-                    ));
+                    else {
+                        session.push_error(HirError::undefined_name(
+                            IdentWithSpan::new(*id, e.span),
+    
+                            // This is VERY EXPENSIVE
+                            // make sure it's called only when the compilation fails
+                            name_space.find_similar_names(*id),
+                        ));
+                    }
+
                     return Err(());
                 }
             },

@@ -66,6 +66,14 @@ impl ParseError {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn f_string_single_quote(span: SpanRange) -> Self {
+        ParseError {
+            kind: ParseErrorKind::FStringSingleQuote,
+            spans: vec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<ParseErrorKind> for ParseError {
@@ -95,6 +103,7 @@ pub enum ParseErrorKind {
     UnfinishedDelim(u8),  // no end
     MismatchDelim(u8),    // no start
     EmptyFString,
+    FStringSingleQuote,
     ThreeDots,
     LonelyBacktick,
     LonelyBackslash,
@@ -123,6 +132,7 @@ impl SodigyErrorKind for ParseErrorKind {
             ParseErrorKind::NumericExpOverflow => "too large numeric literal".to_string(),
             ParseErrorKind::LonelyBacktick => "field modifier without a field name".to_string(),
             ParseErrorKind::LonelyBackslash => "unexpected character `\\`".to_string(),
+            ParseErrorKind::FStringSingleQuote => "format-string with single quotes".to_string(),
         }
     }
 
@@ -134,6 +144,7 @@ it uses 64-bit integer for its exponent. That means `123e100000` is okay, but `1
             ParseErrorKind::ThreeDots => "If you are to make a range of decimal-pointed numbers, use parenthesis. \
 For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::LonelyBacktick => "You have to specify the name of the field you want to modify. A backtick character alone doesn't do anything.".to_string(),
+            ParseErrorKind::FStringSingleQuote => "Use `\"...\"` instead of `'...'`.".to_string(),
             ParseErrorKind::UnfinishedDelim(_)
             | ParseErrorKind::MismatchDelim(_)
             | ParseErrorKind::LonelyBackslash => String::new(),

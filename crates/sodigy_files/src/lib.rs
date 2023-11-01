@@ -27,7 +27,13 @@ unsafe fn init_global_file_session() {
         return;
     }
 
-    let lock = LOCK.lock();
+    let lock = LOCK.lock().unwrap();
+
+    // see comments in sodigy_intern::global::init_global
+    if IS_INIT {
+        return;
+    }
+
     let mut g = Box::new(FileSession::new());
     GLOBAL_FILE_SESSION = g.as_mut() as *mut _;
     IS_INIT = true;

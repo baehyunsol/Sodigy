@@ -195,6 +195,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                 args,
                                 ret_type,
                                 ret_val,
+                                uid: Uid::new_func(),
                             }),
                             span,
                         });
@@ -476,11 +477,19 @@ pub fn parse_expr(
                     return Err(());
                 },
                 Err(()) => {
+                    let message = if punct == Punct::DotDot {
+                        String::from("`..` is not a valid prefix operator. If you want its lhs to be 0, specify it. Like `0..`")
+                    }
+
+                    else {
+                        format!("`{punct}` is not a valid prefix operator.")
+                    };
+
                     session.push_error(AstError::unexpected_token(
                         Token::new_punct(punct, prefix_op_span),
                         ExpectedToken::expr(),
                     ).set_message(
-                        format!("`{punct}` is not a valid prefix operator.")
+                        message
                     ).try_set_err_context(
                         error_context,
                     ).to_owned());
@@ -845,6 +854,8 @@ pub fn parse_expr(
                         Err(mut e) => {
                             session.push_error(e.try_set_err_context(
                                 error_context,
+                            ).set_message(
+                                String::from("A name of a field must be an identifier.")
                             ).to_owned());
                             return Err(());
                         },

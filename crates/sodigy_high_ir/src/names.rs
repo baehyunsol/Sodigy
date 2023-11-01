@@ -42,6 +42,8 @@ pub struct NameSpace {
 
     // name bindings in `match`, scope, lambda, `if let`, and etc
     locals: Vec<(Uid, HashSet<InternedString>)>,
+
+    pub(crate) func_args_locked: bool,
 }
 
 impl NameSpace {
@@ -52,6 +54,7 @@ impl NameSpace {
             func_args: vec![],
             func_generics: vec![],
             locals: vec![],
+            func_args_locked: true,
         }
     }
 
@@ -66,6 +69,18 @@ impl NameSpace {
         // we don't have to initialize vectors twice
 
         sodigy_assert!(self.locals.is_empty());
+    }
+
+    pub fn iter_func_args(&self) -> Vec<(IdentWithSpan, NameOrigin)> {
+        self.func_args.iter().enumerate().map(
+            |(index, arg)| (*arg, NameOrigin::FuncArg { index })
+        ).collect()
+    }
+
+    pub fn iter_func_generics(&self) -> Vec<(IdentWithSpan, NameOrigin)> {
+        self.func_generics.iter().enumerate().map(
+            |(index, generic)| (*generic, NameOrigin::FuncGeneric { index })
+        ).collect()
     }
 
     pub fn push_arg(&mut self, arg: &ArgDef) -> Result<(), [IdentWithSpan; 2]> {
@@ -90,6 +105,20 @@ impl NameSpace {
 
         self.func_generics.push(*generic);
         Ok(())
+    }
+
+    pub fn is_func_arg_name(&self, id: &InternedString) -> bool {
+        self.func_args.iter().any(|ids| ids.id() == id)
+    }
+
+    // func args are not fully pushed yet
+    pub fn lock_func_args(&mut self) {
+        self.func_args_locked = true;
+    }
+
+    // func args are fully pushed now
+    pub fn unlock_func_args(&mut self) {
+        self.func_args_locked = false;
     }
 
     pub fn push_locals(&mut self, uid: Uid, locals: HashSet<InternedString>) {
@@ -121,9 +150,11 @@ impl NameSpace {
             }
         }
 
-        for (index, name) in self.func_args.iter().enumerate() {
-            if *name.id() == id {
-                return Some(NameOrigin::FuncArg { index });
+        if !self.func_args_locked {
+            for (index, name) in self.func_args.iter().enumerate() {
+                if *name.id() == id {
+                    return Some(NameOrigin::FuncArg { index });
+                }
             }
         }
 
@@ -171,7 +202,17 @@ impl NameSpace {
             return result;
         }
 
-        for name in self.func_args.iter().map(
+        // tmp hack to deal with the borrowck
+        let empty_vec = vec![];
+
+        // it searches func_args only when it's not locked
+        let func_args_iter = if self.func_args_locked {
+            empty_vec.iter()
+        } else {
+            self.func_args.iter()
+        };
+
+        for name in func_args_iter.map(
             |name| name.id()
         ).chain(self.func_generics.iter().map(
             |name| name.id()

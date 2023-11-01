@@ -6,6 +6,13 @@ use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_span::SpanPoint;
 
+mod result;
+
+#[cfg(test)]
+mod tests;
+
+use result::CompileResult;
+
 fn main() {
     // tests
 
@@ -24,21 +31,22 @@ fn main() {
     }
 }
 
-fn compile_file(path: String) {
+fn compile_file(path: String) -> CompileResult {
     let file_session = unsafe { global_file_session() };
     let file = file_session.register_file(&path);
 
     compile(file)
 }
 
-fn compile_input(input: Vec<u8>) {
+fn compile_input(input: Vec<u8>) -> CompileResult {
     let file_session = unsafe { global_file_session() };
     let file = file_session.register_tmp_file(input);
 
     compile(file)
 }
 
-fn compile(file_hash: FileHash) {
+fn compile(file_hash: FileHash) -> CompileResult {
+    let mut result = CompileResult::new();
     let file_session = unsafe { global_file_session() };
     let input = file_session.get_file_content(file_hash).unwrap();
 
@@ -46,10 +54,10 @@ fn compile(file_hash: FileHash) {
 
     if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         for error in lex_session.get_errors() {
-            println!("{}\n\n", error.render_error());
+            result.push_error(format!("{}", error.render_error()));
         }
 
-        return;
+        return result;
     }
 
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
@@ -58,14 +66,14 @@ fn compile(file_hash: FileHash) {
 
     if let Err(()) = from_tokens(tokens, &mut parse_session, &mut new_lex_session) {
         for error in parse_session.get_errors() {
-            println!("{}\n\n", error.render_error());
+            result.push_error(format!("{}", error.render_error()));
         }
 
         for error in new_lex_session.get_errors() {
-            println!("{}\n\n", error.render_error());
+            result.push_error(format!("{}", error.render_error()));
         }
 
-        return;
+        return result;
     };
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
@@ -74,24 +82,26 @@ fn compile(file_hash: FileHash) {
 
     if let Err(()) = parse_stmts(&mut tokens, &mut ast_session) {
         for error in ast_session.get_errors() {
-            println!("{}\n\n", error.render_error());
+            result.push_error(format!("{}", error.render_error()));
         }
 
-        return;
+        return result;
     }
 
     let mut hir_session = HirSession::new();
     let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
 
     for warning in hir_session.get_warnings() {
-        println!("{}\n\n", warning.render_error());
+        result.push_warning(format!("{}", warning.render_error()));
     }
 
     if let Err(()) = res {
         for error in hir_session.get_errors() {
-            println!("{}\n\n", error.render_error());
+            result.push_error(format!("{}", error.render_error()));
         }
 
-        return;
+        return result;
     }
+
+    result
 }

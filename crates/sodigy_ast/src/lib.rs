@@ -73,7 +73,7 @@ pub struct LocalDef {
 
 // for now, a type is a comp-time evaluable expression, whose type is `Type`.
 #[derive(Clone)]
-pub struct TypeDef(Expr);
+pub struct TypeDef(pub Expr);
 
 impl TypeDef {
     pub fn from_expr(e: Expr) -> Self {

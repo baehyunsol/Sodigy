@@ -13,7 +13,16 @@ unsafe fn init_global() {
         return;
     }
 
-    let lock = LOCK.lock();
+    let lock = LOCK.lock().unwrap();
+
+    // very rare situation: two threads enters this function at the same time,
+    // check `IS_INIT`, which are both false, then only one of them acquires lock
+    // in order to handle this case, it has to check `IS_INIT` after acquiring the lock
+    // we still need the first lock, because that reduces overhead in most cases
+    if IS_INIT {
+        return;
+    }
+
     let mut g = Box::new(GlobalInternSession::new());
     GLOBAL = g.as_mut() as *mut GlobalInternSession;
     std::mem::forget(g);
@@ -38,7 +47,7 @@ pub struct GlobalInternSession {
 }
 
 impl GlobalInternSession {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let mut strings = HashMap::new();
         let mut strings_rev = HashMap::new();
         let numerics = HashMap::new();
@@ -66,7 +75,7 @@ impl GlobalInternSession {
 
     pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
         unsafe {
-            let lock = LOCK.lock();
+            let lock = LOCK.lock().unwrap();
 
             match self.strings.get(&string) {
                 Some(ii) => *ii,
@@ -92,7 +101,7 @@ impl GlobalInternSession {
 
     pub fn intern_numeric(&mut self, numeric: SodigyNumber) -> InternedNumeric {
         unsafe {
-            let lock = LOCK.lock();
+            let lock = LOCK.lock().unwrap();
 
             match self.numerics.get(&numeric) {
                 Some(ii) => *ii,

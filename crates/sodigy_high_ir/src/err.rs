@@ -29,6 +29,14 @@ impl HirError {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn no_dependent_types(id: IdentWithSpan) -> Self {
+        HirError {
+            kind: HirErrorKind::NoDependentTypes(*id.id()),
+            spans: vec![*id.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<HirErrorKind> for HirError {
@@ -56,6 +64,7 @@ impl SodigyError<HirErrorKind> for HirError {
 #[derive(Clone)]
 pub enum HirErrorKind {
     NameCollision(InternedString),
+    NoDependentTypes(InternedString),
     UndefinedName {
         name: InternedString,
         suggestions: Vec<InternedString>,
@@ -67,6 +76,7 @@ impl SodigyErrorKind for HirErrorKind {
         match self {
             HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
             HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
+            HirErrorKind::NoDependentTypes(_) => format!("dependent types not allowed"),
         }
     }
 

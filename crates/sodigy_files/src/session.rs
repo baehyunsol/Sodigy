@@ -43,20 +43,17 @@ impl Session {
         hasher.write(s);
         let mut hash = hasher.finish();
 
-        let lock = unsafe { LOCK.lock() };
-
         while self.hashes.contains(&hash) {
             hash += 1;
         }
 
         self.hashes.insert(hash);
 
-        drop(lock);
-
         return hash;
     }
 
     pub fn register_tmp_file(&mut self, content: Vec<u8>) -> FileHash {
+        let lock = unsafe { LOCK.lock().unwrap() };
         let hash = self.hash(&content);
 
         self.tmp_files.insert(
@@ -64,16 +61,21 @@ impl Session {
             content,
         );
 
+        drop(lock);
+
         hash
     }
 
     pub fn register_file(&mut self, path: &Path) -> FileHash {
+        let lock = unsafe { LOCK.lock().unwrap() };
         let hash = self.hash(path.as_bytes());
 
         self.files.insert(
             hash,
             path.to_string(),
         );
+
+        drop(lock);
 
         hash
     }
@@ -122,4 +124,4 @@ impl Session {
 
 // TODO: track the modified time of files
 // if a file is modified during the compilation, handle that!
-// file_cache에다가 기록하면 될 듯!
+// use file_cache
