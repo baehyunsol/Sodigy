@@ -23,9 +23,7 @@ impl Pattern {
         self.ty = Some(ty);
     }
 
-    pub fn get_name_bindings(&self) -> Vec<IdentWithSpan> {
-        let mut bindings = vec![];
-
+    pub fn get_name_bindings(&self, buffer: &mut Vec<IdentWithSpan>) {
         match &self.kind {
             PatternKind::Identifier(_)
             | PatternKind::Number(_)
@@ -34,15 +32,15 @@ impl Pattern {
             | PatternKind::Wildcard
             | PatternKind::Shorthand => { /* nop */ },
             PatternKind::Binding(name) => {
-                bindings.push(IdentWithSpan::new(*name, self.span));
+                buffer.push(IdentWithSpan::new(*name, self.span));
             },
             PatternKind::Range { from, to, .. } => {
-                for binding in from.as_ref().map(|pat| pat.get_name_bindings()).unwrap_or(vec![]) {
-                    bindings.push(binding);
+                if let Some(pat) = from.as_ref() {
+                    pat.get_name_bindings(buffer);
                 }
 
-                for binding in to.as_ref().map(|pat| pat.get_name_bindings()).unwrap_or(vec![]) {
-                    bindings.push(binding);
+                if let Some(pat) = to.as_ref() {
+                    pat.get_name_bindings(buffer);
                 }
             },
             PatternKind::Tuple(patterns)
@@ -52,36 +50,25 @@ impl Pattern {
                 ..
             } => {
                 for pattern in patterns.iter() {
-                    for binding in pattern.get_name_bindings() {
-                        bindings.push(binding);
-                    }
+                    pattern.get_name_bindings(buffer);
                 }
             },
             PatternKind::Struct {
                 fields, ..
             } => {
                 for PatField { value, .. } in fields.iter() {
-                    for binding in value.get_name_bindings() {
-                        bindings.push(binding);
-                    }
+                    value.get_name_bindings(buffer);
                 }
             },
             PatternKind::Or(left, right) => {
-                for binding in left.get_name_bindings() {
-                    bindings.push(binding);
-                }
-
-                for binding in right.get_name_bindings() {
-                    bindings.push(binding);
-                }
+                left.get_name_bindings(buffer);
+                right.get_name_bindings(buffer);
             },
         }
 
         if let Some(id) = &self.bind {
-            bindings.push(*id);
+            buffer.push(*id);
         }
-
-        bindings
     }
 
     pub fn bind_name(&mut self, name: IdentWithSpan) {

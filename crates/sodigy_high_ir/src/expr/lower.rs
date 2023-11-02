@@ -213,11 +213,14 @@ pub fn lower_ast_expr(
             ValueKind::Scope { scope, uid } => {
                 let mut name_bindings = HashSet::new();
                 let mut name_collision_checker = HashMap::new();
+                let mut name_bindings_buffer = vec![];
 
                 // push name bindings to the name space
                 // find name collisions
                 for ast::LocalDef { pattern, .. } in scope.defs.iter() {
-                    for def in pattern.get_name_bindings().iter() {
+                    pattern.get_name_bindings(&mut name_bindings_buffer);
+
+                    for def in name_bindings_buffer.iter() {
                         match name_collision_checker.get(def.id()) {
                             Some(id) => {
                                 session.push_error(HirError::name_collision(*def, *id));
@@ -229,6 +232,8 @@ pub fn lower_ast_expr(
 
                         name_bindings.insert(*def.id());
                     }
+
+                    name_bindings_buffer.clear();
                 }
 
                 name_space.push_locals(
@@ -420,8 +425,10 @@ pub fn lower_ast_expr(
                 // TODO: it's a copy-paste of ast::ExprKind::Scope
                 let mut name_bindings = HashSet::new();
                 let mut name_collision_checker = HashMap::new();
+                let mut name_bindings_buffer = vec![];
+                pattern.get_name_bindings(&mut name_bindings_buffer);
 
-                for def in pattern.get_name_bindings().iter() {
+                for def in name_bindings_buffer.iter() {
                     match name_collision_checker.get(def.id()) {
                         Some(id) => {
                             session.push_error(HirError::name_collision(*def, *id));

@@ -47,7 +47,10 @@ pub fn lower_stmts(
             StmtKind::Decorator(_)
             | StmtKind::DocComment(_) => { /* nop */ },
             StmtKind::Use(u) => {
-                for (from, to) in u.unfold_alias().iter() {
+                let mut aliases = vec![];
+                u.unfold_alias(&mut aliases);
+
+                for (from, to) in aliases.iter() {
                     if let Some(collision) = names.insert(*from.id(), *from) {
                         session.push_error(HirError::name_collision(*from, collision));
                     }

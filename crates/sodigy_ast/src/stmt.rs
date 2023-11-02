@@ -63,19 +63,21 @@ pub enum Use {
 }
 
 impl Use {
-    pub fn unfold_alias(&self) -> Vec<(IdentWithSpan, Vec<InternedString>)> {
+    pub fn unfold_alias(&self, buffer: &mut Vec<(IdentWithSpan, Vec<InternedString>)>) {
         match self {
             // `use a.b.c;` -> `use c as a.b.c;`
-            Use::Unit(names) => vec![(
-                *names.last().unwrap(),
-                names.iter().map(|n| *n.id()).collect(),
-            )],
-
-            Use::Alias { from, to } => vec![(
-                *to,
-                from.iter().map(|n| *n.id()).collect(),
-            )],
-
+            Use::Unit(names) => {
+                buffer.push((
+                    *names.last().unwrap(),
+                    names.iter().map(|n| *n.id()).collect(),
+                ));
+            },
+            Use::Alias { from, to } => {
+                buffer.push((
+                    *to,
+                    from.iter().map(|n| *n.id()).collect(),
+                ));
+            },
             Use::Group { .. } => todo!(),
         }
     }
