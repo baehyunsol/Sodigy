@@ -1,6 +1,7 @@
 use crate::err::HirError;
 use crate::warn::HirWarning;
 use sodigy_intern::InternedString;
+use sodigy_prelude::PRELUDES;
 use std::collections::HashSet;
 
 pub struct HirSession {
@@ -17,7 +18,7 @@ impl HirSession {
     }
 
     pub fn get_prelude_names(&self) -> HashSet<InternedString> {
-        HashSet::new()
+        PRELUDES.keys().map(|k| *k).collect()
     }
 
     pub fn push_error(&mut self, error: HirError) {

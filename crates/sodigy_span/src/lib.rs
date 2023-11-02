@@ -38,7 +38,7 @@ impl SpanPoint {
         }
     }
 
-    #[must_use = "method returns a new number and does not mutate the original value"]
+    #[must_use = "method returns a new span and does not mutate the original value"]
     pub fn offset(&self, offset: i32) -> Self {
         SpanPoint {
             file: self.file,
@@ -98,7 +98,7 @@ impl SpanRange {
         }
     }
 
-    #[must_use = "method returns a new number and does not mutate the original value"]
+    #[must_use = "method returns a new span and does not mutate the original value"]
     pub fn merge(&self, other: SpanRange) -> Self {
         sodigy_assert!(self.end <= other.start);
 

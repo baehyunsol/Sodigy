@@ -1,6 +1,7 @@
 use sodigy_ast::{ArgDef, IdentWithSpan};
 use sodigy_err::substr_edit_distance;
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_prelude::PRELUDES;
 use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -72,8 +73,12 @@ pub struct NameSpace {
 
 impl NameSpace {
     pub fn new() -> Self {
+        let preludes = PRELUDES.keys().map(
+            |id| *id
+        ).collect();
+
         NameSpace {
-            preludes: HashSet::new(),
+            preludes,
             globals: HashSet::new(),
             func_args: vec![],
             func_generics: vec![],

@@ -1,4 +1,5 @@
 use crate::{IdentWithSpan, Token, TokenKind};
+use smallvec::{smallvec, SmallVec};
 use sodigy_err::{substr_edit_distance, ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_keyword::Keyword;
@@ -14,7 +15,7 @@ const STMT_START_KEYWORDS: [&'static str; 5] = [
 #[derive(Clone)]
 pub struct AstError {
     pub(crate) kind: AstErrorKind,
-    spans: Vec<SpanRange>,
+    spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrInfo,
 }
 
@@ -61,7 +62,7 @@ impl AstError {
 
         AstError {
             kind: AstErrorKind::UnexpectedToken(token.kind, expected_token),
-            spans: vec![token.span],
+            spans: smallvec![token.span],
             extra,
         }
     }
@@ -69,7 +70,7 @@ impl AstError {
     pub fn unexpected_end(span: SpanRange, expected_token: ExpectedToken) -> Self {
         AstError {
             kind: AstErrorKind::UnexpectedEnd(expected_token),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -77,7 +78,7 @@ impl AstError {
     pub fn empty_generic_list(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::EmptyGenericList,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -85,7 +86,7 @@ impl AstError {
     pub fn binary_char(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::BinaryChar,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -93,7 +94,7 @@ impl AstError {
     pub fn empty_char_literal(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::EmptyCharLiteral,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -101,7 +102,7 @@ impl AstError {
     pub fn too_long_char_literal(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::TooLongCharLiteral,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -109,7 +110,7 @@ impl AstError {
     pub fn empty_scope_block(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::EmptyScopeBlock,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -117,7 +118,7 @@ impl AstError {
     pub fn empty_match_body(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::EmptyMatchBody,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingMatchBody),
         }
     }
@@ -125,7 +126,7 @@ impl AstError {
     pub fn empty_struct_body(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::EmptyStructBody,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingStructBody),
         }
     }
@@ -133,7 +134,7 @@ impl AstError {
     pub fn func_arg_without_type(func_name: InternedString, arg: IdentWithSpan) -> Self {
         AstError {
             kind: AstErrorKind::FuncArgWithoutType { arg_name: *arg.id(), func_name },
-            spans: vec![*arg.span()],
+            spans: smallvec![*arg.span()],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingFuncArgs),
         }
     }
@@ -141,7 +142,7 @@ impl AstError {
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::TODO(msg.to_string()),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }

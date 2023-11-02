@@ -1,3 +1,4 @@
+use smallvec::{smallvec, SmallVec};
 use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_number::NumericParseError;
@@ -6,7 +7,7 @@ use sodigy_span::SpanRange;
 #[derive(Clone)]
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,
-    pub(crate) spans: Vec<SpanRange>,
+    pub(crate) spans: SmallVec<[SpanRange; 1]>,
     pub(crate) extra: ExtraErrInfo,
 }
 
@@ -14,7 +15,7 @@ impl ParseError {
     pub fn unfinished_delim(c: u8, span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::UnfinishedDelim(c),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -22,7 +23,7 @@ impl ParseError {
     pub fn mismatch_delim(c: u8, span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::MismatchDelim(c),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -30,7 +31,7 @@ impl ParseError {
     pub fn empty_f_string(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::EmptyFString,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -38,7 +39,7 @@ impl ParseError {
     pub fn three_dots(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::ThreeDots,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -46,7 +47,7 @@ impl ParseError {
     pub fn lonely_backtick(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::LonelyBacktick,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -54,7 +55,7 @@ impl ParseError {
     pub fn lonely_backslash(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::LonelyBackslash,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -62,7 +63,7 @@ impl ParseError {
     pub fn numeric_parse_error(e: NumericParseError, span: SpanRange) -> Self {
         ParseError {
             kind: e.into(),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -70,7 +71,7 @@ impl ParseError {
     pub fn f_string_single_quote(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::FStringSingleQuote,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }

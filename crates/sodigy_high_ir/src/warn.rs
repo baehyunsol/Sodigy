@@ -1,4 +1,5 @@
 use crate::names::NameBindingType;
+use smallvec::{smallvec, SmallVec};
 use sodigy_ast::IdentWithSpan;
 use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
@@ -6,7 +7,7 @@ use sodigy_span::SpanRange;
 
 pub struct HirWarning {
     kind: HirWarningKind,
-    spans: Vec<SpanRange>,
+    spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrInfo,
 }
 
@@ -14,7 +15,7 @@ impl HirWarning {
     pub fn redef_prelude(id: IdentWithSpan) -> Self {
         HirWarning {
             kind: HirWarningKind::RedefPrelude(*id.id()),
-            spans: vec![*id.span()],
+            spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -22,7 +23,7 @@ impl HirWarning {
     pub fn unused_name(id: IdentWithSpan, binding_type: NameBindingType) -> Self {
         HirWarning {
             kind: HirWarningKind::UnusedName(*id.id(), binding_type),
-            spans: vec![*id.span()],
+            spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
     }

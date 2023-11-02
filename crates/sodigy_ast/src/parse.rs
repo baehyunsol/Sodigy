@@ -195,7 +195,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                 args,
                                 ret_type,
                                 ret_val,
-                                uid: Uid::new_func(),
+                                uid: Uid::new_def(),
                             }),
                             span,
                         });

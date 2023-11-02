@@ -398,7 +398,10 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
-        ast::ExprKind::StructInit { struct_, init } => todo!(),
+        ast::ExprKind::StructInit { struct_, init } => {
+            session.push_error(HirError::todo("struct init", e.span));
+            return Err(());
+        },
         ast::ExprKind::Branch(arms) => {
             // TODO: Push names defined in the arms (if there's `if let`), then recurs
             // TODO: check unused-names

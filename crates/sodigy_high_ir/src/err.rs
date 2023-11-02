@@ -1,3 +1,4 @@
+use smallvec::{smallvec, SmallVec};
 use sodigy_ast::IdentWithSpan;
 use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
@@ -6,7 +7,7 @@ use sodigy_span::SpanRange;
 #[derive(Clone)]
 pub struct HirError {
     kind: HirErrorKind,
-    spans: Vec<SpanRange>,
+    spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrInfo,
 }
 
@@ -14,7 +15,7 @@ impl HirError {
     pub fn name_collision(id1: IdentWithSpan, id2: IdentWithSpan) -> Self {
         HirError {
             kind: HirErrorKind::NameCollision(*id1.id()),
-            spans: vec![*id1.span(), *id2.span()],
+            spans: smallvec![*id1.span(), *id2.span()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -25,7 +26,7 @@ impl HirError {
                 name: *name.id(),
                 suggestions,
             },
-            spans: vec![*name.span()],
+            spans: smallvec![*name.span()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -33,7 +34,7 @@ impl HirError {
     pub fn no_dependent_types(id: IdentWithSpan) -> Self {
         HirError {
             kind: HirErrorKind::NoDependentTypes(*id.id()),
-            spans: vec![*id.span()],
+            spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -41,7 +42,7 @@ impl HirError {
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         HirError {
             kind: HirErrorKind::TODO(msg.to_string()),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }

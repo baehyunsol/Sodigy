@@ -1,3 +1,4 @@
+use smallvec::{smallvec, SmallVec};
 use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_span::SpanRange;
 
@@ -7,7 +8,7 @@ use crate::num::err::ParseNumberError;
 #[derive(Clone)]
 pub struct LexError {
     kind: LexErrorKind,
-    spans: Vec<SpanRange>,
+    spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrInfo,
 }
 
@@ -15,7 +16,7 @@ impl LexError {
     pub fn unexpected_char(c: char, span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnexpectedChar(c, ExpectedChars::Any),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -23,7 +24,7 @@ impl LexError {
     pub fn invalid_utf8(span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::InvalidUtf8,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none().set_show_span(false).to_owned(),
         }
     }
@@ -31,7 +32,7 @@ impl LexError {
     pub fn unfinished_comment(span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnfinishedComment,
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -39,7 +40,7 @@ impl LexError {
     pub fn unfinished_string(kind: QuoteKind, span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnfinishedString(kind),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -47,7 +48,7 @@ impl LexError {
     pub fn unfinished_num_literal(span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnfinishedNumLiteral(ExpectedChars::Any),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -55,7 +56,7 @@ impl LexError {
     pub fn parse_num_error(e: ParseNumberError, span: SpanRange) -> Self {
         LexError {
             kind: e.into(),
-            spans: vec![span],
+            spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
     }

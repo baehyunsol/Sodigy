@@ -32,5 +32,6 @@ sodigy_keyword = { path = "crates/sodigy_keyword" }
 sodigy_lex = { path = "crates/sodigy_lex" }
 sodigy_number = { path = "crates/sodigy_number" }
 sodigy_parse = { path = "crates/sodigy_parse" }
+sodigy_prelude = { path = "crates/sodigy_prelude" }
 sodigy_span = { path = "crates/sodigy_span" }
 sodigy_test = { path = "crates/sodigy_test" }
