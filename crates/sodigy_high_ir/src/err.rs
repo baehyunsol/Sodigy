@@ -37,6 +37,14 @@ impl HirError {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn todo(msg: &str, span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::TODO(msg.to_string()),
+            spans: vec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<HirErrorKind> for HirError {
@@ -69,6 +77,7 @@ pub enum HirErrorKind {
         name: InternedString,
         suggestions: Vec<InternedString>,
     },
+    TODO(String),
 }
 
 impl SodigyErrorKind for HirErrorKind {
@@ -77,6 +86,7 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
             HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
             HirErrorKind::NoDependentTypes(_) => format!("dependent types not allowed"),
+            HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
 

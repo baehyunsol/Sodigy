@@ -7,6 +7,27 @@ use std::collections::{HashMap, HashSet};
 
 mod fmt;
 
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub struct IdentWithOrigin(InternedString, NameOrigin);
+
+impl IdentWithOrigin {
+    pub fn new(id: InternedString, ori: NameOrigin) -> Self {
+        IdentWithOrigin(id, ori)
+    }
+
+    pub fn id(&self) -> &InternedString {
+        &self.0
+    }
+
+    pub fn origin(&self) -> &NameOrigin {
+        &self.1
+    }
+
+    pub fn set_origin(&mut self, origin: NameOrigin) {
+        self.1 = origin;
+    }
+}
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     Prelude,
@@ -21,12 +42,15 @@ pub enum NameOrigin {
         // binding_type: NameBindingType,
     },
     Global,  // `def`, `struct`, `enum`, `module`, `use`, ...
+
+    Captured { lambda: Uid, index: usize },  // inside closures
 }
 
 pub enum NameBindingType {
     LocalScope,  // `let x = 3` in `{ ... }`
     FuncArg,
     FuncGeneric,
+    LambdaArg,
     MatchArm,
     IfLet,
 }
@@ -127,6 +151,11 @@ impl NameSpace {
 
     pub fn pop_locals(&mut self) {
         self.locals.pop().unwrap();
+    }
+
+    pub fn has_this_local_uid(&self, uid: Uid) -> bool {
+        // `self.locals.len()` is small enough in most cases
+        self.locals.iter().any(|(id, _)| *id == uid)
     }
 
     pub fn find_arg_generic_name_collision(&self) -> Result<(), [IdentWithSpan; 2]> {

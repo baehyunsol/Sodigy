@@ -82,7 +82,7 @@ check_output!(expr, err, expr_test27, "f\"{1\"", "TODO");
 check_output!(expr, err, expr_test28, "(b \"ABC 한글 DEF\")", "got `\"...\"`");
 check_output!(expr, err, expr_test29, "(f \"{a} + {b} = {a + b}\")", "got `\"...\"`");
 check_output!(expr, err, expr_test30, "[0, 1, 2, 3] `10 1", "field modifier without");
-check_output!(expr, err, expr_test31, "\\{x: Int, x: Int, x + x}", "TODO");
+check_output!(expr, err, expr_test31, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
 check_output!(expr, err, expr_test32, "{let x = 3; let x = 4; x + x}", "TODO");
 check_output!(expr, err, expr_test33, "   ##!##  # Unfinished Comment", "unterminated block comment");
 check_output!(expr, err, expr_test34, "f(x[..4])", /*L*/ "ike `0..`");

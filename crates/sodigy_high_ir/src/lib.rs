@@ -16,7 +16,7 @@ use err::HirError;
 pub use expr::Expr;
 use expr::lower_ast_expr;
 use func::lower_ast_func;
-use names::{NameOrigin, NameSpace};
+use names::{IdentWithOrigin, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
 
@@ -37,7 +37,7 @@ pub fn lower_stmts(
     let mut use_cases: HashMap<InternedString, (SpanRange, Vec<InternedString>)> = HashMap::new();
 
     // It's used to generate unused_name warnings
-    let mut used_names: HashSet<(InternedString, NameOrigin)> = HashSet::new();
+    let mut used_names: HashSet<IdentWithOrigin> = HashSet::new();
 
     // first iteration:
     // collect names from definitions and check name collisions
@@ -83,7 +83,7 @@ pub fn lower_stmts(
 
         match &stmt.kind {
             StmtKind::DocComment(c) => {
-                curr_doc_comments.push((c.to_string(), span));
+                curr_doc_comments.push((*c, span));
             },
             StmtKind::Decorator(d) => {
                 curr_decorators.push(d.clone());
@@ -96,7 +96,7 @@ pub fn lower_stmts(
                     &mut used_names,
                     &use_cases,
                     &vec![],  // TODO: collect decorators
-                    todo!(),  // TODO: concat doc
+                    concat_doc_comments(&mut curr_doc_comments),
                     &mut name_space,
                 );
             },
@@ -112,7 +112,7 @@ pub fn lower_stmts(
 pub fn lower_ast_ty(
     ty: &ast::TypeDef,
     session: &mut HirSession,
-    used_names: &mut HashSet<(InternedString, NameOrigin)>,
+    used_names: &mut HashSet<IdentWithOrigin>,
     use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
     name_space: &mut NameSpace,
 ) -> Result<Type, ()> {
@@ -123,6 +123,20 @@ pub fn lower_ast_ty(
         use_cases,
         name_space,
     )?))
+}
+
+fn concat_doc_comments(docs: &mut Vec<(InternedString, SpanRange)>) -> Option<InternedString> {
+    if docs.is_empty() {
+        None
+    }
+
+    else if docs.len() == 1 {
+        Some(docs[0].0)
+    }
+
+    else {
+        todo!()
+    }
 }
 
 // TODO: independent module for these

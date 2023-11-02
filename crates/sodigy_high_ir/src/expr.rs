@@ -1,4 +1,5 @@
-use crate::names::NameOrigin;
+use crate::func::Arg;
+use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
 use sodigy_ast::{InfixOp, PostfixOp, PrefixOp};
 use sodigy_intern::{InternedNumeric, InternedString};
@@ -15,7 +16,7 @@ pub struct Expr {
 }
 
 pub enum ExprKind {
-    Identifier(InternedString, NameOrigin),
+    Identifier(IdentWithOrigin),
 
     // TODO: any other info?
     Integer(InternedNumeric),
@@ -25,8 +26,18 @@ pub enum ExprKind {
         is_binary: bool,  // `b` prefix
     },
 
+    Call {
+        func: Box<Expr>,
+        args: Vec<Expr>,
+    },
+
+    List(Vec<Expr>),
+    Tuple(Vec<Expr>),
+    Format(Vec<Expr>),
+
     Scope(Scope),
     Match(Match),
+    Lambda(Lambda),
 
     PrefixOp(PrefixOp, Box<Expr>),
     PostfixOp(PostfixOp, Box<Expr>),
@@ -54,4 +65,11 @@ pub struct MatchArm {
     pub pattern: Pattern,
     pub value: Expr,
     pub guard: Option<Expr>,
+}
+
+pub struct Lambda {
+    pub args: Vec<Arg>,
+    pub value: Box<Expr>,
+    pub foreign_names: Vec<IdentWithOrigin>,
+    pub uid: Uid,
 }

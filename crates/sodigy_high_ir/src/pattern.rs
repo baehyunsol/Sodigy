@@ -1,5 +1,6 @@
+use crate::err::HirError;
 use crate::expr::{lower_ast_expr, LocalDef};
-use crate::names::{NameOrigin, NameSpace};
+use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast as ast;
 use sodigy_intern::InternedString;
@@ -11,7 +12,7 @@ pub struct Pattern {}
 pub fn lower_ast_local_def(
     local_def: &ast::LocalDef,
     session: &mut HirSession,
-    used_names: &mut HashSet<(InternedString, NameOrigin)>,
+    used_names: &mut HashSet<IdentWithOrigin>,
     use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
     name_space: &mut NameSpace,
 ) -> Result<LocalDef, ()> {
@@ -39,5 +40,6 @@ pub fn lower_ast_pattern(
     pattern: &ast::Pattern,
     session: &mut HirSession,
 ) -> Result<Pattern, ()> {
-    todo!()
+    session.push_error(HirError::todo("pattern", pattern.span));
+    Err(())
 }

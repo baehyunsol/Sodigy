@@ -1,7 +1,7 @@
 use super::{Arg, Func, FuncDeco};
 use crate::{lower_ast_expr, lower_ast_ty};
 use crate::err::HirError;
-use crate::names::{NameBindingType, NameOrigin, NameSpace};
+use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
 use sodigy_ast as ast;
@@ -13,13 +13,13 @@ use std::collections::{HashMap, HashSet};
 pub fn lower_ast_func(
     f: &ast::FuncDef,
     session: &mut HirSession,
-    used_names: &mut HashSet<(InternedString, NameOrigin)>,
+    used_names: &mut HashSet<IdentWithOrigin>,
     use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
     decorators: &Vec<ast::Decorator>,
-    doc: InternedString,
+    doc: Option<InternedString>,
     name_space: &mut NameSpace,
 ) -> Result<Func, ()> {
-    let mut res_args = None;
+    let mut hir_args = None;
     let mut arg_lower_failure = false;
 
     name_space.enter_new_func_def();
@@ -34,7 +34,7 @@ pub fn lower_ast_func(
     }
 
     if let Some(args) = &f.args {
-        let mut args_buf = vec![];
+        let mut args_buf = Vec::with_capacity(args.len());
 
         for arg in args.iter() {
             if let Err([name1, name2]) = name_space.push_arg(arg) {
@@ -73,7 +73,7 @@ pub fn lower_ast_func(
             });
         }
 
-        res_args = Some(args_buf);
+        hir_args = Some(args_buf);
     }
 
     if let Err([name1, name2]) = name_space.find_arg_generic_name_collision() {
@@ -85,8 +85,6 @@ pub fn lower_ast_func(
     }
 
     name_space.unlock_func_args();
-
-    // TODO: lower decorators after func_args are unlocked
 
     let ret_val = lower_ast_expr(
         &f.ret_val,
@@ -109,13 +107,13 @@ pub fn lower_ast_func(
     // find unused names
 
     for (arg, name_origin) in name_space.iter_func_args() {
-        if !used_names.contains(&(*arg.id(), name_origin)) {
+        if !used_names.contains(&IdentWithOrigin::new(*arg.id(), name_origin)) {
             session.push_warning(HirWarning::unused_name(arg, NameBindingType::FuncArg));
         }
     }
 
     for (generic, name_origin) in name_space.iter_func_generics() {
-        if !used_names.contains(&(*generic.id(), name_origin)) {
+        if !used_names.contains(&IdentWithOrigin::new(*generic.id(), name_origin)) {
             session.push_warning(HirWarning::unused_name(generic, NameBindingType::FuncGeneric));
         }
     }
@@ -134,7 +132,7 @@ pub fn lower_ast_func(
     Ok(Func {
         name: f.name,
         generics: f.generics.clone(),
-        args: res_args,
+        args: hir_args,
         ret_val: ret_val?,
         ret_ty: if let Some(ty) = ret_ty { Some(ty?) } else { None },
         decorators: decorators?,
@@ -147,5 +145,11 @@ pub fn lower_ast_func_decorators(
     decorators: &Vec<ast::Decorator>,
     session: &mut HirSession,
 ) -> Result<FuncDeco, ()> {
-    todo!()
+    let mut result = FuncDeco::default();
+
+    for deco in decorators.iter() {
+        todo!()
+    }
+
+    Ok(result)
 }

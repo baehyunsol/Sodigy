@@ -589,7 +589,11 @@ pub fn parse_expr(
                     let (args, value) = parse_lambda_body(&mut tokens, session, span)?;
 
                     Expr {
-                        kind: ExprKind::Value(ValueKind::Lambda { args, value: Box::new(value) }),
+                        kind: ExprKind::Value(ValueKind::Lambda {
+                            args,
+                            value: Box::new(value),
+                            uid: Uid::new_lambda(),
+                        }),
                         span,
                     }
                 }
@@ -957,7 +961,7 @@ pub fn parse_expr(
 
                             lhs = Expr {
                                 kind: ExprKind::Call {
-                                    functor: Box::new(lhs),
+                                    func: Box::new(lhs),
                                     args,
                                 },
                                 span,

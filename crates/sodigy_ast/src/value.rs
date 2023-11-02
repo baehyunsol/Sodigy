@@ -17,6 +17,7 @@ pub enum ValueKind {
     Lambda {
         args: Vec<ArgDef>,
         value: Box<Expr>,
+        uid: Uid,
     },
     Scope {
         scope: ScopeDef,

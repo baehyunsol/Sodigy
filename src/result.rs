@@ -27,4 +27,13 @@ impl CompileResult {
     pub fn concat_warnings(&self) -> String {
         self.warnings.join("\n\n")
     }
+
+    pub fn print_results(&self) {
+        println!(
+            "{}",
+            self.errors.iter().chain(self.warnings.iter()).map(
+                |s| s.to_string()
+            ).collect::<Vec<String>>().join("\n\n")
+        );
+    }
 }

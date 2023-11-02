@@ -194,7 +194,7 @@ impl RenderedLine {
                 buffer.push(line.render(colors));
             },
             RenderedLine::Dots => {
-                let dots = format!("         {bar} {}", colors.dots());
+                let dots = format!("       {}", colors.dots());
                 let empty = format!("         {bar} ");
 
                 buffer.push(empty.clone());

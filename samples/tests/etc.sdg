@@ -43,6 +43,7 @@ def factorial2: Int = {
     fac(n)
 };
 
+# Make sure that the compiler warns: '`y` is unused!'
 def lambdas(x: Int, y: Int): Int = \{
     \{
         \{y, z, x + y + z}
@@ -51,6 +52,14 @@ def lambdas(x: Int, y: Int): Int = \{
 
 @test.eq(111)
 def lambdas_test: Int = lambdas(3, 9)()()(27, 81);
+
+def closures_test(x: Int, y: Int): Int = \{
+    y: Int, z: Int,
+    \{z: Int, w: Int, x + y + z + w}
+};
+
+@test.eq(106)
+def closures_test_runner = closures_test(2, 4)(8, 16)(32, 64);
 
 # type signatures of functors: the last one is the ret_type
 def adder(n: Int): Func(Int, Int) = \{x: Int, x + n};

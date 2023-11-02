@@ -14,16 +14,17 @@ pub struct Func {
     ret_val: hir::Expr,
     ret_ty: Option<hir::Type>,
     decorators: FuncDeco,
-    doc: InternedString,
+    doc: Option<InternedString>,
     uid: Uid,
 }
 
 pub struct Arg {
-    name: IdentWithSpan,
-    ty: Option<hir::Type>,
-    has_question_mark: bool,
+    pub name: IdentWithSpan,
+    pub ty: Option<hir::Type>,
+    pub has_question_mark: bool,
 }
 
 // lowered ast::Deco
 // some simple decorators are interpreted and consumed!
+#[derive(Default)]
 pub struct FuncDeco {}

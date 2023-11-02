@@ -84,5 +84,5 @@ def yet_another_factorial(x: Int, y: Int): Int = {
 @test.eq((3923023104000, 35280))
 def yet_another_factorial_test: (Int, Int) = (
     yet_another_factorial(3, 15),
-    yet_another_factorial(7, 7)
+    yet_another_factorial(7, 7),
 );

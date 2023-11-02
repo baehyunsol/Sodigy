@@ -8,6 +8,7 @@ impl fmt::Display for NameBindingType {
             NameBindingType::LocalScope => "local name binding",
             NameBindingType::FuncArg => "function argument",
             NameBindingType::FuncGeneric => "generic",
+            NameBindingType::LambdaArg => "lambda argument",
             NameBindingType::MatchArm => "name binding in match arm",
             NameBindingType::IfLet => "name binding in an `if let` clause",
         };

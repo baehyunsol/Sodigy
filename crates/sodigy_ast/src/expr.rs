@@ -27,7 +27,7 @@ pub enum ExprKind {
 
     // a.b
     Path { pre: Box<Expr>, post: IdentWithSpan },
-    Call { functor: Box<Expr>, args: Vec<Expr> },
+    Call { func: Box<Expr>, args: Vec<Expr> },
 
     // foo { bar: 3, baz: 4 }
     StructInit {

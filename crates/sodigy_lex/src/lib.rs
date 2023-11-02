@@ -196,6 +196,10 @@ pub fn lex(
                                 }
 
                                 else {
+                                    // TODO
+                                    // though it's not pushing the content of Comment::Single,
+                                    // I want to make sure that the entire file is a valid UTF-8 string
+
                                     if let CommentKind::Doc = comment_kind {
                                         tmp_buf.push(c);
                                     }
@@ -234,6 +238,10 @@ pub fn lex(
                                 else {
                                     // we don't care about its content
                                     // tmp_buf.push(c);
+
+                                    // TODO
+                                    // though it's not pushing the content of Comment::Single,
+                                    // I want to make sure that the entire file is a valid UTF-8 string
                                 }
                             },
                         }
