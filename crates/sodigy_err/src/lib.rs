@@ -70,6 +70,7 @@ pub enum ErrorContext {
     ParsingLambdaBody,
     ParsingScopeBlock,
     ParsingFormattedString,
+    ParsingTypeInPattern,
 }
 
 pub trait SodigyError<K: SodigyErrorKind> {

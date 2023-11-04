@@ -95,7 +95,7 @@ impl NameSpace {
 
     pub fn leave_func_def(&mut self) {
         // TODO: what do I do here?
-        // we don't have to initialize vectors twice
+        // we don't have to clear the vectors twice
 
         sodigy_assert!(self.locals.is_empty());
     }
@@ -150,6 +150,12 @@ impl NameSpace {
         self.func_args_locked = false;
     }
 
+    pub fn push_globals<_T>(&mut self, globals: &HashMap<InternedString, _T>) {
+        for name in globals.keys() {
+            assert!(self.globals.insert(*name));
+        }
+    }
+
     pub fn push_locals(&mut self, uid: Uid, locals: HashSet<InternedString>) {
         self.locals.push((uid, locals));
     }
@@ -198,6 +204,10 @@ impl NameSpace {
             }
         }
 
+        if self.globals.contains(&id) {
+            return Some(NameOrigin::Global);
+        }
+
         if self.preludes.contains(&id) {
             return Some(NameOrigin::Prelude);
         }
@@ -215,6 +225,11 @@ impl NameSpace {
             }
         };
 
+        // distance("f", "x") = 1, but it's not a good suggestion
+        // distance("foo", "goo") = 1, and it seems like a good suggestion
+        // distance("f", "F") = 0, and it seems like a good suggestion
+        let similarity_threshold = (id_u8.len() / 3).max(1);
+
         let mut result = vec![];
 
         for (_, names) in self.locals.iter().rev() {
@@ -226,7 +241,7 @@ impl NameSpace {
                     }
                 };
 
-                if substr_edit_distance(&id_u8, &name_u8) < 2 {
+                if substr_edit_distance(&id_u8, &name_u8) < similarity_threshold {
                     result.push(*name);
                 }
             }
@@ -260,7 +275,7 @@ impl NameSpace {
                 }
             };
 
-            if substr_edit_distance(&id_u8, &name_u8) < 2 {
+            if substr_edit_distance(&id_u8, &name_u8) < similarity_threshold {
                 result.push(*name);
             }
         }

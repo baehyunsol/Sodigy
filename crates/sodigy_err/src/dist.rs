@@ -15,23 +15,23 @@ fn edit_distance(a: &[u8], b: &[u8]) -> usize {
     }
 
     else {
-        let i = a.len().min(32);
-        let j = b.len().min(32);
+        let i = a.len();
+        let j = b.len();
         let mut cache = vec![vec![usize::MAX; j]; i];
 
-        edit_distance_impl(
-            if a.len() > 32 { &a[..32] } else { a },
-            if b.len() > 32 { &b[..32] } else { b },
-            i - 1,
-            j - 1,
-            &mut cache,
-        )
+        edit_distance_impl(a, b, i - 1, j - 1, &mut cache)
     }
 }
 
 // lowercase
 // remove `_`s
 fn preprocess(s: &[u8]) -> Vec<u8> {
+    let s = if s.len() > 64 {
+        &s[..64]
+    } else {
+        s
+    };
+
     s.iter().map(
         |c| {
             let mut c = *c;
@@ -51,6 +51,11 @@ pub fn substr_edit_distance(sub: &[u8], s: &[u8]) -> usize {
 
     if sub == s {
         0
+    }
+
+    // I found that `edit_distance` cannot handle this case, I should fix that later
+    else if sub.len() == 1 && s.len() == 1 {
+        return (sub != s) as usize;
     }
 
     else if sub.len() > s.len() || s.len() < 4 {
@@ -107,4 +112,24 @@ fn edit_distance_impl(a: &[u8], b: &[u8], i: usize, j: usize, cache: &mut Vec<Ve
 
     cache[i][j] = result;
     result
+}
+
+#[test]
+fn dist_test() {
+    assert_eq!(substr_edit_distance(b"x", b"X"), 0);
+    assert_eq!(substr_edit_distance(b"x", b"y"), 1);
+    assert_eq!(substr_edit_distance(b"x", b"x1"), 1);
+    assert_eq!(substr_edit_distance(b"item", b"itme"), 1);
+    assert_eq!(substr_edit_distance(b"time", b"tiem"), 1);
+    assert_eq!(substr_edit_distance(b"time", b"sime"), 1);
+    assert_eq!(substr_edit_distance(b"Internal", b"Interal"), 1);
+    assert_eq!(substr_edit_distance(b"HTML", b"Programming Language"), 17);
+
+    assert_eq!(substr_edit_distance(b"edit_distan", b"substr_edit_distance"), 0);
+    assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
+
+    assert_eq!(substr_edit_distance(
+        "Very Very Long String: I want to make sure that `edit_distance` is not an O(a^n) algorithm".repeat(256).as_bytes(),
+        "Another very very long string... 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(256).as_bytes(),
+    ), 37 /* the result doesn't matter, i just want to make sure that this code terminates in reasonable time */ );
 }

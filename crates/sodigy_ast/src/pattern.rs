@@ -5,6 +5,10 @@ use crate::{
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 
+mod parse;
+
+pub(crate) use parse::parse_pattern;
+
 #[derive(Clone)]
 pub struct Pattern {
     pub kind: PatternKind,

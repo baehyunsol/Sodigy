@@ -16,13 +16,43 @@ def pn_test: Bool = {
     pns.all(is_pn) && npns.all(\{n, !is_pn(n)})
 };
 
-def sqrt(n: Int): Bool = if n < 5 {
-    [0, 1, 1, 1, 2][n]
-} else {
-    sqrt_impl(n, 2, n / 2)
+##> It returns the square root of `n`.
+##> If the result is not integer, it's truncated.
+##> If `n` is negative, it returns `sqrt(-n)`.
+# TODO: panic when `n < 0`?
+@test.after(\{ret, assert(
+    ret * ret <= abs(n)
+    && (ret + 1) * (ret + 1) > abs(n)
+)})
+def sqrt(n: Int): Int = match n {
+    $n if n < 0 => sqrt(-n),
+    0 => 0,
+    1..4 => 1,
+    4..9 => 2,
+    _ => sqrt_iter(n / 9, n),
 };
 
-def sqrt_impl(n: Int, start: Int, end: Int): Int = {
+def sqrt_iter(curr: Int, n: Int): Int = {
+    let res = (curr + n / curr) / 2;
+    let res2 = (res + n / res) / 2;
+
+    if curr == res2 {
+        min(res, res2)
+    } else {
+        sqrt_iter(res2, n)
+    }
+};
+
+@test.after(\{res, res == sqrt(n)})
+def sqrt_bin_search(n: Int): Bool = if n < 0 {
+    sqrt_bin_search(-n)
+} else if n < 5 {
+    [0, 1, 1, 1, 2][n]
+} else {
+    sqrt_bin_search_impl(n, 2, n / 2)
+};
+
+def sqrt_bin_search_impl(n: Int, start: Int, end: Int): Int = {
     let mid = (start + end) / 2;
     let mid_sqr = mid * mid;
 
@@ -34,29 +64,30 @@ def sqrt_impl(n: Int, start: Int, end: Int): Int = {
         }
     } else {
         if mid_sqr < n {
-            sqrt_impl(n, mid, end)
+            sqrt_bin_search_impl(n, mid, end)
         } else {
-            sqrt_impl(n, start, mid)
+            sqrt_bin_search_impl(n, start, mid)
         }
     }
 };
 
-@test.eq([100, 316, 1000, 3162, 10000, 31622, 100000])
-def sqrt_test: List(Int) = [
-    sqrt(10_000),
-    sqrt(100_000),
-    sqrt(1_000_000),
-    sqrt(10_000_000),
-    sqrt(100_000_000),
-    sqrt(1_000_000_000),
-    sqrt(10_000_000_000),
+@test.eq([100, 316, 1000, 3162, 10000, 31622, 100000, 316227])
+def sqrt2_test: List(Int) = [
+    sqrt2(10_000),
+    sqrt2(100_000),
+    sqrt2(1_000_000),
+    sqrt2(10_000_000),
+    sqrt2(100_000_000),
+    sqrt2(1_000_000_000),
+    sqrt2(10_000_000_000),
+    sqrt2(100_000_000_000),
 ];
 
 @test.true
-def sqrt_test2: Bool = (0..1000).all(
+def sqrt2_test2: Bool = (0..1000).all(
     \{n, {
         let n2 = n * 2;
-        let s = sqrt(n2);
+        let s = sqrt2(n2);
         let s2 = s + 1;
 
         s * s <= n2 && n2 < s2 * s2

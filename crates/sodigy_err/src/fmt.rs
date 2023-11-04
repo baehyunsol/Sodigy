@@ -18,6 +18,7 @@ impl fmt::Display for ErrorContext {
             ErrorContext::ParsingLambdaBody => "parsing a body of a lambda function",
             ErrorContext::ParsingScopeBlock => "parsing a scope block",
             ErrorContext::ParsingFormattedString => "parsing a formatted string",
+            ErrorContext::ParsingTypeInPattern => "parsing type of a pattern",
         };
 
         write!(fmt, "{s}")

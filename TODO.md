@@ -25,20 +25,39 @@ generic type annotation: `Some(3)`, `Some(Int, 3)`
 ---
 
 ```
-# it checks `x > 0` on runtime, everytime the function is called
-@assert(x > 0)
-def foo(x: Int) = math.sqrt(x);
+@test.before(\{assert(x > 0 && y > 0)})
+def foo(x: Int, y: Int) = x + y;
 
-# it applies the function to the return value on runtime, everytime the function returns
-@assert.return_value(\{x, x > 0})
-def return_positive(x: Int) = x * x + 1;
+@test.after(\{ret, assert(ret >= 0)})
+def sqr(x: Int): Int = x * x;
 ```
 
-`assert` guard checks the condition everytime the function is called
+`test.before` is called before the actual function is called.
 
-how do I inline this?
+`assert` is an action (not a function) that works like rust's `assert!`.
 
-how do I enable/disable this?
+functor of `test.after` takes one input: the return value of the function its decorating
+
+---
+
+functions vs actions
+
+an action can call both functions and actions
+
+a function can only call functions
+
+special actions
+
+- `run(a1, a2, a3, a4)`
+  - takes arbitrary numbers of inputs
+  - all the inputs are guaranteed to be executed
+    - that means an input is a function, not an action, it can still be optimized away
+  - all the inputs are guaranteed to be executed in order
+  - returns the first argument
+- `print(x)`
+  - prints `x`
+  - returns `x`
+- IO funcs, rand funcs, time funcs, ...
 
 ---
 
@@ -77,7 +96,7 @@ match val1 {
   - that would be like below
 
 ```
-def foo(x:? X): Y = bar(x);
+def foo(x?: X): Y = bar(x);
 
 # becomes
 

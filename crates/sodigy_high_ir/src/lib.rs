@@ -74,8 +74,8 @@ pub fn lower_stmts(
         }
     }
 
-    // TODO: init name_space using the collected names
     let mut name_space = NameSpace::new();
+    name_space.push_globals(&names);
 
     // second iteration
     // collect doc comments and decorators and find where they belong to

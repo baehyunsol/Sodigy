@@ -3,8 +3,10 @@ use crate::err::FileError;
 use sodigy_test::sodigy_assert_eq;
 use std::sync::Mutex;
 
+// TODO: test with small `FILE_CACHE_SIZE` and `SIZE_LIMIT` (after `@test`s in Sodigy are implemented)
 const FILE_CACHE_SIZE: usize = 32;
 const SIZE_LIMIT: usize = 64 * 1024 * 1024;
+
 static mut CACHE_LOCK: Mutex<()> = Mutex::new(());
 
 pub(crate) struct FileCache {

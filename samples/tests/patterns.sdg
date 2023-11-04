@@ -2,8 +2,22 @@ def match_num(n: Int): Int = match n {
     0 | 1 | 2 => 0,
     3..10 => 100,
     10..~=20 => 200,
+    -20..-10 => 300,
     $etc => etc + 1,
 };
+
+@test.eq([
+    0, 0, 0,
+    100, 100, 200,
+    300, -9, -3,
+    1001,
+])
+def match_num_test = [
+    match_num(0), match_num(1), match_num(2),
+    match_num(4), match_num(5), match_num(10),
+    match_num(-20), match_num(-10), match_num(-4),
+    match_num(1000),
+];
 
 def match_char(c: Char): String = match c {
     '0'..~'9' => "Digit",
