@@ -196,13 +196,19 @@ pub fn lex(
                                 }
 
                                 else {
-                                    // TODO
-                                    // though it's not pushing the content of Comment::Single,
-                                    // I want to make sure that the entire file is a valid UTF-8 string
-
                                     if let CommentKind::Doc = comment_kind {
                                         tmp_buf.push(c);
                                     }
+
+                                    index += match curr_utf8_char_len(input, index) {
+                                        Ok(i) => i,
+                                        Err(_) => {
+                                            session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
+                                            return Err(());
+                                        },
+                                    };
+
+                                    continue;
                                 }
                             },
                             CommentKind::Multi => {
@@ -236,12 +242,15 @@ pub fn lex(
                                 }
 
                                 else {
-                                    // we don't care about its content
-                                    // tmp_buf.push(c);
+                                    index += match curr_utf8_char_len(input, index) {
+                                        Ok(i) => i,
+                                        Err(_) => {
+                                            session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
+                                            return Err(());
+                                        },
+                                    };
 
-                                    // TODO
-                                    // though it's not pushing the content of Comment::Single,
-                                    // I want to make sure that the entire file is a valid UTF-8 string
+                                    continue;
                                 }
                             },
                         }
@@ -760,5 +769,31 @@ fn try_get_char(buf: &[u8], index: usize) -> Option<char> {
             Ok(s) => s.chars().next(),
             Err(_) => None,
         }
+    }
+}
+
+fn curr_utf8_char_len(buf: &[u8], index: usize) -> Result<usize, ()> {
+    if let Some(c) = try_get_char(buf, index) {
+        let c = c as u32;
+
+        if c < 128 {
+            Ok(1)
+        }
+
+        else if c < 2048 {
+            Ok(2)
+        }
+
+        else if c < 65536 {
+            Ok(3)
+        }
+
+        else {
+            Ok(4)
+        }
+    }
+
+    else {
+        Err(())
     }
 }

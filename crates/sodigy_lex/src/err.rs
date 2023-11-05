@@ -25,7 +25,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::InvalidUtf8,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none().set_show_span(false).to_owned(),
+            extra: ExtraErrInfo::none(),
         }
     }
 

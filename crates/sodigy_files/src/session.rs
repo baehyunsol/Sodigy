@@ -121,7 +121,3 @@ impl Session {
         }
     }
 }
-
-// TODO: track the modified time of files
-// if a file is modified during the compilation, handle that!
-// use file_cache

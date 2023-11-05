@@ -95,3 +95,4 @@ check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`"
 
 // warnings for exprs
 check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "TODO");
+check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "TODO")

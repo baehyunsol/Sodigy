@@ -1,4 +1,5 @@
 use crate::{IdentWithSpan, Token, TokenKind};
+use crate::pattern::{Pattern, PatternKind};
 use smallvec::{smallvec, SmallVec};
 use sodigy_err::{substr_edit_distance, ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
@@ -139,6 +140,14 @@ impl AstError {
         }
     }
 
+    pub fn expected_binding_got_pattern(pat: Pattern) -> Self {
+        AstError {
+            kind: AstErrorKind::ExpectedBindingGotPattern(pat.kind),
+            spans: smallvec![pat.span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::TODO(msg.to_string()),
@@ -182,6 +191,7 @@ pub enum AstErrorKind {
     EmptyMatchBody,
     EmptyStructBody,
     FuncArgWithoutType { arg_name: InternedString, func_name: InternedString },
+    ExpectedBindingGotPattern(PatternKind),
     TODO(String),
 }
 
@@ -198,6 +208,7 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::EmptyMatchBody => String::from("expected patterns, got nothing"),
             AstErrorKind::EmptyStructBody => String::from("expected fields, got nothing"),
             AstErrorKind::FuncArgWithoutType { .. } => String::from("a function argument without a type annotation"),
+            AstErrorKind::ExpectedBindingGotPattern(p) => format!("expected a name binding, get pattern `{}`", p.render_error()),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -217,6 +228,12 @@ impl SodigyErrorKind for AstErrorKind {
             ),
             AstErrorKind::EmptyCharLiteral
             | AstErrorKind::TooLongCharLiteral => String::from("If you meant a string literal, use double quotes."),
+            AstErrorKind::ExpectedBindingGotPattern(p) => match p {
+                PatternKind::Identifier(id) => format!(
+                    "`{id}` is a name, not a name binding. Try `${id}` to bind a name.",
+                ),
+                _ => String::new(),
+            },
         }
     }
 }

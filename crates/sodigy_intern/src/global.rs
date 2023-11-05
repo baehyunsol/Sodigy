@@ -1,4 +1,4 @@
-use crate::{string::{DOTDOTDOT, UNDERBAR, STRING_B, STRING_F}, InternedString, InternedNumeric};
+use crate::{string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F}, InternedString, InternedNumeric};
 use sodigy_keyword::keywords;
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
@@ -58,6 +58,8 @@ impl GlobalInternSession {
             strings_rev.insert((index as u32).into(), keyword.to_utf8());
         }
 
+        strings.insert(vec![], EMPTY.into());
+        strings_rev.insert(EMPTY.into(), vec![]);
         strings.insert(b"b".to_vec(), STRING_B.into());
         strings_rev.insert(STRING_B.into(), b"b".to_vec());
         strings.insert(b"f".to_vec(), STRING_F.into());

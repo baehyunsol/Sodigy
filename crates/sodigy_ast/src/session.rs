@@ -1,10 +1,12 @@
 use crate::err::AstError;
 use crate::stmt::Stmt;
+use crate::warn::AstWarning;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_parse::ParseSession;
 
 pub struct AstSession {
     errors: Vec<AstError>,
+    warnings: Vec<AstWarning>,
     stmts: Vec<Stmt>,
     interner: InternSession,
 }
@@ -13,6 +15,7 @@ impl AstSession {
     pub fn from_parse_session(session: &ParseSession) -> Self {
         AstSession {
             errors: vec![],
+            warnings: vec![],
             stmts: vec![],
             interner: session.interner.clone(),
         }
@@ -44,6 +47,14 @@ impl AstSession {
 
     pub fn get_errors(&self) -> &Vec<AstError> {
         &self.errors
+    }
+
+    pub fn push_warning(&mut self, warning: AstWarning) {
+        self.warnings.push(warning);
+    }
+
+    pub fn get_warnings(&self) -> &Vec<AstWarning> {
+        &self.warnings
     }
 
     pub fn err_if_has_err(&self) -> Result<(), ()> {

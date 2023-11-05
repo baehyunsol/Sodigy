@@ -76,7 +76,10 @@ pub fn lower_ast_expr(
                 kind: ExprKind::String { s: *s, is_binary: *is_binary },
                 span: e.span,
             },
-            ValueKind::Char(c) => todo!(),
+            ValueKind::Char(c) => Expr {
+                kind: ExprKind::Char(*c),
+                span: e.span,
+            },
             v @ (ValueKind::List(elems)
             | ValueKind::Tuple(elems)) => {
                 let is_list = matches!(v, ValueKind::List(_));
@@ -109,11 +112,42 @@ pub fn lower_ast_expr(
                 }
             },
             ValueKind::Format(elems) => {
-                // remove empty strings
-                // unwrap the entire f-string if there's no value
-                // concat consecutive strings
+                let mut result = Vec::with_capacity(elems.len());
+                let mut has_error = false;
 
-                todo!()
+                for elem in elems.iter() {
+                    match &elem.kind {
+                        ast::ExprKind::Value(ast::ValueKind::String {
+                            s,
+                            is_binary: false,
+                        }) if s.is_empty() => {
+                            // removes empty strings
+                        },
+                        _ => match lower_ast_expr(
+                            elem,
+                            session,
+                            used_names,
+                            use_cases,
+                            name_space,
+                        ) {
+                            Ok(expr) => {
+                                result.push(expr);
+                            },
+                            Err(_) => {
+                                has_error = true;
+                            },
+                        },
+                    }
+                }
+
+                if has_error {
+                    return Err(());
+                }
+
+                Expr {
+                    kind: ExprKind::Format(result),
+                    span: e.span,
+                }
             },
             ValueKind::Lambda {
                 args, value, uid,
@@ -360,7 +394,10 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
-        ast::ExprKind::Path { pre, post } => todo!(),
+        ast::ExprKind::Path { pre, post } => {
+            session.push_error(HirError::todo("path", e.span));
+            return Err(());
+        },
         ast::ExprKind::Call { func, args } => {
             let func = lower_ast_expr(
                 func,
@@ -509,7 +546,8 @@ fn find_and_replace_foreign_names(
     match &mut ex.kind {
         ExprKind::Integer(_)
         | ExprKind::Ratio(_)
-        | ExprKind::String { .. } => { return; },
+        | ExprKind::String { .. }
+        | ExprKind::Char(_) => { return; },
         ExprKind::Identifier(id_ori) => {
             let origin = *id_ori.origin();
 

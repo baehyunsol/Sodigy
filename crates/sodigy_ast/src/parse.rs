@@ -40,6 +40,7 @@ use crate::{
     tokens::Tokens, Token, TokenKind,
     TypeDef,
     value::ValueKind,
+    warn::AstWarning,
 };
 use sodigy_err::{ErrorContext, SodigyError};
 use sodigy_intern::InternedString;
@@ -805,7 +806,7 @@ pub fn parse_expr(
                         }
 
                         if let Some(ErrorContext::ParsingTypeInPattern) = error_context {
-                            // TODO: warn the user not to do this!
+                            session.push_warning(AstWarning::ambiguous_type_in_pattern(punct, punct_span));
                         }
 
                         match parse_expr(tokens, session, bp, true, error_context, punct_span) {
@@ -888,8 +889,12 @@ pub fn parse_expr(
 
                         if let Some(ErrorContext::ParsingTypeInPattern) = error_context {
                             match punct {
-                                // TODO: warn the user if `punct` is `|`, `..` or `..~`
-                                _ => todo!(),
+                                Punct::DotDot
+                                | Punct::InclusiveRange
+                                | Punct::Or => {
+                                    session.push_warning(AstWarning::ambiguous_type_in_pattern(punct, punct_span));
+                                },
+                                _ => { /* nop */ },
                             }
                         }
 
@@ -1058,6 +1063,7 @@ pub fn parse_type_def(
     )?))
 }
 
+// TODO: how about decorators for args?
 // this function allows a trailing comma and args without type annotations
 // it's your responsibility to check type annotations
 fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<ArgDef>, ()> {

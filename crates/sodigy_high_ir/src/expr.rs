@@ -21,6 +21,7 @@ pub enum ExprKind {
     // TODO: any other info?
     Integer(InternedNumeric),
     Ratio(InternedNumeric),
+    Char(char),
     String {
         s: InternedString,
         is_binary: bool,  // `b` prefix

@@ -9,7 +9,15 @@ impl fmt::Display for SodigyNumber {
             "{}",
             match self {
                 SodigyNumber::Big(n) => format!("{n}"),
-                SodigyNumber::Small(n) => format!("{n}"),
+                SodigyNumber::SmallInt(n) => format!("{n}"),
+                SodigyNumber::SmallRatio(n) => format!(
+                    "{}{}",
+                    n / 65536,
+                    match (n % 65536) as i32 - 32768 {
+                        0 => String::new(),
+                        n => format!("e{n}"),
+                    },
+                ),
             },
         )
     }

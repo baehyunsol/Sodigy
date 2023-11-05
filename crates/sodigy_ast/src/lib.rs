@@ -13,6 +13,7 @@ mod session;
 mod stmt;
 mod tokens;
 mod value;
+mod warn;
 
 #[cfg(test)]
 mod tests;

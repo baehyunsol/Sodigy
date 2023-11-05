@@ -5,28 +5,46 @@ pub use err::NumericParseError;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SodigyNumber {
-    Big(BigNumber),
-    Small(u64),
+    // since this variant is very rarely used, it's much more efficient to
+    // reduce the size of `SodigyNumber` by using `Box`, than storing `BigNumber` directly
+    Big(Box<BigNumber>),
+
+    // an integer 0 ~ 18446744073709551615
+    SmallInt(u64),
+
+    // it's converted from BigNumber
+    // for a number `A * 10^B` (A and B are both integers, 0 <= A < 281474976710655, -32768 <= B < 32768),
+    // the u64 value is `A * 65536 + B + 32768`
+    //
+    // it uses decimal rather than binary because the numeric literals in Sodigy code uses decimals
+    SmallRatio(u64),
 }
 
 impl SodigyNumber {
     // `s` is guaranteed to be a valid, decimal number. `s` may contain `e` or a decimal separator.
     pub fn from_string(s: &[u8]) -> Result<Self, NumericParseError> {
-        if s.len() < 16 {
+        if s.len() < 21 {
             if let Ok(s) = String::from_utf8(s.to_vec()) {
                 if let Ok(n) = s.parse::<u64>() {
-                    return Ok(SodigyNumber::Small(n));
+                    return Ok(SodigyNumber::SmallInt(n));
                 }
             }
         }
 
-        Ok(SodigyNumber::Big(BigNumber::from_string(s)?))
+        match BigNumber::from_string(s) {
+            Ok(n) => match n.try_into_u64() {
+                Some(n) => Ok(SodigyNumber::SmallRatio(n)),
+                _ => Ok(SodigyNumber::Big(Box::new(n))),
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub fn is_integer(&self) -> bool {
         match self {
             SodigyNumber::Big(n) => n.is_integer,
-            SodigyNumber::Small(_) => true,
+            SodigyNumber::SmallInt(_) => true,
+            SodigyNumber::SmallRatio(_) => false,
         }
     }
 }
@@ -130,6 +148,24 @@ impl BigNumber {
             exp,
             is_integer,
         })
+    }
+
+    fn try_into_u64(&self) -> Option<u64> {
+        if -32768 <= self.exp && self.exp < 32768 {
+            // `BigNumber::from_string` already filtered out invalid utf8 strings
+            let digits = String::from_utf8(self.digits.clone()).unwrap();
+
+            match digits.parse::<u64>() {
+                Ok(n) if n < 281474976710656 => {
+                    Some(n * 65536 + (self.exp + 32768) as u64)
+                },
+                _ => None
+            }
+        }
+
+        else {
+            None
+        }
     }
 }
 

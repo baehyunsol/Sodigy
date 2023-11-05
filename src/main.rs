@@ -79,8 +79,13 @@ fn compile(file_hash: FileHash) -> CompileResult {
     let mut ast_session = AstSession::from_parse_session(&parse_session);
     let mut tokens = parse_session.get_tokens().to_vec();
     let mut tokens = Tokens::from_vec(&mut tokens);
+    let res = parse_stmts(&mut tokens, &mut ast_session);
 
-    if let Err(()) = parse_stmts(&mut tokens, &mut ast_session) {
+    for warning in ast_session.get_warnings() {
+        result.push_warning(format!("{}", warning.render_error()));
+    }
+
+    if let Err(()) = res {
         for error in ast_session.get_errors() {
             result.push_error(format!("{}", error.render_error()));
         }

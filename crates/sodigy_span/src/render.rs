@@ -83,7 +83,8 @@ impl ColorScheme {
         match &self.line_no {
             Color::None => format!("{pre}{n}"),
             Color::Blue => format!("{pre}{}", format!("{n}").blue()),
-            _ => todo!(),
+            Color::Red => format!("{pre}{}", format!("{n}").red()),
+            Color::Yellow => format!("{pre}{}", format!("{n}").yellow()),
         }
     }
 }

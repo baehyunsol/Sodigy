@@ -4,6 +4,7 @@ use crate::err::{AstError, ExpectedToken};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
+use crate::warn::AstWarning;
 use sodigy_err::ErrorContext;
 use sodigy_parse::{Delim, Punct};
 
@@ -26,9 +27,6 @@ use sodigy_parse::{Delim, Punct};
 // NUMERIC
 // CHAR
 // DOTDOT
-enum ParseState {
-    Init,
-}
 
 // TODO: tell the users about operator precedence in patterns
 pub(crate) fn parse_pattern(
@@ -45,7 +43,22 @@ pub(crate) fn parse_pattern(
             let span = *span;
 
             match punct {
-                Punct::At => todo!(),
+                Punct::At => match pat.try_into_binding() {
+                    Some(id) => {
+                        let mut rhs = parse_pattern(tokens, session)?;
+
+                        if let Some(binding) = &rhs.bind {
+                            session.push_warning(AstWarning::multiple_bindings_on_one_pattern(id, *binding));
+                        }
+
+                        rhs.set_bind(id);
+                        Ok(rhs)
+                    },
+                    None => {
+                        session.push_error(AstError::expected_binding_got_pattern(pat));
+                        return Err(());
+                    },
+                },
                 Punct::Colon => {
                     let ty = parse_type_def(
                         tokens,
@@ -134,7 +147,15 @@ fn parse_pattern_value(
                     Some(Token {
                         kind: TokenKind::Number(n),
                         span,
-                    }) => todo!(),
+                    }) => Pattern {
+                        kind: PatternKind::Number {
+                            num: *n,
+                            is_negative: true,
+                        },
+                        span: punct_span.merge(*span),
+                        bind: None,
+                        ty: None,
+                    },
                     _ => todo!(),
                 },
                 _ => todo!(),
@@ -269,6 +290,18 @@ fn parse_pattern_value(
                     }
                 },
             }
+        },
+        Some(Token {
+            kind: TokenKind::Number(n),
+            span,
+        }) => Pattern {
+            kind: PatternKind::Number {
+                num: *n,
+                is_negative: false,
+            },
+            span: *span,
+            bind: None,
+            ty: None,
         },
         _ => todo!(),
     };

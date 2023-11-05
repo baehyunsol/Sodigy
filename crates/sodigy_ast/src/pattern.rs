@@ -5,6 +5,7 @@ use crate::{
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 
+mod fmt;
 mod parse;
 
 pub(crate) use parse::parse_pattern;
@@ -27,10 +28,21 @@ impl Pattern {
         self.ty = Some(ty);
     }
 
+    pub fn set_bind(&mut self, bind: IdentWithSpan) {
+        self.bind = Some(bind);
+    }
+
+    pub fn try_into_binding(&self) -> Option<IdentWithSpan> {
+        match &self.kind {
+            PatternKind::Binding(id) => Some(IdentWithSpan::new(*id, self.span)),
+            _ => None,
+        }
+    }
+
     pub fn get_name_bindings(&self, buffer: &mut Vec<IdentWithSpan>) {
         match &self.kind {
             PatternKind::Identifier(_)
-            | PatternKind::Number(_)
+            | PatternKind::Number { .. }
             | PatternKind::Char(_)
             | PatternKind::Path(_)
             | PatternKind::Wildcard
@@ -94,7 +106,13 @@ impl Pattern {
 #[derive(Clone)]
 pub enum PatternKind {
     Identifier(InternedString),
-    Number(InternedNumeric),
+    Number {
+        num: InternedNumeric,
+
+        // all the numbers in expr are positive: `-` is an operator
+        // but in patterns, we need this field because there's no `-` operator
+        is_negative: bool,
+    },
     Char(char),
     Binding(InternedString),
 

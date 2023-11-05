@@ -1,6 +1,7 @@
-use crate::{DUMMY_FILE_HASH, read_bytes, FileHash};
+use crate::{DUMMY_FILE_HASH, last_modified, read_bytes, FileHash};
 use crate::err::FileError;
 use sodigy_test::sodigy_assert_eq;
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 // TODO: test with small `FILE_CACHE_SIZE` and `SIZE_LIMIT` (after `@test`s in Sodigy are implemented)
@@ -8,6 +9,8 @@ const FILE_CACHE_SIZE: usize = 32;
 const SIZE_LIMIT: usize = 64 * 1024 * 1024;
 
 static mut CACHE_LOCK: Mutex<()> = Mutex::new(());
+
+type Path = String;
 
 pub(crate) struct FileCache {
     data: [(FileHash, Vec<u8>); FILE_CACHE_SIZE],
@@ -21,6 +24,8 @@ pub(crate) struct FileCache {
 
     // sum of data's len
     total_size: usize,
+
+    modified_times: HashMap<Path, u64>,
 }
 
 impl FileCache {
@@ -31,6 +36,7 @@ impl FileCache {
             count: [0; FILE_CACHE_SIZE],
             cursor: 0,
             total_size: 0,
+            modified_times: HashMap::new(),
         }
     }
 
@@ -60,6 +66,29 @@ impl FileCache {
                 match read_bytes(path) {
                     Ok(f) => unsafe {
                         let lock = CACHE_LOCK.lock();
+
+                        // might have changed while waiting for the lock
+                        if self.count[self.cursor] != 0 {
+                            continue;
+                        }
+
+                        match last_modified(path) {
+                            Ok(m) => {
+                                match self.modified_times.get(path) {
+                                    Some(m_) if *m_ != m => {
+                                        // TODO: warn the user not to modify files while compilation
+                                    },
+                                    Some(_) => { /* nop */ },
+                                    None => {
+                                        self.modified_times.insert(path.to_string(), m);
+                                    },
+                                }
+                            },
+                            Err(e) => {
+                                // TODO: warn the user that this system does not support fs metadata
+                            },
+                        }
+
                         self.total_size -= self.data[self.cursor].1.len();
                         self.total_size += f.len();
 
