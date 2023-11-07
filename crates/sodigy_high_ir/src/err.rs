@@ -39,6 +39,14 @@ impl HirError {
         }
     }
 
+    pub fn undefined_deco(deco: IdentWithSpan) -> Self {
+        HirError {
+            kind: HirErrorKind::UndefinedDeco(*deco.id()),
+            spans: smallvec![*deco.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         HirError {
             kind: HirErrorKind::TODO(msg.to_string()),
@@ -78,6 +86,7 @@ pub enum HirErrorKind {
         name: InternedString,
         suggestions: Vec<InternedString>,
     },
+    UndefinedDeco(InternedString),
     TODO(String),
 }
 
@@ -87,6 +96,7 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
             HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
             HirErrorKind::NoDependentTypes(_) => format!("dependent types not allowed"),
+            HirErrorKind::UndefinedDeco(name) => format!("unknown decorator `{name}`"),
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }

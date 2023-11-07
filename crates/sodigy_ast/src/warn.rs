@@ -71,7 +71,7 @@ impl SodigyErrorKind for AstWarningKind {
     fn help(&self, _: &mut InternSession) -> String {
         match self {
             // TODO: how do I silence this warning if the user really mean this?
-            AstWarningKind::AmbiguousTypeInPattern(op) => String::from("It's very likely that you meant to use `{op}` in a pattern, but it's inside a type annotation. Use parenthesis to remove ambiguity."),
+            AstWarningKind::AmbiguousTypeInPattern(op) => format!("It's very likely that you meant to use `{op}` in a pattern, but it's inside a type annotation. Use parenthesis to remove ambiguity."),
             AstWarningKind::MultipleBindingsOnOnePattern => String::from("There's no point in binding multiple names on a pattern."),
         }
     }

@@ -1,6 +1,7 @@
 use crate::IdentWithSpan;
 use crate::err::{ExpectedToken, AstError};
 use crate::{Token, TokenKind};
+use sodigy_intern::InternedNumeric;
 use sodigy_keyword::Keyword;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
@@ -9,6 +10,9 @@ use sodigy_span::SpanRange;
 pub struct Tokens<'a> {
     data: &'a mut Vec<Token>,
     cursor: usize,
+
+    // if self.data.is_empty, self.span_end() returns this span
+    span_end_: Option<SpanRange>,
 }
 
 impl<'a> Tokens<'a> {
@@ -16,7 +20,12 @@ impl<'a> Tokens<'a> {
         Tokens {
             data,
             cursor: 0,
+            span_end_: None,
         }
+    }
+
+    pub fn set_span_end(&mut self, span_end: SpanRange) {
+        self.span_end_ = Some(span_end);
     }
 
     pub fn is_finished(&self) -> bool {
@@ -49,7 +58,10 @@ impl<'a> Tokens<'a> {
     }
 
     pub fn span_end(&self) -> Option<SpanRange> {
-        self.data.last().map(|t| t.span.last_char())
+        match self.data.last().map(|t| t.span.last_char()) {
+            Some(s) => Some(s),
+            None => self.span_end_,
+        }
     }
 
     // returns true if it finds a statement
@@ -62,12 +74,13 @@ impl<'a> Tokens<'a> {
                         | Keyword::Enum
                         | Keyword::Struct
                         | Keyword::Module
-                        | Keyword::Use => {
+                        | Keyword::Import => {
                             return true;
                         },
                         Keyword::If
                         | Keyword::Else
                         | Keyword::As
+                        | Keyword::From
                         | Keyword::Let
                         | Keyword::Match => {
                             self.cursor += 1;
@@ -101,6 +114,34 @@ impl<'a> Tokens<'a> {
         matches!(self.peek(), Some(Token { kind: TokenKind::DocComment(_), .. }))
     }
 
+    pub fn is_curr_token_pattern(&self) -> bool {
+        match self.peek() {
+            Some(Token { kind, .. }) => match kind {
+                TokenKind::Punct(p) => match p {
+                    Punct::Dollar
+                    | Punct::DotDot => true,
+                    _ => false,
+                },
+                TokenKind::Identifier(_) => true,
+                TokenKind::Number(_) => true,
+                TokenKind::String { .. } => true,
+                TokenKind::Group {
+                    delim,
+                    prefix: b'\0',
+                    ..
+                } => match delim {
+                    Delim::Paren | Delim::Bracket => true,
+                    Delim::Brace => false,
+                },
+                TokenKind::Keyword(_)
+                | TokenKind::FormattedString(_)
+                | TokenKind::DocComment(_)
+                | TokenKind::Group { .. } => false,
+            },
+            _ => false,
+        }
+    }
+
     pub fn expect_ident(&mut self) -> Result<IdentWithSpan, AstError> {
         match self.peek() {
             Some(Token {
@@ -120,6 +161,29 @@ impl<'a> Tokens<'a> {
             None => Err(AstError::unexpected_end(
                 self.span_end().unwrap_or(SpanRange::dummy()),
                 ExpectedToken::ident(),
+            )),
+        }
+    }
+
+    pub fn expect_number(&mut self) -> Result<(InternedNumeric, SpanRange), AstError> {
+        match self.peek() {
+            Some(Token {
+                kind: TokenKind::Number(n),
+                span,
+            }) => {
+                let n = *n;
+                let span = *span;
+                self.cursor += 1;
+
+                Ok((n, span))
+            },
+            Some(token) => Err(AstError::unexpected_token(
+                token.clone(),
+                ExpectedToken::number(),
+            )),
+            None => Err(AstError::unexpected_end(
+                self.span_end().unwrap_or(SpanRange::dummy()),
+                ExpectedToken::number(),
             )),
         }
     }

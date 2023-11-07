@@ -42,7 +42,12 @@ pub enum NameOrigin {
         origin: Uid,
         // binding_type: NameBindingType,
     },
-    Global,  // `def`, `struct`, `enum`, `module`, `use`, ...
+    Global {  // `def`, `struct`, `enum`, `module`, `import`, ...
+
+        // objects defined in the same module has uids,
+        // but the objects from other modules (`import`) don't have uids yet
+        origin: Option<Uid>,
+    },
 
     Captured { lambda: Uid, index: usize },  // inside closures
 }
@@ -59,8 +64,8 @@ pub enum NameBindingType {
 pub struct NameSpace {
     preludes: HashSet<InternedString>,
 
-    // `def`, `enum`, `struct`, `use`, and `module` in the current module
-    globals: HashSet<InternedString>,
+    // `def`, `enum`, `struct`, `import`, and `module` in the current module
+    globals: HashMap<InternedString, Option<Uid>>,
 
     func_args: Vec<IdentWithSpan>,
     func_generics: Vec<IdentWithSpan>,
@@ -79,7 +84,7 @@ impl NameSpace {
 
         NameSpace {
             preludes,
-            globals: HashSet::new(),
+            globals: HashMap::new(),
             func_args: vec![],
             func_generics: vec![],
             locals: vec![],
@@ -150,9 +155,11 @@ impl NameSpace {
         self.func_args_locked = false;
     }
 
-    pub fn push_globals<_T>(&mut self, globals: &HashMap<InternedString, _T>) {
-        for name in globals.keys() {
-            assert!(self.globals.insert(*name));
+    pub fn push_globals<_T>(&mut self, globals: &HashMap<InternedString, (_T, Option<Uid>)>) {
+        for (name, (_, uid)) in globals.iter() {
+            let is_none = self.globals.insert(*name, *uid);
+
+            sodigy_assert!(is_none.is_none());
         }
     }
 
@@ -204,8 +211,8 @@ impl NameSpace {
             }
         }
 
-        if self.globals.contains(&id) {
-            return Some(NameOrigin::Global);
+        if let Some(uid) = self.globals.get(&id) {
+            return Some(NameOrigin::Global { origin: *uid });
         }
 
         if self.preludes.contains(&id) {
@@ -265,7 +272,7 @@ impl NameSpace {
             |name| name.id()
         ).chain(self.func_generics.iter().map(
             |name| name.id()
-        )).chain(self.globals.iter()).chain(
+        )).chain(self.globals.keys()).chain(
             self.preludes.iter()
         ) {
             let name_u8 = match sess.unintern_string(*name) {

@@ -108,3 +108,30 @@ def foo_quest(x: T(X, Y)): Y = match x {
   T.T2($err) => ##! there must be a variant of Y for this case !## .. ,
 };
 ```
+
+---
+
+Macros
+
+the best (and the only) way I can think of
+
+like that of `[proc_macro]` in Rust:
+
+a Sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`
+
+the compiler, which is written in Rust is going to impl interpreter: it can run the macro
+
+so, the step would be
+
+1. Compiler(Rust): Code(Sodigy) -> Vec<TokenTree>
+2. Compiler(Rust): Vec<TokenTree> -> List(TokenTree)
+3. Macro(Sodigy): List(TokenTree) -> List(TokenTree)
+4. Compiler(Rust): List(TokenTree) -> Vec<TokenTree>
+5. Compiler(Rust): continue...
+
+the macro should be compiled independently
+
+limits
+
+1. incremental compilation: when macro is modified, but the code isn't
+2. slow compilation: 

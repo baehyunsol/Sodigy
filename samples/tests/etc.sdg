@@ -134,3 +134,6 @@ def EMPTY_TUPLE: () = ();
 
 @test.eq([])
 def EMPTY_LIST: List(Int) = [];
+
+# It's okay for braces to be unmatched!
+def format_string_not_an_error = f"{1";

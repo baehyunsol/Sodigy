@@ -1,9 +1,9 @@
 use crate::{
     ArgDef,
     BranchArm,
+    DottedNames,
     err::{ExpectedToken, AstError, AstErrorKind},
     expr::{Expr, ExprKind},
-    format_string_into_expr,
     GenericDef,
     IdentWithSpan,
     LocalDef,
@@ -29,16 +29,18 @@ use crate::{
         EnumDef,
         FieldDef,
         FuncDef,
+        Import,
+        ImportedName,
         Stmt,
         StmtKind,
         StructDef,
-        Use,
         VariantDef,
         VariantKind,
     },
     StructInitDef,
     tokens::Tokens, Token, TokenKind,
     TypeDef,
+    utils::format_string_into_expr,
     value::ValueKind,
     warn::AstWarning,
 };
@@ -111,10 +113,12 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                     tokens: args_tokens,
                                     prefix: b'\0',
                                 },
-                                ..
+                                span: arg_span,
                             }) => {
+                                let arg_span = *arg_span;
                                 let mut args_tokens = args_tokens.to_vec();
                                 let mut args_tokens = Tokens::from_vec(&mut args_tokens);
+                                args_tokens.set_span_end(arg_span.last_char());
 
                                 tokens.step().unwrap();
 
@@ -238,6 +242,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                                     name: def_name,
                                                     generics,
                                                     variants,
+                                                    uid: Uid::new_enum(),
                                                 }),
                                                 span,
                                             });
@@ -260,6 +265,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                                                     name: def_name,
                                                     generics,
                                                     fields,
+                                                    uid: Uid::new_struct(),
                                                 }),
                                                 span,
                                             });
@@ -316,15 +322,15 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                         }
 
                         session.push_stmt(Stmt {
-                            kind: StmtKind::Module(mod_name),
+                            kind: StmtKind::Module(mod_name, Uid::new_module()),
                             span,
                         });
                     },
-                    Keyword::Use => {
-                        match parse_use(tokens, session, keyword_span) {
-                            Ok(u) => {
+                    Keyword::Import => {
+                        match parse_import(tokens, session, keyword_span) {
+                            Ok(i) => {
                                 session.push_stmt(Stmt {
-                                    kind: StmtKind::Use(u),
+                                    kind: StmtKind::Import(i),
                                     span: keyword_span,
                                 });
                             },
@@ -342,6 +348,10 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                         if unexpected_keyword == Keyword::Let {
                             e.set_message(String::from("`let` is for local values. Try `def`."));
+                        }
+
+                        else if unexpected_keyword == Keyword::From {
+                            e.set_message(String::from("`from` comes after `import`. Try `import ... from ...;` instead of `from ... import ...;`."));
                         }
 
                         session.push_error(e);
@@ -587,6 +597,8 @@ pub fn parse_expr(
             if prefix == b'\\' {
                 if delim == Delim::Brace {
                     let mut tokens = Tokens::from_vec(&mut tokens);
+                    tokens.set_span_end(span.last_char());
+
                     let (args, value) = parse_lambda_body(&mut tokens, session, span)?;
 
                     Expr {
@@ -619,6 +631,7 @@ pub fn parse_expr(
                 match delim {
                     Delim::Paren => {
                         let mut tokens = Tokens::from_vec(&mut tokens);
+                        tokens.set_span_end(span.last_char());
 
                         match parse_comma_separated_exprs(&mut tokens, session) {
                             Ok((elems, has_trailing_comma)) if !has_trailing_comma && elems.len() == 1 => {
@@ -638,6 +651,8 @@ pub fn parse_expr(
                     },
                     Delim::Bracket => {
                         let mut tokens = Tokens::from_vec(&mut tokens);
+                        tokens.set_span_end(span.last_char());
+
                         let (elems, _) = parse_comma_separated_exprs(&mut tokens, session)?;
 
                         Expr {
@@ -647,6 +662,7 @@ pub fn parse_expr(
                     },
                     Delim::Brace => {
                         let mut tokens = Tokens::from_vec(&mut tokens);
+                        tokens.set_span_end(span.last_char());
 
                         Expr {
                             kind: ExprKind::Value(ValueKind::Scope {
@@ -945,6 +961,8 @@ pub fn parse_expr(
                             }
 
                             let mut index_tokens = Tokens::from_vec(&mut inner_tokens);
+                            index_tokens.set_span_end(span.last_char());
+
                             let rhs = parse_expr(&mut index_tokens, session, 0, false, error_context, span)?;
 
                             if !index_tokens.is_finished() {
@@ -973,6 +991,8 @@ pub fn parse_expr(
                             }
 
                             let mut index_tokens = Tokens::from_vec(&mut inner_tokens);
+                            index_tokens.set_span_end(span.last_char());
+
                             let (args, _) = parse_comma_separated_exprs(&mut index_tokens, session)?;
 
                             lhs = Expr {
@@ -997,6 +1017,7 @@ pub fn parse_expr(
                             }
 
                             let mut struct_init_tokens = Tokens::from_vec(&mut inner_tokens);
+                            struct_init_tokens.set_span_end(span.last_char());
 
                             match try_parse_struct_init(&mut struct_init_tokens, session) {
                                 Some(Ok(s)) => {
@@ -1505,13 +1526,24 @@ fn parse_branch_arm(
             span: if_span,
         }) => {
             let if_span = *if_span;
+            let mut let_bind = None;
 
             if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
-                /* if-let statement */
-                todo!()
+                let pat = parse_pattern(tokens, session)?;
+
+                if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Assign)) {
+                    session.push_error(
+                        e.set_err_context(
+                            ErrorContext::ParsingBranchCondition
+                        ).to_owned()
+                    );
+                    return Err(());
+                }
+
+                let_bind = Some(pat);
             }
 
-            let cond = parse_expr(tokens, session, 0, false, None, if_span)?;
+            let cond = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingBranchCondition), if_span)?;
             let span = tokens.peek_span();
 
             match tokens.expect_group(Delim::Brace) {
@@ -1531,7 +1563,7 @@ fn parse_branch_arm(
 
                     Ok(BranchArm {
                         cond: Some(cond),
-                        let_bind: None,  // TODO
+                        let_bind,
                         value,
                     })
                 },
@@ -1552,6 +1584,7 @@ fn parse_branch_arm(
             let span = *span;
             let mut val_tokens = val_tokens.to_vec();
             let mut val_tokens = Tokens::from_vec(&mut val_tokens);
+            val_tokens.set_span_end(span.last_char());
 
             let scope = parse_scope_block(&mut val_tokens, session, span)?;
             let value = Expr {
@@ -1564,7 +1597,7 @@ fn parse_branch_arm(
 
             Ok(BranchArm {
                 cond: None,
-                let_bind: None,  // TODO
+                let_bind: None,
                 value,
             })
         },
@@ -1644,52 +1677,84 @@ fn parse_decorator(at_span: SpanRange, tokens: &mut Tokens, session: &mut AstSes
     Ok((Decorator { name: names, args }, span))
 }
 
-// use a;
-// use a, b, c;
-// use {a, b, c};
-// use a.b;
-// use a.{b, c, d};
-// use a.{b, c, d}, e, f.{g, h as i};
-// use a as b;
-// use a.b as c;
-// use a.{b as c, d, e};
-fn parse_use(tokens: &mut Tokens, session: &mut AstSession, span: SpanRange) -> Result<Use, ()> {
-    match tokens.step() {
-        Some(Token {
-            kind: TokenKind::Identifier(id),
-            span: id_span,
-        }) => {
-            session.push_error(AstError::todo("use", span));
-            return Err(());
-        },
-        Some(Token {
-            kind: TokenKind::Group {
-                delim: Delim::Brace,
-                tokens: inner_tokens,
-                prefix: b'\0',
-            },
-            span: group_span,
-        }) => {
-            let group_span = *group_span;
-            let mut inner_tokens = inner_tokens.to_vec();
-            let mut inner_tokens = Tokens::from_vec(&mut inner_tokens);
+// `import` is already consumed
+fn parse_import(tokens: &mut Tokens, session: &mut AstSession, keyword_span: SpanRange) -> Result<Import, ()> {
+    let mut imported_names = vec![];
 
-            parse_use(&mut inner_tokens, session, group_span)
-        },
-        Some(token) => {
-            session.push_error(AstError::unexpected_token(
-                token.clone(),
-                ExpectedToken::ident_or_brace(),
-            ));
-            return Err(());
-        },
-        None => {
-            session.push_error(AstError::unexpected_end(
-                span,
-                ExpectedToken::ident_or_brace(),
-            ));
-            return Err(());
-        },
+    loop {
+        let mut alias = None;
+        let name = parse_dotted_names(tokens, session, Some(ErrorContext::ParsingImportStatement))?;
+
+        if tokens.is_curr_token(TokenKind::Keyword(Keyword::As)) {
+            tokens.step().unwrap();
+
+            match tokens.expect_ident() {
+                Ok(id) => {
+                    alias = Some(id);
+                },
+                Err(e) => {
+                    session.push_error(e);
+                    return Err(());
+                },
+            }
+        }
+
+        imported_names.push(ImportedName {
+            name,
+            alias,
+        });
+
+        match tokens.step() {
+            Some(Token {
+                kind: TokenKind::Punct(Punct::Comma),
+                ..
+            }) => {
+                continue;
+            },
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::From),
+                ..
+            }) => {
+                let fr = parse_dotted_names(tokens, session, Some(ErrorContext::ParsingImportStatement))?;
+
+                if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::SemiColon)) {
+                    session.push_error(
+                        e.set_err_context(
+                            ErrorContext::ParsingImportStatement
+                        ).to_owned()
+                    );
+                    return Err(());
+                }
+
+                return Ok(Import {
+                    names: imported_names,
+                    from: Some(fr),
+                });
+            },
+            Some(Token {
+                kind: TokenKind::Punct(Punct::SemiColon),
+                ..
+            }) => {
+                return Ok(Import {
+                    names: imported_names,
+                    from: None,
+                });
+            },
+            Some(token) => {
+                session.push_error(AstError::unexpected_token(
+                    token.clone(),
+                    ExpectedToken::comma_semicolon_dot_or_from(),
+                ));
+                return Err(());
+            },
+            None => {
+                session.push_error(AstError::unexpected_end(
+                    tokens.span_end().unwrap_or(keyword_span),
+                    ExpectedToken::comma_semicolon_dot_or_from(),
+                ));
+                return Err(());
+            },
+        }
     }
 }
 
@@ -1838,6 +1903,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                 let group_span = *group_span;
                 let mut type_tokens = type_tokens.to_vec();
                 let mut type_tokens = Tokens::from_vec(&mut type_tokens);
+                type_tokens.set_span_end(group_span.last_char());
 
                 match delim {
                     Delim::Paren => {
@@ -1947,7 +2013,6 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
 
     let mut params = vec![];
 
-    // TODO: does it allow trailing commas?
     loop {
         if tokens.is_finished() {
             if params.is_empty() {
@@ -2124,4 +2189,42 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
             Ok(_) => {},
         }
     }
+}
+
+fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context: Option<ErrorContext>) -> Result<DottedNames, ()> {
+    let mut result = vec![];
+
+    match tokens.expect_ident() {
+        Ok(id) => {
+            result.push(id);
+        },
+        Err(mut e) => {
+            session.push_error(
+                e.try_set_err_context(
+                    err_context
+                ).to_owned()
+            );
+            return Err(());
+        },
+    }
+
+    while tokens.is_curr_token(TokenKind::Punct(Punct::Dot)) {
+        tokens.step().unwrap();
+
+        match tokens.expect_ident() {
+            Ok(id) => {
+                result.push(id);
+            },
+            Err(mut e) => {
+                session.push_error(
+                    e.try_set_err_context(
+                        err_context
+                    ).to_owned()
+                );
+                return Err(());
+            },
+        }
+    }
+
+    Ok(result)
 }

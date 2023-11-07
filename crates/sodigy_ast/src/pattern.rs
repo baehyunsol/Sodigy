@@ -1,4 +1,5 @@
 use crate::{
+    DottedNames,
     IdentWithSpan,
     TypeDef,
 };
@@ -117,7 +118,7 @@ pub enum PatternKind {
     Binding(InternedString),
 
     // path.len() > 1
-    Path(Vec<IdentWithSpan>),
+    Path(DottedNames),
 
     // 3..4
     // ..4
@@ -140,14 +141,14 @@ pub enum PatternKind {
 
     // Foo { x: $x, y: $y, .. }
     Struct {
-        struct_name: Vec<IdentWithSpan>,  // Foo
+        struct_name: DottedNames,
         fields: Vec<PatField>,
         has_shorthand: bool,
     },
 
     // Foo($a, .., $b)
     TupleStruct {
-        name: Vec<IdentWithSpan>,
+        name: DottedNames,
         fields: Vec<Pattern>,
     },
 

@@ -35,14 +35,9 @@ macro_rules! check_output {
 }
 
 // error messages for invalid stmts
-// TODO: first implement the parser
-// "use A.{B, C} as D;",
-// "use A.{};",
-// "use A.{,};",
-// "use A.{B, C;};",
-// "use A as B as C;",
-// check_output!(stmt, err, stmt_test1, "use A.{B, C} as D;", "TODO");
-
+check_output!(stmt, err, import_test1, "import x, y,", "got nothing");
+check_output!(stmt, err, import_test2, "import x, y from z, w;", "got `,`");
+check_output!(stmt, err, import_test3, "import from x;", "got `from`");
 check_output!(stmt, err, stmt_test1, "def foo<>() = 3;", "remove angle brackets");
 check_output!(stmt, err, stmt_test2, "def foo< >() = 3;", "remove angle brackets");
 check_output!(stmt, err, stmt_test3, "def foo<GenericName>() = generic_name;", "similar name exists");
@@ -95,4 +90,4 @@ check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`"
 
 // warnings for exprs
 check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "TODO");
-check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "TODO")
+check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "multiple name bindings");

@@ -27,4 +27,12 @@ pub struct Arg {
 // lowered ast::Deco
 // some simple decorators are interpreted and consumed!
 #[derive(Default)]
-pub struct FuncDeco {}
+pub struct FuncDeco {
+    publicity: Publicity,
+}
+
+#[derive(Default)]
+enum Publicity {
+    #[default]
+    Public,
+}

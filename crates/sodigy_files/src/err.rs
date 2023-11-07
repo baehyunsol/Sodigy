@@ -2,7 +2,6 @@ use crate::FileHash;
 use std::ffi::OsString;
 use std::io;
 
-// TODO: impl SodigyError for this type
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileError {
     kind: FileErrorKind,

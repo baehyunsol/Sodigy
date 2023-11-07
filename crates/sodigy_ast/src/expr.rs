@@ -25,7 +25,7 @@ pub enum ExprKind {
     PostfixOp(PostfixOp, Box<Expr>),
     InfixOp(InfixOp, Box<Expr>, Box<Expr>),
 
-    // a.b
+    // `a.b`: `Path { pre: a, post: b }`
     Path { pre: Box<Expr>, post: IdentWithSpan },
     Call { func: Box<Expr>, args: Vec<Expr> },
 

@@ -129,10 +129,10 @@ impl GlobalInternSession {
     }
 }
 
-pub(crate) const DATA_MASK: u32 = 0x00ff_ffff;
+pub(crate) const DATA_MASK: u32 = !(0b111_111 << 26);
 
 // metadata for strings
-pub(crate) const SPECIAL_STRINGS: u32 = 0x1000_0000;
+pub(crate) const SPECIAL_STRINGS: u32 = 0b100_000 << 26;
 
 // metadata for numerics
-pub(crate) const IS_INTEGER: u32 = 0x1000_0000;
+pub(crate) const IS_INTEGER: u32 = 0b100_000 << 26;

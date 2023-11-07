@@ -2,6 +2,7 @@ use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan, StmtKind};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 mod err;
@@ -30,45 +31,47 @@ pub fn lower_stmts(
     // only for warnings
     let preludes = session.get_prelude_names();
 
-    // it's only for name-collision checking
-    let mut names: HashMap<InternedString, IdentWithSpan> = HashMap::new();
+    // it collects names and uids of items in this module
+    let mut names: HashMap<InternedString, (IdentWithSpan, Option<Uid>)> = HashMap::new();
 
-    // `use x.y.z as z;` -> use_cases['z'] = ['x', 'y', 'z']
-    let mut use_cases: HashMap<InternedString, (SpanRange, Vec<InternedString>)> = HashMap::new();
+    // `import x.y.z as z;` -> imports['z'] = ['x', 'y', 'z']
+    // span is of `z`, it's for error messages
+    let mut imports: HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)> = HashMap::new();
 
     // It's used to generate unused_name warnings
     let mut used_names: HashSet<IdentWithOrigin> = HashSet::new();
 
     // first iteration:
     // collect names from definitions and check name collisions
-    // unfold all the `use`s: convert them into basic forms (`use x.y.z as z;`)
+    // unfold all the `import`s: convert them into basic forms (`import x.y.z as z;`)
     for stmt in stmts.iter() {
         match &stmt.kind {
             StmtKind::Decorator(_)
             | StmtKind::DocComment(_) => { /* nop */ },
-            StmtKind::Use(u) => {
+            StmtKind::Import(u) => {
                 let mut aliases = vec![];
                 u.unfold_alias(&mut aliases);
 
                 for (from, to) in aliases.iter() {
-                    if let Some(collision) = names.insert(*from.id(), *from) {
+                    if let Some((collision, _)) = names.insert(*from.id(), (*from, None)) {
                         session.push_error(HirError::name_collision(*from, collision));
                     }
 
-                    use_cases.insert(*from.id(), (*from.span(), to.to_vec()));
+                    imports.insert(*from.id(), (*from.span(), to.to_vec()));
                 }
             },
             stmt_kind => {
                 let id = stmt_kind.get_id().unwrap();
+                let uid = stmt_kind.get_uid().unwrap();
 
-                if let Some(collision) = names.insert(*id.id(), *id) {
+                if let Some((collision, _)) = names.insert(*id.id(), (*id, Some(*uid))) {
                     session.push_error(HirError::name_collision(*id, collision));
                 }
             },
         }
     }
 
-    for id in names.values() {
+    for (id, _) in names.values() {
         if preludes.contains(id.id()) {
             session.push_warning(HirWarning::redef_prelude(*id));
         }
@@ -97,11 +100,13 @@ pub fn lower_stmts(
                     f,
                     session,
                     &mut used_names,
-                    &use_cases,
-                    &vec![],  // TODO: collect decorators
+                    &imports,
+                    &curr_decorators,
                     concat_doc_comments(&mut curr_doc_comments),
                     &mut name_space,
                 );
+
+                curr_decorators.clear();
             },
             _ => {
                 // TODO
@@ -116,14 +121,14 @@ pub fn lower_ast_ty(
     ty: &ast::TypeDef,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
-    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<Type, ()> {
     Ok(Type(lower_ast_expr(
         &ty.0,
         session,
         used_names,
-        use_cases,
+        imports,
         name_space,
     )?))
 }

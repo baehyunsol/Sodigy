@@ -1,17 +1,17 @@
+// set it to false when you want to disable the test statements
 pub const TEST_MODE: bool = true;
 
-// TODO: I don't know how to use `*`s in `macro_rules`
+// TODO: I'm not sure with `,*` and `$(,)?` syntax
 
+// choose empty branches when you want to disable asserts in the code
 #[macro_export]
 macro_rules! sodigy_assert {
-    ($val: expr) => { assert!($val); };
-    ($val: expr, ) => { assert!($val); };
-    ($_: expr) => { (); };
+    ($($x: expr),* $(,)?) => { assert!($($x),*); };
+    ($($_x: expr),* $(,)?) => { (); };
 }
 
 #[macro_export]
 macro_rules! sodigy_assert_eq {
-    ($val1: expr, $val2: expr) => { assert_eq!($val1, $val2); };
-    ($val1: expr, $val2: expr, ) => { assert_eq!($val1, $val2); };
-    ($_v1: expr, $_v2: expr) => { (); };
+    ($($x: expr),* $(,)?) => { assert_eq!($($x),*); };
+    ($($_x: expr),* $(,)?) => { (); };
 }

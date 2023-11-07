@@ -10,7 +10,7 @@ use sodigy_span::SpanRange;
 mod fmt;
 
 const STMT_START_KEYWORDS: [&'static str; 5] = [
-    "def", "enum", "struct", "module", "use"
+    "def", "enum", "struct", "module", "import",
 ];
 
 #[derive(Clone)]
@@ -144,7 +144,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::ExpectedBindingGotPattern(pat.kind),
             spans: smallvec![pat.span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingPattern),
         }
     }
 
@@ -246,6 +246,7 @@ pub enum ExpectedToken {
     AnyDocComment,
     AnyPattern,
     AnyType,
+    AnyNumber,
     IdentOrBrace,
     Nothing,
 
@@ -280,6 +281,10 @@ impl ExpectedToken {
 
     pub fn ty() -> Self {
         ExpectedToken::AnyType
+    }
+
+    pub fn number() -> Self {
+        ExpectedToken::AnyNumber
     }
 
     pub fn nothing() -> Self {
@@ -354,5 +359,14 @@ impl ExpectedToken {
 
     pub fn ident_or_brace() -> Self {
         ExpectedToken::IdentOrBrace
+    }
+
+    pub fn comma_semicolon_dot_or_from() -> Self {
+        ExpectedToken::Specific(vec![
+            TokenKind::Punct(Punct::Comma),
+            TokenKind::Punct(Punct::SemiColon),
+            TokenKind::Punct(Punct::Dot),
+            TokenKind::Keyword(Keyword::From),
+        ])
     }
 }

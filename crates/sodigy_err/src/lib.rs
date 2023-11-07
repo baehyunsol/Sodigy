@@ -59,6 +59,7 @@ pub enum ErrorContext {
     Unknown,
     Lexing,
     LexingNumericLiteral,
+    ParsingImportStatement,
     ParsingFuncName,
     ParsingFuncRetType,
     ParsingFuncBody,
@@ -67,9 +68,11 @@ pub enum ErrorContext {
     ParsingStructBody,
     ParsingStructInit,
     ParsingMatchBody,
+    ParsingBranchCondition,
     ParsingLambdaBody,
     ParsingScopeBlock,
     ParsingFormattedString,
+    ParsingPattern,
     ParsingTypeInPattern,
 }
 

@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lazy_static = "1.4.0"
 smallvec = "1.11.1"
 sodigy_ast = { path = "../sodigy_ast" }
 sodigy_err = { path = "../sodigy_err" }

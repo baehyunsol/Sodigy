@@ -1,4 +1,4 @@
-use a as babb;
+import a as babb;
 
 def func1: babb = babb;
 

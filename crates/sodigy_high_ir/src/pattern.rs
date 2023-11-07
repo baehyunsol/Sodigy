@@ -2,7 +2,7 @@ use crate::err::HirError;
 use crate::expr::{lower_ast_expr, LocalDef};
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
-use sodigy_ast as ast;
+use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
@@ -13,7 +13,7 @@ pub fn lower_ast_local_def(
     local_def: &ast::LocalDef,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
-    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<LocalDef, ()> {
     let let_span = local_def.let_span;
@@ -21,7 +21,7 @@ pub fn lower_ast_local_def(
         &local_def.value,
         session,
         used_names,
-        use_cases,
+        imports,
         name_space,
     );
     let pattern = lower_ast_pattern(

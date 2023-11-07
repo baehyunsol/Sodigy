@@ -1,6 +1,4 @@
-use sodigy_err::ErrorContext;
 use sodigy_intern::InternedString;
-use sodigy_parse::FormattedStringElement;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
@@ -12,6 +10,7 @@ mod pattern;
 mod session;
 mod stmt;
 mod tokens;
+mod utils;
 mod value;
 mod warn;
 
@@ -45,6 +44,8 @@ impl IdentWithSpan {
         &self.1
     }
 }
+
+pub type DottedNames = Vec<IdentWithSpan>;
 
 #[derive(Clone)]
 pub struct ArgDef {
@@ -103,39 +104,4 @@ pub struct BranchArm {
 pub struct StructInitDef {
     pub field: IdentWithSpan,
     pub value: Expr,
-}
-
-// TODO: where should this function belong?
-fn format_string_into_expr(
-    f: &FormattedStringElement,
-    span: SpanRange,
-    session: &mut AstSession,
-) -> Result<Expr, ()> {
-    match f {
-        FormattedStringElement::Literal(s) => {
-            Ok(Expr {
-                kind: ExprKind::Value(ValueKind::String {
-                    s: session.intern_string(s.as_bytes().to_vec()),
-                    is_binary: false,
-                }),
-                span,
-            })
-        },
-        FormattedStringElement::Value(v) => {
-            let mut v = v.to_vec();
-            let mut tokens = Tokens::from_vec(&mut v);
-
-            // it's guaranteed to exist: lexer guarantees that
-            let last_span = tokens.span_end().unwrap();
-
-            parse_expr(
-                &mut tokens,
-                session,
-                0,
-                false,
-                Some(ErrorContext::ParsingFormattedString),
-                last_span,
-            )
-        },
-    }
 }

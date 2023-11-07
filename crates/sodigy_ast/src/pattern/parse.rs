@@ -5,8 +5,9 @@ use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
 use crate::warn::AstWarning;
-use sodigy_err::ErrorContext;
+use sodigy_err::{ErrorContext, SodigyError};
 use sodigy_parse::{Delim, Punct};
+use sodigy_span::SpanRange;
 
 // operators
 // PAT `:` TY
@@ -29,6 +30,7 @@ use sodigy_parse::{Delim, Punct};
 // DOTDOT
 
 // TODO: tell the users about operator precedence in patterns
+// for now, there's no precedence at all: it just reads from left to right
 pub(crate) fn parse_pattern(
     tokens: &mut Tokens,
     session: &mut AstSession,
@@ -40,7 +42,7 @@ pub(crate) fn parse_pattern(
             kind: TokenKind::Punct(punct),
             span,
         }) => {
-            let span = *span;
+            let punct_span = *span;
 
             match punct {
                 Punct::At => match pat.try_into_binding() {
@@ -64,7 +66,7 @@ pub(crate) fn parse_pattern(
                         tokens,
                         session,
                         Some(ErrorContext::ParsingTypeInPattern),
-                        span,
+                        punct_span,
                     )?;
                     pat.set_ty(ty);
 
@@ -72,16 +74,53 @@ pub(crate) fn parse_pattern(
                 },
                 p @ (Punct::DotDot
                 | Punct::InclusiveRange) => {
-                    // TODO: it's very difficult to tell whether this range is infix or postfix
-                    // for ex, `3.. | (-9..0)` is a valid syntax while `3..{}` is not
-                    // `parse_pattern_value` would return err for both cases!
+                    let p = *p;
 
-                    // TODO: isn't it supposed to be `parse_pattern`?
-                    let rhs = parse_pattern_value(tokens, session);
+                    if tokens.is_curr_token_pattern() {
+                        let rhs = parse_pattern(tokens, session)?;
+                        let span = pat.span.merge(rhs.span);
 
-                    todo!()
+                        Ok(Pattern {
+                            kind: PatternKind::Range {
+                                from: Some(Box::new(pat)),
+                                to: Some(Box::new(rhs)),
+                                inclusive: matches!(p, Punct::InclusiveRange),
+                            },
+                            span,
+                            bind: None,
+                            ty: None,
+                        })
+                    }
+
+                    else {
+                        let span = pat.span.merge(punct_span);
+
+                        Ok(Pattern {
+                            kind: PatternKind::Range {
+                                from: Some(Box::new(pat)),
+                                to: None,
+                                inclusive: matches!(p, Punct::InclusiveRange),
+                            },
+                            span,
+                            bind: None,
+                            ty: None,
+                        })
+                    }
                 },
-                Punct::Or => todo!(),
+                Punct::Or => {
+                    let rhs = parse_pattern(tokens, session)?;
+                    let span = pat.span.merge(rhs.span);
+
+                    Ok(Pattern {
+                        kind: PatternKind::Or(
+                            Box::new(pat),
+                            Box::new(rhs),
+                        ),
+                        span,
+                        bind: None,
+                        ty: None,
+                    })
+                },
                 _ => {
                     tokens.backward().unwrap();
 
@@ -105,7 +144,7 @@ fn parse_pattern_value(
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
     let result = match tokens.step() {
-        Some(Token {
+        Some(t @ Token {
             kind: TokenKind::Punct(punct),
             span,
         }) => {
@@ -119,8 +158,10 @@ fn parse_pattern_value(
                         bind: Some(id),
                         ty: None,
                     },
-                    Err(e) => {
-                        session.push_error(e);
+                    Err(mut e) => {
+                        session.push_error(e.set_err_context(
+                            ErrorContext::ParsingPattern
+                        ).to_owned());
                         return Err(());
                     },
                 },
@@ -143,33 +184,45 @@ fn parse_pattern_value(
                         ty: None,
                     }
                 },
-                Punct::Sub => match tokens.step() {
-                    Some(Token {
-                        kind: TokenKind::Number(n),
-                        span,
-                    }) => Pattern {
+                Punct::Sub => match tokens.expect_number() {
+                    Ok((n, span)) => Pattern {
                         kind: PatternKind::Number {
-                            num: *n,
+                            num: n,
                             is_negative: true,
                         },
-                        span: punct_span.merge(*span),
+                        span: punct_span.merge(span),
                         bind: None,
                         ty: None,
                     },
-                    _ => todo!(),
+                    Err(mut e) => {
+                        session.push_error(e.set_err_context(
+                            ErrorContext::ParsingPattern
+                        ).to_owned());
+                        return Err(());
+                    },
                 },
-                _ => todo!(),
+                _ => {
+                    session.push_error(AstError::unexpected_token(
+                        t.clone(),
+                        ExpectedToken::pattern(),
+                    ).set_err_context(
+                        ErrorContext::ParsingPattern
+                    ).to_owned());
+                    return Err(());
+                },
             }
         },
-        Some(Token {
+        Some(t @ Token {
             kind: TokenKind::Group { delim, tokens, prefix: b'\0' },
             span,
         }) => {
             let group_span = *span;
+            let delim = *delim;
             let mut tokens = tokens.to_vec();
             let mut tokens = Tokens::from_vec(&mut tokens);
+            tokens.set_span_end(group_span.last_char());
 
-            match *delim {
+            match delim {
                 Delim::Paren => {  // a pattern inside parenthesis, or a tuple
                     let (patterns, has_trailing_comma) = parse_comma_separated_patterns(
                         &mut tokens,
@@ -205,7 +258,13 @@ fn parse_pattern_value(
                     }
                 },
                 Delim::Brace => {  // err
-                    todo!()
+                    session.push_error(AstError::unexpected_token(
+                        t.clone(),
+                        ExpectedToken::pattern(),
+                    ).set_err_context(
+                        ErrorContext::ParsingPattern
+                    ).to_owned());
+                    return Err(());
                 },
             }
         },
@@ -227,8 +286,10 @@ fn parse_pattern_value(
 
                         id
                     },
-                    Err(e) => {
-                        session.push_error(e);
+                    Err(mut e) => {
+                        session.push_error(e.set_err_context(
+                            ErrorContext::ParsingPattern
+                        ).to_owned());
                         return Err(());
                     },
                 });
@@ -236,17 +297,18 @@ fn parse_pattern_value(
 
             match tokens.step() {
                 Some(Token {
-                    kind: TokenKind::Group { delim, tokens, prefix: b'\0' },
+                    kind: TokenKind::Group { delim, tokens: group_tokens, prefix: b'\0' },
                     span,
                 }) => {
                     let span = *span;
-                    let mut tokens = tokens.to_vec();
-                    let mut tokens = Tokens::from_vec(&mut tokens);
+                    let mut group_tokens = group_tokens.to_vec();
+                    let mut group_tokens = Tokens::from_vec(&mut group_tokens);
+                    group_tokens.set_span_end(span.last_char());
 
                     match delim {
                         Delim::Paren => {
                             let (fields, _) = parse_comma_separated_patterns(
-                                &mut tokens,
+                                &mut group_tokens,
                                 session,
                                 /* must_consume_all_tokens */ true,
                             )?;
@@ -266,8 +328,20 @@ fn parse_pattern_value(
                             todo!()
                         },
                         Delim::Bracket => {
-                            // TODO: `.backward()` or `error`?
-                            todo!()
+                            tokens.backward().unwrap();
+
+                            let pttk = if names.len() == 1 {
+                                PatternKind::Identifier(*names[0].id())
+                            } else {
+                                PatternKind::Path(names)
+                            };
+        
+                            Pattern {
+                                kind: pttk,
+                                span: name_span,
+                                bind: None,
+                                ty: None,
+                            }
                         },
                     }
                 },
@@ -303,7 +377,14 @@ fn parse_pattern_value(
             bind: None,
             ty: None,
         },
-        _ => todo!(),
+        Some(_) => todo!(),
+        None => {
+            session.push_error(AstError::unexpected_end(
+                tokens.span_end().unwrap_or(SpanRange::dummy()),
+                ExpectedToken::pattern(),
+            ));
+            return Err(());
+        },
     };
 
     Ok(result)
@@ -345,7 +426,9 @@ fn parse_comma_separated_patterns(
                 session.push_error(AstError::unexpected_token(
                     tokens.peek().as_ref().unwrap().clone().clone(),
                     ExpectedToken::nothing(),
-                ));
+                ).set_err_context(
+                    ErrorContext::ParsingPattern
+                ).to_owned());
                 return Err(());
             }
         }

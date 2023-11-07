@@ -4,9 +4,10 @@ use crate::err::HirError;
 use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
-use sodigy_ast as ast;
+use lazy_static::lazy_static;
+use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::SodigyError;
-use sodigy_intern::InternedString;
+use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
@@ -14,13 +15,13 @@ pub fn lower_ast_func(
     f: &ast::FuncDef,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
-    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     decorators: &Vec<ast::Decorator>,
     doc: Option<InternedString>,
     name_space: &mut NameSpace,
 ) -> Result<Func, ()> {
     let mut hir_args = None;
-    let mut arg_lower_failure = false;
+    let mut has_error = false;
 
     name_space.enter_new_func_def();
 
@@ -49,14 +50,14 @@ pub fn lower_ast_func(
                     &ty,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 ) {
                     Some(ty)
                 }
 
                 else {
-                    arg_lower_failure = true;
+                    has_error = true;
 
                     None
                 }
@@ -90,7 +91,7 @@ pub fn lower_ast_func(
         &f.ret_val,
         session,
         used_names,
-        use_cases,
+        imports,
         name_space,
     );
 
@@ -99,7 +100,7 @@ pub fn lower_ast_func(
             ty,
             session,
             used_names,
-            use_cases,
+            imports,
             name_space,
         )
     );
@@ -125,7 +126,7 @@ pub fn lower_ast_func(
 
     name_space.leave_func_def();
 
-    if arg_lower_failure {
+    if has_error {
         return Err(());
     }
 
@@ -148,8 +149,48 @@ pub fn lower_ast_func_decorators(
     let mut result = FuncDeco::default();
 
     for deco in decorators.iter() {
-        todo!()
+        // always deco.name.len() > 0
+        match *deco.name[0].id() {
+            id if id == *SYM_TEST => {
+                match deco.name.get(1).map(|id| id.id()) {
+                    Some(id) if *id == *SYM_EQ => {
+                        // TODO
+                    },
+                    Some(id) => {
+                        // TODO
+                    },
+                    None => {
+                        // TODO: Err
+                        // tell the user which identifiers are valid in this place
+                    },
+                }
+            },
+            id if id == *SYM_PUBLIC => {
+                // TODO
+            },
+            _ => {
+                session.push_error(HirError::undefined_deco(deco.name[0]));
+                return Err(());
+            },
+        }
     }
 
     Ok(result)
 }
+
+// optimization: `intern_string()` is expensive, but is static
+macro_rules! static_interned_symbol {
+    ($symbol_name: ident, $symbol: literal) => {
+        lazy_static! {
+            static ref $symbol_name: InternedString = {
+                let mut session = InternSession::new();
+        
+                session.intern_string($symbol.to_vec())
+            };
+        }
+    };
+}
+
+static_interned_symbol!(SYM_TEST, b"test");
+static_interned_symbol!(SYM_PUBLIC, b"public");
+static_interned_symbol!(SYM_EQ, b"eq");

@@ -1,4 +1,4 @@
-use crate::{ArgDef, Expr, GenericDef, IdentWithSpan, TypeDef};
+use crate::{utils::merge_dotted_names, ArgDef, DottedNames, Expr, GenericDef, IdentWithSpan, TypeDef};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -13,8 +13,8 @@ pub struct Stmt {
 
 pub enum StmtKind {
     Func(FuncDef),
-    Module(IdentWithSpan),
-    Use(Use),
+    Module(IdentWithSpan, Uid),
+    Import(Import),
     Enum(EnumDef),
     Struct(StructDef),
     Decorator(Decorator),
@@ -27,9 +27,19 @@ impl StmtKind {
     pub fn get_id(&self) -> Option<&IdentWithSpan> {
         match self {
             StmtKind::Func(func) => Some(&func.name),
-            StmtKind::Module(m) => Some(m),
+            StmtKind::Module(m, _) => Some(m),
             StmtKind::Enum(en) => Some(&en.name),
             StmtKind::Struct(st) => Some(&st.name),
+            _ => None,
+        }
+    }
+
+    pub fn get_uid(&self) -> Option<&Uid> {
+        match self {
+            StmtKind::Func(func) => Some(&func.uid),
+            StmtKind::Enum(e) => Some(&e.uid),
+            StmtKind::Struct(s) => Some(&s.uid),
+            StmtKind::Module(_, id) => Some(id),
             _ => None,
         }
     }
@@ -44,41 +54,40 @@ pub struct FuncDef {
     pub uid: Uid,
 }
 
-pub enum Use {
-
-    // use a;
-    Unit(Vec<IdentWithSpan>),
-
-    // use a as b;
-    Alias {
-        from: Vec<IdentWithSpan>,
-        to: IdentWithSpan,
-    },
-
-    // use { .. };
-    Group {
-        pre: Vec<IdentWithSpan>,
-        mods: Vec<Use>,
-    },
+// `import a, b, c.d, e as f from x.y;`
+pub struct Import {
+    pub names: Vec<ImportedName>,
+    pub from: Option<DottedNames>,
 }
 
-impl Use {
-    pub fn unfold_alias(&self, buffer: &mut Vec<(IdentWithSpan, Vec<InternedString>)>) {
-        match self {
-            // `use a.b.c;` -> `use c as a.b.c;`
-            Use::Unit(names) => {
-                buffer.push((
-                    *names.last().unwrap(),
-                    names.iter().map(|n| *n.id()).collect(),
-                ));
-            },
-            Use::Alias { from, to } => {
-                buffer.push((
-                    *to,
-                    from.iter().map(|n| *n.id()).collect(),
-                ));
-            },
-            Use::Group { .. } => todo!(),
+impl Import {
+    // `import a.b.c as d;` -> buffer.push((d, [a, b, c]))
+    pub fn unfold_alias(&self, buffer: &mut Vec<(IdentWithSpan, Vec<IdentWithSpan>)>) {
+        let empty_vec = vec![];
+        let prefix = self.from.as_ref().unwrap_or(&empty_vec);
+
+        for name in self.names.iter() {
+            buffer.push((
+                *name.get_alias(),
+                merge_dotted_names(&prefix, &name.name).iter().map(|i| *i).collect(),
+            ));
+        }
+    }
+}
+
+pub struct ImportedName {
+    pub name: DottedNames,
+    pub alias: Option<IdentWithSpan>,
+}
+
+impl ImportedName {
+    pub fn get_alias(&self) -> &IdentWithSpan {
+        if let Some(id) = &self.alias {
+            id
+        }
+
+        else {
+            self.name.last().unwrap()
         }
     }
 }
@@ -94,6 +103,7 @@ pub struct EnumDef {
     pub name: IdentWithSpan,
     pub generics: Vec<GenericDef>,
     pub variants: Vec<VariantDef>,
+    pub uid: Uid,
 }
 
 pub enum VariantKind {
@@ -112,6 +122,7 @@ pub struct StructDef {
     pub name: IdentWithSpan,
     pub generics: Vec<GenericDef>,
     pub fields: Vec<FieldDef>,
+    pub uid: Uid,
 }
 
 pub struct FieldDef {
@@ -122,6 +133,6 @@ pub struct FieldDef {
 
 #[derive(Clone)]
 pub struct Decorator {
-    pub name: Vec<IdentWithSpan>,
+    pub name: DottedNames,
     pub args: Option<Vec<Expr>>,
 }

@@ -1,4 +1,4 @@
-use super::{Expr, ExprKind, Lambda, LocalDef, Match, MatchArm, Scope};
+use super::{Branch, BranchArm, Expr, ExprKind, Lambda, LocalDef, Match, MatchArm, Scope};
 use crate::lower_ast_ty;
 use crate::err::HirError;
 use crate::func::Arg;
@@ -9,26 +9,52 @@ use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
+use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
+// This function tries to continue lowering even when errors are found.
+// Further lowering can find more errors, which is helpful for users.
 pub fn lower_ast_expr(
     e: &ast::Expr,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
 
-    // `use z as x.y.z;` -> {'z': ['x', 'y', 'z']}
+    // `import x.y.z as z;` -> {'z': ['x', 'y', 'z']}
     // span is later used for error messages
-    use_cases: &HashMap<InternedString, (SpanRange, Vec<InternedString>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
 
     name_space: &mut NameSpace,
 ) -> Result<Expr, ()> {
     let res = match &e.kind {
         ast::ExprKind::Value(v) => match &v {
             ValueKind::Identifier(id) => {
-                if let Some(u) = use_cases.get(id) {
-                    // unfold u
-                    todo!()
+                if let Some((span, names)) = imports.get(id) {
+                    if names.len() == 1 {
+                        Expr {
+                            kind: ExprKind::Identifier(IdentWithOrigin::new(
+                                *names[0].id(), NameOrigin::Global { origin: None },
+                            )),
+                            span: *span,
+                        }
+                    }
+
+                    else {
+                        Expr {
+                            kind: ExprKind::Path {
+                                head: Box::new(Expr {
+                                    kind: ExprKind::Identifier(IdentWithOrigin::new(
+                                        *names[0].id(), NameOrigin::Global { origin: None },
+                                    )),
+                                    span: *names[0].span(),
+                                }),
+                                tail: names[1..].to_vec(),
+                            },
+
+                            // it points to the `import` statement
+                            span: *span,
+                        }
+                    }
                 }
 
                 else if let Some(origin) = name_space.find_origin(*id) {
@@ -91,7 +117,7 @@ pub fn lower_ast_expr(
                         elem,
                         session,
                         used_names,
-                        use_cases,
+                        imports,
                         name_space,
                     ) {
                         hir_elems.push(elem);
@@ -127,7 +153,7 @@ pub fn lower_ast_expr(
                             elem,
                             session,
                             used_names,
-                            use_cases,
+                            imports,
                             name_space,
                         ) {
                             Ok(expr) => {
@@ -174,7 +200,7 @@ pub fn lower_ast_expr(
                             ty,
                             session,
                             used_names,
-                            use_cases,
+                            imports,
                             name_space,
                         ) {
                             find_and_replace_foreign_names(
@@ -207,7 +233,7 @@ pub fn lower_ast_expr(
                     value,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 );
 
@@ -223,15 +249,15 @@ pub fn lower_ast_expr(
                     name_space,
                 );
 
+                if has_error {
+                    return Err(());
+                }
+
                 // find unused names
                 for (id, id_with_span) in arg_names.iter() {
                     if !used_names.contains(&IdentWithOrigin::new(*id, NameOrigin::Local { origin: *uid })) {
                         session.push_warning(HirWarning::unused_name(*id_with_span, NameBindingType::LambdaArg));
                     }
-                }
-
-                if has_error {
-                    return Err(());
                 }
 
                 Expr {
@@ -281,7 +307,7 @@ pub fn lower_ast_expr(
                         local_def,
                         session,
                         used_names,
-                        use_cases,
+                        imports,
                         name_space,
                     )
                 ).collect();
@@ -290,7 +316,7 @@ pub fn lower_ast_expr(
                     scope.value.as_ref(),
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 );
 
@@ -348,7 +374,7 @@ pub fn lower_ast_expr(
                     expr,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 )?),
             ),
@@ -361,7 +387,7 @@ pub fn lower_ast_expr(
                     expr,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 )?),
             ),
@@ -374,14 +400,14 @@ pub fn lower_ast_expr(
                 lhs,
                 session,
                 used_names,
-                use_cases,
+                imports,
                 name_space,
             );
             let rhs = lower_ast_expr(
                 rhs,
                 session,
                 used_names,
-                use_cases,
+                imports,
                 name_space,
             );
 
@@ -394,16 +420,49 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
+        // it prettifies ast::Path
+        // `a.b.c` -> ast: `Path { pre: Path { pre: a, post: b }, post: c }`
+        // `a.b.c` -> hir: `Path { head: a, tail: [b, c] }`
         ast::ExprKind::Path { pre, post } => {
-            session.push_error(HirError::todo("path", e.span));
-            return Err(());
+            let mut head = lower_ast_expr(
+                pre,
+                session,
+                used_names,
+                imports,
+                name_space,
+            )?;
+
+            if let Expr {
+                kind: ExprKind::Path { head: i_head, tail: mut i_tail },
+                span: i_span,
+            } = head {
+                i_tail.push(*post);
+
+                Expr {
+                    kind: ExprKind::Path {
+                        head: i_head,
+                        tail: i_tail,
+                    },
+                    span: i_span,
+                }
+            }
+
+            else {
+                Expr {
+                    kind: ExprKind::Path {
+                        head: Box::new(head),
+                        tail: vec![*post],
+                    },
+                    span: e.span,
+                }
+            }
         },
         ast::ExprKind::Call { func, args } => {
             let func = lower_ast_expr(
                 func,
                 session,
                 used_names,
-                use_cases,
+                imports,
                 name_space,
             );
 
@@ -415,7 +474,7 @@ pub fn lower_ast_expr(
                     arg,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 ) {
                     hir_args.push(arg);
@@ -440,18 +499,93 @@ pub fn lower_ast_expr(
             return Err(());
         },
         ast::ExprKind::Branch(arms) => {
-            // TODO: Push names defined in the arms (if there's `if let`), then recurs
-            // TODO: check unused-names
+            let mut branch_arms = Vec::with_capacity(arms.len());
+            let mut has_error = false;
 
-            session.push_error(HirError::todo("branch", e.span));
-            return Err(());
+            for ast::BranchArm {
+                cond,
+                let_bind,
+                value,
+            } in arms.iter() {
+                if let Some(cond) = cond {
+                    let cond = if let Ok(cond) = lower_ast_expr(
+                        cond,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    ) {
+                        cond
+                    } else {
+                        has_error = true;
+                        continue;
+                    };
+
+                    if let Some(let_bind) = let_bind {
+                        session.push_error(HirError::todo("if-let", e.span));
+                        has_error = true;
+                        continue;
+                    }
+
+                    else {
+                        if let Ok(value) = lower_ast_expr(
+                            value,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        ) {
+                            branch_arms.push(BranchArm {
+                                cond: Some(cond),
+                                let_bind: None,
+                                value,
+                            });
+                        }
+
+                        else {
+                            has_error = true;
+                        }
+                    }
+                }
+
+                else {
+                    sodigy_assert!(let_bind.is_none());
+
+                    if let Ok(value) = lower_ast_expr(
+                        value,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    ) {
+                        branch_arms.push(BranchArm {
+                            cond: None,
+                            let_bind: None,
+                            value,
+                        });
+                    }
+
+                    else {
+                        has_error = true;
+                    }
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+
+            Expr {
+                kind: ExprKind::Branch(Branch { arms: branch_arms }),
+                span: e.span,
+            }
         },
         ast::ExprKind::Match { value, arms } => {
             let result_value = lower_ast_expr(
                 value,
                 session,
                 used_names,
-                use_cases,
+                imports,
                 name_space,
             );
             let mut result_arms = Vec::with_capacity(arms.len());
@@ -490,7 +624,7 @@ pub fn lower_ast_expr(
                     value,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 );
 
@@ -503,7 +637,7 @@ pub fn lower_ast_expr(
                     g,
                     session,
                     used_names,
-                    use_cases,
+                    imports,
                     name_space,
                 ));
 
@@ -554,7 +688,7 @@ fn find_and_replace_foreign_names(
             // checks whether this id is foreign or not
             match origin {
                 NameOrigin::Prelude
-                | NameOrigin::Global => {
+                | NameOrigin::Global { .. } => {
                     /* not foreign */
                     return;
                 },
@@ -685,6 +819,18 @@ fn find_and_replace_foreign_names(
                     name_space,
                 );
             }
+        },
+        ExprKind::Branch(_) => todo!(),
+        ExprKind::Path {
+            head, ..
+        } => {
+            find_and_replace_foreign_names(
+                head,
+                lambda_uid,
+                foreign_names,
+                used_names,
+                name_space,
+            );
         },
         ExprKind::PrefixOp(_, value)
         | ExprKind::PostfixOp(_, value) => {
