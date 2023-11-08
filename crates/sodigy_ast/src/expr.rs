@@ -32,7 +32,7 @@ pub enum ExprKind {
     // foo { bar: 3, baz: 4 }
     StructInit {
         struct_: Box<Expr>,
-        init: Vec<StructInitDef>,
+        fields: Vec<StructInitDef>,
     },
 
     Branch(Vec<BranchArm>),

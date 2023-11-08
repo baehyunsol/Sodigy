@@ -1,11 +1,12 @@
-use super::{Pattern, PatternKind};
+use super::{PatField, Pattern, PatternKind};
 use crate::{IdentWithSpan, Token, TokenKind};
-use crate::err::{AstError, ExpectedToken};
+use crate::err::{AstError, AstErrorKind, ExpectedToken};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
 use crate::utils::try_into_char;
 use crate::warn::AstWarning;
+use smallvec::SmallVec;
 use sodigy_err::{ErrorContext, SodigyError};
 use sodigy_intern::InternSession;
 use sodigy_lex::QuoteKind;
@@ -327,8 +328,82 @@ fn parse_pattern_value(
                             }
                         },
                         Delim::Brace => {
-                            // struct
-                            todo!()
+                            let mut pat_fields = vec![];
+                            let mut shorthand_spans = SmallVec::<[SpanRange; 1]>::new();
+
+                            loop {
+                                if group_tokens.is_finished() {
+                                    break;
+                                }
+
+                                if group_tokens.is_curr_token(TokenKind::Punct(Punct::DotDot)) {
+                                    shorthand_spans.push(group_tokens.step().unwrap().span);
+                                }
+
+                                else {
+                                    match group_tokens.expect_ident() {
+                                        Ok(id) => {
+                                            if let Err(mut e) = group_tokens.consume(TokenKind::Punct(Punct::Colon)) {
+                                                session.push_error(e.set_err_context(
+                                                    ErrorContext::ParsingPattern
+                                                ).to_owned());
+                                                return Err(());
+                                            }
+
+                                            let pat = parse_pattern(&mut group_tokens, session)?;
+
+                                            pat_fields.push(PatField {
+                                                name: id,
+                                                value: pat,
+                                            });
+                                        },
+                                        Err(AstError {
+                                            kind: AstErrorKind::UnexpectedEnd(_),
+                                            ..
+                                        }) => {},
+                                        Err(mut e) => {
+                                            session.push_error(e.set_err_context(
+                                                ErrorContext::ParsingPattern
+                                            ).to_owned());
+                                            return Err(());
+                                        },
+                                    }
+                                }
+
+                                match group_tokens.consume(TokenKind::Punct(Punct::Comma)) {
+                                    Ok(_) => {
+                                        continue;
+                                    },
+                                    Err(AstError {
+                                        kind: AstErrorKind::UnexpectedEnd(_),
+                                        ..
+                                    }) => {
+                                        break;
+                                    },
+                                    Err(mut e) => {
+                                        session.push_error(e.set_err_context(
+                                            ErrorContext::ParsingPattern
+                                        ).to_owned());
+                                        return Err(());
+                                    },
+                                }
+                            }
+
+                            if shorthand_spans.len() > 1 {
+                                session.push_error(AstError::multiple_shorthands_in_one_pattern(shorthand_spans));
+                                return Err(());
+                            }
+
+                            Pattern {
+                                kind: PatternKind::Struct {
+                                    struct_name: names,
+                                    has_shorthand: shorthand_spans.len() > 0,
+                                    fields: pat_fields,
+                                },
+                                span: name_span.merge(span),
+                                bind: None,
+                                ty: None,
+                            }
                         },
                         Delim::Bracket => {
                             tokens.backward().unwrap();

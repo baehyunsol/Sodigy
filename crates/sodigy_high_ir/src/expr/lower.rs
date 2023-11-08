@@ -1,4 +1,4 @@
-use super::{Branch, BranchArm, Expr, ExprKind, Lambda, LocalDef, Match, MatchArm, Scope};
+use super::{Branch, BranchArm, Expr, ExprKind, Lambda, LocalDef, Match, MatchArm, Scope, StructInit, StructInitField};
 use crate::lower_ast_ty;
 use crate::err::HirError;
 use crate::func::Arg;
@@ -494,9 +494,47 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
-        ast::ExprKind::StructInit { struct_, init } => {
-            session.push_error(HirError::todo("struct init", e.span));
-            return Err(());
+        ast::ExprKind::StructInit { struct_, fields } => {
+            let struct_ = lower_ast_expr(
+                struct_,
+                session,
+                used_names,
+                imports,
+                name_space,
+            );
+            let mut fields_res = Vec::with_capacity(fields.len());
+            let mut has_error = false;
+
+            for ast::StructInitDef { field, value } in fields.iter() {
+                if let Ok(value) = lower_ast_expr(
+                    value,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                ) {
+                    fields_res.push(StructInitField {
+                        name: *field,
+                        value,
+                    });
+                }
+
+                else {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+
+            Expr {
+                kind: ExprKind::StructInit(StructInit {
+                    struct_: Box::new(struct_?),
+                    fields: fields_res,
+                }),
+                span: e.span,
+            }
         },
         ast::ExprKind::Branch(arms) => {
             let mut branch_arms = Vec::with_capacity(arms.len());
@@ -821,6 +859,28 @@ fn find_and_replace_foreign_names(
             }
         },
         ExprKind::Branch(_) => todo!(),
+        ExprKind::StructInit(StructInit {
+            struct_,
+            fields
+        }) => {
+            find_and_replace_foreign_names(
+                struct_,
+                lambda_uid,
+                foreign_names,
+                used_names,
+                name_space,
+            );
+
+            for StructInitField { value, .. } in fields.iter_mut() {
+                find_and_replace_foreign_names(
+                    value,
+                    lambda_uid,
+                    foreign_names,
+                    used_names,
+                    name_space,
+                );
+            }
+        },
         ExprKind::Path {
             head, ..
         } => {

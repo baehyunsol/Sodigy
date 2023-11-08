@@ -148,6 +148,14 @@ impl AstError {
         }
     }
 
+    pub fn multiple_shorthands_in_one_pattern(spans: SmallVec<[SpanRange; 1]>) -> Self {
+        AstError {
+            kind: AstErrorKind::MultipleShorthandsInOnePattern,
+            spans,
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingPattern),
+        }
+    }
+
     pub fn invalid_utf8(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
@@ -200,6 +208,7 @@ pub enum AstErrorKind {
     EmptyStructBody,
     FuncArgWithoutType { arg_name: InternedString, func_name: InternedString },
     ExpectedBindingGotPattern(PatternKind),
+    MultipleShorthandsInOnePattern,
     InvalidUtf8,
     TODO(String),
 }
@@ -218,6 +227,7 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::EmptyStructBody => String::from("expected fields, got nothing"),
             AstErrorKind::FuncArgWithoutType { .. } => String::from("a function argument without a type annotation"),
             AstErrorKind::ExpectedBindingGotPattern(p) => format!("expected a name binding, get pattern `{}`", p.render_error()),
+            AstErrorKind::MultipleShorthandsInOnePattern => String::from("multiple shorthands in one pattern"),
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -244,7 +254,8 @@ impl SodigyErrorKind for AstErrorKind {
                 ),
                 _ => String::new(),
             },
-            AstErrorKind::InvalidUtf8 => String::new(),
+            AstErrorKind::MultipleShorthandsInOnePattern
+            | AstErrorKind::InvalidUtf8 => String::new(),
         }
     }
 }

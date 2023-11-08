@@ -1016,7 +1016,7 @@ pub fn parse_expr(
                                     lhs = Expr {
                                         kind: ExprKind::StructInit {
                                             struct_: Box::new(lhs),
-                                            init: s,
+                                            fields: s,
                                         },
                                         span,
                                     };

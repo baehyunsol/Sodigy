@@ -1,7 +1,7 @@
 use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
-use sodigy_ast::{DottedNames, InfixOp, PostfixOp, PrefixOp};
+use sodigy_ast::{DottedNames, IdentWithSpan, InfixOp, PostfixOp, PrefixOp};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -38,6 +38,8 @@ pub enum ExprKind {
     Match(Match),
     Lambda(Lambda),
     Branch(Branch),
+
+    StructInit(StructInit),
 
     // `a.b.c` -> `Path { head: a, tail: [b, c] }`
     Path {
@@ -87,5 +89,15 @@ pub struct Branch {
 pub struct BranchArm {
     pub cond: Option<Expr>,
     pub let_bind: Option<Expr>,
+    pub value: Expr,
+}
+
+pub struct StructInit {
+    pub struct_: Box<Expr>,
+    pub fields: Vec<StructInitField>,
+}
+
+pub struct StructInitField {
+    pub name: IdentWithSpan,
     pub value: Expr,
 }
