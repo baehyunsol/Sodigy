@@ -148,6 +148,14 @@ impl AstError {
         }
     }
 
+    pub fn invalid_utf8(span: SpanRange) -> Self {
+        AstError {
+            kind: AstErrorKind::InvalidUtf8,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::TODO(msg.to_string()),
@@ -192,6 +200,7 @@ pub enum AstErrorKind {
     EmptyStructBody,
     FuncArgWithoutType { arg_name: InternedString, func_name: InternedString },
     ExpectedBindingGotPattern(PatternKind),
+    InvalidUtf8,
     TODO(String),
 }
 
@@ -209,6 +218,7 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::EmptyStructBody => String::from("expected fields, got nothing"),
             AstErrorKind::FuncArgWithoutType { .. } => String::from("a function argument without a type annotation"),
             AstErrorKind::ExpectedBindingGotPattern(p) => format!("expected a name binding, get pattern `{}`", p.render_error()),
+            AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -234,6 +244,7 @@ impl SodigyErrorKind for AstErrorKind {
                 ),
                 _ => String::new(),
             },
+            AstErrorKind::InvalidUtf8 => String::new(),
         }
     }
 }

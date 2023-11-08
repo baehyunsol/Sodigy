@@ -40,7 +40,7 @@ use crate::{
     StructInitDef,
     tokens::Tokens, Token, TokenKind,
     TypeDef,
-    utils::format_string_into_expr,
+    utils::{format_string_into_expr, try_into_char},
     value::ValueKind,
     warn::AstWarning,
 };
@@ -721,27 +721,19 @@ pub fn parse_expr(
                     ).to_owned());
                     return Err(());
                 } else {
-                    let mut chars = session.unintern_string_fast(*content).unwrap().iter();
-                    let first_c = match chars.next() {
-                        Some(c) => c,
-                        None => {
-                            session.push_error(AstError::empty_char_literal(span).try_set_err_context(
-                                error_context,
-                            ).to_owned());
+                    match try_into_char(session.unintern_string(*content).unwrap()) {
+                        Ok(c) => Expr {
+                            kind: ExprKind::Value(ValueKind::Char(c)),
+                            span,
+                        },
+                        Err(e) => {
+                            session.push_error(
+                                e.into_ast_error(span).try_set_err_context(
+                                    error_context,
+                                ).to_owned()
+                            );
                             return Err(());
                         },
-                    };
-
-                    if let Some(_) = chars.next() {
-                        session.push_error(AstError::too_long_char_literal(span).try_set_err_context(
-                            error_context,
-                        ).to_owned());
-                        return Err(());
-                    }
-
-                    Expr {
-                        kind: ExprKind::Value(ValueKind::Char(*first_c as char)),
-                        span,
                     }
                 },
             }

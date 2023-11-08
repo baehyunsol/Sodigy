@@ -4,8 +4,11 @@ use crate::err::{AstError, ExpectedToken};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
+use crate::utils::try_into_char;
 use crate::warn::AstWarning;
 use sodigy_err::{ErrorContext, SodigyError};
+use sodigy_intern::InternSession;
+use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
 
@@ -377,7 +380,52 @@ fn parse_pattern_value(
             bind: None,
             ty: None,
         },
-        Some(_) => todo!(),
+        Some(Token {
+            kind: TokenKind::String {
+                kind: q_kind,
+                content,
+                is_binary,
+            },
+            span,
+        }) => match *q_kind {
+            QuoteKind::Single => {
+                if *is_binary {
+                    session.push_error(AstError::binary_char(*span));
+                    return Err(());
+                }
+
+                let mut intern_session = InternSession::new();
+                let content = intern_session.unintern_string(*content).unwrap();
+
+                match try_into_char(content) {
+                    Ok(c) => Pattern {
+                        kind: PatternKind::Char(c),
+                        span: *span,
+                        bind: None,
+                        ty: None,
+                    },
+                    Err(e) => {
+                        session.push_error(
+                            e.into_ast_error(*span).set_err_context(
+                                ErrorContext::ParsingPattern
+                            ).to_owned()
+                        );
+                        return Err(());
+                    },
+                }
+            },
+            QuoteKind::Double => {
+                session.push_error(AstError::todo("string patterns", *span));
+                return Err(());
+            },
+        },
+        Some(token) => {
+            session.push_error(AstError::unexpected_token(
+                token.clone(),
+                ExpectedToken::pattern(),
+            ));
+            return Err(());
+        },
         None => {
             session.push_error(AstError::unexpected_end(
                 tokens.span_end().unwrap_or(SpanRange::dummy()),
