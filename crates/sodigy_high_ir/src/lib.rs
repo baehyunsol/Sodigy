@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 mod err;
 mod expr;
+mod fmt;
 mod func;
 mod names;
 mod pattern;
@@ -96,7 +97,7 @@ pub fn lower_stmts(
             },
             StmtKind::Func(f) => {
                 // TODO: what do we do with it?
-                lower_ast_func(
+                let f = lower_ast_func(
                     f,
                     session,
                     &mut used_names,
@@ -105,6 +106,7 @@ pub fn lower_stmts(
                     concat_doc_comments(&mut curr_doc_comments),
                     &mut name_space,
                 );
+                println!("{}", f?);
 
                 curr_decorators.clear();
             },
@@ -147,5 +149,4 @@ fn concat_doc_comments(docs: &mut Vec<(InternedString, SpanRange)>) -> Option<In
     }
 }
 
-// TODO: independent module for these
 pub struct Type(hir::Expr);

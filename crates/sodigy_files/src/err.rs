@@ -19,7 +19,7 @@ pub enum FileErrorKind {
 }
 
 impl FileError {
-    pub fn init(e: io::Error, given_path: &str) -> Self {
+    pub fn from_std(e: io::Error, given_path: &str) -> Self {
         let kind = match e.kind() {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
             io::ErrorKind::PermissionDenied => FileErrorKind::PermissionDenied,

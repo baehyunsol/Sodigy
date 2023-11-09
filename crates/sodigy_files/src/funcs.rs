@@ -41,7 +41,7 @@ pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
 
     match fs::read(path) {
         Ok(data) => Ok(data),
-        Err(e) => Err(FileError::init(e, path)),
+        Err(e) => Err(FileError::from_std(e, path)),
     }
 
 }
@@ -50,10 +50,10 @@ pub fn read_string(path: &str) -> Result<String, FileError> {
     let mut s = String::new();
 
     match File::open(path) {
-        Err(e) => Err(FileError::init(e, path)),
+        Err(e) => Err(FileError::from_std(e, path)),
         Ok(mut f) => match f.read_to_string(&mut s) {
             Ok(_) => Ok(s),
-            Err(e) => Err(FileError::init(e, path)),
+            Err(e) => Err(FileError::from_std(e, path)),
         }
     }
 
@@ -65,9 +65,9 @@ pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<()
     match option.open(path) {
         Ok(mut f) => match f.write_all(bytes) {
             Ok(_) => Ok(()),
-            Err(e) => Err(FileError::init(e, path)),
+            Err(e) => Err(FileError::from_std(e, path)),
         },
-        Err(e) => Err(FileError::init(e, path)),
+        Err(e) => Err(FileError::from_std(e, path)),
     }
 
 }
@@ -168,22 +168,22 @@ pub fn last_modified(path: &str) -> Result<u64, FileError> {
 
                 Ok(hash)
             },
-            Err(e) => Err(FileError::init(e, path)),
+            Err(e) => Err(FileError::from_std(e, path)),
         },
-        Err(e) => Err(FileError::init(e, path)),
+        Err(e) => Err(FileError::from_std(e, path)),
     }
 }
 
 pub fn read_dir(path: &str) -> Result<Vec<String>, FileError> {
     match fs::read_dir(path) {
-        Err(e) => Err(FileError::init(e, path)),
+        Err(e) => Err(FileError::from_std(e, path)),
         Ok(entries) => {
             let mut result = vec![];
 
             for entry in entries {
                 match entry {
                     Err(e) => {
-                        return Err(FileError::init(e, path));
+                        return Err(FileError::from_std(e, path));
                     }
                     Ok(e) => {
                         if let Some(ee) = e.path().to_str() {

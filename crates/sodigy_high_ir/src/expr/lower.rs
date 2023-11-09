@@ -424,7 +424,7 @@ pub fn lower_ast_expr(
         // `a.b.c` -> ast: `Path { pre: Path { pre: a, post: b }, post: c }`
         // `a.b.c` -> hir: `Path { head: a, tail: [b, c] }`
         ast::ExprKind::Path { pre, post } => {
-            let mut head = lower_ast_expr(
+            let head = lower_ast_expr(
                 pre,
                 session,
                 used_names,

@@ -49,7 +49,7 @@ pub(crate) fn try_into_char(s: &[u8]) -> Result<char, IntoCharErr> {
 
     let s = String::from_utf8(s.to_vec());
 
-    if let Err(e) = s {
+    if let Err(_) = s {
         return Err(IntoCharErr::InvalidUtf8);
     }
 

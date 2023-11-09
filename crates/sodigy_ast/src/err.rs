@@ -4,7 +4,7 @@ use smallvec::{smallvec, SmallVec};
 use sodigy_err::{substr_edit_distance, ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_keyword::Keyword;
-use sodigy_parse::{Delim, Punct};
+use sodigy_parse::Delim;
 use sodigy_span::SpanRange;
 
 mod fmt;
@@ -327,11 +327,11 @@ impl ExpectedToken {
     }
 
     pub fn comma_or_gt() -> Self {
-        ExpectedToken::Specific(vec![TokenKind::Punct(Punct::Comma), TokenKind::Punct(Punct::Gt)])
+        ExpectedToken::Specific(vec![TokenKind::comma(), TokenKind::gt()])
     }
 
     pub fn comma_or_colon() -> Self {
-        ExpectedToken::Specific(vec![TokenKind::Punct(Punct::Comma), TokenKind::Punct(Punct::Colon)])
+        ExpectedToken::Specific(vec![TokenKind::comma(), TokenKind::colon()])
     }
 
     pub fn paren_brace_or_comma() -> Self {
@@ -346,13 +346,13 @@ impl ExpectedToken {
                 tokens: vec![],
                 prefix: b'\0',
             },
-            TokenKind::Punct(Punct::Comma),
+            TokenKind::comma(),
         ])
     }
 
     pub fn comma_or_paren() -> Self {
         ExpectedToken::Specific(vec![
-            TokenKind::Punct(Punct::Comma),
+            TokenKind::comma(),
             TokenKind::Group {
                 delim: Delim::Paren,
                 tokens: vec![],
@@ -363,7 +363,7 @@ impl ExpectedToken {
 
     pub fn guard_or_arrow() -> Self {
         ExpectedToken::Specific(vec![
-            TokenKind::Punct(Punct::RArrow),
+            TokenKind::r_arrow(),
             TokenKind::Keyword(Keyword::If),
         ])
     }
@@ -385,9 +385,9 @@ impl ExpectedToken {
 
     pub fn comma_semicolon_dot_or_from() -> Self {
         ExpectedToken::Specific(vec![
-            TokenKind::Punct(Punct::Comma),
-            TokenKind::Punct(Punct::SemiColon),
-            TokenKind::Punct(Punct::Dot),
+            TokenKind::comma(),
+            TokenKind::semi_colon(),
+            TokenKind::dot(),
             TokenKind::Keyword(Keyword::From),
         ])
     }

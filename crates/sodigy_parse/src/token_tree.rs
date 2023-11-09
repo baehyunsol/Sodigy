@@ -5,6 +5,7 @@ use sodigy_lex::QuoteKind;
 use sodigy_span::SpanRange;
 
 mod fmt;
+mod macros;
 
 #[derive(Clone, Debug)]
 pub struct TokenTree {

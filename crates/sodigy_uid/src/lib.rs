@@ -1,3 +1,5 @@
+mod fmt;
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct Uid(u128);
 
@@ -12,16 +14,16 @@ pub struct Uid(u128);
 const ERASER: u128 = 0x00ff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
 
 // Uid types
-const DEF: u128 = 0x0 << 124;
-const ENUM: u128 = 0x1 << 124;
-const STRUCT: u128 = 0x2 << 124;
-const MODULE: u128 = 0x3 << 124;
-const LAMBDA: u128 = 0x4 << 124;
-const SCOPE_BLOCK: u128 = 0x5 << 124;
-const MATCH_ARM: u128 = 0x6 << 124;
+pub(crate) const DEF: u128 = 0x0 << 124;
+pub(crate) const ENUM: u128 = 0x1 << 124;
+pub(crate) const STRUCT: u128 = 0x2 << 124;
+pub(crate) const MODULE: u128 = 0x3 << 124;
+pub(crate) const LAMBDA: u128 = 0x4 << 124;
+pub(crate) const SCOPE_BLOCK: u128 = 0x5 << 124;
+pub(crate) const MATCH_ARM: u128 = 0x6 << 124;
 
 // Metadata
-const PRELUDE_MASK: u128 = 0b1000 << 120;
+pub(crate) const PRELUDE_MASK: u128 = 0b1000 << 120;
 
 impl Uid {
     pub fn new_scope() -> Self {
@@ -55,5 +57,19 @@ impl Uid {
     #[must_use = "method returns a new uid and does not mutate the original value"]
     pub fn mark_prelude(self) -> Self {
         Uid(self.0 | PRELUDE_MASK)
+    }
+
+    pub fn is_prelude(self) -> bool {
+        self.0 & PRELUDE_MASK != 0
+    }
+
+    // result < 16
+    pub fn get_type(self) -> u32 {
+        (self.0 >> 124) as u32
+    }
+
+    // result < 16
+    pub fn get_metadata(self) -> u32 {
+        ((self.0 & (0xf << 120)) >> 120) as u32
     }
 }

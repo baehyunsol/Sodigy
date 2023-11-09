@@ -281,7 +281,7 @@ fn parse_pattern_value(
                 IdentWithSpan::new(*id, *span),
             ];
 
-            while tokens.is_curr_token(TokenKind::Punct(Punct::Dot)) {
+            while tokens.is_curr_token(TokenKind::dot()) {
                 tokens.step().unwrap();
 
                 names.push(match tokens.expect_ident() {
@@ -343,7 +343,7 @@ fn parse_pattern_value(
                                 else {
                                     match group_tokens.expect_ident() {
                                         Ok(id) => {
-                                            if let Err(mut e) = group_tokens.consume(TokenKind::Punct(Punct::Colon)) {
+                                            if let Err(mut e) = group_tokens.consume(TokenKind::colon()) {
                                                 session.push_error(e.set_err_context(
                                                     ErrorContext::ParsingPattern
                                                 ).to_owned());
@@ -370,7 +370,7 @@ fn parse_pattern_value(
                                     }
                                 }
 
-                                match group_tokens.consume(TokenKind::Punct(Punct::Comma)) {
+                                match group_tokens.consume(TokenKind::comma()) {
                                     Ok(_) => {
                                         continue;
                                     },
@@ -534,7 +534,7 @@ fn parse_comma_separated_patterns(
 
         has_trailing_comma = false;
 
-        if tokens.is_curr_token(TokenKind::Punct(Punct::Comma)) {
+        if tokens.is_curr_token(TokenKind::comma()) {
             tokens.step().unwrap();
             has_trailing_comma = true;
             continue;
@@ -547,7 +547,7 @@ fn parse_comma_separated_patterns(
 
             else {
                 session.push_error(AstError::unexpected_token(
-                    tokens.peek().as_ref().unwrap().clone().clone(),
+                    tokens.peek().unwrap().clone().clone(),
                     ExpectedToken::nothing(),
                 ).set_err_context(
                     ErrorContext::ParsingPattern

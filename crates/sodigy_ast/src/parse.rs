@@ -94,7 +94,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             _ => {},
                         }
 
-                        let generics = if tokens.is_curr_token(TokenKind::Punct(Punct::Lt)) {
+                        let generics = if tokens.is_curr_token(TokenKind::lt()) {
                             match parse_generic_param_list(tokens, session) {
                                 Ok(g) => g,
                                 Err(()) => {
@@ -142,7 +142,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             _ => None,
                         };
 
-                        let ret_type = if tokens.is_curr_token(TokenKind::Punct(Punct::Colon)) {
+                        let ret_type = if tokens.is_curr_token(TokenKind::colon()) {
                             let colon_span = tokens.peek_span().unwrap();
                             tokens.step().unwrap();
 
@@ -153,7 +153,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                         let assign_span = tokens.peek_span();
 
-                        if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Assign)) {
+                        if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                             session.push_error(
                                 e.set_err_context(
                                     ErrorContext::ParsingFuncBody,
@@ -180,7 +180,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                         let semi_colon_span = tokens.peek_span();
 
-                        if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::SemiColon)) {
+                        if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
                             session.push_error(
                                 e.set_err_context(
                                     ErrorContext::ParsingFuncBody,
@@ -219,7 +219,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             },
                         };
 
-                        let generics = if tokens.is_curr_token(TokenKind::Punct(Punct::Lt)) {
+                        let generics = if tokens.is_curr_token(TokenKind::lt()) {
                             parse_generic_param_list(tokens, session)?
                         } else {
                             vec![]
@@ -284,7 +284,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             },
                         }
 
-                        if tokens.is_curr_token(TokenKind::Punct(Punct::SemiColon)) {
+                        if tokens.is_curr_token(TokenKind::semi_colon()) {
                             session.push_error(AstError::unexpected_token(
                                 tokens.peek().unwrap().clone(),
                                 ExpectedToken::stmt(),
@@ -315,7 +315,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                         let span = keyword_span.merge(*mod_name.span());
 
-                        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::SemiColon)) {
+                        if let Err(e) = tokens.consume(TokenKind::semi_colon()) {
                             session.push_error(e);
                             tokens.march_until_stmt();
                             continue;
@@ -420,7 +420,7 @@ pub fn parse_comma_separated_exprs(tokens: &mut Tokens, session: &mut AstSession
         result.push(parse_expr(tokens, session, 0, false, None, tokens.peek_span().unwrap())?);
         trailing_comma = false;
 
-        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+        match tokens.consume(TokenKind::comma()) {
             Ok(_) => {
                 trailing_comma = true;
                 continue;
@@ -1149,7 +1149,7 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
             },
         }
 
-        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+        match tokens.consume(TokenKind::comma()) {
             Ok(()) => {
                 args.push(ArgDef {
                     name: arg_name,
@@ -1200,7 +1200,7 @@ fn parse_scope_block(
         let pattern = parse_pattern(tokens, session)?;
         let assign_span = tokens.peek_span();
 
-        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Assign)) {
+        if let Err(e) = tokens.consume(TokenKind::assign()) {
             session.push_error(e);
             return Err(());
         }
@@ -1214,7 +1214,7 @@ fn parse_scope_block(
             assign_span.unwrap(),
         )?;
 
-        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::SemiColon)) {
+        if let Err(e) = tokens.consume(TokenKind::semi_colon()) {
             session.push_error(e);
             return Err(());
         }
@@ -1267,6 +1267,13 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
 
                 /* expr or param, but not sure yet */
                 let curr_arg = IdentWithSpan::new(id, span);
+                let has_question_mark = if tokens.is_curr_token(TokenKind::Punct(Punct::QuestionMark)) {
+                    tokens.step().unwrap();
+
+                    true
+                } else {
+                    false
+                };
 
                 // TODO: `?` after arg
                 // It's tough -> `x?` can both be an arg and an expr
@@ -1290,10 +1297,10 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                         args.push(ArgDef {
                             name: curr_arg,
                             ty: Some(ty_anno),
-                            has_question_mark: false,  // TODO
+                            has_question_mark,
                         });
 
-                        if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Comma)) {
+                        if let Err(e) = tokens.consume(TokenKind::comma()) {
                             session.push_error(e);
                             return Err(());
                         }
@@ -1306,7 +1313,7 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                         args.push(ArgDef {
                             name: curr_arg,
                             ty: None,
-                            has_question_mark: false,  // TODO
+                            has_question_mark,
                         });
                         continue;
                     },
@@ -1314,6 +1321,10 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                         /* the last ident is an expr */
                         tokens.backward().unwrap();
                         tokens.backward().unwrap();
+
+                        if has_question_mark {
+                            tokens.backward().unwrap();
+                        }
 
                         let last_span = tokens.peek_span().unwrap();
 
@@ -1425,7 +1436,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 )?);
                 rarrow_span = tokens.peek_span();
 
-                if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::RArrow)) {
+                if let Err(mut e) = tokens.consume(TokenKind::r_arrow()) {
                     session.push_error(e.set_err_context(
                         ErrorContext::ParsingMatchBody
                     ).to_owned());
@@ -1444,12 +1455,12 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 if token.kind == TokenKind::Punct(Punct::Sub) {
                     let token = token.clone();
 
-                    if tokens.is_curr_token(TokenKind::Punct(Punct::Gt)) {
+                    if tokens.is_curr_token(TokenKind::gt()) {
                         session.pop_error().unwrap();
 
                         session.push_error(AstError::unexpected_token(
                             token,
-                            ExpectedToken::specific(TokenKind::Punct(Punct::RArrow)),
+                            ExpectedToken::specific(TokenKind::r_arrow()),
                         ).set_err_context(
                             ErrorContext::ParsingMatchBody
                         ).set_message(
@@ -1486,7 +1497,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
             uid: Uid::new_match_arm(),
         });
 
-        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+        match tokens.consume(TokenKind::comma()) {
             Err(AstError {
                 kind: AstErrorKind::UnexpectedEnd(_),
                 ..
@@ -1523,7 +1534,7 @@ fn parse_branch_arm(
             if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
                 let pat = parse_pattern(tokens, session)?;
 
-                if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Assign)) {
+                if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                     session.push_error(
                         e.set_err_context(
                             ErrorContext::ParsingBranchCondition
@@ -1630,7 +1641,7 @@ fn parse_decorator(at_span: SpanRange, tokens: &mut Tokens, session: &mut AstSes
         }
     );
 
-    while let Ok(()) = tokens.consume(TokenKind::Punct(Punct::Dot)) {
+    while let Ok(()) = tokens.consume(TokenKind::dot()) {
         names.push(
             match tokens.expect_ident() {
                 Ok(id) => {
@@ -1709,7 +1720,7 @@ fn parse_import(tokens: &mut Tokens, session: &mut AstSession, keyword_span: Spa
             }) => {
                 let fr = parse_dotted_names(tokens, session, Some(ErrorContext::ParsingImportStatement))?;
 
-                if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::SemiColon)) {
+                if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
                     session.push_error(
                         e.set_err_context(
                             ErrorContext::ParsingImportStatement
@@ -1804,7 +1815,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
 
         let colon_span = tokens.peek_span();
 
-        if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Colon)) {
+        if let Err(mut e) = tokens.consume(TokenKind::colon()) {
             session.push_error(e.set_err_context(
                 ErrorContext::ParsingStructBody
             ).to_owned());
@@ -1824,7 +1835,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
             attributes,
         });
 
-        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+        match tokens.consume(TokenKind::comma()) {
             Err(AstError {
                 kind: AstErrorKind::UnexpectedEnd(_),
                 ..
@@ -1907,7 +1918,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                             attributes,
                         });
 
-                        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+                        match tokens.consume(TokenKind::comma()) {
                             Err(AstError {
                                 kind: AstErrorKind::UnexpectedEnd(_),
                                 ..
@@ -1933,7 +1944,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                             attributes,
                         });
 
-                        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+                        match tokens.consume(TokenKind::comma()) {
                             Err(AstError {
                                 kind: AstErrorKind::UnexpectedEnd(_),
                                 ..
@@ -1998,7 +2009,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
 fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<GenericDef>, ()> {
     let lt_span = tokens.peek_span();
 
-    if let Err(e) = tokens.consume(TokenKind::Punct(Punct::Lt)) {
+    if let Err(e) = tokens.consume(TokenKind::lt()) {
         session.push_error(e);
         return Err(());
     }
@@ -2044,7 +2055,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
                 kind: TokenKind::Punct(Punct::Comma),
                 ..
             }) => {
-                if tokens.is_curr_token(TokenKind::Punct(Punct::Gt)) {
+                if tokens.is_curr_token(TokenKind::gt()) {
                     tokens.step().unwrap();  // step `>`
                     return Ok(params);
                 }
@@ -2123,7 +2134,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
 
         let comma_span = tokens.peek_span();
 
-        if let Err(mut e) = tokens.consume(TokenKind::Punct(Punct::Colon)) {
+        if let Err(mut e) = tokens.consume(TokenKind::colon()) {
             if is_struct_init {
                 session.push_error(
                     e.set_err_context(
@@ -2164,7 +2175,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
             value,
         });
 
-        match tokens.consume(TokenKind::Punct(Punct::Comma)) {
+        match tokens.consume(TokenKind::comma()) {
             Err(AstError {
                 kind: AstErrorKind::UnexpectedEnd(_),
                 ..
@@ -2200,7 +2211,7 @@ fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context
         },
     }
 
-    while tokens.is_curr_token(TokenKind::Punct(Punct::Dot)) {
+    while tokens.is_curr_token(TokenKind::dot()) {
         tokens.step().unwrap();
 
         match tokens.expect_ident() {

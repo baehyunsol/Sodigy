@@ -6,6 +6,7 @@ use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+mod fmt;
 mod lower;
 
 pub use lower::lower_ast_expr;

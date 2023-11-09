@@ -3,6 +3,7 @@ use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
+mod fmt;
 mod lower;
 
 pub use lower::lower_ast_func;
