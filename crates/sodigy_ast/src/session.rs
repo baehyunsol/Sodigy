@@ -9,6 +9,7 @@ pub struct AstSession {
     warnings: Vec<AstWarning>,
     stmts: Vec<Stmt>,
     interner: InternSession,
+    snapshots: Vec<AstSessionSnapshot>,
 }
 
 impl AstSession {
@@ -18,6 +19,7 @@ impl AstSession {
             warnings: vec![],
             stmts: vec![],
             interner: session.interner.clone(),
+            snapshots: vec![],
         }
     }
 
@@ -70,4 +72,43 @@ impl AstSession {
             Err(())
         }
     }
+
+    pub fn take_snapshot(&mut self) {
+        self.snapshots.push(AstSessionSnapshot {
+            errors: self.errors.len(),
+            warnings: self.warnings.len(),
+            stmts: self.stmts.len(),
+        });
+    }
+
+    // there's no point in returning the snapshot. It only tells the caller whether
+    // self.snapshots is empty or not
+    pub fn pop_snapshot(&mut self) -> Result<(), ()> {
+        self.snapshots.pop().map(|_| ()).ok_or(())
+    }
+
+    pub fn restore_to_last_snapshot(&mut self) {
+        let last_snapshot = self.snapshots.pop().unwrap();
+
+        while self.errors.len() > last_snapshot.errors {
+            self.errors.pop().unwrap();
+        }
+
+        while self.warnings.len() > last_snapshot.warnings {
+            self.warnings.pop().unwrap();
+        }
+
+        while self.stmts.len() > last_snapshot.stmts {
+            self.stmts.pop().unwrap();
+        }
+    }
+}
+
+// for optimization, it only stores the lengths. It's okay for now because
+// snapshots are rarely used. If it causes problems, we should copy the entire
+// vectors
+struct AstSessionSnapshot {
+    pub errors: usize,
+    pub warnings: usize,
+    pub stmts: usize,
 }

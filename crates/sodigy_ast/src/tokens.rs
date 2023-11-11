@@ -13,6 +13,7 @@ pub struct Tokens<'a> {
 
     // if self.data.is_empty, self.span_end() returns this span
     span_end_: Option<SpanRange>,
+    snapshots: Vec<TokensSnapshot>,
 }
 
 impl<'a> Tokens<'a> {
@@ -21,6 +22,7 @@ impl<'a> Tokens<'a> {
             data,
             cursor: 0,
             span_end_: None,
+            snapshots: vec![],
         }
     }
 
@@ -119,7 +121,8 @@ impl<'a> Tokens<'a> {
             Some(Token { kind, .. }) => match kind {
                 TokenKind::Punct(p) => match p {
                     Punct::Dollar
-                    | Punct::DotDot => true,
+                    | Punct::DotDot
+                    | Punct::Sub => true,
                     _ => false,
                 },
                 TokenKind::Identifier(_) => true,
@@ -241,4 +244,32 @@ impl<'a> Tokens<'a> {
             )),
         }
     }
+
+    pub fn take_snapshot(&mut self) {
+        self.snapshots.push(TokensSnapshot {
+            cursor: self.cursor,
+            span_end: self.span_end_,
+        });
+    }
+
+    // there's no point in returning the snapshot. It only tells the caller whether
+    // self.snapshots is empty or not
+    pub fn pop_snapshot(&mut self) -> Result<(), ()> {
+        self.snapshots.pop().map(|_| ()).ok_or(())
+    }
+
+    pub fn restore_to_last_snapshot(&mut self) {
+        let last_snapshot = self.snapshots.pop().unwrap();
+
+        self.cursor = last_snapshot.cursor;
+        self.span_end_ = last_snapshot.span_end;
+    }
+}
+
+// for optimization, it assumes that `Tokens.data` doesn't change.
+// That's okay for now.
+#[derive(Debug)]
+struct TokensSnapshot {
+    pub cursor: usize,
+    pub span_end: Option<SpanRange>,
 }

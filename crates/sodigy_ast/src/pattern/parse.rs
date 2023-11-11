@@ -173,19 +173,47 @@ fn parse_pattern_value(
                 | Punct::InclusiveRange) => {  // prefixed dotdot operator
                     let is_inclusive = p == Punct::InclusiveRange;
 
-                    // not `parse_pattern_value`
-                    let rhs = parse_pattern(tokens, session)?;
-                    let span = punct_span.merge(rhs.span);
+                    // there are cases where `parse_pattern` fails but it's not an error
+                    // in those cases, `tokens` and `session` have to be restored
+                    tokens.take_snapshot();
+                    session.take_snapshot();
 
-                    Pattern {
-                        kind: PatternKind::Range {
-                            from: None,
-                            to: Some(Box::new(rhs)),
-                            inclusive: is_inclusive,
+                    match parse_pattern(tokens, session) {
+                        Ok(rhs) => {
+                            tokens.pop_snapshot().unwrap();
+                            session.pop_snapshot().unwrap();
+
+                            let span = punct_span.merge(rhs.span);
+
+                            Pattern {
+                                kind: PatternKind::Range {
+                                    from: None,
+                                    to: Some(Box::new(rhs)),
+                                    inclusive: is_inclusive,
+                                },
+                                span,
+                                bind: None,
+                                ty: None,
+                            }
                         },
-                        span,
-                        bind: None,
-                        ty: None,
+                        Err(_) if !is_inclusive => {
+                            // revert the last `parse_pattern` call
+                            tokens.restore_to_last_snapshot();
+                            session.restore_to_last_snapshot();
+
+                            Pattern {
+                                kind: PatternKind::Shorthand,
+                                span: punct_span,
+                                bind: None,
+                                ty: None,
+                            }
+                        },
+                        Err(_) => {
+                            tokens.pop_snapshot().unwrap();
+                            session.pop_snapshot().unwrap();
+
+                            return Err(());
+                        },
                     }
                 },
                 Punct::Sub => match tokens.expect_number() {

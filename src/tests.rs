@@ -81,6 +81,7 @@ check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "TODO");
 check_output!(expr, err, expr_test32, "   ##!##  # Unfinished Comment", "unterminated block comment");
 check_output!(expr, err, expr_test33, "f(x[..4])", /*L*/ "ike `0..`");
 check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
+check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "TODO");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
