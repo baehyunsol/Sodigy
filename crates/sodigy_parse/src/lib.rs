@@ -7,6 +7,7 @@ mod formatted_str;
 mod punct;
 mod session;
 mod token_tree;
+mod warn;
 
 #[cfg(test)]
 mod tests;

@@ -54,7 +54,7 @@ fn compile(file_hash: FileHash) -> CompileResult {
 
     if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         for error in lex_session.get_errors() {
-            result.push_error(format!("{}", error.render_error()));
+            result.push_error(error.render_error());
         }
 
         return result;
@@ -66,15 +66,19 @@ fn compile(file_hash: FileHash) -> CompileResult {
 
     if let Err(()) = from_tokens(tokens, &mut parse_session, &mut new_lex_session) {
         for error in parse_session.get_errors() {
-            result.push_error(format!("{}", error.render_error()));
+            result.push_error(error.render_error());
         }
 
         for error in new_lex_session.get_errors() {
-            result.push_error(format!("{}", error.render_error()));
+            result.push_error(error.render_error());
         }
 
         return result;
     };
+
+    for warning in parse_session.get_warnings() {
+        result.push_warning(warning.render_error());
+    }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
     let mut tokens = parse_session.get_tokens().to_vec();
@@ -82,12 +86,12 @@ fn compile(file_hash: FileHash) -> CompileResult {
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
     for warning in ast_session.get_warnings() {
-        result.push_warning(format!("{}", warning.render_error()));
+        result.push_warning(warning.render_error());
     }
 
     if let Err(()) = res {
         for error in ast_session.get_errors() {
-            result.push_error(format!("{}", error.render_error()));
+            result.push_error(error.render_error());
         }
 
         return result;
@@ -97,12 +101,12 @@ fn compile(file_hash: FileHash) -> CompileResult {
     let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
 
     for warning in hir_session.get_warnings() {
-        result.push_warning(format!("{}", warning.render_error()));
+        result.push_warning(warning.render_error());
     }
 
     if let Err(()) = res {
         for error in hir_session.get_errors() {
-            result.push_error(format!("{}", error.render_error()));
+            result.push_error(error.render_error());
         }
 
         return result;

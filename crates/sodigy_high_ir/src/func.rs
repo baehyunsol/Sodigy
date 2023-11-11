@@ -36,4 +36,5 @@ pub struct FuncDeco {
 enum Publicity {
     #[default]
     Public,
+    Private
 }

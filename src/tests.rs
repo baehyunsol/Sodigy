@@ -73,15 +73,14 @@ check_output!(expr, err, expr_test23, "f'{x} + {y} = {x + y}'", "single quotes")
 check_output!(expr, err, expr_test24, "f\"ABC {}\"", "empty format-string");
 check_output!(expr, err, expr_test25, "f\"ABC {1 + }\"", "got nothing");
 check_output!(expr, err, expr_test26, "f\"ABC { [][]}\"", "got nothing");
-check_output!(expr, err, expr_test27, "f\"{1\"", "TODO");
-check_output!(expr, err, expr_test28, "(b \"ABC 한글 DEF\")", "got `\"...\"`");
-check_output!(expr, err, expr_test29, "(f \"{a} + {b} = {a + b}\")", "got `\"...\"`");
-check_output!(expr, err, expr_test30, "[0, 1, 2, 3] `10 1", "field modifier without");
-check_output!(expr, err, expr_test31, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
-check_output!(expr, err, expr_test32, "{let x = 3; let x = 4; x + x}", "TODO");
-check_output!(expr, err, expr_test33, "   ##!##  # Unfinished Comment", "unterminated block comment");
-check_output!(expr, err, expr_test34, "f(x[..4])", /*L*/ "ike `0..`");
-check_output!(expr, err, expr_test35, "  {##!\n\n\n!##  }", "got nothing");
+check_output!(expr, err, expr_test27, "(b \"ABC 한글 DEF\")", "got `\"...\"`");
+check_output!(expr, err, expr_test28, "(f \"{a} + {b} = {a + b}\")", "got `\"...\"`");
+check_output!(expr, err, expr_test29, "[0, 1, 2, 3] `10 1", "field modifier without");
+check_output!(expr, err, expr_test30, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
+check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "TODO");
+check_output!(expr, err, expr_test32, "   ##!##  # Unfinished Comment", "unterminated block comment");
+check_output!(expr, err, expr_test33, "f(x[..4])", /*L*/ "ike `0..`");
+check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
@@ -91,3 +90,5 @@ check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`"
 // warnings for exprs
 check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "TODO");
 check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "multiple name bindings");
+check_output!(expr, warn, expr_warn_test3, "f\"{1\"", "unmatched");
+check_output!(expr, warn, expr_warn_test4, "f\"1234\"", "nothing to evaluate");

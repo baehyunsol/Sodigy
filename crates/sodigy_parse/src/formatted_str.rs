@@ -1,4 +1,5 @@
-use crate::{err::ParseError, from_tokens, ParseSession, TokenTree};
+use crate::{ParseError, from_tokens, ParseSession, TokenTree};
+use crate::warn::ParseWarning;
 use sodigy_lex::{lex, LexError, LexSession};
 use sodigy_span::SpanPoint;
 
@@ -89,6 +90,10 @@ pub fn parse_str(
                                     return Err(());
                                 }
 
+                                for warning in tmp_parse_session.get_warnings() {
+                                    parse_session.push_warning(warning.clone());
+                                }
+
                                 let tokens = tmp_parse_session.get_tokens().to_vec();
 
                                 if tokens.is_empty() {
@@ -122,6 +127,43 @@ pub fn parse_str(
                 }
             },
         }
+    }
+
+    match curr_state {
+        ParseState::Literal => {
+            if result.is_empty() {
+                parse_session.push_warning(ParseWarning::nothing_to_eval_in_f_string(span_start.offset(-1).into_range()));
+            }
+
+            match String::from_utf8(curr_buf) {
+                Ok(s) => {
+                    result.push(FormattedStringElement::Literal(s));
+                },
+                Err(_) => {
+                    lex_session.push_error(LexError::invalid_utf8(
+                        span_start.into_range()
+                    ));
+                    return Err(());
+                },
+            }
+        },
+        ParseState::Value(_) => {
+            parse_session.push_warning(ParseWarning::unmatched_curly_brace(span_start.offset(f_string_start_index as i32 - 1).into_range()));
+
+            result.push(FormattedStringElement::Literal(String::from("{")));
+
+            match String::from_utf8(curr_buf) {
+                Ok(s) => {
+                    result.push(FormattedStringElement::Literal(s));
+                },
+                Err(_) => {
+                    lex_session.push_error(LexError::invalid_utf8(
+                        span_start.into_range()
+                    ));
+                    return Err(());
+                },
+            }
+        },
     }
 
     Ok(result)

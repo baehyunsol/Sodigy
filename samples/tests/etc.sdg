@@ -136,5 +136,5 @@ def EMPTY_TUPLE: () = ();
 def EMPTY_LIST: List(Int) = [];
 
 # It's okay for braces to be unmatched!
-@test.eq("{1")
-def format_string_not_an_error = f"{1";
+@test.eq(["{1", "{{1", "{1 {1"])
+def format_string_not_an_error = [f"{1", f"{{1", f"{1 {1"];

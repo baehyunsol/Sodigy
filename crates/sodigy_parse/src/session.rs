@@ -1,4 +1,5 @@
 use crate::{ParseError, TokenTree};
+use crate::warn::ParseWarning;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_number::SodigyNumber;
@@ -6,6 +7,7 @@ use sodigy_number::SodigyNumber;
 pub struct ParseSession {
     pub tokens: Vec<TokenTree>,
     pub errors: Vec<ParseError>,
+    pub warnings: Vec<ParseWarning>,
     pub interner: InternSession,
 }
 
@@ -14,6 +16,7 @@ impl ParseSession {
         ParseSession {
             tokens: vec![],
             errors: vec![],
+            warnings: vec![],
             interner: s.get_interner().clone(),
         }
     }
@@ -24,6 +27,10 @@ impl ParseSession {
 
     pub fn push_error(&mut self, error: ParseError) {
         self.errors.push(error);
+    }
+
+    pub fn push_warning(&mut self, warning: ParseWarning) {
+        self.warnings.push(warning);
     }
 
     pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
@@ -49,6 +56,10 @@ impl ParseSession {
 
     pub fn get_errors(&self) -> &Vec<ParseError> {
         &self.errors
+    }
+
+    pub fn get_warnings(&self) -> &Vec<ParseWarning> {
+        &self.warnings
     }
 
     pub fn err_if_has_err(&self) -> Result<(), ()> {

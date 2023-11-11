@@ -79,7 +79,7 @@ pub struct MatchArm {
 pub struct Lambda {
     pub args: Vec<Arg>,
     pub value: Box<Expr>,
-    pub foreign_names: Vec<IdentWithOrigin>,
+    pub captured_names: Vec<IdentWithOrigin>,
     pub uid: Uid,
 }
 

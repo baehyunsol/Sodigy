@@ -180,7 +180,7 @@ pub fn lower_ast_expr(
             } => {
                 let mut hir_args = Vec::with_capacity(args.len());
                 let mut arg_names = HashMap::with_capacity(args.len());
-                let mut foreign_names = vec![];
+                let mut captured_names = vec![];
                 let mut has_error = false;
 
                 for ast::ArgDef { name, ty, has_question_mark } in args.iter() {
@@ -192,7 +192,7 @@ pub fn lower_ast_expr(
                         _ => {},
                     }
 
-                    // TODO: what if `ty` has foreign names?
+                    // TODO: what if `ty` has captured names?
                     // e.g: `def foo<T>() = \{x: T, x};`
                     // e.g: `def foo(t: Type) = \{x:t, x};`
                     let ty = if let Some(ty) = ty {
@@ -203,10 +203,10 @@ pub fn lower_ast_expr(
                             imports,
                             name_space,
                         ) {
-                            find_and_replace_foreign_names(
+                            find_and_replace_captured_names(
                                 &mut ty.0,
                                 *uid,
-                                &mut foreign_names,
+                                &mut captured_names,
                                 used_names,
                                 name_space,
                             );
@@ -241,10 +241,10 @@ pub fn lower_ast_expr(
 
                 let mut value = value?;
 
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     &mut value,
                     *uid,
-                    &mut foreign_names,
+                    &mut captured_names,
                     used_names,
                     name_space,
                 );
@@ -264,7 +264,7 @@ pub fn lower_ast_expr(
                     kind: ExprKind::Lambda(Lambda {
                         args: hir_args,
                         value: Box::new(value),
-                        foreign_names,
+                        captured_names,
                         uid: *uid,
                     }),
                     span: e.span,
@@ -708,10 +708,10 @@ pub fn lower_ast_expr(
     Ok(res)
 }
 
-fn find_and_replace_foreign_names(
+fn find_and_replace_captured_names(
     ex: &mut Expr,
     lambda_uid: Uid,
-    foreign_names: &mut Vec<IdentWithOrigin>,
+    captured_names: &mut Vec<IdentWithOrigin>,
     used_names: &mut HashSet<IdentWithOrigin>,
     name_space: &mut NameSpace,
 ) {
@@ -723,35 +723,34 @@ fn find_and_replace_foreign_names(
         ExprKind::Identifier(id_ori) => {
             let origin = *id_ori.origin();
 
-            // checks whether this id is foreign or not
+            // checks whether this id should be captured or not
             match origin {
-                NameOrigin::Prelude
-                | NameOrigin::Global { .. } => {
-                    /* not foreign */
+                NameOrigin::Prelude   // not captured 
+                | NameOrigin::Global { .. }  // not captured
+                | NameOrigin::Captured { .. }  // captured, but it'll handle names in Lambda.captured_names
+                => {
                     return;
                 },
                 NameOrigin::FuncArg { .. }
                 | NameOrigin::FuncGeneric { .. } => {
-                    /* must be foreign */
+                    /* must be captured */
                 },
                 NameOrigin::Local { origin: local_origin } => {
-                    // has to see whether it's foreign or not
+                    // has to see whether it's captured or not
                     // there are 2 cases: Lambda in a Scope, Scope in a Lambda
-                    // first case: that's a foreign name and the scope is still in the name_space
-                    // second case: that's not a foreign name and we can ignore that
+                    // first case: that's a captured name and the scope is still in the name_space
+                    // second case: that's not a captured name and we can ignore that
                     if !name_space.has_this_local_uid(local_origin) {
                         return;
                     }
                 },
-
-                NameOrigin::Captured { .. } => todo!(),
             }
 
             let id = *id_ori.id();
             let mut name_index = None;
 
-            // linear search is fine because `foreign_names` is small enough in most cases
-            for (ind, id_ori_) in foreign_names.iter().enumerate() {
+            // linear search is fine because `captured_names` is small enough in most cases
+            for (ind, id_ori_) in captured_names.iter().enumerate() {
                 let id_ = *id_ori_.id();
                 let origin_ = *id_ori_.origin();
 
@@ -762,8 +761,8 @@ fn find_and_replace_foreign_names(
             }
 
             if name_index == None {
-                name_index = Some(foreign_names.len());
-                foreign_names.push(IdentWithOrigin::new(id, origin));
+                name_index = Some(captured_names.len());
+                captured_names.push(IdentWithOrigin::new(id, origin));
             }
 
             let name_index = name_index.unwrap();
@@ -774,19 +773,19 @@ fn find_and_replace_foreign_names(
             used_names.insert(id_ori.clone());
         },
         ExprKind::Call { func, args } => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 func,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
 
             for arg in args.iter_mut() {
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     arg,
                     lambda_uid,
-                    foreign_names,
+                    captured_names,
                     used_names,
                     name_space,
                 );
@@ -796,63 +795,105 @@ fn find_and_replace_foreign_names(
         | ExprKind::Tuple(elems)
         | ExprKind::Format(elems) => {
             for elem in elems.iter_mut() {
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     elem,
                     lambda_uid,
-                    foreign_names,
+                    captured_names,
                     used_names,
                     name_space,
                 );
             }
         },
         ExprKind::Scope(Scope { defs, value, .. }) => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 value,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
 
             // TODO: do we have to look into patterns?
             for LocalDef { value, .. } in defs.iter_mut() {
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     value,
                     lambda_uid,
-                    foreign_names,
+                    captured_names,
                     used_names,
                     name_space,
                 );
             }
         },
-        // TODO: lambda A in lambda B
+
+        // lambda A in lambda B
         // let's say A captures name x
         // case 1: B also captures x
+        //    -> has to modify `captured_names` of A
         // case 2: x is defined in B
+        //    -> don't have to do anything
         ExprKind::Lambda(Lambda {
             args,
             value,
-            foreign_names,
+            captured_names: lambda_captured_names,
             ..
-        }) => todo!(),
+        }) => {
+            for arg in args.iter_mut() {
+                if let Some(ty) = &mut arg.ty {
+                    find_and_replace_captured_names(
+                        &mut ty.0,
+                        lambda_uid,
+                        captured_names,
+                        used_names,
+                        name_space,
+                    );
+                }
+            }
+
+            find_and_replace_captured_names(
+                value,
+                lambda_uid,
+                captured_names,
+                used_names,
+                name_space,
+            );
+
+            for captured_name in lambda_captured_names.iter_mut() {
+                let mut dummy_expr = Expr {
+                    kind: ExprKind::Identifier(*captured_name),
+                    span: SpanRange::dummy(),
+                };
+
+                find_and_replace_captured_names(
+                    &mut dummy_expr,
+                    lambda_uid,
+                    captured_names,
+                    used_names,
+                    name_space,
+                );
+
+                if let ExprKind::Identifier(captured_name_modified) = dummy_expr.kind {
+                    *captured_name = captured_name_modified;
+                }
+            }
+        },
         ExprKind::Match(Match {
             arms,
             value,
         }) => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 value,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
 
             // TODO: handle patterns and guards
             for MatchArm { value, .. } in arms.iter_mut() {
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     value,
                     lambda_uid,
-                    foreign_names,
+                    captured_names,
                     used_names,
                     name_space,
                 );
@@ -863,19 +904,19 @@ fn find_and_replace_foreign_names(
             struct_,
             fields
         }) => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 struct_,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
 
             for StructInitField { value, .. } in fields.iter_mut() {
-                find_and_replace_foreign_names(
+                find_and_replace_captured_names(
                     value,
                     lambda_uid,
-                    foreign_names,
+                    captured_names,
                     used_names,
                     name_space,
                 );
@@ -884,36 +925,36 @@ fn find_and_replace_foreign_names(
         ExprKind::Path {
             head, ..
         } => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 head,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
         },
         ExprKind::PrefixOp(_, value)
         | ExprKind::PostfixOp(_, value) => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 value,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
         },
         ExprKind::InfixOp(_, lhs, rhs) => {
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 lhs,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );
-            find_and_replace_foreign_names(
+            find_and_replace_captured_names(
                 rhs,
                 lambda_uid,
-                foreign_names,
+                captured_names,
                 used_names,
                 name_space,
             );

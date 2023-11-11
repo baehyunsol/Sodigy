@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 mod fmt;
 
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct IdentWithOrigin(InternedString, NameOrigin);
 
 impl IdentWithOrigin {
