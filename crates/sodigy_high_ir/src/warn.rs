@@ -64,7 +64,7 @@ impl SodigyErrorKind for HirWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{name}`"),
-            HirWarningKind::UnusedName(name, nbt) => format!("unused {nbt}: `{name}`"),
+            HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{name}`", nbt.render_error()),
         }
     }
 

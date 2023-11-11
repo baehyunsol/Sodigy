@@ -7,6 +7,8 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
+mod fmt;
+
 pub struct Pattern {}
 
 pub fn lower_ast_local_def(

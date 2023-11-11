@@ -1,8 +1,8 @@
-use super::Type;
+use super::Pattern;
 use std::fmt;
 
-impl fmt::Display for Type {
+impl fmt::Display for Pattern {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(fmt, "{}", self.0)
+        todo!()
     }
 }

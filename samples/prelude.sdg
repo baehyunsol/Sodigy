@@ -16,7 +16,7 @@ def String: Type = List(Char);
 def Byte: Type = Int;
 
 @new_type
-@int_max(1114112)
+@int_max(1114111)
 @int_min(0)
 def Char: Type = Int;
 

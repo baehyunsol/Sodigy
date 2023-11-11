@@ -1275,9 +1275,6 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                     false
                 };
 
-                // TODO: `?` after arg
-                // It's tough -> `x?` can both be an arg and an expr
-
                 match tokens.step() {
                     Some(Token {
                         kind: TokenKind::Punct(Punct::Colon),

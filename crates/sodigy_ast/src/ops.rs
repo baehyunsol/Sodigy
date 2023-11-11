@@ -1,6 +1,8 @@
 use sodigy_intern::InternedString;
 use sodigy_parse::Punct;
 
+mod fmt;
+
 #[derive(Clone, Copy)]
 pub enum PrefixOp {
     Not,

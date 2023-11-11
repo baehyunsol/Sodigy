@@ -24,12 +24,12 @@ Decorators decorate functions and enums. For now, only built-in decorators are a
 # A decorator decorates the following function.
 # A decorator is not followed by a semi colon.
 @test.eq(4)
-def add_test: Int = 2 + 2;
+def add_test = 2 + 2;
 
 # Multiple decorators may decorate a function.
 @test.eq(Bool.True)
 @test.true
-def add_test2: Bool = 2 + 2 == 4;
+def add_test2 = 2 + 2 == 4;
 ```
 
 ### Lambda Functions
@@ -85,9 +85,21 @@ Scoped block expressions let you create lexical scopes. Its syntax is very simil
 
 The above expression is evaluated to 18. Each block has their own scope, and a block must be evaluated to a value. The value comes at the end of a block. The value is not followed by a semi-colon, while the definitions of local values are.
 
-Unlike C/C++/Rust, values in a block are NOT evaluated in time-order. They're evaluated lazily. If a value is not used at all, it's not evaluated. If a value is used multiple times, it's evaluated only once and memoized (the memoized value is freed when the function exits).
+Unlike C/C++/Rust, values in a block are evaluated lazily. If a value is not used at all, it's not evaluated. If a value is used multiple times, it's evaluated only once and memoized (the memoized value is freed when the function exits).
 
 Since the values are lazily evaluated, you cannot use them recursively. Belows are invalid.
+
+```
+{
+    let x = z + 1;
+    let y = x + 2;
+    let z = y + 3;
+
+    x + y + z
+}
+```
+
+Also, there's no shadowing. That means you cannot define values with the same name in a scope.
 
 ```
 {
@@ -97,16 +109,6 @@ Since the values are lazily evaluated, you cannot use them recursively. Belows a
 
     # Don't know which `x` to use
     x + y
-}
-```
-
-```
-{
-    let x = z + 1;
-    let y = x + 2;
-    let z = y + 3;
-
-    x + y + z
 }
 ```
 
@@ -131,7 +133,7 @@ Formatted strings are like that of Python (as far as I know). A letter `f` follo
 }
 ```
 
-The above value is evaluated to `"3 + 4 = 7"`. It's just like Python!
+The above value is evaluated to `"3 + 4 = 7"`. Like in Python!
 
 #### Bytes
 
@@ -141,13 +143,23 @@ TODO: example
 
 ### `if` expressions
 
+`if` is an expression in Sodigy.
+
+```
+let x = if cond() { 3 } else { 4 };
+```
+
+It'd be very familiar if you know Rust/Haskell/Elixir, or any other functional language. If you're from C/C++, you must be familiar with ternary operators. That's an `if` expression.
+
+It also supports Rust-like `if let` syntax.
+
 ### `match` expressions
 
 The syntax resembles that of Rust, except that it requires `$` before a name binding.
 
 ```
 match foo() {
-    Option.Some([$a, $b, ..]) => $a + $b + 1,  # more than 2 elements
+    Option.Some([$a, $b, $c, ..]) => $a + $b + 1,  # more than 2 elements
     Option.Some([$a, $b]) => $a + $b,  # exactly 2 elements
     Option.Some([]) => 0,
     Option.Some(_) => -1,  # matches any
@@ -179,10 +191,10 @@ enum Option<T> {
 
 Option.None            # valid
 Option.Some(5)         # valid
-Option(Int).Some(5)    # valid
+Option(Int).Some(5)    # valid expression, invalid pattern
 Option(Int).None       # valid expression, invalid pattern
 Option(Int).Some("abc")     # type error
-Option.Some(Int)       # invalid
+Option.Some(Int)       # valid, but the type is `Option(Type)`, not `Option(Int)`
 Option.Some(Int, 5)    # valid
 Option.Some(Int, "abc) # type error
 ```
@@ -202,7 +214,7 @@ struct Person {
 
 ### `` ` ``
 
-You can make an infix-operator using `` ` ``. An operator is `` ` `` followed by an identifier without whitespace. The operator modifies a value of a field. The identifier is a name of a field that you want to modify. See how `` `age `` works below.
+You can make an infix-operator using `` ` ``. An operator is `` ` `` followed by an identifier without whitespace. The operator modifies a value of a field. The identifier is the name of the field that you want to modify. See how `` `age `` works below.
 
 ```
 struct Person {
