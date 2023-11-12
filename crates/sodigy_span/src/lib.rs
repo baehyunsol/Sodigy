@@ -89,6 +89,14 @@ impl SpanRange {
         }
     }
 
+    pub fn first_char(&self) -> SpanRange {
+        SpanRange {
+            file: self.file,
+            start: self.start,
+            end: self.start + 1,
+        }
+    }
+
     // don't use span.end.into_range() -> span.end is exclusive!
     pub fn last_char(&self) -> SpanRange {
         SpanRange {

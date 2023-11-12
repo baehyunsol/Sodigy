@@ -66,6 +66,12 @@ pub struct ScopeDef {
     pub value: Box<Expr>,
 }
 
+impl ScopeDef {
+    pub fn has_no_defs(&self) -> bool {
+        self.defs.is_empty()
+    }
+}
+
 #[derive(Clone)]
 pub struct LocalDef {
     pub let_span: SpanRange,

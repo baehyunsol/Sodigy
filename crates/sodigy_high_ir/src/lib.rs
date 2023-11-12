@@ -16,7 +16,7 @@ mod warn;
 
 use err::HirError;
 pub use expr::Expr;
-use expr::lower_ast_expr;
+use expr::{lower_ast_expr, try_warn_unnecessary_paren};
 use func::lower_ast_func;
 use names::{IdentWithOrigin, NameSpace};
 pub use session::HirSession;
@@ -126,6 +126,8 @@ pub fn lower_ast_ty(
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<Type, ()> {
+    try_warn_unnecessary_paren(&ty.0, session);
+
     Ok(Type(lower_ast_expr(
         &ty.0,
         session,

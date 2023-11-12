@@ -113,6 +113,8 @@ pub fn lower_ast_expr(
                 let mut has_error = false;
 
                 for elem in elems.iter() {
+                    try_warn_unnecessary_paren(elem, session);
+
                     if let Ok(elem) = lower_ast_expr(
                         elem,
                         session,
@@ -229,6 +231,8 @@ pub fn lower_ast_expr(
 
                 name_space.push_locals(*uid, arg_names.keys().map(|k| *k).collect());
 
+                try_warn_unnecessary_paren(value, session);
+
                 let value = lower_ast_expr(
                     value,
                     session,
@@ -312,6 +316,8 @@ pub fn lower_ast_expr(
                     )
                 ).collect();
 
+                try_warn_unnecessary_paren(scope.value.as_ref(), session);
+
                 let value = lower_ast_expr(
                     scope.value.as_ref(),
                     session,
@@ -350,7 +356,6 @@ pub fn lower_ast_expr(
                 }
 
                 // very simple optimization: `{ x }` -> `x`
-                // TODO: make ALL the optimizations configurable
                 if local_defs.is_empty() {
                     value
                 }
@@ -470,6 +475,8 @@ pub fn lower_ast_expr(
             let mut hir_args = Vec::with_capacity(args.len());
 
             for arg in args.iter() {
+                try_warn_unnecessary_paren(arg, session);
+
                 if let Ok(arg) = lower_ast_expr(
                     arg,
                     session,
@@ -506,6 +513,8 @@ pub fn lower_ast_expr(
             let mut has_error = false;
 
             for ast::StructInitDef { field, value } in fields.iter() {
+                try_warn_unnecessary_paren(value, session);
+
                 if let Ok(value) = lower_ast_expr(
                     value,
                     session,
@@ -619,6 +628,8 @@ pub fn lower_ast_expr(
             }
         },
         ast::ExprKind::Match { value, arms } => {
+            try_warn_unnecessary_paren(value, session);
+
             let result_value = lower_ast_expr(
                 value,
                 session,
@@ -702,6 +713,17 @@ pub fn lower_ast_expr(
                 }),
                 span: e.span,
             }
+        },
+        ast::ExprKind::Parenthesis(expr) => {
+            try_warn_unnecessary_paren(expr, session);
+
+            lower_ast_expr(
+                expr,
+                session,
+                used_names,
+                imports,
+                name_space,
+            )?
         },
     };
 
@@ -959,5 +981,23 @@ fn find_and_replace_captured_names(
                 name_space,
             );
         },
+    }
+}
+
+pub fn try_warn_unnecessary_paren(
+    expr: &ast::Expr,
+    session: &mut HirSession,
+) {
+    match &expr.kind {
+        ast::ExprKind::Parenthesis(_) => {
+            session.push_warning(HirWarning::unnecessary_paren(expr));
+        },
+        // a scope without any defs
+        ast::ExprKind::Value(ast::ValueKind::Scope {
+            scope, ..
+        }) if scope.has_no_defs() => {
+            session.push_warning(HirWarning::unnecessary_paren(expr));
+        },
+        _ => {},
     }
 }

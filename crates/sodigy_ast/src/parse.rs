@@ -635,8 +635,10 @@ pub fn parse_expr(
 
                         match parse_comma_separated_exprs(&mut tokens, session) {
                             Ok((elems, has_trailing_comma)) if !has_trailing_comma && elems.len() == 1 => {
-                                // TODO: do I have to record that it's inside parenthesis?
-                                elems[0].clone()
+                                Expr {
+                                    kind: ExprKind::Parenthesis(Box::new(elems[0].clone())),
+                                    span,
+                                }
                             },
                             Ok((elems, _)) => {
                                 Expr {
@@ -869,11 +871,17 @@ pub fn parse_expr(
                     let rhs = match tokens.expect_ident() {
                         Ok(id) => id,
                         Err(mut e) => {
-                            session.push_error(e.try_set_err_context(
-                                error_context,
-                            ).set_message(
-                                String::from("A name of a field must be an identifier.")
-                            ).to_owned());
+                            e.try_set_err_context(error_context);
+
+                            if matches!(e.kind, AstErrorKind::UnexpectedToken(..)) {
+                                e.set_message(String::from("A name of a field must be an identifier."));
+                            }
+
+                            else if matches!(e.kind, AstErrorKind::UnexpectedEnd(_)) {
+                                e.set_message(String::from("Please provide the name of a field."));
+                            }
+
+                            session.push_error(e);
                             return Err(());
                         },
                     };

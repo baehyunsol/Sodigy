@@ -41,7 +41,7 @@ impl AstError {
             },
             TokenKind::Identifier(id) => {
                 match expected_token {
-                    // This is very expensive. Make sure that compilation has already failed when this branch is reached.
+                    // This is very expensive. Make sure that compilation has already failed before this branch is reached.
                     ExpectedToken::AnyStatement => {
                         let mut sess = InternSession::new();
                         let id = match sess.unintern_string(*id) {
@@ -66,6 +66,15 @@ impl AstError {
                 extra.set_message(String::from("It's obvious that it's an error, but it's hard to know what you've intended. If you're to initialize a struct, please provide fields. A struct in Sodigy must have at least one field. If it's just an expression, please provide a value."));
             },
             _ => {},
+        }
+
+        if !extra.has_message() {
+            match expected_token {
+                ExpectedToken::AnyStatement => {
+                    extra.set_message(String::from("Sodigy is not a script language. If you want to execute something, please use `main`."));
+                },
+                _ => {},
+            }
         }
 
         AstError {

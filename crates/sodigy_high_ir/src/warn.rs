@@ -1,6 +1,6 @@
 use crate::names::NameBindingType;
 use smallvec::{smallvec, SmallVec};
-use sodigy_ast::IdentWithSpan;
+use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
@@ -24,6 +24,16 @@ impl HirWarning {
         HirWarning {
             kind: HirWarningKind::UnusedName(*id.id(), binding_type),
             spans: smallvec![*id.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn unnecessary_paren(e: &ast::Expr) -> Self {
+        HirWarning {
+            kind: HirWarningKind::UnnecessaryParen {
+                is_brace: matches!(&e.kind, ast::ExprKind::Value(ast::ValueKind::Scope { .. })),
+            },
+            spans: smallvec![e.span.first_char(), e.span.last_char()],
             extra: ExtraErrInfo::none(),
         }
     }
@@ -58,6 +68,9 @@ impl SodigyError<HirWarningKind> for HirWarning {
 pub enum HirWarningKind {
     RedefPrelude(InternedString),
     UnusedName(InternedString, NameBindingType),
+    UnnecessaryParen {
+        is_brace: bool,
+    },
 }
 
 impl SodigyErrorKind for HirWarningKind {
@@ -65,12 +78,18 @@ impl SodigyErrorKind for HirWarningKind {
         match self {
             HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{name}`"),
             HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{name}`", nbt.render_error()),
+            HirWarningKind::UnnecessaryParen { .. } => format!("unnecessary parenthesis"),
         }
     }
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
             HirWarningKind::RedefPrelude(_) => String::from("It's okay to do so, but it might confuse you."),
+            HirWarningKind::UnnecessaryParen { is_brace } => if *is_brace {
+                String::from("This curly brace doesn't do anything.")
+            } else {
+                String::from("This parenthesis doesn't do anything.")
+            },
             _ => String::new(),
         }
     }

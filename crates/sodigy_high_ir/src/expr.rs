@@ -9,7 +9,7 @@ use sodigy_uid::Uid;
 mod fmt;
 mod lower;
 
-pub use lower::lower_ast_expr;
+pub use lower::{lower_ast_expr, try_warn_unnecessary_paren};
 
 pub struct Expr {
     kind: ExprKind,

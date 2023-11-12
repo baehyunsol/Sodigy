@@ -37,4 +37,7 @@ pub enum ExprKind {
 
     Branch(Vec<BranchArm>),
     Match { value: Box<Expr>, arms: Vec<MatchArm> },
+
+    // It doesn't do anything in runtime. It's just for diagnosis.
+    Parenthesis(Box<Expr>),
 }

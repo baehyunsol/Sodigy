@@ -1,6 +1,7 @@
 use super::{Arg, Func, FuncDeco};
 use crate::{lower_ast_expr, lower_ast_ty};
 use crate::err::HirError;
+use crate::expr::try_warn_unnecessary_paren;
 use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
@@ -86,6 +87,8 @@ pub fn lower_ast_func(
     }
 
     name_space.unlock_func_args();
+
+    try_warn_unnecessary_paren(&f.ret_val, session);
 
     let ret_val = lower_ast_expr(
         &f.ret_val,
