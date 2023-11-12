@@ -7,8 +7,8 @@ use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
 
 #[derive(Debug)]
-pub struct Tokens<'a> {
-    data: &'a mut Vec<Token>,
+pub struct Tokens<'t> {
+    data: &'t mut Vec<Token>,
     cursor: usize,
 
     // if self.data.is_empty, self.span_end() returns this span
@@ -16,8 +16,8 @@ pub struct Tokens<'a> {
     snapshots: Vec<TokensSnapshot>,
 }
 
-impl<'a> Tokens<'a> {
-    pub fn from_vec(data: &'a mut Vec<Token>) -> Self {
+impl<'t> Tokens<'t> {
+    pub fn from_vec(data: &'t mut Vec<Token>) -> Self {
         Tokens {
             data,
             cursor: 0,

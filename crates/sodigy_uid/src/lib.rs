@@ -6,7 +6,7 @@ pub struct Uid(u128);
 // first 4 bits: Type of Uid
 
 // next 4 bits: Metadata
-//     is_prelude, XX, XX, XX
+//     is_prelude, _, _, _
 
 // last 120 bits: Random Index
 // It assumes that the 120 bit random bit sequence is always unique.

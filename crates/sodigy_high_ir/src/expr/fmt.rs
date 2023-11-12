@@ -44,7 +44,6 @@ impl fmt::Display for ExprKind {
             ),
             k @ (ExprKind::List(elems)
             | ExprKind::Tuple(elems)) => {
-                let is_list = matches!(k, ExprKind::List(_));
                 let (start, end) = if matches!(k, ExprKind::List(_)) {
                     ("[", "]")
                 } else {

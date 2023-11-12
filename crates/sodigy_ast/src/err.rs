@@ -24,7 +24,7 @@ impl AstError {
     pub fn unexpected_token(token: Token, expected_token: ExpectedToken) -> Self {
         let mut extra = ExtraErrInfo::none();
 
-        match token.kind {
+        match &token.kind {
             TokenKind::Keyword(k) => {
                 // expected ident, but got keyword K
                 // tell them that K is not an identifier
@@ -44,7 +44,7 @@ impl AstError {
                     // This is very expensive. Make sure that compilation has already failed when this branch is reached.
                     ExpectedToken::AnyStatement => {
                         let mut sess = InternSession::new();
-                        let id = match sess.unintern_string(id) {
+                        let id = match sess.unintern_string(*id) {
                             Some(s) => s.to_vec(),
                             _ => b"Unexpected error, but I don't want it to mess up any other stuff.".to_vec(),
                         };
@@ -57,6 +57,13 @@ impl AstError {
                     },
                     _ => {},
                 }
+            },
+            TokenKind::Group {
+                delim: Delim::Brace,
+                prefix: b'\0',
+                tokens,
+            } if tokens.is_empty() => {
+                extra.set_message(String::from("It's obvious that it's an error, but it's hard to know what you've intended. If you're to initialize a struct, please provide fields. A struct in Sodigy must have at least one field. If it's just an expression, please provide a value."));
             },
             _ => {},
         }
