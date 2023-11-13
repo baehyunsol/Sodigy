@@ -307,6 +307,9 @@ pub fn lower_ast_expr(
                         lower_ast_pattern(
                             pattern,
                             session,
+                            used_names,
+                            imports,
+                            name_space,
                         ),
                         lower_ast_expr(
                             value,
@@ -327,7 +330,8 @@ pub fn lower_ast_expr(
 
                 let mut local_defs = Vec::with_capacity(name_bindings.len());
 
-                // TODO: some `expr`s are lowered twice
+                // TODO: some `expr`s are lowered twice -> if errors occur,
+                // they appear twice
                 for (name, expr, is_real) in name_bindings.iter() {
                     if let Ok(value) = lower_ast_expr(
                         expr,
@@ -694,6 +698,9 @@ pub fn lower_ast_expr(
                 let pattern = lower_ast_pattern(
                     pattern,
                     session,
+                    used_names,
+                    imports,
+                    name_space,
                 );
 
                 let guard = guard.as_ref().map(|g| lower_ast_expr(

@@ -106,7 +106,7 @@ pub fn lower_stmts(
                     concat_doc_comments(&mut curr_doc_comments),
                     &mut name_space,
                 );
-                println!("{}", f?);
+                println!("\n{}\n", f?);
 
                 curr_decorators.clear();
             },

@@ -16,22 +16,45 @@ macro_rules! check_output {
     ($error_or_warning: ident, $test_name: ident, $prefix: expr, $body: expr, $suffix: expr, $msg: expr) => {
         #[test]
         fn $test_name() {
-            let res = compile_input(
-                format!(
-                    "{}{}{}",
-                    $prefix, $body, $suffix,
-                ).as_bytes().to_vec()
+            let code = format!(
+                "{}{}{}",
+                $prefix, $body, $suffix,
             );
+            let res = compile_input(
+                code.as_bytes().to_vec()
+            );
+            let output = res.$error_or_warning();
+            let msg_normalized = String::from_utf8_lossy(&normalize($msg)).to_string();
+            let output_normalized = String::from_utf8_lossy(&normalize(&output)).to_string();
 
-            if !res.$error_or_warning().contains($msg) {
+            if !output_normalized.contains(&msg_normalized) {
                 panic!(
-                    "\n-----\nExpected: {}\n\nGot: \n{}\n-----\n",
+                    "\n-----\nCode: {code}\n\nExpected: {}\n\nGot: \n{output}\n-----\n",
                     $msg,
-                    res.$error_or_warning(),
                 );
             }
         }
     };
+}
+
+fn normalize(s: &str) -> Vec<u8> {
+    let mut result = Vec::with_capacity(s.len());
+
+    for c in s.as_bytes() {
+        if *c == b' ' {
+            continue;
+        }
+
+        if b'A' <= *c && *c <= b'Z' {
+            result.push(*c - b'A' + b'a');
+        }
+
+        else {
+            result.push(*c);
+        }
+    }
+
+    result
 }
 
 // error messages for invalid stmts
@@ -44,7 +67,7 @@ check_output!(stmt, err, stmt_test3, "def foo<GenericName>() = generic_name;", "
 check_output!(stmt, err, stmt_test4, "def foo<GenericName, >() = generic_name;", "similar name exists");
 check_output!(stmt, err, stmt_test5, "let PI = 3;", "Try `def`");
 check_output!(stmt, err, stmt_test6, "fef foo() = 3;", "you mean `def`?");
-check_output!(stmt, err, refuse_dependent_types, "def foo(x: y, y: Int) = 0;", "dependent types");
+check_output!(stmt, err, no_dependent_types, "def foo(x: y, y: Int) = 0;", "dependent types");
 
 // error messages for invalid exprs
 check_output!(expr, err, expr_test1, "1...3.", "invalid literal: `...`");
@@ -69,6 +92,7 @@ check_output!(expr, err, expr_test19, "(100 100)", "got `100`");
 check_output!(expr, err, expr_test20, "foo(100 100)", "got `100`");
 check_output!(expr, err, expr_test21, "한글넣으면죽음?", "got `한`");
 check_output!(expr, err, expr_test22, "{}", "got nothing");
+check_output!(expr, err, expr_test22_2, "{{}}", "got nothing");
 check_output!(expr, err, expr_test23, "f'{x} + {y} = {x + y}'", "single quotes");
 check_output!(expr, err, expr_test24, "f\"ABC {}\"", "empty format-string");
 check_output!(expr, err, expr_test25, "f\"ABC {1 + }\"", "got nothing");
@@ -77,12 +101,13 @@ check_output!(expr, err, expr_test27, "(b \"ABC 한글 DEF\")", "got `\"...\"`")
 check_output!(expr, err, expr_test28, "(f \"{a} + {b} = {a + b}\")", "got `\"...\"`");
 check_output!(expr, err, expr_test29, "[0, 1, 2, 3] `10 1", "field modifier without");
 check_output!(expr, err, expr_test30, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
-check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "TODO");
+check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "name `x` is bound multiple times");
 check_output!(expr, err, expr_test32, "   ##!##  # Unfinished Comment", "unterminated block comment");
-check_output!(expr, err, expr_test33, "f(x[..4])", /*L*/ "ike `0..`");
+check_output!(expr, err, expr_test33, "f(x[..4])", "like `0..`");
 check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
 check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "TODO");
 check_output!(expr, err, expr_test36, "Foo {}", "please provide fields");
+check_output!(expr, err, expr_test37, "{let ($y, $z) = (0, 1); y}", "TODO");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
@@ -90,7 +115,8 @@ check_output!(stmt, warn, stmt_warn_test2, "def foo<T>(x: Int, y: Int): Int = x 
 check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`");
 
 // warnings for exprs
-check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "TODO");
+check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "unused local name binding");
 check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "multiple name bindings");
 check_output!(expr, warn, expr_warn_test3, "f\"{1\"", "unmatched");
 check_output!(expr, warn, expr_warn_test4, "f\"1234\"", "nothing to evaluate");
+check_output!(expr, warn, expr_warn_test5, "{{5}}", "unnecessary parenthesis");

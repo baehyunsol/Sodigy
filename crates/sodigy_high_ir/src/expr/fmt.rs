@@ -4,7 +4,6 @@ use super::{
     Expr,
     ExprKind,
     Lambda,
-    LocalDef,
     Match,
     MatchArm,
     Scope,

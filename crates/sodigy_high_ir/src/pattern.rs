@@ -1,15 +1,24 @@
+use crate::{Type, lower_ast_ty};
 use crate::err::HirError;
-use crate::expr::{lower_ast_expr, LocalDef};
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
-use sodigy_ast::{self as ast, IdentWithSpan, PatternKind};
+use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
 mod fmt;
 
-pub struct Pattern {}
+pub struct Pattern {
+    kind: PatternKind,
+    span: SpanRange,
+    ty: Option<Type>,
+    bind: Option<IdentWithSpan>,
+}
+
+pub enum PatternKind {
+    Binding(InternedString)
+}
 
 // `let Foo { bar: $x, baz: $y } = f();`
 // -> `let $tmp = f();`, `let $x = $tmp.bar;`, `let $y = $tmp.baz;`
@@ -42,15 +51,27 @@ pub fn lower_patterns_to_name_bindings(
     session: &mut HirSession,
 ) -> Result<(), ()> {
     match &pattern.kind {
-        PatternKind::Binding(name) => {
+        ast::PatternKind::Binding(name) => {
+            // It's O(n), but `n` must be small enough in most cases
+            for (prev, _, _) in name_bindings.iter() {
+                if prev.id() == name {
+                    session.push_error(HirError::name_collision(
+                        *prev,
+                        IdentWithSpan::new(*name, pattern.span),
+                    ));
+
+                    return Err(());
+                }
+            }
+
             name_bindings.push((IdentWithSpan::new(*name, pattern.span), expr.clone(), true));
         },
-        PatternKind::Tuple(patterns) => {
+        ast::PatternKind::Tuple(patterns) => {
             for pattern in patterns.iter() {
                 todo!();
             }
         },
-        PatternKind::TupleStruct {
+        ast::PatternKind::TupleStruct {
             name,
             fields,
         } => {
@@ -58,7 +79,7 @@ pub fn lower_patterns_to_name_bindings(
                 todo!();
             }
         },
-        PatternKind::Struct {
+        ast::PatternKind::Struct {
             struct_name,
             fields,
             ..
@@ -82,7 +103,31 @@ pub fn lower_patterns_to_name_bindings(
 pub fn lower_ast_pattern(
     pattern: &ast::Pattern,
     session: &mut HirSession,
+    used_names: &mut HashSet<IdentWithOrigin>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
+    name_space: &mut NameSpace,
 ) -> Result<Pattern, ()> {
-    session.push_error(HirError::todo("pattern", pattern.span));
-    Err(())
+    match &pattern.kind {
+        ast::PatternKind::Binding(name) => Ok(Pattern {
+            kind: PatternKind::Binding(*name),
+            span: pattern.span,
+            bind: pattern.bind,
+            ty: if let Some(ty) = &pattern.ty {
+                Some(lower_ast_ty(
+                    &ty,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                )?)
+            } else {
+                None
+            }
+        }),
+        _ => {
+            session.push_error(HirError::todo("pattern", pattern.span));
+
+            Err(())
+        },
+    }
 }
