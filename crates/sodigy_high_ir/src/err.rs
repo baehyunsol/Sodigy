@@ -1,5 +1,5 @@
 use smallvec::{smallvec, SmallVec};
-use sodigy_ast::IdentWithSpan;
+use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
@@ -47,6 +47,14 @@ impl HirError {
         }
     }
 
+    pub fn refutable_pattern_in_let(pattern: &ast::Pattern) -> Self {
+        HirError {
+            kind: HirErrorKind::RefutablePatternInLet,
+            spans: smallvec![pattern.span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         HirError {
             kind: HirErrorKind::TODO(msg.to_string()),
@@ -87,6 +95,7 @@ pub enum HirErrorKind {
         suggestions: Vec<InternedString>,
     },
     UndefinedDeco(InternedString),
+    RefutablePatternInLet,
     TODO(String),
 }
 
@@ -95,8 +104,9 @@ impl SodigyErrorKind for HirErrorKind {
         match self {
             HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
             HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
-            HirErrorKind::NoDependentTypes(_) => format!("dependent types not allowed"),
+            HirErrorKind::NoDependentTypes(_) => String::from("dependent types not allowed"),
             HirErrorKind::UndefinedDeco(name) => format!("unknown decorator `{name}`"),
+            HirErrorKind::RefutablePatternInLet => String::from("refutable pattern in a `let` statement"),
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -124,6 +134,7 @@ impl SodigyErrorKind for HirErrorKind {
                     ),
                 ),
             },
+            HirErrorKind::RefutablePatternInLet => String::from("TODO: explain what refutable patterns are."),
             _ => String::new(),
         }
     }

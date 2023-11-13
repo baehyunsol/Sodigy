@@ -3,7 +3,7 @@ use crate::lower_ast_ty;
 use crate::err::HirError;
 use crate::func::Arg;
 use crate::names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
-use crate::pattern::{lower_ast_local_def, lower_ast_pattern};
+use crate::pattern::{lower_patterns_to_name_bindings, lower_ast_pattern};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
@@ -275,100 +275,114 @@ pub fn lower_ast_expr(
                 }
             },
             ValueKind::Scope { scope, uid } => {
-                let mut name_bindings = HashSet::new();
-                let mut name_collision_checker = HashMap::new();
-                let mut name_bindings_buffer = vec![];
+                let mut has_error = false;
+                let mut name_bindings = vec![];
 
-                // push name bindings to the name space
-                // find name collisions
-                for ast::LocalDef { pattern, .. } in scope.defs.iter() {
-                    pattern.get_name_bindings(&mut name_bindings_buffer);
-
-                    for def in name_bindings_buffer.iter() {
-                        match name_collision_checker.get(def.id()) {
-                            Some(id) => {
-                                session.push_error(HirError::name_collision(*def, *id));
-                            },
-                            None => {
-                                name_collision_checker.insert(*def.id(), *def);
-                            },
-                        }
-
-                        name_bindings.insert(*def.id());
+                // step 1. simple check on `ast::Pattern`s.
+                // convert ast::Pattern to name bindings.
+                // also collect names
+                for ast::LocalDef {
+                    pattern, value, ..
+                } in scope.defs.iter() {
+                    if let Err(_) = lower_patterns_to_name_bindings(
+                        pattern,
+                        value,
+                        &mut name_bindings,
+                        session,
+                    ) {
+                        has_error = true;
                     }
-
-                    name_bindings_buffer.clear();
                 }
 
-                name_space.push_locals(
-                    *uid,
-                    name_bindings,
-                );
+                name_space.push_locals(*uid, name_bindings.iter().map(
+                    |(id, _, _)| *id.id()
+                ).collect());
 
-                // lower defs and values
-                let local_defs: Vec<Result<LocalDef, ()>> = scope.defs.iter().map(
-                    |local_def| lower_ast_local_def(
-                        local_def,
+                let mut original_patterns = vec![];
+
+                for ast::LocalDef {
+                    pattern, value, ..
+                } in scope.defs.iter() {
+                    match (
+                        lower_ast_pattern(
+                            pattern,
+                            session,
+                        ),
+                        lower_ast_expr(
+                            value,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        ),
+                    ) {
+                        (Ok(pat), Ok(value)) => {
+                            original_patterns.push((pat, value));
+                        },
+                        _ => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                let mut local_defs = Vec::with_capacity(name_bindings.len());
+
+                // TODO: some `expr`s are lowered twice
+                for (name, expr, is_real) in name_bindings.iter() {
+                    if let Ok(value) = lower_ast_expr(
+                        expr,
                         session,
                         used_names,
                         imports,
                         name_space,
-                    )
-                ).collect();
+                    ) {
+                        local_defs.push(LocalDef {
+                            name: *name,
+                            value,
+                            is_real: *is_real,
+                        });
+                    }
 
-                try_warn_unnecessary_paren(scope.value.as_ref(), session);
+                    else {
+                        has_error = true;
+                    }
+                }
 
                 let value = lower_ast_expr(
-                    scope.value.as_ref(),
+                    &scope.value,
                     session,
                     used_names,
                     imports,
                     name_space,
                 );
 
-                // find unused names
-                for (id, id_with_span) in name_collision_checker.iter() {
-                    if !used_names.contains(&IdentWithOrigin::new(*id, NameOrigin::Local { origin: *uid })) {
-                        session.push_warning(HirWarning::unused_name(*id_with_span, NameBindingType::LocalScope));
+                for (name, _, is_real) in name_bindings.iter() {
+                    if !*is_real {
+                        continue;
+                    }
+
+                    if !used_names.contains(&IdentWithOrigin::new(*name.id(), NameOrigin::Local { origin: *uid })) {
+                        session.push_warning(HirWarning::unused_name(
+                            *name,
+                            NameBindingType::LocalScope,
+                        ));
                     }
                 }
 
-                // we have to unwrap errors as late as possible
-                // so that we can find as many as possible
-                let mut has_error = false;
-
-                let local_defs: Vec<LocalDef> = local_defs.into_iter().filter_map(
-                    |d| match d {
-                        Ok(d) => Some(d),
-                        Err(_) => {
-                            has_error = true;
-                            None
-                        }
-                    }
-                ).collect();
-
                 name_space.pop_locals();
-
-                let value = value?;
 
                 if has_error {
                     return Err(());
                 }
 
-                // very simple optimization: `{ x }` -> `x`
-                if local_defs.is_empty() {
-                    value
-                }
-
-                else {
-                    Expr {
-                        kind: ExprKind::Scope(Scope {
-                            defs: local_defs,
-                            value: Box::new(value),
-                            uid: *uid,
-                        }),
-                        span: e.span,
-                    }
+                Expr {
+                    kind: ExprKind::Scope(Scope {
+                        original_patterns,
+                        defs: local_defs,
+                        value: Box::new(value?),
+                        uid: *uid,
+                    }),
+                    span: e.span,
                 }
             },
         },
@@ -921,7 +935,39 @@ fn find_and_replace_captured_names(
                 );
             }
         },
-        ExprKind::Branch(_) => todo!(),
+        ExprKind::Branch(Branch { arms }) => {
+            for BranchArm {
+                cond, let_bind, value,
+            } in arms.iter_mut() {
+                if let Some(cond) = cond {
+                    find_and_replace_captured_names(
+                        cond,
+                        lambda_uid,
+                        captured_names,
+                        used_names,
+                        name_space,
+                    );
+                }
+
+                if let Some(let_bind) = let_bind {
+                    find_and_replace_captured_names(
+                        let_bind,
+                        lambda_uid,
+                        captured_names,
+                        used_names,
+                        name_space,
+                    );
+                }
+
+                find_and_replace_captured_names(
+                    value,
+                    lambda_uid,
+                    captured_names,
+                    used_names,
+                    name_space,
+                );
+            }
+        },
         ExprKind::StructInit(StructInit {
             struct_,
             fields

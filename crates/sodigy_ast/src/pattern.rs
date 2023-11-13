@@ -73,8 +73,8 @@ impl Pattern {
             PatternKind::Struct {
                 fields, ..
             } => {
-                for PatField { value, .. } in fields.iter() {
-                    value.get_name_bindings(buffer);
+                for PatField { pattern, .. } in fields.iter() {
+                    pattern.get_name_bindings(buffer);
                 }
             },
             PatternKind::Or(left, right) => {
@@ -100,6 +100,19 @@ impl Pattern {
             ty: None,
             span,
             bind: None,
+        }
+    }
+
+    /// `let x = foo();` -> `let $x = foo();`
+    pub fn syntax_sugar_for_simple_binding(&mut self) {
+        match &self.kind {
+            // if the syntax is `let $x @ y = z;`, it doesn't do anything
+            PatternKind::Identifier(id) if self.bind.is_none() => {
+                let id = *id;
+                self.kind = PatternKind::Binding(id);
+                self.bind = Some(IdentWithSpan::new(id, self.span));
+            },
+            _ => { /* nop */ },
         }
     }
 }
@@ -161,6 +174,6 @@ pub enum PatternKind {
 
 #[derive(Clone)]
 pub struct PatField {
-    name: IdentWithSpan,
-    value: Pattern,
+    pub name: IdentWithSpan,
+    pub pattern: Pattern,
 }

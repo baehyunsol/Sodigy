@@ -69,11 +69,11 @@ impl fmt::Display for ExprKind {
                     }
                 ).collect::<Vec<String>>().concat(),
             ),
-            ExprKind::Scope(Scope { defs, value, .. }) => {
-                let mut result = Vec::with_capacity(defs.len() + 1);
+            ExprKind::Scope(Scope { original_patterns, value, .. }) => {
+                let mut result = Vec::with_capacity(original_patterns.len() + 1);
 
-                for LocalDef { pattern, value, .. } in defs.iter() {
-                    result.push(format!("let {pattern} = {value}"));
+                for (pat, val) in original_patterns.iter() {
+                    result.push(format!("let {pat} = {val}"));
                 }
 
                 result.push(format!("{value}"));

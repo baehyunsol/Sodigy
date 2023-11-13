@@ -1205,7 +1205,10 @@ fn parse_scope_block(
         let let_span = tokens.peek_span().unwrap();
         tokens.step().unwrap();
 
-        let pattern = parse_pattern(tokens, session)?;
+        let mut pattern = parse_pattern(tokens, session)?;
+
+        pattern.syntax_sugar_for_simple_binding();
+
         let assign_span = tokens.peek_span();
 
         if let Err(e) = tokens.consume(TokenKind::assign()) {

@@ -142,6 +142,7 @@ pub(crate) fn parse_pattern(
     }
 }
 
+// TODO: does it reject `Foo { bar: $x, baz: $y, $z @ .. }`?
 // a pattern without operators (`@`, `|`, `..`, )
 fn parse_pattern_value(
     tokens: &mut Tokens,
@@ -378,11 +379,11 @@ fn parse_pattern_value(
                                                 return Err(());
                                             }
 
-                                            let pat = parse_pattern(&mut group_tokens, session)?;
+                                            let pattern = parse_pattern(&mut group_tokens, session)?;
 
                                             pat_fields.push(PatField {
                                                 name: id,
-                                                value: pat,
+                                                pattern,
                                             });
                                         },
                                         Err(AstError {

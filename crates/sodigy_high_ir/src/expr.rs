@@ -54,15 +54,20 @@ pub enum ExprKind {
 }
 
 pub struct Scope {
+    // used later for type-checking
+    pub original_patterns: Vec<(Pattern, Expr)>,
+
     pub defs: Vec<LocalDef>,
     pub value: Box<Expr>,
     pub uid: Uid,
 }
 
 pub struct LocalDef {
-    pub pattern: Pattern,
+    pub name: IdentWithSpan,
     pub value: Expr,
-    pub let_span: SpanRange,
+
+    // the compiler generates tmp local defs during the compilation
+    pub is_real: bool,
 }
 
 pub struct Match {
