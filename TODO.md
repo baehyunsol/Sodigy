@@ -40,38 +40,6 @@ functor of `test.after` takes one input: the return value of the function its de
 
 ---
 
-functions vs actions
-
-an action can call both functions and actions
-
-a function can only call functions
-
-special actions
-
-- `run(a1, a2, a3, a4)`
-  - takes arbitrary numbers of inputs
-  - all the inputs are guaranteed to be executed
-    - that means an input is a function, not an action, it can still be optimized away
-  - all the inputs are guaranteed to be executed in order
-  - returns the first argument
-- `print(x)`
-  - prints `x`
-  - returns `x`
-- IO funcs, rand funcs, time funcs, ...
-
----
-
-rustc: termcolor라는 crate 쓰는구만...
-
----
-
-`let x = 3;` vs `let $x = 3;`
-
-1. `($x, $y)`에서는 `$` 붙이고 `x`에서는 안 붙이면 헷갈린다.
-2. 정의는 `$x`로 하고 쓸 때는 `x`로 쓰면 헷갈린다.
-
----
-
 ```
 def foo(x?: Int, y?: String): Result(Int, Err) = Result.Ok(bar(x, y));
 ```

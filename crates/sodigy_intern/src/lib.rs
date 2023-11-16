@@ -1,3 +1,5 @@
+use sodigy_number::SodigyNumber;
+
 mod global;
 mod string;
 mod numeric;
@@ -7,7 +9,7 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use global::{IS_INTEGER, SPECIAL_STRINGS};
+pub(crate) use global::{IS_INTEGER, PRELUDE_NUMERICS, PRELUDE_STRINGS};
 pub use numeric::InternedNumeric;
 pub use string::InternedString;
 
@@ -19,4 +21,10 @@ pub fn unintern_string(s: InternedString) -> Vec<u8> {
     let g = unsafe { global::global_intern_session() };
 
     g.strings_rev.get(&s).unwrap().to_vec()
+}
+
+pub fn unintern_numeric(n: InternedNumeric) -> SodigyNumber {
+    let g = unsafe { global::global_intern_session() };
+
+    g.numerics_rev.get(&n).unwrap().clone()
 }

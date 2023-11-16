@@ -1,12 +1,14 @@
 use crate::err::HirError;
 use crate::warn::HirWarning;
-use sodigy_intern::InternedString;
+use sodigy_intern::{InternedNumeric, InternedString, InternSession};
+use sodigy_number::SodigyNumber;
 use sodigy_prelude::PRELUDES;
 use std::collections::HashSet;
 
 pub struct HirSession {
     errors: Vec<HirError>,
     warnings: Vec<HirWarning>,
+    interner: InternSession,
 }
 
 impl HirSession {
@@ -14,6 +16,7 @@ impl HirSession {
         HirSession {
             errors: vec![],
             warnings: vec![],
+            interner: InternSession::new(),
         }
     }
 
@@ -35,6 +38,22 @@ impl HirSession {
 
     pub fn get_warnings(&self) -> &Vec<HirWarning> {
         &self.warnings
+    }
+
+    pub fn intern_numeric(&mut self, n: SodigyNumber) -> InternedNumeric {
+        self.interner.intern_numeric(n)
+    }
+
+    pub fn unintern_numeric(&mut self, s: InternedNumeric) -> Option<&SodigyNumber> {
+        self.interner.unintern_numeric(s)
+    }
+
+    pub fn intern_string(&mut self, s: Vec<u8>) -> InternedString {
+        self.interner.intern_string(s)
+    }
+
+    pub fn unintern_string(&mut self, s: InternedString) -> Option<&[u8]> {
+        self.interner.unintern_string(s)
     }
 
     pub fn err_if_has_err(&self) -> Result<(), ()> {

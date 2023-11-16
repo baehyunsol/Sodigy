@@ -27,7 +27,10 @@ macro_rules! check_output {
             let msg_normalized = String::from_utf8_lossy(&normalize($msg)).to_string();
             let output_normalized = String::from_utf8_lossy(&normalize(&output)).to_string();
 
-            if !output_normalized.contains(&msg_normalized) {
+            // set this flag to see all the error messages and warnings
+            let always_panic = false;
+
+            if !output_normalized.contains(&msg_normalized) || always_panic {
                 panic!(
                     "\n-----\nCode: {code}\n\nExpected: {}\n\nGot: \n{output}\n-----\n",
                     $msg,
@@ -79,8 +82,8 @@ check_output!(expr, err, expr_test6, "[(), {), ]", "unclosed delimiter");
 check_output!(expr, err, expr_test7, "[(), {}, ]", "got nothing");
 check_output!(expr, err, expr_test8, "[1, 2, 3, 4", "unclosed delimiter");
 check_output!(expr, err, expr_test9, "if x { 0 } else { }", "got nothing");
-check_output!(expr, err, expr_test10, "if x > y { x } * 2", "TODO");
-check_output!(expr, err, expr_test11, "if x > y { x }", "TODO");
+check_output!(expr, err, expr_test10, "if x > y { x } * 2", "TODO ____");
+check_output!(expr, err, expr_test11, "if x > y { x }", "TODO ____");
 check_output!(expr, err, expr_test12, "match {}", "got nothing");  // it expects `match { value } { arms }`
 check_output!(expr, err, expr_test13, "match x {}", "got nothing");
 check_output!(expr, err, expr_test14, "{let a = 3; let b = 4;}", "got nothing");
@@ -105,9 +108,17 @@ check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "name `x`
 check_output!(expr, err, expr_test32, "   ##!##  # Unfinished Comment", "unterminated block comment");
 check_output!(expr, err, expr_test33, "f(x[..4])", "like `0..`");
 check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
-check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "TODO");
+check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "inclusive range with an open end");
 check_output!(expr, err, expr_test36, "Foo {}", "please provide fields");
-check_output!(expr, err, expr_test37, "{let ($y, $z) = (0, 1); y}", "TODO");
+check_output!(expr, err, expr_test37, "{let ($y, $z) = (0, 1); y}", "TODO ____");
+check_output!(expr, err, expr_test38, "", "expected an expression");
+check_output!(expr, err, expr_test39, "'abc'", "too long character");
+check_output!(expr, err, expr_test40, "match x { 0..'9' => 1, _ => 2, }", "type error");
+check_output!(expr, err, expr_test41, "match x { 0..0.1 => 1, _ => 2, }", "type error");
+check_output!(expr, err, expr_test42, "match x { 0..() => 1, _ => 2, }", "type error");
+check_output!(expr, err, expr_test43, "match x { 0..0 => 0, _ => x }", "nothing can match this pattern");
+check_output!(expr, err, expr_test44, "match x { 0.1..0.1 => 0, _ => x }", "nothing can match this pattern");
+check_output!(expr, err, expr_test45, "match x { 2..1 => 0, _ => x }", "nothing can match this pattern");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
@@ -120,3 +131,6 @@ check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, 
 check_output!(expr, warn, expr_warn_test3, "f\"{1\"", "unmatched");
 check_output!(expr, warn, expr_warn_test4, "f\"1234\"", "nothing to evaluate");
 check_output!(expr, warn, expr_warn_test5, "{{5}}", "unnecessary parenthesis");
+check_output!(expr, warn, expr_warn_test6, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
+check_output!(expr, warn, expr_warn_test7, "match x { 0.1..~0.1 => 0, _ => x }", "`1e-1..~1e-1` is just `1e-1`");
+check_output!(expr, warn, expr_warn_test8, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");

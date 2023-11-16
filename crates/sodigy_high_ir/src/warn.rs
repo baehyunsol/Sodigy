@@ -1,4 +1,5 @@
 use crate::names::NameBindingType;
+use crate::pattern::{NumberLike, RangeType};
 use smallvec::{smallvec, SmallVec};
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
@@ -37,6 +38,14 @@ impl HirWarning {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn point_range(from: NumberLike, to: NumberLike, ty: RangeType, span: SpanRange) -> Self {
+        HirWarning {
+            kind: HirWarningKind::PointRange { from, to, ty },
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<HirWarningKind> for HirWarning {
@@ -71,6 +80,11 @@ pub enum HirWarningKind {
     UnnecessaryParen {
         is_brace: bool,
     },
+    PointRange {  // `0..~0`
+        from:NumberLike,
+        to: NumberLike,
+        ty: RangeType,
+    },
 }
 
 impl SodigyErrorKind for HirWarningKind {
@@ -79,16 +93,28 @@ impl SodigyErrorKind for HirWarningKind {
             HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{name}`"),
             HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{name}`", nbt.render_error()),
             HirWarningKind::UnnecessaryParen { .. } => format!("unnecessary parenthesis"),
+            HirWarningKind::PointRange { .. } => format!("meaningless range"),
         }
     }
 
-    fn help(&self, _: &mut InternSession) -> String {
+    fn help(&self, session: &mut InternSession) -> String {
         match self {
             HirWarningKind::RedefPrelude(_) => String::from("It's okay to do so, but it might confuse you."),
             HirWarningKind::UnnecessaryParen { is_brace } => if *is_brace {
                 String::from("This curly brace doesn't do anything.")
             } else {
                 String::from("This parenthesis doesn't do anything.")
+            },
+            HirWarningKind::PointRange { from, ty, .. } => {
+                let rendered = match ty {
+                    RangeType::Char => format!(
+                        "{:?}",
+                        char::from_u32(from.try_into_u32(session).unwrap()).unwrap(),
+                    ),
+                    _ => format!("{}", from.render_error()),
+                };
+
+                format!("`{rendered}..~{rendered}` is just `{rendered}`.")
             },
             _ => String::new(),
         }

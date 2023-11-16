@@ -54,6 +54,10 @@ impl Uid {
         Uid(rand::random::<u128>() & ERASER | MATCH_ARM)
     }
 
+    pub fn into_def(&self) -> Self {
+        Uid(self.0 & ERASER | DEF)
+    }
+
     #[must_use = "method returns a new uid and does not mutate the original value"]
     pub fn mark_prelude(self) -> Self {
         Uid(self.0 | PRELUDE_MASK)

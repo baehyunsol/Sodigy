@@ -1,5 +1,6 @@
 pub struct CompileResult {
     // TODO: I want Vec<Box<dyn SodigyError>>
+    // TODO: it has to remove duplicate errors, and sort the errors by span before printing
     errors: Vec<String>,
     warnings: Vec<String>,
 }
@@ -29,11 +30,6 @@ impl CompileResult {
     }
 
     pub fn print_results(&self) {
-        println!(
-            "{}",
-            self.errors.iter().chain(self.warnings.iter()).map(
-                |s| s.to_string()
-            ).collect::<Vec<String>>().join("\n\n")
-        );
+        println!("{}\n\n{}", self.concat_errors(), self.concat_warnings());
     }
 }

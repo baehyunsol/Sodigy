@@ -5,6 +5,7 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
+mod doc_comment;
 mod err;
 mod expr;
 mod fmt;
@@ -12,12 +13,22 @@ mod func;
 mod names;
 mod pattern;
 mod session;
+mod walker;
 mod warn;
 
+use doc_comment::concat_doc_comments;
 use err::HirError;
 pub use expr::Expr;
-use expr::{lower_ast_expr, try_warn_unnecessary_paren};
-use func::lower_ast_func;
+use expr::{
+    lower_ast_expr,
+    try_warn_unnecessary_paren,
+    lambda::{
+        give_names_to_lambdas,
+        try_convert_closures_to_lambdas,
+        LambdaCollectCtxt,
+    },
+};
+use func::{Func, lower_ast_func};
 use names::{IdentWithOrigin, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
@@ -41,6 +52,9 @@ pub fn lower_stmts(
 
     // It's used to generate unused_name warnings
     let mut used_names: HashSet<IdentWithOrigin> = HashSet::new();
+
+    // HashMap<name, def>
+    let mut func_defs: HashMap<InternedString, Func> = HashMap::new();
 
     // first iteration:
     // collect names from definitions and check name collisions
@@ -96,18 +110,34 @@ pub fn lower_stmts(
                 curr_decorators.push(d.clone());
             },
             StmtKind::Func(f) => {
-                // TODO: what do we do with it?
-                let f = lower_ast_func(
+                let concated_doc_comments = concat_doc_comments(
+                    &curr_doc_comments,
+                    session,
+                );
+
+                if let Ok(mut f) = lower_ast_func(
                     f,
                     session,
                     &mut used_names,
                     &imports,
                     &curr_decorators,
-                    concat_doc_comments(&mut curr_doc_comments),
+                    concated_doc_comments,
                     &mut name_space,
-                );
-                println!("\n{}\n", f?);
+                ) {
+                    let mut lambda_context = LambdaCollectCtxt::new(session);
 
+                    println!("\n{}\n", f);
+                    try_convert_closures_to_lambdas(&mut f);
+                    give_names_to_lambdas(&mut f, &mut lambda_context);
+
+                    func_defs.insert(*f.name.id(), f);
+
+                    for func in lambda_context.collected_lambdas.into_iter() {
+                        func_defs.insert(*func.name.id(), func);
+                    }
+                }
+
+                curr_doc_comments.clear();
                 curr_decorators.clear();
             },
             _ => {
@@ -137,18 +167,5 @@ pub fn lower_ast_ty(
     )?))
 }
 
-fn concat_doc_comments(docs: &mut Vec<(InternedString, SpanRange)>) -> Option<InternedString> {
-    if docs.is_empty() {
-        None
-    }
-
-    else if docs.len() == 1 {
-        Some(docs[0].0)
-    }
-
-    else {
-        todo!()
-    }
-}
-
+#[derive(Clone)]
 pub struct Type(hir::Expr);

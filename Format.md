@@ -10,5 +10,3 @@
   - In most cases, `fmt::Display` and `render_error` are the same. In that case, there's no need for extra `impl`.
 
 Those functions are usually very expensive, because they have to access intern sessions, which requires locks.
-
-For now, `fmt::Display` roundtrips are not always possible. But my goal is to make it always possible.

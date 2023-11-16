@@ -71,4 +71,15 @@ impl Session {
     pub fn unintern_numeric_fast(&self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
         self.local_numeric_table_rev.get(&numeric)
     }
+
+    pub fn unintern_numeric(&mut self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
+        match self.unintern_numeric_fast(numeric) {
+            Some(n) => Some(n),
+            None => unsafe {
+                let g = global_intern_session();
+
+                g.numerics_rev.get(&numeric)
+            },
+        }
+    }
 }

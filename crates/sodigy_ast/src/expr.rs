@@ -8,6 +8,18 @@ pub struct Expr {
     pub span: SpanRange,
 }
 
+impl Expr {
+    // `{x}` -> `x`
+    pub fn peel_unnecessary_brace(&mut self) {
+        match &self.kind {
+            ExprKind::Value(ValueKind::Scope { scope, .. }) if scope.has_no_defs() => {
+                *self = *scope.value.clone();
+            },
+            _ => { /* nop */ },
+        }
+    }
+}
+
 /****************************************
  *  spans of exprs                      *
  *  value: see `value.rs`               *

@@ -1564,13 +1564,15 @@ fn parse_branch_arm(
                     let span = span.unwrap();
 
                     let scope = parse_scope_block(&mut val_tokens, session, span)?;
-                    let value = Expr {
+                    let mut value = Expr {
                         kind: ExprKind::Value(ValueKind::Scope {
                             scope,
                             uid: Uid::new_scope(),
                         }),
                         span,
                     };
+
+                    value.peel_unnecessary_brace();
 
                     Ok(BranchArm {
                         cond: Some(cond),
@@ -1598,13 +1600,15 @@ fn parse_branch_arm(
             val_tokens.set_span_end(span.last_char());
 
             let scope = parse_scope_block(&mut val_tokens, session, span)?;
-            let value = Expr {
+            let mut value = Expr {
                 kind: ExprKind::Value(ValueKind::Scope {
                     scope,
                     uid: Uid::new_scope(),
                 }),
                 span,
             };
+
+            value.peel_unnecessary_brace();
 
             Ok(BranchArm {
                 cond: None,

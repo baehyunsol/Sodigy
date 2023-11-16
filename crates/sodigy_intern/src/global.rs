@@ -1,4 +1,9 @@
-use crate::{string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F}, InternedString, InternedNumeric};
+use crate::{
+    numeric::ZERO,
+    string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F},
+    InternedNumeric,
+    InternedString,
+};
 use sodigy_keyword::keywords;
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
@@ -50,8 +55,8 @@ impl GlobalInternSession {
     fn new() -> Self {
         let mut strings = HashMap::new();
         let mut strings_rev = HashMap::new();
-        let numerics = HashMap::new();
-        let numerics_rev = HashMap::new();
+        let mut numerics = HashMap::new();
+        let mut numerics_rev = HashMap::new();
 
         for (index, keyword) in keywords().into_iter().enumerate() {
             strings.insert(keyword.to_utf8(), (index as u32).into());
@@ -68,6 +73,9 @@ impl GlobalInternSession {
         strings_rev.insert(DOTDOTDOT.into(), b"...".to_vec());
         strings.insert(b"_".to_vec(), UNDERBAR.into());
         strings_rev.insert(UNDERBAR.into(), b"_".to_vec());
+
+        numerics.insert(0.into(), ZERO.into());
+        numerics_rev.insert(ZERO.into(), 0.into());
 
         GlobalInternSession {
             strings, strings_rev,
@@ -132,7 +140,8 @@ impl GlobalInternSession {
 pub(crate) const DATA_MASK: u32 = !(0b111_111 << 26);
 
 // metadata for strings
-pub(crate) const SPECIAL_STRINGS: u32 = 0b100_000 << 26;
+pub(crate) const PRELUDE_STRINGS: u32 = 0b100_000 << 26;
 
 // metadata for numerics
 pub(crate) const IS_INTEGER: u32 = 0b100_000 << 26;
+pub(crate) const PRELUDE_NUMERICS: u32 = 0b010_000 << 26;

@@ -9,16 +9,17 @@ mod lower;
 pub use lower::lower_ast_func;
 
 pub struct Func {
-    name: IdentWithSpan,
-    args: Option<Vec<Arg>>,
-    generics: Vec<ast::GenericDef>,
-    ret_val: hir::Expr,
-    ret_ty: Option<hir::Type>,
-    decorators: FuncDeco,
-    doc: Option<InternedString>,
-    uid: Uid,
+    pub name: IdentWithSpan,
+    pub args: Option<Vec<Arg>>,
+    pub(crate) generics: Vec<ast::GenericDef>,
+    pub ret_val: hir::Expr,
+    pub ret_ty: Option<hir::Type>,
+    pub decorators: FuncDeco,
+    pub(crate) doc: Option<InternedString>,
+    pub(crate) uid: Uid,
 }
 
+#[derive(Clone)]
 pub struct Arg {
     pub name: IdentWithSpan,
     pub ty: Option<hir::Type>,
@@ -30,6 +31,15 @@ pub struct Arg {
 #[derive(Default)]
 pub struct FuncDeco {
     publicity: Publicity,
+}
+
+impl FuncDeco {
+    // decorators for lambda functions
+    pub fn default_lambda() -> Self {
+        FuncDeco {
+            publicity: Publicity::Private,
+        }
+    }
 }
 
 #[derive(Default)]

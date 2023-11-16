@@ -71,6 +71,8 @@ impl fmt::Display for ExprKind {
             ExprKind::Scope(Scope { original_patterns, value, .. }) => {
                 let mut result = Vec::with_capacity(original_patterns.len() + 1);
 
+                // TODO: print `defs` instead of `original_patterns`
+                // let's just give up roundtrip-ability
                 for (pat, val) in original_patterns.iter() {
                     result.push(format!("let {pat} = {val}"));
                 }
@@ -122,7 +124,7 @@ impl fmt::Display for ExprKind {
 
                 for (ind, BranchArm { cond, let_bind, value }) in arms.iter().enumerate() {
                     result.push(format!(
-                        "{}{}{{{value}}}",
+                        "{}{}{}",
                         if ind == 0 {
                             "if "
                         } else if cond.is_some() {
@@ -143,6 +145,18 @@ impl fmt::Display for ExprKind {
                                 String::new()
                             }
                         },
+                        {
+                            // pretty print: remove unnecessary braces
+                            let v = format!("{value}");
+
+                            if v.starts_with("{") {
+                                v
+                            }
+
+                            else {
+                                format!("{{{v}}}")
+                            }
+                        }
                     ));
                 }
 

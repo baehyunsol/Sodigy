@@ -47,6 +47,63 @@ impl SodigyNumber {
             SodigyNumber::SmallRatio(_) => false,
         }
     }
+
+    // unfortunate that `SodigyNumber` is unsigned
+    pub fn minus_one(n: Self, is_negative: bool) -> (Self, bool) {
+        match n {
+            SodigyNumber::SmallInt(n) => if is_negative {
+                match n.checked_add(1) {
+                    Some(n) => ((n as u32).into(), true),
+                    _ => todo!(),
+                }
+            } else {
+                if n == 0 {
+                    (1.into(), true)
+                }
+
+                else {
+                    (((n - 1) as u32).into(), false)
+                }
+            },
+            _ => todo!(),
+        }
+    }
+
+    pub fn gt(&self, other: &Self) -> bool {
+        match (self, other) {
+            (SodigyNumber::SmallInt(m), SodigyNumber::SmallInt(n)) => *m > *n,
+            (SodigyNumber::SmallRatio(m), SodigyNumber::SmallRatio(n)) => {
+                let exp1 = *m % 65536;
+                let exp2 = *n % 65536;
+                let digits1 = *m / 65536;
+                let digits2 = *n / 65536;
+
+                // we can't just compare `exp`s: the range of `digits`s vary
+                todo!()
+            },
+            _ => todo!(),
+        }
+    }
+}
+
+impl From<u32> for SodigyNumber {
+    fn from(n: u32) -> Self {
+        SodigyNumber::SmallInt(n as u64)
+    }
+}
+
+impl TryFrom<&SodigyNumber> for u32 {
+    type Error = ();
+
+    fn try_from(n: &SodigyNumber) -> Result<u32, ()> {
+        match n {
+            SodigyNumber::SmallInt(n) => match u32::try_from(*n) {
+                Ok(n) => Ok(n),
+                _ => Err(()),
+            },
+            _ => Err(())
+        }
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]

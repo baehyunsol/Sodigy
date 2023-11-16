@@ -7,15 +7,18 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
 mod fmt;
+pub mod lambda;
 mod lower;
 
 pub use lower::{lower_ast_expr, try_warn_unnecessary_paren};
 
+#[derive(Clone)]
 pub struct Expr {
-    kind: ExprKind,
+    pub kind: ExprKind,
     span: SpanRange,
 }
 
+#[derive(Clone)]
 pub enum ExprKind {
     Identifier(IdentWithOrigin),
     Integer(InternedNumeric),
@@ -53,6 +56,7 @@ pub enum ExprKind {
     InfixOp(InfixOp, Box<Expr>, Box<Expr>),
 }
 
+#[derive(Clone)]
 pub struct Scope {
     // used later for type-checking
     pub original_patterns: Vec<(Pattern, Expr)>,
@@ -62,6 +66,7 @@ pub struct Scope {
     pub uid: Uid,
 }
 
+#[derive(Clone)]
 pub struct LocalDef {
     pub name: IdentWithSpan,
     pub value: Expr,
@@ -70,39 +75,46 @@ pub struct LocalDef {
     pub is_real: bool,
 }
 
+#[derive(Clone)]
 pub struct Match {
-    arms: Vec<MatchArm>,
-    value: Box<Expr>,
+    pub arms: Vec<MatchArm>,
+    pub value: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct MatchArm {
     pub pattern: Pattern,
     pub value: Expr,
     pub guard: Option<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Lambda {
     pub args: Vec<Arg>,
     pub value: Box<Expr>,
-    pub captured_names: Vec<IdentWithOrigin>,
+    pub captured_values: Vec<Expr>,
     pub uid: Uid,
 }
 
+#[derive(Clone)]
 pub struct Branch {
     pub arms: Vec<BranchArm>,
 }
 
+#[derive(Clone)]
 pub struct BranchArm {
     pub cond: Option<Expr>,
     pub let_bind: Option<Expr>,
     pub value: Expr,
 }
 
+#[derive(Clone)]
 pub struct StructInit {
     pub struct_: Box<Expr>,
     pub fields: Vec<StructInitField>,
 }
 
+#[derive(Clone)]
 pub struct StructInitField {
     pub name: IdentWithSpan,
     pub value: Expr,

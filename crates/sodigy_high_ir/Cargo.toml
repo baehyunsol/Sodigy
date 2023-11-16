@@ -11,6 +11,7 @@ smallvec = "1.11.1"
 sodigy_ast = { path = "../sodigy_ast" }
 sodigy_err = { path = "../sodigy_err" }
 sodigy_intern = { path = "../sodigy_intern" }
+sodigy_number = { path = "../sodigy_number" }
 sodigy_prelude = { path = "../sodigy_prelude" }
 sodigy_span = { path = "../sodigy_span" }
 sodigy_test = { path = "../sodigy_test" }

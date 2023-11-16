@@ -55,6 +55,33 @@ impl HirError {
         }
     }
 
+    pub fn open_inclusive_range(span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::OpenInclusiveRange,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn unmatchable_pattern(span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::UnmatchablePattern,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    // tmp variant for type errors.
+    // must be replaced with 'real' type errors when
+    // Sodigy type system is implemented
+    pub fn ty_error(span: Vec<SpanRange>) -> Self {
+        HirError {
+            kind: HirErrorKind::TyError,
+            spans: span.into(),
+            extra: ExtraErrInfo::none(),
+        }   
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         HirError {
             kind: HirErrorKind::TODO(msg.to_string()),
@@ -96,6 +123,13 @@ pub enum HirErrorKind {
     },
     UndefinedDeco(InternedString),
     RefutablePatternInLet,
+    OpenInclusiveRange,
+    UnmatchablePattern,
+
+    // tmp variant for type errors.
+    // must be replaced with 'real' type errors when
+    // Sodigy type system is implemented
+    TyError,
     TODO(String),
 }
 
@@ -107,6 +141,9 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::NoDependentTypes(_) => String::from("dependent types not allowed"),
             HirErrorKind::UndefinedDeco(name) => format!("unknown decorator `{name}`"),
             HirErrorKind::RefutablePatternInLet => String::from("refutable pattern in a `let` statement"),
+            HirErrorKind::OpenInclusiveRange => String::from("inclusive range with an open end"),
+            HirErrorKind::UnmatchablePattern => String::from("unmatchable pattern"),
+            HirErrorKind::TyError => String::from("TODO: Type Error"),  // Sodigy type system is not complete yet
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -135,6 +172,7 @@ impl SodigyErrorKind for HirErrorKind {
                 ),
             },
             HirErrorKind::RefutablePatternInLet => String::from("TODO: explain what refutable patterns are."),
+            HirErrorKind::UnmatchablePattern => String::from("Nothing can match this pattern."),
             _ => String::new(),
         }
     }

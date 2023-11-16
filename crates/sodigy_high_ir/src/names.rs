@@ -67,6 +67,7 @@ pub struct NameSpace {
     // `def`, `enum`, `struct`, `import`, and `module` in the current module
     globals: HashMap<InternedString, Option<Uid>>,
 
+    // args and generics of the current func
     func_args: Vec<IdentWithSpan>,
     func_generics: Vec<IdentWithSpan>,
 

@@ -1,4 +1,4 @@
-use super::{Pattern, PatternKind};
+use super::{NumberLike, Pattern, PatternKind};
 use std::fmt;
 
 impl fmt::Display for Pattern {
@@ -33,8 +33,22 @@ impl fmt::Display for PatternKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let result = match self {
             PatternKind::Binding(name) => format!("${name}"),
+            _ => todo!(),
         };
 
         write!(fmt, "{result}")
+    }
+}
+
+impl NumberLike {
+    pub fn render_error(&self) -> String {
+        match self {
+            NumberLike::OpenEnd { .. } => todo!(),  // Do we even need this branch?
+            NumberLike::Exact { num, is_negative } => format!(
+                "{}{num}",
+                if *is_negative { "-" } else { "" },
+            ),
+            NumberLike::MinusEpsilon { .. } => todo!(),  // Do we even need this branch?
+        }
     }
 }

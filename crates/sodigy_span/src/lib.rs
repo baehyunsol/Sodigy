@@ -1,5 +1,7 @@
 use sodigy_files::{DUMMY_FILE_HASH, FileHash, global_file_session};
 use sodigy_test::{sodigy_assert, sodigy_assert_eq};
+use std::collections::hash_map;
+use std::hash::Hasher;
 
 mod fmt;
 mod render;
@@ -117,6 +119,11 @@ impl SpanRange {
         }
     }
 
+    pub fn hash128(&self) -> u128 {
+        // self.file is already a hash value
+        ((self.file as u128) << 64) | (hash_u64(self.start as u64) ^ hash_u64(!self.end as u64)) as u128
+    }
+
     // reads the actual file and convert the span to the original string
     /// EXPENSIVE
     pub fn to_utf8(&self) -> Vec<u8> {
@@ -133,4 +140,11 @@ impl SpanRange {
             }
         }
     }
+}
+
+fn hash_u64(n: u64) -> u64 {
+    let mut hasher = hash_map::DefaultHasher::new();
+    hasher.write(&n.to_be_bytes());
+
+    return hasher.finish();
 }
