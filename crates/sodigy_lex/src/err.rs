@@ -1,5 +1,6 @@
 use smallvec::{smallvec, SmallVec};
 use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
 use crate::QuoteKind;
@@ -96,6 +97,10 @@ impl SodigyError<LexErrorKind> for LexError {
     fn err_kind(&self) -> &LexErrorKind {
         &self.kind
     }
+
+    fn index(&self) -> u32 {
+        0
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -135,8 +140,6 @@ impl From<ParseNumberError> for LexErrorKind {
     }
 }
 
-use sodigy_intern::InternSession;
-
 impl SodigyErrorKind for LexErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
@@ -154,5 +157,15 @@ impl SodigyErrorKind for LexErrorKind {
 
     fn help(&self, _: &mut InternSession) -> String {
         String::new()
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            LexErrorKind::InvalidUtf8 => 0,
+            LexErrorKind::UnexpectedChar(_, _) => 1,
+            LexErrorKind::UnfinishedComment => 2,
+            LexErrorKind::UnfinishedString(_) => 3,
+            LexErrorKind::UnfinishedNumLiteral(_) => 4,
+        }
     }
 }

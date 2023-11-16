@@ -2,12 +2,39 @@ use colored::*;
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
-use std::collections::HashSet;
+use std::collections::{HashSet, hash_map};
+use std::hash::{DefaultHasher, Hasher};
 
 mod dist;
 mod fmt;
 
 pub use dist::substr_edit_distance;
+
+/// Any error type that implements SodigyError can be converted to this type.
+/// The compiler uses this type to manage all the errors and warnings.
+pub struct UniversalError {
+    rendered: String,
+
+    /// It's used to sort the errors by span.
+    first_span: SpanRange,
+
+    /// It's used to remove duplicate errors.
+    hash: u64,
+}
+
+impl UniversalError {
+    pub fn rendered(&self) -> &String {
+        &self.rendered
+    }
+
+    pub fn first_span(&self) -> SpanRange {
+        self.first_span
+    }
+
+    pub fn hash(&self) -> u64 {
+        self.hash
+    }
+}
 
 #[derive(Clone)]
 pub struct ExtraErrInfo {
@@ -92,6 +119,10 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn err_kind(&self) -> &K;
 
+    /// Errors at different passes have different indices.
+    /// For example, lex error, parse error and ast error have different ones.
+    fn index(&self) -> u32;
+
     // override this when it's a warning
     fn is_warning(&self) -> bool {
         false
@@ -132,6 +163,25 @@ pub trait SodigyError<K: SodigyErrorKind> {
         self.get_mut_error_info().set_message(message);
 
         self
+    }
+
+    fn to_universal(&self) -> UniversalError {
+        let rendered = self.render_error();
+        let hash = {
+            let mut hasher = hash_map::DefaultHasher::new();
+            hasher.write(&self.get_first_span().hash128().to_be_bytes());
+            hasher.write(&[self.is_warning() as u8]);
+            hasher.write(&self.err_kind().index().to_be_bytes());
+            hasher.write(&self.index().to_be_bytes());
+
+            hasher.finish()
+        };
+
+        UniversalError {
+            rendered,
+            first_span: self.get_first_span(),
+            hash,
+        }
     }
 
     // This function is VERY VERY EXPENSIVE.
@@ -187,6 +237,9 @@ pub trait SodigyErrorKind {
     // extra sentences that explain the error
     // if the help msg is empty, it's ignored
     fn help(&self, _: &mut InternSession) -> String;
+
+    /// identifier of this errkind
+    fn index(&self) -> u32;
 }
 
 pub fn concat_commas(list: &[String], term: &str, prefix: &str, suffix: &str) -> String {

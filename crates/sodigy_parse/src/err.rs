@@ -97,6 +97,10 @@ impl SodigyError<ParseErrorKind> for ParseError {
     fn err_kind(&self) -> &ParseErrorKind {
         &self.kind
     }
+
+    fn index(&self) -> u32 {
+        1
+    }
 }
 
 #[derive(Clone)]
@@ -149,6 +153,19 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::UnfinishedDelim(_)
             | ParseErrorKind::MismatchDelim(_)
             | ParseErrorKind::LonelyBackslash => String::new(),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            ParseErrorKind::UnfinishedDelim(_) => 0,
+            ParseErrorKind::MismatchDelim(_) => 1,
+            ParseErrorKind::EmptyFString => 2,
+            ParseErrorKind::FStringSingleQuote => 3,
+            ParseErrorKind::ThreeDots => 4,
+            ParseErrorKind::LonelyBacktick => 5,
+            ParseErrorKind::LonelyBackslash => 6,
+            ParseErrorKind::NumericExpOverflow => 7,
         }
     }
 }

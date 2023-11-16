@@ -53,6 +53,10 @@ impl SodigyError<AstWarningKind> for AstWarning {
     fn is_warning(&self) -> bool {
         true
     }
+
+    fn index(&self) -> u32 {
+        4
+    }
 }
 
 pub enum AstWarningKind {
@@ -73,6 +77,13 @@ impl SodigyErrorKind for AstWarningKind {
             // TODO: how do I silence this warning if the user really mean this?
             AstWarningKind::AmbiguousTypeInPattern(op) => format!("It's very likely that you meant to use `{op}` in a pattern, but it's inside a type annotation. Use parenthesis to remove ambiguity."),
             AstWarningKind::MultipleBindingsOnOnePattern => String::from("There's no point in binding multiple names on a pattern."),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            AstWarningKind::AmbiguousTypeInPattern(_) => 0,
+            AstWarningKind::MultipleBindingsOnOnePattern => 1,
         }
     }
 }

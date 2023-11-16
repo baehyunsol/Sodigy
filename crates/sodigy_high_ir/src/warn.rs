@@ -72,6 +72,10 @@ impl SodigyError<HirWarningKind> for HirWarning {
     fn is_warning(&self) -> bool {
         true
     }
+
+    fn index(&self) -> u32 {
+        6
+    }
 }
 
 pub enum HirWarningKind {
@@ -117,6 +121,15 @@ impl SodigyErrorKind for HirWarningKind {
                 format!("`{rendered}..~{rendered}` is just `{rendered}`.")
             },
             _ => String::new(),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            HirWarningKind::RedefPrelude(..) => 0,
+            HirWarningKind::UnusedName(..) => 1,
+            HirWarningKind::UnnecessaryParen { .. } => 2,
+            HirWarningKind::PointRange { .. } => 3,
         }
     }
 }

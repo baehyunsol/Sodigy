@@ -209,6 +209,10 @@ impl SodigyError<AstErrorKind> for AstError {
     fn err_kind(&self) -> &AstErrorKind {
         &self.kind
     }
+
+    fn index(&self) -> u32 {
+        3
+    }
 }
 
 #[derive(Clone)]
@@ -272,6 +276,25 @@ impl SodigyErrorKind for AstErrorKind {
             },
             AstErrorKind::MultipleShorthandsInOnePattern
             | AstErrorKind::InvalidUtf8 => String::new(),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            AstErrorKind::UnexpectedToken(..) => 0,
+            AstErrorKind::UnexpectedEnd(..) => 1,
+            AstErrorKind::EmptyGenericList => 2,
+            AstErrorKind::BinaryChar => 3,
+            AstErrorKind::EmptyCharLiteral => 4,
+            AstErrorKind::TooLongCharLiteral => 5,
+            AstErrorKind::EmptyScopeBlock => 6,
+            AstErrorKind::EmptyMatchBody => 7,
+            AstErrorKind::EmptyStructBody => 8,
+            AstErrorKind::FuncArgWithoutType { .. } => 9,
+            AstErrorKind::ExpectedBindingGotPattern(..) => 10,
+            AstErrorKind::MultipleShorthandsInOnePattern => 11,
+            AstErrorKind::InvalidUtf8 => 12,
+            AstErrorKind::TODO(..) => 63,
         }
     }
 }

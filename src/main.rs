@@ -54,7 +54,7 @@ fn compile(file_hash: FileHash) -> CompileResult {
 
     if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         for error in lex_session.get_errors() {
-            result.push_error(error.render_error());
+            result.push_error(error.to_universal());
         }
 
         return result;
@@ -66,18 +66,18 @@ fn compile(file_hash: FileHash) -> CompileResult {
 
     if let Err(()) = from_tokens(tokens, &mut parse_session, &mut new_lex_session) {
         for error in parse_session.get_errors() {
-            result.push_error(error.render_error());
+            result.push_error(error.to_universal());
         }
 
         for error in new_lex_session.get_errors() {
-            result.push_error(error.render_error());
+            result.push_error(error.to_universal());
         }
 
         return result;
     };
 
     for warning in parse_session.get_warnings() {
-        result.push_warning(warning.render_error());
+        result.push_warning(warning.to_universal());
     }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
@@ -86,12 +86,12 @@ fn compile(file_hash: FileHash) -> CompileResult {
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
     for warning in ast_session.get_warnings() {
-        result.push_warning(warning.render_error());
+        result.push_warning(warning.to_universal());
     }
 
     if let Err(()) = res {
         for error in ast_session.get_errors() {
-            result.push_error(error.render_error());
+            result.push_error(error.to_universal());
         }
 
         return result;
@@ -101,12 +101,12 @@ fn compile(file_hash: FileHash) -> CompileResult {
     let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
 
     for warning in hir_session.get_warnings() {
-        result.push_warning(warning.render_error());
+        result.push_warning(warning.to_universal());
     }
 
     if let Err(()) = res {
         for error in hir_session.get_errors() {
-            result.push_error(error.render_error());
+            result.push_error(error.to_universal());
         }
 
         return result;

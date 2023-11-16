@@ -111,6 +111,10 @@ impl SodigyError<HirErrorKind> for HirError {
     fn err_kind(&self) -> &HirErrorKind {
         &self.kind
     }
+
+    fn index(&self) -> u32 {
+        5
+    }
 }
 
 #[derive(Clone)]
@@ -174,6 +178,20 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::RefutablePatternInLet => String::from("TODO: explain what refutable patterns are."),
             HirErrorKind::UnmatchablePattern => String::from("Nothing can match this pattern."),
             _ => String::new(),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            HirErrorKind::NameCollision(..) => 0,
+            HirErrorKind::NoDependentTypes(..) => 1,
+            HirErrorKind::UndefinedName { .. } => 2,
+            HirErrorKind::UndefinedDeco(..) => 3,
+            HirErrorKind::RefutablePatternInLet => 4,
+            HirErrorKind::OpenInclusiveRange => 5,
+            HirErrorKind::UnmatchablePattern => 6,
+            HirErrorKind::TyError => 62,
+            HirErrorKind::TODO(..) => 63,
         }
     }
 }

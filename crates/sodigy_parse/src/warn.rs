@@ -52,6 +52,10 @@ impl SodigyError<ParseWarningKind> for ParseWarning {
     fn is_warning(&self) -> bool {
         true
     }
+
+    fn index(&self) -> u32 {
+        2
+    }
 }
 
 #[derive(Clone)]
@@ -72,6 +76,13 @@ impl SodigyErrorKind for ParseWarningKind {
         match self {
             ParseWarningKind::NothingToEvalInFString => String::from("Try remove `f`."),
             ParseWarningKind::UnmatchedCurlyBrace => String::new(),
+        }
+    }
+
+    fn index(&self) -> u32 {
+        match self {
+            ParseWarningKind::NothingToEvalInFString => 0,
+            ParseWarningKind::UnmatchedCurlyBrace => 1,
         }
     }
 }

@@ -20,7 +20,7 @@ macro_rules! check_output {
                 "{}{}{}",
                 $prefix, $body, $suffix,
             );
-            let res = compile_input(
+            let mut res = compile_input(
                 code.as_bytes().to_vec()
             );
             let output = res.$error_or_warning();
