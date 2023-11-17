@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
 

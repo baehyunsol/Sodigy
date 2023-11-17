@@ -59,6 +59,7 @@ pub enum NameBindingType {
     LambdaArg,
     MatchArm,
     IfLet,
+    Import,
 }
 
 pub struct NameSpace {

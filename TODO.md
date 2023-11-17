@@ -79,6 +79,16 @@ def foo_quest(x: T(X, Y)): Y = match x {
 
 ---
 
+publicity
+
+`@public`: 100% public (default)
+
+`@private`: within this module (this file)
+
+`@public.submodule`: within this module and its submodules
+
+---
+
 Macros
 
 the best (and the only) way I can think of
@@ -102,4 +112,4 @@ the macro should be compiled independently
 limits
 
 1. incremental compilation: when macro is modified, but the code isn't
-2. slow compilation: 
+2. slow compilation: interpreted Sodigy is much slower than the compiled one

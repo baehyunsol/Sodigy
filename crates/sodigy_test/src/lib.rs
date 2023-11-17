@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 // set it to false when you want to disable the test statements
 pub const TEST_MODE: bool = true;
 

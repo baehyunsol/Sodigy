@@ -124,6 +124,7 @@ check_output!(expr, err, expr_test45, "match x { 2..1 => 0, _ => x }", "nothing 
 check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
 check_output!(stmt, warn, stmt_warn_test2, "def foo<T>(x: Int, y: Int): Int = x + y;", "unused generic: `T`");
 check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`");
+check_output!(stmt, warn, stmt_warn_test4, "import x, y, z;", "unused import: `x`");
 
 // warnings for exprs
 check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "unused local name binding");

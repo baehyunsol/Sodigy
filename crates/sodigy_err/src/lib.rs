@@ -1,9 +1,11 @@
+#![deny(unused_imports)]
+
 use colored::*;
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::{HashSet, hash_map};
-use std::hash::{DefaultHasher, Hasher};
+use std::hash::Hasher;
 
 mod dist;
 mod fmt;

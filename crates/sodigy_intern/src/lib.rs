@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use sodigy_number::SodigyNumber;
 
 mod global;

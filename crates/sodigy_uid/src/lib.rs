@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 mod fmt;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]

@@ -171,6 +171,9 @@ pub fn lower_ast_func_decorators(
             id if id == *SYM_PUBLIC => {
                 // TODO
             },
+            id if id == *SYM_PRIVATE => {
+                // TODO
+            },
             _ => {
                 session.push_error(HirError::undefined_deco(deco.name[0]));
                 return Err(());
@@ -196,4 +199,5 @@ macro_rules! static_interned_symbol {
 
 static_interned_symbol!(SYM_TEST, b"test");
 static_interned_symbol!(SYM_PUBLIC, b"public");
+static_interned_symbol!(SYM_PRIVATE, b"private");
 static_interned_symbol!(SYM_EQ, b"eq");

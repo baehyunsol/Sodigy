@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan, StmtKind};
 use sodigy_intern::InternedString;
@@ -29,7 +31,7 @@ use expr::{
     },
 };
 use func::{Func, lower_ast_func};
-use names::{IdentWithOrigin, NameSpace};
+use names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
 
@@ -143,6 +145,15 @@ pub fn lower_stmts(
             _ => {
                 // TODO
             },
+        }
+    }
+
+    for (name, (span, _)) in imports.iter() {
+        if !used_names.contains(&IdentWithOrigin::new(*name, NameOrigin::Global { origin: None })) {
+            session.push_warning(HirWarning::unused_name(
+                IdentWithSpan::new(*name, *span),
+                NameBindingType::Import,
+            ));
         }
     }
 

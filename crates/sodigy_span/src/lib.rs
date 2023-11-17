@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use sodigy_files::{DUMMY_FILE_HASH, FileHash, global_file_session};
 use sodigy_test::{sodigy_assert, sodigy_assert_eq};
 use std::collections::hash_map;

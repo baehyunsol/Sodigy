@@ -52,3 +52,7 @@ Most error messages and warning messages are from Rust.
   - ``` integer literal is too large ```
   - ``` type annotations needed ```
     - when the compiler doesn't know the type of `x.iter().collect()`
+
+---
+
+How about using Elm style error messages?

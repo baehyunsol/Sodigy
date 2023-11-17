@@ -1,3 +1,7 @@
+#![deny(unused_imports)]
+
+use sodigy_test::sodigy_assert;
+
 mod err;
 mod fmt;
 
@@ -77,6 +81,16 @@ impl SodigyNumber {
                 let exp2 = *n % 65536;
                 let digits1 = *m / 65536;
                 let digits2 = *n / 65536;
+
+                if digits1 == 0 {
+                    return false;
+                }
+
+                else if digits2 == 0 {
+                    return true;
+                }
+
+                // TODO: use pow10 and log10 defined below
 
                 // we can't just compare `exp`s: the range of `digits`s vary
                 todo!()
@@ -223,6 +237,48 @@ impl BigNumber {
         else {
             None
         }
+    }
+}
+
+fn log10(n: u64) -> u64 {
+    sodigy_assert!(n != 0);
+
+    if n >= 10_000 {
+        4 + log10(n / 10_000)
+    }
+
+    else if n >= 100 {
+        if n >= 1_000 {
+            3
+        }
+
+        else {
+            2
+        }
+    }
+
+    else {
+        if n >= 10 {
+            1
+        }
+
+        else {
+            0
+        }
+    }
+}
+
+fn pow10(n: u64) -> u64 {
+    if n < 8 {
+        [
+            1, 10, 100, 1_000,
+            10_000, 100_000, 1_000_000,
+            10_000_000,
+        ][n as usize]
+    }
+
+    else {
+        100_000_000 * pow10(n - 8)
     }
 }
 

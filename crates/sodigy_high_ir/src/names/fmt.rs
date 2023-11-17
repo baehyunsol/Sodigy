@@ -10,6 +10,7 @@ impl NameBindingType {
             NameBindingType::LambdaArg => "lambda argument",
             NameBindingType::MatchArm => "name binding in match arm",
             NameBindingType::IfLet => "name binding in an `if let` clause",
+            NameBindingType::Import => "import",
         }.to_string()
     }
 }

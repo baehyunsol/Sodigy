@@ -17,8 +17,10 @@ members = [
     "crates/sodigy_lex",
     "crates/sodigy_number",
     "crates/sodigy_parse",
+    "crates/sodigy_prelude",
     "crates/sodigy_span",
     "crates/sodigy_test",
+    "crates/sodigy_uid",
 ]
 
 [dependencies]
@@ -35,3 +37,4 @@ sodigy_parse = { path = "crates/sodigy_parse" }
 sodigy_prelude = { path = "crates/sodigy_prelude" }
 sodigy_span = { path = "crates/sodigy_span" }
 sodigy_test = { path = "crates/sodigy_test" }
+sodigy_uid = { path = "crates/sodigy_uid" }

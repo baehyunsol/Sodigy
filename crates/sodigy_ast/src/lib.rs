@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;

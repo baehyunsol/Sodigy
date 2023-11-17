@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use lazy_static::lazy_static;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_uid::Uid;

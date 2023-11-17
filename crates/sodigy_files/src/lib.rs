@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 mod cache;
 mod err;
 mod funcs;
