@@ -3,6 +3,7 @@ use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
+mod endec;
 mod fmt;
 mod lower;
 
@@ -31,6 +32,9 @@ pub struct Arg {
 #[derive(Default)]
 pub struct FuncDeco {
     publicity: Publicity,
+
+    // exprs in `@test.eq()`
+    test_eq: Vec<hir::Expr>,
 }
 
 impl FuncDeco {
@@ -38,6 +42,7 @@ impl FuncDeco {
     pub fn default_lambda() -> Self {
         FuncDeco {
             publicity: Publicity::Private,
+            test_eq: vec![],
         }
     }
 }

@@ -1,10 +1,8 @@
 [package]
-name = "sodigy_number"
+name = "sodigy_endec"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sodigy_test = { path = "../sodigy_test" }
-sodigy_endec = { path = "../sodigy_endec" }

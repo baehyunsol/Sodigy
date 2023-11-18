@@ -4,6 +4,7 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+mod endec;
 mod err;
 mod expr;
 mod ops;

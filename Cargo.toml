@@ -10,6 +10,7 @@ edition = "2021"
 members = [
     "crates/sodigy_ast",
     "crates/sodigy_err",
+    "crates/sodigy_endec",
     "crates/sodigy_files",
     "crates/sodigy_high_ir",
     "crates/sodigy_intern",
@@ -27,6 +28,7 @@ members = [
 
 sodigy_ast = { path = "crates/sodigy_ast" }
 sodigy_err = { path = "crates/sodigy_err" }
+sodigy_endec = { path = "crates/sodigy_endec" }
 sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }
 sodigy_intern = { path = "crates/sodigy_intern" }

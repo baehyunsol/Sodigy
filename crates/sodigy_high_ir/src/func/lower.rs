@@ -157,7 +157,13 @@ pub fn lower_ast_func_decorators(
             id if id == *SYM_TEST => {
                 match deco.name.get(1).map(|id| id.id()) {
                     Some(id) if *id == *SYM_EQ => {
-                        // TODO
+                        if let Some(args) = &deco.args {
+                            // TODO
+                        }
+
+                        else {
+                            // TODO: err, requires an arg
+                        }
                     },
                     Some(id) => {
                         // TODO

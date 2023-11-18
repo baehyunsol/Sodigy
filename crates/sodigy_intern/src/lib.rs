@@ -2,11 +2,12 @@
 
 use sodigy_number::SodigyNumber;
 
+mod endec;
 mod global;
-mod string;
 mod numeric;
 mod prelude;
 mod session;
+mod string;
 
 #[cfg(test)]
 mod tests;

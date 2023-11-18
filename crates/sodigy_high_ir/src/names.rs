@@ -6,6 +6,7 @@ use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
+mod endec;
 mod fmt;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -48,7 +49,6 @@ pub enum NameOrigin {
         // but the objects from other modules (`import`) don't have uids yet
         origin: Option<Uid>,
     },
-
     Captured { lambda: Uid, index: usize },  // inside closures
 }
 

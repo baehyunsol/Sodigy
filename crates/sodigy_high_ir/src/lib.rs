@@ -8,6 +8,7 @@ use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 mod doc_comment;
+mod endec;
 mod err;
 mod expr;
 mod fmt;

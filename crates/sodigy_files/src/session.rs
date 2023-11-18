@@ -41,10 +41,11 @@ impl Session {
     fn hash(&mut self, s: &[u8]) -> FileHash {
         let mut hasher = hash_map::DefaultHasher::new();
         hasher.write(s);
-        let mut hash = hasher.finish();
+        let hash = hasher.finish();
 
-        while self.hashes.contains(&hash) {
-            hash += 1;
+        // TODO: handle hash collision
+        if self.hashes.contains(&hash) {
+            panic!();
         }
 
         self.hashes.insert(hash);

@@ -5,6 +5,7 @@ use sodigy_test::{sodigy_assert, sodigy_assert_eq};
 use std::collections::hash_map;
 use std::hash::Hasher;
 
+mod endec;
 mod fmt;
 mod render;
 

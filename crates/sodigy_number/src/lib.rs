@@ -2,6 +2,7 @@
 
 use sodigy_test::sodigy_assert;
 
+mod endec;
 mod err;
 mod fmt;
 
