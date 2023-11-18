@@ -295,7 +295,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        curr_token_span_start.extend(span_start.offset(index as i32)),
                                     ).set_expected_chars(
                                         b"0123456789_.eE".to_vec()
                                     ).set_err_context(
@@ -341,7 +341,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"bBoOxXeE.".to_vec()
                                     ).set_err_context(
@@ -391,7 +391,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789_eE".to_vec()
                                     ).set_err_context(
@@ -425,7 +425,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789_eE".to_vec()
                                     ).set_err_context(
@@ -455,7 +455,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789-".to_vec()
                                     ).set_err_context(
@@ -473,7 +473,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789".to_vec()
                                     ).set_err_context(
@@ -503,7 +503,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"01_".to_vec()
                                     ).set_err_context(
@@ -517,7 +517,10 @@ pub fn lex(
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
-                                            LexError::parse_num_error(e, curr_token_span_start.extend(span_start.offset(index as i32)))
+                                            LexError::parse_num_error(
+                                                e,
+                                                curr_token_span_start.extend(span_start.offset(index as i32)),
+                                            )
                                         );
                                         return Err(());
                                     },
@@ -543,7 +546,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"01234567_".to_vec()
                                     ).set_err_context(
@@ -557,7 +560,10 @@ pub fn lex(
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
-                                            LexError::parse_num_error(e, curr_token_span_start.extend(span_start.offset(index as i32)))
+                                            LexError::parse_num_error(
+                                                e,
+                                                curr_token_span_start.extend(span_start.offset(index as i32)),
+                                            )
                                         );
                                         return Err(());
                                     },
@@ -583,7 +589,7 @@ pub fn lex(
                                 session.push_error(
                                     LexError::unexpected_char(
                                         c as char,
-                                        curr_token_span_start.extend(span_start.offset(index as i32))
+                                        span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789aAbBcCdDeEfF_.".to_vec()
                                     ).set_err_context(
@@ -597,7 +603,10 @@ pub fn lex(
                                     Ok(v) => v,
                                     Err(e) => {
                                         session.push_error(
-                                            LexError::parse_num_error(e, curr_token_span_start.extend(span_start.offset(index as i32)))
+                                            LexError::parse_num_error(
+                                                e,
+                                                curr_token_span_start.extend(span_start.offset(index as i32)),
+                                            )
                                         );
                                         return Err(());
                                     },

@@ -114,7 +114,12 @@ impl ExpectedChars {
         match self {
             ExpectedChars::Any => "any valid token".to_string(),
             ExpectedChars::Specific(ts) => concat_commas(
-                &ts.iter().map(|c| format!("{c}")).collect::<Vec<String>>(),
+                &ts.iter().map(
+                    |c| format!(
+                        "{:?}",
+                        char::from_u32(*c as u32).unwrap_or('�')
+                    )
+                ).collect::<Vec<String>>(),
                 "or",
                 "",  // prefix
                 "",  // suffix
@@ -144,7 +149,10 @@ impl SodigyErrorKind for LexErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             LexErrorKind::InvalidUtf8 => "invalid utf-8".to_string(),
-            LexErrorKind::UnexpectedChar(c, e) => format!("expected {}, got `{c}`", e.list()),
+            LexErrorKind::UnexpectedChar(c, e) => format!(
+                "expected character {}, got character {c:?}",
+                e.list(),
+            ),
             LexErrorKind::UnfinishedComment => "unterminated block comment".to_string(),
             LexErrorKind::UnfinishedString(q) => if *q == QuoteKind::Double {
                 "unterminated string literal"
