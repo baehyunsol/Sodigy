@@ -15,7 +15,11 @@ pub enum FileErrorKind {
     AlreadyExists,
     OsStrErr(OsString),
 
-    InvalidFileHash(FileHash),  // Sodigy specific
+    // Sodigy specific errors
+    InvalidFileHash(FileHash),
+    MetadataNotSupported,
+    ModifiedWhileCompilation,
+    HashCollision,
 }
 
 impl FileError {
@@ -39,6 +43,27 @@ impl FileError {
         }
     }
 
+    pub fn modified_while_compilation(given_path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::ModifiedWhileCompilation,
+            given_path: Some(given_path.to_string()),
+        }
+    }
+
+    pub fn metadata_not_supported(given_path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::MetadataNotSupported,
+            given_path: Some(given_path.to_string()),
+        }
+    }
+
+    pub fn hash_collision(given_path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::HashCollision,
+            given_path: Some(given_path.to_string()),
+        }
+    }
+
     pub(crate) fn os_str_err(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
@@ -50,7 +75,10 @@ impl FileError {
         let path = match self.kind {
             FileErrorKind::FileNotFound
             | FileErrorKind::PermissionDenied
-            | FileErrorKind::AlreadyExists => {
+            | FileErrorKind::AlreadyExists
+            | FileErrorKind::MetadataNotSupported
+            | FileErrorKind::HashCollision
+            | FileErrorKind::ModifiedWhileCompilation => {
                 self.given_path.as_ref().unwrap().to_string()
             },
             FileErrorKind::OsStrErr(_)
@@ -72,6 +100,15 @@ impl FileError {
             ),
             FileErrorKind::InvalidFileHash(hash) => format!(
                 "invalid file hash: {hash}"
+            ),
+            FileErrorKind::MetadataNotSupported => String::from(
+                "unable to read file metadata"
+            ),
+            FileErrorKind::ModifiedWhileCompilation => String::from(
+                "source file modified while compilation"
+            ),
+            FileErrorKind::HashCollision => format!(
+                "hash collision: `{path}`"
             ),
         }
     }

@@ -10,7 +10,13 @@ pub type Path = String;
 pub struct Session {
     tmp_files: HashMap<FileHash, Vec<u8>>,  // used for tests
     files: HashMap<FileHash, Path>,
+
+    tmp_files_rev: HashMap<Vec<u8>, FileHash>,
+    files_rev: HashMap<Path, FileHash>,
+
     file_cache: FileCache,
+
+    // it detects hash collisions
     hashes: HashSet<FileHash>,
 }
 
@@ -23,6 +29,8 @@ impl Session {
         Session {
             tmp_files: HashMap::new(),
             files: HashMap::new(),
+            tmp_files_rev: HashMap::new(),
+            files_rev: HashMap::new(),
             hashes,
             file_cache: FileCache::new(),
         }
@@ -38,28 +46,40 @@ impl Session {
         }
     }
 
-    fn hash(&mut self, s: &[u8]) -> FileHash {
+    /// It returns Err when there's a hash collision
+    fn hash(&mut self, s: &[u8]) -> Result<FileHash, FileError> {
         let mut hasher = hash_map::DefaultHasher::new();
         hasher.write(s);
         let hash = hasher.finish();
 
-        // TODO: handle hash collision
         if self.hashes.contains(&hash) {
-            panic!();
+            return Err(FileError::hash_collision(
+                &String::from_utf8_lossy(s).to_string()
+            ));
         }
 
         self.hashes.insert(hash);
 
-        return hash;
+        Ok(hash)
     }
 
+    /// It doesn't care about hash collisions, because tmp_files are just for tests.
     pub fn register_tmp_file(&mut self, content: Vec<u8>) -> FileHash {
         let lock = unsafe { LOCK.lock().unwrap() };
-        let hash = self.hash(&content);
+        let hash = self.hash(&content).unwrap();
+
+        if let Some(f) = self.tmp_files_rev.get(&content) {
+            return *f;
+        }
 
         self.tmp_files.insert(
             hash,
+            content.clone(),
+        );
+
+        self.tmp_files_rev.insert(
             content,
+            hash,
         );
 
         drop(lock);
@@ -67,18 +87,28 @@ impl Session {
         hash
     }
 
-    pub fn register_file(&mut self, path: &Path) -> FileHash {
+    /// It returns Err when there's a hash collision.
+    pub fn register_file(&mut self, path: &Path) -> Result<FileHash, FileError> {
         let lock = unsafe { LOCK.lock().unwrap() };
-        let hash = self.hash(path.as_bytes());
+        let hash = self.hash(path.as_bytes())?;
+
+        if let Some(f) = self.files_rev.get(path) {
+            return Ok(*f);
+        }
 
         self.files.insert(
             hash,
             path.to_string(),
         );
 
+        self.files_rev.insert(
+            path.to_string(),
+            hash,
+        );
+
         drop(lock);
 
-        hash
+        Ok(hash)
     }
 
     pub fn get_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {

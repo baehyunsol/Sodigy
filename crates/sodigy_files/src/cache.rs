@@ -5,20 +5,21 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 // TODO: test with small `FILE_CACHE_SIZE` and `SIZE_LIMIT` (after `@test`s in Sodigy are implemented)
-const FILE_CACHE_SIZE: usize = 32;
-const SIZE_LIMIT: usize = 64 * 1024 * 1024;
+const FILE_CACHE_SIZE: usize = 64;
+const SIZE_LIMIT: usize = 256 * 1024 * 1024;
 
 static mut CACHE_LOCK: Mutex<()> = Mutex::new(());
 
 type Path = String;
 
 pub(crate) struct FileCache {
-    data: [(FileHash, Vec<u8>); FILE_CACHE_SIZE],
+    data: Vec<(FileHash, Vec<u8>)>,
 
     // it's incremented everytime a file is read
     // when a file has to be removed, a file with the smallest count is removed
-    count: [usize; FILE_CACHE_SIZE],
+    count: Vec<u8>,
 
+    // clock algorithm
     // points the most recently removed file's index
     cursor: usize,
 
@@ -32,8 +33,8 @@ impl FileCache {
     pub fn new() -> Self {
         FileCache {
             // [(DUMMY_FILE_HASH), vec![]]
-            data: Default::default(),
-            count: [0; FILE_CACHE_SIZE],
+            data: vec![(DUMMY_FILE_HASH, vec![]); FILE_CACHE_SIZE],
+            count: vec![0; FILE_CACHE_SIZE],
             cursor: 0,
             total_size: 0,
             modified_times: HashMap::new(),
@@ -52,7 +53,7 @@ impl FileCache {
 
         for i in 0..FILE_CACHE_SIZE {
             if self.data[i].0 == hash {
-                self.count[i] += 1;
+                self.count[i] = (self.count[i] + 1).min(128);
                 return self.data.get(i).map(|(_, data)| data as &[u8]);
             }
         }
@@ -61,6 +62,15 @@ impl FileCache {
     }
 
     pub fn insert(&mut self, hash: FileHash, path: &str) -> Result<(), FileError> {
+        let min_count = *self.count.iter().min().unwrap();
+
+        if min_count > 0 {
+            for c in self.count.iter_mut() {
+                *c -= min_count;
+            }
+        }
+
+        // clock algorithm
         loop {
             if self.count[self.cursor] == 0 {
                 match read_bytes(path) {
@@ -76,7 +86,7 @@ impl FileCache {
                             Ok(m) => {
                                 match self.modified_times.get(path) {
                                     Some(m_) if *m_ != m => {
-                                        // TODO: warn the user not to modify files while compilation
+                                        return Err(FileError::modified_while_compilation(path));
                                     },
                                     Some(_) => { /* nop */ },
                                     None => {
@@ -85,7 +95,7 @@ impl FileCache {
                                 }
                             },
                             Err(e) => {
-                                // TODO: warn the user that this system does not support fs metadata
+                                return Err(FileError::metadata_not_supported(path));
                             },
                         }
 
@@ -94,7 +104,7 @@ impl FileCache {
 
                         self.data[self.cursor] = (hash, f);
                         self.count[self.cursor] = 1;
-                        self.cursor += 1;
+                        self.cursor = (self.cursor + 1) % FILE_CACHE_SIZE;
 
                         if self.total_size > SIZE_LIMIT {
                             self.total_size -= self.data[self.cursor].1.len();

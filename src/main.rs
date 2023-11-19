@@ -1,6 +1,6 @@
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_err::SodigyError;
-use sodigy_files::{get_all_sdg, global_file_session, FileHash};
+use sodigy_files::{get_all_sdg, global_file_session, FileError, FileHash};
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
@@ -16,7 +16,7 @@ use result::CompileResult;
 fn main() {
     // tests
 
-    compile_file("./samples/easy.sdg".to_string()).print_results();
+    compile_file("./samples/easy.sdg".to_string()).unwrap().print_results();
 
     compile_input("
         def korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";
@@ -27,15 +27,15 @@ fn main() {
     ).unwrap().iter().chain(
         get_all_sdg("./samples", true, "sdg").unwrap().iter()
     ) {
-        compile_file(file.to_string()).print_results();
+        compile_file(file.to_string()).unwrap().print_results();
     }
 }
 
-fn compile_file(path: String) -> CompileResult {
+fn compile_file(path: String) -> Result<CompileResult, FileError> {
     let file_session = unsafe { global_file_session() };
-    let file = file_session.register_file(&path);
+    let file = file_session.register_file(&path)?;
 
-    compile(file)
+    Ok(compile(file))
 }
 
 fn compile_input(input: Vec<u8>) -> CompileResult {

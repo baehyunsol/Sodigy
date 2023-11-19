@@ -9,20 +9,20 @@ use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
 // `let Foo { bar: $x, baz: $y } = f();`
-// -> `let $tmp = f();`, `let $x = $tmp.bar;`, `let $y = $tmp.baz;`
+// -> `let $tmp = f();`, `let $x = tmp.bar;`, `let $y = tmp.baz;`
 //
 // `let Foo($x, $y, $z @ ..) = f();`
 // -> TODO: `$z` should be a tuple!, there must be some kind of slice of tuples
 //
 // `let ($x, $y, .., $z, _) = f();`
-// -> `let $tmp = f();`, `let $x = $tmp._0;`, `let $y = $tmp._1;`, `let $z = TODO`
+// -> `let $tmp = f();`, `let $x = tmp._0;`, `let $y = tmp._1;`, `let $z = TODO`
 // -> TODO: there must be some kind of slice of tuples for `$z`
 //
 // `let Foo { $x, $z @ .. } = f();`
 // -> Invalid: No bindings for shorthand in this case
 //
 // `let Foo(Foo($x, $y), $z) = f();`
-// -> `let $tmp = f();`, `let $tmp2 = $tmp._0;`, `let $x = $tmp2._0;`, `let $y = $tmp2._1;`, `let $z = $tmp._1;`
+// -> `let $tmp = f();`, `let $tmp2 = tmp._0;`, `let $x = tmp2._0;`, `let $y = tmp2._1;`, `let $z = tmp._1;`
 //
 // `let Foo { bar: $x @ Foo { .. }, .. } = f();`
 // -> same as `let Foo { bar: $x, .. } = f();`
