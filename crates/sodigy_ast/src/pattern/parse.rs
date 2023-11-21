@@ -142,7 +142,6 @@ pub(crate) fn parse_pattern(
     }
 }
 
-// TODO: does it reject `Foo { bar: $x, baz: $y, $z @ .. }`?
 // a pattern without operators (`@`, `|`, `..`, )
 fn parse_pattern_value(
     tokens: &mut Tokens,

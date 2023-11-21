@@ -4,6 +4,7 @@ use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 use sodigy_span::SpanRange;
 
+mod endec;
 mod fmt;
 mod lower;
 

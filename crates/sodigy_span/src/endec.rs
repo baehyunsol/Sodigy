@@ -1,18 +1,18 @@
 use crate::SpanRange;
-use sodigy_endec::{Endec, EndecErr};
+use sodigy_endec::{Endec, EndecErr, EndecSession};
 
 impl Endec for SpanRange {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        self.file.encode(buf);
-        self.start.encode(buf);
-        self.end.encode(buf);
+    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        self.file.encode(buf, session);
+        self.start.encode(buf, session);
+        self.end.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
         Ok(SpanRange {
-            file: u64::decode(buf, ind)?,
-            start: usize::decode(buf, ind)?,
-            end: usize::decode(buf, ind)?,
+            file: u64::decode(buf, ind, session)?,
+            start: usize::decode(buf, ind, session)?,
+            end: usize::decode(buf, ind, session)?,
         })
     }
 }

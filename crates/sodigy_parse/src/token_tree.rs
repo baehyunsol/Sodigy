@@ -4,6 +4,7 @@ use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
 use sodigy_span::SpanRange;
 
+mod endec;
 mod fmt;
 mod macros;
 

@@ -1,7 +1,5 @@
-use crate::{IS_INTEGER, PRELUDE_NUMERICS, unintern_numeric};
+use crate::unintern_numeric;
 mod fmt;
-
-pub(crate) const ZERO: u32 = 100 | IS_INTEGER | PRELUDE_NUMERICS;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub struct InternedNumeric(pub(crate) u32);

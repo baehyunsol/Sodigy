@@ -12,11 +12,14 @@ use std::collections::{HashMap, HashSet};
 // -> `let $tmp = f();`, `let $x = tmp.bar;`, `let $y = tmp.baz;`
 //
 // `let Foo($x, $y, $z @ ..) = f();`
-// -> TODO: `$z` should be a tuple!, there must be some kind of slice of tuples
+// -> TODO: notation for $z
 //
 // `let ($x, $y, .., $z, _) = f();`
 // -> `let $tmp = f();`, `let $x = tmp._0;`, `let $y = tmp._1;`, `let $z = TODO`
-// -> TODO: there must be some kind of slice of tuples for `$z`
+// -> TODO: notation for $z
+//
+// `let ($x, ($y, $z), .., $w) = f();`
+// -> `let $tmp = f();`, `let $x = tmp._0;`, `let $tmp2 = tmp._1;`, `let $y = tmp2._0;`, `let $z = tmp2._1;`, `let $w = TODO`
 //
 // `let Foo { $x, $z @ .. } = f();`
 // -> Invalid: No bindings for shorthand in this case

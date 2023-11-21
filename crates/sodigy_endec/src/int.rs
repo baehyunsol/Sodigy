@@ -1,11 +1,11 @@
-use crate::{Endec, EndecErr};
+use crate::{Endec, EndecErr, EndecSession};
 
 impl Endec for u8 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         buf.push(*self);
     }
 
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
         if let Some(n) = buf.get(*index) {
             *index += 1;
             return Ok(*n);
@@ -18,7 +18,7 @@ impl Endec for u8 {
 }
 
 impl Endec for u16 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         let hi = (*self >> 8) as u8;
         let lo = (*self & 0xff) as u8;
 
@@ -26,7 +26,7 @@ impl Endec for u16 {
         buf.push(lo);
     }
 
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
         match (buf.get(*index), buf.get(*index + 1)) {
             (Some(m), Some(n)) => {
                 *index += 2;
@@ -39,7 +39,7 @@ impl Endec for u16 {
 }
 
 impl Endec for u32 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         if *self < (1 << 14) {
             if *self < (1 << 7) {
                 buf.push(*self as u8);
@@ -75,7 +75,7 @@ impl Endec for u32 {
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
         let mut result: u32 = 0;
 
         loop {
@@ -102,7 +102,7 @@ impl Endec for u32 {
 }
 
 impl Endec for u64 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         if *self < (1 << 28) {
             if *self < (1 << 14) {
                 if *self < (1 << 7) {
@@ -204,7 +204,7 @@ impl Endec for u64 {
     }
 
     // How do I make macro for this?
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
         let mut result: u64 = 0;
 
         loop {
@@ -231,45 +231,45 @@ impl Endec for u64 {
 }
 
 impl Endec for u128 {
-    fn encode(&self, buf: &mut Vec<u8>) {
+    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         let hi = (*self >> 64) as u64;
         let lo = (*self & 0xffff_ffff_ffff_ffff) as u64;
 
-        hi.encode(buf);
-        lo.encode(buf);
+        hi.encode(buf, session);
+        lo.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
-        let hi = u64::decode(buf, index)?;
-        let lo = u64::decode(buf, index)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+        let hi = u64::decode(buf, index, session)?;
+        let lo = u64::decode(buf, index, session)?;
 
         Ok(((hi as u128) << 64) | lo as u128)
     }
 }
 
 impl Endec for usize {
-    fn encode(&self, buf: &mut Vec<u8>) {
-        (*self as u64).encode(buf);
+    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        (*self as u64).encode(buf, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
-        u64::decode(buf, index).map(|n| n as usize)
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+        u64::decode(buf, index, session).map(|n| n as usize)
     }
 }
 
 macro_rules! endec_signed {
     ($ity: ty, $uty: ty) => {
         impl Endec for $ity {
-            fn encode(&self, buf: &mut Vec<u8>) {
+            fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
                 unsafe {
                     let s: $uty = std::mem::transmute(*self);
-                    s.encode(buf);
+                    s.encode(buf, session);
                 }
             }
 
-            fn decode(buf: &[u8], index: &mut usize) -> Result<Self, EndecErr> {
+            fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
                 unsafe {
-                    let s = <$uty>::decode(buf, index)?;
+                    let s = <$uty>::decode(buf, index, session)?;
                     Ok(std::mem::transmute(s))
                 }
             }

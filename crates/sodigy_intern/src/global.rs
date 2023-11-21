@@ -1,5 +1,4 @@
 use crate::{
-    numeric::ZERO,
     string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F},
     InternedNumeric,
     InternedString,
@@ -55,8 +54,8 @@ impl GlobalInternSession {
     fn new() -> Self {
         let mut strings = HashMap::new();
         let mut strings_rev = HashMap::new();
-        let mut numerics = HashMap::new();
-        let mut numerics_rev = HashMap::new();
+        let numerics = HashMap::new();
+        let numerics_rev = HashMap::new();
 
         for (index, keyword) in keywords().into_iter().enumerate() {
             strings.insert(keyword.to_utf8(), (index as u32).into());
@@ -73,9 +72,6 @@ impl GlobalInternSession {
         strings_rev.insert(DOTDOTDOT.into(), b"...".to_vec());
         strings.insert(b"_".to_vec(), UNDERBAR.into());
         strings_rev.insert(UNDERBAR.into(), b"_".to_vec());
-
-        numerics.insert(0.into(), ZERO.into());
-        numerics_rev.insert(ZERO.into(), 0.into());
 
         GlobalInternSession {
             strings, strings_rev,
@@ -116,7 +112,10 @@ impl GlobalInternSession {
             match self.numerics.get(&numeric) {
                 Some(ii) => *ii,
                 None => {
-                    let ii = self.get_new_numeric_index(numeric.is_integer());
+                    let ii = self.get_new_numeric_index(
+                        numeric.is_integer(),
+                        u32::try_from(&numeric).ok(),
+                    );
 
                     self.numerics.insert(numeric.clone(), ii);
                     self.numerics_rev.insert(ii, numeric);
@@ -129,11 +128,22 @@ impl GlobalInternSession {
         }
     }
 
-    fn get_new_numeric_index(&self, is_integer: bool) -> InternedNumeric {
-        let data = self.numerics.len() as u32 & DATA_MASK;
-        let is_integer = is_integer as u32 * IS_INTEGER;
+    fn get_new_numeric_index(&self, is_integer: bool, try_into_u32: Option<u32>) -> InternedNumeric {
+        let mut is_small_integer = false;
 
-        InternedNumeric(data | is_integer)
+        let data = match try_into_u32 {
+            Some(n) if n < (1 << 26) => {
+                is_small_integer = true;
+
+                n
+            },
+            _ => self.numerics.len() as u32 & DATA_MASK,
+        };
+
+        let is_integer = is_integer as u32 * IS_INTEGER;
+        let is_small_integer = is_small_integer as u32 * IS_SMALL_INTEGER;
+
+        InternedNumeric(data | is_integer | is_small_integer)
     }
 }
 
@@ -144,4 +154,6 @@ pub(crate) const PRELUDE_STRINGS: u32 = 0b100_000 << 26;
 
 // metadata for numerics
 pub(crate) const IS_INTEGER: u32 = 0b100_000 << 26;
-pub(crate) const PRELUDE_NUMERICS: u32 = 0b010_000 << 26;
+
+// small enough to encode in 26 bits
+pub(crate) const IS_SMALL_INTEGER: u32 = 0b010_000 << 26;

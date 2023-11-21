@@ -9,6 +9,7 @@ mod lower;
 
 pub use lower::lower_ast_func;
 
+#[derive(Clone)]
 pub struct Func {
     pub name: IdentWithSpan,
     pub args: Option<Vec<Arg>>,
@@ -17,7 +18,7 @@ pub struct Func {
     pub ret_ty: Option<hir::Type>,
     pub decorators: FuncDeco,
     pub(crate) doc: Option<InternedString>,
-    pub(crate) uid: Uid,
+    pub uid: Uid,
 }
 
 #[derive(Clone)]
@@ -29,7 +30,7 @@ pub struct Arg {
 
 // lowered ast::Deco
 // some simple decorators are interpreted and consumed!
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct FuncDeco {
     publicity: Publicity,
 
@@ -47,7 +48,7 @@ impl FuncDeco {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 enum Publicity {
     #[default]
     Public,

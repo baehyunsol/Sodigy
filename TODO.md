@@ -1,12 +1,3 @@
-- lex
-  - code -> token
-- parse tree
-  - token -> token tree
-- parse
-  - token tree -> AST
-
----
-
 spec
 
 기존 Sodigy의 스펙 최대한 따라가기!!
@@ -113,3 +104,42 @@ limits
 
 1. incremental compilation: when macro is modified, but the code isn't
 2. slow compilation: interpreted Sodigy is much slower than the compiled one
+
+whats different from Rust
+
+- let's make error messages show tokens generated from macros
+  - Rust error messages don't show the generated tokens, it only shows the macro invocation
+  - let's show both the invocation and the results
+
+---
+
+`import * from x;`
+
+- hinders incremental compilations
+- 아니 사실 불가능함.
+  - x가 `import * from y;`하고 y가 `import * from x;`하면 어떡함? 현재로써는 저거 해결할 방법이 없음. 저거 해결하려면, name collect와 name resolve를 별개의 IR 단계에서 처리하고, 그 사이에서 저 `*`을 처리해야함...
+  - `*` 하나때문에 IR 단계 추가하는 거는 별로...
+
+---
+
+IRs later
+
+Mid-IR: every function (including imported ones) is converted to Uid. No more identifiers. All the operators are also lowered to func calls, which use Uids. Everything has a type.
+
+Low-IR: everything is either array or integer. For example, a rational number is an array of length 2 (2 integers). A struct is an array whose elements are its fields. Field access operator is just an array indexing operator.
+
+---
+
+Compile time evaluation
+
+1. a sodigy function `comptime(v)` guarantees that `v` is evaluated at compile time
+2. a decorator `@comptime` guarantees that the function it decorates is called at compile time
+3. an annotated block `comptime { .. }` guarantees that the code inside the block is evaluated at compile time
+  - ugly
+
+seems like the second one is the least ugly one
+
+---
+
+`let`대신 `def` 쓸까?
+`if let`대신 `def if` 쓰고

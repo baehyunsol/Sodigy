@@ -1,5 +1,7 @@
 use sodigy_span::SpanRange;
 
+mod endec;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Delim {
     Brace,    // {}

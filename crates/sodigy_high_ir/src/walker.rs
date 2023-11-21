@@ -1,5 +1,5 @@
 use crate::expr::{self as hir, Expr, ExprKind};
-use crate::func::{Arg, Func};
+use crate::func::{Arg, Func, FuncDeco};
 
 pub enum WalkState {
     QuitImmediate,
@@ -44,7 +44,7 @@ pub fn mut_walker_func<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(f: &mu
         return;
     }
 
-    // TODO: walk exprs in decorators
+    f.decorators.mut_walker(c, worker);
 }
 
 pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mut Expr, c: &mut Ctxt, worker: &Box<F>) {
@@ -148,5 +148,11 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
             mut_walker_expr(lhs, c, worker);
             mut_walker_expr(rhs, c, worker);
         },
+    }
+}
+
+impl FuncDeco {
+    pub fn mut_walker<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(&mut self, c: &mut Ctxt, worker: &Box<F>) {
+        // TODO
     }
 }

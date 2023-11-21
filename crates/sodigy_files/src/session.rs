@@ -66,11 +66,12 @@ impl Session {
     /// It doesn't care about hash collisions, because tmp_files are just for tests.
     pub fn register_tmp_file(&mut self, content: Vec<u8>) -> FileHash {
         let lock = unsafe { LOCK.lock().unwrap() };
-        let hash = self.hash(&content).unwrap();
 
         if let Some(f) = self.tmp_files_rev.get(&content) {
             return *f;
         }
+
+        let hash = self.hash(&content).unwrap();
 
         self.tmp_files.insert(
             hash,
@@ -90,11 +91,12 @@ impl Session {
     /// It returns Err when there's a hash collision.
     pub fn register_file(&mut self, path: &Path) -> Result<FileHash, FileError> {
         let lock = unsafe { LOCK.lock().unwrap() };
-        let hash = self.hash(path.as_bytes())?;
 
         if let Some(f) = self.files_rev.get(path) {
             return Ok(*f);
         }
+
+        let hash = self.hash(path.as_bytes())?;
 
         self.files.insert(
             hash,

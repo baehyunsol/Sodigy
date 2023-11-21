@@ -21,7 +21,10 @@ mod warn;
 
 use doc_comment::concat_doc_comments;
 use err::HirError;
-pub use expr::Expr;
+pub use expr::{
+    Branch, BranchArm,
+    Expr, ExprKind,
+};
 use expr::{
     lower_ast_expr,
     try_warn_unnecessary_paren,
@@ -31,8 +34,10 @@ use expr::{
         LambdaCollectCtxt,
     },
 };
-use func::{Func, lower_ast_func};
-use names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
+pub use func::Func;
+use func::lower_ast_func;
+pub use names::NameOrigin;
+use names::{IdentWithOrigin, NameBindingType, NameSpace};
 pub use session::HirSession;
 use warn::HirWarning;
 
@@ -55,9 +60,6 @@ pub fn lower_stmts(
 
     // It's used to generate unused_name warnings
     let mut used_names: HashSet<IdentWithOrigin> = HashSet::new();
-
-    // HashMap<name, def>
-    let mut func_defs: HashMap<InternedString, Func> = HashMap::new();
 
     // first iteration:
     // collect names from definitions and check name collisions
@@ -133,11 +135,11 @@ pub fn lower_stmts(
                     try_convert_closures_to_lambdas(&mut f);
                     give_names_to_lambdas(&mut f, &mut lambda_context);
 
-                    func_defs.insert(*f.name.id(), f);
-
                     for func in lambda_context.collected_lambdas.into_iter() {
-                        func_defs.insert(*func.name.id(), func);
+                        session.func_defs.insert(*func.name.id(), func);
                     }
+
+                    session.func_defs.insert(*f.name.id(), f);
                 }
 
                 curr_doc_comments.clear();

@@ -1,14 +1,18 @@
 use crate::err::HirError;
+use crate::func::Func;
 use crate::warn::HirWarning;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 use sodigy_prelude::PRELUDES;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 pub struct HirSession {
     errors: Vec<HirError>,
     warnings: Vec<HirWarning>,
     interner: InternSession,
+
+    // HashMap<name, def>
+    pub func_defs: HashMap<InternedString, Func>
 }
 
 impl HirSession {
@@ -17,6 +21,7 @@ impl HirSession {
             errors: vec![],
             warnings: vec![],
             interner: InternSession::new(),
+            func_defs: HashMap::new(),
         }
     }
 

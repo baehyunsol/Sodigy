@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+mod endec;
 mod err;
 mod num;
 mod tests;

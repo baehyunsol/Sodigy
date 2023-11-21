@@ -2,7 +2,6 @@
 
 use sodigy_test::sodigy_assert;
 
-mod endec;
 mod err;
 mod fmt;
 
@@ -50,6 +49,27 @@ impl SodigyNumber {
             SodigyNumber::Big(n) => n.is_integer,
             SodigyNumber::SmallInt(_) => true,
             SodigyNumber::SmallRatio(_) => false,
+        }
+    }
+
+    /// returns `(digits, exp)` where `self = digits * 10^exp`.
+    /// same value might return different results (eg. (3, 1) and (30, 0)).
+    pub fn digits_and_exp(&self) -> (Vec<u8>, i64) {
+        match self {
+            SodigyNumber::Big(n) => (n.digits.clone(), n.exp),
+            SodigyNumber::SmallInt(n) => (
+                n.to_string().as_bytes().to_vec(),
+                0,
+            ),
+            SodigyNumber::SmallRatio(n) => {
+                let exp = (*n % 65536) as i64 - 32768;
+                let digits = *n / 65536;
+
+                (
+                    digits.to_string().as_bytes().to_vec(),
+                    exp,
+                )
+            },
         }
     }
 
@@ -124,10 +144,10 @@ impl TryFrom<&SodigyNumber> for u32 {
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct BigNumber {
     // it's in decimal
-    digits: Vec<u8>,
+    pub digits: Vec<u8>,
 
     // exp 10
-    exp: i64,
+    pub exp: i64,
 
     pub is_integer: bool,
 }

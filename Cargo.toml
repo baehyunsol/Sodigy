@@ -32,6 +32,7 @@ sodigy_endec = { path = "crates/sodigy_endec" }
 sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }
 sodigy_intern = { path = "crates/sodigy_intern" }
+sodigy_interpreter = { path = "crates/sodigy_interpreter" }
 sodigy_keyword = { path = "crates/sodigy_keyword" }
 sodigy_lex = { path = "crates/sodigy_lex" }
 sodigy_number = { path = "crates/sodigy_number" }

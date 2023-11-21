@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 smallvec = "1.11.1"
+sodigy_endec = { path = "../sodigy_endec" }
 sodigy_err = { path = "../sodigy_err" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_keyword = { path = "../sodigy_keyword" }

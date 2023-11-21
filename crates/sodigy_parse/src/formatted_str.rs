@@ -3,6 +3,7 @@ use crate::warn::ParseWarning;
 use sodigy_lex::{lex, LexError, LexSession};
 use sodigy_span::SpanPoint;
 
+mod endec;
 mod fmt;
 
 #[derive(Clone)]

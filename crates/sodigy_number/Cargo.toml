@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 sodigy_test = { path = "../sodigy_test" }
-sodigy_endec = { path = "../sodigy_endec" }

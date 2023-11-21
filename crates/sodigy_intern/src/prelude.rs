@@ -1,9 +1,11 @@
 use crate::{
-    numeric::ZERO,
     string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F},
     InternedNumeric,
     InternedString,
+    DATA_MASK,
     IS_INTEGER,
+    IS_SMALL_INTEGER,
+    unintern_numeric,
 };
 use sodigy_keyword::{Keyword, keywords};
 
@@ -44,11 +46,50 @@ impl InternedString {
 }
 
 impl InternedNumeric {
+    #[inline]
     pub fn is_integer(&self) -> bool {
         self.0 & IS_INTEGER != 0
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.0 == (0 | IS_INTEGER | IS_SMALL_INTEGER)
+    }
+
+    pub fn try_unwrap_small_int(&self) -> Option<u32> {
+        if self.0 & IS_SMALL_INTEGER != 0 {
+            Some(self.0 & DATA_MASK)
+        }
+
+        else {
+            None
+        }
+    }
+
+    pub fn try_unwrap_digits_and_exp_from_ratio(&self) -> Option<(Vec<u8>, i64)> {
+        if self.is_integer() {
+            None
+        }
+
+        else {
+            let n = unintern_numeric(*self);
+
+            Some(n.digits_and_exp())
+        }
+    }
+
+    pub fn try_unwrap_digits_and_exp_from_int(&self) -> Option<(Vec<u8>, i64)> {
+        if !self.is_integer() {
+            None
+        }
+
+        else {
+            let n = unintern_numeric(*self);
+
+            Some(n.digits_and_exp())
+        }
+    }
+
     pub fn zero() -> Self {
-        InternedNumeric(ZERO)
+        InternedNumeric(0 | IS_INTEGER | IS_SMALL_INTEGER)
     }
 }

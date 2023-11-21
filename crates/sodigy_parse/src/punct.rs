@@ -1,5 +1,6 @@
 use sodigy_intern::InternedString;
 
+mod endec;
 mod fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
