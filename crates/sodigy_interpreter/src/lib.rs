@@ -20,11 +20,41 @@ fn to_string(e: &SodigyData) -> Result<Rc<SodigyData>, ()> {
             ty: SodigyDataType::Integer,
         } => Ok(Rc::new(SodigyData::new_string(format!("{n}").as_bytes()))),
         SodigyData {
-            value: SodigyDataValue::Compound(nums),
+            value: SodigyDataValue::Compound(_),
             ty: SodigyDataType::Ratio,
         } => {
             let n = e.try_into_ratio().unwrap();
             Ok(Rc::new(SodigyData::new_string(format!("{n}").as_bytes())))
+        },
+        t @ SodigyData {
+            value: SodigyDataValue::Compound(elements),
+            ty: SodigyDataType::List | SodigyDataType::Tuple,
+        } => {
+            let mut result = Vec::with_capacity(elements.len());
+
+            for elem in elements.iter() {
+                let s = to_string(elem)?;
+                result.push(to_rust_string(&s)?);
+            }
+
+            let chars = result.join(&[',' as u32, ' ' as u32][..]);
+
+            let (start, end) = if matches!(&t.ty, SodigyDataType::List) {
+                ('[', ']')
+            } else {
+                ('(', ')')
+            };
+
+            let mut result = Vec::with_capacity(chars.len() + 2);
+            result.push(start);
+
+            for c in chars.iter() {
+                result.push(char::from_u32(*c).unwrap());
+            }
+
+            result.push(end);
+
+            Ok(Rc::new(SodigyData::new_string(result.iter().collect::<String>().as_bytes())))
         },
         SodigyData {
             value: _,

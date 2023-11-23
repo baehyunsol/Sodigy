@@ -4,15 +4,9 @@ use sodigy_endec::{Endec, EndecErr, EndecSession};
 impl Endec for Delim {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            Delim::Brace => {
-                buf.push(0);
-            },
-            Delim::Bracket => {
-                buf.push(1);
-            },
-            Delim::Paren => {
-                buf.push(2);
-            },
+            Delim::Brace => { buf.push(0); },
+            Delim::Bracket => { buf.push(1); },
+            Delim::Paren => { buf.push(2); },
         }
     }
 
@@ -25,7 +19,7 @@ impl Endec for Delim {
                     0 => Ok(Delim::Brace),
                     1 => Ok(Delim::Bracket),
                     2 => Ok(Delim::Paren),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    3.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

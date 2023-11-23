@@ -182,6 +182,10 @@ pub enum SodigyDataType {
     Integer,
     String,
     Ratio,
-    Func,
     Bool,
+
+    // TODO: Func, List, and Tuple must take type params
+    Func,
+    List,
+    Tuple,
 }

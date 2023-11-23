@@ -84,7 +84,7 @@ pub enum HirEvalError {
 }
 
 pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>, HirEvalError> {
-    if ctxt.call_depth > 500 {
+    if ctxt.call_depth > 256 {
         return Err(HirEvalError::Msg(String::from("call depth limit exceeded")));
     }
 
@@ -142,6 +142,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
         },
         hir::ExprKind::List(elements)
         | hir::ExprKind::Tuple(elements) => {
+            let ty = if matches!(e.kind, hir::ExprKind::List(_)) { SodigyDataType::List } else { SodigyDataType::Tuple };
             let mut result = Vec::with_capacity(elements.len());
             ctxt.inc_call_depth();
 
@@ -152,7 +153,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
             ctxt.dec_call_depth();
             Ok(Rc::new(SodigyData {
                 value: SodigyDataValue::Compound(result),
-                ty: SodigyDataType::TODO,
+                ty,
             }))
         },
         hir::ExprKind::Branch(hir::Branch { arms }) => {
@@ -380,6 +381,42 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                 ast::InfixOp::LogicalOr => Ok(Rc::new((lhs.is_true() || rhs.is_true()).into())),
                 // TODO: it's not lazily evaluated
                 ast::InfixOp::LogicalAnd => Ok(Rc::new((lhs.is_true() && rhs.is_true()).into())),
+                ast::InfixOp::Index => {
+                    if let (
+                        SodigyData {
+                            value: SodigyDataValue::Compound(elems),
+                            ty: SodigyDataType::List,
+                        },
+                        SodigyData {
+                            value: SodigyDataValue::BigInt(n),
+                            ty: SodigyDataType::Integer,
+                        },
+                    ) = (lhs.as_ref(), rhs.as_ref()) {
+                        if let Ok(n) = i64::try_from(n) {
+                            if n < 0 {
+                                Err(HirEvalError::TODO(String::from("negative index")))
+                            }
+
+                            else {
+                                if (n as usize) < elems.len() {
+                                    Ok(elems[n as usize].clone())
+                                }
+
+                                else {
+                                    Err(HirEvalError::Msg(String::from("invalid index: too big")))
+                                }
+                            }
+                        }
+
+                        else {
+                            Err(HirEvalError::Msg(String::from("invalid index")))
+                        }
+                    }
+
+                    else {
+                        Err(HirEvalError::Msg(String::from("ty error in an index operation (for now, it only supports list[int])")))
+                    }
+                },
                 _ => Err(HirEvalError::TODO(format!("{op}"))),
             }
         },
@@ -393,7 +430,6 @@ impl From<ConvertError> for HirEvalError {
             ConvertError::TODO(s) => HirEvalError::TODO(s),
             ConvertError::NotInt => HirEvalError::Msg(String::from("ConvertError::NotInt")),
             ConvertError::NotRatio => HirEvalError::Msg(String::from("ConvertError::NotRatio")),
-            _ => unreachable!(),
         }
     }
 }

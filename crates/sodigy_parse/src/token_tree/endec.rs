@@ -89,7 +89,7 @@ impl Endec for TokenTreeKind {
                     }),
                     6 => Ok(TokenTreeKind::FormattedString(Vec::<FormattedStringElement>::decode(buf, ind, session)?)),
                     7 => Ok(TokenTreeKind::DocComment(InternedString::decode(buf, ind, session)?)),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    8.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

@@ -1,6 +1,7 @@
 // These are defined in this module in order to avoid cyclic dependencies.
 
 use crate::{Endec, EndecErr, EndecSession};
+use crate::session::EncodedInternal;
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_keyword::Keyword;
 use sodigy_number::{BigNumber, SodigyNumber};
@@ -12,7 +13,8 @@ impl Endec for InternedString {
     }
 
     fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
-        todo!()
+        let e = EncodedInternal::decode(buf, ind, session)?;
+        Ok(session.decode_intern_str(e)?)
     }
 }
 
@@ -23,17 +25,50 @@ impl Endec for InternedNumeric {
     }
 
     fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
-        todo!()
+        let e = EncodedInternal::decode(buf, ind, session)?;
+        Ok(session.decode_intern_num(e)?)
     }
 }
 
 impl Endec for Keyword {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        todo!()
+        match self {
+            Keyword::Def => { buf.push(0); },
+            Keyword::Enum => { buf.push(1); },
+            Keyword::Struct => { buf.push(2); },
+            Keyword::Module => { buf.push(3); },
+            Keyword::Import => { buf.push(4); },
+            Keyword::As => { buf.push(5); },
+            Keyword::From => { buf.push(6); },
+            Keyword::If => { buf.push(7); },
+            Keyword::Else => { buf.push(8); },
+            Keyword::Let => { buf.push(9); },
+            Keyword::Match => { buf.push(10); },
+        }
     }
 
     fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
-        todo!()
+        match buf.get(*ind) {
+            Some(n) => {
+                *ind += 1;
+
+                match *n {
+                    0 => Ok(Keyword::Def),
+                    1 => Ok(Keyword::Enum),
+                    2 => Ok(Keyword::Struct),
+                    3 => Ok(Keyword::Module),
+                    4 => Ok(Keyword::Import),
+                    5 => Ok(Keyword::As),
+                    6 => Ok(Keyword::From),
+                    7 => Ok(Keyword::If),
+                    8 => Ok(Keyword::Else),
+                    9 => Ok(Keyword::Let),
+                    10 => Ok(Keyword::Match),
+                    11.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                }
+            },
+            None => Err(EndecErr::Eof),
+        }
     }
 }
 
@@ -64,7 +99,7 @@ impl Endec for SodigyNumber {
                     0 => Ok(SodigyNumber::Big(Box::new(BigNumber::decode(buf, ind, session)?))),
                     1 => Ok(SodigyNumber::SmallInt(u64::decode(buf, ind, session)?)),
                     2 => Ok(SodigyNumber::SmallRatio(u64::decode(buf, ind, session)?)),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    3.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

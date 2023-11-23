@@ -82,43 +82,42 @@ publicity
 
 Macros
 
-the best (and the only) way I can think of
+Like that of `[proc_macro]` in Rust. There's a sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`. Below is the compilation step.
 
-like that of `[proc_macro]` in Rust:
-
-a Sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`
-
-the compiler, which is written in Rust is going to impl interpreter: it can run the macro
-
-so, the step would be
-
-1. Compiler(Rust): Code(Sodigy) -> Vec<TokenTree>
+1. Compiler(Rust): Sodigy Code -> Vec<TokenTree>
 2. Compiler(Rust): Vec<TokenTree> -> List(TokenTree)
 3. Macro(Sodigy): List(TokenTree) -> List(TokenTree)
 4. Compiler(Rust): List(TokenTree) -> Vec<TokenTree>
-5. Compiler(Rust): continue...
+5. if there're remaining macros, goes back to step 2 
 
-the macro should be compiled independently
+Macros should be compiled independently
 
-limits
+std macros
 
-1. incremental compilation: when macro is modified, but the code isn't
-2. slow compilation: interpreted Sodigy is much slower than the compiled one
+- `@[max](a, b)` -> `if a > b { a } else { b }`
+  - can take an arbitrary number of arguments (at least 1)
+  - using functions must be much better way to do this...
+    - `def max2(x, y) = if x > y { x } else { y }`
+    - `def max3(x, y, z) = if x > y { if y > z || x > z { x } else { z } } else if y > z { y } else { z }`
+- `@[min](a, b)`
+  - see `max`
+- `@[map](x: y, z: w, 0: 1)`
+  - like that of Python
+- `@[set](x, y, z)`
+  - like that of Python
+- `@[generate](iterate 3..10; filter x % 2 == 0; map x * x;)`
+  - list comprehension
 
-whats different from Rust
+how does one import a macro? the compiler knows the imported names at the hir level, while the macros are needed at TokenTree level. there must be some other syntax for importing macros. for now, the only way I can think of is using another file for metadata, like `Cargo.toml` or `go.mod`
 
-- let's make error messages show tokens generated from macros
-  - Rust error messages don't show the generated tokens, it only shows the macro invocation
-  - let's show both the invocation and the results
+name issues with `@[map]`: how does it know the name of std.hash_map? what if the preluded name is overloaded?
+- how about protecting absolute paths? so that the full name of `Map` never changes, ex: `Sodigy.prelude.Map`, in this case, a new definition of `Sodigy` would be rejected by the compiler
 
 ---
 
 `import * from x;`
 
-- hinders incremental compilations
-- 아니 사실 불가능함.
-  - x가 `import * from y;`하고 y가 `import * from x;`하면 어떡함? 현재로써는 저거 해결할 방법이 없음. 저거 해결하려면, name collect와 name resolve를 별개의 IR 단계에서 처리하고, 그 사이에서 저 `*`을 처리해야함...
-  - `*` 하나때문에 IR 단계 추가하는 거는 별로...
+impossible: due to cyclic imports
 
 ---
 

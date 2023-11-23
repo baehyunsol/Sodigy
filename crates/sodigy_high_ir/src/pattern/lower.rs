@@ -8,6 +8,8 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
+// TODO: `(p1, p2, p3 | p4)` -> `(p1, p2, p3) | (p1, p2, p4)`
+
 // `let Foo { bar: $x, baz: $y } = f();`
 // -> `let $tmp = f();`, `let $x = tmp.bar;`, `let $y = tmp.baz;`
 //

@@ -4,10 +4,12 @@ pub enum EndecErr {
     Overflow,
     FromUtf8Error,
     InvalidEnumVariant { variant_index: u8 },
+    InvalidInternedString,
+    InvalidInternedNumeric,
 }
 
 impl From<std::string::FromUtf8Error> for EndecErr {
-    fn from(e: std::string::FromUtf8Error) -> Self {
+    fn from(_: std::string::FromUtf8Error) -> Self {
         EndecErr::FromUtf8Error
     }
 }

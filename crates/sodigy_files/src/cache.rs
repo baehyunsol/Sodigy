@@ -94,7 +94,7 @@ impl FileCache {
                                     },
                                 }
                             },
-                            Err(e) => {
+                            Err(_) => {
                                 return Err(FileError::metadata_not_supported(path));
                             },
                         }

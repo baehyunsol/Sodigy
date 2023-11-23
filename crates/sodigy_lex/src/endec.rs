@@ -4,12 +4,8 @@ use sodigy_endec::{Endec, EndecErr, EndecSession};
 impl Endec for QuoteKind {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            QuoteKind::Double => {
-                buf.push(0);
-            },
-            QuoteKind::Single => {
-                buf.push(1);
-            },
+            QuoteKind::Double => { buf.push(0); },
+            QuoteKind::Single => { buf.push(1); },
         }
     }
 
@@ -21,7 +17,7 @@ impl Endec for QuoteKind {
                 match *n {
                     0 => Ok(QuoteKind::Double),
                     1 => Ok(QuoteKind::Single),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

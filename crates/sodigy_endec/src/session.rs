@@ -5,9 +5,11 @@ use std::collections::HashMap;
 
 pub struct EndecSession {
     str_map: HashMap<InternedString, EncodedInternal>,
+    str_map_rev: HashMap<EncodedInternal, InternedString>,
     str_table: HashMap<EncodedInternal, Vec<u8>>,
 
     num_map: HashMap<InternedNumeric, EncodedInternal>,
+    num_map_rev: HashMap<EncodedInternal, InternedNumeric>,
     num_table: HashMap<EncodedInternal, SodigyNumber>,
 }
 
@@ -15,8 +17,10 @@ impl EndecSession {
     pub fn new() -> Self {
         EndecSession {
             str_map: HashMap::new(),
+            str_map_rev: HashMap::new(),
             str_table: HashMap::new(),
             num_map: HashMap::new(),
+            num_map_rev: HashMap::new(),
             num_table: HashMap::new(),
         }
     }
@@ -47,6 +51,14 @@ impl EndecSession {
                 n
             },
         }
+    }
+
+    pub fn decode_intern_str(&self, e: EncodedInternal) -> Result<InternedString, EndecErr> {
+        self.str_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecErr::InvalidInternedString)
+    }
+
+    pub fn decode_intern_num(&self, e: EncodedInternal) -> Result<InternedNumeric, EndecErr> {
+        self.num_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecErr::InvalidInternedNumeric)
     }
 }
 

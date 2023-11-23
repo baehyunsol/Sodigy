@@ -62,7 +62,7 @@ impl Endec for NameOrigin {
                         lambda: Uid::decode(buf, ind, session)?,
                         index: usize::decode(buf, ind, session)?,
                     }),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    6.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

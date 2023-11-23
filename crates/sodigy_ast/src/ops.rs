@@ -1,6 +1,7 @@
 use sodigy_intern::InternedString;
 use sodigy_parse::Punct;
 
+mod endec;
 mod fmt;
 
 #[derive(Clone, Copy)]

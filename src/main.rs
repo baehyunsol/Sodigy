@@ -2,6 +2,7 @@ use sodigy::{compile_file, compile_input};
 use sodigy_files::get_all_sdg;
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "FULL");
     // tests
 
     compile_file("./samples/easy.sdg".to_string()).unwrap().print_results();

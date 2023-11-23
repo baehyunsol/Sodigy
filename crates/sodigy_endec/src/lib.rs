@@ -43,7 +43,7 @@ impl Endec for bool {
                 match *n {
                     0 => Ok(false),
                     1 => Ok(true),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),
@@ -105,7 +105,7 @@ impl<T: Endec> Endec for Option<T> {
                 match *n {
                     0 => Ok(None),
                     1 => Ok(Some(T::decode(buf, ind, session)?)),
-                    n => Err(EndecErr::InvalidEnumVariant { variant_index: n }),
+                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),
