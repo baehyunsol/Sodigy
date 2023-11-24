@@ -1,33 +1,34 @@
 # This file is just a brain-storming
 
-struct Number {
+let struct Number = {
     denom: Int,
     numer: Int,
-}
+};
 
 # it's not a new type: all the methods of `List` can be applied to `String`s
-def String: Type = List(Char);
+let String: Type = List(Char);
 
+# todo: how about `let type Byte = Int;`
 # todo: what happens when it overflows?
 # todo: i want to inherit some methods of `Int`, but not all
 @new_type
 @int_max(255)
 @int_min(0)
-def Byte: Type = Int;
+let Byte: Type = Int;
 
 @new_type
 @int_max(1114111)
 @int_min(0)
-def Char: Type = Int;
+let Char: Type = Int;
 
-enum Bool {
+let enum Bool = {
     True, False,
-}
+};
 
-enum Option<T> {
+let enum Option<T> = {
     None, Some(T),
-}
+};
 
-enum Result<T, E> {
+let enum Result<T, E> = {
     Ok(T), Err(E),
-}
+};

@@ -7,6 +7,7 @@ impl fmt::Display for ErrorContext {
             ErrorContext::Unknown => "",
             ErrorContext::Lexing => "lexing",
             ErrorContext::LexingNumericLiteral => "lexing a numeric literal",
+            ErrorContext::ParsingLetStatement => "parsing a let statement",
             ErrorContext::ParsingImportStatement => "parsing an import statement",
             ErrorContext::ParsingFuncBody => "parsing a function body",
             ErrorContext::ParsingFuncName => "parsing name of a function",

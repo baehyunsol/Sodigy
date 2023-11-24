@@ -31,9 +31,9 @@ impl Endec for InternedNumeric {
 }
 
 impl Endec for Keyword {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            Keyword::Def => { buf.push(0); },
+            Keyword::Let => { buf.push(0); },
             Keyword::Enum => { buf.push(1); },
             Keyword::Struct => { buf.push(2); },
             Keyword::Module => { buf.push(3); },
@@ -42,18 +42,18 @@ impl Endec for Keyword {
             Keyword::From => { buf.push(6); },
             Keyword::If => { buf.push(7); },
             Keyword::Else => { buf.push(8); },
-            Keyword::Let => { buf.push(9); },
+            Keyword::Pattern => { buf.push(9); },
             Keyword::Match => { buf.push(10); },
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
 
                 match *n {
-                    0 => Ok(Keyword::Def),
+                    0 => Ok(Keyword::Let),
                     1 => Ok(Keyword::Enum),
                     2 => Ok(Keyword::Struct),
                     3 => Ok(Keyword::Module),
@@ -62,7 +62,7 @@ impl Endec for Keyword {
                     6 => Ok(Keyword::From),
                     7 => Ok(Keyword::If),
                     8 => Ok(Keyword::Else),
-                    9 => Ok(Keyword::Let),
+                    9 => Ok(Keyword::Pattern),
                     10 => Ok(Keyword::Match),
                     11.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }

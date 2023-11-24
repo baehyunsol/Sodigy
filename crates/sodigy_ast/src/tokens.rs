@@ -72,9 +72,7 @@ impl<'t> Tokens<'t> {
             match self.peek() {
                 Some(Token { kind, .. }) => match kind {
                     TokenKind::Keyword(k) => match k {
-                        Keyword::Def
-                        | Keyword::Enum
-                        | Keyword::Struct
+                        Keyword::Let
                         | Keyword::Module
                         | Keyword::Import => {
                             return true;
@@ -83,7 +81,9 @@ impl<'t> Tokens<'t> {
                         | Keyword::Else
                         | Keyword::As
                         | Keyword::From
-                        | Keyword::Let
+                        | Keyword::Pattern
+                        | Keyword::Enum
+                        | Keyword::Struct
                         | Keyword::Match => {
                             self.cursor += 1;
                         },

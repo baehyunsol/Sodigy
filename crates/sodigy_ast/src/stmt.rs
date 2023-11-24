@@ -1,22 +1,26 @@
-use crate::{utils::merge_dotted_names, ArgDef, DottedNames, Expr, GenericDef, IdentWithSpan, TypeDef};
+use crate::{
+    ArgDef,
+    DottedNames,
+    Expr,
+    GenericDef,
+    IdentWithSpan,
+    let_::Let,
+    TypeDef,
+    utils::merge_dotted_names,
+};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
 pub struct Stmt {
     pub kind: StmtKind,
-
-    // `span` includes the entire definition
-    // e.g. from a keyword `def` to an expression for a function
     pub span: SpanRange,
 }
 
 pub enum StmtKind {
-    Func(FuncDef),
     Module(IdentWithSpan, Uid),
     Import(Import),
-    Enum(EnumDef),
-    Struct(StructDef),
+    Let(Let),
     Decorator(Decorator),
 
     // consecutive doc comments are not merged yet
@@ -24,23 +28,23 @@ pub enum StmtKind {
 }
 
 impl StmtKind {
-    pub fn get_id(&self) -> Option<&IdentWithSpan> {
+    pub fn get_id(&self) -> Option<IdentWithSpan> {
         match self {
-            StmtKind::Func(func) => Some(&func.name),
-            StmtKind::Module(m, _) => Some(m),
-            StmtKind::Enum(en) => Some(&en.name),
-            StmtKind::Struct(st) => Some(&st.name),
-            _ => None,
+            StmtKind::Module(m, _) => Some(*m),
+            StmtKind::Let(l) => l.get_id(),
+            StmtKind::Import(_)
+            | StmtKind::Decorator(_)
+            | StmtKind::DocComment(_) => None,
         }
     }
 
-    pub fn get_uid(&self) -> Option<&Uid> {
+    pub fn get_uid(&self) -> Option<Uid> {
         match self {
-            StmtKind::Func(func) => Some(&func.uid),
-            StmtKind::Enum(e) => Some(&e.uid),
-            StmtKind::Struct(s) => Some(&s.uid),
-            StmtKind::Module(_, id) => Some(id),
-            _ => None,
+            StmtKind::Module(_, id) => Some(*id),
+            StmtKind::Let(l) => l.get_uid(),
+            StmtKind::Import(_)
+            | StmtKind::Decorator(_)
+            | StmtKind::DocComment(_) => None,
         }
     }
 }
@@ -94,37 +98,27 @@ impl ImportedName {
 
 // attributes of enums and structs are collected later
 // in ast level, it only collects attributes of variants and fields
+#[derive(Clone)]
 pub enum Attribute {
     DocComment(String),
     Decorator(Decorator),
 }
 
-pub struct EnumDef {
-    pub name: IdentWithSpan,
-    pub generics: Vec<GenericDef>,
-    pub variants: Vec<VariantDef>,
-    pub uid: Uid,
-}
-
-pub enum VariantKind {
-    Empty,
-    Tuple(Vec<TypeDef>),
-    Struct(Vec<FieldDef>),
-}
-
+#[derive(Clone)]
 pub struct VariantDef {
     pub name: IdentWithSpan,
     pub args: VariantKind,
     pub attributes: Vec<Attribute>,
 }
 
-pub struct StructDef {
-    pub name: IdentWithSpan,
-    pub generics: Vec<GenericDef>,
-    pub fields: Vec<FieldDef>,
-    pub uid: Uid,
+#[derive(Clone)]
+pub enum VariantKind {
+    Empty,
+    Tuple(Vec<TypeDef>),
+    Struct(Vec<FieldDef>),
 }
 
+#[derive(Clone)]
 pub struct FieldDef {
     pub name: IdentWithSpan,
     pub ty: TypeDef,

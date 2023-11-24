@@ -9,8 +9,8 @@ use sodigy_span::SpanRange;
 
 mod fmt;
 
-const STMT_START_KEYWORDS: [&'static str; 5] = [
-    "def", "enum", "struct", "module", "import",
+const STMT_START_KEYWORDS: [&'static str; 3] = [
+    "let", "module", "import",
 ];
 
 #[derive(Clone)]
@@ -49,9 +49,15 @@ impl AstError {
                             _ => b"Unexpected error, but I don't want it to mess up any other stuff.".to_vec(),
                         };
 
-                        for stmt_start in STMT_START_KEYWORDS.iter() {
-                            if substr_edit_distance(&id, stmt_start.as_bytes()) < 2 {
-                                extra.set_message(format!("Did you mean `{stmt_start}`?"));
+                        if id == b"fn" || id == b"def" {
+                            extra.set_message(format!("Do you mean `let`?"));
+                        }
+
+                        else {
+                            for stmt_start in STMT_START_KEYWORDS.iter() {
+                                if substr_edit_distance(&id, stmt_start.as_bytes()) < 2 {
+                                    extra.set_message(format!("Do you mean `{stmt_start}`?"));
+                                }
                             }
                         }
                     },
@@ -317,6 +323,7 @@ pub enum ExpectedToken {
     /// func call, not func def
     FuncArgs,
     Specific(Vec<TokenKind>),
+    LetStatement,
 }
 
 impl ExpectedToken {
@@ -429,5 +436,9 @@ impl ExpectedToken {
             TokenKind::dot(),
             TokenKind::Keyword(Keyword::From),
         ])
+    }
+
+    pub fn let_statement() -> Self {
+        ExpectedToken::LetStatement
     }
 }

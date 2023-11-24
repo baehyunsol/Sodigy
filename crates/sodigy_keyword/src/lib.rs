@@ -4,7 +4,7 @@ mod fmt;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Keyword {
-    Def = 0,
+    Let = 0,
     Enum = 1,
     Struct = 2,
     Module = 3,
@@ -13,7 +13,7 @@ pub enum Keyword {
     From = 6,
     If = 7,
     Else = 8,
-    Let = 9,
+    Pattern = 9,
     Match = 10,
 }
 
@@ -25,7 +25,7 @@ impl Keyword {
 
 pub const fn keywords() -> [Keyword; 11] {
     [
-        Keyword::Def,
+        Keyword::Let,
         Keyword::Enum,
         Keyword::Struct,
         Keyword::Module,
@@ -34,7 +34,7 @@ pub const fn keywords() -> [Keyword; 11] {
         Keyword::From,
         Keyword::If,
         Keyword::Else,
-        Keyword::Let,
+        Keyword::Pattern,
         Keyword::Match,
     ]
 }

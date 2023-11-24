@@ -3,6 +3,6 @@ module math;
 module etc;
 
 # temporary functions to see if the type checker works
-def add_nums(a: Int, b: Int): Int = if a == b { a * 2 } else { add(a, b) };
+let add_nums(a: Int, b: Int): Int = if a == b { a * 2 } else { add(a, b) };
 
-def add(a: Int, b: Int): Int = if b == 0 { a } else if b > 0 { add(a + 1, b - 1) } else { add(a - 1, b + 1) };
+let add(a: Int, b: Int): Int = if b == 0 { a } else if b > 0 { add(a + 1, b - 1) } else { add(a - 1, b + 1) };

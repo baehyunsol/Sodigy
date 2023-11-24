@@ -1,1 +1,1 @@
-def untyped_arg(x, y): Int = x + y;
+let untyped_arg(x, y): Int = x + y;

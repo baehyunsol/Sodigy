@@ -92,6 +92,7 @@ pub enum ErrorContext {
     Unknown,
     Lexing,
     LexingNumericLiteral,
+    ParsingLetStatement,
     ParsingImportStatement,
     ParsingFuncName,
     ParsingFuncRetType,

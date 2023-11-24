@@ -7,6 +7,7 @@ use sodigy_uid::Uid;
 mod endec;
 mod err;
 mod expr;
+mod let_;
 mod ops;
 mod parse;
 mod pattern;
@@ -21,6 +22,7 @@ mod warn;
 mod tests;
 
 pub use expr::{Expr, ExprKind};
+pub use let_::{Let, LetKind};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_expr, parse_stmts};
 pub use pattern::{PatField, Pattern, PatternKind};
@@ -64,22 +66,15 @@ impl ArgDef {
 }
 
 #[derive(Clone)]
-pub struct ScopeDef {
-    pub defs: Vec<LocalDef>,
+pub struct ScopeBlock {
+    pub lets: Vec<Let>,
     pub value: Box<Expr>,
 }
 
-impl ScopeDef {
-    pub fn has_no_defs(&self) -> bool {
-        self.defs.is_empty()
+impl ScopeBlock {
+    pub fn has_no_lets(&self) -> bool {
+        self.lets.is_empty()
     }
-}
-
-#[derive(Clone)]
-pub struct LocalDef {
-    pub let_span: SpanRange,
-    pub pattern: Pattern,
-    pub value: Expr,
 }
 
 // for now, a type is a comp-time evaluable expression, whose type is `Type`.

@@ -11,7 +11,7 @@ use sodigy_uid::Uid;
 use std::collections::HashSet;
 
 // # here, `fibo` is not a closure
-// def fibo10 = {
+// let fibo10 = {
 //     let fibo = \{n, if n < 2 { 1 } else { fibo(n - 1) + fibo(n - 2) }};
 //
 //     fibo(10)

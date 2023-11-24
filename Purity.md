@@ -4,7 +4,7 @@ Impure functions.
 
 `run(x1: T, x2: U, .., xn: V): T`
 
-`run` is an action that helps you run code synchronoushly.
+`run` is a function that helps you run code synchronoushly.
 
 - Impure
 - Input: arbitrary number of inputs (at least one)
@@ -92,7 +92,7 @@ run_last_debug(
 
 - Impure
 - Input: an integer (millisecond to sleep)
-- Output: always 0
+- Output: 0 when successful, non-zero otherwise
 - Behavior
   - It sleeps.
 
@@ -135,7 +135,7 @@ run_debug(
 ## `test.after` and `test.before`
 
 ```
-def foo(x, y) = run_debug(
+let foo(x, y) = run_debug(
     run_last_debug(
         \{assert(x > 0)}(),
         store_tmp_value(foo_real(x, y)),
@@ -149,10 +149,10 @@ def foo(x, y) = run_debug(
 
 ```
 @test.eq(x)
-def foo = baz();
+let foo = baz();
 
 @test.eq(y)
-def bar = baz();
+let bar = baz();
 ```
 
 ```
@@ -182,7 +182,7 @@ run_last_debug(
 ## `test.breakpoint`
 
 ```
-def foo(x, y) = run_last_debug(
+let foo(x, y) = run_last_debug(
     print(f"foo(x: {x}, y: {y})"),
     input(),  # waits for the user to continue
     foo(x, y),

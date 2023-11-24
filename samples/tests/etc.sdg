@@ -1,5 +1,5 @@
 @test.eq(43)
-def functor_test: Int = {
+let functor_test: Int = {
     let adder = \{x, \{y, x + y}};
     let adder1 = adder(1);
     let adder2 = adder(2);
@@ -8,7 +8,7 @@ def functor_test: Int = {
 };
 
 @test.eq(10946)
-def mutual_fibo: Int = {
+let mutual_fibo: Int = {
     let n = 20;
     let fibo1 = \{n, if n < 2 { 1 } else { fibo1(n - 1) + fibo2(n - 2) }};
     let fibo2 = \{n, if n < 2 { 1 } else { fibo2(n - 1) + fibo1(n - 2) }};
@@ -17,17 +17,17 @@ def mutual_fibo: Int = {
 };
 
 @test.eq(1307674368000)
-def factorial: Int = {
+let factorial: Int = {
     let n = 15;
     let fac = \{n, if n < 2 { 1 } else { n * fac(n - 1) }};
 
     fac(n)
 };
 
-def id<T>(x: T): T = x;
+let id<T>(x: T): T = x;
 
 @test.eq(10946)
-def mutual_fibo2: Int = {
+let mutual_fibo2: Int = {
     let n = 20;
     let fibo1 = id(\{n, if n < 2 { 1 } else { fibo1(n - 1) + fibo2(n - 2) }});
     let fibo2 = id(\{n, if n < 2 { 1 } else { fibo2(n - 1) + fibo1(n - 2) }});
@@ -36,7 +36,7 @@ def mutual_fibo2: Int = {
 };
 
 @test.eq(1307674368000)
-def factorial2: Int = {
+let factorial2: Int = {
     let n = 15;
     let fac = id(\{n, if n < 2 { 1 } else { n * fac(n - 1) }});
 
@@ -44,31 +44,31 @@ def factorial2: Int = {
 };
 
 # Make sure that the compiler warns: '`y` is unused!'
-def lambdas(x: Int, y: Int): Int = \{
+let lambdas(x: Int, y: Int): Int = \{
     \{
         \{y, z, x + y + z}
     }
 };
 
 @test.eq(111)
-def lambdas_test: Int = lambdas(3, 9)()()(27, 81);
+let lambdas_test: Int = lambdas(3, 9)()()(27, 81);
 
-def closures_test(x: Int, y: Int): Int = \{
+let closures_test(x: Int, y: Int): Int = \{
     y: Int, z: Int,
     \{z: Int, w: Int, x + y + z + w}
 };
 
 @test.eq(106)
-def closures_test_runner = closures_test(2, 4)(8, 16)(32, 64);
+let closures_test_runner = closures_test(2, 4)(8, 16)(32, 64);
 
 # type signatures of functors: the last one is the ret_type
-def adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
+let adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
 
 @test.eq([8, 16])
-def adder_test: List(Int) = [adder(3)(5), adder(7)(9)];
+let adder_test: List(Int) = [adder(3)(5), adder(7)(9)];
 
 @test.eq(9 + (81 + (3 + 27 + 243 + 729)))
-def name_scope_test: Int = {
+let name_scope_test: Int = {
     let a = 3; let b = 9;
     b + {
         let b = 27; let c = 81;
@@ -80,14 +80,14 @@ def name_scope_test: Int = {
 };
 
 @test.eq(999999999999999999999940837306036211360320144)
-def big_number_test: Int = {
+let big_number_test: Int = {
     let a = 31622776601683793319988;
 
     a * a
 };
 
 @test.eq("3 + 4 = 7")
-def format_string_test: String = {
+let format_string_test: String = {
     let a = 3;
     let b = 4;
 
@@ -95,32 +95,35 @@ def format_string_test: String = {
 };
 
 @test.eq(["7", "{3 + 4}", "{7}"])
-def format_string_test2: String = [
+let format_string_test2: String = [
     f"{3 + 4}",
     f"{{3 + 4}}",
     f"{{{3 + 4}}}",
 ];
 
-def add1(x: Int, y: Int, z: Int): Int = \{x + y + z + 1};
+@test.eq([1, 2, 3, 4, 5, 6])
+let concats = [1, 2, 3] <> [4, 5, 6];
+
+let add1(x: Int, y: Int, z: Int): Int = \{x + y + z + 1};
 
 @test.eq([13, 14])
-def add1_test: List(Int) = [
+let add1_test: List(Int) = [
     add1(3, 4, 5)(),
     add1(3, 4, 6)(),
 ];
 
-enum MyOption<T> {
+let enum MyOption<T> = {
     None,
     Some(T),
-}
+};
 
-def my_map<T, U>(opt: MyOption(T), f: Func(T, U)): MyOption(U) = match opt {
+let my_map<T, U>(opt: MyOption(T), f: Func(T, U)): MyOption(U) = match opt {
     MyOption.Some($x) => MyOption.Some(f(x)),
     _ => MyOption.None,
 };
 
 @test.eq([MyOption.Some(5), MyOption.None])
-def my_map_test: List(MyOption(Int)) = {
+let my_map_test: List(MyOption(Int)) = {
     let f = \{n, n + 1};
 
     [
@@ -130,11 +133,11 @@ def my_map_test: List(MyOption(Int)) = {
 };
 
 @test.eq(())
-def EMPTY_TUPLE: () = ();
+let EMPTY_TUPLE: () = ();
 
 @test.eq([])
-def EMPTY_LIST: List(Int) = [];
+let EMPTY_LIST: List(Int) = [];
 
 # It's okay for braces to be unmatched!
 @test.eq(["{1", "{{1", "{1 {1"])
-def format_string_not_an_error = [f"{1", f"{{1", f"{1 {1"];
+let format_string_not_an_error = [f"{1", f"{{1", f"{1 {1"];

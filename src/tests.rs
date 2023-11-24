@@ -5,13 +5,13 @@ macro_rules! check_output {
         check_output!(concat_errors, $test_name, "", $body, "", $msg);
     };
     (expr, err, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_errors, $test_name, "def foo(x: Int, y: Int) = ", $body, ";", $msg);
+        check_output!(concat_errors, $test_name, "let foo(x: Int, y: Int) = ", $body, ";", $msg);
     };
     (stmt, warn, $test_name: ident, $body: expr, $msg: expr) => {
         check_output!(concat_warnings, $test_name, "", $body, "", $msg);
     };
     (expr, warn, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_warnings, $test_name, "def foo(x: Int, y: Int) = ", $body, ";", $msg);
+        check_output!(concat_warnings, $test_name, "let foo(x: Int, y: Int) = ", $body, ";", $msg);
     };
     ($error_or_warning: ident, $test_name: ident, $prefix: expr, $body: expr, $suffix: expr, $msg: expr) => {
         #[test]
@@ -64,13 +64,14 @@ fn normalize(s: &str) -> Vec<u8> {
 check_output!(stmt, err, import_test1, "import x, y,", "got nothing");
 check_output!(stmt, err, import_test2, "import x, y from z, w;", "got `,`");
 check_output!(stmt, err, import_test3, "import from x;", "got `from`");
-check_output!(stmt, err, stmt_test1, "def foo<>() = 3;", "remove angle brackets");
-check_output!(stmt, err, stmt_test2, "def foo< >() = 3;", "remove angle brackets");
-check_output!(stmt, err, stmt_test3, "def foo<GenericName>() = generic_name;", "similar name exists");
-check_output!(stmt, err, stmt_test4, "def foo<GenericName, >() = generic_name;", "similar name exists");
-check_output!(stmt, err, stmt_test5, "let PI = 3;", "Try `def`");
-check_output!(stmt, err, stmt_test6, "fef foo() = 3;", "you mean `def`?");
-check_output!(stmt, err, no_dependent_types, "def foo(x: y, y: Int) = 0;", "dependent types");
+check_output!(stmt, err, stmt_test1, "let foo<>() = 3;", "remove angle brackets");
+check_output!(stmt, err, stmt_test2, "let foo< >() = 3;", "remove angle brackets");
+check_output!(stmt, err, stmt_test3, "let foo<GenericName>() = generic_name;", "similar name exists");
+check_output!(stmt, err, stmt_test4, "let foo<GenericName, >() = generic_name;", "similar name exists");
+check_output!(stmt, err, stmt_test5, "def PI = 3;", "Do you mean `let`?");
+check_output!(stmt, err, stmt_test6, "ket foo() = 3;", "you mean `let`?");
+check_output!(stmt, err, no_dependent_types1, "let foo(x: y, y: Int) = 0;", "dependent types");
+check_output!(stmt, err, no_dependent_types2, "let foo(x: Int, y: x) = 0;", "dependent types");
 
 // error messages for invalid exprs
 check_output!(expr, err, expr_test1, "1...3.", "invalid literal: `...`");
@@ -110,7 +111,7 @@ check_output!(expr, err, expr_test33, "f(x[..4])", "like `0..`");
 check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
 check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "inclusive range with an open end");
 check_output!(expr, err, expr_test36, "Foo {}", "please provide fields");
-check_output!(expr, err, expr_test37, "{let ($y, $z) = (0, 1); y}", "TODO ____");
+check_output!(expr, err, expr_test37, "{let pattern ($y, $z) = (0, 1); y}", "TODO ____");
 check_output!(expr, err, expr_test38, "", "expected an expression");
 check_output!(expr, err, expr_test39, "'abc'", "too long character");
 check_output!(expr, err, expr_test40, "match x { 0..'9' => 1, _ => 2, }", "type error");
@@ -122,9 +123,9 @@ check_output!(expr, err, expr_test45, "match x { 2..1 => 0, _ => x }", "nothing 
 check_output!(expr, err, expr_test46, "0bffff", "got character 'f'");
 
 // warnings for stmts
-check_output!(stmt, warn, stmt_warn_test1, "def foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
-check_output!(stmt, warn, stmt_warn_test2, "def foo<T>(x: Int, y: Int): Int = x + y;", "unused generic: `T`");
-check_output!(stmt, warn, stmt_warn_test3, "def Int: Type = 0;", "prelude `Int`");
+check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
+check_output!(stmt, warn, stmt_warn_test2, "let foo<T>(x: Int, y: Int): Int = x + y;", "unused generic: `T`");
+check_output!(stmt, warn, stmt_warn_test3, "let Int: Type = 0;", "prelude `Int`");
 check_output!(stmt, warn, stmt_warn_test4, "import x, y, z;", "unused import: `x`");
 check_output!(stmt, warn, stmt_warn_test5, "import x, y, z;", "unused import: `x`");
 check_output!(stmt, warn, stmt_warn_test6, "import x, y, z;", "unused import: `x`");

@@ -6,7 +6,7 @@ use crate::{
     expr::{Expr, ExprKind},
     GenericDef,
     IdentWithSpan,
-    LocalDef,
+    let_::Let,
     MatchArm,
     ops::{
         call_binding_power,
@@ -21,19 +21,16 @@ use crate::{
         PrefixOp,
     },
     pattern::parse_pattern,
-    ScopeDef,
+    ScopeBlock,
     session::AstSession,
     stmt::{
         Attribute,
         Decorator,
-        EnumDef,
         FieldDef,
-        FuncDef,
         Import,
         ImportedName,
         Stmt,
         StmtKind,
-        StructDef,
         VariantDef,
         VariantKind,
     },
@@ -63,243 +60,18 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                 let keyword_span = *keyword_span;
 
                 match keyword {
-                    Keyword::Def => {
-                        // 'def' IDENTIFIER ('<' GENERICS '>')? ('(' ARGS ')')? (':' TYPE)? '=' EXPR ';'
-                        let mut span = keyword_span;
-
-                        let def_name = match tokens.expect_ident() {
-                            Ok(id) => id,
-                            Err(mut e) => {
-                                session.push_error(
-                                    e.set_err_context(
-                                        ErrorContext::ParsingFuncName,
-                                    ).to_owned()
-                                );
+                    Keyword::Let => {
+                        match parse_let_statement(tokens, session, true) {
+                            Ok(l) => {
+                                session.push_stmt(Stmt {
+                                    kind: StmtKind::Let(l),
+                                    span: keyword_span,
+                                });
+                            },
+                            _ => {
                                 tokens.march_until_stmt();
                                 continue;
                             },
-                        };
-
-                        match tokens.peek() {
-                            Some(Token {
-                                kind: TokenKind::Punct(Punct::Concat),
-                                span,
-                            }) => {
-                                session.push_error(AstError::empty_generic_list(
-                                    *span,
-                                ));
-                                tokens.march_until_stmt();
-                                continue;
-                            },
-                            _ => {},
-                        }
-
-                        let generics = if tokens.is_curr_token(TokenKind::lt()) {
-                            match parse_generic_param_list(tokens, session) {
-                                Ok(g) => g,
-                                Err(()) => {
-                                    tokens.march_until_stmt();
-                                    continue;
-                                }
-                            }
-                        } else {
-                            vec![]
-                        };
-
-                        let args = match tokens.peek() {
-                            Some(Token {
-                                kind: TokenKind::Group {
-                                    delim: Delim::Paren,
-                                    tokens: args_tokens,
-                                    prefix: b'\0',
-                                },
-                                span: arg_span,
-                            }) => {
-                                let arg_span = *arg_span;
-                                let mut args_tokens = args_tokens.to_vec();
-                                let mut args_tokens = Tokens::from_vec(&mut args_tokens);
-                                args_tokens.set_span_end(arg_span.last_char());
-
-                                tokens.step().unwrap();
-
-                                let arg_defs = parse_arg_defs(&mut args_tokens, session)?;
-
-                                for arg in arg_defs.iter() {
-                                    if !arg.has_type() {
-                                        session.push_error(
-                                            AstError::func_arg_without_type(
-                                                *def_name.id(),
-                                                arg.name,
-                                            )
-                                        );
-
-                                        // this error doesn't block parsing
-                                    }
-                                }
-
-                                Some(arg_defs)
-                            },
-                            _ => None,
-                        };
-
-                        let ret_type = if tokens.is_curr_token(TokenKind::colon()) {
-                            let colon_span = tokens.peek_span().unwrap();
-                            tokens.step().unwrap();
-
-                            Some(parse_type_def(tokens, session, Some(ErrorContext::ParsingFuncRetType), colon_span)?)
-                        } else {
-                            None
-                        };
-
-                        let assign_span = tokens.peek_span();
-
-                        if let Err(mut e) = tokens.consume(TokenKind::assign()) {
-                            session.push_error(
-                                e.set_err_context(
-                                    ErrorContext::ParsingFuncBody,
-                                ).to_owned()
-                            );
-                            tokens.march_until_stmt();
-                            continue;
-                        }
-
-                        let ret_val = match parse_expr(
-                            tokens,
-                            session,
-                            0,
-                            false,
-                            Some(ErrorContext::ParsingFuncBody),
-                            assign_span.unwrap(),
-                        ) {
-                            Ok(v) => v,
-                            Err(()) => {
-                                tokens.march_until_stmt();
-                                continue;
-                            },
-                        };
-
-                        let semi_colon_span = tokens.peek_span();
-
-                        if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
-                            session.push_error(
-                                e.set_err_context(
-                                    ErrorContext::ParsingFuncBody,
-                                ).to_owned()
-                            );
-                            tokens.march_until_stmt();
-                            continue;
-                        }
-
-                        let semi_colon_span = semi_colon_span.unwrap();
-                        span = span.merge(semi_colon_span);
-
-                        session.push_stmt(Stmt {
-                            kind: StmtKind::Func(FuncDef {
-                                name: def_name,
-                                generics,
-                                args,
-                                ret_type,
-                                ret_val,
-                                uid: Uid::new_def(),
-                            }),
-                            span,
-                        });
-                    },
-                    def_type @ (Keyword::Enum | Keyword::Struct) => {
-                        // ('enum' | 'struct') IDENTIFIER ('<' GENERICS '>')? '{' ENUM_BODY | STRUCT_BODY '}'
-                        // VARIANT: IDENTIFIER ('(' TYPES ')')?
-
-                        let mut span = keyword_span;
-                        let def_name = match tokens.expect_ident() {
-                            Ok(id) => id,
-                            Err(e) => {
-                                session.push_error(e);
-                                tokens.march_until_stmt();
-                                continue;
-                            },
-                        };
-
-                        let generics = if tokens.is_curr_token(TokenKind::lt()) {
-                            parse_generic_param_list(tokens, session)?
-                        } else {
-                            vec![]
-                        };
-
-                        let last_span = tokens.peek_span();
-
-                        match tokens.expect_group(Delim::Brace) {
-                            Ok(mut body_tokens) => {
-                                let mut tokens = Tokens::from_vec(&mut body_tokens);
-                                let last_span = last_span.unwrap();
-
-                                if let Keyword::Enum = def_type {
-                                    match parse_enum_body(&mut tokens, session) {
-                                        Ok(variants) => {
-                                            span = span.merge(last_span);
-
-                                            session.push_stmt(Stmt {
-                                                kind: StmtKind::Enum(EnumDef {
-                                                    name: def_name,
-                                                    generics,
-                                                    variants,
-                                                    uid: Uid::new_enum(),
-                                                }),
-                                                span,
-                                            });
-                                        },
-                                        Err(_) => {
-                                            tokens.march_until_stmt();
-                                            continue;
-                                        }
-                                    }
-                                }
-
-                                // struct
-                                else {
-                                    match parse_struct_body(&mut tokens, session, last_span) {
-                                        Ok(fields) => {
-                                            span = span.merge(last_span);
-
-                                            session.push_stmt(Stmt {
-                                                kind: StmtKind::Struct(StructDef {
-                                                    name: def_name,
-                                                    generics,
-                                                    fields,
-                                                    uid: Uid::new_struct(),
-                                                }),
-                                                span,
-                                            });
-                                        },
-                                        Err(_) => {
-                                            tokens.march_until_stmt();
-                                            continue;
-                                        }
-                                    }
-                                }
-                            },
-                            Err(e) => {
-                                session.push_error(e);
-                                tokens.march_until_stmt();
-                                continue;
-                            },
-                        }
-
-                        if tokens.is_curr_token(TokenKind::semi_colon()) {
-                            session.push_error(AstError::unexpected_token(
-                                tokens.peek().unwrap().clone(),
-                                ExpectedToken::stmt(),
-                            ).set_message(
-                                format!(
-                                    "{} definitions are not followed by a semi-colon. Try remove `;`.",
-                                    if let Keyword::Enum = def_type {
-                                        "Enum"
-                                    } else {
-                                        "Struct"
-                                    },
-                                )
-                            ).to_owned());
-                            tokens.march_until_stmt();
-                            continue;
                         }
                     },
                     Keyword::Module => {
@@ -346,11 +118,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             ExpectedToken::stmt(),
                         );
 
-                        if unexpected_keyword == Keyword::Let {
-                            e.set_message(String::from("`let` is for local values. Try `def`."));
-                        }
-
-                        else if unexpected_keyword == Keyword::From {
+                        if unexpected_keyword == Keyword::From {
                             e.set_message(String::from("`from` comes after `import`. Try `import ... from ...;` instead of `from ... import ...;`."));
                         }
 
@@ -1188,53 +956,24 @@ fn parse_scope_block(
     tokens: &mut Tokens,
     session: &mut AstSession,
     span: SpanRange,
-) -> Result<ScopeDef, ()> {
+) -> Result<ScopeBlock, ()> {
     if tokens.is_finished() {
         session.push_error(AstError::empty_scope_block(span));
         return Err(());
     }
 
-    let mut defs = vec![];
+    let mut lets = vec![];
 
     loop {
         if !tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
             break;
         }
 
-        // step `let`
-        let let_span = tokens.peek_span().unwrap();
         tokens.step().unwrap();
 
-        let mut pattern = parse_pattern(tokens, session)?;
+        // TODO: collect decorators and doc comments
 
-        pattern.syntax_sugar_for_simple_binding();
-
-        let assign_span = tokens.peek_span();
-
-        if let Err(e) = tokens.consume(TokenKind::assign()) {
-            session.push_error(e);
-            return Err(());
-        }
-
-        let value = parse_expr(
-            tokens,
-            session,
-            0,
-            false,
-            Some(ErrorContext::ParsingScopeBlock),
-            assign_span.unwrap(),
-        )?;
-
-        if let Err(e) = tokens.consume(TokenKind::semi_colon()) {
-            session.push_error(e);
-            return Err(());
-        }
-
-        defs.push(LocalDef {
-            let_span,
-            pattern,
-            value,
-        });
+        lets.push(parse_let_statement(tokens, session, false)?);
     }
 
     let value = parse_expr(
@@ -1255,7 +994,7 @@ fn parse_scope_block(
         return Err(());
     }
 
-    Ok(ScopeDef { defs, value: Box::new(value) })
+    Ok(ScopeBlock { lets, value: Box::new(value) })
 }
 
 // `\{x, y, x + y}`
@@ -2017,9 +1756,21 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
 
 // generic params are just identifiers separated by commas
 // a trailing comma is fine
-// empty list is not allowed
+// for now, empty list is not allowed
 fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<GenericDef>, ()> {
     let lt_span = tokens.peek_span();
+
+    match tokens.peek() {
+        Some(Token {
+            kind: TokenKind::Punct(Punct::Concat),
+            span,
+        }) => {
+            session.push_error(AstError::empty_generic_list(*span));
+
+            return Err(());
+        },
+        _ => {},
+    }
 
     if let Err(e) = tokens.consume(TokenKind::lt()) {
         session.push_error(e);
@@ -2239,6 +1990,215 @@ fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context
                 return Err(());
             },
         }
+    }
+
+    Ok(result)
+}
+
+// "let" NAME ("<" GENERICS ">")? ("(" ARGS ")")? (":" TYPE)? "=" EXPR ";"
+// "let" "pattern" PATTERN "=" EXPR ";"
+// "let" "enum" NAME ("<" GENERICS ">")? "=" ENUM_BODY ";"
+// "let" "struct" NAME ("<" GENERICS ">")? "=" STRUCT_BODY ";"
+// The keyword `let` is already consumed
+fn parse_let_statement(
+    tokens: &mut Tokens,
+    session: &mut AstSession,
+    allows_generics: bool,
+) -> Result<Let, ()> {
+    let result = match tokens.step() {
+        Some(Token {
+            kind: TokenKind::Keyword(k),
+            span,
+        }) => {
+            match *k {
+                Keyword::Pattern => {
+                    let pattern = parse_pattern(tokens, session)?;
+                    let assign_span = tokens.peek_span();
+
+                    if let Err(mut e) = tokens.consume(TokenKind::assign()) {
+                        session.push_error(e.set_err_context(
+                            ErrorContext::ParsingLetStatement
+                        ).to_owned());
+                        return Err(());
+                    }
+
+                    let assign_span = assign_span.unwrap();
+
+                    let expr = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingLetStatement), assign_span)?;
+
+                    Let::pattern(pattern, expr)
+                },
+                k @ (Keyword::Enum | Keyword::Struct) => {
+                    let name = match tokens.expect_ident() {
+                        Ok(id) => id,
+                        Err(mut e) => {
+                            session.push_error(
+                                e.set_err_context(
+                                    ErrorContext::ParsingLetStatement,
+                                ).to_owned()
+                            );
+                            return Err(());
+                        },
+                    };
+
+                    let generics = if tokens.is_curr_token(TokenKind::lt()) || tokens.is_curr_token(TokenKind::Punct(Punct::Concat)) {
+                        parse_generic_param_list(tokens, session)?
+                    } else {
+                        vec![]
+                    };
+
+                    if !generics.is_empty() && !allows_generics {
+                        // TODO: error
+                    }
+
+                    let assign_span = tokens.peek_span();
+
+                    if let Err(mut e) = tokens.consume(TokenKind::assign()) {
+                        session.push_error(
+                            e.set_err_context(
+                                ErrorContext::ParsingLetStatement,
+                            ).to_owned()
+                        );
+                        return Err(());
+                    }
+
+                    let assign_span = assign_span.unwrap();
+
+                    if let Keyword::Enum = k {
+                        Let::enum_(
+                            name,
+                            generics,
+                            parse_enum_body(tokens, session)?,
+                        )
+                    }
+
+                    else {  // struct
+                        Let::struct_(
+                            name,
+                            generics,
+                            parse_struct_body(tokens, session, assign_span)?,
+                        )
+                    }
+                },
+                k => {
+                    session.push_error(AstError::unexpected_token(
+                        Token {
+                            kind: TokenKind::Keyword(k),
+                            span: *span,
+                        },
+                        ExpectedToken::let_statement(),
+                    ));
+
+                    return Err(());
+                },
+            }
+        },
+        Some(Token {
+            kind: TokenKind::Identifier(id),
+            span,
+        }) => {
+            let name = IdentWithSpan::new(*id, *span);
+            let mut has_error = false;
+
+            let generics = if tokens.is_curr_token(TokenKind::lt()) || tokens.is_curr_token(TokenKind::Punct(Punct::Concat)) {
+                parse_generic_param_list(tokens, session)?
+            } else {
+                vec![]
+            };
+
+            if !generics.is_empty() && !allows_generics {
+                // TODO: error
+            }
+
+            let args = match tokens.peek() {
+                Some(Token {
+                    kind: TokenKind::Group {
+                        delim: Delim::Paren,
+                        tokens: args_tokens,
+                        prefix: b'\0',
+                    },
+                    span: arg_span,
+                }) => {
+                    let arg_span = *arg_span;
+                    let mut args_tokens = args_tokens.to_vec();
+                    let mut args_tokens = Tokens::from_vec(&mut args_tokens);
+                    args_tokens.set_span_end(arg_span.last_char());
+
+                    tokens.step().unwrap();
+
+                    match parse_arg_defs(&mut args_tokens, session) {
+                        Ok(a) => Some(a),
+                        _ => {
+                            has_error = true;
+                            None
+                        },
+                    }
+                },
+                _ => None,
+            };
+
+            let ret_type = if tokens.is_curr_token(TokenKind::colon()) {
+                let colon_span = tokens.peek_span().unwrap();
+                tokens.step().unwrap();
+
+                Some(parse_type_def(tokens, session, Some(ErrorContext::ParsingFuncRetType), colon_span)?)
+            } else {
+                None
+            };
+
+            let assign_span = tokens.peek_span();
+
+            if let Err(mut e) = tokens.consume(TokenKind::assign()) {
+                session.push_error(
+                    e.set_err_context(
+                        ErrorContext::ParsingLetStatement,
+                    ).to_owned()
+                );
+                return Err(());
+            }
+
+            let ret_val = parse_expr(
+                tokens,
+                session,
+                0,
+                false,
+                Some(ErrorContext::ParsingFuncBody),
+                assign_span.unwrap(),
+            )?;
+
+            if has_error {
+                return Err(());
+            }
+
+            else {
+                Let::def(name, generics, args, ret_type, ret_val)
+            }
+        },
+        Some(token) => {
+            session.push_error(AstError::unexpected_token(
+                token.clone(),
+                ExpectedToken::let_statement(),
+            ));
+
+            return Err(());
+        },
+        None => {
+            session.push_error(AstError::unexpected_end(
+                tokens.span_end().unwrap_or(SpanRange::dummy()),
+                ExpectedToken::let_statement(),
+            ));
+
+            return Err(());
+        },
+    };
+
+    if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
+        session.push_error(
+            e.set_err_context(
+                ErrorContext::ParsingLetStatement,
+            ).to_owned()
+        );
+        return Err(());
     }
 
     Ok(result)

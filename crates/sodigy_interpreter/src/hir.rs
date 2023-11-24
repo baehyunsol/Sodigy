@@ -417,6 +417,27 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                         Err(HirEvalError::Msg(String::from("ty error in an index operation (for now, it only supports list[int])")))
                     }
                 },
+                // TODO: check types
+                ast::InfixOp::Concat => match (
+                    lhs.as_ref(), rhs.as_ref()
+                ) {
+                    (
+                        SodigyData {
+                            value: SodigyDataValue::Compound(l1),
+                            ty: SodigyDataType::List,
+                        },
+                        SodigyData {
+                            value: SodigyDataValue::Compound(l2),
+                            ty: SodigyDataType::List,
+                        },
+                    ) => {
+                        Ok(Rc::new(SodigyData {
+                            value: SodigyDataValue::Compound(vec![l1.clone(), l2.clone()].concat()),
+                            ty: SodigyDataType::List,
+                        }))
+                    },
+                    _ => Err(HirEvalError::TODO(String::from("`<>` for other types")))
+                },
                 _ => Err(HirEvalError::TODO(format!("{op}"))),
             }
         },

@@ -31,6 +31,24 @@ pub enum PatternKind {
     },
 }
 
+// `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.
+pub struct DestructuredPattern {
+    name: IdentWithSpan,
+
+    // these are lowered later
+    expr: ast::Expr,
+    ty: Option<ast::TypeDef>,
+
+    // if this name binding is defined by the programmer, it's true
+    is_real: bool,
+}
+
+impl DestructuredPattern {
+    pub fn new(name: IdentWithSpan, expr: ast::Expr, ty: Option<ast::TypeDef>, is_real: bool) -> Self {
+        DestructuredPattern { name, expr, ty, is_real }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum RangeType {
     Integer, Char,

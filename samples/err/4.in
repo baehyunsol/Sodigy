@@ -1,4 +1,4 @@
-def no_korean: String = {
+let no_korean: String = {
     # TODO: 한글 되게 할까?
     let 한글노노 = 3;
     let 🦫 = "beaver";

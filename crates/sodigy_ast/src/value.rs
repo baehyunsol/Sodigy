@@ -1,6 +1,6 @@
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_uid::Uid;
-use crate::{ArgDef, expr::Expr, ScopeDef};
+use crate::{ArgDef, expr::Expr, ScopeBlock};
 
 #[derive(Clone)]
 pub enum ValueKind {
@@ -20,7 +20,7 @@ pub enum ValueKind {
         uid: Uid,
     },
     Scope {
-        scope: ScopeDef,
+        scope: ScopeBlock,
         uid: Uid,
     },
 }

@@ -17,10 +17,10 @@ generic type annotation: `Some(3)`, `Some(Int, 3)`
 
 ```
 @test.before(\{assert(x > 0 && y > 0)})
-def foo(x: Int, y: Int) = x + y;
+let foo(x: Int, y: Int) = x + y;
 
 @test.after(\{ret, assert(ret >= 0)})
-def sqr(x: Int): Int = x * x;
+let sqr(x: Int): Int = x * x;
 ```
 
 `test.before` is called before the actual function is called.
@@ -32,7 +32,7 @@ functor of `test.after` takes one input: the return value of the function its de
 ---
 
 ```
-def foo(x?: Int, y?: String): Result(Int, Err) = Result.Ok(bar(x, y));
+let foo(x?: Int, y?: String): Result(Int, Err) = Result.Ok(bar(x, y));
 ```
 
 ```
@@ -55,14 +55,14 @@ match val1 {
   - that would be like below
 
 ```
-def foo(x?: X): Y = bar(x);
+let foo(x?: X): Y = bar(x);
 
 # becomes
 
-def foo_real(x: X): Y = bar(x);
+let foo_real(x: X): Y = bar(x);
 
 # each `T` creates new one
-def foo_quest(x: T(X, Y)): Y = match x {
+let foo_quest(x: T(X, Y)): Y = match x {
   T.T1($x) => bar(x),
   T.T2($err) => ##! there must be a variant of Y for this case !## .. ,
 };
@@ -97,8 +97,8 @@ std macros
 - `@[max](a, b)` -> `if a > b { a } else { b }`
   - can take an arbitrary number of arguments (at least 1)
   - using functions must be much better way to do this...
-    - `def max2(x, y) = if x > y { x } else { y }`
-    - `def max3(x, y, z) = if x > y { if y > z || x > z { x } else { z } } else if y > z { y } else { z }`
+    - `let max2(x, y) = if x > y { x } else { y }`
+    - `let max3(x, y, z) = if x > y { if y > z || x > z { x } else { z } } else if y > z { y } else { z }`
 - `@[min](a, b)`
   - see `max`
 - `@[map](x: y, z: w, 0: 1)`
@@ -140,5 +140,26 @@ seems like the second one is the least ugly one
 
 ---
 
-`let`대신 `def` 쓸까?
-`if let`대신 `def if` 쓰고
+`def`대신 `let`으로 통일:
+
+- `let pi = 3.14;`, `let pi: Ratio = 3.14;`
+  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
+- `let add(x, y) = x + y;`, `let add(x: Int, y): Int = x + y;`
+  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
+- `let pattern ($x, $y) = (0, 1);`
+  - scoped let이나 top-level이나 완전히 동일
+  - 이제 `if let`대신 `if pattern`으로 쓰자
+- decorators and doc comments
+  - decorator: scoped let이나 top-level이나 완전히 동일
+  - doc comments: top-level에서만 가능. scoped let에서 쓰면 무식하게 에러 날리지 말고, 아직 구현 안됐다고 에러 날리자
+    - 지금 enum variant나 struct field, func arg에도 doc comment 달 수 있게 돼 있는데 걔네는 어떻게 함?
+- `let enum Option<T> = { None, Some(T) };`, `let struct Person = { age: Int, name: String };`
+  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
+- `import x from y;`
+  - 이거 scoped let에서도 되게 하고 싶은데 구현이 좀 빡셈...
+- `module x;`
+  - scoped let에선 안됨. 이것도 무식하게 에러 날리진 말고..
+
+---
+
+지금 constant 정의에 generic 쓸 수 있음? 안되면 되게 하셈

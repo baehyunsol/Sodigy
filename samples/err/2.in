@@ -1,7 +1,7 @@
 import a as babb;
 
-def func1: babb = babb;
+let func1: babb = babb;
 
-def func2: aabb = babb;
+let func2: aabb = babb;
 
-def func3: bcbb = bcbb;
+let func3: bcbb = bcbb;

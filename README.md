@@ -4,14 +4,17 @@ Purely functional Rust-like programming language.
 
 It's still under development. Only parser and lexer are (partially) complete.
 
+The goal of this language is to help programmers implement their idea as fast as possible. (not to run fast, but to implement fast).
+
 ## Functions
 
 - Every function in Sodigy is pure.
+  - Sodigy (and many other purely functional languages), doesn't consider terminating the entire program as an impure behavior. That's why `panic`, `assert` and many other debug functions are pure functions.
 - Every function in Sodigy is evaluable at compile time.
 
 ### Decorators
 
-Decorators decorate functions and enums. For now, only built-in decorators are available. I don't have any plan for custom decorators in near future.
+Decorators can decorate almost everything: functions, enums, structs, enum variants, struct fields, and function arguments.
 
 | shape                         | applied to    | what it does                     |
 |-------------------------------|---------------|----------------------------------|
@@ -19,22 +22,33 @@ Decorators decorate functions and enums. For now, only built-in decorators are a
 | `test.expected(args, value)`  | function `f`  | asserts that `f(args) == value`, `args` is a tuple of arguments.  |
 | `test.false`                  | function `f`  | alias for `test.eq(Bool.False)`.  |
 | `test.true`                   | function `f`  | alias for `test.eq(Bool.True)`.   |
+| `test.before(lambda)`         | function `f`  | `lambda` is called everytime `f` is called. It's called before `f`. The lambda may capture `f`'s arguments. |
+| `test.after(lambda)`          | function `f`  | It's like `test.before`, but the lambda takes one input: the output of `f`. |
 
 ```
 # A decorator decorates the following function.
 # A decorator is not followed by a semi colon.
 @test.eq(4)
-def add_test = 2 + 2;
+let add_test = 2 + 2;
 
 # Multiple decorators may decorate a function.
 @test.eq(Bool.True)
 @test.true
-def add_test2 = 2 + 2 == 4;
+let add_test2 = 2 + 2 == 4;
+
+# It makes sure that `x` is even.
+# Don't forget to use `assert_eq`. Otherwise, the lambda wouldn't have any effect.
+@test.before(\{assert_eq(x % 2, 0)})
+let foo(x: Int) = x + 1;
+
+# It makes sure that `bar` always returns an odd number.
+@test.after(\{ret, assert_eq(ret % 2, 1)})
+let bar(x: Int) = foo(x);
 ```
 
 ### Lambda Functions
 
-The syntax of lambda functions is very simple: parameters and the body is inside a curly brace, and the curly brace follows a backslash (`\`). You may omit type annotations of parameters.
+The syntax of lambda functions is very simple: parameters and the body is inside a curly brace, and the curly brace follows a backslash (`\`).
 
 ```
 \{x: Int, y, x + y}
@@ -45,17 +59,17 @@ Above is an anonymous function that takes two integers and returns the sum of th
 Lambda functions can also capture its environment (closures).
 
 ```
-def adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
+let adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
 
 @test.eq(8)
-def adder_test: Int = adder(5)(3);
+let adder_test: Int = adder(5)(3);
 ```
 
 ### Constants vs 0-arg Functions
 
 ```
-def PI_CONST: Number = 3.1415;
-def PI_FUNC(): Number = 3.1415;
+let PI_CONST: Number = 3.1415;
+let PI_FUNC(): Number = 3.1415;
 ```
 
 Both `PI_CONST` and `PI_FUNC` are valid. But they have 2 major differences. First, they're invoked in different way.
@@ -171,6 +185,18 @@ match foo() {
 
 Types in Sodigy are first-class objects. The type checker (which is not implmeneted yet) evaluates the type signatures in compile time, and calls `.is_subtype_of()`.
 
+### Type annotations
+
+You can use type annotations in many places. The annotations are always optional, and the compiler tries to infer the type. When the compiler cannot infer the type, it would ask you for an annotation. Then you have to provide one.
+
+```
+# Compiler can figure out the type of `PI` without annotation.
+let PI = 3.1415;
+
+# Compiler can figure out the type of `x` without annotation.
+let foo(x): Int = x + 1;
+```
+
 ### Integers
 
 Sodigy uses arbitrary-width integers.
@@ -181,14 +207,16 @@ Sodigy doesn't use floating points, but rational numbers.
 
 ### Enums
 
-TODO: add description
+Enums in Sodigy are like those of Rust. There are a few differences when providing type parameters.
 
 ```
-enum Option<T> {
+let enum Option<T> = {
     None,
     Some(T),
-}
+};
+```
 
+```
 Option.None            # valid
 Option.Some(5)         # valid
 Option(Int).Some(5)    # valid expression, invalid pattern
@@ -201,13 +229,13 @@ Option.Some(Int, "abc) # type error
 
 ### Struct
 
-TODO: add description
+Structs in Sodigy are like those of Rust.
 
 ```
-struct Person {
+let struct Person = {
     name: String,
     age: Int,
-}
+};
 ```
 
 ## Operators
@@ -222,10 +250,10 @@ struct Person {
     name: String,
 }
 
-def set_age(p: Person, new_age: Int): Person = p `age new_age;
+let set_age(p: Person, new_age: Int): Person = p `age new_age;
 
 @test.eq(Person("Bae", 23))
-def set_age_test: Person = set_age(
+let set_age_test: Person = set_age(
     Person("Bae", 21), 23
 );
 ```
@@ -236,7 +264,7 @@ def set_age_test: Person = set_age(
 
 ```
 @test.eq([1, 2, 3, 4, 5, 6])
-def concat_test: List(Int) = [1, 2, 3] <> [4, 5, 6];
+let concat_test: List(Int) = [1, 2, 3] <> [4, 5, 6];
 ```
 
 ### `+>`
@@ -265,14 +293,14 @@ It's very useful in some cases. For example, if you want a pattern that covers l
 
 ```
 # This is a comment
-def add_1_2: Int = 1 + 2;
+let add_1_2: Int = 1 + 2;
 
 ##!
 This is also a comment
 !##
 
 ##> This function adds two numbers.
-def add(x: Int, y: Int): Int = x + y;
+let add(x: Int, y: Int): Int = x + y;
 ```
 
 ## For Rust programmers

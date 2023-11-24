@@ -3,7 +3,7 @@ This code is not the actual implementation of the std lib. These're just test ca
 The std is implemented in a way more efficient way (though not implemented yet)
 !##
 
-def zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
+let zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
     []
 } else {
     f(a[0], b[0]) +> zip_with(
@@ -13,18 +13,18 @@ def zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.
     )
 };
 
-def zip<T, U>(a: List(T), b: List(U)): List((T, U)) = zip_with(
+let zip<T, U>(a: List(T), b: List(U)): List((T, U)) = zip_with(
     a, b,
     \{x, y, (x, y)}
 );
 
-def map<T, U>(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
+let map<T, U>(ls: List(T), f: Func(T, U)): List(U) = if ls.is_empty() {
     []
 } else {
     f(ls[0]) +> map(ls[1..], f)
 };
 
-def filter<T>(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
+let filter<T>(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
     []
 } else if f(ls[0]) {
     ls[0] +> filter(ls[1..], f)
@@ -32,26 +32,26 @@ def filter<T>(ls: List(T), f: Func(T, Bool)): List(T) = if ls.is_empty() {
     filter(ls[1..], f)
 };
 
-def foldl<T, U>(ls: List(T), f: Func(U, T, U), base: U): U = if ls.is_empty() {
+let foldl<T, U>(ls: List(T), f: Func(U, T, U), base: U): U = if ls.is_empty() {
     base
 } else {
     foldl(ls[1..], f, f(base, ls[0]))
 };
 
-def foldr<T, U>(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
+let foldr<T, U>(ls: List(T), f: Func(T, U, U), base: U): U = if ls.is_empty() {
     base
 } else {
     foldr(ls[0..(-1)], f, f(ls[-1], base))
 };
 
 # TODO: How Do I annotate that `add(T, T): U`?
-def sum<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a + b}, 0);
+let sum<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a + b}, 0);
 
 # TODO: How Do I annotate that `mul(T, T): U`?
-def product<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a * b}, 0);
+let product<T, U>(ls: List(T)): U = foldl(ls, \{a, b, a * b}, 0);
 
 # TODO: How do I annotate that `U` is comparable?
-def sort_by<T, U>(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
+let sort_by<T, U>(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
     ls
 } else {
     let pivot = f(ls[-1]);
@@ -63,40 +63,40 @@ def sort_by<T, U>(ls: List(T), f: Func(T, U)): List(T) = if ls.len() < 2 {
 
 # TODO: How do I annotate that `U` is comparable?
 @test.after(\{ret, assert(is_sorted(ret))})
-def sort<T>(ls: List(T)): List(T) = sort_by(ls, \{ls, ls});
+let sort<T>(ls: List(T)): List(T) = sort_by(ls, \{ls, ls});
 
-def is_sorted_by<T, U>(ls: List(T), f: Func(T, U)): Bool = if ls.len() < 2 {
+let is_sorted_by<T, U>(ls: List(T), f: Func(T, U)): Bool = if ls.len() < 2 {
     Bool.True
 } else {
     f(ls[0]) < f(ls[1]) && is_sorted_by(ls[1..], f)
 };
 
-def is_sorted<T>(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
+let is_sorted<T>(ls: List(T)): Bool = is_sorted_by(ls, \{ls, ls});
 
 @test.eq([1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 7, 7, 8, 8, 8, 9, 9, 9, 9])
-def sort_test = sort(
+let sort_test = sort(
     [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2, 3, 8, 4, 6, 2, 6, 4, 3, 3, 8, 3, 2, 7, 9, 5]
 );
 
-def reverse<T>(ls: List(T)): List(T) = if ls.is_empty() {
+let reverse<T>(ls: List(T)): List(T) = if ls.is_empty() {
     []
 } else {
     reverse(ls[1..]) <+ ls[0]
 };
 
-def any<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+let any<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
     Bool.False
 } else {
     f(ls[0]) || any(ls[1..], f)
 };
 
-def all<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
+let all<T>(ls: List(T), f: Func(T, Bool)): Bool = if ls.is_empty() {
     Bool.False
 } else {
     f(ls[0]) && all(ls[1..], f)
 };
 
-def contains<T>(ls: List(T), elem: T): Bool = if ls.is_empty() {
+let contains<T>(ls: List(T), elem: T): Bool = if ls.is_empty() {
     Bool.False
 } else if ls[0] == elem {
     Bool.True
@@ -104,21 +104,21 @@ def contains<T>(ls: List(T), elem: T): Bool = if ls.is_empty() {
     contains(ls[1..], elem)
 };
 
-def concat<T>(ls: List(List(T))): List(T) = if ls.is_empty() {
+let concat<T>(ls: List(List(T))): List(T) = if ls.is_empty() {
     []
 } else {
     ls[0] <> concat(ls[1..])
 };
 
-def join<T>(ls: List(List(T)), delim: List(T)): List(T) = match ls.len() {
+let join<T>(ls: List(List(T)), delim: List(T)): List(T) = match ls.len() {
     0 => [],
     1 => ls[0],
     _ => ls[0] <> delim <> join(ls[1..], delim),
 };
 
-def split<T>(ls: List(T), delim: T): List(List(T)) = split_impl(ls, delim, [], []);
+let split<T>(ls: List(T), delim: T): List(List(T)) = split_impl(ls, delim, [], []);
 
-def split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T))): List(List(T)) = {
+let split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T))): List(List(T)) = {
     let tail = ls[1..];
 
     if ls.is_empty() {
@@ -132,7 +132,7 @@ def split_impl<T>(ls: List(T), delim: T, curr_elem: List(T), result: List(List(T
 
 # [a, a, a, b, b, c, c, c, c, b] -> [a, b, c, b]
 @test.expected(([0, 1, 1, 1, 2, 2, 3, 3, 3, 3, 2], ), [0, 1, 2, 3, 2])
-def dedup<T>(ls: List(T)): List(T) = match ls.len() {
+let dedup<T>(ls: List(T)): List(T) = match ls.len() {
     0..~1 => ls,
     _ => if ls[0] == ls[1] {
         ls[1..]
@@ -151,7 +151,7 @@ def dedup<T>(ls: List(T)): List(T) = match ls.len() {
     ([5, 6, 7, 8, 9, 10], ),
     [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9), (5, 10)]
 )
-def enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
+let enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
     []
 } else if ls.len() == 1 {
     [(0, ls[0])]
@@ -162,7 +162,7 @@ def enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
     head +> tail.map(\{p, (p._0 + 1, p._1)})
 };
 
-def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
+let first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_empty() {
     Option.None  # just `None`?
 } else if f(ls[0]) {
     Option.Some(0)
@@ -173,7 +173,7 @@ def first_index_that<T>(ls: List(T), f: Func(T, Bool)): Option(Int) = if ls.is_e
     }
 };
 
-def test_lists: List(List(Int)) = [
+let test_lists: List(List(Int)) = [
     [], [0], [1],
     [0, 1, 2, 3],
 ] <> map((10..20).to_list(), \{len, (0..len).to_list()})

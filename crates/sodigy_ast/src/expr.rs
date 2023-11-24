@@ -12,7 +12,7 @@ impl Expr {
     // `{x}` -> `x`
     pub fn peel_unnecessary_brace(&mut self) {
         match &self.kind {
-            ExprKind::Value(ValueKind::Scope { scope, .. }) if scope.has_no_defs() => {
+            ExprKind::Value(ValueKind::Scope { scope, .. }) if scope.has_no_lets() => {
                 *self = *scope.value.clone();
             },
             _ => { /* nop */ },

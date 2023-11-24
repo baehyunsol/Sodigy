@@ -4,10 +4,8 @@ use super::{
     Expr,
     ExprKind,
     Lambda,
-    LocalDef,
     Match,
     MatchArm,
-    Scope,
     StructInit,
     StructInitField,
     lambda::{
@@ -19,7 +17,7 @@ use crate::lower_ast_ty;
 use crate::err::HirError;
 use crate::func::Arg;
 use crate::names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
-use crate::pattern::{lower_patterns_to_name_bindings, lower_ast_pattern};
+use crate::pattern::{DestructuredPattern, lower_patterns_to_name_bindings, lower_ast_pattern};
 use crate::session::HirSession;
 use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
@@ -83,7 +81,7 @@ pub fn lower_ast_expr(
                 }
 
                 else {
-                    // `def foo(x: Int, y: x)`: no dependent types
+                    // `let foo(x: Int, y: x)`: no dependent types
                     if name_space.func_args_locked && name_space.is_func_arg_name(id) {
                         session.push_error(HirError::no_dependent_types(
                             IdentWithSpan::new(*id, e.span),
@@ -296,119 +294,40 @@ pub fn lower_ast_expr(
                 }
             },
             ValueKind::Scope { scope, uid } => {
+                let mut name_bindings = Vec::with_capacity(scope.lets.len() + 1);
                 let mut has_error = false;
-                let mut name_bindings = vec![];
 
-                // step 1. simple check on `ast::Pattern`s.
-                // convert ast::Pattern to name bindings.
-                // also collect names
-                for ast::LocalDef {
-                    pattern, value, ..
-                } in scope.defs.iter() {
-                    if let Err(_) = lower_patterns_to_name_bindings(
-                        pattern,
-                        value,
-                        &mut name_bindings,
-                        session,
-                    ) {
-                        has_error = true;
-                    }
-                }
-
-                name_space.push_locals(*uid, name_bindings.iter().map(
-                    |(id, _, _)| *id.id()
-                ).collect());
-
-                let mut original_patterns = vec![];
-
-                for ast::LocalDef {
-                    pattern, value, ..
-                } in scope.defs.iter() {
-                    match (
-                        lower_ast_pattern(
-                            pattern,
-                            session,
-                            used_names,
-                            imports,
-                            name_space,
-                        ),
-                        lower_ast_expr(
-                            value,
-                            session,
-                            used_names,
-                            imports,
-                            name_space,
-                        ),
-                    ) {
-                        (Ok(pat), Ok(value)) => {
-                            original_patterns.push((pat, value));
+                for let_ in scope.lets.iter() {
+                    match &let_.kind {
+                        ast::LetKind::Pattern(pattern, expr) => {
+                            if let Err(_) = lower_patterns_to_name_bindings(
+                                pattern,
+                                expr,
+                                &mut name_bindings,
+                                session,
+                            ) {
+                                has_error = true;
+                            }
                         },
-                        _ => {
-                            has_error = true;
+                        ast::LetKind::Incallable {
+                            name,
+                            generics: _,  // parser guarantees that it's None
+                            ret_type,
+                            ret_val,
+                            uid: _,  // ignored
+                        } => {
+                            name_bindings.push(DestructuredPattern::new(
+                                *name,
+                                ret_val.clone(),
+                                ret_type.clone(),
+                                /* is_real */ true,
+                            ));
                         },
+                        _ => todo!(),
                     }
                 }
 
-                let mut local_defs = Vec::with_capacity(name_bindings.len());
-
-                // TODO: some `expr`s are lowered twice -> if errors occur,
-                // they appear twice
-                for (name, expr, is_real) in name_bindings.iter() {
-                    if let Ok(value) = lower_ast_expr(
-                        expr,
-                        session,
-                        used_names,
-                        imports,
-                        name_space,
-                    ) {
-                        local_defs.push(LocalDef {
-                            name: *name,
-                            value,
-                            is_real: *is_real,
-                        });
-                    }
-
-                    else {
-                        has_error = true;
-                    }
-                }
-
-                let value = lower_ast_expr(
-                    &scope.value,
-                    session,
-                    used_names,
-                    imports,
-                    name_space,
-                );
-
-                for (name, _, is_real) in name_bindings.iter() {
-                    if !*is_real {
-                        continue;
-                    }
-
-                    if !used_names.contains(&IdentWithOrigin::new(*name.id(), NameOrigin::Local { origin: *uid })) {
-                        session.push_warning(HirWarning::unused_name(
-                            *name,
-                            NameBindingType::LocalScope,
-                        ));
-                    }
-                }
-
-                name_space.pop_locals();
-
-                if has_error {
-                    return Err(());
-                }
-
-                Expr {
-                    kind: ExprKind::Scope(Scope {
-                        original_patterns,
-                        defs: local_defs,
-                        value: Box::new(value?),
-                        uid: *uid,
-                    }),
-                    span: e.span,
-                }
+                todo!()
             },
         },
         ast::ExprKind::PrefixOp(op, expr) => Expr {
@@ -783,7 +702,7 @@ pub fn try_warn_unnecessary_paren(
         // a scope without any defs
         ast::ExprKind::Value(ast::ValueKind::Scope {
             scope, ..
-        }) if scope.has_no_defs() => {
+        }) if scope.has_no_lets() => {
             session.push_warning(HirWarning::unnecessary_paren(expr));
         },
         _ => {},

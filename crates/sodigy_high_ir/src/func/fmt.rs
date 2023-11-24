@@ -13,7 +13,7 @@ impl fmt::Display for Func {
 
         result.push(format!("# {:?}\n", self.uid));
         result.push(format!("{}", self.decorators));
-        result.push(format!("def {}", self.name.id()));
+        result.push(format!("let {}", self.name.id()));
 
         if !self.generics.is_empty() {
             result.push(format!("<{}>", self.generics.iter().map(

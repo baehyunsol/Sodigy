@@ -10,10 +10,16 @@ use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::SodigyError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 pub fn lower_ast_func(
-    f: &ast::FuncDef,
+    name: &IdentWithSpan,
+    generics: &Vec<ast::GenericDef>,
+    args: Option<&Vec<ast::ArgDef>>,
+    ret_val: &ast::Expr,
+    ret_type: &Option<ast::TypeDef>,
+    uid: &Uid,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
@@ -29,13 +35,13 @@ pub fn lower_ast_func(
     // don't let exprs access to func args until they're ready
     name_space.lock_func_args();
 
-    for generic in f.generics.iter() {
+    for generic in generics.iter() {
         if let Err([name1, name2]) = name_space.push_generic(generic) {
             session.push_error(HirError::name_collision(name1, name2));
         }
     }
 
-    if let Some(args) = &f.args {
+    if let Some(args) = args {
         let mut args_buf = Vec::with_capacity(args.len());
 
         for arg in args.iter() {
@@ -88,17 +94,17 @@ pub fn lower_ast_func(
 
     name_space.unlock_func_args();
 
-    try_warn_unnecessary_paren(&f.ret_val, session);
+    try_warn_unnecessary_paren(ret_val, session);
 
     let ret_val = lower_ast_expr(
-        &f.ret_val,
+        ret_val,
         session,
         used_names,
         imports,
         name_space,
     );
 
-    let ret_ty = f.ret_type.as_ref().map(
+    let ret_ty = ret_type.as_ref().map(
         |ty| lower_ast_ty(
             ty,
             session,
@@ -134,14 +140,14 @@ pub fn lower_ast_func(
     }
 
     Ok(Func {
-        name: f.name,
-        generics: f.generics.clone(),
+        name: *name,
+        generics: generics.clone(),
         args: hir_args,
         ret_val: ret_val?,
         ret_ty: if let Some(ty) = ret_ty { Some(ty?) } else { None },
         decorators: decorators?,
         doc,
-        uid: f.uid,
+        uid: *uid,
     })
 }
 

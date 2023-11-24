@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
 use crate as hir;
-use sodigy_ast::{self as ast, IdentWithSpan, StmtKind};
+use sodigy_ast::{self as ast, IdentWithSpan, LetKind, StmtKind};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -84,8 +84,8 @@ pub fn lower_stmts(
                 let id = stmt_kind.get_id().unwrap();
                 let uid = stmt_kind.get_uid().unwrap();
 
-                if let Some((collision, _)) = names.insert(*id.id(), (*id, Some(*uid))) {
-                    session.push_error(HirError::name_collision(*id, collision));
+                if let Some((collision, _)) = names.insert(*id.id(), (id, Some(uid))) {
+                    session.push_error(HirError::name_collision(id, collision));
                 }
             },
         }
@@ -114,36 +114,72 @@ pub fn lower_stmts(
             StmtKind::Decorator(d) => {
                 curr_decorators.push(d.clone());
             },
-            StmtKind::Func(f) => {
+            StmtKind::Let(l) => {
                 let concated_doc_comments = concat_doc_comments(
                     &curr_doc_comments,
                     session,
                 );
 
-                if let Ok(mut f) = lower_ast_func(
-                    f,
-                    session,
-                    &mut used_names,
-                    &imports,
-                    &curr_decorators,
-                    concated_doc_comments,
-                    &mut name_space,
-                ) {
-                    let mut lambda_context = LambdaCollectCtxt::new(session);
+                match &l.kind {
+                    LetKind::Callable { .. }
+                    | LetKind::Incallable { .. } => {
+                        let f = match &l.kind {
+                            LetKind::Callable {
+                                name, generics,
+                                args, ret_val,
+                                ret_type, uid,
+                            } => lower_ast_func(
+                                name,
+                                generics,
+                                Some(args),
+                                ret_val,
+                                ret_type,
+                                uid,
+                                session,
+                                &mut used_names,
+                                &imports,
+                                &curr_decorators,
+                                concated_doc_comments,
+                                &mut name_space,
+                            ),
+                            LetKind::Incallable {
+                                name, generics,
+                                ret_val, ret_type, uid,
+                            } => lower_ast_func(
+                                name,
+                                generics,
+                                None,
+                                ret_val,
+                                ret_type,
+                                uid,
+                                session,
+                                &mut used_names,
+                                &imports,
+                                &curr_decorators,
+                                concated_doc_comments,
+                                &mut name_space,
+                            ),
+                            _ => unreachable!(),
+                        };
 
-                    println!("\n{}\n", f);
-                    try_convert_closures_to_lambdas(&mut f);
-                    give_names_to_lambdas(&mut f, &mut lambda_context);
+                        curr_doc_comments.clear();
+                        curr_decorators.clear();
 
-                    for func in lambda_context.collected_lambdas.into_iter() {
-                        session.func_defs.insert(*func.name.id(), func);
-                    }
+                        let mut f = if let Ok(f) = f { f } else { continue; };
+                        let mut lambda_context = LambdaCollectCtxt::new(session);
 
-                    session.func_defs.insert(*f.name.id(), f);
+                        println!("\n{}\n", f);
+                        try_convert_closures_to_lambdas(&mut f);
+                        give_names_to_lambdas(&mut f, &mut lambda_context);
+
+                        for func in lambda_context.collected_lambdas.into_iter() {
+                            session.func_defs.insert(*func.name.id(), func);
+                        }
+
+                        session.func_defs.insert(*f.name.id(), f);
+                    },
+                    _ => todo!(),
                 }
-
-                curr_doc_comments.clear();
-                curr_decorators.clear();
             },
             _ => {
                 // TODO

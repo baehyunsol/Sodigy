@@ -1,1 +1,1 @@
-def ZERO: int = 0;
+let ZERO: int = 0;

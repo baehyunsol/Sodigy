@@ -61,7 +61,7 @@ impl TokenKind {
     }
 }
 
-// TODO: optimize, or does LLVM opt it?
+// TODO: optimize this! or does LLVM opt it?
 fn is_valid_punct(c: u8) -> bool {
     match c {
         b'+' | b'-' | b'*' | b'/' | b'%'

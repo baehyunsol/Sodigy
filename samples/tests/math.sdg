@@ -3,13 +3,13 @@ This code is not the actual implementation of the std lib. These're just test ca
 The std is implemented in a way more efficient way (though not implemented yet)
 !##
 
-def is_pn(n: Int): Bool = n == 2 || n == 3 || n == 5 || (
+let is_pn(n: Int): Bool = n == 2 || n == 3 || n == 5 || (
     n % 2 != 0 &&
     (1..~(sqrt(n) / 2)).all(\{d, n % (2 * d + 1) != 0})
 );
 
 @test.true
-def pn_test: Bool = {
+let pn_test: Bool = {
     let pns = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41];
     let npns = (1..100).filter(\{n, !pns.contains(n)});
 
@@ -24,7 +24,7 @@ def pn_test: Bool = {
     ret * ret <= abs(n)
     && (ret + 1) * (ret + 1) > abs(n)
 )})
-def sqrt(n: Int): Int = match n {
+let sqrt(n: Int): Int = match n {
     $n if n < 0 => sqrt(-n),
     0 => 0,
     1..4 => 1,
@@ -32,7 +32,7 @@ def sqrt(n: Int): Int = match n {
     _ => sqrt_iter(n / 9, n),
 };
 
-def sqrt_iter(curr: Int, n: Int): Int = {
+let sqrt_iter(curr: Int, n: Int): Int = {
     let res = (curr + n / curr) / 2;
     let res2 = (res + n / res) / 2;
 
@@ -44,7 +44,7 @@ def sqrt_iter(curr: Int, n: Int): Int = {
 };
 
 @test.after(\{res, res == sqrt(n)})
-def sqrt_bin_search(n: Int): Bool = if n < 0 {
+let sqrt_bin_search(n: Int): Bool = if n < 0 {
     sqrt_bin_search(-n)
 } else if n < 5 {
     [0, 1, 1, 1, 2][n]
@@ -52,7 +52,7 @@ def sqrt_bin_search(n: Int): Bool = if n < 0 {
     sqrt_bin_search_impl(n, 2, n / 2)
 };
 
-def sqrt_bin_search_impl(n: Int, start: Int, end: Int): Int = {
+let sqrt_bin_search_impl(n: Int, start: Int, end: Int): Int = {
     let mid = (start + end) / 2;
     let mid_sqr = mid * mid;
 
@@ -72,7 +72,7 @@ def sqrt_bin_search_impl(n: Int, start: Int, end: Int): Int = {
 };
 
 @test.eq([100, 316, 1000, 3162, 10000, 31622, 100000, 316227])
-def sqrt2_test: List(Int) = [
+let sqrt2_test: List(Int) = [
     sqrt2(10_000),
     sqrt2(100_000),
     sqrt2(1_000_000),
@@ -84,7 +84,7 @@ def sqrt2_test: List(Int) = [
 ];
 
 @test.true
-def sqrt2_test2: Bool = (0..1000).all(
+let sqrt2_test2: Bool = (0..1000).all(
     \{n, {
         let n2 = n * 2;
         let s = sqrt2(n2);
@@ -94,20 +94,20 @@ def sqrt2_test2: Bool = (0..1000).all(
     }}
 );
 
-def log(a: Int, n: Int): Int = if a < n {
+let log(a: Int, n: Int): Int = if a < n {
     0
 } else {
     1 + log(a / n, n)
 };
 
-def pow(a: Int, n: Int): Int = if n == 0 {
+let pow(a: Int, n: Int): Int = if n == 0 {
     1
 } else {
     a * pow(a, n - 1)
 };
 
 @test.true
-def log_test: List(Int) = {
+let log_test: List(Int) = {
     let cases: List((Int, Int)) = (100..1000).map(
         \{n,
             (2..10).map(

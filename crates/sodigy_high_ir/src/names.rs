@@ -43,7 +43,7 @@ pub enum NameOrigin {
         origin: Uid,
         // binding_type: NameBindingType,
     },
-    Global {  // `def`, `struct`, `enum`, `module`, `import`, ...
+    Global {  // top-level `let`s, `module` and `import`
 
         // objects defined in the same module has uids,
         // but the objects from other modules (`import`) don't have uids yet
@@ -65,7 +65,7 @@ pub enum NameBindingType {
 pub struct NameSpace {
     preludes: HashSet<InternedString>,
 
-    // `def`, `enum`, `struct`, `import`, and `module` in the current module
+    // `let`, `import`, and `module` in the current module
     globals: HashMap<InternedString, Option<Uid>>,
 
     // args and generics of the current func
