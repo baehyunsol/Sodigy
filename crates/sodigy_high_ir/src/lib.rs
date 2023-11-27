@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 mod doc_comment;
 mod endec;
 mod err;
-mod expr;
+pub mod expr;
 mod fmt;
 mod func;
 mod names;
@@ -178,7 +178,9 @@ pub fn lower_stmts(
 
                         session.func_defs.insert(*f.name.id(), f);
                     },
-                    _ => todo!(),
+                    _ => {
+                        // TODO
+                    },
                 }
             },
             _ => {

@@ -77,7 +77,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
             }
         },
         ExprKind::Scope(hir::Scope {
-            defs,
+            lets,
             value,
 
             // it's just for type-checking.
@@ -87,7 +87,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
         }) => {
             mut_walker_expr(value, c, worker);
 
-            for hir::LocalDef { value, .. } in defs.iter_mut() {
+            for hir::ScopedLet { value, .. } in lets.iter_mut() {
                 mut_walker_expr(value, c, worker);
             }
         },
@@ -118,15 +118,15 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
             }
         },
         ExprKind::Branch(hir::Branch { arms }) => {
-            for hir::BranchArm { cond, let_bind, value } in arms.iter_mut() {
+            for hir::BranchArm { cond, pattern_bind, value } in arms.iter_mut() {
                 mut_walker_expr(value, c, worker);
 
                 if let Some(cond) = cond {
                     mut_walker_expr(cond, c, worker);
                 }
 
-                if let Some(let_bind) = let_bind {
-                    mut_walker_expr(let_bind, c, worker);
+                if let Some(pattern_bind) = pattern_bind {
+                    mut_walker_expr(pattern_bind, c, worker);
                 }
             }
         },

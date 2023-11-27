@@ -7,8 +7,10 @@ fn main() {
 
     compile_file("./samples/easy.sdg".to_string()).unwrap().print_results();
 
+    // return;
+
     compile_input("
-        def korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";
+        let korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";
     ".as_bytes().to_vec()).print_results();
 
     for file in get_all_sdg(

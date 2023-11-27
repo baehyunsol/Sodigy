@@ -3,14 +3,15 @@ use super::{
     BranchArm,
     Expr,
     ExprKind,
-    LocalDef,
     Lambda,
     Match,
     MatchArm,
     Scope,
+    ScopedLet,
     StructInit,
     StructInitField,
 };
+use crate::Type;
 use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
@@ -82,13 +83,13 @@ impl Endec for ExprKind {
             },
             ExprKind::Scope(Scope {
                 original_patterns,
-                defs,
+                lets,
                 value,
                 uid,
             }) => {
                 buf.push(9);
                 original_patterns.encode(buf, session);
-                defs.encode(buf, session);
+                lets.encode(buf, session);
                 value.encode(buf, session);
                 uid.encode(buf, session);
             },
@@ -160,7 +161,7 @@ impl Endec for ExprKind {
                     8 => Ok(ExprKind::Format(Vec::<Expr>::decode(buf, ind, session)?)),
                     9 => Ok(ExprKind::Scope(Scope {
                         original_patterns: Vec::<(Pattern, Expr)>::decode(buf, ind, session)?,
-                        defs: Vec::<LocalDef>::decode(buf, ind, session)?,
+                        lets: Vec::<ScopedLet>::decode(buf, ind, session)?,
                         value: Box::new(Expr::decode(buf, ind, session)?),
                         uid: Uid::decode(buf, ind, session)?,
                     })),
@@ -204,17 +205,19 @@ impl Endec for ExprKind {
     }
 }
 
-impl Endec for LocalDef {
+impl Endec for ScopedLet {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         self.name.encode(buf, session);
         self.value.encode(buf, session);
+        self.ty.encode(buf, session);
         self.is_real.encode(buf, session);
     }
 
     fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
-        Ok(LocalDef {
+        Ok(ScopedLet {
             name: IdentWithSpan::decode(buf, ind, session)?,
             value: Expr::decode(buf, ind, session)?,
+            ty: Option::<Type>::decode(buf, ind, session)?,
             is_real: bool::decode(buf, ind, session)?,
         })
     }
@@ -239,14 +242,14 @@ impl Endec for MatchArm {
 impl Endec for BranchArm {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         self.cond.encode(buf, session);
-        self.let_bind.encode(buf, session);
+        self.pattern_bind.encode(buf, session);
         self.value.encode(buf, session);
     }
 
     fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
         Ok(BranchArm {
             cond: Option::<Expr>::decode(buf, ind, session)?,
-            let_bind: Option::<Expr>::decode(buf, ind, session)?,
+            pattern_bind: Option::<Expr>::decode(buf, ind, session)?,
             value: Expr::decode(buf, ind, session)?,
         })
     }

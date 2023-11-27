@@ -1,6 +1,6 @@
 # This file is just a brain-storming
 
-let struct Number = {
+let struct Ratio = {
     denom: Int,
     numer: Int,
 };

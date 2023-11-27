@@ -141,3 +141,12 @@ let EMPTY_LIST: List(Int) = [];
 # It's okay for braces to be unmatched!
 @test.eq(["{1", "{{1", "{1 {1"])
 let format_string_not_an_error = [f"{1", f"{{1", f"{1 {1"];
+
+@test.eq(42)
+let fourty_two = {
+    let z = x + y;
+    let x = 9;
+    let y = 12;
+
+    x + y + z
+};

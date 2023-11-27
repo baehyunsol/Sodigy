@@ -6,6 +6,8 @@ use super::{
     Lambda,
     Match,
     MatchArm,
+    Scope,
+    ScopedLet,
     StructInit,
     StructInitField,
     lambda::{
@@ -327,7 +329,118 @@ pub fn lower_ast_expr(
                     }
                 }
 
-                todo!()
+                let mut name_bindings_set = HashSet::with_capacity(name_bindings.len());
+                let mut name_collision_checker = HashMap::with_capacity(name_bindings.len());
+
+                for DestructuredPattern { name, .. } in name_bindings.iter() {
+                    if let Some(prev) = name_collision_checker.insert(
+                        *name.id(),
+                        *name,
+                    ) {
+                        session.push_error(HirError::name_collision(prev, *name));
+                        has_error = true;
+                    }
+
+                    else {
+                        name_bindings_set.insert(*name.id());
+                    }
+                }
+
+                name_space.push_locals(*uid, name_bindings_set);
+
+                let mut lets = Vec::with_capacity(name_bindings.len());
+
+                for DestructuredPattern {
+                    name, expr, ty, is_real,
+                } in name_bindings.iter() {
+                    if let Some(s) = ScopedLet::try_new(
+                        /* name */ *name,
+                        /* value */ lower_ast_expr(
+                            expr,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        ),
+                        /* ty */ ty.as_ref().map(|ty| lower_ast_ty(
+                            ty,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        )),
+                        /* is_real */ *is_real,
+                    ) {
+                        lets.push(s);
+                    }
+
+                    else {
+                        has_error = true;
+                    }
+                }
+
+                let mut original_patterns = vec![];
+
+                // lower patterns
+                // these are later used by type checker
+                if !has_error {
+                    for let_ in scope.lets.iter() {
+                        // I don't want errors from this lowerings to bother other lowerings
+                        if let ast::LetKind::Pattern(pat, expr) = &let_.kind {
+                            if let Ok(pat) = lower_ast_pattern(
+                                pat,
+                                session,
+                                used_names,
+                                imports,
+                                name_space,
+                            ) {
+                                original_patterns.push((
+                                    pat,
+                                    lower_ast_expr(
+                                        expr,
+                                        session,
+                                        used_names,
+                                        imports,
+                                        name_space,
+                                    )?,
+                                ));
+                            }
+
+                            else {
+                                has_error = true;
+                            }
+                        }
+                    }
+                }
+
+                let value = lower_ast_expr(
+                    &scope.value,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                );
+
+                // TODO: don't warn if !is_real
+                for (name, id_with_span) in name_collision_checker.iter() {
+                    if !used_names.contains(
+                        &IdentWithOrigin::new(*name, NameOrigin::Local { origin: *uid })
+                    ) {
+                        session.push_warning(HirWarning::unused_name(*id_with_span, NameBindingType::ScopedLet));
+                    }
+                }
+
+                name_space.pop_locals();
+
+                Expr {
+                    kind: ExprKind::Scope(Scope {
+                        lets,
+                        original_patterns: original_patterns,
+                        uid: *uid,
+                        value: Box::new(value?),
+                    }),
+                    span: e.span,
+                }
             },
         },
         ast::ExprKind::PrefixOp(op, expr) => Expr {
@@ -509,7 +622,7 @@ pub fn lower_ast_expr(
 
             for ast::BranchArm {
                 cond,
-                let_bind,
+                pattern_bind,
                 value,
             } in arms.iter() {
                 if let Some(cond) = cond {
@@ -526,8 +639,8 @@ pub fn lower_ast_expr(
                         continue;
                     };
 
-                    if let Some(let_bind) = let_bind {
-                        session.push_error(HirError::todo("if-let", e.span));
+                    if let Some(pattern_bind) = pattern_bind {
+                        session.push_error(HirError::todo("if-pattern", e.span));
                         has_error = true;
                         continue;
                     }
@@ -542,7 +655,7 @@ pub fn lower_ast_expr(
                         ) {
                             branch_arms.push(BranchArm {
                                 cond: Some(cond),
-                                let_bind: None,
+                                pattern_bind: None,
                                 value,
                             });
                         }
@@ -554,7 +667,7 @@ pub fn lower_ast_expr(
                 }
 
                 else {
-                    sodigy_assert!(let_bind.is_none());
+                    sodigy_assert!(pattern_bind.is_none());
 
                     if let Ok(value) = lower_ast_expr(
                         value,
@@ -565,7 +678,7 @@ pub fn lower_ast_expr(
                     ) {
                         branch_arms.push(BranchArm {
                             cond: None,
-                            let_bind: None,
+                            pattern_bind: None,
                             value,
                         });
                     }

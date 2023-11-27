@@ -852,7 +852,7 @@ pub fn parse_type_def(
     )?))
 }
 
-// TODO: how about decorators for args?
+// TODO: decorators for args?
 // this function allows a trailing comma and args without type annotations
 // it's your responsibility to check type annotations
 fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<ArgDef>, ()> {
@@ -1276,9 +1276,9 @@ fn parse_branch_arm(
             span: if_span,
         }) => {
             let if_span = *if_span;
-            let mut let_bind = None;
+            let mut pattern_bind = None;
 
-            if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
+            if tokens.is_curr_token(TokenKind::Keyword(Keyword::Pattern)) {
                 let pat = parse_pattern(tokens, session)?;
 
                 if let Err(mut e) = tokens.consume(TokenKind::assign()) {
@@ -1290,7 +1290,7 @@ fn parse_branch_arm(
                     return Err(());
                 }
 
-                let_bind = Some(pat);
+                pattern_bind = Some(pat);
             }
 
             let cond = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingBranchCondition), if_span)?;
@@ -1315,7 +1315,7 @@ fn parse_branch_arm(
 
                     Ok(BranchArm {
                         cond: Some(cond),
-                        let_bind,
+                        pattern_bind,
                         value,
                     })
                 },
@@ -1351,7 +1351,7 @@ fn parse_branch_arm(
 
             Ok(BranchArm {
                 cond: None,
-                let_bind: None,
+                pattern_bind: None,
                 value,
             })
         },
@@ -2048,10 +2048,12 @@ fn parse_let_statement(
                     };
 
                     if !generics.is_empty() && !allows_generics {
-                        // TODO: error
+                        session.push_error(AstError::no_generics_allowed(
+                            tokens.get_previous_generic_span().unwrap()
+                        ).set_err_context(
+                            ErrorContext::ParsingLetStatement
+                        ).to_owned());
                     }
-
-                    let assign_span = tokens.peek_span();
 
                     if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                         session.push_error(
@@ -2062,22 +2064,39 @@ fn parse_let_statement(
                         return Err(());
                     }
 
-                    let assign_span = assign_span.unwrap();
+                    let group_span = tokens.peek_span();
 
-                    if let Keyword::Enum = k {
-                        Let::enum_(
-                            name,
-                            generics,
-                            parse_enum_body(tokens, session)?,
-                        )
-                    }
+                    match tokens.expect_group(Delim::Brace) {
+                        Ok(group_tokens) => {
+                            let group_span = group_span.unwrap();
+                            let mut group_tokens = group_tokens.to_vec();
+                            let mut group_tokens = Tokens::from_vec(&mut group_tokens);
+                            let last_token_span = group_tokens.span_end().unwrap_or(group_span);
 
-                    else {  // struct
-                        Let::struct_(
-                            name,
-                            generics,
-                            parse_struct_body(tokens, session, assign_span)?,
-                        )
+                            if let Keyword::Enum = k {
+                                Let::enum_(
+                                    name,
+                                    generics,
+                                    parse_enum_body(&mut group_tokens, session)?,
+                                )
+                            }
+
+                            else {  // struct
+                                Let::struct_(
+                                    name,
+                                    generics,
+                                    parse_struct_body(&mut group_tokens, session, last_token_span)?,
+                                )
+                            }
+                        },
+                        Err(mut e) => {
+                            session.push_error(
+                                e.set_err_context(
+                                    ErrorContext::ParsingLetStatement,
+                                ).to_owned()
+                            );
+                            return Err(());
+                        },
                     }
                 },
                 k => {
@@ -2107,7 +2126,11 @@ fn parse_let_statement(
             };
 
             if !generics.is_empty() && !allows_generics {
-                // TODO: error
+                session.push_error(AstError::no_generics_allowed(
+                    tokens.get_previous_generic_span().unwrap()
+                ).set_err_context(
+                    ErrorContext::ParsingLetStatement
+                ).to_owned());
             }
 
             let args = match tokens.peek() {

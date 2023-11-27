@@ -100,7 +100,7 @@ pub struct MatchArm {
 #[derive(Clone)]
 pub struct BranchArm {
     pub cond: Option<Expr>,
-    pub let_bind: Option<Pattern>,  // `if let` let_bind = cond { value }
+    pub pattern_bind: Option<Pattern>,  // `if pattern` pattern_bind = cond { value }
     pub value: Expr,
 }
 

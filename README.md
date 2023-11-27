@@ -165,7 +165,13 @@ let x = if cond() { 3 } else { 4 };
 
 It'd be very familiar if you know Rust/Haskell/Elixir, or any other functional language. If you're from C/C++, you must be familiar with ternary operators. That's an `if` expression.
 
-It also supports Rust-like `if let` syntax.
+#### `if pattern` expressions
+
+It's like `if let` of the Rust language, but the keyword is different.
+
+```
+let x = if pattern Some($x) = foo() { x } else { 0 };
+```
 
 ### `match` expressions
 

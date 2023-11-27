@@ -178,6 +178,14 @@ impl AstError {
         }
     }
 
+    pub fn no_generics_allowed(span: SpanRange) -> Self {
+        AstError {
+            kind: AstErrorKind::NoGenericsAllowed,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn invalid_utf8(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
@@ -235,6 +243,7 @@ pub enum AstErrorKind {
     FuncArgWithoutType { arg_name: InternedString, func_name: InternedString },
     ExpectedBindingGotPattern(PatternKind),
     MultipleShorthandsInOnePattern,
+    NoGenericsAllowed,
     InvalidUtf8,
     TODO(String),
 }
@@ -254,6 +263,7 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::FuncArgWithoutType { .. } => String::from("a function argument without a type annotation"),
             AstErrorKind::ExpectedBindingGotPattern(p) => format!("expected a name binding, get pattern `{}`", p.render_error()),
             AstErrorKind::MultipleShorthandsInOnePattern => String::from("multiple shorthands in one pattern"),
+            AstErrorKind::NoGenericsAllowed => String::from("generic parameter not allowed here"),
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -280,6 +290,7 @@ impl SodigyErrorKind for AstErrorKind {
                 ),
                 _ => String::new(),
             },
+            AstErrorKind::NoGenericsAllowed => String::from("Generic parameters are only allowed in top-level statements."),
             AstErrorKind::MultipleShorthandsInOnePattern
             | AstErrorKind::InvalidUtf8 => String::new(),
         }
@@ -299,7 +310,8 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::FuncArgWithoutType { .. } => 9,
             AstErrorKind::ExpectedBindingGotPattern(..) => 10,
             AstErrorKind::MultipleShorthandsInOnePattern => 11,
-            AstErrorKind::InvalidUtf8 => 12,
+            AstErrorKind::NoGenericsAllowed => 12,
+            AstErrorKind::InvalidUtf8 => 13,
             AstErrorKind::TODO(..) => 63,
         }
     }

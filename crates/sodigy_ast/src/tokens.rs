@@ -264,6 +264,55 @@ impl<'t> Tokens<'t> {
         self.cursor = last_snapshot.cursor;
         self.span_end_ = last_snapshot.span_end;
     }
+
+    pub fn get_previous_generic_span(&self) -> Option<SpanRange> {
+        let mut cursor = self.cursor;
+        let mut stack = 0;
+        let mut span_start = None;
+        let mut span_end = None;
+
+        while cursor > 0 {
+            cursor -= 1;
+
+            match self.data.get(cursor) {
+                Some(Token {
+                    kind: TokenKind::Punct(Punct::Gt),
+                    span,
+                }) => {
+                    stack += 1;
+
+                    if stack == 1 {
+                        span_end = Some(*span);
+                    }
+                },
+                Some(Token {
+                    kind: TokenKind::Punct(Punct::Lt),
+                    span,
+                }) => {
+                    // unmatched
+                    if stack == 0 {
+                        return None;
+                    }
+
+                    stack -= 1;
+
+                    if stack == 0 {
+                        span_start = Some(*span);
+                        break;
+                    }
+                },
+                Some(_) => {},
+                None => {
+                    break;
+                },
+            }
+        }
+
+        match (span_start, span_end) {
+            (Some(start), Some(end)) => Some(start.merge(end)),
+            _ => None,
+        }
+    }
 }
 
 // for optimization, it assumes that `Tokens.data` doesn't change.

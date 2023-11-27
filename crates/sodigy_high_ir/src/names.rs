@@ -39,7 +39,7 @@ pub enum NameOrigin {
     FuncGeneric {
         index: usize,
     },
-    Local {   // match arm, `if let`, scope
+    Local {   // match arm, `if pattern`, scope
         origin: Uid,
         // binding_type: NameBindingType,
     },
@@ -53,12 +53,12 @@ pub enum NameOrigin {
 }
 
 pub enum NameBindingType {
-    LocalScope,  // `let x = 3` in `{ ... }`
+    ScopedLet,  // `let x = 3` in `{ ... }`
     FuncArg,
     FuncGeneric,
     LambdaArg,
     MatchArm,
-    IfLet,
+    IfPattern,
     Import,
 }
 
@@ -72,7 +72,7 @@ pub struct NameSpace {
     func_args: Vec<IdentWithSpan>,
     func_generics: Vec<IdentWithSpan>,
 
-    // name bindings in `match`, scope, lambda, `if let`, and etc
+    // name bindings in `match`, scope, lambda, `if pattern`, and etc
     locals: Vec<(Uid, HashSet<InternedString>)>,
 
     pub(crate) func_args_locked: bool,

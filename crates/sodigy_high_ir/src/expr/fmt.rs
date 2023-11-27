@@ -122,7 +122,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Branch(Branch { arms }) => {
                 let mut result = Vec::with_capacity(arms.len());
 
-                for (ind, BranchArm { cond, let_bind, value }) in arms.iter().enumerate() {
+                for (ind, BranchArm { cond, pattern_bind, value }) in arms.iter().enumerate() {
                     result.push(format!(
                         "{}{}{}",
                         if ind == 0 {
@@ -132,10 +132,10 @@ impl fmt::Display for ExprKind {
                         } else {
                             "else "
                         },
-                        if let Some(let_bind) = let_bind {
+                        if let Some(pattern_bind) = pattern_bind {
                             format!(
-                                "let {} = {}",
-                                let_bind,
+                                "pattern {} = {}",
+                                pattern_bind,
                                 cond.as_ref().unwrap(),
                             )
                         } else {

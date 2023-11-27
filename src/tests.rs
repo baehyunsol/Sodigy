@@ -121,6 +121,7 @@ check_output!(expr, err, expr_test43, "match x { 0..0 => 0, _ => x }", "nothing 
 check_output!(expr, err, expr_test44, "match x { 0.1..0.1 => 0, _ => x }", "nothing can match this pattern");
 check_output!(expr, err, expr_test45, "match x { 2..1 => 0, _ => x }", "nothing can match this pattern");
 check_output!(expr, err, expr_test46, "0bffff", "got character 'f'");
+check_output!(expr, err, expr_test47, "{let generic<T, U> = T; generic}", "generic parameter not allowed");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
@@ -139,3 +140,4 @@ check_output!(expr, warn, expr_warn_test5, "{{5}}", "unnecessary parenthesis");
 check_output!(expr, warn, expr_warn_test6, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
 check_output!(expr, warn, expr_warn_test7, "match x { 0.1..~0.1 => 0, _ => x }", "`1e-1..~1e-1` is just `1e-1`");
 check_output!(expr, warn, expr_warn_test8, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");
+check_output!(expr, warn, expr_warn_test9, "{let pattern ($x, $y) = (0, 1); x}", "unused local name binding");

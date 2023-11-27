@@ -118,7 +118,7 @@ let log_test: List(Int) = {
 
     cases.all(
         \{p, {
-            let ($a, $n) = p;
+            let pattern ($a, $n) = p;
             let l = log(a, n);
             let p = pow(n, l);
             let p2 = pow(n, l + 2);

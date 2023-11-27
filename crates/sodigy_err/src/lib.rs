@@ -87,6 +87,7 @@ impl ExtraErrInfo {
     }
 }
 
+// TODO: Option<SpanRange> for ErrorContext
 #[derive(Clone, Copy, PartialEq)]
 pub enum ErrorContext {
     Unknown,

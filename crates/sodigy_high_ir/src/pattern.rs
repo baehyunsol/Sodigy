@@ -33,14 +33,14 @@ pub enum PatternKind {
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.
 pub struct DestructuredPattern {
-    name: IdentWithSpan,
+    pub(crate) name: IdentWithSpan,
 
     // these are lowered later
-    expr: ast::Expr,
-    ty: Option<ast::TypeDef>,
+    pub(crate) expr: ast::Expr,
+    pub(crate) ty: Option<ast::TypeDef>,
 
     // if this name binding is defined by the programmer, it's true
-    is_real: bool,
+    pub(crate) is_real: bool,
 }
 
 impl DestructuredPattern {
