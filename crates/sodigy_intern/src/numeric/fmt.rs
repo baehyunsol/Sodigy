@@ -28,7 +28,7 @@ impl fmt::Display for InternedNumeric {
                 let g = global_intern_session();
 
                 match g.numerics_rev.get(self) {
-                    Some(n) => format!("{n}"),
+                    Some(n) => n.to_string(),
                     _ => "(ERROR: Uninterned Numeric)".to_string(),
                 }
             },

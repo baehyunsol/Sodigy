@@ -124,7 +124,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                     let func_index = if let Some(ind) = ctxt.get_func_by_uid(*origin) {
                         *ind
                     } else {
-                        return Err(HirEvalError::TODO(format!("name resolving `{}`", id_ori.id())));
+                        return Err(HirEvalError::TODO(format!("name resolving `{}`", id_ori.id().render_error())));
                     };
 
                     let func = if let Some(f) = ctxt.get_func_by_id(func_index) {
@@ -479,7 +479,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                     },
                     _ => Err(HirEvalError::TODO(String::from("`<>` for other types")))
                 },
-                _ => Err(HirEvalError::TODO(format!("{op}"))),
+                _ => Err(HirEvalError::TODO(op.to_string())),
             }
         },
         hir::ExprKind::Scope(hir::expr::Scope {

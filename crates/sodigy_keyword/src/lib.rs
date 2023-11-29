@@ -19,7 +19,7 @@ pub enum Keyword {
 
 impl Keyword {
     pub fn to_utf8(&self) -> Vec<u8> {
-        format!("{}", self).as_bytes().to_vec()
+        self.to_string().as_bytes().to_vec()
     }
 }
 

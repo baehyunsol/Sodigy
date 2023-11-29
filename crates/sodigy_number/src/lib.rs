@@ -74,7 +74,7 @@ impl SodigyNumber {
     }
 
     // unfortunate that `SodigyNumber` is unsigned
-    pub fn minus_one(n: Self, is_negative: bool) -> (Self, bool) {
+    pub fn minus_one(n: Self, is_negative: bool) -> (Self, /* is_negative */ bool) {
         match n {
             SodigyNumber::SmallInt(n) => if is_negative {
                 match n.checked_add(1) {
@@ -111,9 +111,13 @@ impl SodigyNumber {
                     return true;
                 }
 
-                // TODO: use pow10 and log10 defined below
+                let exp1 = exp1 + log10(digits1);
+                let exp2 = exp2 + log10(digits2);
 
-                // we can't just compare `exp`s: the range of `digits`s vary
+                if exp1 != exp2 {
+                    return exp1 > exp2;
+                }
+
                 todo!()
             },
             _ => todo!(),

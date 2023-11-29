@@ -37,3 +37,22 @@ let name_bindings(x: Int, y: Int, z: Int): (Int, Int) = match (x, y, z) {
     ($res @ ..) => (res._0, res._1),
     _ => (2, 3),
 };
+
+@test.eq(3)
+let tuples_in_let = {
+    let pattern ($x, ($y, $z)) = (0, (1, 2));
+
+    # empty patterns hahaha
+    let pattern () = ();
+    let pattern ((), ()) = ((), ());
+
+    x + y + z
+};
+
+@test.eq(11)
+let tuples_in_let2 = {
+    let pattern ($x, $y, .., $z, _) = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+    let pattern (_, (), (), .., _, $w, _) = (0, (), (), (), (), 2, ());
+
+    x + y + z + w
+};

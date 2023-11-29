@@ -18,13 +18,13 @@ fn to_string(e: &SodigyData) -> Result<Rc<SodigyData>, ()> {
         SodigyData {
             value: SodigyDataValue::BigInt(n),
             ty: SodigyDataType::Integer,
-        } => Ok(Rc::new(SodigyData::new_string(format!("{n}").as_bytes()))),
+        } => Ok(Rc::new(SodigyData::new_string(n.to_string().as_bytes()))),
         SodigyData {
             value: SodigyDataValue::Compound(_),
             ty: SodigyDataType::Ratio,
         } => {
             let n = e.try_into_ratio().unwrap();
-            Ok(Rc::new(SodigyData::new_string(format!("{n}").as_bytes())))
+            Ok(Rc::new(SodigyData::new_string(n.to_string().as_bytes())))
         },
         t @ SodigyData {
             value: SodigyDataValue::Compound(elements),

@@ -47,8 +47,8 @@ impl fmt::Display for TokenKind {
                         *kind as u8 as char,
                     )
                 },
-                TokenKind::Identifier(id) => format!("{id}"),
-                TokenKind::Number(n) => format!("{}", String::from_utf8(n.to_vec()).unwrap()),
+                TokenKind::Identifier(id) => id.to_string(),
+                TokenKind::Number(n) => String::from_utf8(n.to_vec()).unwrap(),
                 TokenKind::Whitespace => format!(" "),
                 TokenKind::Punct(p) => format!("{}", *p as char),
                 TokenKind::Grouper(g) => format!("{}", *g as char),

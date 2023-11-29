@@ -8,8 +8,8 @@ impl fmt::Display for SodigyNumber {
             fmt,
             "{}",
             match self {
-                SodigyNumber::Big(n) => format!("{n}"),
-                SodigyNumber::SmallInt(n) => format!("{n}"),
+                SodigyNumber::Big(n) => n.to_string(),
+                SodigyNumber::SmallInt(n) => n.to_string(),
                 SodigyNumber::SmallRatio(n) => format!(
                     "{}{}",
                     n / 65536,

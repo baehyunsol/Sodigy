@@ -6,11 +6,134 @@ It's still under development. Only parser and lexer are (partially) complete.
 
 The goal of this language is to help programmers implement their idea as fast as possible. (not to run fast, but to implement fast).
 
+## `let` keywords
+
+Use `let` keyword to bind a name to a value. Function definitions also use `let` keyword.
+
+```
+# constant
+let PI = 3.1415;
+
+# function
+let add(x, y) = x + y;
+```
+
+Everything has type in Sodigy. You can annotate types like below.
+
+```
+let Answer: Int = 42;
+
+let add(x: Int, y: Int): Int = x + y;
+```
+
+When type annotations are missing, the compiler tries to infer the type. When it cannot infer, it'll ask you for the annotation.
+
+### Scoped `let`s
+
+In sodigy, names have scopes. You can scope `let`s using curly braces. It's like that of `let..in` in Haskell, or scoped `let`s in Rust.
+
+```
+# it always returns `x + 1`
+let add(x: Int, y: Int) = {
+    let y = 1;
+
+    x + y
+};
+```
+
+But you cannot shadow names. That means you cannot bind the same name multiple times in a block. Below is invalid.
+
+```
+let add(x: Int, y: Int) = {
+    let z = 1;
+
+    # you cannot do this
+    let z = 2;
+
+    x + y + z
+};
+```
+
+### `let pattern`
+
+You can destruct patterns with `let pattern`.
+
+```
+let ($x, $y) = (0, 1);
+```
+
+is equivalent to
+
+```
+let x = 0;
+let y = 1;
+```
+
+In patterns, name bindings are prefixed with `$`. You can also destruct more complex patterns, if they're irrefutable.
+
+```
+let get_age(s: Student): Int = {
+    let Student { age: $age, .. } = s;
+
+    age
+};
+```
+
+`let pattern` can be used in anywhere, both in top-level `let` statements and scoped `let` statements.
+
 ## Functions
 
 - Every function in Sodigy is pure.
   - Sodigy (and many other purely functional languages), doesn't consider terminating the entire program as an impure behavior. That's why `panic`, `assert` and many other debug functions are pure functions.
 - Every function in Sodigy is evaluable at compile time.
+
+### Generics
+
+Sodigy's generic syntax is like that of Rust. Below, `id` is a generic function that returns itself.
+
+```
+let id<T>(x: T): T = x;
+
+@test.true
+let id_test1 = id(3) == 3;
+
+@test.true
+let id_test2 = id('a') == 'a';
+```
+
+You can either explicitly give the generic parameter, or let the compiler infer it. In the above example, the compiler infers `T`. To give the generic parameters, do it like below.
+
+```
+let id<T>(x: T): T = x;
+
+@test.true
+let id_test1 = id(Int, 3) == 3;
+
+@test.true
+let id_test2 = id(Char, 'a') == 'a';
+```
+
+If you give 2 parameters to `id`, the first one is a generic. The rule is like below.
+
+Let's say a function `f` takes M generic parameters and N input parameters.
+
+- If M + N parameters are given, the first M parameters are generic, and the last N parameters are input.
+- If N parameters are given, it's input.
+- Otherwise, it's an error.
+
+You might think you can rely on compiler's type inference instead of generics. But you can't do that. Below doesn't compile.
+
+```
+let id(x) = x;
+
+@test.true
+let id_test1 = id(3) == 3;
+
+@test.true
+let id_test2 = id('a') == 'a';
+```
+
+Since `id` is not generic, `x` must have a single, concrete type. If `x` has type `Int`, then `id_test2` is wrong. If it's `Char`, vice versa.
 
 ### Decorators
 
@@ -65,66 +188,7 @@ let adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
 let adder_test: Int = adder(5)(3);
 ```
 
-### Constants vs 0-arg Functions
-
-```
-let PI_CONST: Number = 3.1415;
-let PI_FUNC(): Number = 3.1415;
-```
-
-Both `PI_CONST` and `PI_FUNC` are valid. But they have 2 major differences. First, they're invoked in different way.
-
-Second, `PI_CONST` is static, while `PI_FUNC` is not. It means that `PI_CONST` is evaluated only once, and cached by the runtime. If the code asks for `PI_CONST` multiple times, the runtime returns the memoized value.
-
 ## Values
-
-### Scoped block expressions
-
-Scoped block expressions let you create lexical scopes. Its syntax is very similar to that of Rust and C/C++, but works very differently.
-
-```rust
-{
-    let x = 3;
-    let y = 4;
-    let z = {
-        let x = 5;
-        let w = 6;
-
-        x + w
-    };
-
-    x + y + z
-}
-```
-
-The above expression is evaluated to 18. Each block has their own scope, and a block must be evaluated to a value. The value comes at the end of a block. The value is not followed by a semi-colon, while the definitions of local values are.
-
-Unlike C/C++/Rust, values in a block are evaluated lazily. If a value is not used at all, it's not evaluated. If a value is used multiple times, it's evaluated only once and memoized (the memoized value is freed when the function exits).
-
-Since the values are lazily evaluated, you cannot use them recursively. Belows are invalid.
-
-```
-{
-    let x = z + 1;
-    let y = x + 2;
-    let z = y + 3;
-
-    x + y + z
-}
-```
-
-Also, there's no shadowing. That means you cannot define values with the same name in a scope.
-
-```
-{
-    let x = 3;
-    let y = 4;
-    let x = 5;
-
-    # Don't know which `x` to use
-    x + y
-}
-```
 
 ### String Literals
 
@@ -153,7 +217,15 @@ The above value is evaluated to `"3 + 4 = 7"`. Like in Python!
 
 Byte literals are like that of Rust (as far as I know). A letter `b` followed by a string literal is bytes.
 
-TODO: example
+```
+@test.eq((3, 9))
+let bytes = {
+    let s = "가나다";
+    let b = b"가나다";
+
+    (s.len(), b.len())
+};
+```
 
 ### `if` expressions
 
@@ -191,23 +263,11 @@ match foo() {
 
 Types in Sodigy are first-class objects. The type checker (which is not implmeneted yet) evaluates the type signatures in compile time, and calls `.is_subtype_of()`.
 
-### Type annotations
-
-You can use type annotations in many places. The annotations are always optional, and the compiler tries to infer the type. When the compiler cannot infer the type, it would ask you for an annotation. Then you have to provide one.
-
-```
-# Compiler can figure out the type of `PI` without annotation.
-let PI = 3.1415;
-
-# Compiler can figure out the type of `x` without annotation.
-let foo(x): Int = x + 1;
-```
-
 ### Integers
 
 Sodigy uses arbitrary-width integers.
 
-### Numbers
+### Ratio
 
 Sodigy doesn't use floating points, but rational numbers.
 

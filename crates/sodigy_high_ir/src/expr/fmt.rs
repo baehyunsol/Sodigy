@@ -7,6 +7,7 @@ use super::{
     Match,
     MatchArm,
     Scope,
+    ScopedLet,
     StructInit,
     StructInitField,
 };
@@ -24,21 +25,22 @@ impl fmt::Display for Expr {
 impl fmt::Display for ExprKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let s = match self {
-            ExprKind::Identifier(id) => format!("{}", id.id()),
+            ExprKind::Identifier(id) => id.id().to_string(),
             ExprKind::Integer(n)
-            | ExprKind::Ratio(n) => format!("{n}"),
+            | ExprKind::Ratio(n) => n.to_string(),
             ExprKind::Char(c) => format!("{c:?}"),
             ExprKind::String {
                 s, is_binary
             } => format!(
-                "{}\"{s}\"",
+                "{}\"{}\"",
                 if *is_binary { "b" } else { "" },
+                s.escaped_no_quotes(),
             ),
             ExprKind::Call { func, args } => format!(
                 "{}({})",
                 wrap_complicated_exprs(&func.kind),
                 args.iter().map(
-                    |arg| format!("{arg}")
+                    |arg| arg.to_string()
                 ).collect::<Vec<String>>().join(", ")
             ),
             k @ (ExprKind::List(elems)
@@ -52,7 +54,7 @@ impl fmt::Display for ExprKind {
                 format!(
                     "{start}{}{end}",
                     elems.iter().map(
-                        |elem| format!("{elem}")
+                        |elem| elem.to_string()
                     ).collect::<Vec<String>>().join(", ")
                 )
             },
@@ -62,22 +64,28 @@ impl fmt::Display for ExprKind {
                     |elem| match &elem.kind {
                         ExprKind::String { s, is_binary } => {
                             sodigy_assert!(!*is_binary);
-                            format!("{s}")
+                            s.escaped_no_quotes()
                         },
                         _ => format!("{{{elem}}}"),
                     }
                 ).collect::<Vec<String>>().concat(),
             ),
-            ExprKind::Scope(Scope { original_patterns, value, .. }) => {
-                let mut result = Vec::with_capacity(original_patterns.len() + 1);
+            ExprKind::Scope(Scope { lets, value, .. }) => {
+                let mut result = Vec::with_capacity(lets.len() + 1);
 
-                // TODO: print `defs` instead of `original_patterns`
-                // let's just give up roundtrip-ability
-                for (pat, val) in original_patterns.iter() {
-                    result.push(format!("let {pat} = {val}"));
+                for ScopedLet { name, value, ty, .. } in lets.iter() {
+                    result.push(format!(
+                        "let {}{} = {value}",
+                        name.id(),
+                        if let Some(ty) = ty {
+                            format!(": {ty}")
+                        } else {
+                            String::new()
+                        },
+                    ));
                 }
 
-                result.push(format!("{value}"));
+                result.push(value.to_string());
 
                 format!("{{{}}}", result.join("; "))
             },
@@ -115,7 +123,7 @@ impl fmt::Display for ExprKind {
                     ));
                 }
 
-                result.push(format!("{value}"));
+                result.push(value.to_string());
 
                 format!("\\{{{}}}", result.join(", "))
             },
@@ -147,7 +155,7 @@ impl fmt::Display for ExprKind {
                         },
                         {
                             // pretty print: remove unnecessary braces
-                            let v = format!("{value}");
+                            let v = value.to_string();
 
                             if v.starts_with("{") {
                                 v
@@ -199,7 +207,7 @@ impl fmt::Display for ExprKind {
 fn wrap_complicated_exprs(e: &ExprKind) -> String {
     match e {
         ExprKind::Identifier(_)
-        | ExprKind::Tuple(_) => format!("{e}"),
+        | ExprKind::Tuple(_) => e.to_string(),
         _ => format!("({e})"),
     }
 }
@@ -211,14 +219,14 @@ fn wrap_if_op(e: &ExprKind) -> String {
         ExprKind::InfixOp(..)
         | ExprKind::PrefixOp(..)
         | ExprKind::PostfixOp(..) => format!("({e})"),
-        _ => format!("{e}"),
+        _ => e.to_string(),
     }
 }
 
 fn wrap_unless_name(e: &ExprKind) -> String {
     match e {
         ExprKind::Identifier(_)
-        | ExprKind::Path { .. } => format!("{e}"),
+        | ExprKind::Path { .. } => e.to_string(),
         _ => format!("({e})"),
     }
 }

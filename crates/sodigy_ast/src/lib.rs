@@ -7,6 +7,7 @@ use sodigy_uid::Uid;
 mod endec;
 mod err;
 mod expr;
+mod fmt;
 mod let_;
 mod ops;
 mod parse;

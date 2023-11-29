@@ -52,7 +52,7 @@ impl LexSession {
 
     /// EXPENSIVE
     pub fn dump_tokens(&self) -> String {
-        self.tokens.iter().map(|t| format!("{t}")).collect::<Vec<String>>().concat()
+        self.tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().concat()
     }
 
     pub fn try_push_whitespace(&mut self) {
@@ -63,7 +63,7 @@ impl LexSession {
             _ => {
                 self.tokens.push(Token {
                     kind: TokenKind::Whitespace,
-                    span: SpanRange::dummy(),
+                    span: SpanRange::dummy(13),
                 });
             }
         }

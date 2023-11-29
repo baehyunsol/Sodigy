@@ -71,7 +71,7 @@ impl FileError {
         }
     }
 
-    pub fn render_err(&self) -> String {
+    pub fn render_error(&self) -> String {
         let path = match self.kind {
             FileErrorKind::FileNotFound
             | FileErrorKind::PermissionDenied

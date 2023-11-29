@@ -18,15 +18,29 @@ pub struct SpanPoint {
 }
 
 impl SpanPoint {
-    pub fn dummy() -> Self {
+    /// Even though it's a dummy, it takes an argument: dummy index.
+    /// That's for debugging purpose: when you encounter a dummy span while testing the compiler,
+    /// you might wanna know who instantiated this dummy span. `dummy_index` will help you in those cases.
+    pub fn dummy(dummy_index: usize) -> Self {
         SpanPoint {
             file: DUMMY_FILE_HASH,
-            index: 0,
+            index: dummy_index,
         }
     }
 
     pub fn is_dummy(&self) -> bool {
         self.file == DUMMY_FILE_HASH
+    }
+
+    /// Read the comments in `Self::dummy()`
+    pub fn get_dummy_index(&self) -> Option<usize> {
+        if self.is_dummy() {
+            Some(self.index)
+        }
+
+        else {
+            None
+        }
     }
 
     pub fn at_file(file: FileHash, index: usize) -> Self {
@@ -68,16 +82,30 @@ pub struct SpanRange {
 }
 
 impl SpanRange {
-    pub fn dummy() -> Self {
+    /// Even though it's a dummy, it takes an argument: dummy index.
+    /// That's for debugging purpose: when you encounter a dummy span while testing the compiler,
+    /// you might wanna know who instantiated this dummy span. `dummy_index` will help you in those cases.
+    pub fn dummy(dummy_index: usize) -> Self {
         SpanRange {
             file: DUMMY_FILE_HASH,
-            start: 0,
+            start: dummy_index,
             end: 0,
         }
     }
 
     pub fn is_dummy(&self) -> bool {
         self.file == DUMMY_FILE_HASH
+    }
+
+    /// Read the comments in `Self::dummy()`
+    pub fn get_dummy_index(&self) -> Option<usize> {
+        if self.is_dummy() {
+            Some(self.start)
+        }
+
+        else {
+            None
+        }
     }
 
     pub fn start(&self) -> SpanPoint {
@@ -137,7 +165,7 @@ impl SpanRange {
     /// EXPENSIVE
     pub fn to_utf8(&self) -> Vec<u8> {
         if self.is_dummy() {
-            return b"This is a dummy span".to_vec();
+            return format!("This is a dummy span: {:?}", self.get_dummy_index()).as_bytes().to_vec();
         }
 
         unsafe {

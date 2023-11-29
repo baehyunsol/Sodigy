@@ -76,15 +76,15 @@ impl ColorScheme {
     }
 
     pub(crate) fn render_num(&self, n: usize) -> String {
-        let n = format!("{n}");
+        let n = n.to_string();
         let pre = " ".repeat(8 - n.len());
 
         // do not color whitespaces!
         match &self.line_no {
             Color::None => format!("{pre}{n}"),
-            Color::Blue => format!("{pre}{}", format!("{n}").blue()),
-            Color::Red => format!("{pre}{}", format!("{n}").red()),
-            Color::Yellow => format!("{pre}{}", format!("{n}").yellow()),
+            Color::Blue => format!("{pre}{}", n.to_string().blue()),
+            Color::Red => format!("{pre}{}", n.to_string().red()),
+            Color::Yellow => format!("{pre}{}", n.to_string().yellow()),
         }
     }
 }
@@ -172,9 +172,7 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
         );
     }
 
-    format!(
-        "{}", messages.join("\n\n")
-    )
+    messages.join("\n\n")
 }
 
 #[derive(Clone)]

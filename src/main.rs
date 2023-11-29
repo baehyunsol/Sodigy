@@ -7,7 +7,7 @@ fn main() {
 
     compile_file("./samples/easy.sdg".to_string()).unwrap().print_results();
 
-    // return;
+    return;
 
     compile_input("
         let korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";

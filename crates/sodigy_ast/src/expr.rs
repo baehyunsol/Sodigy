@@ -2,6 +2,8 @@ use crate::{BranchArm, IdentWithSpan, MatchArm, ops::{InfixOp, PostfixOp, Prefix
 use crate::value::ValueKind;
 use sodigy_span::SpanRange;
 
+mod fmt;
+
 #[derive(Clone)]
 pub struct Expr {
     pub kind: ExprKind,

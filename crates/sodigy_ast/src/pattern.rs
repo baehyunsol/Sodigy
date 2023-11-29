@@ -61,7 +61,7 @@ impl Pattern {
                 }
             },
             PatternKind::Tuple(patterns)
-            | PatternKind::Slice(patterns)
+            | PatternKind::List(patterns)
             | PatternKind::TupleStruct {
                 fields: patterns,
                 ..
@@ -103,6 +103,15 @@ impl Pattern {
         }
     }
 
+    pub fn is_wildcard(&self) -> bool {
+        self.kind.is_wildcard()
+    }
+
+    pub fn is_shorthand(&self) -> bool {
+        self.kind.is_shorthand()
+    }
+
+    // TODO: do we need this function?
     /// `let x = foo();` -> `let $x = foo();`
     pub fn syntax_sugar_for_simple_binding(&mut self) {
         match &self.kind {
@@ -150,7 +159,7 @@ pub enum PatternKind {
     Tuple(Vec<Pattern>),
 
     // [$a, .., $b]
-    Slice(Vec<Pattern>),
+    List(Vec<Pattern>),
 
     // Foo { x: $x, y: $y, .. }
     Struct {
@@ -170,6 +179,16 @@ pub enum PatternKind {
 
     // will later be converted to Vec<Pattern>
     Or(Box<Pattern>, Box<Pattern>),
+}
+
+impl PatternKind {
+    pub fn is_wildcard(&self) -> bool {
+        matches!(self, PatternKind::Wildcard)
+    }
+
+    pub fn is_shorthand(&self) -> bool {
+        matches!(self, PatternKind::Shorthand)
+    }
 }
 
 #[derive(Clone)]

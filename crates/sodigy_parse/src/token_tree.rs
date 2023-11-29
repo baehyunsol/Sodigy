@@ -56,6 +56,10 @@ impl TokenTree {
     pub fn remove_prefix(&mut self) {
         self.kind.remove_prefix();
     }
+
+    pub fn is_group(&self, delim_: Delim) -> bool {
+        matches!(self.kind, TokenTreeKind::Group { delim, .. } if delim == delim_)
+    }
 }
 
 #[derive(Clone, Debug)]

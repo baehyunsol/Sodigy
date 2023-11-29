@@ -275,7 +275,7 @@ fn parse_pattern_value(
                         }
                     }
                 },
-                Delim::Bracket => {  // slice
+                Delim::Bracket => {  // list
                     let (patterns, _) = parse_comma_separated_patterns(
                         &mut tokens,
                         session,
@@ -283,7 +283,7 @@ fn parse_pattern_value(
                     )?;
 
                     Pattern {
-                        kind: PatternKind::Slice(patterns),
+                        kind: PatternKind::List(patterns),
                         span: group_span,
                         bind: None,
                         ty: None,
@@ -324,6 +324,15 @@ fn parse_pattern_value(
                         ).to_owned());
                         return Err(());
                     },
+                });
+            }
+
+            if names.len() == 1 && names[0].id().is_underbar() {
+                return Ok(Pattern {
+                    kind: PatternKind::Wildcard,
+                    span: *names[0].span(),
+                    bind: None,
+                    ty: None,
                 });
             }
 
@@ -531,7 +540,7 @@ fn parse_pattern_value(
         },
         None => {
             session.push_error(AstError::unexpected_end(
-                tokens.span_end().unwrap_or(SpanRange::dummy()),
+                tokens.span_end().unwrap_or(SpanRange::dummy(8)),
                 ExpectedToken::pattern(),
             ));
             return Err(());

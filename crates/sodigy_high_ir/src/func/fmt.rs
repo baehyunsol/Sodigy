@@ -6,24 +6,24 @@ impl fmt::Display for Func {
         let mut result = vec![];
 
         if let Some(doc) = self.doc {
-            for line in format!("{doc}").lines() {
+            for line in doc.to_string().lines() {
                 result.push(format!("##> {line}\n"));
             }
         }
 
         result.push(format!("# {:?}\n", self.uid));
-        result.push(format!("{}", self.decorators));
+        result.push(self.decorators.to_string());
         result.push(format!("let {}", self.name.id()));
 
         if !self.generics.is_empty() {
             result.push(format!("<{}>", self.generics.iter().map(
-                |g| format!("{}", g.id())
+                |g| g.id().to_string()
             ).collect::<Vec<String>>().join(", ")));
         }
 
         if let Some(args) = &self.args {
             result.push(format!("({})", args.iter().map(
-                |arg| format!("{arg}")
+                |arg| arg.to_string()
             ).collect::<Vec<String>>().join(", ")));
         }
 

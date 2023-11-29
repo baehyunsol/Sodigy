@@ -140,26 +140,14 @@ seems like the second one is the least ugly one
 
 ---
 
-`def`대신 `let`으로 통일:
+more feature rich f-strings
 
-- `let pi = 3.14;`, `let pi: Ratio = 3.14;`
-  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
-- `let add(x, y) = x + y;`, `let add(x: Int, y): Int = x + y;`
-  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
-- `let pattern ($x, $y) = (0, 1);`
-  - scoped let이나 top-level이나 완전히 동일
-  - 이제 `if let`대신 `if pattern`으로 쓰자
-- decorators and doc comments
-  - decorator: scoped let이나 top-level이나 완전히 동일
-  - doc comments: top-level에서만 가능. scoped let에서 쓰면 무식하게 에러 날리지 말고, 아직 구현 안됐다고 에러 날리자
-    - 지금 enum variant나 struct field, func arg에도 doc comment 달 수 있게 돼 있는데 걔네는 어떻게 함?
-- `let enum Option<T> = { None, Some(T) };`, `let struct Person = { age: Int, name: String };`
-  - scoped let이나 top-level이나 완전히 동일, except that scoped_let에서는 generic 못 씀
-- `import x from y;`
-  - 이거 scoped let에서도 되게 하고 싶은데 구현이 좀 빡셈...
-- `module x;`
-  - scoped let에선 안됨. 이것도 무식하게 에러 날리진 말고..
-
----
-
-지금 constant 정의에 generic 쓸 수 있음? 안되면 되게 하셈
+- integer
+  - `:x`: lowercase hex
+  - `:X`: uppercase hex
+  - `:o`, `:O`: oct
+  - `:b`, `:B`: bin
+  - `:#x`, `:#X`, `:#o`, `:#O`, ... : prefix `0x`, `0o` or `0b`
+- stretch, align, fill
+  - make the output string length s, align the string left/right/center, and fill the empty space with c
+- rational numbers

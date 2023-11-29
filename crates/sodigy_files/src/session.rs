@@ -38,7 +38,7 @@ impl Session {
 
     pub fn render_file_hash(&self, file: FileHash) -> String {
         match self.files.get(&file) {
-            Some(p) => format!("{p}"),
+            Some(p) => p.to_string(),
             _ => match self.tmp_files.get(&file) {
                 Some(_) => format!("tmp_{:x}", file & 0xfffffff),
                 _ => "FILE_NOT_FOUND".to_string(),

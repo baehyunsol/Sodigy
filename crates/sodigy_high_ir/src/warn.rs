@@ -46,6 +46,14 @@ impl HirWarning {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn name_binding_on_wildcard(bind: IdentWithSpan) -> Self {
+        HirWarning {
+            kind: HirWarningKind::NameBindingOnWildcard,
+            spans: smallvec![*bind.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<HirWarningKind> for HirWarning {
@@ -89,15 +97,17 @@ pub enum HirWarningKind {
         to: NumberLike,
         ty: RangeType,
     },
+    NameBindingOnWildcard,
 }
 
 impl SodigyErrorKind for HirWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{name}`"),
-            HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{name}`", nbt.render_error()),
+            HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{}`", name.render_error()),
+            HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{}`", nbt.render_error(), name.render_error()),
             HirWarningKind::UnnecessaryParen { .. } => format!("unnecessary parenthesis"),
             HirWarningKind::PointRange { .. } => format!("meaningless range"),
+            HirWarningKind::NameBindingOnWildcard => format!("name binding on wildcard"),
         }
     }
 
@@ -115,11 +125,12 @@ impl SodigyErrorKind for HirWarningKind {
                         "{:?}",
                         char::from_u32(from.try_into_u32(session).unwrap()).unwrap(),
                     ),
-                    _ => format!("{}", from.render_error()),
+                    _ => from.render_error(),
                 };
 
                 format!("`{rendered}..~{rendered}` is just `{rendered}`.")
             },
+            HirWarningKind::NameBindingOnWildcard => String::from("This name binding doesn't do anything."),
             _ => String::new(),
         }
     }
@@ -130,6 +141,7 @@ impl SodigyErrorKind for HirWarningKind {
             HirWarningKind::UnusedName(..) => 1,
             HirWarningKind::UnnecessaryParen { .. } => 2,
             HirWarningKind::PointRange { .. } => 3,
+            HirWarningKind::NameBindingOnWildcard => 4,
         }
     }
 }

@@ -1841,7 +1841,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
             },
             None => {
                 session.push_error(AstError::unexpected_end(
-                    tokens.span_end().unwrap_or(SpanRange::dummy()),
+                    tokens.span_end().unwrap_or(SpanRange::dummy(1)),
                     ExpectedToken::comma_or_gt(),
                 ));
 
@@ -2198,18 +2198,30 @@ fn parse_let_statement(
             }
         },
         Some(token) => {
-            session.push_error(AstError::unexpected_token(
+            let mut e = AstError::unexpected_token(
                 token.clone(),
                 ExpectedToken::let_statement(),
-            ));
+            ).set_err_context(
+                ErrorContext::ParsingLetStatement
+            ).to_owned();
+
+            if token.is_group(Delim::Paren)
+            || token.is_group(Delim::Bracket)
+            || matches!(token.kind, TokenKind::Punct(Punct::Dollar)) {
+                e.set_message("If you meant to destruct a pattern, use `let pattern` instead of `let`.".to_string());
+            }
+
+            session.push_error(e);
 
             return Err(());
         },
         None => {
             session.push_error(AstError::unexpected_end(
-                tokens.span_end().unwrap_or(SpanRange::dummy()),
+                tokens.span_end().unwrap_or(SpanRange::dummy(2)),
                 ExpectedToken::let_statement(),
-            ));
+            ).set_err_context(
+                ErrorContext::ParsingLetStatement
+            ).to_owned());
 
             return Err(());
         },

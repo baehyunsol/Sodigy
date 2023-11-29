@@ -280,13 +280,17 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::EmptyGenericList => String::from("Try remove angle brackets."),
             AstErrorKind::BinaryChar => String::from("Try remove prefix `b`."),
             AstErrorKind::FuncArgWithoutType { arg_name, func_name } => format!(
-                "Argument `{arg_name}` of `{func_name}` needs a type annotation."
+                "Argument `{}` of `{}` needs a type annotation.",
+                arg_name.render_error(),
+                func_name.render_error(),
             ),
             AstErrorKind::EmptyCharLiteral
             | AstErrorKind::TooLongCharLiteral => String::from("If you meant a string literal, use double quotes."),
             AstErrorKind::ExpectedBindingGotPattern(p) => match p {
                 PatternKind::Identifier(id) => format!(
-                    "`{id}` is a name, not a name binding. Try `${id}` to bind a name.",
+                    "`{}` is a name, not a name binding. Try `${}` to bind a name.",
+                    id.render_error(),
+                    id.render_error(),
                 ),
                 _ => String::new(),
             },

@@ -216,7 +216,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let color_scheme = self.color_scheme();
 
         let span = match &self.get_error_info().show_span {
-            _ if spans.is_empty() => String::from("<DUMMY SPAN>"),
+            _ if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
             true => render_spans(&spans, color_scheme),
             false => show_file_names(&spans),
         };

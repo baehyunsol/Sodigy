@@ -140,11 +140,11 @@ pub enum HirErrorKind {
 impl SodigyErrorKind for HirErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            HirErrorKind::NameCollision(name) => format!("the name `{name}` is bound multiple times"),
-            HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{name}`"),
+            HirErrorKind::NameCollision(name) => format!("the name `{}` is bound multiple times", name.render_error()),
+            HirErrorKind::UndefinedName { name, .. } => format!("undefined name `{}`", name.render_error()),
             HirErrorKind::NoDependentTypes(_) => String::from("dependent types not allowed"),
-            HirErrorKind::UndefinedDeco(name) => format!("unknown decorator `{name}`"),
-            HirErrorKind::RefutablePatternInLet => String::from("refutable pattern in a `let` statement"),
+            HirErrorKind::UndefinedDeco(name) => format!("unknown decorator `{}`", name.render_error()),
+            HirErrorKind::RefutablePatternInLet => String::from("refutable pattern in `let` statement"),
             HirErrorKind::OpenInclusiveRange => String::from("inclusive range with an open end"),
             HirErrorKind::UnmatchablePattern => String::from("unmatchable pattern"),
             HirErrorKind::TyError => String::from("TODO: Type Error"),  // Sodigy type system is not complete yet
@@ -161,13 +161,13 @@ impl SodigyErrorKind for HirErrorKind {
                 0 => String::new(),
                 1 => format!(
                     "A similar name exists in the current scope: `{}`",
-                    suggestions[0],
+                    suggestions[0].render_error(),
                 ),
                 _ => format!(
                     "Similar names exist in the current scope: {}",
                     concat_commas(
                         &suggestions.iter().map(
-                            |s| format!("{s}")
+                            |s| s.render_error()
                         ).collect::<Vec<String>>(),
                         "and",
                         "`",

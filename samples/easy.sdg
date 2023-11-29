@@ -1,13 +1,7 @@
 # A file that doesn't make the compiler panic!
 
-@test.eq(42)
-let main = {
-    let z = x + y;
-    let x = 9;
-    let y = 12;
-
-    x + y + z
-};
+@test.eq(61)
+let main = ackermann(3, 3);
 
 let ackermann(m: Int, n: Int): Int = if m == 0 {
     n + 1

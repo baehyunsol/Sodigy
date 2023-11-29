@@ -19,22 +19,21 @@ impl fmt::Display for TokenTreeKind {
             fmt,
             "{}",
             match self {
-                TokenTreeKind::Identifier(id) => format!("{id}"),
-                TokenTreeKind::Keyword(keyword) => format!("{keyword}"),
-                TokenTreeKind::Number(n) => format!("{n}"),
-                TokenTreeKind::Punct(p) => format!("{p}"),
+                TokenTreeKind::Identifier(id) => id.to_string(),
+                TokenTreeKind::Keyword(keyword) => keyword.to_string(),
+                TokenTreeKind::Number(n) => n.to_string(),
+                TokenTreeKind::Punct(p) => p.to_string(),
                 TokenTreeKind::Group { delim, tokens, prefix } => format!(
                     "{}{}{}{}",
                     if *prefix == b'\0' { String::new() } else { format!("{}", *prefix as char) },
                     delim.start() as char,
-                    tokens.iter().map(|t| format!("{t}")).collect::<Vec<String>>().join(" "),
+                    tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" "),
                     delim.end() as char,
                 ),
                 TokenTreeKind::String { kind, content, is_binary } => format!(
-                    "{}{}{}{}",
+                    "{}{}{content}{}",
                     if *is_binary { "b" } else { "" },
                     *kind as u8 as char,
-                    content,
                     *kind as u8 as char,
                 ),
                 TokenTreeKind::FormattedString(elems) => {
@@ -47,7 +46,7 @@ impl fmt::Display for TokenTreeKind {
                                 FormattedStringElement::Value(v) => format!(
                                     "{{{}}}",
                                     v.iter().map(
-                                        |v| format!("{v}")
+                                        |v| v.to_string()
                                     ).collect::<Vec<String>>().join(" "),
                                 ),
                             }
@@ -67,14 +66,14 @@ impl TokenTreeKind {
             TokenTreeKind::Identifier(_)
             | TokenTreeKind::Keyword(_)
             | TokenTreeKind::Number(_)
-            | TokenTreeKind::Punct(_) => format!("{self}"),
+            | TokenTreeKind::Punct(_) => self.to_string(),
             TokenTreeKind::Group { delim, prefix, .. } => format!(
                 "{}",
                 TokenTreeKind::Group {
                     delim: *delim,
                     prefix: *prefix,
                     tokens: vec![
-                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy()),
+                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy(14)),
                     ],
                 }
             ),

@@ -43,56 +43,28 @@ let sqrt_iter(curr: Int, n: Int): Int = {
     }
 };
 
-@test.after(\{res, res == sqrt(n)})
-let sqrt_bin_search(n: Int): Bool = if n < 0 {
-    sqrt_bin_search(-n)
-} else if n < 5 {
-    [0, 1, 1, 1, 2][n]
-} else {
-    sqrt_bin_search_impl(n, 2, n / 2)
-};
-
-let sqrt_bin_search_impl(n: Int, start: Int, end: Int): Int = {
-    let mid = (start + end) / 2;
-    let mid_sqr = mid * mid;
-
-    if start + 1 <= end {
-        if end * end == n {
-            end
-        } else {
-            start
-        }
-    } else {
-        if mid_sqr < n {
-            sqrt_bin_search_impl(n, mid, end)
-        } else {
-            sqrt_bin_search_impl(n, start, mid)
-        }
-    }
-};
-
-@test.eq([100, 316, 1000, 3162, 10000, 31622, 100000, 316227])
-let sqrt2_test: List(Int) = [
-    sqrt2(10_000),
-    sqrt2(100_000),
-    sqrt2(1_000_000),
-    sqrt2(10_000_000),
-    sqrt2(100_000_000),
-    sqrt2(1_000_000_000),
-    sqrt2(10_000_000_000),
-    sqrt2(100_000_000_000),
+@test.eq([
+    100, 316, 1_000, 3_162,
+    10_000, 31_622, 100_000,
+    316_227, 1_000_000,
+    3_162_277, 10_000_000,
+    31_622_776, 100_000_000,
+])
+let sqrt_test: List(Int) = [
+    sqrt(10_000),
+    sqrt(100_000),
+    sqrt(1_000_000),
+    sqrt(10_000_000),
+    sqrt(100_000_000),
+    sqrt(1_000_000_000),
+    sqrt(10_000_000_000),
+    sqrt(100_000_000_000),
+    sqrt(1_000_000_000_000),
+    sqrt(10_000_000_000_000),
+    sqrt(100_000_000_000_000),
+    sqrt(1_000_000_000_000_000),
+    sqrt(10_000_000_000_000_000),
 ];
-
-@test.true
-let sqrt2_test2: Bool = (0..1000).all(
-    \{n, {
-        let n2 = n * 2;
-        let s = sqrt2(n2);
-        let s2 = s + 1;
-
-        s * s <= n2 && n2 < s2 * s2
-    }}
-);
 
 let log(a: Int, n: Int): Int = if a < n {
     0

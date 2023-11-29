@@ -10,29 +10,30 @@ use crate::lower_ast_ty;
 use crate::err::HirError;
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
+use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
 // `let pattern Foo { bar: $x, baz: $y } = f();`
-// -> `let $tmp = f();`, `let $x = tmp.bar;`, `let $y = tmp.baz;`
+// -> `let tmp = f();`, `let x = tmp.bar;`, `let y = tmp.baz;`
 //
 // `let pattern Foo($x, $y, $z @ ..) = f();`
 // -> TODO: notation for $z
 //
 // `let pattern ($x, $y, .., $z, _) = f();`
-// -> `let $tmp = f();`, `let $x = tmp._0;`, `let $y = tmp._1;`, `let $z = TODO`
+// -> `let tmp = f();`, `let x = tmp._0;`, `let y = tmp._1;`, `let z = TODO`
 // -> TODO: notation for $z
 //
 // `let pattern ($x, ($y, $z), .., $w) = f();`
-// -> `let $tmp = f();`, `let $x = tmp._0;`, `let $tmp2 = tmp._1;`, `let $y = tmp2._0;`, `let $z = tmp2._1;`, `let $w = TODO`
+// -> `let tmp = f();`, `let x = tmp._0;`, `let tmp2 = tmp._1;`, `let y = tmp2._0;`, `let z = tmp2._1;`, `let w = TODO`
 //
 // `let pattern Foo { $x, $z @ .. } = f();`
 // -> Invalid: No bindings for shorthand in this case
 //
 // `let pattern Foo(Foo($x, $y), $z) = f();`
-// -> `let $tmp = f();`, `let $tmp2 = tmp._0;`, `let $x = tmp2._0;`, `let $y = tmp2._1;`, `let $z = tmp._1;`
+// -> `let tmp = f();`, `let tmp2 = tmp._0;`, `let x = tmp2._0;`, `let y = tmp2._1;`, `let z = tmp._1;`
 //
 // `let pattern Foo { bar: $x @ Foo { .. }, .. } = f();`
 // -> same as `let Foo { bar: $x, .. } = f();`
@@ -55,11 +56,55 @@ pub fn lower_patterns_to_name_bindings(
                 true,
             ));
         },
+        // let pattern ($x, ($y, $z)) = foo();
+        // -> `let tmp = foo(); let x = tmp._0; let tmp2 = tmp._1; let y = tmp2._0; let z = tmp2._1;`
         ast::PatternKind::Tuple(patterns) => {
-            for pattern in patterns.iter() {
-                todo!();
+            let mut has_error = false;
+            let tmp_name = session.allocate_tmp_name();
+
+            // let tmp = foo();
+            name_bindings.push(DestructuredPattern::new(
+                IdentWithSpan::new(tmp_name, SpanRange::dummy(9)),  // $tmp
+                expr.clone(),
+                pattern.ty.clone(),
+                false,  // not a real name
+            ));
+
+            let name_bindings_len = name_bindings.len();
+
+            for (ind, curr_pattern) in patterns.iter().enumerate() {
+                if curr_pattern.is_wildcard() {
+                    if let Some(bind) = &curr_pattern.bind {
+                        session.push_warning(
+                            HirWarning::name_binding_on_wildcard(*bind)
+                        );
+                    }
+
+                    continue;
+                }
+
+                if curr_pattern.is_shorthand() {
+                    todo!()
+                }
+
+                // `0` -> `_0`
+                let field_expr = session.get_tuple_field_expr(ind);
+
+                if let Err(()) = lower_patterns_to_name_bindings(
+                    curr_pattern,  // $x
+                    &field_expr_with_name_and_index(tmp_name, field_expr),  // tmp._0
+                    name_bindings,
+                    session,
+                ) {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
             }
         },
+        // TODO: is this refutable?
         ast::PatternKind::TupleStruct {
             name,
             fields,
@@ -263,5 +308,18 @@ fn check_same_type_or_error(
 
             Err(())
         },
+    }
+}
+
+fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -> ast::Expr {
+    ast::Expr {
+        kind: ast::ExprKind::Path {
+            pre: Box::new(ast::Expr {
+                kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
+                span: SpanRange::dummy(10),
+            }),
+            post: IdentWithSpan::new(field, SpanRange::dummy(11)),
+        },
+        span: SpanRange::dummy(12),
     }
 }
