@@ -29,6 +29,8 @@ pub enum PatternKind {
         from: NumberLike,
         to: NumberLike,
     },
+
+    Tuple(Vec<Pattern>),
 }
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.

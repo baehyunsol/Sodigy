@@ -321,6 +321,10 @@ impl SodigyErrorKind for AstErrorKind {
     }
 }
 
+// TODO: it has to be in sodigy_err
+// since sodigy_err cannot depend on sodigy_ast, it has to be `ExpectedToken<T>` and `Specific(Vec<T>)`
+// in order to impl ExpectedToken::render_err, it has to call T::render_err
+// that means there must be a trait `RenderError`
 #[derive(Clone)]
 pub enum ExpectedToken {
     AnyIdentifier,

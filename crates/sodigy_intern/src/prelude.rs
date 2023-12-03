@@ -6,8 +6,10 @@ use crate::{
     IS_INTEGER,
     IS_SMALL_INTEGER,
     unintern_numeric,
+    unintern_string,
 };
 use sodigy_keyword::{Keyword, keywords};
+use sodigy_test::sodigy_assert;
 
 const KEYWORD_LEN: usize = keywords().len();
 
@@ -24,19 +26,39 @@ impl InternedString {
 
     // character 'b'
     pub fn is_b(&self) -> bool {
+        sodigy_assert!(
+            self.0 != STRING_B
+            || unintern_string(*self) == b"b"
+        );
+
         self.0 == STRING_B
     }
 
     // character 'f'
     pub fn is_f(&self) -> bool {
+        sodigy_assert!(
+            self.0 != STRING_F
+            || unintern_string(*self) == b"f"
+        );
+
         self.0 == STRING_F
     }
 
     pub fn is_underbar(&self) -> bool {
+        sodigy_assert!(
+            self.0 != UNDERBAR
+            || unintern_string(*self) == b"_"
+        );
+
         self.0 == UNDERBAR
     }
 
     pub fn is_empty(&self) -> bool {
+        sodigy_assert!(
+            self.0 != UNDERBAR
+            || unintern_string(*self) == b""
+        );
+
         self.0 == EMPTY
     }
 
@@ -46,12 +68,16 @@ impl InternedString {
 }
 
 impl InternedNumeric {
-    #[inline]
     pub fn is_integer(&self) -> bool {
         self.0 & IS_INTEGER != 0
     }
 
     pub fn is_zero(&self) -> bool {
+        sodigy_assert!(
+            self.0 != (0 | IS_INTEGER | IS_SMALL_INTEGER)
+            || unintern_numeric(*self).is_zero()
+        );
+
         self.0 == (0 | IS_INTEGER | IS_SMALL_INTEGER)
     }
 

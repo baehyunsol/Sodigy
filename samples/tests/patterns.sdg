@@ -56,3 +56,10 @@ let tuples_in_let2 = {
 
     x + y + z + w
 };
+
+@test.eq((1, 2, 3, 4))
+let shorthand_tests = {
+    let pattern (_, $x @ .., _, _) = (0, 1, 2, 3, 4, 5, 6);
+
+    x
+};

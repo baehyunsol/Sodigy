@@ -64,6 +64,11 @@ impl Endec for TokenTreeKind {
                 buf.push(7);
                 c.encode(buf, session);
             },
+            TokenTreeKind::Macro { name, args } => {
+                buf.push(8);
+                name.encode(buf, session);
+                args.encode(buf, session);
+            },
         }
     }
 
@@ -89,7 +94,11 @@ impl Endec for TokenTreeKind {
                     }),
                     6 => Ok(TokenTreeKind::FormattedString(Vec::<FormattedStringElement>::decode(buf, ind, session)?)),
                     7 => Ok(TokenTreeKind::DocComment(InternedString::decode(buf, ind, session)?)),
-                    8.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    8 => Ok(TokenTreeKind::Macro {
+                        name: Vec::<TokenTree>::decode(buf, ind, session)?,
+                        args: Vec::<TokenTree>::decode(buf, ind, session)?,
+                    }),
+                    9.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
                 }
             },
             None => Err(EndecErr::Eof),

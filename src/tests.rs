@@ -111,7 +111,7 @@ check_output!(expr, err, expr_test33, "f(x[..4])", "like `0..`");
 check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
 check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "inclusive range with an open end");
 check_output!(expr, err, expr_test36, "Foo {}", "please provide fields");
-check_output!(expr, err, expr_test37, "{let pattern ($y, $z) = (0, 1); y}", "TODO ____");
+check_output!(expr, err, expr_test37, "{let x = 3; let y = 4; x + y;}", "remove this `;`");
 check_output!(expr, err, expr_test38, "", "expected an expression");
 check_output!(expr, err, expr_test39, "'abc'", "too long character");
 check_output!(expr, err, expr_test40, "match x { 0..'9' => 1, _ => 2, }", "type error");
@@ -130,6 +130,11 @@ check_output!(expr, err, expr_test48, "
         x + y + z
     }", "`z` is bound multiple times");
 check_output!(expr, err, expr_test49, "{let ($x, $y) = (0, 1); x}", "use `let pattern`");
+check_output!(expr, err, expr_test50, "{let pattern ($x, .., ..) = (0, 1, 2, 3, 4); x}", "multiple shorthands");
+check_output!(expr, err, expr_test51, "{let pattern ($x .. $y) = (0, 1, 2); x}", "TODO: tell the user kindly that there should be a comma");
+check_output!(expr, err, expr_test52, "{let x = 3\nlet y = 4\n x}", "use `;` before the keyword `let`");
+check_output!(expr, err, expr_test53, "match x { 1.5..1.4 => 0, _ => x }", "unmatchable pattern");
+check_output!(expr, err, expr_test54, "match x { 9.4..1.15 => 0, _ => x }", "unmatchable pattern");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");

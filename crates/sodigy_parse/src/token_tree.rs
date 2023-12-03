@@ -85,6 +85,13 @@ pub enum TokenTreeKind {
 
     FormattedString(Vec<FormattedStringElement>), // prefixed with `f`
     DocComment(InternedString),
+
+    // it has to be expanded before the compiler goes to the AST stage
+    // `@[name](args)`
+    Macro {
+        name: Vec<TokenTree>,
+        args: Vec<TokenTree>,
+    },
 }
 
 impl TokenTreeKind {
@@ -130,7 +137,8 @@ impl PartialEq for TokenTreeKind {
 
             // are you sure?
             TokenTreeKind::Group { .. }
-            | TokenTreeKind::FormattedString(_) => false,
+            | TokenTreeKind::FormattedString(_)
+            | TokenTreeKind::Macro { .. } => false,
         }
     }
 }

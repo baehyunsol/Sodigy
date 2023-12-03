@@ -114,6 +114,7 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
         let lines_len = lines.len();
         let mut rendered_lines = Vec::with_capacity(lines_len * 2);
         let mut pos = None;
+        let mut non_ascii_chars = vec![];
 
         for (i, line) in lines.iter().enumerate() {
 
@@ -135,6 +136,16 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
                 if line.has_highlighted_char {
                     if let None = pos {
                         pos = Some(line.get_pos());
+                    }
+                }
+
+                if !line.non_ascii_chars.is_empty() && non_ascii_chars.len() < 8 {
+                    for c in line.non_ascii_chars.iter() {
+                        non_ascii_chars.push(*c);
+
+                        if non_ascii_chars.len() == 8 {
+                            break;
+                        }
                     }
                 }
 
@@ -165,9 +176,10 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
 
         messages.push(
             format!(
-                "{}:{row}:{col}\n{}",
+                "{}:{row}:{col}\n{}{}",
                 file_session.render_file_hash(*file),
                 result.join("\n"),
+                alert_non_ascii_chars(&non_ascii_chars),
             )
         );
     }
@@ -231,12 +243,14 @@ struct Line {
 
     need_dots: bool,
     has_highlighted_char: bool,
+
+    non_ascii_chars: Vec<u32>,
 }
 
 const MAX_LINE_LEN: usize = 80;
 
 impl Line {
-    pub fn new(index: usize, buffer: &[u8]) -> Self {
+    pub fn new(index: usize, buffer: &[u8], non_ascii_chars: Vec<u8>) -> Self {
         let has_highlighted_char = buffer.iter().any(|c| *c >= 128);
         let mut need_dots = false;
         let mut buffer = if buffer.len() > MAX_LINE_LEN {
@@ -245,6 +259,16 @@ impl Line {
             buffer[0..(MAX_LINE_LEN - 3)].to_vec()
         } else {
             buffer.to_vec()
+        };
+
+        let non_ascii_chars = if !non_ascii_chars.is_empty() {
+            let s = String::from_utf8_lossy(&non_ascii_chars).to_string();
+
+            s.chars().map(
+                |c| c as u32
+            ).collect()
+        } else {
+            vec![]
         };
 
         for c in buffer.iter_mut() {
@@ -263,6 +287,7 @@ impl Line {
             buffer,
             has_highlighted_char,
             need_dots,
+            non_ascii_chars,
         }
     }
 
@@ -314,12 +339,14 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
     let mut lines = vec![];
     let mut curr_line = vec![];
     let mut line_no = 0;
+    let mut non_ascii_chars = vec![];
 
     for (i, c) in content.iter().enumerate() {
         if *c == b'\n' {
-            lines.push(Line::new(line_no, &curr_line));
+            lines.push(Line::new(line_no, &curr_line, non_ascii_chars.clone()));
             curr_line.clear();
             line_no += 1;
+            non_ascii_chars.clear();
             continue;
         }
 
@@ -332,10 +359,13 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
             }
         }
 
+        // it doesn't render non-ascii-code chars
         if *c > 127 {
             curr_line.push(
                 (mark as u8) * 128,
             );
+
+            non_ascii_chars.push(*c);
         }
 
         else {
@@ -346,7 +376,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
     }
 
     if !curr_line.is_empty() {
-        lines.push(Line::new(line_no, &curr_line));
+        lines.push(Line::new(line_no, &curr_line, non_ascii_chars));
     }
 
     lines
@@ -415,4 +445,52 @@ fn push_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> {
     }
 
     buf
+}
+
+fn alert_non_ascii_chars(non_ascii_chars: &[u32]) -> String {
+    if non_ascii_chars.is_empty() {
+        String::new()
+    }
+
+    else {
+        let (a, those, s) = if non_ascii_chars.len() == 1 {
+            (" a", "the", "")
+        } else {
+            ("", "those", "s")
+        };
+        // unlucky that we cannot import `concat_commas` from sodigy_error
+        let chars = match non_ascii_chars.len() {
+            1 => format!("{}", render_u32_char(non_ascii_chars[0])),
+            2 => format!("{} and {}", render_u32_char(non_ascii_chars[0]), render_u32_char(non_ascii_chars[1])),
+            3 => format!(
+                "{}, {} and {}",
+                render_u32_char(non_ascii_chars[0]),
+                render_u32_char(non_ascii_chars[1]),
+                render_u32_char(non_ascii_chars[2]),
+            ),
+            _ => format!(
+                "{}, {}, {}, ...",
+                render_u32_char(non_ascii_chars[0]),
+                render_u32_char(non_ascii_chars[1]),
+                render_u32_char(non_ascii_chars[2]),
+            ),
+        };
+
+        let 한글 = if non_ascii_chars.iter().any(|c| is_한글(c)) {
+            String::from("\n코드에 한글이 있습니다. 한글을 사용하는 것은 전혀 문제가 없지만 오류 메시지에는 한글이 정상출력되지 않습니다. 오류 메시지에서 밑줄을 칠 때 각 글자의 크기를 계산해야하는데 한글의 크기는 계산하기 어렵거든요.")
+        } else {
+            String::new()
+        };
+
+        format!("\nNote: The code contains{a} non-ascii character{s} ({chars}). It's okay to use non-ascii characters, but the error messages cannot render {those} character{s} properly, due to the issues with font-size.{한글}")
+    }
+}
+
+fn render_u32_char(c: u32) -> String {
+    // it's guaranteed to be a valid utf-8
+    format!("{:?}", char::from_u32(c).unwrap())
+}
+
+fn is_한글(c: &u32) -> bool {
+    0x1100 <= *c && *c < 0x1200 || 0xac00 <= *c && *c < 0xd7a4
 }

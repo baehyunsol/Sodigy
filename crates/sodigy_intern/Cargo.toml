@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 sodigy_keyword = { path = "../sodigy_keyword" }
 sodigy_number = { path = "../sodigy_number" }
+sodigy_test = { path = "../sodigy_test" }

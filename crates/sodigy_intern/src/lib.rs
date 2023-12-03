@@ -8,9 +8,6 @@ mod prelude;
 mod session;
 mod string;
 
-#[cfg(test)]
-mod tests;
-
 pub(crate) use global::{DATA_MASK, IS_INTEGER, IS_SMALL_INTEGER, PRELUDE_STRINGS};
 pub use numeric::InternedNumeric;
 pub use string::InternedString;

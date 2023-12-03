@@ -25,6 +25,7 @@ pub use token_tree::{TokenTree, TokenTreeKind};
 pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &mut LexSession) -> Result<(), ()> {
     let mut index = 0;
     let mut group_stack = vec![];
+    let mut has_macro = false;
 
     loop {
         match tokens.get(index) {
@@ -137,6 +138,10 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                 },
                             },
                             _ => {
+                                if is_macro(tokens, index) {
+                                    has_macro = true;
+                                }
+
                                 session.push_token(TokenTree {
                                     kind: TokenTreeKind::Punct((*p1).try_into().unwrap()),  // lexer assures that it doesn't fail
                                     span: token.span,
@@ -286,11 +291,51 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                 },
                 _ => {
                     session.err_if_has_err()?;
+
+                    if has_macro {
+                        session.expand_macros()?;
+                    }
+
                     return Ok(());
                 }
             },
         }
 
         index += 1;
+    }
+}
+
+// it only checks whether the current tokens are `@[`.
+// if the current tokens are `@[` but not a valid macro, `session.expand_macro` would throw an error.
+fn is_macro(tokens: &[Token], mut index: usize) -> bool {
+    if let Some(
+        Token {
+            kind: TokenKind::Punct(b'@'),
+            ..
+        }
+    ) = tokens.get(index) {
+        index += 1;
+
+        while let Some(Token {
+            kind: TokenKind::Whitespace,
+            ..
+        }) = tokens.get(index) {
+            index += 1;
+        }
+
+        if let Some(Token {
+            kind: TokenKind::Grouper(b'['),
+            ..
+        }) = tokens.get(index) {
+            true
+        }
+
+        else {
+            false
+        }
+    }
+
+    else {
+        false
     }
 }

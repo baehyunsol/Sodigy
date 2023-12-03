@@ -1,7 +1,8 @@
 use sodigy_err::UniversalError;
 use std::collections::HashSet;
 
-pub struct CompileResult {
+#[derive(Default)]
+pub struct ErrorsAndWarnings {
     errors: Vec<UniversalError>,
     warnings: Vec<UniversalError>,
 
@@ -9,9 +10,9 @@ pub struct CompileResult {
     warning_hashes: HashSet<u64>,
 }
 
-impl CompileResult {
+impl ErrorsAndWarnings {
     pub fn new() -> Self {
-        CompileResult {
+        ErrorsAndWarnings {
             errors: vec![],
             warnings: vec![],
 

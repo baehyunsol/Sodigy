@@ -15,7 +15,7 @@ impl fmt::Display for ExpectedToken {
                 ExpectedToken::AnyNumber => "a number".to_string(),
                 ExpectedToken::AnyDocComment => "a doc-comment".to_string(),
                 ExpectedToken::AnyType => "type".to_string(),
-                ExpectedToken::IdentOrBrace => "an identifier or `{}`".to_string(),
+                ExpectedToken::IdentOrBrace => "an identifier or `{...}`".to_string(),
                 ExpectedToken::LetStatement => "an identifier or a keyword `enum`, `struct` or `pattern`".to_string(),
                 ExpectedToken::Nothing => "nothing".to_string(),
                 ExpectedToken::PostExpr => "a postfix operator or an infix operator".to_string(),

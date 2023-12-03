@@ -139,7 +139,10 @@ impl<'t> Tokens<'t> {
                 TokenKind::Keyword(_)
                 | TokenKind::FormattedString(_)
                 | TokenKind::DocComment(_)
-                | TokenKind::Group { .. } => false,
+                | TokenKind::Group { .. }
+
+                // `TokenKind::Macro`s are all lowered before this stage, so we don't need to worry about this variant
+                | TokenKind::Macro { .. } => false,
             },
             _ => false,
         }

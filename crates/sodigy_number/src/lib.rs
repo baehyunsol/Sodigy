@@ -13,18 +13,26 @@ pub enum SodigyNumber {
     // reduce the size of `SodigyNumber` by using `Box`, than storing `BigNumber` directly
     Big(Box<BigNumber>),
 
-    // an integer 0 ~ 18446744073709551615
+    // an integer 0 ~ 2^64
     SmallInt(u64),
 
     // it's converted from BigNumber
-    // for a number `A * 10^B` (A and B are both integers, 0 <= A < 281474976710655, -32768 <= B < 32768),
-    // the u64 value is `A * 65536 + B + 32768`
+    // for a number `A * 10^B` (A and B are both integers, 0 <= A < 2^48, -2^15 <= B < 2^15),
+    // the u64 value is `A * 2^16 + B + 2^15`
     //
     // it uses decimal rather than binary because the numeric literals in Sodigy code uses decimals
     SmallRatio(u64),
 }
 
 impl SodigyNumber {
+    pub fn is_zero(&self) -> bool {
+        match self {
+            SodigyNumber::Big(n) => n.is_zero(),
+            SodigyNumber::SmallInt(n) => *n == 0,
+            SodigyNumber::SmallRatio(n) => *n >> 16 == 0,
+        }
+    }
+
     // `s` is guaranteed to be a valid, decimal number. `s` may contain `e` or a decimal separator.
     pub fn from_string(s: &[u8]) -> Result<Self, NumericParseError> {
         if s.len() < 21 {
@@ -62,8 +70,8 @@ impl SodigyNumber {
                 0,
             ),
             SodigyNumber::SmallRatio(n) => {
-                let exp = (*n % 65536) as i64 - 32768;
-                let digits = *n / 65536;
+                let exp = (*n & 0xffff) as i64 - 32768;
+                let digits = *n >> 16;
 
                 (
                     digits.to_string().as_bytes().to_vec(),
@@ -98,10 +106,10 @@ impl SodigyNumber {
         match (self, other) {
             (SodigyNumber::SmallInt(m), SodigyNumber::SmallInt(n)) => *m > *n,
             (SodigyNumber::SmallRatio(m), SodigyNumber::SmallRatio(n)) => {
-                let exp1 = *m % 65536;
-                let exp2 = *n % 65536;
-                let digits1 = *m / 65536;
-                let digits2 = *n / 65536;
+                let exp1 = *m & 0xffff;
+                let exp2 = *n & 0xffff;
+                let mut digits1 = *m >> 16;
+                let mut digits2 = *n >> 16;
 
                 if digits1 == 0 {
                     return false;
@@ -111,14 +119,18 @@ impl SodigyNumber {
                     return true;
                 }
 
-                let exp1 = exp1 + log10(digits1);
-                let exp2 = exp2 + log10(digits2);
+                let log10_d1 = log10(digits1);
+                let log10_d2 = log10(digits2);
 
-                if exp1 != exp2 {
-                    return exp1 > exp2;
+                if exp1 + log10_d1 != exp2 + log10_d2 {
+                    return exp1 + log10_d1 > exp2 + log10_d2;
                 }
 
-                todo!()
+                // let's compare first 15 digits
+                digits1 *= pow10(16 - log10_d1);
+                digits2 *= pow10(16 - log10_d2);
+
+                digits1 > digits2
             },
             _ => todo!(),
         }
@@ -252,8 +264,8 @@ impl BigNumber {
             let digits = String::from_utf8(self.digits.clone()).unwrap();
 
             match digits.parse::<u64>() {
-                Ok(n) if n < 281474976710656 => {
-                    Some(n * 65536 + (self.exp + 32768) as u64)
+                Ok(n) if n < (1 << 48) => {
+                    Some((n << 16) + (self.exp + 32768) as u64)
                 },
                 _ => None
             }
@@ -262,6 +274,10 @@ impl BigNumber {
         else {
             None
         }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.digits == b"0"
     }
 }
 

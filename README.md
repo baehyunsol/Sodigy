@@ -120,6 +120,7 @@ Let's say a function `f` takes M generic parameters and N input parameters.
 - If M + N parameters are given, the first M parameters are generic, and the last N parameters are input.
 - If N parameters are given, it's input.
 - Otherwise, it's an error.
+  - You have to specify all the generics, or not at all.
 
 You might think you can rely on compiler's type inference instead of generics. But you can't do that. Below doesn't compile.
 
@@ -303,6 +304,25 @@ let struct Person = {
     age: Int,
 };
 ```
+
+There's no named tuple in Sodigy. All the fields in structs must have a name.
+
+### Tuple
+
+TODO: write document
+
+```
+# it's how a type annotation of a tuple looks like
+let a: (Int, Int, String) = (3, 4, "a");
+
+# it's how you access an element in a tuple
+@test.eq(3)
+let b = a._0;
+```
+
+### List
+
+`[1, 2, 3]`
 
 ## Operators
 

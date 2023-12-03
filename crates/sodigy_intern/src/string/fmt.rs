@@ -7,11 +7,10 @@ impl InternedString {
         let mut v = unintern_string(*self);
 
         if v.len() > 64 {
-            // TODO: what if v has multi-byte chars?
             v = vec![
-                v[..8].to_vec(),
+                first_few_chars(&v),
                 b"...".to_vec(),
-                v[(v.len() - 8)..].to_vec()
+                last_few_chars(&v),
             ].concat();
         }
 
@@ -40,5 +39,35 @@ impl fmt::Debug for InternedString {
         let v = unintern_string(*self);
 
         write!(fmt, "{:?}", String::from_utf8_lossy(&v).to_string())
+    }
+}
+
+// v.len() > 64, v is a valid utf-8 str
+fn first_few_chars(v: &[u8]) -> Vec<u8> {
+    let mut curr = 7;
+
+    loop {
+        if v[curr] < 128 {
+            return v[0..curr].to_vec();
+        }
+
+        else if v[curr] >= 192 {
+            return v[0..(curr - 1)].to_vec();
+        }
+
+        curr += 1;
+    }
+}
+
+// v.len() > 64, v is a valid utf-8 str
+fn last_few_chars(v: &[u8]) -> Vec<u8> {
+    let mut curr = v.len() - 8;
+
+    loop {
+        if v[curr] < 128 || v[curr] >= 192 {
+            return v[curr..].to_vec();
+        }
+
+        curr -= 1;
     }
 }

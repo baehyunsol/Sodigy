@@ -1,7 +1,7 @@
 # A file that doesn't make the compiler panic!
 
 @test.eq(61)
-let main = ackermann(3, 3);
+let main = ackermann(3, 3) + @[table](3: 4, 5: 6, 7: 8);
 
 let ackermann(m: Int, n: Int): Int = if m == 0 {
     n + 1

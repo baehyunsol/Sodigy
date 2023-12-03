@@ -54,6 +54,15 @@ impl fmt::Display for TokenTreeKind {
                     )
                 },
                 TokenTreeKind::DocComment(content) => format!("##>{content}\n"),
+                TokenTreeKind::Macro { name, args } => format!(
+                    "@[{}]({})",
+                    name.iter().map(
+                        |n| n.to_string()
+                    ).collect::<Vec<String>>().join(" "),
+                    args.iter().map(
+                        |a| a.to_string()
+                    ).collect::<Vec<String>>().join(" "),
+                ),
             },
         )
     }
@@ -73,7 +82,7 @@ impl TokenTreeKind {
                     delim: *delim,
                     prefix: *prefix,
                     tokens: vec![
-                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy(14)),
+                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy(15)),
                     ],
                 }
             ),
@@ -87,6 +96,10 @@ impl TokenTreeKind {
             ),
             TokenTreeKind::FormattedString(_) => String::from("f\"...\""),
             TokenTreeKind::DocComment(_) => String::from("##> ..."),
+            TokenTreeKind::Macro { name, .. } => format!(
+                "@[{}](...)",
+                name.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(" "),
+            ),
         }
     }
 }

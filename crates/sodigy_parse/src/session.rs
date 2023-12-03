@@ -1,14 +1,16 @@
-use crate::{ParseError, TokenTree};
+use crate::{Delim, ParseError, Punct, TokenTree, TokenTreeKind};
 use crate::warn::ParseWarning;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_number::SodigyNumber;
+use sodigy_span::SpanRange;
 
 pub struct ParseSession {
     pub tokens: Vec<TokenTree>,
     pub errors: Vec<ParseError>,
     pub warnings: Vec<ParseWarning>,
     pub interner: InternSession,
+    pub has_unexpanded_macros: bool,
 }
 
 impl ParseSession {
@@ -18,6 +20,7 @@ impl ParseSession {
             errors: vec![],
             warnings: vec![],
             interner: s.get_interner().clone(),
+            has_unexpanded_macros: false,
         }
     }
 
@@ -71,4 +74,122 @@ impl ParseSession {
             Err(())
         }
     }
+
+    // if it sees `@`, it's not sure whether that's a macro or not
+    // if it sees `@[`, that must be a macro!
+    pub fn expand_macros(&mut self) -> Result<(), ()> {
+        let mut new_tokens = Vec::with_capacity(self.tokens.len());
+        let mut curr_state = ExpandState::Init;
+
+        let mut curr_macro_span = SpanRange::dummy(14);
+        let mut curr_macro_name = vec![];
+        let mut curr_macro_args = vec![];
+
+        // TODO: it has too many `clone`s
+        for token in self.tokens.iter() {
+            match curr_state {
+                ExpandState::Init => {
+                    if token.kind == TokenTreeKind::Punct(Punct::At) {
+                        curr_state = ExpandState::TryReadMacroName;
+                    }
+
+                    new_tokens.push(token.clone());
+                },
+                ExpandState::TryReadMacroName => {
+                    let curr_span = token.span;
+
+                    if let TokenTreeKind::Group {
+                        delim: Delim::Bracket,
+                        prefix: b'\0',
+                        tokens,
+                    } = &token.kind {
+                        // `@` it just pushed is a macro!
+                        let at = new_tokens.pop().unwrap();
+
+                        curr_macro_span = at.span.merge(curr_span);
+                        curr_macro_name = tokens.clone();
+                        curr_state = ExpandState::ReadMacroArgs;
+                    }
+
+                    else {
+                        curr_state = ExpandState::Init;
+                        new_tokens.push(token.clone());
+                    }
+                },
+                ExpandState::ReadMacroArgs => {
+                    let curr_span = token.span;
+
+                    if let TokenTreeKind::Group {
+                        delim: Delim::Paren,
+                        prefix: b'\0',
+                        tokens,
+                    } = &token.kind {
+                        curr_macro_args = tokens.clone();
+                        curr_macro_span = curr_macro_span.merge(curr_span);
+
+                        if let Some(tokens) = self.try_expand_macro(
+                            &curr_macro_name,
+                            &curr_macro_args,
+                        ) {
+                            for token in tokens.into_iter() {
+                                new_tokens.push(token);
+                            }
+                        }
+
+                        else {
+                            new_tokens.push(TokenTree {
+                                kind: TokenTreeKind::Macro {
+                                    name: curr_macro_name.clone(),
+                                    args: curr_macro_args.clone(),
+                                },
+                                span: curr_macro_span,
+                            });
+                            self.has_unexpanded_macros = true;
+                        }
+
+                        curr_macro_name.clear();
+                        curr_macro_args.clear();
+                    }
+
+                    else {
+                        // TODO
+                        // [Error while expanding a macro]
+                        // expected `(..)`, got blahblah
+
+                        // self.push_error(
+                        //     ParseError::unexpected_token(
+                        //         token.clone(),
+                        //         ExpectedToken::Specific(vec![TokenTreeKind::Group {
+                        //             ..
+                        //         }])
+                        //     )
+                        // );
+                        todo!()
+                    }
+
+                    curr_state = ExpandState::Init;
+                },
+            }
+        }
+
+        self.tokens = new_tokens;
+        self.err_if_has_err()?;
+
+        Ok(())
+    }
+
+    pub fn try_expand_macro(
+        &self,
+        name: &[TokenTree],
+        args: &[TokenTree],
+    ) -> Option<Vec<TokenTree>> {
+        // TODO
+        None
+    }
+}
+
+enum ExpandState {
+    Init,
+    TryReadMacroName,
+    ReadMacroArgs,
 }

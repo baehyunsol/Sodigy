@@ -1,101 +1,63 @@
 #![deny(unused_imports)]
 
-use sodigy_ast::{parse_stmts, AstSession, Tokens};
-use sodigy_err::SodigyError;
 use sodigy_files::{global_file_session, FileError, FileHash};
-use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_interpreter::{HirEvalCtxt, eval_hir};
-use sodigy_lex::{lex, LexSession};
-use sodigy_parse::{from_tokens, ParseSession};
-use sodigy_span::SpanPoint;
 
+mod stages;
 mod result;
+
+use stages::{
+    lex_stage,
+    ast_stage,
+    hir_stage,
+};
 
 #[cfg(test)]
 mod tests;
 
-use result::CompileResult;
+use result::ErrorsAndWarnings;
 
-pub fn compile_file(path: String) -> Result<CompileResult, FileError> {
+pub fn compile_file(path: String) -> Result<ErrorsAndWarnings, FileError> {
     let file_session = unsafe { global_file_session() };
     let file = file_session.register_file(&path)?;
 
     Ok(compile(file))
 }
 
-pub fn compile_input(input: Vec<u8>) -> CompileResult {
+pub fn compile_input(input: Vec<u8>) -> ErrorsAndWarnings {
     let file_session = unsafe { global_file_session() };
     let file = file_session.register_tmp_file(input);
 
     compile(file)
 }
 
-pub fn compile(file_hash: FileHash) -> CompileResult {
-    let mut result = CompileResult::new();
-    let file_session = unsafe { global_file_session() };
-    let input = file_session.get_file_content(file_hash).unwrap();
+// TODO: there's no type for compile result yet
+pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
+    let (parse_session, errors_and_warnings) = lex_stage(file_hash);
 
-    let mut lex_session = LexSession::new();
-
-    if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
-        for error in lex_session.get_errors() {
-            result.push_error(error.to_universal());
-        }
-
-        return result;
-    }
-
-    let mut parse_session = ParseSession::from_lex_session(&lex_session);
-    let tokens = lex_session.get_tokens();
-    let mut new_lex_session = LexSession::new();
-
-    if let Err(()) = from_tokens(tokens, &mut parse_session, &mut new_lex_session) {
-        for error in parse_session.get_errors() {
-            result.push_error(error.to_universal());
-        }
-
-        for error in new_lex_session.get_errors() {
-            result.push_error(error.to_universal());
-        }
-
-        return result;
+    let parse_session = if let Some(parse_session) = parse_session {
+        parse_session
+    } else {
+        return errors_and_warnings;
     };
 
-    for warning in parse_session.get_warnings() {
-        result.push_warning(warning.to_universal());
-    }
+    let (ast_session, errors_and_warnings) = ast_stage(&parse_session, Some(errors_and_warnings));
+    drop(parse_session);
 
-    let mut ast_session = AstSession::from_parse_session(&parse_session);
-    let mut tokens = parse_session.get_tokens().to_vec();
-    let mut tokens = Tokens::from_vec(&mut tokens);
-    let res = parse_stmts(&mut tokens, &mut ast_session);
+    let ast_session = if let Some(ast_session) = ast_session {
+        ast_session
+    } else {
+        return errors_and_warnings;
+    };
 
-    for warning in ast_session.get_warnings() {
-        result.push_warning(warning.to_universal());
-    }
+    let (hir_session, errors_and_warnings) = hir_stage(&ast_session, Some(errors_and_warnings));
+    drop(ast_session);
 
-    if let Err(()) = res {
-        for error in ast_session.get_errors() {
-            result.push_error(error.to_universal());
-        }
-
-        return result;
-    }
-
-    let mut hir_session = HirSession::new();
-    let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
-
-    for warning in hir_session.get_warnings() {
-        result.push_warning(warning.to_universal());
-    }
-
-    if let Err(()) = res {
-        for error in hir_session.get_errors() {
-            result.push_error(error.to_universal());
-        }
-
-        return result;
-    }
+    let hir_session = if let Some(hir_session) = hir_session {
+        hir_session
+    } else {
+        return errors_and_warnings;
+    };
 
     // TODO: this is a tmp code for testing
     {
@@ -121,5 +83,5 @@ pub fn compile(file_hash: FileHash) -> CompileResult {
         }
     }
 
-    result
+    errors_and_warnings
 }

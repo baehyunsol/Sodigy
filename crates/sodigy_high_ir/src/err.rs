@@ -71,6 +71,14 @@ impl HirError {
         }
     }
 
+    pub fn multiple_shorthands(spans: Vec<SpanRange>) -> Self {
+        HirError {
+            kind: HirErrorKind::MultipleShorthands,
+            spans: spans.into(),
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     // tmp variant for type errors.
     // must be replaced with 'real' type errors when
     // Sodigy type system is implemented
@@ -129,6 +137,7 @@ pub enum HirErrorKind {
     RefutablePatternInLet,
     OpenInclusiveRange,
     UnmatchablePattern,
+    MultipleShorthands,
 
     // tmp variant for type errors.
     // must be replaced with 'real' type errors when
@@ -147,6 +156,7 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::RefutablePatternInLet => String::from("refutable pattern in `let` statement"),
             HirErrorKind::OpenInclusiveRange => String::from("inclusive range with an open end"),
             HirErrorKind::UnmatchablePattern => String::from("unmatchable pattern"),
+            HirErrorKind::MultipleShorthands => String::from("multiple shorthands"),
             HirErrorKind::TyError => String::from("TODO: Type Error"),  // Sodigy type system is not complete yet
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -177,6 +187,7 @@ impl SodigyErrorKind for HirErrorKind {
             },
             HirErrorKind::RefutablePatternInLet => String::from("TODO: explain what refutable patterns are."),
             HirErrorKind::UnmatchablePattern => String::from("Nothing can match this pattern."),
+            HirErrorKind::MultipleShorthands => String::from("There can be at most one shorthand pattern."),
             _ => String::new(),
         }
     }
@@ -190,6 +201,7 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::RefutablePatternInLet => 4,
             HirErrorKind::OpenInclusiveRange => 5,
             HirErrorKind::UnmatchablePattern => 6,
+            HirErrorKind::MultipleShorthands => 7,
             HirErrorKind::TyError => 62,
             HirErrorKind::TODO(..) => 63,
         }

@@ -4,14 +4,7 @@ spec
 
 추가사항
 
-`##>`: Doc comment (how about `##!>` for multi-line doc comments?)
-
 pattern guard -> rust와 동일, match 안에서만 사용 가능 (let에서는 사용 불가능)
-
-tuple에서 field 접근 -> `.0`, `.1` 말고 `._0`, `._1` 하자...
-
-generic type annotation: `Some(3)`, `Some(Int, 3)`
-  - distinguish by the number of arguments
 
 ---
 
@@ -119,6 +112,8 @@ name issues with `@[map]`: how does it know the name of std.hash_map? what if th
 
 impossible: due to cyclic imports
 
+in order to resolve `import * from x;`, one has to collect all the names in `x`. the collecting and name resolving is done at the same time. that means if there are more than two modules `import *`ing each other, the compiler cannot do anything
+
 ---
 
 IRs later
@@ -151,3 +146,89 @@ more feature rich f-strings
 - stretch, align, fill
   - make the output string length s, align the string left/right/center, and fill the empty space with c
 - rational numbers
+
+---
+
+bitwise operations
+
+- `&`
+  - already exists
+- `|`
+  - already exists
+- `^`
+- `~`
+  - impossible in inf-width int
+- `<<`
+  - how about negative shifts? negative left = positive right
+- `>>`
+  - how about negative shifts? negative left = positive right
+- count_ones
+- trailing_ones
+- trailing_zeros
+- leading_ones
+  - impossible in inf-width int
+- leading_zeros
+  - impossible in inf-width int
+
+how do they deal with negative numbers? for now, it doesn't use 2s complement... what's binary representation of `-1`? infinite 1s?
+
+---
+
+compiler cmd line args
+
+it should get inspiration from `rustc`, not `cargo`
+
+---
+
+documents
+
+compiler outputs data for documentation (maybe in JSON?)
+
+it contains...
+
+- types
+- doc comments
+- uid
+  - it doesn't help readers, but it would make it much easier to implement document renderers
+- dependency
+  - who is calling this function
+  - whom this function is calling
+
+more fancy stuffs...
+
+- example code is actually run in tests
+  1. sodigy's test runner reads doc-comments and tries to run codes in the document
+  2. special annotation includes a code snippet to the document
+
+2 looks much better
+
+```
+def adder(n: Int): Func(Int, Int) = \{x, x + n};
+
+# documentation of `adder` shows this example
+@document.example(adder)
+@test.eq(3)
+def adder_ex = {
+    let adder1 = adder(1);
+
+    adder1(2)
+};
+```
+
+---
+
+types
+
+MIR에서 모든 함수/operator의 uid를 찾아서 걔를 직접 때려박잖아? 근데 generic은 일단 유보하자. 즉, `a + b`가 있으면 `a`와 `b`의 type을 둘다 찾아서 `+`가 무슨 `+`인지 찾아서 걔의 uid를 넣는게 [[giant]]아니고[[/giant]], generic add의 uid를 넣어 놓는 거임. 나중에 type inference랑 type check가 끝나면 그때 real uid를 넣는 거지..
+
+이제 구현이 쉬움, Operator랑 함수 호출이 똑같이 생겼거든!!
+
+`foo(a, b, c)`를 볼 경우:
+
+1. type check를 `a`, `b`, `c`에 recursive하게 호출, 걔네의 type을 전부 알아옴.
+  - 다른 annotation으로부터 쟤네의 type을 알 수 있을 경우 걔네를 바로 사용.
+2. a, b, c의 type이 foo의 input type과 일치하는지 확인
+  - 만약 foo의 type이 불완전하게 제공되었으면??
+3. 일치할 경우 `foo(a, b, c)`의 type을 알아낸 거임!
+4. 만약 누군가 `foo(a, b, c)`의 type을 infer하고 싶었으면 걔한테 알려주면 됨. 만약 `foo(a, b, c)`에 type annotation이 붙어있었으면 걔가 정확한지도 확인해야함
+

@@ -113,6 +113,9 @@ pub enum ParseErrorKind {
     LonelyBacktick,
     LonelyBackslash,
 
+    // TODO: move `ExpectedToken` to sodigy_err and implement this
+    // UnexpectedToken(TokenTreeKind, ExpectedToken<TokenTreeKind>),
+
     // when an exp of a numeric literal is too big
     // e.g. `1.2e10000000000000000000000000`
     // exp should be a valid i64

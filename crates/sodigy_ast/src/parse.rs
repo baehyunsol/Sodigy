@@ -546,6 +546,11 @@ pub fn parse_expr(
                 span,
             }
         },
+        // it has to be lowered before this stage
+        Some(Token {
+            kind: TokenKind::Macro { .. },
+            span,
+        }) => unreachable!(),
         None => {
             if do_nothing_when_failed {
                 return Err(());
@@ -986,10 +991,17 @@ fn parse_scope_block(
     )?;
 
     if !tokens.is_finished() {
-        session.push_error(AstError::unexpected_token(
-            tokens.peek().unwrap().clone(),
+        let curr_token = tokens.peek().unwrap();
+        let mut e = AstError::unexpected_token(
+            curr_token.clone(),
             ExpectedToken::Nothing,
-        ));
+        );
+
+        if curr_token.kind == TokenKind::semi_colon() {
+            e.set_message("`;`s are used to separate statements, not the value of a block. Try remove this `;`.".to_string());
+        }
+
+        session.push_error(e);
 
         return Err(());
     }
@@ -2228,11 +2240,13 @@ fn parse_let_statement(
     };
 
     if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
-        session.push_error(
-            e.set_err_context(
-                ErrorContext::ParsingLetStatement,
-            ).to_owned()
-        );
+        e.set_err_context(ErrorContext::ParsingLetStatement);
+
+        if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
+            e.set_message("Use `;` before the keyword `let` to separate statements.".to_string());
+        }
+
+        session.push_error(e);
         return Err(());
     }
 

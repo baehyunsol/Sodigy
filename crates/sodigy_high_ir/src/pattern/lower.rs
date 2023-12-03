@@ -19,9 +19,6 @@ use std::collections::{HashMap, HashSet};
 // `let pattern Foo { bar: $x, baz: $y } = f();`
 // -> `let tmp = f();`, `let x = tmp.bar;`, `let y = tmp.baz;`
 //
-// `let pattern Foo($x, $y, $z @ ..) = f();`
-// -> TODO: notation for $z
-//
 // `let pattern ($x, $y, .., $z, _) = f();`
 // -> `let tmp = f();`, `let x = tmp._0;`, `let y = tmp._1;`, `let z = TODO`
 // -> TODO: notation for $z
@@ -31,9 +28,6 @@ use std::collections::{HashMap, HashSet};
 //
 // `let pattern Foo { $x, $z @ .. } = f();`
 // -> Invalid: No bindings for shorthand in this case
-//
-// `let pattern Foo(Foo($x, $y), $z) = f();`
-// -> `let tmp = f();`, `let tmp2 = tmp._0;`, `let x = tmp2._0;`, `let y = tmp2._1;`, `let z = tmp._1;`
 //
 // `let pattern Foo { bar: $x @ Foo { .. }, .. } = f();`
 // -> same as `let Foo { bar: $x, .. } = f();`
@@ -71,6 +65,7 @@ pub fn lower_patterns_to_name_bindings(
             ));
 
             let name_bindings_len = name_bindings.len();
+            let mut shorthand_index = None;
 
             for (ind, curr_pattern) in patterns.iter().enumerate() {
                 if curr_pattern.is_wildcard() {
@@ -84,15 +79,39 @@ pub fn lower_patterns_to_name_bindings(
                 }
 
                 if curr_pattern.is_shorthand() {
-                    todo!()
+                    if let Some(_) = shorthand_index {
+                        session.push_error(HirError::multiple_shorthands(
+                            // It's okay to be inefficient when there's an error
+                            get_all_shorthand_spans(&patterns)
+                        ));
+                        has_error = true;
+                    }
+
+                    else {
+                        shorthand_index = Some(ind);
+
+                        // `let pattern (_, $x @ .., _) = (0, 1, 2, 3);`
+                        // -> `let x = (1, 2);`
+                        if let Some(bind) = &curr_pattern.bind {
+                            // TODO: handle this case
+                        }
+                    }
+
+                    continue;
                 }
+
+                // TODO: if shorthand_index is Some(_),
+                // it's not `get_tuple_field_expr(ind)`
 
                 // `0` -> `_0`
                 let field_expr = session.get_tuple_field_expr(ind);
 
+                // `tmp` + `_0` -> `tmp._0`
+                let subpattern_expr = field_expr_with_name_and_index(tmp_name, field_expr);
+
                 if let Err(()) = lower_patterns_to_name_bindings(
                     curr_pattern,  // $x
-                    &field_expr_with_name_and_index(tmp_name, field_expr),  // tmp._0
+                    &subpattern_expr,  // tmp._0
                     name_bindings,
                     session,
                 ) {
@@ -102,15 +121,6 @@ pub fn lower_patterns_to_name_bindings(
 
             if has_error {
                 return Err(());
-            }
-        },
-        // TODO: is this refutable?
-        ast::PatternKind::TupleStruct {
-            name,
-            fields,
-        } => {
-            for pattern in fields.iter() {
-                todo!();
             }
         },
         ast::PatternKind::Struct {
@@ -260,6 +270,28 @@ fn lower_ast_pattern_kind(
 
             res
         },
+        ast::PatternKind::Tuple(patterns) => {
+            let mut result = Vec::with_capacity(patterns.len());
+            let mut has_error = false;
+
+            for pattern in patterns.iter() {
+                if let Ok(pattern) = lower_ast_pattern(
+                    pattern,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                ) {
+                    result.push(pattern);
+                }
+
+                else {
+                    has_error = true;
+                }
+            }
+
+            PatternKind::Tuple(result)
+        },
         _ => {
             session.push_error(HirError::todo("patterns", span));
             return Err(());
@@ -311,6 +343,7 @@ fn check_same_type_or_error(
     }
 }
 
+// `name.field`
 fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -> ast::Expr {
     ast::Expr {
         kind: ast::ExprKind::Path {
@@ -322,4 +355,12 @@ fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -
         },
         span: SpanRange::dummy(12),
     }
+}
+
+fn get_all_shorthand_spans(patterns: &[ast::Pattern]) -> Vec<SpanRange> {
+    patterns.iter().filter(
+        |pat| matches!(pat.kind, ast::PatternKind::Shorthand)
+    ).map(
+        |pat| pat.span
+    ).collect()
 }
