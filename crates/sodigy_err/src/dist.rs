@@ -128,8 +128,8 @@ fn dist_test() {
     assert_eq!(substr_edit_distance(b"edit_distan", b"substr_edit_distance"), 0);
     assert_eq!(substr_edit_distance(b"edit_dustan", b"substr_edit_distance"), 1);
 
-    assert_eq!(substr_edit_distance(
+    assert!(substr_edit_distance(
         "Very Very Long String: I want to make sure that `edit_distance` is not an O(a^n) algorithm".repeat(256).as_bytes(),
         "Another very very long string... 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(256).as_bytes(),
-    ), 37 /* the result doesn't matter, i just want to make sure that this code terminates in reasonable time */ );
+    ) > 10 /* the result doesn't matter, i just want to make sure that this code terminates in reasonable time */ );
 }

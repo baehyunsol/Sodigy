@@ -1,13 +1,19 @@
 use crate::{IdentWithSpan, Token, TokenKind};
 use crate::pattern::{Pattern, PatternKind};
 use smallvec::{smallvec, SmallVec};
-use sodigy_err::{substr_edit_distance, ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_err::{
+    substr_edit_distance,
+    ErrorContext,
+    ExpectedToken,
+    ExtraErrInfo,
+    SodigyError,
+    SodigyErrorKind,
+};
+use sodigy_err::RenderError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_keyword::Keyword;
 use sodigy_parse::Delim;
 use sodigy_span::SpanRange;
-
-mod fmt;
 
 const STMT_START_KEYWORDS: [&'static str; 3] = [
     "let", "module", "import",
@@ -21,7 +27,7 @@ pub struct AstError {
 }
 
 impl AstError {
-    pub fn unexpected_token(token: Token, expected_token: ExpectedToken) -> Self {
+    pub fn unexpected_token(token: Token, expected_token: ExpectedToken<TokenKind>) -> Self {
         let mut extra = ExtraErrInfo::none();
 
         match &token.kind {
@@ -90,7 +96,7 @@ impl AstError {
         }
     }
 
-    pub fn unexpected_end(span: SpanRange, expected_token: ExpectedToken) -> Self {
+    pub fn unexpected_end(span: SpanRange, expected_token: ExpectedToken<TokenKind>) -> Self {
         AstError {
             kind: AstErrorKind::UnexpectedEnd(expected_token),
             spans: smallvec![span],
@@ -231,8 +237,8 @@ impl SodigyError<AstErrorKind> for AstError {
 
 #[derive(Clone)]
 pub enum AstErrorKind {
-    UnexpectedToken(TokenKind, ExpectedToken),
-    UnexpectedEnd(ExpectedToken),
+    UnexpectedToken(TokenKind, ExpectedToken<TokenKind>),
+    UnexpectedEnd(ExpectedToken<TokenKind>),
     EmptyGenericList,
     BinaryChar,
     EmptyCharLiteral,
@@ -321,86 +327,28 @@ impl SodigyErrorKind for AstErrorKind {
     }
 }
 
-// TODO: it has to be in sodigy_err
-// since sodigy_err cannot depend on sodigy_ast, it has to be `ExpectedToken<T>` and `Specific(Vec<T>)`
-// in order to impl ExpectedToken::render_err, it has to call T::render_err
-// that means there must be a trait `RenderError`
-#[derive(Clone)]
-pub enum ExpectedToken {
-    AnyIdentifier,
-    AnyExpression,
-    AnyStatement,
-    AnyDocComment,
-    AnyPattern,
-    AnyType,
-    AnyNumber,
-    IdentOrBrace,
-    Nothing,
-
-    /// things that can follow an expression
-    PostExpr,
-
-    /// func call, not func def
-    FuncArgs,
-    Specific(Vec<TokenKind>),
-    LetStatement,
+// walk-around: the rust compiler doesn't allow me to define
+// `ExpectedToken`'s methods otherwise
+pub trait NewExpectedTokens {
+    fn comma_or_gt() -> Self;
+    fn comma_or_colon() -> Self;
+    fn paren_brace_or_comma() -> Self;
+    fn comma_or_paren() -> Self;
+    fn guard_or_arrow() -> Self;
+    fn if_or_brace() -> Self;
+    fn comma_semicolon_dot_or_from() -> Self;
 }
 
-impl ExpectedToken {
-    pub fn specific(t: TokenKind) -> Self {
-        ExpectedToken::Specific(vec![t])
-    }
-
-    pub fn ident() -> Self {
-        ExpectedToken::AnyIdentifier
-    }
-
-    pub fn expr() -> Self {
-        ExpectedToken::AnyExpression
-    }
-
-    pub fn stmt() -> Self {
-        ExpectedToken::AnyStatement
-    }
-
-    pub fn pattern() -> Self {
-        ExpectedToken::AnyPattern
-    }
-
-    pub fn ty() -> Self {
-        ExpectedToken::AnyType
-    }
-
-    pub fn number() -> Self {
-        ExpectedToken::AnyNumber
-    }
-
-    pub fn nothing() -> Self {
-        ExpectedToken::Nothing
-    }
-
-    pub fn post() -> Self {
-        ExpectedToken::PostExpr
-    }
-
-    /// func call, not func def
-    pub fn func_args() -> Self {
-        ExpectedToken::FuncArgs
-    }
-
-    pub fn doc_comment() -> Self {
-        ExpectedToken::AnyDocComment
-    }
-
-    pub fn comma_or_gt() -> Self {
+impl NewExpectedTokens for ExpectedToken<TokenKind> {
+    fn comma_or_gt() -> Self {
         ExpectedToken::Specific(vec![TokenKind::comma(), TokenKind::gt()])
     }
 
-    pub fn comma_or_colon() -> Self {
+    fn comma_or_colon() -> Self {
         ExpectedToken::Specific(vec![TokenKind::comma(), TokenKind::colon()])
     }
 
-    pub fn paren_brace_or_comma() -> Self {
+    fn paren_brace_or_comma() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::Group {
                 delim: Delim::Paren,
@@ -416,7 +364,7 @@ impl ExpectedToken {
         ])
     }
 
-    pub fn comma_or_paren() -> Self {
+    fn comma_or_paren() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::comma(),
             TokenKind::Group {
@@ -427,14 +375,14 @@ impl ExpectedToken {
         ])
     }
 
-    pub fn guard_or_arrow() -> Self {
+    fn guard_or_arrow() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::r_arrow(),
             TokenKind::Keyword(Keyword::If),
         ])
     }
 
-    pub fn if_or_brace() -> Self {
+    fn if_or_brace() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::Keyword(Keyword::If),
             TokenKind::Group {
@@ -445,20 +393,12 @@ impl ExpectedToken {
         ])
     }
 
-    pub fn ident_or_brace() -> Self {
-        ExpectedToken::IdentOrBrace
-    }
-
-    pub fn comma_semicolon_dot_or_from() -> Self {
+    fn comma_semicolon_dot_or_from() -> Self {
         ExpectedToken::Specific(vec![
             TokenKind::comma(),
             TokenKind::semi_colon(),
             TokenKind::dot(),
             TokenKind::Keyword(Keyword::From),
         ])
-    }
-
-    pub fn let_statement() -> Self {
-        ExpectedToken::LetStatement
     }
 }

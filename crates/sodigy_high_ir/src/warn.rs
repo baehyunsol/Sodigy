@@ -2,7 +2,7 @@ use crate::names::NameBindingType;
 use crate::pattern::{NumberLike, RangeType};
 use smallvec::{smallvec, SmallVec};
 use sodigy_ast::{self as ast, IdentWithSpan};
-use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_err::{ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 

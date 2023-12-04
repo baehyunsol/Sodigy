@@ -19,6 +19,9 @@ impl fmt::Display for InfixOp {
             InfixOp::BitwiseOr => String::from("|"),
             InfixOp::LogicalAnd => String::from("&&"),
             InfixOp::LogicalOr => String::from("||"),
+            InfixOp::Xor => String::from("^"),
+            InfixOp::ShiftRight => String::from(">>"),
+            InfixOp::ShiftLeft => String::from("<<"),
             InfixOp::Index => unreachable!(),  // `a [] 0` doesn't make sense...
             InfixOp::Concat => String::from("<>"),
             InfixOp::Append => String::from("<+"),

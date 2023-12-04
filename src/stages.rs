@@ -10,7 +10,7 @@ use sodigy_span::SpanPoint;
 // TODO: nicer return type for all the stages
 // TODO: Endec for sessions -> incremental compilation!!
 
-pub fn lex_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarnings) {
+pub fn parse_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarnings) {
     let mut errors_and_warnings = ErrorsAndWarnings::new();
     let file_session = unsafe { global_file_session() };
     let input = file_session.get_file_content(file_hash).unwrap();
@@ -44,13 +44,18 @@ pub fn lex_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarning
             errors_and_warnings.push_error(error.to_universal());
         }
 
-        return (None, errors_and_warnings);
-    };
+        (None, errors_and_warnings)
+    }
 
-    (Some(parse_session), errors_and_warnings)
+    else {
+        parse_session.errors.clear();
+        parse_session.warnings.clear();
+
+        (Some(parse_session), errors_and_warnings)
+    }
 }
 
-pub fn ast_stage(parse_session: &ParseSession, prev_output: Option<ErrorsAndWarnings>) -> (Option<AstSession>, ErrorsAndWarnings) {
+pub fn hir_stage(parse_session: &ParseSession, prev_output: Option<ErrorsAndWarnings>) -> (Option<HirSession>, ErrorsAndWarnings) {
     if parse_session.has_unexpanded_macros {
         // TODO: what do I do here?
         todo!();
@@ -72,16 +77,9 @@ pub fn ast_stage(parse_session: &ParseSession, prev_output: Option<ErrorsAndWarn
             errors_and_warnings.push_error(error.to_universal());
         }
 
-        (None, errors_and_warnings)
+        return (None, errors_and_warnings);
     }
 
-    else {
-        (Some(ast_session), errors_and_warnings)
-    }
-}
-
-pub fn hir_stage(ast_session: &AstSession, prev_output: Option<ErrorsAndWarnings>) -> (Option<HirSession>, ErrorsAndWarnings) {
-    let mut errors_and_warnings = prev_output.unwrap_or_default();
     let mut hir_session = HirSession::new();
     let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
 
@@ -98,6 +96,9 @@ pub fn hir_stage(ast_session: &AstSession, prev_output: Option<ErrorsAndWarnings
     }
 
     else {
+        hir_session.errors.clear();
+        hir_session.warnings.clear();
+
         (Some(hir_session), errors_and_warnings)
     }
 }

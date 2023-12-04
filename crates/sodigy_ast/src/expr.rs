@@ -54,4 +54,7 @@ pub enum ExprKind {
 
     // It doesn't do anything in runtime. It's just for diagnosis.
     Parenthesis(Box<Expr>),
+
+    // placeholder for erroneous exprs
+    Error,
 }

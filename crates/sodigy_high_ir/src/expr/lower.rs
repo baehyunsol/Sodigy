@@ -803,6 +803,7 @@ pub fn lower_ast_expr(
                 name_space,
             )?
         },
+        ast::ExprKind::Error => unreachable!(),
     };
 
     Ok(res)

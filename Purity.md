@@ -132,6 +132,8 @@ run_debug(
 )
 ```
 
+TODO: we cannot do this if `f` tail-calls itself.
+
 ## `test.after` and `test.before`
 
 ```

@@ -7,8 +7,7 @@ mod stages;
 mod result;
 
 use stages::{
-    lex_stage,
-    ast_stage,
+    parse_stage,
     hir_stage,
 };
 
@@ -33,7 +32,7 @@ pub fn compile_input(input: Vec<u8>) -> ErrorsAndWarnings {
 
 // TODO: there's no type for compile result yet
 pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
-    let (parse_session, errors_and_warnings) = lex_stage(file_hash);
+    let (parse_session, errors_and_warnings) = parse_stage(file_hash);
 
     let parse_session = if let Some(parse_session) = parse_session {
         parse_session
@@ -41,17 +40,8 @@ pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
         return errors_and_warnings;
     };
 
-    let (ast_session, errors_and_warnings) = ast_stage(&parse_session, Some(errors_and_warnings));
+    let (hir_session, errors_and_warnings) = hir_stage(&parse_session, Some(errors_and_warnings));
     drop(parse_session);
-
-    let ast_session = if let Some(ast_session) = ast_session {
-        ast_session
-    } else {
-        return errors_and_warnings;
-    };
-
-    let (hir_session, errors_and_warnings) = hir_stage(&ast_session, Some(errors_and_warnings));
-    drop(ast_session);
 
     let hir_session = if let Some(hir_session) = hir_session {
         hir_session

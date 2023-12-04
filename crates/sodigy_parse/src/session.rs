@@ -1,5 +1,6 @@
 use crate::{Delim, ParseError, Punct, TokenTree, TokenTreeKind};
 use crate::warn::ParseWarning;
+use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_number::SodigyNumber;
@@ -10,6 +11,10 @@ pub struct ParseSession {
     pub errors: Vec<ParseError>,
     pub warnings: Vec<ParseWarning>,
     pub interner: InternSession,
+
+    // for now, this flag is not used at all: there's no syntax and semantics to import macros from other modules
+    // there's even no way to define new ones
+    // this flag will be used when those are implemented
     pub has_unexpanded_macros: bool,
 }
 
@@ -79,11 +84,12 @@ impl ParseSession {
     // if it sees `@[`, that must be a macro!
     pub fn expand_macros(&mut self) -> Result<(), ()> {
         let mut new_tokens = Vec::with_capacity(self.tokens.len());
+        let mut errors = vec![];
         let mut curr_state = ExpandState::Init;
 
         let mut curr_macro_span = SpanRange::dummy(14);
         let mut curr_macro_name = vec![];
-        let mut curr_macro_args = vec![];
+        let mut curr_macro_args;
 
         // TODO: it has too many `clone`s
         for token in self.tokens.iter() {
@@ -144,6 +150,12 @@ impl ParseSession {
                                 },
                                 span: curr_macro_span,
                             });
+                            errors.push(
+                                ParseError::todo(
+                                    "macro",
+                                    curr_macro_span,
+                                ),
+                            );
                             self.has_unexpanded_macros = true;
                         }
 
@@ -152,24 +164,27 @@ impl ParseSession {
                     }
 
                     else {
-                        // TODO
-                        // [Error while expanding a macro]
-                        // expected `(..)`, got blahblah
-
-                        // self.push_error(
-                        //     ParseError::unexpected_token(
-                        //         token.clone(),
-                        //         ExpectedToken::Specific(vec![TokenTreeKind::Group {
-                        //             ..
-                        //         }])
-                        //     )
-                        // );
-                        todo!()
+                        errors.push(
+                            ParseError::unexpected_token(
+                                token.clone(),
+                                ExpectedToken::Specific(vec![TokenTreeKind::Group {
+                                    delim: Delim::Paren,
+                                    prefix: b'\0',
+                                    tokens: vec![],
+                                }])
+                            ).set_err_context(
+                                ErrorContext::ExpandingMacro
+                            ).to_owned()
+                        );
                     }
 
                     curr_state = ExpandState::Init;
                 },
             }
+        }
+
+        for error in errors.into_iter() {
+            self.push_error(error);
         }
 
         self.tokens = new_tokens;

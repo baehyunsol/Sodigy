@@ -5,9 +5,7 @@ fn main() {
     std::env::set_var("RUST_BACKTRACE", "FULL");
     // tests
 
-    compile_file("./samples/easy.sdg".to_string()).unwrap().print_results();
-
-    return;
+    compile_file("./samples/easy.sdg".to_string()).unwrap().print_results(); return;
 
     compile_input("
         let korean = \"한글 테스트 하나둘 하나둘\" <> \"셋넷\";

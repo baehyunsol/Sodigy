@@ -18,14 +18,12 @@ let pn_test: Bool = {
 
 ##> It returns the square root of `n`.
 ##> If the result is not integer, it's truncated.
-##> If `n` is negative, it returns `sqrt(-n)`.
-# TODO: panic when `n < 0`?
 @test.after(\{ret, assert(
     ret * ret <= abs(n)
     && (ret + 1) * (ret + 1) > abs(n)
 )})
 let sqrt(n: Int): Int = match n {
-    $n if n < 0 => sqrt(-n),
+    $n if n < 0 => panic(),
     0 => 0,
     1..4 => 1,
     4..9 => 2,
@@ -99,3 +97,9 @@ let log_test: List(Int) = {
         }}
     )
 };
+
+@test.true
+let arbitrary_precision_numbers =
+    1.1 * 1.1 == 1.21
+    && 19.99 * 19.99 == 399.6001
+;

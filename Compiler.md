@@ -16,11 +16,12 @@ Like other compilers, Sodigy compiler goes through multiple steps to compile.
   - It's like `TokenTree` in rustc. It's a slightly more advanced version of `Token`.
   - Now it knows whether an identifier is a keyword or not.
   - It also groups tokens in this stage. It checks whether parenthesis are properly closed, and marks the start and end of parenthesis.
-4. AST
-  - In this step, the compiler starts dealing with the semantics.
+  - `parse_stage` generates `Vec<TokenTree>` from a file.
+4. Abstract Syntax Tree
 5. High level Intermediate Representation (WIP)
   - It's not that different from AST, except that most names are resolved in this stage. Only names within the same file are resolved. Functions and constants that are used by multiple files are resolved and analysed at MIR stage.
   - HIR is the basic building block for incremental compilation. 99% of HIR can be built from a single file (except custom macros), and that makes it easy to reuse HIRs built at previous compilations.
+  - `hir_stage` generates HIR from `TokenTree`s.
 6. Mid level Intermediate Representation (Not yet)
   - In this stage, all the names are fully resolved.
   - Now that it can find the origin of all the values, it checks and infers types. This stage is where most of the analysis are done.

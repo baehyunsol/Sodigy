@@ -1,4 +1,5 @@
 use super::{Pattern, PatternKind};
+use sodigy_err::RenderError;
 use std::fmt;
 
 impl fmt::Display for Pattern {
@@ -107,9 +108,8 @@ impl fmt::Display for PatternKind {
     }
 }
 
-impl PatternKind {
-    /// `fmt::Display` for error messages
-    pub fn render_error(&self) -> String {
+impl RenderError for PatternKind {
+    fn render_error(&self) -> String {
         match self {
             PatternKind::Identifier(id) => id.render_error(),
             PatternKind::Binding(id) => format!("${}", id.render_error()),

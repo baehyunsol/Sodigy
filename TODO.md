@@ -79,7 +79,7 @@ Like that of `[proc_macro]` in Rust. There's a sodigy function that takes `List(
 
 1. Compiler(Rust): Sodigy Code -> Vec<TokenTree>
 2. Compiler(Rust): Vec<TokenTree> -> List(TokenTree)
-3. Macro(Sodigy): List(TokenTree) -> List(TokenTree)
+3. Macro(Sodigy): List(TokenTree) -> Result(List(TokenTree), CompileError)
 4. Compiler(Rust): List(TokenTree) -> Vec<TokenTree>
 5. if there're remaining macros, goes back to step 2 
 
@@ -106,6 +106,13 @@ how does one import a macro? the compiler knows the imported names at the hir le
 name issues with `@[map]`: how does it know the name of std.hash_map? what if the preluded name is overloaded?
 - how about protecting absolute paths? so that the full name of `Map` never changes, ex: `Sodigy.prelude.Map`, in this case, a new definition of `Sodigy` would be rejected by the compiler
 
+can macros nested?
+
+1. compiler expands macro over and over until no macro is found
+2. The one who implements `Func(List(TokenTree), Result(List(TokenTree), CompileError))` must tell the compiler whether the result has another macro or not
+
+both make sense
+
 ---
 
 `import * from x;`
@@ -120,7 +127,7 @@ IRs later
 
 Mid-IR: every function (including imported ones) is converted to Uid. No more identifiers. All the operators are also lowered to func calls, which use Uids. Everything has a type.
 
-Low-IR: everything is either array or integer. For example, a rational number is an array of length 2 (2 integers). A struct is an array whose elements are its fields. Field access operator is just an array indexing operator.
+Low-IR: everything is either list or integer. For example, a rational number is a list of length 2 (2 integers). A struct is a list whose elements are its fields. Field access operator is just a list indexing operator.
 
 ---
 
@@ -149,6 +156,27 @@ more feature rich f-strings
 
 ---
 
+Python operator
+
+- `**`
+  - power
+  - has no problem with syntax
+  - but we already have `a.pow(b)`
+- `//`
+  - integer division
+  - but we distinguish `3 / 4` and `3.0 / 4.0`. how about for `a: Int` and `b: Int` -> `a / b` vs `a.into(Ratio) / b.into(Ratio)`
+    - very verbose
+    - how about `a as Ratio / b as Ratio`
+- `in`
+  - `a in b` is way more straighforward than `b.contains(a)`
+- `as` (in Rust)
+  - it's already a keyword!
+  - `a as Ratio` is more straightforward than `a.into(Ratio)`
+
+`b.contains(a)`랑 `a.into(Ratio)`도 그닥 나쁘지 않아 보이는데
+
+---
+
 bitwise operations
 
 - `&`
@@ -156,13 +184,15 @@ bitwise operations
 - `|`
   - already exists
 - `^`
+  - already exists
 - `~`
   - impossible in inf-width int
 - `<<`
-  - how about negative shifts? negative left = positive right
+  - already exists
 - `>>`
-  - how about negative shifts? negative left = positive right
+  - already exists
 - count_ones
+- ilog2
 - trailing_ones
 - trailing_zeros
 - leading_ones
@@ -171,6 +201,8 @@ bitwise operations
   - impossible in inf-width int
 
 how do they deal with negative numbers? for now, it doesn't use 2s complement... what's binary representation of `-1`? infinite 1s?
+
+how about `first_n_bits(n: Int)`, `last_n_bits(n: Int)`
 
 ---
 
@@ -232,3 +264,25 @@ MIR에서 모든 함수/operator의 uid를 찾아서 걔를 직접 때려박잖�
 3. 일치할 경우 `foo(a, b, c)`의 type을 알아낸 거임!
 4. 만약 누군가 `foo(a, b, c)`의 type을 infer하고 싶었으면 걔한테 알려주면 됨. 만약 `foo(a, b, c)`에 type annotation이 붙어있었으면 걔가 정확한지도 확인해야함
 
+---
+
+REPL
+
+- `let x = 3 + 4` 할 필요없이 `3 + 4`만 하면 됨
+  - 일단 input을 받아서, `let`으로 시작하면 그대로 쓰고,
+  - `let`이 없으면 `let main = `을 붙이자
+- compile error는 다 보여줘야지, warning도 보여줘야 되나??
+
+---
+
+function overloading with types
+
+```
+let into<T, U>(x: T): U = panic();  # not implemented
+
+let into(x: Int): Ratio = Ratio.from_denom_and_numer(1, x);
+```
+
+- when it sees `"123".into(Int)`, it first looks for `into(x: String): Int`. if it cannot find one, it calls the default one
+- the current implementation doesn't allow that: name collisions
+- what if subtype-related stuff complicates the problem?

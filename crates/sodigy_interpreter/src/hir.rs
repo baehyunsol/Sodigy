@@ -16,12 +16,11 @@ use std::rc::Rc;
 
 pub struct HirEvalCtxt {
     func_arg_stack: Vec<Vec<Rc<SodigyData>>>,
+    scoped_lets: Vec<HashMap<(Uid, InternedString), LazyEvalData>>,
 
     // it needs 2-step mapping because SodigyDataValue cannot store `Uid`s
     func_map: HashMap<Uid, usize>,
     funcs: HashMap<usize, hir::Func>,
-
-    scoped_lets: HashMap<(Uid, InternedString), LazyEvalData>,
 
     // it doesn't have to be 100% accurate
     pub call_depth: usize,
@@ -48,25 +47,30 @@ impl HirEvalCtxt {
             func_arg_stack: vec![],
             func_map,
             funcs,
-            scoped_lets: HashMap::new(),
+            scoped_lets: vec![],
             call_depth: 0,
         }
     }
 
     pub fn push_scoped_let(&mut self, name: &InternedString, uid: &Uid, value: &hir::Expr) {
-        self.scoped_lets.insert((*uid, *name), LazyEvalData::NotEvaled(value.clone()));
+        let last_ind = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_ind].insert((*uid, *name), LazyEvalData::NotEvaled(value.clone()));
     }
 
     pub fn pop_scoped_let(&mut self, name: &InternedString, uid: &Uid) {
-        self.scoped_lets.remove(&(*uid, *name)).unwrap();
+        let last_ind = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_ind].remove(&(*uid, *name)).unwrap();
     }
 
     pub fn get_scoped_let(&mut self, name: &InternedString, uid: &Uid) -> Option<&LazyEvalData> {
-        self.scoped_lets.get(&(*uid, *name))
+        let last_ind = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_ind].get(&(*uid, *name))
     }
 
     pub fn update_scoped_let(&mut self, name: &InternedString, uid: &Uid, value: Rc<SodigyData>) {
-        match self.scoped_lets.get_mut(&(*uid, *name)) {
+        let last_ind = self.scoped_lets.len() - 1;
+
+        match self.scoped_lets[last_ind].get_mut(&(*uid, *name)) {
             Some(d) => {
                 *d = LazyEvalData::Evaled(value);
             },
@@ -80,10 +84,12 @@ impl HirEvalCtxt {
 
     pub fn push_func_args(&mut self, args: Vec<Rc<SodigyData>>) {
         self.func_arg_stack.push(args);
+        self.scoped_lets.push(HashMap::new());
     }
 
     pub fn pop_func_args(&mut self) {
         self.func_arg_stack.pop().unwrap();
+        self.scoped_lets.pop().unwrap();
     }
 
     pub fn get_func_by_id(&self, index: usize) -> Option<&hir::Func> {

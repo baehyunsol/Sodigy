@@ -1,4 +1,5 @@
 use super::{NumberLike, Pattern, PatternKind};
+use sodigy_err::RenderError;
 use std::fmt;
 
 impl fmt::Display for Pattern {
@@ -40,8 +41,8 @@ impl fmt::Display for PatternKind {
     }
 }
 
-impl NumberLike {
-    pub fn render_error(&self) -> String {
+impl RenderError for NumberLike {
+    fn render_error(&self) -> String {
         match self {
             NumberLike::OpenEnd { .. } => todo!(),  // Do we even need this branch?
             NumberLike::Exact { num, is_negative } => format!(

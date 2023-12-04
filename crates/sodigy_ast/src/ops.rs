@@ -57,6 +57,9 @@ pub enum InfixOp {
     BitwiseOr,
     LogicalAnd,
     LogicalOr,
+    Xor,
+    ShiftRight,
+    ShiftLeft,
 
     /// `[]`
     Index,
@@ -101,12 +104,25 @@ impl TryFrom<Punct> for InfixOp {
             Punct::OrOr => Ok(InfixOp::LogicalOr),
             Punct::And => Ok(InfixOp::BitwiseAnd),
             Punct::Or => Ok(InfixOp::BitwiseOr),
+            Punct::Xor => Ok(InfixOp::Xor),
+            Punct::GtGt => Ok(InfixOp::ShiftRight),
+            Punct::LtLt => Ok(InfixOp::ShiftLeft),
             Punct::Append => Ok(InfixOp::Append),
             Punct::Prepend => Ok(InfixOp::Prepend),
             Punct::DotDot => Ok(InfixOp::Range),
             Punct::InclusiveRange => Ok(InfixOp::InclusiveRange),
             Punct::FieldModifier(id) => Ok(InfixOp::FieldModifier(id)),
-            _ => Err(()),
+
+            // Don't use wildcard here
+            Punct::At | Punct::Not
+            | Punct::Assign | Punct::Comma
+            | Punct::Dot | Punct::Colon
+            | Punct::SemiColon
+            | Punct::Backslash
+            | Punct::Dollar
+            | Punct::Backtick
+            | Punct::QuestionMark
+            | Punct::RArrow => Err(()),
         }
     }
 }
@@ -146,7 +162,9 @@ pub fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Index => (INDEX, INDEX + 1),
         InfixOp::Gt | InfixOp::Lt | InfixOp::Ge | InfixOp::Le => (COMP, COMP + 1),
         InfixOp::Eq | InfixOp::Ne => (COMP_EQ, COMP_EQ + 1),
+        InfixOp::ShiftRight | InfixOp::ShiftLeft => (SHIFT, SHIFT + 1),
         InfixOp::BitwiseAnd => (BITWISE_AND, BITWISE_AND + 1),
+        InfixOp::Xor => (XOR, XOR + 1),
         InfixOp::BitwiseOr => (BITWISE_OR, BITWISE_OR + 1),
         InfixOp::Append | InfixOp::Prepend => (APPEND, APPEND + 1),
         InfixOp::FieldModifier(_) => (MODIFY, MODIFY + 1),
@@ -171,15 +189,17 @@ pub fn struct_init_binding_power() -> (u32, u32) {
     (STRUCT_INIT, STRUCT_INIT + 1)
 }
 
-const PATH: u32 = 33;
-const STRUCT_INIT: u32 = 31;
-const CALL: u32 = 29;
-const INDEX: u32 = 27;
-const QUESTION: u32 = 25;
-const NEG: u32 = 23;
-const MUL: u32 = 21;
-const ADD: u32 = 19;
-const BITWISE_AND: u32 = 17;
+const PATH: u32 = 37;
+const STRUCT_INIT: u32 = 35;
+const CALL: u32 = 33;
+const INDEX: u32 = 31;
+const QUESTION: u32 = 29;
+const NEG: u32 = 27;
+const MUL: u32 = 25;
+const ADD: u32 = 23;
+const SHIFT: u32 = 21;
+const BITWISE_AND: u32 = 19;
+const XOR: u32 = 17;
 const BITWISE_OR: u32 = 15;
 const APPEND: u32 = 13;
 const CONCAT: u32 = 11; const RANGE: u32 = 11;

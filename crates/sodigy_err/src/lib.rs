@@ -8,9 +8,12 @@ use std::collections::{HashSet, hash_map};
 use std::hash::Hasher;
 
 mod dist;
+mod expected_token;
 mod fmt;
 
 pub use dist::substr_edit_distance;
+pub use expected_token::ExpectedToken;
+pub use fmt::RenderError;
 
 /// Any error type that implements SodigyError can be converted to this type.
 /// The compiler uses this type to manage all the errors and warnings.
@@ -91,6 +94,7 @@ impl ExtraErrInfo {
 #[derive(Clone, Copy, PartialEq)]
 pub enum ErrorContext {
     Unknown,
+    ExpandingMacro,
     Lexing,
     LexingNumericLiteral,
     ParsingLetStatement,

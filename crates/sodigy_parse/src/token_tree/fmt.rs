@@ -1,4 +1,5 @@
 use super::{FormattedStringElement, TokenTree, TokenTreeKind};
+use sodigy_err::RenderError;
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use std::fmt;
@@ -68,9 +69,8 @@ impl fmt::Display for TokenTreeKind {
     }
 }
 
-impl TokenTreeKind {
-    /// `fmt::Display` for error messages
-    pub fn render_error(&self) -> String {
+impl RenderError for TokenTreeKind {
+    fn render_error(&self) -> String {
         match self {
             TokenTreeKind::Identifier(_)
             | TokenTreeKind::Keyword(_)

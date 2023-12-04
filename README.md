@@ -373,6 +373,30 @@ You can index lists and strings with a range. For example, `a[0..3]` takes the f
 
 It's very useful in some cases. For example, if you want a pattern that covers lower case alphabets, it's either `'a'..'{'` or `'a'..~'z'`. The second one looks much better, doesn't it?
 
+### Bitwise operators
+
+Sodigy has `^`, `&` and `|`. `>>` and `<<` are WIP. Sodigy's bitwise operation is a bit different from other languages. Integers in Sodigy has an arbitrary length, like in Python. That means binary representation of `7` in Sodigy has three `1`s and infinite number of leading `0`s. Due to this, there's no `~` in Sodigy. `~` on any positive number will result in infinite (not sure whether that's positive or not).
+
+That also makes bitwise operations on negative numbers very complicated. There's no 2's complement or 1's complement in Sodigy. It internally uses a sign bit, but we cannot apply bitwise operations on that. So it raises a runtime error when you try to do bitwise operations on negative numbers. This might change in the future.
+
+There are a few other useful functions. They are only available for positive numbers.
+
+- `leading_ones`
+  - `(0b1110101).leading_ones() == 3`
+- `trailing_ones`
+  - `(0b1010111).trailing_ones() == 3`
+- `trailing_zeros`
+  - `(0b1101000).trailing_zeros() == 3`
+- `count_ones`
+  - `(0b1101011).count_ones() == 5`
+- `ilog2`
+  - `(0b1101011).ilog2() == 7`
+  - It counts the bit width without the leading zeros.
+
+#### Shift
+
+You can shift negative counts. For example, `a << -5` is `a >> 5`.
+
 ## Comments
 
 `#` for a single line comment, `##>` for a doc-comment and `##!` \~ `!##` for a multiline comment.
@@ -390,3 +414,9 @@ let add(x: Int, y: Int): Int = x + y;
 ```
 
 ## For Rust programmers
+
+TODO
+
+## For Python programmers
+
+TODO

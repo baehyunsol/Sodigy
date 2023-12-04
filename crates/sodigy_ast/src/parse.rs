@@ -2,7 +2,7 @@ use crate::{
     ArgDef,
     BranchArm,
     DottedNames,
-    err::{ExpectedToken, AstError, AstErrorKind},
+    err::{AstError, AstErrorKind, NewExpectedTokens},
     expr::{Expr, ExprKind},
     GenericDef,
     IdentWithSpan,
@@ -41,7 +41,7 @@ use crate::{
     value::ValueKind,
     warn::AstWarning,
 };
-use sodigy_err::{ErrorContext, SodigyError};
+use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::InternedString;
 use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
@@ -316,10 +316,16 @@ pub fn parse_expr(
                     let mut match_body_tokens = Tokens::from_vec(&mut match_body_tokens);
                     let last_token_span = match_body_tokens.span_end().unwrap_or(group_span);
 
+                    let arms = if let Ok(arms) = parse_match_body(&mut match_body_tokens, session, group_span) {
+                        arms
+                    } else {
+                        vec![]
+                    };
+
                     Expr {
                         kind: ExprKind::Match {
                             value: Box::new(value),
-                            arms: parse_match_body(&mut match_body_tokens, session, group_span)?,
+                            arms,
                         },
                         span: span.merge(last_token_span),
                     }
@@ -367,7 +373,17 @@ pub fn parse_expr(
                     let mut tokens = Tokens::from_vec(&mut tokens);
                     tokens.set_span_end(span.last_char());
 
-                    let (args, value) = parse_lambda_body(&mut tokens, session, span)?;
+                    let (args, value) = if let Ok((args, value)) = parse_lambda_body(&mut tokens, session, span) {
+                        (args, value)
+                    } else {
+                        (
+                            vec![],
+                            Expr {
+                                kind: ExprKind::Error,
+                                span,  // nobody cares about its span
+                            },
+                        )
+                    };
 
                     Expr {
                         kind: ExprKind::Value(ValueKind::Lambda {
@@ -415,7 +431,10 @@ pub fn parse_expr(
                                 }
                             },
                             Err(()) => {
-                                return Err(());
+                                Expr {
+                                    kind: ExprKind::Error,
+                                    span,
+                                }
                             },
                         }
                     },
@@ -423,7 +442,11 @@ pub fn parse_expr(
                         let mut tokens = Tokens::from_vec(&mut tokens);
                         tokens.set_span_end(span.last_char());
 
-                        let (elems, _) = parse_comma_separated_exprs(&mut tokens, session)?;
+                        let elems = if let Ok((elems, _)) = parse_comma_separated_exprs(&mut tokens, session) {
+                            elems
+                        } else {
+                            vec![]
+                        };
 
                         Expr {
                             kind: ExprKind::Value(ValueKind::List(elems)),
@@ -434,12 +457,19 @@ pub fn parse_expr(
                         let mut tokens = Tokens::from_vec(&mut tokens);
                         tokens.set_span_end(span.last_char());
 
-                        Expr {
-                            kind: ExprKind::Value(ValueKind::Scope {
-                                scope: parse_scope_block(&mut tokens, session, span)?,
-                                uid: Uid::new_scope(),
-                            }),
-                            span,
+                        if let Ok(scope) = parse_scope_block(&mut tokens, session, span) {
+                            Expr {
+                                kind: ExprKind::Value(ValueKind::Scope {
+                                    scope,
+                                    uid: Uid::new_scope(),
+                                }),
+                                span,
+                            }
+                        } else {
+                            Expr {
+                                kind: ExprKind::Error,
+                                span,
+                            }
                         }
                     },
                 }
@@ -687,7 +717,14 @@ pub fn parse_expr(
                             }
                         }
 
-                        let rhs = parse_expr(tokens, session, r_bp, false, error_context, punct_span)?;
+                        let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, punct_span) {
+                            expr
+                        } else {
+                            Expr {
+                                kind: ExprKind::Error,
+                                span: punct_span,  // nobody cares about this span
+                            }
+                        };
 
                         lhs = Expr {
                             kind: ExprKind::InfixOp(op, Box::new(lhs), Box::new(rhs)),
@@ -736,7 +773,14 @@ pub fn parse_expr(
                             let mut index_tokens = Tokens::from_vec(&mut inner_tokens);
                             index_tokens.set_span_end(span.last_char());
 
-                            let rhs = parse_expr(&mut index_tokens, session, 0, false, error_context, span)?;
+                            let rhs = if let Ok(expr) = parse_expr(&mut index_tokens, session, 0, false, error_context, span) {
+                                expr
+                            } else {
+                                Expr {
+                                    kind: ExprKind::Error,
+                                    span,
+                                }
+                            };
 
                             if !index_tokens.is_finished() {
                                 session.push_error(AstError::unexpected_token(
@@ -766,7 +810,11 @@ pub fn parse_expr(
                             let mut index_tokens = Tokens::from_vec(&mut inner_tokens);
                             index_tokens.set_span_end(span.last_char());
 
-                            let (args, _) = parse_comma_separated_exprs(&mut index_tokens, session)?;
+                            let args = if let Ok((args, _)) = parse_comma_separated_exprs(&mut index_tokens, session) {
+                                args
+                            } else {
+                                vec![]
+                            };
 
                             lhs = Expr {
                                 kind: ExprKind::Call {
@@ -826,6 +874,8 @@ pub fn parse_expr(
             }
         }
     }
+
+    session.err_if_has_err()?;
 
     Ok(lhs)
 }

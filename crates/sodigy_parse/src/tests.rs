@@ -34,7 +34,7 @@ fn parse_test() {
 
     for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
         let mut lex_session = LexSession::new();
-        let f = g.register_file(&path.to_string());
+        let f = g.register_file(&path.to_string()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
         test_runner(f, content, &mut lex_session);
@@ -78,8 +78,31 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
     let g = unsafe { global_file_session() };
     let f = g.register_tmp_file(token_round_trip_test.as_bytes().to_vec());
 
-    lex(token_round_trip_test.as_bytes(), 0, SpanPoint::at_file(f, 0), lex_session).unwrap();
-    from_tokens(&lex_session.get_tokens().to_vec(), &mut parse_session, lex_session).unwrap();
+    if let Err(()) = lex(token_round_trip_test.as_bytes(), 0, SpanPoint::at_file(f, 0), lex_session) {
+        panic!(
+            "{}",
+            lex_session.get_errors().iter().map(
+                |e| e.render_error()
+            ).chain(
+                parse_session.get_errors().iter().map(
+                    |e| e.render_error()
+                )
+            ).collect::<Vec<String>>().join("\n\n"),
+        );
+    }
+
+    if let Err(()) = from_tokens(&lex_session.get_tokens().to_vec(), &mut parse_session, lex_session) {
+        panic!(
+            "{}",
+            lex_session.get_errors().iter().map(
+                |e| e.render_error()
+            ).chain(
+                parse_session.get_errors().iter().map(
+                    |e| e.render_error()
+                )
+            ).collect::<Vec<String>>().join("\n\n"),
+        );
+    }
 
     let token_round_trip_result = parse_session.dump_tokens();
 

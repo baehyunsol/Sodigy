@@ -9,8 +9,8 @@ use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
 
 pub struct HirSession {
-    errors: Vec<HirError>,
-    warnings: Vec<HirWarning>,
+    pub errors: Vec<HirError>,
+    pub warnings: Vec<HirWarning>,
     interner: InternSession,
 
     // HashMap<name, def>

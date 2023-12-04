@@ -368,15 +368,14 @@ pub fn lex(
                                 tmp_buf.push(c);
                                 curr_state = LexState::NumberDecimalPoint;
                             },
-                            b'_' => {
-                                curr_state = LexState::NumberDecimalPoint;
-                            },
-                            b'e' | b'E' => {
-                                tmp_buf.push(c);
-                                curr_state = LexState::NumberExpInit;
-                            },
-                            b'.' => {
-                                // likely to be reading `3..4` -> it's (`3`, `..`, `4`), not (`3.`, `.`, `4`)
+                            // `3.e3` is not `3000.0`. It would try to find a field named `e3`.
+                            b'.'
+                            | b'a'..=b'z'
+                            | b'A'..=b'Z'
+                            | b'_' => {
+                                // likely to be reading one of below
+                                // - `3..4` -> it's (`3`, `..`, `4`), not (`3.`, `.`, `4`)
+                                // - `3.pow(4)` -> it's (`3`, `.`, `pow`), not (`3.`, `pow`)
                                 tmp_buf.pop().unwrap();
                                 index -= 1;
 
@@ -387,19 +386,6 @@ pub fn lex(
                                 tmp_buf.clear();
                                 curr_state = LexState::Init;
                                 continue;
-                            },
-                            b'a'..=b'z' | b'A'..=b'Z' => {
-                                session.push_error(
-                                    LexError::unexpected_char(
-                                        c as char,
-                                        span_start.offset(index as i32).into_range(),
-                                    ).set_expected_chars(
-                                        b"0123456789_eE".to_vec()
-                                    ).set_err_context(
-                                        ErrorContext::LexingNumericLiteral
-                                    ).to_owned()
-                                );
-                                return Err(());
                             },
                             _ => {
                                 session.push_token(Token {
@@ -469,7 +455,9 @@ pub fn lex(
                     },
                     LexState::NumberExp => {
                         match c {
-                            b'0'..=b'9' => {},
+                            b'0'..=b'9' => {
+                                tmp_buf.push(c);
+                            },
                             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                                 session.push_error(
                                     LexError::unexpected_char(

@@ -1,6 +1,7 @@
 use crate::IdentWithSpan;
-use crate::err::{ExpectedToken, AstError};
+use crate::err::AstError;
 use crate::{Token, TokenKind};
+use sodigy_err::ExpectedToken;
 use sodigy_intern::InternedNumeric;
 use sodigy_keyword::Keyword;
 use sodigy_parse::{Delim, Punct};

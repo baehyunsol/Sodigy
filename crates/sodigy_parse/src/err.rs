@@ -1,5 +1,6 @@
+use crate::token_tree::{TokenTree, TokenTreeKind};
 use smallvec::{smallvec, SmallVec};
-use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_err::{ExpectedToken, ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_number::NumericParseError;
 use sodigy_span::SpanRange;
@@ -75,6 +76,22 @@ impl ParseError {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn unexpected_token(token: TokenTree, expected_token: ExpectedToken<TokenTreeKind>) -> Self {
+        ParseError {
+            kind: ParseErrorKind::UnexpectedToken(token.kind, expected_token),
+            spans: smallvec![token.span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn todo(msg: &str, span: SpanRange) -> Self {
+        ParseError {
+            kind: ParseErrorKind::TODO(msg.to_string()),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<ParseErrorKind> for ParseError {
@@ -112,14 +129,13 @@ pub enum ParseErrorKind {
     ThreeDots,
     LonelyBacktick,
     LonelyBackslash,
-
-    // TODO: move `ExpectedToken` to sodigy_err and implement this
-    // UnexpectedToken(TokenTreeKind, ExpectedToken<TokenTreeKind>),
+    UnexpectedToken(TokenTreeKind, ExpectedToken<TokenTreeKind>),
 
     // when an exp of a numeric literal is too big
     // e.g. `1.2e10000000000000000000000000`
     // exp should be a valid i64
     NumericExpOverflow,
+    TODO(String),
 }
 
 impl From<NumericParseError> for ParseErrorKind {
@@ -141,6 +157,8 @@ impl SodigyErrorKind for ParseErrorKind {
             ParseErrorKind::LonelyBacktick => "field modifier without a field name".to_string(),
             ParseErrorKind::LonelyBackslash => "unexpected character `\\`".to_string(),
             ParseErrorKind::FStringSingleQuote => "format-string with single quotes".to_string(),
+            ParseErrorKind::UnexpectedToken(token, expected) => format!("expected {expected}, got `{}`", token.render_error()),
+            ParseErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
 
@@ -155,7 +173,9 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::FStringSingleQuote => "Use `\"...\"` instead of `'...'`.".to_string(),
             ParseErrorKind::UnfinishedDelim(_)
             | ParseErrorKind::MismatchDelim(_)
-            | ParseErrorKind::LonelyBackslash => String::new(),
+            | ParseErrorKind::LonelyBackslash
+            | ParseErrorKind::UnexpectedToken(_, _)
+            | ParseErrorKind::TODO(_) => String::new(),
         }
     }
 
@@ -169,6 +189,8 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::LonelyBacktick => 5,
             ParseErrorKind::LonelyBackslash => 6,
             ParseErrorKind::NumericExpOverflow => 7,
+            ParseErrorKind::UnexpectedToken(_, _) => 8,
+            ParseErrorKind::TODO(_) => 63,
         }
     }
 }

@@ -11,7 +11,7 @@ fn ast_test() {
 
     for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
         let mut lex_session = LexSession::new();
-        let f = g.register_file(&path.to_string());
+        let f = g.register_file(&path.to_string()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
         lex(&content, 0, SpanPoint::at_file(f, 0), &mut lex_session).unwrap();

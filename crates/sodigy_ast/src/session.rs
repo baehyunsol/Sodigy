@@ -5,8 +5,8 @@ use sodigy_intern::{InternedString, InternSession};
 use sodigy_parse::ParseSession;
 
 pub struct AstSession {
-    errors: Vec<AstError>,
-    warnings: Vec<AstWarning>,
+    pub errors: Vec<AstError>,
+    pub warnings: Vec<AstWarning>,
     stmts: Vec<Stmt>,
     interner: InternSession,
     snapshots: Vec<AstSessionSnapshot>,

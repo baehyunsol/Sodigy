@@ -1,13 +1,13 @@
 use super::{PatField, Pattern, PatternKind};
 use crate::{IdentWithSpan, Token, TokenKind};
-use crate::err::{AstError, AstErrorKind, ExpectedToken};
+use crate::err::{AstError, AstErrorKind};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
 use crate::utils::try_into_char;
 use crate::warn::AstWarning;
 use smallvec::SmallVec;
-use sodigy_err::{ErrorContext, SodigyError};
+use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::InternSession;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
