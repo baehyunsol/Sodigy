@@ -1,4 +1,10 @@
-use crate::{global::global_intern_session, InternedString, InternedNumeric};
+use crate::{
+    global::global_intern_session,
+    InternedNumeric,
+    InternedString,
+    string::try_intern_short_string,
+};
+use sodigy_keyword::keywords;
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
 
@@ -13,9 +19,19 @@ pub struct Session {
 
 impl Session {
     pub fn new() -> Self {
+        let keywords = keywords();
+
+        let mut local_string_table = HashMap::with_capacity(keywords.len());
+        let mut local_string_table_rev = HashMap::with_capacity(keywords.len());
+
+        for (index, keyword) in keywords.into_iter().enumerate() {
+            local_string_table.insert(keyword.to_utf8(), (index as u32).into());
+            local_string_table_rev.insert((index as u32).into(), keyword.to_utf8());
+        }
+
         Session {
-            local_string_table: HashMap::new(),
-            local_string_table_rev: HashMap::new(),
+            local_string_table,
+            local_string_table_rev,
             local_numeric_table: HashMap::new(),
             local_numeric_table_rev: HashMap::new(),
         }
@@ -25,9 +41,15 @@ impl Session {
         match self.local_string_table.get(&string) {
             Some(i) => *i,
             None => unsafe {
-                let g = global_intern_session();
+                let ii = if let Some(s) = try_intern_short_string(&string) {
+                    // `string` is not a keyword because keywords are already in the table
+                    s
+                } else {
+                    let g = global_intern_session();
 
-                let ii = g.intern_string(string.clone());
+                    g.intern_string(string.clone())
+                };
+
                 self.local_string_table.insert(string.clone(), ii);
                 self.local_string_table_rev.insert(ii, string.clone());
 
@@ -58,11 +80,23 @@ impl Session {
 
     pub fn unintern_string(&mut self, string: InternedString) -> Option<&[u8]> {
         match self.unintern_string_fast(string) {
-            Some(s) => Some(s),
+            // trust me, it's safe
+            Some(s) => unsafe { std::mem::transmute::<Option<&[u8]>, Option<&'static [u8]>>(Some(s)) },
             None => unsafe {
-                let g = global_intern_session();
+                if let Some((length, bytes)) = string.try_unwrap_short_string() {
+                    let s = bytes[0..(length as usize)].to_vec();
 
-                g.strings_rev.get(&string).map(|s| s as &[u8])
+                    self.local_string_table.insert(s.clone(), string);
+                    self.local_string_table_rev.insert(string, s.clone());
+
+                    self.unintern_string(string)
+                }
+
+                else {
+                    let g = global_intern_session();
+
+                    g.strings_rev.get(&string).map(|s| s as &[u8])
+                }
             },
         }
     }

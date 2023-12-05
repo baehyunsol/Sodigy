@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use hmath::BigInt;
 use sodigy_test::sodigy_assert;
 
 mod err;
@@ -83,6 +84,8 @@ impl SodigyNumber {
 
     // unfortunate that `SodigyNumber` is unsigned
     pub fn minus_one(n: Self, is_negative: bool) -> (Self, /* is_negative */ bool) {
+        sodigy_assert!(n.is_integer());
+
         match n {
             SodigyNumber::SmallInt(n) => if is_negative {
                 match n.checked_add(1) {
@@ -98,7 +101,26 @@ impl SodigyNumber {
                     (((n - 1) as u32).into(), false)
                 }
             },
-            _ => todo!(),
+            SodigyNumber::Big(n) if n.is_integer => {
+                let mut n = n.to_hmath_bi();
+
+                if is_negative {
+                    n.neg_mut();
+                }
+
+                n.sub_i32_mut(1);
+                let is_neg = n.is_neg();
+
+                if is_neg {
+                    n.neg_mut();
+                }
+
+                (
+                    SodigyNumber::Big(Box::new(BigNumber::from_hmath_bi(&n))),
+                    is_neg,
+                )
+            },
+            _ => unreachable!(),
         }
     }
 
@@ -259,7 +281,7 @@ impl BigNumber {
     }
 
     fn try_into_u64(&self) -> Option<u64> {
-        if -32768 <= self.exp && self.exp < 32768 {
+        if -32768 <= self.exp && self.exp < 32768 && !self.is_integer {
             // `BigNumber::from_string` already filtered out invalid utf8 strings
             let digits = String::from_utf8(self.digits.clone()).unwrap();
 
@@ -267,7 +289,7 @@ impl BigNumber {
                 Ok(n) if n < (1 << 48) => {
                     Some((n << 16) + (self.exp + 32768) as u64)
                 },
-                _ => None
+                _ => None,
             }
         }
 
@@ -278,6 +300,43 @@ impl BigNumber {
 
     pub fn is_zero(&self) -> bool {
         self.digits == b"0"
+    }
+
+    pub fn to_hmath_bi(&self) -> BigInt {
+        BigInt::from_string(
+            unsafe { &String::from_utf8_unchecked(
+                self.digits.iter().chain(
+                    std::iter::repeat(&b'0').take(self.exp as usize)
+                ).map(|c| *c).collect()
+            ) }
+        ).unwrap()
+    }
+
+    pub fn from_hmath_bi(n: &BigInt) -> Self {
+        let s = n.to_string();
+
+        // this branch is unreachable, tho
+        if s == "0" {
+            return BigNumber {
+                digits: vec![b'0'],
+                exp: 0,
+                is_integer: true,
+            };
+        }
+
+        let mut digits = s.into_bytes();
+        let mut exp = 0;
+
+        while digits.last() == Some(&b'0') {
+            exp += 1;
+            digits.pop().unwrap();
+        }
+
+        BigNumber {
+            digits,
+            exp,
+            is_integer: true,
+        }
     }
 }
 

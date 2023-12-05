@@ -113,6 +113,10 @@ pub struct Lambda {
     pub value: Box<Expr>,
     pub captured_values: Vec<Expr>,
     pub uid: Uid,
+
+    // see comments in sodigy_ast::value::Lambda
+    pub ret_type: Option<Box<Type>>,
+    pub lowered_from_scoped_let: bool,
 }
 
 #[derive(Clone)]

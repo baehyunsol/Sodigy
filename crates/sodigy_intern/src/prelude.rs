@@ -1,21 +1,34 @@
 use crate::{
-    string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F},
     InternedNumeric,
     InternedString,
-    DATA_MASK,
-    IS_INTEGER,
-    IS_SMALL_INTEGER,
     unintern_numeric,
-    unintern_string,
 };
 use sodigy_keyword::{Keyword, keywords};
 use sodigy_test::sodigy_assert;
 
 const KEYWORD_LEN: usize = keywords().len();
 
+pub(crate) const DATA_BIT_WIDTH: u32 = 26;
+pub(crate) const DATA_MASK: u32 = !(0b111_111 << DATA_BIT_WIDTH);
+
+// if the representation of the string in utf-8 is shorter than 4 bytes,
+// the string is encoded directly into the data
+// keywords are not encoded this way
+pub(crate) const IS_SHORT_STRING: u32 = 0b100_000 << DATA_BIT_WIDTH;
+pub(crate) const SHORT_STRING_LENGTH_MASK: u32 = 0b001_100 << DATA_BIT_WIDTH;
+
+// 🦫
+pub(crate) const FOUR_BYTES_CHAR: u32 = 0b010_000 << DATA_BIT_WIDTH;
+
+// metadata for numerics
+pub(crate) const IS_INTEGER: u32 = 0b100_000 << DATA_BIT_WIDTH;
+
+// small enough to encode in 26 bits
+pub(crate) const IS_SMALL_INTEGER: u32 = 0b010_000 << DATA_BIT_WIDTH;
+
 impl InternedString {
     pub fn try_into_keyword(&self) -> Option<Keyword> {
-        if self.0 < KEYWORD_LEN as u32 {
+        if self.is_normal_string() && (self.0 & DATA_MASK) < KEYWORD_LEN as u32 {
             Some(keywords()[self.0 as usize])
         }
 
@@ -24,46 +37,59 @@ impl InternedString {
         }
     }
 
-    // character 'b'
-    pub fn is_b(&self) -> bool {
-        sodigy_assert!(
-            self.0 != STRING_B
-            || unintern_string(*self) == b"b"
-        );
-
-        self.0 == STRING_B
+    pub fn is_short_string(&self) -> bool {
+        self.0 & IS_SHORT_STRING != 0
     }
 
-    // character 'f'
-    pub fn is_f(&self) -> bool {
-        sodigy_assert!(
-            self.0 != STRING_F
-            || unintern_string(*self) == b"f"
-        );
+    pub fn is_4_bytes_char(&self) -> bool {
+        self.0 & FOUR_BYTES_CHAR != 0
+    }
 
-        self.0 == STRING_F
+    pub fn is_normal_string(&self) -> bool {
+        (self.0 >> 30) == 0
+    }
+
+    #[inline]
+    pub fn get_short_string_length(&self) -> usize {
+        ((self.0 & SHORT_STRING_LENGTH_MASK) >> (DATA_BIT_WIDTH + 2)) as usize
+    }
+
+    pub fn try_unwrap_short_string(&self) -> Option<(/* length */ usize, /* data */ [u8; 4])> {
+        if self.is_short_string() {
+            let length = self.get_short_string_length();
+            let data = [
+                ((self.0 & 0xff0000) >> 16) as u8,
+                ((self.0 & 0xff00) >> 8) as u8,
+                (self.0 & 0xff) as u8,
+                0,
+            ];
+            Some((length, data))
+        }
+
+        else if self.is_4_bytes_char() {
+            Some((
+                4,
+                [
+                    0b11110000 | ((self.0 >> 18) & 0x7) as u8,
+                    0b10000000 | ((self.0 >> 12) & 0x3f) as u8,
+                    0b10000000 | ((self.0 >> 6) & 0x3f) as u8,
+                    0b10000000 | (self.0 & 0x3f) as u8,
+                ],
+            ))
+        }
+
+        else {
+            None
+        }
     }
 
     pub fn is_underbar(&self) -> bool {
-        sodigy_assert!(
-            self.0 != UNDERBAR
-            || unintern_string(*self) == b"_"
-        );
-
-        self.0 == UNDERBAR
+        self.0 == IS_SHORT_STRING | (1 << (DATA_BIT_WIDTH + 2)) | ((b'_' as u32) << 16)
     }
 
     pub fn is_empty(&self) -> bool {
-        sodigy_assert!(
-            self.0 != UNDERBAR
-            || unintern_string(*self) == b""
-        );
-
-        self.0 == EMPTY
-    }
-
-    pub fn dotdotdot() -> Self {
-        InternedString(DOTDOTDOT)
+                         // short_string  four_bytes_char  length
+        (self.0 >> 28) == 0b1_____________0________________00
     }
 }
 

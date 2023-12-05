@@ -78,7 +78,7 @@ pub fn write_string(path: &str, s: &str, write_mode: WriteMode) -> Result<(), Fi
 
 // `a/b/c.d` -> `c`
 pub fn file_name(path: &str) -> Result<String, FileError> {
-    let path_buf = PathBuf::from_str(path).expect("Internal Compiler Error 26A88CF9FFC");  // it's infallible
+    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.file_stem() {
         None => Ok(String::new()),
@@ -91,7 +91,7 @@ pub fn file_name(path: &str) -> Result<String, FileError> {
 
 // `a/b/c.d` -> `d`
 pub fn extension(path: &str) -> Result<Option<String>, FileError> {
-    let path_buf = PathBuf::from_str(path).expect("Internal Compiler Error CFF9FC88A62");  // it's infallible
+    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.extension() {
         None => Ok(None),
@@ -104,7 +104,7 @@ pub fn extension(path: &str) -> Result<Option<String>, FileError> {
 
 // `a/b/c.d` -> `c.d`
 pub fn basename(path: &str) -> Result<String, FileError> {
-    let path_buf = PathBuf::from_str(path).expect("Internal Compiler Error 2CFFEEB12CD");  // it's infallible
+    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.file_name() {
         None => Ok(String::new()),  // when the path terminates in `..`
@@ -117,8 +117,8 @@ pub fn basename(path: &str) -> Result<String, FileError> {
 
 // `a/b/`, `c.d` -> `a/b/c.d`
 pub fn join(path: &str, child: &str) -> Result<String, FileError> {
-    let mut path_buf = PathBuf::from_str(path).expect("Internal Compiler Error EB4D870AEE0");  // Infallible
-    let child = PathBuf::from_str(child).expect("Internal Compiler Error 25893E4A953");  // Infallible
+    let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
+    let child = PathBuf::from_str(child).unwrap();  // Infallible
 
     path_buf.push(child);
 
@@ -130,7 +130,7 @@ pub fn join(path: &str, child: &str) -> Result<String, FileError> {
 
 // `a/b/c.d, e` -> `a/b/c.e`
 pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
-    let mut path_buf = PathBuf::from_str(path).expect("Internal Compiler Error 34913906387");  // Infallible
+    let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
 
     if path_buf.set_extension(ext) {
         match path_buf.to_str() {

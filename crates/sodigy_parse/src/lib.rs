@@ -203,83 +203,95 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                         }
                     }
                 },
-                TokenKind::Identifier(id) => if id.is_b() || id.is_f() {
+                TokenKind::Identifier(id) => {
+                    let short_string = id.try_unwrap_short_string();
+                    let (is_b, is_f) = if let Some((1, bytes)) = short_string {
+                        (
+                            &bytes[0..1] == b"b",
+                            &bytes[0..1] == b"f",
+                        )
+                    } else {
+                        (false, false)
+                    };
 
-                    // `b"123"` is okay, but `b "123"` is not.
-                    match tokens.get(index + 1) {
-                        Some(Token { kind: TokenKind::String { kind: quote_kind, content }, span: span2 }) => {
-                            let span2 = *span2;
-                            let quote_kind = *quote_kind;
+                    if is_b || is_f {
 
-                            if quote_kind == QuoteKind::Double {
-                                if id.is_b() {
-                                    let content = session.intern_string(content.as_bytes().to_vec());
+                        // `b"123"` is okay, but `b "123"` is not.
+                        match tokens.get(index + 1) {
+                            Some(Token { kind: TokenKind::String { kind: quote_kind, content }, span: span2 }) => {
+                                let span2 = *span2;
+                                let quote_kind = *quote_kind;
 
-                                    session.push_token(
-                                        TokenTree {
-                                            kind: TokenTreeKind::String {
-                                                kind: QuoteKind::Double,
-                                                content,
-                                                is_binary: true,
-                                            },
+                                if quote_kind == QuoteKind::Double {
+                                    if is_b {
+                                        let content = session.intern_string(content.as_bytes().to_vec());
+
+                                        session.push_token(
+                                            TokenTree {
+                                                kind: TokenTreeKind::String {
+                                                    kind: QuoteKind::Double,
+                                                    content,
+                                                    is_binary: true,
+                                                },
+                                                span: token.span.merge(span2),
+                                            }
+                                        );
+                                    }
+
+                                    else {
+                                        let f_s = parse_str(
+                                            content.as_bytes(),
+                                            span2.start().offset(1),  // skip `"`
+                                            lex_session,
+                                            session,
+                                        )?;
+
+                                        session.push_token(TokenTree {
+                                            kind: TokenTreeKind::FormattedString(f_s),
                                             span: token.span.merge(span2),
-                                        }
-                                    );
+                                        });
+                                    }
+
+                                    index += 1;
                                 }
 
                                 else {
-                                    let f_s = parse_str(
-                                        content.as_bytes(),
-                                        span2.start().offset(1),  // skip `"`
-                                        lex_session,
-                                        session,
-                                    )?;
-
-                                    session.push_token(TokenTree {
-                                        kind: TokenTreeKind::FormattedString(f_s),
-                                        span: token.span.merge(span2),
-                                    });
+                                    session.push_error(ParseError::f_string_single_quote(span2));
+                                    return Err(());
                                 }
+                            },
+                            _ => {
+                                let token = match id.try_into_keyword() {
+                                    Some(k) => TokenTree {
+                                        kind: TokenTreeKind::Keyword(k),
+                                        span: token.span,
+                                    },
+                                    None => TokenTree {
+                                        kind: TokenTreeKind::Identifier(*id),
+                                        span: token.span,
+                                    },
+                                };
 
-                                index += 1;
-                            }
+                                session.push_token(token);
+                            },
+                        }
+                    }
 
-                            else {
-                                session.push_error(ParseError::f_string_single_quote(span2));
-                                return Err(());
-                            }
-                        },
-                        _ => {
-                            let token = match id.try_into_keyword() {
-                                Some(k) => TokenTree {
+                    else {
+                        match id.try_into_keyword() {
+                            Some(k) => {
+                                session.push_token(TokenTree {
                                     kind: TokenTreeKind::Keyword(k),
                                     span: token.span,
-                                },
-                                None => TokenTree {
+                                });
+                            },
+                            None => {
+                                session.push_token(TokenTree {
                                     kind: TokenTreeKind::Identifier(*id),
                                     span: token.span,
-                                },
-                            };
-
-                            session.push_token(token);
-                        },
-                    }
-                }
-
-                else {
-                    match id.try_into_keyword() {
-                        Some(k) => {
-                            session.push_token(TokenTree {
-                                kind: TokenTreeKind::Keyword(k),
-                                span: token.span,
-                            });
-                        },
-                        None => {
-                            session.push_token(TokenTree {
-                                kind: TokenTreeKind::Identifier(*id),
-                                span: token.span,
-                            });
-                        },
+                                });
+                            },
+                        }
                     }
                 },
             },

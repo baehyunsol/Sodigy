@@ -98,12 +98,21 @@ impl Endec for ExprKind {
                 arms.encode(buf, session);
                 value.encode(buf, session);
             },
-            ExprKind::Lambda(Lambda { args, value, captured_values, uid }) => {
+            ExprKind::Lambda(Lambda {
+                args,
+                value,
+                captured_values,
+                uid,
+                ret_type,
+                lowered_from_scoped_let,
+            }) => {
                 buf.push(11);
                 args.encode(buf, session);
                 value.encode(buf, session);
                 captured_values.encode(buf, session);
                 uid.encode(buf, session);
+                ret_type.encode(buf, session);
+                lowered_from_scoped_let.encode(buf, session);
             },
             ExprKind::Branch(Branch { arms }) => {
                 buf.push(12);
@@ -174,6 +183,8 @@ impl Endec for ExprKind {
                         value: Box::new(Expr::decode(buf, ind, session)?),
                         captured_values: Vec::<Expr>::decode(buf, ind, session)?,
                         uid: Uid::decode(buf, ind, session)?,
+                        ret_type: Option::<Box<Type>>::decode(buf, ind, session)?,
+                        lowered_from_scoped_let: bool::decode(buf, ind, session)?,
                     })),
                     12 => Ok(ExprKind::Branch(Branch { arms: Vec::<BranchArm>::decode(buf, ind, session)? })),
                     13 => Ok(ExprKind::StructInit(StructInit {

@@ -1,7 +1,13 @@
 use crate::{
-    string::{DOTDOTDOT, EMPTY, UNDERBAR, STRING_B, STRING_F},
     InternedNumeric,
     InternedString,
+    prelude::{
+        DATA_BIT_WIDTH,
+        DATA_MASK,
+        IS_INTEGER,
+        IS_SMALL_INTEGER,
+    },
+    string::try_intern_short_string,
 };
 use sodigy_keyword::keywords;
 use sodigy_number::SodigyNumber;
@@ -62,17 +68,6 @@ impl GlobalInternSession {
             strings_rev.insert((index as u32).into(), keyword.to_utf8());
         }
 
-        strings.insert(vec![], EMPTY.into());
-        strings_rev.insert(EMPTY.into(), vec![]);
-        strings.insert(b"b".to_vec(), STRING_B.into());
-        strings_rev.insert(STRING_B.into(), b"b".to_vec());
-        strings.insert(b"f".to_vec(), STRING_F.into());
-        strings_rev.insert(STRING_F.into(), b"f".to_vec());
-        strings.insert(b"...".to_vec(), DOTDOTDOT.into());
-        strings_rev.insert(DOTDOTDOT.into(), b"...".to_vec());
-        strings.insert(b"_".to_vec(), UNDERBAR.into());
-        strings_rev.insert(UNDERBAR.into(), b"_".to_vec());
-
         GlobalInternSession {
             strings, strings_rev,
             numerics, numerics_rev,
@@ -86,14 +81,20 @@ impl GlobalInternSession {
             match self.strings.get(&string) {
                 Some(ii) => *ii,
                 None => {
-                    let ii = self.get_new_string_index();
+                    if let Some(s) = try_intern_short_string(&string) {
+                        drop(lock);
+                        s
+                    }
 
-                    self.strings.insert(string.clone(), ii);
-                    self.strings_rev.insert(ii, string);
+                    else {
+                        let ii = self.get_new_string_index();
 
-                    drop(lock);
+                        self.strings.insert(string.clone(), ii);
+                        self.strings_rev.insert(ii, string);
 
-                    ii
+                        drop(lock);
+                        ii
+                    }
                 },
             }
         }
@@ -132,7 +133,7 @@ impl GlobalInternSession {
         let mut is_small_integer = false;
 
         let data = match try_into_u32 {
-            Some(n) if n < (1 << 26) => {
+            Some(n) if n < (1 << DATA_BIT_WIDTH) => {
                 is_small_integer = true;
 
                 n
@@ -146,14 +147,3 @@ impl GlobalInternSession {
         InternedNumeric(data | is_integer | is_small_integer)
     }
 }
-
-pub(crate) const DATA_MASK: u32 = !(0b111_111 << 26);
-
-// metadata for strings
-pub(crate) const PRELUDE_STRINGS: u32 = 0b100_000 << 26;
-
-// metadata for numerics
-pub(crate) const IS_INTEGER: u32 = 0b100_000 << 26;
-
-// small enough to encode in 26 bits
-pub(crate) const IS_SMALL_INTEGER: u32 = 0b010_000 << 26;

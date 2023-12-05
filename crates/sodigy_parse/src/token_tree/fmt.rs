@@ -1,6 +1,6 @@
 use super::{FormattedStringElement, TokenTree, TokenTreeKind};
 use sodigy_err::RenderError;
-use sodigy_intern::InternedString;
+use sodigy_intern::try_intern_short_string;
 use sodigy_span::SpanRange;
 use std::fmt;
 
@@ -82,7 +82,10 @@ impl RenderError for TokenTreeKind {
                     delim: *delim,
                     prefix: *prefix,
                     tokens: vec![
-                        TokenTree::new_ident(InternedString::dotdotdot(), SpanRange::dummy(15)),
+                        TokenTree::new_ident(
+                            try_intern_short_string(b"...").unwrap(),
+                            SpanRange::dummy(15),
+                        ),
                     ],
                 }
             ),
@@ -91,7 +94,7 @@ impl RenderError for TokenTreeKind {
                 TokenTreeKind::String {
                     kind: *kind,
                     is_binary: *is_binary,
-                    content: InternedString::dotdotdot(),
+                    content: try_intern_short_string(b"...").unwrap(),
                 },
             ),
             TokenTreeKind::FormattedString(_) => String::from("f\"...\""),

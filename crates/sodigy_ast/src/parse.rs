@@ -37,12 +37,12 @@ use crate::{
     StructInitDef,
     tokens::Tokens, Token, TokenKind,
     TypeDef,
-    utils::{format_string_into_expr, try_into_char},
+    utils::{format_string_into_expr, try_into_char, IntoCharErr},
     value::ValueKind,
     warn::AstWarning,
 };
 use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
-use sodigy_intern::InternedString;
+use sodigy_intern::try_intern_short_string;
 use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
@@ -390,6 +390,9 @@ pub fn parse_expr(
                             args,
                             value: Box::new(value),
                             uid: Uid::new_lambda(),
+
+                            ret_type: None,  // users cannot annotate ret_type of a lambda
+                            lowered_from_scoped_let: false,
                         }),
                         span,
                     }
@@ -520,8 +523,11 @@ pub fn parse_expr(
                         error_context,
                     ).to_owned());
                     return Err(());
-                } else {
-                    match try_into_char(session.unintern_string(*content).unwrap()) {
+                }
+
+                // TODO: short_string can hold at most 3 bytes, but some chars are longer than that
+                else if let Some((length, bytes)) = content.try_unwrap_short_string() {
+                    match try_into_char(&bytes[0..(length as usize)]) {
                         Ok(c) => Expr {
                             kind: ExprKind::Value(ValueKind::Char(c)),
                             span,
@@ -535,6 +541,15 @@ pub fn parse_expr(
                             return Err(());
                         },
                     }
+                }
+
+                else {
+                    session.push_error(
+                        IntoCharErr::TooLong.into_ast_error(span).try_set_err_context(
+                            error_context,
+                        ).to_owned()
+                    );
+                    return Err(());
                 },
             }
         },
@@ -549,7 +564,10 @@ pub fn parse_expr(
 
             else {
                 session.push_error(AstError::unexpected_token(
-                    Token::new_doc_comment(InternedString::dotdotdot(), *span),
+                    Token::new_doc_comment(
+                        try_intern_short_string(b"...").unwrap(),
+                        *span,
+                    ),
                     ExpectedToken::expr(),
                 ).try_set_err_context(
                     error_context,
@@ -579,7 +597,7 @@ pub fn parse_expr(
         // it has to be lowered before this stage
         Some(Token {
             kind: TokenKind::Macro { .. },
-            span,
+            ..
         }) => unreachable!(),
         None => {
             if do_nothing_when_failed {

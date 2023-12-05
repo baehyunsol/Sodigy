@@ -35,6 +35,10 @@ Below is the list of Rust std funcs/structs used in this project.
 
 ## External Crates
 
+### hmath
+
+It's used to handle arbitrary width integers.
+
 ### smallvec
 
 It's purely for optimization purpose. Removing all the `smallvec`s (and using `vec`s instead) doesn't change anything, but its performance.

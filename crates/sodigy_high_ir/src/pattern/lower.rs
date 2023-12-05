@@ -100,14 +100,17 @@ pub fn lower_patterns_to_name_bindings(
                     continue;
                 }
 
-                // TODO: if shorthand_index is Some(_),
-                // it's not `get_tuple_field_expr(ind)`
+                let subpattern_expr = if let Some(shorthand_index) = shorthand_index {
+                    // `(_, _, .., $x, $y)`
+                    // `$x` -> `tuple_field_index(tmp, -2)`
+                    todo!()
+                } else {
+                    // `0` -> `_0`
+                    let field_expr = session.get_tuple_field_expr(ind);
 
-                // `0` -> `_0`
-                let field_expr = session.get_tuple_field_expr(ind);
-
-                // `tmp` + `_0` -> `tmp._0`
-                let subpattern_expr = field_expr_with_name_and_index(tmp_name, field_expr);
+                    // `tmp` + `_0` -> `tmp._0`
+                    field_expr_with_name_and_index(tmp_name, field_expr)
+                };
 
                 if let Err(()) = lower_patterns_to_name_bindings(
                     curr_pattern,  // $x

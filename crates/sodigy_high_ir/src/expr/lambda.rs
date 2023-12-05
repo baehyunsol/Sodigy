@@ -66,6 +66,8 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
             value,
             captured_values,
             uid,
+            ret_type: _,
+            lowered_from_scoped_let: _,
         }) => {
             if captured_values.is_empty() {
                 let uid = uid.into_def();

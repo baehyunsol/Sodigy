@@ -196,3 +196,7 @@ let last_n_bits(a: Int, n: Int): Int = if n < 0 {
 } else {
   a & ((1 << n) - 1)
 };
+
+# Let's see if it can deal with a 4 bytes utf-8 character
+@test.eq(129451)
+let beaver_char_test = '🦫'.into(Int);

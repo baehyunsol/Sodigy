@@ -1,5 +1,6 @@
 # Experimental
 
+cargo clean
 cd crates/sodigy_ast
 cargo test
 cargo test --release

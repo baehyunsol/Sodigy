@@ -195,6 +195,8 @@ pub fn lower_ast_expr(
             },
             ValueKind::Lambda {
                 args, value, uid,
+                ret_type,
+                lowered_from_scoped_let,
             } => {
                 let mut hir_args = Vec::with_capacity(args.len());
                 let mut arg_names = HashMap::with_capacity(args.len());
@@ -246,6 +248,24 @@ pub fn lower_ast_expr(
                     });
                 }
 
+                let ret_type = if let Some(ty) = ret_type {
+                    if let Ok(ty) = lower_ast_ty(
+                        ty,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    ) {
+                        Some(Box::new(ty))
+                    } else {
+                        has_error = true;
+
+                        None
+                    }
+                } else {
+                    None
+                };
+
                 name_space.push_locals(*uid, arg_names.keys().map(|k| *k).collect());
 
                 try_warn_unnecessary_paren(value, session);
@@ -291,6 +311,8 @@ pub fn lower_ast_expr(
                         value: Box::new(value),
                         captured_values,
                         uid: *uid,
+                        ret_type,
+                        lowered_from_scoped_let: *lowered_from_scoped_let,
                     }),
                     span: e.span,
                 }
@@ -322,6 +344,38 @@ pub fn lower_ast_expr(
                                 *name,
                                 ret_val.clone(),
                                 ret_type.clone(),
+                                /* is_real */ true,
+                            ));
+                        },
+
+                        // `let add(x: Int, y: Int): Int = x + y;`
+                        // -> `let add = \{x: Int, y: Int, x + y};`
+                        ast::LetKind::Callable {
+                            name,
+                            args,
+                            generics,
+                            ret_type,
+                            ret_val,
+                            uid,
+                        } => {
+                            name_bindings.push(DestructuredPattern::new(
+                                *name,
+                                ast::Expr {
+                                    kind: ast::ExprKind::Value(ast::ValueKind::Lambda {
+                                        args: args.clone(),
+                                        value: Box::new(ret_val.clone()),
+                                        uid: *uid,
+                                        ret_type: ret_type.clone().map(|ty| Box::new(ty)),
+                                        lowered_from_scoped_let: true,
+                                    }),
+                                    span: ret_val.span,
+                                },
+
+                                // `ret_type` of `ast::LetKind::Callable` is that of the function,
+                                // not this value itself: `Int` vs `Func(Int, Int, Int)`
+                                None,
+
+                                // TODO: is this REAL?
                                 /* is_real */ true,
                             ));
                         },

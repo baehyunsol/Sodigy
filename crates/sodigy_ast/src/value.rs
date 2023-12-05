@@ -1,6 +1,6 @@
+use crate::{ArgDef, expr::Expr, ScopeBlock, TypeDef};
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_uid::Uid;
-use crate::{ArgDef, expr::Expr, ScopeBlock};
 
 #[derive(Clone)]
 pub enum ValueKind {
@@ -18,6 +18,15 @@ pub enum ValueKind {
         args: Vec<ArgDef>,
         value: Box<Expr>,
         uid: Uid,
+
+        // in scoped_lets
+        // `let add(x: Int, y: Int): Int = x + y;`
+        // -> `let add = \{x: Int, y: Int, x + y};`
+
+        // though users cannot annotate ret_type of a lambda,
+        // lambdas generated from scoped_lets sometimes require this field
+        ret_type: Option<Box<TypeDef>>,
+        lowered_from_scoped_let: bool,
     },
     Scope {
         scope: ScopeBlock,

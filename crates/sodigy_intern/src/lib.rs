@@ -8,9 +8,11 @@ mod prelude;
 mod session;
 mod string;
 
-pub(crate) use global::{DATA_MASK, IS_INTEGER, IS_SMALL_INTEGER, PRELUDE_STRINGS};
+#[cfg(test)]
+mod tests;
+
 pub use numeric::InternedNumeric;
-pub use string::InternedString;
+pub use string::{InternedString, try_intern_short_string};
 
 pub use session::Session as InternSession;
 
@@ -31,9 +33,15 @@ pub fn intern_numeric(n: SodigyNumber) -> InternedNumeric {
 /// This function is very expensive. Please use this function only for test purpose.
 /// If you have a local intern session, use `Session.unintern_string_fast` instead of this one.
 pub fn unintern_string(s: InternedString) -> Vec<u8> {
-    let g = unsafe { global::global_intern_session() };
+    if let Some((length, bytes)) = s.try_unwrap_short_string() {
+        bytes[0..(length as usize)].to_vec()
+    }
 
-    g.strings_rev.get(&s).unwrap().to_vec()
+    else {
+        let g = unsafe { global::global_intern_session() };
+
+        g.strings_rev.get(&s).unwrap().to_vec()
+    }
 }
 
 pub fn unintern_numeric(n: InternedNumeric) -> SodigyNumber {

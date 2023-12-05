@@ -126,3 +126,13 @@ impl<T: Endec, U: Endec> Endec for (T, U) {
         ))
     }
 }
+
+impl <T: Endec> Endec for Box<T> {
+    fn encode(&self, buf: &mut Vec<u8>, sess: &mut EndecSession) {
+        self.as_ref().encode(buf, sess);
+    }
+
+    fn decode(buf: &[u8], ind: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecErr> {
+        Ok(Box::new(T::decode(buf, ind, sess)?))
+    }
+}
