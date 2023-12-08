@@ -110,20 +110,6 @@ impl Pattern {
     pub fn is_shorthand(&self) -> bool {
         self.kind.is_shorthand()
     }
-
-    // TODO: do we need this function?
-    /// `let x = foo();` -> `let $x = foo();`
-    pub fn syntax_sugar_for_simple_binding(&mut self) {
-        match &self.kind {
-            // if the syntax is `let $x @ y = z;`, it doesn't do anything
-            PatternKind::Identifier(id) if self.bind.is_none() => {
-                let id = *id;
-                self.kind = PatternKind::Binding(id);
-                self.bind = Some(IdentWithSpan::new(id, self.span));
-            },
-            _ => { /* nop */ },
-        }
-    }
 }
 
 #[derive(Clone)]

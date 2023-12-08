@@ -12,13 +12,17 @@ pub use lower::lower_ast_func;
 #[derive(Clone)]
 pub struct Func {
     pub name: IdentWithSpan,
+
+    // None if incallable
     pub args: Option<Vec<Arg>>,
     pub(crate) generics: Vec<ast::GenericDef>,
-    pub ret_val: hir::Expr,
-    pub ret_ty: Option<hir::Type>,
+    pub return_val: hir::Expr,
+    pub return_ty: Option<hir::Type>,
     pub decorators: FuncDeco,
     pub(crate) doc: Option<InternedString>,
     pub uid: Uid,
+
+    pub kind: FuncKind,
 }
 
 #[derive(Clone)]
@@ -26,6 +30,15 @@ pub struct Arg {
     pub name: IdentWithSpan,
     pub ty: Option<hir::Type>,
     pub has_question_mark: bool,
+}
+
+#[derive(Clone)]
+pub enum FuncKind {
+    Normal,  // ones defined by the user
+    Lambda,
+    Enum { variants: Vec<Uid> },
+    EnumVariant { parent: Uid },
+    StructConstr,
 }
 
 // lowered ast::Deco

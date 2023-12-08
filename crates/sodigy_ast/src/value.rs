@@ -23,9 +23,9 @@ pub enum ValueKind {
         // `let add(x: Int, y: Int): Int = x + y;`
         // -> `let add = \{x: Int, y: Int, x + y};`
 
-        // though users cannot annotate ret_type of a lambda,
+        // though users cannot annotate return_ty of a lambda,
         // lambdas generated from scoped_lets sometimes require this field
-        ret_type: Option<Box<TypeDef>>,
+        return_ty: Option<Box<TypeDef>>,
         lowered_from_scoped_let: bool,
     },
     Scope {

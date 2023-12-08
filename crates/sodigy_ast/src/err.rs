@@ -162,7 +162,7 @@ impl AstError {
 
     pub fn func_arg_without_type(func_name: InternedString, arg: IdentWithSpan) -> Self {
         AstError {
-            kind: AstErrorKind::FuncArgWithoutType { arg_name: *arg.id(), func_name },
+            kind: AstErrorKind::FuncArgWithoutType { arg_name: arg.id(), func_name },
             spans: smallvec![*arg.span()],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingFuncArgs),
         }

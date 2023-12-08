@@ -63,6 +63,7 @@ impl AstSession {
         &self.warnings
     }
 
+    // TODO: no more `err_if_has_err`
     pub fn err_if_has_err(&self) -> Result<(), ()> {
         if self.errors.is_empty() {
             Ok(())

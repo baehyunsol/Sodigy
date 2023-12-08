@@ -2,9 +2,11 @@ use crate::err::HirError;
 use crate::func::Func;
 use crate::warn::HirWarning;
 use smallvec::{SmallVec, smallvec};
+use sodigy_ast::IdentWithSpan;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 use sodigy_prelude::PRELUDES;
+use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
 
@@ -102,6 +104,15 @@ impl HirSession {
         }
     }
 
+    // `tmp` in `let Some<T>(tmp: T): Option(T) = ...;`
+    pub fn make_nth_arg_name(&mut self, ind: usize) -> IdentWithSpan {
+        // there's no reason to define another method :)
+        IdentWithSpan::new(
+            self.get_tuple_field_expr(ind),
+            SpanRange::dummy(9),
+        )
+    }
+
     pub fn get_prelude_names(&self) -> HashSet<InternedString> {
         PRELUDES.keys().map(|k| *k).collect()
     }
@@ -138,6 +149,24 @@ impl HirSession {
         self.interner.unintern_string(s)
     }
 
+    pub fn add_prefix(&mut self, s: InternedString, prefix: &str) -> InternedString {
+        if let Some(s) = self.unintern_string(s) {
+            let new_s = vec![
+                prefix.as_bytes().to_vec(),
+                s.to_vec(),
+            ].concat();
+
+            self.intern_string(new_s)
+        }
+
+        else {
+            // TODO: if it's unreachable, what's the point of `HirSession::unintern_string`?
+            // if that never returns `None`, why is the return type `Option<&[u8]>`
+            unreachable!()
+        }
+    }
+
+    // TODO: no more `err_if_has_err`
     pub fn err_if_has_err(&self) -> Result<(), ()> {
         if self.errors.is_empty() {
             Ok(())

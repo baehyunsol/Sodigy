@@ -1,4 +1,4 @@
-use super::{Arg, Func, FuncDeco};
+use super::{Arg, Func, FuncDeco, FuncKind};
 use crate::{lower_ast_expr, lower_ast_ty};
 use crate::err::HirError;
 use crate::expr::try_warn_unnecessary_paren;
@@ -17,9 +17,9 @@ pub fn lower_ast_func(
     name: &IdentWithSpan,
     generics: &Vec<ast::GenericDef>,
     args: Option<&Vec<ast::ArgDef>>,
-    ret_val: &ast::Expr,
-    ret_type: &Option<ast::TypeDef>,
-    uid: &Uid,
+    return_val: &ast::Expr,
+    return_ty: &Option<ast::TypeDef>,
+    uid: Uid,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
@@ -94,17 +94,17 @@ pub fn lower_ast_func(
 
     name_space.unlock_func_args();
 
-    try_warn_unnecessary_paren(ret_val, session);
+    try_warn_unnecessary_paren(return_val, session);
 
-    let ret_val = lower_ast_expr(
-        ret_val,
+    let return_val = lower_ast_expr(
+        return_val,
         session,
         used_names,
         imports,
         name_space,
     );
 
-    let ret_ty = ret_type.as_ref().map(
+    let return_ty = return_ty.as_ref().map(
         |ty| lower_ast_ty(
             ty,
             session,
@@ -117,13 +117,13 @@ pub fn lower_ast_func(
     // find unused names
 
     for (arg, name_origin) in name_space.iter_func_args() {
-        if !used_names.contains(&IdentWithOrigin::new(*arg.id(), name_origin)) {
+        if !used_names.contains(&IdentWithOrigin::new(arg.id(), name_origin)) {
             session.push_warning(HirWarning::unused_name(arg, NameBindingType::FuncArg));
         }
     }
 
     for (generic, name_origin) in name_space.iter_func_generics() {
-        if !used_names.contains(&IdentWithOrigin::new(*generic.id(), name_origin)) {
+        if !used_names.contains(&IdentWithOrigin::new(generic.id(), name_origin)) {
             session.push_warning(HirWarning::unused_name(generic, NameBindingType::FuncGeneric));
         }
     }
@@ -143,14 +143,16 @@ pub fn lower_ast_func(
         name: *name,
         generics: generics.clone(),
         args: hir_args,
-        ret_val: ret_val?,
-        ret_ty: if let Some(ty) = ret_ty { Some(ty?) } else { None },
+        return_val: return_val?,
+        return_ty: if let Some(ty) = return_ty { Some(ty?) } else { None },
         decorators: decorators?,
         doc,
-        uid: *uid,
+        kind: FuncKind::Normal,
+        uid: uid,
     })
 }
 
+// TODO: neat parser for func decos
 pub fn lower_ast_func_decorators(
     decorators: &Vec<ast::Decorator>,
     session: &mut HirSession,
@@ -159,12 +161,24 @@ pub fn lower_ast_func_decorators(
 
     for deco in decorators.iter() {
         // always deco.name.len() > 0
-        match *deco.name[0].id() {
+        match deco.name[0].id() {
             id if id == *SYM_TEST => {
                 match deco.name.get(1).map(|id| id.id()) {
-                    Some(id) if *id == *SYM_EQ => {
+                    Some(id) if id == *SYM_EQ => {
                         if let Some(args) = &deco.args {
                             // TODO
+                            // let hir_args = Vec::with_capacity(args.len());
+
+                            // for arg in args.iter() {
+                            //     if let Ok(arg) = lower_ast_expr(
+                            //         arg,
+                            //         session,
+                            //     ) {
+                            //         hir_args.push(arg);
+                            //     }
+                            // }
+
+                            // result.push_test_eq();
                         }
 
                         else {

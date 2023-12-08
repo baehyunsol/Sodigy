@@ -1,4 +1,4 @@
-use crate::{DUMMY_FILE_HASH, LOCK};
+use crate::{DUMMY_FILE_HASH, IS_FILE_SESSION_INIT, LOCK};
 use crate::cache::FileCache;
 use crate::err::FileError;
 use std::collections::{hash_map, HashMap, HashSet};
@@ -25,6 +25,10 @@ impl Session {
     pub(crate) fn new() -> Self {
         // prevent hasher from initing DUMMY_FILE_HASH accidentally
         let hashes = [DUMMY_FILE_HASH].into_iter().collect();
+
+        unsafe {
+            assert!(!IS_FILE_SESSION_INIT);
+        }
 
         Session {
             tmp_files: HashMap::new(),

@@ -233,7 +233,7 @@ impl RenderedLine {
 
 #[derive(Clone)]
 struct Line {
-    index: usize,
+    line_no: usize,
 
     // ascii `c`, highlighted 'b'
     // if b { c + 128 } else { c }
@@ -247,10 +247,10 @@ struct Line {
     non_ascii_chars: Vec<u32>,
 }
 
-const MAX_LINE_LEN: usize = 80;
+const MAX_LINE_LEN: usize = 88;
 
 impl Line {
-    pub fn new(index: usize, buffer: &[u8], non_ascii_chars: Vec<u8>) -> Self {
+    pub fn new(line_no: usize, buffer: &[u8], non_ascii_chars: Vec<u8>) -> Self {
         let has_highlighted_char = buffer.iter().any(|c| *c >= 128);
         let mut need_dots = false;
         let mut buffer = if buffer.len() > MAX_LINE_LEN {
@@ -283,7 +283,7 @@ impl Line {
         }
 
         Line {
-            index,
+            line_no,
             buffer,
             has_highlighted_char,
             need_dots,
@@ -304,7 +304,7 @@ impl Line {
     pub fn get_pos(&self) -> (usize, usize) {
         (
             // human index starts with 1
-            self.index + 1,
+            self.line_no + 1,
             self.buffer.iter().position(|c| *c >= 128).unwrap_or(0) + 1,
         )
     }
@@ -314,7 +314,7 @@ impl Line {
 
         format!(
             "{} {bar} {}{}",
-            colors.render_num(self.index + 1),  // human index starts with 1
+            colors.render_num(self.line_no + 1),  // human index starts with 1
             self.buffer.iter().map(
                 |c| {
                     let c = if *c >= 128 {
@@ -453,6 +453,10 @@ fn alert_non_ascii_chars(non_ascii_chars: &[u32]) -> String {
     }
 
     else {
+        let mut non_ascii_chars = non_ascii_chars.to_vec();
+        non_ascii_chars.sort();
+        non_ascii_chars.dedup();
+
         let (a, those, s) = if non_ascii_chars.len() == 1 {
             (" a", "the", "")
         } else {

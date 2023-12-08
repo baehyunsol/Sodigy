@@ -49,7 +49,7 @@ pub fn lower_ast_expr(
                     if names.len() == 1 {
                         Expr {
                             kind: ExprKind::Identifier(IdentWithOrigin::new(
-                                *names[0].id(), NameOrigin::Global { origin: None },
+                                names[0].id(), NameOrigin::Global { origin: None },
                             )),
                             span: *span,
                         }
@@ -60,7 +60,7 @@ pub fn lower_ast_expr(
                             kind: ExprKind::Path {
                                 head: Box::new(Expr {
                                     kind: ExprKind::Identifier(IdentWithOrigin::new(
-                                        *names[0].id(), NameOrigin::Global { origin: None },
+                                        names[0].id(), NameOrigin::Global { origin: None },
                                     )),
                                     span: *names[0].span(),
                                 }),
@@ -84,7 +84,7 @@ pub fn lower_ast_expr(
 
                 else {
                     // `let foo(x: Int, y: x)`: no dependent types
-                    if name_space.func_args_locked && name_space.is_func_arg_name(id) {
+                    if name_space.func_args_locked && name_space.is_func_arg_name(*id) {
                         session.push_error(HirError::no_dependent_types(
                             IdentWithSpan::new(*id, e.span),
                         ));
@@ -195,7 +195,7 @@ pub fn lower_ast_expr(
             },
             ValueKind::Lambda {
                 args, value, uid,
-                ret_type,
+                return_ty,
                 lowered_from_scoped_let,
             } => {
                 let mut hir_args = Vec::with_capacity(args.len());
@@ -204,7 +204,7 @@ pub fn lower_ast_expr(
                 let mut has_error = false;
 
                 for ast::ArgDef { name, ty, has_question_mark } in args.iter() {
-                    match arg_names.insert(*name.id(), *name) {
+                    match arg_names.insert(name.id(), *name) {
                         Some(prev) => {
                             session.push_error(HirError::name_collision(prev, *name));
                             has_error = true;
@@ -248,7 +248,7 @@ pub fn lower_ast_expr(
                     });
                 }
 
-                let ret_type = if let Some(ty) = ret_type {
+                let return_ty = if let Some(ty) = return_ty {
                     if let Ok(ty) = lower_ast_ty(
                         ty,
                         session,
@@ -311,7 +311,7 @@ pub fn lower_ast_expr(
                         value: Box::new(value),
                         captured_values,
                         uid: *uid,
-                        ret_type,
+                        return_ty,
                         lowered_from_scoped_let: *lowered_from_scoped_let,
                     }),
                     span: e.span,
@@ -336,14 +336,14 @@ pub fn lower_ast_expr(
                         ast::LetKind::Incallable {
                             name,
                             generics: _,  // parser guarantees that it's None
-                            ret_type,
-                            ret_val,
+                            return_ty,
+                            return_val,
                             uid: _,  // ignored
                         } => {
                             name_bindings.push(DestructuredPattern::new(
                                 *name,
-                                ret_val.clone(),
-                                ret_type.clone(),
+                                return_val.clone(),
+                                return_ty.clone(),
                                 /* is_real */ true,
                             ));
                         },
@@ -354,8 +354,8 @@ pub fn lower_ast_expr(
                             name,
                             args,
                             generics,
-                            ret_type,
-                            ret_val,
+                            return_ty,
+                            return_val,
                             uid,
                         } => {
                             name_bindings.push(DestructuredPattern::new(
@@ -363,15 +363,15 @@ pub fn lower_ast_expr(
                                 ast::Expr {
                                     kind: ast::ExprKind::Value(ast::ValueKind::Lambda {
                                         args: args.clone(),
-                                        value: Box::new(ret_val.clone()),
+                                        value: Box::new(return_val.clone()),
                                         uid: *uid,
-                                        ret_type: ret_type.clone().map(|ty| Box::new(ty)),
+                                        return_ty: return_ty.clone().map(|ty| Box::new(ty)),
                                         lowered_from_scoped_let: true,
                                     }),
-                                    span: ret_val.span,
+                                    span: return_val.span,
                                 },
 
-                                // `ret_type` of `ast::LetKind::Callable` is that of the function,
+                                // `return_ty` of `ast::LetKind::Callable` is that of the function,
                                 // not this value itself: `Int` vs `Func(Int, Int, Int)`
                                 None,
 
@@ -388,7 +388,7 @@ pub fn lower_ast_expr(
 
                 for DestructuredPattern { name, .. } in name_bindings.iter() {
                     if let Some(prev) = name_collision_checker.insert(
-                        *name.id(),
+                        name.id(),
                         *name,
                     ) {
                         session.push_error(HirError::name_collision(prev, *name));
@@ -396,7 +396,7 @@ pub fn lower_ast_expr(
                     }
 
                     else {
-                        name_bindings_set.insert(*name.id());
+                        name_bindings_set.insert(name.id());
                     }
                 }
 
@@ -781,16 +781,16 @@ pub fn lower_ast_expr(
                 pattern.get_name_bindings(&mut name_bindings_buffer);
 
                 for def in name_bindings_buffer.iter() {
-                    match name_collision_checker.get(def.id()) {
+                    match name_collision_checker.get(&def.id()) {
                         Some(id) => {
                             session.push_error(HirError::name_collision(*def, *id));
                         },
                         None => {
-                            name_collision_checker.insert(*def.id(), *def);
+                            name_collision_checker.insert(def.id(), *def);
                         },
                     }
 
-                    name_bindings.insert(*def.id());
+                    name_bindings.insert(def.id());
                 }
 
                 name_space.push_locals(

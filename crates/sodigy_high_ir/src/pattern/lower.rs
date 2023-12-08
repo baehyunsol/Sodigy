@@ -58,7 +58,7 @@ pub fn lower_patterns_to_name_bindings(
 
             // let tmp = foo();
             name_bindings.push(DestructuredPattern::new(
-                IdentWithSpan::new(tmp_name, SpanRange::dummy(9)),  // $tmp
+                IdentWithSpan::new(tmp_name, SpanRange::dummy(10)),  // $tmp
                 expr.clone(),
                 pattern.ty.clone(),
                 false,  // not a real name
@@ -352,11 +352,11 @@ fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -
         kind: ast::ExprKind::Path {
             pre: Box::new(ast::Expr {
                 kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
-                span: SpanRange::dummy(10),
+                span: SpanRange::dummy(11),
             }),
-            post: IdentWithSpan::new(field, SpanRange::dummy(11)),
+            post: IdentWithSpan::new(field, SpanRange::dummy(12)),
         },
-        span: SpanRange::dummy(12),
+        span: SpanRange::dummy(13),
     }
 }
 

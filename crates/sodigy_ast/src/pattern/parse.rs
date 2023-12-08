@@ -157,7 +157,7 @@ fn parse_pattern_value(
             match *punct {
                 Punct::Dollar => match tokens.expect_ident() {
                     Ok(id) => Pattern {
-                        kind: PatternKind::Binding(*id.id()),
+                        kind: PatternKind::Binding(id.id()),
                         span: punct_span.merge(*id.span()),
                         bind: Some(id),
                         ty: None,
@@ -446,7 +446,7 @@ fn parse_pattern_value(
                             tokens.backward().unwrap();
 
                             let pttk = if names.len() == 1 {
-                                PatternKind::Identifier(*names[0].id())
+                                PatternKind::Identifier(names[0].id())
                             } else {
                                 PatternKind::Path(names)
                             };
@@ -466,7 +466,7 @@ fn parse_pattern_value(
                     }
 
                     let pttk = if names.len() == 1 {
-                        PatternKind::Identifier(*names[0].id())
+                        PatternKind::Identifier(names[0].id())
                     } else {
                         PatternKind::Path(names)
                     };

@@ -32,7 +32,6 @@ pub(crate) struct FileCache {
 impl FileCache {
     pub fn new() -> Self {
         FileCache {
-            // [(DUMMY_FILE_HASH), vec![]]
             data: vec![(DUMMY_FILE_HASH, vec![]); FILE_CACHE_SIZE],
             count: vec![0; FILE_CACHE_SIZE],
             cursor: 0,
@@ -128,9 +127,4 @@ impl FileCache {
             }
         }
     }
-}
-
-#[test]
-fn dummy_is_default() {
-    assert_eq!(FileHash::default(), DUMMY_FILE_HASH);
 }

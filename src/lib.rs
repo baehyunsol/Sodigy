@@ -58,7 +58,7 @@ pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
 
             let mut eval_ctxt = HirEvalCtxt::from_session(&hir_session);
 
-            match eval_hir(&main_func.ret_val, &mut eval_ctxt) {
+            match eval_hir(&main_func.return_val, &mut eval_ctxt) {
                 Ok(v) => {
                     println!("result: {v}");
                 },

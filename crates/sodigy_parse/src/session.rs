@@ -70,6 +70,7 @@ impl ParseSession {
         &self.warnings
     }
 
+    // TODO: no more `err_if_has_err`
     pub fn err_if_has_err(&self) -> Result<(), ()> {
         if self.errors.is_empty() {
             Ok(())
@@ -87,7 +88,7 @@ impl ParseSession {
         let mut errors = vec![];
         let mut curr_state = ExpandState::Init;
 
-        let mut curr_macro_span = SpanRange::dummy(14);
+        let mut curr_macro_span = SpanRange::dummy(15);
         let mut curr_macro_name = vec![];
         let mut curr_macro_args;
 

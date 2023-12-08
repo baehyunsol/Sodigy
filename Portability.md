@@ -2,13 +2,18 @@
 
 If you're to port Sodigy to another platform, please read this document!
 
-On Linux, Mac and Windows, all you need is a Rust compiler (for now, it's only tested on Linux). If your platform is a Rust tier-1 supported, it's 99% guaranteed that Sodigy just works. If it doesn't build, please read the list below and check what's missing.
+On Linux, Mac and Windows, all you need is a Rust compiler (for now, it's only tested on Linux). If your platform is Rust tier-1 supported, it's 99% guaranteed that Sodigy just works. If it doesn't build, please read the list below and check what's missing.
 
 ## MSRV
 
 I always use the latest version.
 
-TODO: add CI for older versions of Rust.
+For now, Sodigy is tested on...
+
+- stable 1.74.0
+- nightly 1.76.0 (1fdfe1234 2023-12-06)
+
+on Ubuntu 23.04.
 
 ## Nightly
 

@@ -42,8 +42,8 @@ impl IdentWithSpan {
         IdentWithSpan(id, span)
     }
 
-    pub fn id(&self) -> &InternedString {
-        &self.0
+    pub fn id(&self) -> InternedString {
+        self.0
     }
 
     pub fn span(&self) -> &SpanRange {

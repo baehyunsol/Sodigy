@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 mod doc_comment;
 mod endec;
+mod enum_;
 mod err;
 pub mod expr;
 mod fmt;
@@ -16,10 +17,12 @@ mod func;
 mod names;
 mod pattern;
 mod session;
+mod struct_;
 mod walker;
 mod warn;
 
 use doc_comment::concat_doc_comments;
+use enum_::lower_ast_enum;
 use err::HirError;
 pub use expr::{
     Branch, BranchArm,
@@ -39,6 +42,7 @@ use func::lower_ast_func;
 pub use names::NameOrigin;
 use names::{IdentWithOrigin, NameBindingType, NameSpace};
 pub use session::HirSession;
+use struct_::lower_ast_struct;
 use warn::HirWarning;
 
 pub fn lower_stmts(
@@ -68,23 +72,30 @@ pub fn lower_stmts(
         match &stmt.kind {
             StmtKind::Decorator(_)
             | StmtKind::DocComment(_) => { /* nop */ },
-            StmtKind::Import(u) => {
+            StmtKind::Import(imp) => {
                 let mut aliases = vec![];
-                u.unfold_alias(&mut aliases);
+                imp.unfold_alias(&mut aliases);
 
                 for (from, to) in aliases.iter() {
-                    if let Some((collision, _)) = names.insert(*from.id(), (*from, None)) {
+                    if let Some((collision, _)) = names.insert(from.id(), (*from, None)) {
                         session.push_error(HirError::name_collision(*from, collision));
                     }
 
-                    imports.insert(*from.id(), (*from.span(), to.to_vec()));
+                    imports.insert(from.id(), (*from.span(), to.to_vec()));
                 }
             },
             stmt_kind => {
-                let id = stmt_kind.get_id().unwrap();
+                let id = if let Some(id) = stmt_kind.get_id() {
+                    id
+                } else {
+                    // it must be `let pattern`, which is not implemented yet
+                    // it'll be handled later
+                    continue;
+                };
+
                 let uid = stmt_kind.get_uid().unwrap();
 
-                if let Some((collision, _)) = names.insert(*id.id(), (id, Some(uid))) {
+                if let Some((collision, _)) = names.insert(id.id(), (id, Some(uid))) {
                     session.push_error(HirError::name_collision(id, collision));
                 }
             },
@@ -92,7 +103,7 @@ pub fn lower_stmts(
     }
 
     for (id, _) in names.values() {
-        if preludes.contains(id.id()) {
+        if preludes.contains(&id.id()) {
             session.push_warning(HirWarning::redef_prelude(*id));
         }
     }
@@ -126,15 +137,15 @@ pub fn lower_stmts(
                         let f = match &l.kind {
                             LetKind::Callable {
                                 name, generics,
-                                args, ret_val,
-                                ret_type, uid,
+                                args, return_val,
+                                return_ty, uid,
                             } => lower_ast_func(
                                 name,
                                 generics,
                                 Some(args),
-                                ret_val,
-                                ret_type,
-                                uid,
+                                return_val,
+                                return_ty,
+                                *uid,
                                 session,
                                 &mut used_names,
                                 &imports,
@@ -144,14 +155,14 @@ pub fn lower_stmts(
                             ),
                             LetKind::Incallable {
                                 name, generics,
-                                ret_val, ret_type, uid,
+                                return_val, return_ty, uid,
                             } => lower_ast_func(
                                 name,
                                 generics,
                                 None,
-                                ret_val,
-                                ret_type,
-                                uid,
+                                return_val,
+                                return_ty,
+                                *uid,
                                 session,
                                 &mut used_names,
                                 &imports,
@@ -162,26 +173,67 @@ pub fn lower_stmts(
                             _ => unreachable!(),
                         };
 
-                        curr_doc_comments.clear();
-                        curr_decorators.clear();
-
                         let mut f = if let Ok(f) = f { f } else { continue; };
                         let mut lambda_context = LambdaCollectCtxt::new(session);
 
-                        println!("\n{}\n", f);
+                        // TODO: `try_convert_closures_to_lambdas` on StructDefs and EnumDefs
                         try_convert_closures_to_lambdas(&mut f);
                         give_names_to_lambdas(&mut f, &mut lambda_context);
+                        println!("\n{}\n", f);
 
+                        // TODO: `try_convert_closures_to_lambdas` on these
                         for func in lambda_context.collected_lambdas.into_iter() {
-                            session.func_defs.insert(*func.name.id(), func);
+                            println!("\n{}\n", func);
+                            session.func_defs.insert(func.name.id(), func);
                         }
 
-                        session.func_defs.insert(*f.name.id(), f);
+                        session.func_defs.insert(f.name.id(), f);
                     },
-                    _ => {
-                        // TODO
+                    LetKind::Enum {
+                        name,
+                        generics,
+                        variants,
+                        uid,
+                    } => {
+                        lower_ast_enum(
+                            name,
+                            generics,
+                            variants,
+                            *uid,
+                            session,
+                            &mut used_names,
+                            &imports,
+                            &curr_decorators,
+                            concated_doc_comments,
+                            &mut name_space,
+                        );
+                    },
+                    LetKind::Struct {
+                        name,
+                        generics,
+                        fields,
+                        uid,
+                    } => {
+                        lower_ast_struct(
+                            name,
+                            generics,
+                            fields,
+                            *uid,
+                            session,
+                            &mut used_names,
+                            &imports,
+                            &curr_decorators,
+                            concated_doc_comments,
+                            &mut name_space,
+                        );
+                    },
+                    LetKind::Pattern(pattern, _) => {
+                        session.push_error(HirError::todo("top-level pattern destructure", pattern.span));
                     },
                 }
+
+                curr_doc_comments.clear();
+                curr_decorators.clear();
             },
             _ => {
                 // TODO

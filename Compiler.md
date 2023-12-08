@@ -36,3 +36,7 @@ For performance reasons, all the literals are interned.
 ## Errors
 
 In order to make the life of programmers easier, the compiler tries to emit as many error messages as possible. When an error is found, it doesn't stop the compilation immediately. It tries to continue analysis and compilation until it makes no sense at all. If you're adding a new error to the compiler, please make sure to keep this in mind. For example, let's say there's a name collision in a function. If you just stop the entire thing at that point, you're missing potential errors in other functions. There could be more!
+
+## ETC
+
+Don't make references if `size_of::<T>` is less than or equal to 128 bits.

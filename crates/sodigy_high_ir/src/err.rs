@@ -14,7 +14,7 @@ pub struct HirError {
 impl HirError {
     pub fn name_collision(id1: IdentWithSpan, id2: IdentWithSpan) -> Self {
         HirError {
-            kind: HirErrorKind::NameCollision(*id1.id()),
+            kind: HirErrorKind::NameCollision(id1.id()),
             spans: smallvec![*id1.span(), *id2.span()],
             extra: ExtraErrInfo::none(),
         }
@@ -23,7 +23,7 @@ impl HirError {
     pub fn undefined_name(name: IdentWithSpan, suggestions: Vec<InternedString>) -> Self {
         HirError {
             kind: HirErrorKind::UndefinedName {
-                name: *name.id(),
+                name: name.id(),
                 suggestions,
             },
             spans: smallvec![*name.span()],
@@ -33,7 +33,7 @@ impl HirError {
 
     pub fn no_dependent_types(id: IdentWithSpan) -> Self {
         HirError {
-            kind: HirErrorKind::NoDependentTypes(*id.id()),
+            kind: HirErrorKind::NoDependentTypes(id.id()),
             spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
@@ -41,7 +41,7 @@ impl HirError {
 
     pub fn undefined_deco(deco: IdentWithSpan) -> Self {
         HirError {
-            kind: HirErrorKind::UndefinedDeco(*deco.id()),
+            kind: HirErrorKind::UndefinedDeco(deco.id()),
             spans: smallvec![*deco.span()],
             extra: ExtraErrInfo::none(),
         }

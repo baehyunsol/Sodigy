@@ -47,30 +47,32 @@ impl HirEvalCtxt {
             func_arg_stack: vec![],
             func_map,
             funcs,
-            scoped_lets: vec![],
+            scoped_lets: vec![
+                HashMap::new(),  // for main function
+            ],
             call_depth: 0,
         }
     }
 
-    pub fn push_scoped_let(&mut self, name: &InternedString, uid: &Uid, value: &hir::Expr) {
+    pub fn push_scoped_let(&mut self, name: InternedString, uid: Uid, value: &hir::Expr) {
         let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].insert((*uid, *name), LazyEvalData::NotEvaled(value.clone()));
+        self.scoped_lets[last_ind].insert((uid, name), LazyEvalData::NotEvaled(value.clone()));
     }
 
-    pub fn pop_scoped_let(&mut self, name: &InternedString, uid: &Uid) {
+    pub fn pop_scoped_let(&mut self, name: InternedString, uid: Uid) {
         let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].remove(&(*uid, *name)).unwrap();
+        self.scoped_lets[last_ind].remove(&(uid, name)).unwrap();
     }
 
-    pub fn get_scoped_let(&mut self, name: &InternedString, uid: &Uid) -> Option<&LazyEvalData> {
+    pub fn get_scoped_let(&mut self, name: InternedString, uid: Uid) -> Option<&LazyEvalData> {
         let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].get(&(*uid, *name))
+        self.scoped_lets[last_ind].get(&(uid, name))
     }
 
-    pub fn update_scoped_let(&mut self, name: &InternedString, uid: &Uid, value: Rc<SodigyData>) {
+    pub fn update_scoped_let(&mut self, name: InternedString, uid: Uid, value: Rc<SodigyData>) {
         let last_ind = self.scoped_lets.len() - 1;
 
-        match self.scoped_lets[last_ind].get_mut(&(*uid, *name)) {
+        match self.scoped_lets[last_ind].get_mut(&(uid, name)) {
             Some(d) => {
                 *d = LazyEvalData::Evaled(value);
             },
@@ -96,8 +98,8 @@ impl HirEvalCtxt {
         self.funcs.get(&index)
     }
 
-    pub fn get_func_by_uid(&self, index: Uid) -> Option<&usize> {
-        self.func_map.get(&index)
+    pub fn get_func_by_uid(&self, index: Uid) -> Option<usize> {
+        self.func_map.get(&index).map(|n| *n)
     }
 
     pub fn inc_call_depth(&mut self) {
@@ -128,7 +130,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                 hir::NameOrigin::FuncArg { index } => Ok(ctxt.get_func_arg(*index)),
                 hir::NameOrigin::Global { origin: Some(origin) } => {
                     let func_index = if let Some(ind) = ctxt.get_func_by_uid(*origin) {
-                        *ind
+                        ind
                     } else {
                         return Err(HirEvalError::TODO(format!("name resolving `{}`", id_ori.id().render_error())));
                     };
@@ -143,7 +145,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                         let func = func.clone();
 
                         ctxt.inc_call_depth();
-                        let res = eval_hir(&func.ret_val, ctxt);
+                        let res = eval_hir(&func.return_val, ctxt);
                         ctxt.dec_call_depth();
 
                         res
@@ -153,19 +155,19 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
                         Ok(Rc::new(SodigyData::new_func(func_index)))
                     }
                 },
-                hir::NameOrigin::Local { origin } => match ctxt.get_scoped_let(id_ori.id(), origin) {
+                hir::NameOrigin::Local { origin } => match ctxt.get_scoped_let(id_ori.id(), *origin) {
                     Some(d) => match d {
                         LazyEvalData::NotEvaled(e) => {
                             let new_e = eval_hir(&e.clone(), ctxt)?;
-                            ctxt.update_scoped_let(id_ori.id(), origin, new_e.clone());
+                            ctxt.update_scoped_let(id_ori.id(), *origin, new_e.clone());
 
                             Ok(new_e)
                         },
                         LazyEvalData::Evaled(e) => Ok(e.clone()),
                     },
-                    _ => Err(HirEvalError::TODO(String::from("ExprKind::Identifier other than FuncArg"))),
+                    _ => Err(HirEvalError::TODO(String::from("Evaluating a scoped let... how can it fail?"))),
                 },
-                _ => Err(HirEvalError::TODO(String::from("ExprKind::Identifier other than FuncArg"))),
+                e => Err(HirEvalError::TODO(format!("ExprKind::Identifier other than FuncArg: {e:?}"))),
             },
         hir::ExprKind::Integer(n) => Ok(Rc::new(
             SodigyData::new_int(n.into_hmath_big_int()?)
@@ -296,7 +298,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
 
             ctxt.inc_call_depth();
             ctxt.push_func_args(func_args);
-            let result = eval_hir(&func.ret_val, ctxt);
+            let result = eval_hir(&func.return_val, ctxt);
             ctxt.pop_func_args();
             ctxt.dec_call_depth();
 
@@ -492,13 +494,13 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
             lets, value, uid, ..
         }) => {
             for hir::expr::ScopedLet { name, value, .. } in lets.iter() {
-                ctxt.push_scoped_let(name.id(), uid, value);
+                ctxt.push_scoped_let(name.id(), *uid, value);
             }
 
             let res = eval_hir(value, ctxt);
 
             for hir::expr::ScopedLet { name, .. } in lets.iter() {
-                ctxt.pop_scoped_let(name.id(), uid);
+                ctxt.pop_scoped_let(name.id(), *uid);
             }
 
             res

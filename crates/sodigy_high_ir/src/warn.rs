@@ -15,7 +15,7 @@ pub struct HirWarning {
 impl HirWarning {
     pub fn redef_prelude(id: IdentWithSpan) -> Self {
         HirWarning {
-            kind: HirWarningKind::RedefPrelude(*id.id()),
+            kind: HirWarningKind::RedefPrelude(id.id()),
             spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
@@ -23,7 +23,7 @@ impl HirWarning {
 
     pub fn unused_name(id: IdentWithSpan, binding_type: NameBindingType) -> Self {
         HirWarning {
-            kind: HirWarningKind::UnusedName(*id.id(), binding_type),
+            kind: HirWarningKind::UnusedName(id.id(), binding_type),
             spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }

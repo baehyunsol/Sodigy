@@ -53,8 +53,8 @@ pub struct FuncDef {
     pub name: IdentWithSpan,
     pub generics: Vec<GenericDef>,
     pub args: Option<Vec<ArgDef>>,
-    pub ret_type: Option<TypeDef>,
-    pub ret_val: Expr,
+    pub return_ty: Option<TypeDef>,
+    pub return_val: Expr,
     pub uid: Uid,
 }
 

@@ -391,7 +391,7 @@ pub fn parse_expr(
                             value: Box::new(value),
                             uid: Uid::new_lambda(),
 
-                            ret_type: None,  // users cannot annotate ret_type of a lambda
+                            return_ty: None,  // users cannot annotate return_ty of a lambda
                             lowered_from_scoped_let: false,
                         }),
                         span,
@@ -525,7 +525,6 @@ pub fn parse_expr(
                     return Err(());
                 }
 
-                // TODO: short_string can hold at most 3 bytes, but some chars are longer than that
                 else if let Some((length, bytes)) = content.try_unwrap_short_string() {
                     match try_into_char(&bytes[0..(length as usize)]) {
                         Ok(c) => Expr {
@@ -2240,7 +2239,7 @@ fn parse_let_statement(
                 _ => None,
             };
 
-            let ret_type = if tokens.is_curr_token(TokenKind::colon()) {
+            let return_ty = if tokens.is_curr_token(TokenKind::colon()) {
                 let colon_span = tokens.peek_span().unwrap();
                 tokens.step().unwrap();
 
@@ -2260,7 +2259,7 @@ fn parse_let_statement(
                 return Err(());
             }
 
-            let ret_val = parse_expr(
+            let return_val = parse_expr(
                 tokens,
                 session,
                 0,
@@ -2274,7 +2273,7 @@ fn parse_let_statement(
             }
 
             else {
-                Let::def(name, generics, args, ret_type, ret_val)
+                Let::def(name, generics, args, return_ty, return_val)
             }
         },
         Some(token) => {

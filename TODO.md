@@ -275,6 +275,19 @@ REPL
 
 ---
 
+default values for struct
+
+```
+let struct Person = {
+  age: Int = 32,
+  name: String = "Bae",
+};
+```
+
+... really?
+
+---
+
 function overloading with types
 
 ```
@@ -286,3 +299,19 @@ let into(x: Int): Ratio = Ratio.from_denom_and_numer(1, x);
 - when it sees `"123".into(Int)`, it first looks for `into(x: String): Int`. if it cannot find one, it calls the default one
 - the current implementation doesn't allow that: name collisions
 - what if subtype-related stuff complicates the problem?
+
+---
+
+list implementation
+
+- `Rust::Vec` way
+  - `x[1..]` is O(n)
+- Linked List
+  - `x[n]` is O(n)
+- `Rust::Slice` way
+  - every `List` consists of a buffer, start index and end index
+  - `x[n]`: O(1) -> buffer + start + `n`
+  - `x[n..]`: O(1) -> start += n
+  - `x.len()`: O(1) -> end - start
+  - `x.modify(n, v)`: O(n) -> price for immutability
+  - `a +> x`, `x <+ a`: O(n) -> it's fine

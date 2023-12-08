@@ -1,6 +1,6 @@
 use super::{Expr, ExprKind, Lambda, Scope};
 use crate::IdentWithOrigin;
-use crate::func::{Func, FuncDeco};
+use crate::func::{Func, FuncDeco, FuncKind};
 use crate::names::{NameOrigin, NameSpace};
 use crate::session::HirSession;
 use crate::walker::{EmptyMutWalkerState, MutWalkerState, mut_walker_func};
@@ -66,7 +66,7 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
             value,
             captured_values,
             uid,
-            ret_type: _,
+            return_ty: _,
             lowered_from_scoped_let: _,
         }) => {
             if captured_values.is_empty() {
@@ -80,10 +80,11 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
                     ),
                     args: Some(args.to_vec()),
                     generics: vec![],
-                    ret_val: *value.clone(),
-                    ret_ty: None,
+                    return_val: *value.clone(),
+                    return_ty: None,
                     decorators: FuncDeco::default_lambda(),
                     doc: None,
+                    kind: FuncKind::Lambda,
                     uid,
                 };
 
@@ -157,13 +158,13 @@ pub fn find_and_replace_captured_values(
                 },
             }
 
-            let id = *id_ori.id();
+            let id = id_ori.id();
             let mut name_index = None;
 
             // linear search is fine because `captured_values` is small enough in most cases
             for (ind, val) in c.captured_values.iter().enumerate() {
                 if let ExprKind::Identifier(id_ori_) = &val.kind {
-                    let id_ = *id_ori_.id();
+                    let id_ = id_ori_.id();
                     let origin_ = *id_ori_.origin();
 
                     if (id, origin) == (id_, origin_) {

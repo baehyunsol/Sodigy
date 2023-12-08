@@ -17,8 +17,8 @@ impl IdentWithOrigin {
         IdentWithOrigin(id, ori)
     }
 
-    pub fn id(&self) -> &InternedString {
-        &self.0
+    pub fn id(&self) -> InternedString {
+        self.0
     }
 
     pub fn origin(&self) -> &NameOrigin {
@@ -30,7 +30,7 @@ impl IdentWithOrigin {
     }
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     Prelude,
     FuncArg {
@@ -143,7 +143,7 @@ impl NameSpace {
         Ok(())
     }
 
-    pub fn is_func_arg_name(&self, id: &InternedString) -> bool {
+    pub fn is_func_arg_name(&self, id: InternedString) -> bool {
         self.func_args.iter().any(|ids| ids.id() == id)
     }
 
@@ -184,7 +184,7 @@ impl NameSpace {
         ).collect::<HashMap<_, _>>();
 
         for gen in self.func_generics.iter() {
-            if let Some(id) = args.get(gen.id()) {
+            if let Some(id) = args.get(&gen.id()) {
                 return Err([**id, *gen]);
             }
         }
@@ -201,14 +201,14 @@ impl NameSpace {
 
         if !self.func_args_locked {
             for (index, name) in self.func_args.iter().enumerate() {
-                if *name.id() == id {
+                if name.id() == id {
                     return Some(NameOrigin::FuncArg { index });
                 }
             }
         }
 
         for (index, name) in self.func_generics.iter().enumerate() {
-            if *name.id() == id {
+            if name.id() == id {
                 return Some(NameOrigin::FuncGeneric { index });
             }
         }
@@ -274,10 +274,10 @@ impl NameSpace {
             |name| name.id()
         ).chain(self.func_generics.iter().map(
             |name| name.id()
-        )).chain(self.globals.keys()).chain(
-            self.preludes.iter()
+        )).chain(self.globals.keys().map(|i| *i)).chain(
+            self.preludes.iter().map(|i| *i)
         ) {
-            let name_u8 = match sess.unintern_string(*name) {
+            let name_u8 = match sess.unintern_string(name) {
                 Some(s) => s.to_vec(),
                 _ => {
                     continue;
@@ -285,7 +285,7 @@ impl NameSpace {
             };
 
             if substr_edit_distance(&id_u8, &name_u8) < similarity_threshold {
-                result.push(*name);
+                result.push(name);
             }
         }
 

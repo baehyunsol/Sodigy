@@ -413,6 +413,8 @@ This is also a comment
 let add(x: Int, y: Int): Int = x + y;
 ```
 
+`##! ... !##`s can be nested, of course.
+
 ## For Rust programmers
 
 TODO

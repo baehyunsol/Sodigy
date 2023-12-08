@@ -18,7 +18,7 @@ pub struct EmptyMutWalkerState {}
 impl MutWalkerState for EmptyMutWalkerState {}
 
 pub fn mut_walker_func<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(f: &mut Func, c: &mut Ctxt, worker: &Box<F>) {
-    mut_walker_expr(&mut f.ret_val, c, worker);
+    mut_walker_expr(&mut f.return_val, c, worker);
 
     if let WalkState::Quit = c.get_walk_state() {
         return;
@@ -36,7 +36,7 @@ pub fn mut_walker_func<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(f: &mu
         }
     }
 
-    if let Some(ty) = &mut f.ret_ty {
+    if let Some(ty) = &mut f.return_ty {
         mut_walker_expr(&mut ty.0, c, worker);
     }
 

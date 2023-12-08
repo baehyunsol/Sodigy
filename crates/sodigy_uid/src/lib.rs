@@ -17,13 +17,14 @@ pub struct Uid(u128);
 const ERASER: u128 = 0x00ff_ffff_ffff_ffff_ffff_ffff_ffff_ffff;
 
 // Uid types
-pub(crate) const DEF: u128 = 0x0 << 124;
-pub(crate) const ENUM: u128 = 0x1 << 124;
-pub(crate) const STRUCT: u128 = 0x2 << 124;
-pub(crate) const MODULE: u128 = 0x3 << 124;
-pub(crate) const LAMBDA: u128 = 0x4 << 124;
-pub(crate) const SCOPE_BLOCK: u128 = 0x5 << 124;
-pub(crate) const MATCH_ARM: u128 = 0x6 << 124;
+pub(crate) const DEF: u128          = 0x0 << 124;
+pub(crate) const ENUM: u128         = 0x1 << 124;
+pub(crate) const ENUM_VARIANT: u128 = 0x2 << 124;
+pub(crate) const STRUCT: u128       = 0x3 << 124;
+pub(crate) const MODULE: u128       = 0x4 << 124;
+pub(crate) const LAMBDA: u128       = 0x5 << 124;
+pub(crate) const SCOPE_BLOCK: u128  = 0x6 << 124;
+pub(crate) const MATCH_ARM: u128    = 0x7 << 124;
 
 // Metadata
 pub(crate) const PRELUDE_MASK: u128 = 0b1000 << 120;
@@ -39,6 +40,10 @@ impl Uid {
 
     pub fn new_enum() -> Self {
         Uid(rand::random::<u128>() & ERASER | ENUM)
+    }
+
+    pub fn new_enum_variant() -> Self {
+        Uid(rand::random::<u128>() & ERASER | ENUM_VARIANT)
     }
 
     pub fn new_struct() -> Self {
