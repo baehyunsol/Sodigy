@@ -21,6 +21,7 @@ pub use formatted_str::FormattedStringElement;
 pub use punct::Punct;
 pub use session::ParseSession;
 pub use token_tree::{TokenTree, TokenTreeKind};
+pub use warn::ParseWarning;
 
 pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &mut LexSession) -> Result<(), ()> {
     let mut index = 0;

@@ -924,15 +924,42 @@ pub fn parse_type_def(
     )?))
 }
 
-// TODO: decorators for args?
 // this function allows a trailing comma and args without type annotations
 // it's your responsibility to check type annotations
 fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<ArgDef>, ()> {
     let mut args = vec![];
+    let mut attributes = vec![];
 
     loop {
         if tokens.is_finished() {
+            if !attributes.is_empty() {
+                // TODO: err: unused attribute
+            }
+
             return Ok(args);
+        }
+
+        if tokens.is_curr_token(TokenKind::Punct(Punct::At)) {
+            let at_span = tokens.step().unwrap().span;
+
+            let (deco, _) = parse_decorator(
+                at_span, tokens, session,
+            )?;
+
+            attributes.push(Attribute::Decorator(deco));
+            continue;
+        }
+
+        if tokens.is_curr_token_doc_comment() {
+            let curr_span = tokens.peek_span().unwrap();
+
+            attributes.push(Attribute::DocComment(
+                IdentWithSpan::new(
+                    tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                    curr_span,
+                )
+            ));
+            continue;
         }
 
         let arg_name = match tokens.expect_ident() {
@@ -975,7 +1002,10 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                     name: arg_name,
                     ty: arg_type,
                     has_question_mark,
+                    attributes: attributes.clone(),
                 });
+
+                attributes.clear();
 
                 continue;
             },
@@ -992,6 +1022,7 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                     name: arg_name,
                     ty: arg_type,
                     has_question_mark,
+                    attributes: attributes.clone(),
                 });
                 return Ok(args);
             },
@@ -1003,7 +1034,10 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                     name: arg_name,
                     ty: arg_type,
                     has_question_mark,
+                    attributes: attributes.clone(),
                 });
+
+                attributes.clear();
             },
             Err(AstError {
                 kind: AstErrorKind::UnexpectedEnd(_),
@@ -1013,6 +1047,7 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                     name: arg_name,
                     ty: arg_type,
                     has_question_mark,
+                    attributes: attributes.clone(),
                 });
                 return Ok(args);
             },
@@ -1124,6 +1159,9 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                             name: curr_arg,
                             ty: Some(ty_anno),
                             has_question_mark,
+
+                            // attrs for lambda args is not implemented yet
+                            attributes: vec![],
                         });
 
                         if let Err(e) = tokens.consume(TokenKind::comma()) {
@@ -1140,6 +1178,9 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                             name: curr_arg,
                             ty: None,
                             has_question_mark,
+
+                            // attrs for lambda args is not implemented yet
+                            attributes: vec![],
                         });
                         continue;
                     },
@@ -1612,8 +1653,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
 
         loop {
             if tokens.is_curr_token(TokenKind::Punct(Punct::At)) {
-                let at_span = tokens.peek_span().unwrap();
-                tokens.step().unwrap();
+                let at_span = tokens.step().unwrap().span;
 
                 let (deco, _) = parse_decorator(
                     at_span, tokens, session,
@@ -1624,9 +1664,15 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
             }
 
             if tokens.is_curr_token_doc_comment() {
+                let curr_span = tokens.peek_span().unwrap();
+
                 attributes.push(Attribute::DocComment(
-                    tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!())
+                    IdentWithSpan::new(
+                        tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                        curr_span,
+                    )
                 ));
+
                 continue;
             }
 
@@ -1697,8 +1743,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
 
         loop {
             if tokens.is_curr_token(TokenKind::Punct(Punct::At)) {
-                let at_span = tokens.peek_span().unwrap();
-                tokens.step().unwrap();
+                let at_span = tokens.step().unwrap().span;
 
                 let (deco, _) = parse_decorator(
                     at_span, tokens, session,
@@ -1709,9 +1754,15 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
             }
 
             if tokens.is_curr_token_doc_comment() {
+                let curr_span = tokens.peek_span().unwrap();
+
                 attributes.push(Attribute::DocComment(
-                    tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!())
+                    IdentWithSpan::new(
+                        tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                        curr_span,
+                    )
                 ));
+
                 continue;
             }
 
@@ -2240,8 +2291,7 @@ fn parse_let_statement(
             };
 
             let return_ty = if tokens.is_curr_token(TokenKind::colon()) {
-                let colon_span = tokens.peek_span().unwrap();
-                tokens.step().unwrap();
+                let colon_span = tokens.step().unwrap().span;
 
                 Some(parse_type_def(tokens, session, Some(ErrorContext::ParsingFuncRetType), colon_span)?)
             } else {

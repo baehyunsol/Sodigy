@@ -102,10 +102,10 @@ impl FileError {
                 "invalid file hash: {hash}"
             ),
             FileErrorKind::MetadataNotSupported => String::from(
-                "unable to read file metadata"
+                "unable to read file metadata: `{path}`"
             ),
             FileErrorKind::ModifiedWhileCompilation => String::from(
-                "source file modified while compilation"
+                "source file modified while compilation: `{path}`"
             ),
             FileErrorKind::HashCollision => format!(
                 "hash collision: `{path}`"

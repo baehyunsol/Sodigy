@@ -203,7 +203,8 @@ pub fn lower_ast_expr(
                 let mut captured_values = vec![];
                 let mut has_error = false;
 
-                for ast::ArgDef { name, ty, has_question_mark } in args.iter() {
+                // TODO: lower attributes
+                for ast::ArgDef { name, ty, has_question_mark, attributes } in args.iter() {
                     match arg_names.insert(name.id(), *name) {
                         Some(prev) => {
                             session.push_error(HirError::name_collision(prev, *name));

@@ -1,14 +1,14 @@
-use super::{Arg, Func, FuncDeco, FuncKind};
+use super::{Arg, Func, FuncKind};
 use crate::{lower_ast_expr, lower_ast_ty};
+use crate::attr::lower_ast_attributes;
 use crate::err::HirError;
 use crate::expr::try_warn_unnecessary_paren;
 use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
-use lazy_static::lazy_static;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_err::SodigyError;
-use sodigy_intern::{InternedString, InternSession};
+use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -23,8 +23,7 @@ pub fn lower_ast_func(
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
-    decorators: &Vec<ast::Decorator>,
-    doc: Option<InternedString>,
+    attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
 ) -> Result<Func, ()> {
     let mut hir_args = None;
@@ -50,11 +49,11 @@ pub fn lower_ast_func(
             }
         }
 
-        for arg in args.iter() {
+        for ast::ArgDef { name, ty, has_question_mark, attributes } in args.iter() {
             // lower ast::ArgDef to hir::Arg
-            let ty = if let Some(ty) = &arg.ty {
+            let ty = if let Some(ty) = ty {
                 if let Ok(ty) = lower_ast_ty(
-                    &ty,
+                    ty,
                     session,
                     used_names,
                     imports,
@@ -74,10 +73,11 @@ pub fn lower_ast_func(
                 None
             };
 
+            // TODO: lower attributes
             args_buf.push(Arg {
-                name: arg.name,
+                name: *name,
                 ty,
-                has_question_mark: arg.has_question_mark,
+                has_question_mark: *has_question_mark,
             });
         }
 
@@ -114,6 +114,14 @@ pub fn lower_ast_func(
         )
     );
 
+    let attributes = lower_ast_attributes(
+        attributes,
+        session,
+        used_names,
+        imports,
+        name_space,
+    );
+
     // find unused names
 
     for (arg, name_origin) in name_space.iter_func_args() {
@@ -128,11 +136,6 @@ pub fn lower_ast_func(
         }
     }
 
-    let decorators = lower_ast_func_decorators(
-        decorators,
-        session,
-    );
-
     name_space.leave_func_def();
 
     if has_error {
@@ -145,85 +148,8 @@ pub fn lower_ast_func(
         args: hir_args,
         return_val: return_val?,
         return_ty: if let Some(ty) = return_ty { Some(ty?) } else { None },
-        decorators: decorators?,
-        doc,
         kind: FuncKind::Normal,
+        attributes: attributes?,
         uid: uid,
     })
 }
-
-// TODO: neat parser for func decos
-pub fn lower_ast_func_decorators(
-    decorators: &Vec<ast::Decorator>,
-    session: &mut HirSession,
-) -> Result<FuncDeco, ()> {
-    let mut result = FuncDeco::default();
-
-    for deco in decorators.iter() {
-        // always deco.name.len() > 0
-        match deco.name[0].id() {
-            id if id == *SYM_TEST => {
-                match deco.name.get(1).map(|id| id.id()) {
-                    Some(id) if id == *SYM_EQ => {
-                        if let Some(args) = &deco.args {
-                            // TODO
-                            // let hir_args = Vec::with_capacity(args.len());
-
-                            // for arg in args.iter() {
-                            //     if let Ok(arg) = lower_ast_expr(
-                            //         arg,
-                            //         session,
-                            //     ) {
-                            //         hir_args.push(arg);
-                            //     }
-                            // }
-
-                            // result.push_test_eq();
-                        }
-
-                        else {
-                            // TODO: err, requires an arg
-                        }
-                    },
-                    Some(id) => {
-                        // TODO
-                    },
-                    None => {
-                        // TODO: Err
-                        // tell the user which identifiers are valid in this place
-                    },
-                }
-            },
-            id if id == *SYM_PUBLIC => {
-                // TODO
-            },
-            id if id == *SYM_PRIVATE => {
-                // TODO
-            },
-            _ => {
-                session.push_error(HirError::undefined_deco(deco.name[0]));
-                return Err(());
-            },
-        }
-    }
-
-    Ok(result)
-}
-
-// optimization: `intern_string()` is expensive, but is static
-macro_rules! static_interned_symbol {
-    ($symbol_name: ident, $symbol: literal) => {
-        lazy_static! {
-            static ref $symbol_name: InternedString = {
-                let mut session = InternSession::new();
-        
-                session.intern_string($symbol.to_vec())
-            };
-        }
-    };
-}
-
-static_interned_symbol!(SYM_TEST, b"test");
-static_interned_symbol!(SYM_PUBLIC, b"public");
-static_interned_symbol!(SYM_PRIVATE, b"private");
-static_interned_symbol!(SYM_EQ, b"eq");

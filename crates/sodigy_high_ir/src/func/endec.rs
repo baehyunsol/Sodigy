@@ -1,8 +1,7 @@
-use super::{Arg, Func, FuncDeco, FuncKind};
-use crate::{Type, expr::Expr};
+use super::{Arg, Func, FuncKind};
+use crate::{Attribute, Type, expr::Expr};
 use sodigy_ast::{GenericDef, IdentWithSpan};
 use sodigy_endec::{Endec, EndecErr, EndecSession};
-use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
 impl Endec for Func {
@@ -12,8 +11,7 @@ impl Endec for Func {
         self.generics.encode(buf, session);
         self.return_val.encode(buf, session);
         self.return_ty.encode(buf, session);
-        self.decorators.encode(buf, session);
-        self.doc.encode(buf, session);
+        self.attributes.encode(buf, session);
         self.kind.encode(buf, session);
         self.uid.encode(buf, session);
     }
@@ -25,8 +23,7 @@ impl Endec for Func {
             generics: Vec::<GenericDef>::decode(buf, ind, session)?,
             return_val: Expr::decode(buf, ind, session)?,
             return_ty: Option::<Type>::decode(buf, ind, session)?,
-            decorators: FuncDeco::decode(buf, ind, session)?,
-            doc: Option::<InternedString>::decode(buf, ind, session)?,
+            attributes: Vec::<Attribute>::decode(buf, ind, session)?,
             kind: FuncKind::decode(buf, ind, session)?,
             uid: Uid::decode(buf, ind, session)?,
         })
@@ -86,15 +83,5 @@ impl Endec for FuncKind {
             },
             None => Err(EndecErr::Eof),
         }
-    }
-}
-
-impl Endec for FuncDeco {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        todo!()
-    }
-
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
-        todo!()
     }
 }

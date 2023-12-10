@@ -7,6 +7,7 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
+mod attr;
 mod doc_comment;
 mod endec;
 mod enum_;
@@ -21,6 +22,7 @@ mod struct_;
 mod walker;
 mod warn;
 
+pub use attr::{Attribute, Decorator};
 use doc_comment::concat_doc_comments;
 use enum_::lower_ast_enum;
 use err::HirError;
@@ -49,8 +51,7 @@ pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
     session: &mut HirSession
 ) -> Result<(), ()> {
-    let mut curr_doc_comments = vec![];
-    let mut curr_decorators = vec![];
+    let mut ast_attributes = vec![];
 
     // only for warnings
     let preludes = session.get_prelude_names();
@@ -120,17 +121,12 @@ pub fn lower_stmts(
 
         match &stmt.kind {
             StmtKind::DocComment(c) => {
-                curr_doc_comments.push((*c, span));
+                ast_attributes.push(ast::Attribute::DocComment(IdentWithSpan::new(*c, span)));
             },
             StmtKind::Decorator(d) => {
-                curr_decorators.push(d.clone());
+                ast_attributes.push(ast::Attribute::Decorator(d.clone()));
             },
             StmtKind::Let(l) => {
-                let concated_doc_comments = concat_doc_comments(
-                    &curr_doc_comments,
-                    session,
-                );
-
                 match &l.kind {
                     LetKind::Callable { .. }
                     | LetKind::Incallable { .. } => {
@@ -149,8 +145,7 @@ pub fn lower_stmts(
                                 session,
                                 &mut used_names,
                                 &imports,
-                                &curr_decorators,
-                                concated_doc_comments,
+                                &ast_attributes,
                                 &mut name_space,
                             ),
                             LetKind::Incallable {
@@ -166,8 +161,7 @@ pub fn lower_stmts(
                                 session,
                                 &mut used_names,
                                 &imports,
-                                &curr_decorators,
-                                concated_doc_comments,
+                                &ast_attributes,
                                 &mut name_space,
                             ),
                             _ => unreachable!(),
@@ -203,8 +197,7 @@ pub fn lower_stmts(
                             session,
                             &mut used_names,
                             &imports,
-                            &curr_decorators,
-                            concated_doc_comments,
+                            &ast_attributes,
                             &mut name_space,
                         );
                     },
@@ -222,8 +215,7 @@ pub fn lower_stmts(
                             session,
                             &mut used_names,
                             &imports,
-                            &curr_decorators,
-                            concated_doc_comments,
+                            &ast_attributes,
                             &mut name_space,
                         );
                     },
@@ -232,8 +224,7 @@ pub fn lower_stmts(
                     },
                 }
 
-                curr_doc_comments.clear();
-                curr_decorators.clear();
+                ast_attributes.clear();
             },
             _ => {
                 // TODO

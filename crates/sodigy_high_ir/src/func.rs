@@ -1,6 +1,5 @@
 use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan};
-use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
 mod endec;
@@ -18,8 +17,7 @@ pub struct Func {
     pub(crate) generics: Vec<ast::GenericDef>,
     pub return_val: hir::Expr,
     pub return_ty: Option<hir::Type>,
-    pub decorators: FuncDeco,
-    pub(crate) doc: Option<InternedString>,
+    pub attributes: Vec<hir::Attribute>,
     pub uid: Uid,
 
     pub kind: FuncKind,
@@ -39,31 +37,4 @@ pub enum FuncKind {
     Enum { variants: Vec<Uid> },
     EnumVariant { parent: Uid },
     StructConstr,
-}
-
-// lowered ast::Deco
-// some simple decorators are interpreted and consumed!
-#[derive(Clone, Default)]
-pub struct FuncDeco {
-    publicity: Publicity,
-
-    // exprs in `@test.eq()`
-    test_eq: Vec<hir::Expr>,
-}
-
-impl FuncDeco {
-    // decorators for lambda functions
-    pub fn default_lambda() -> Self {
-        FuncDeco {
-            publicity: Publicity::Private,
-            test_eq: vec![],
-        }
-    }
-}
-
-#[derive(Clone, Default)]
-enum Publicity {
-    #[default]
-    Public,
-    Private
 }

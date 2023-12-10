@@ -1,4 +1,5 @@
 #![deny(unused_imports)]
+use std::collections::HashMap;
 
 mod err;
 mod int;
@@ -61,6 +62,30 @@ impl Endec for String {
         let v8 = Vec::<u8>::decode(buf, ind, session)?;
 
         String::from_utf8(v8).map_err(|e| e.into())
+    }
+}
+
+impl <T: Endec + std::hash::Hash + std::cmp::Eq, U: Endec> Endec for HashMap<T, U> {
+    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        self.len().encode(buf, session);
+
+        for (k, v) in self.iter() {
+            k.encode(buf, session);
+            v.encode(buf, session);
+        }
+    }
+
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+        let len = usize::decode(buf, ind, session)?;
+        let mut result = HashMap::with_capacity(len);
+
+        for _ in 0..len {
+            let k = T::decode(buf, ind, session)?;
+            let v = U::decode(buf, ind, session)?;
+            result.insert(k, v);
+        }
+
+        Ok(result)
     }
 }
 

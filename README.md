@@ -4,7 +4,12 @@ Purely functional Rust-like programming language.
 
 It's still under development. Only parser and lexer are (partially) complete.
 
-The goal of this language is to help programmers implement their idea as fast as possible. (not to run fast, but to implement fast).
+## Goal of Sodigy
+
+- Programmers can implement their idea as fast as possible.
+  - It doesn't mean the result *RUNS* fast, but the programmers can get the result fast. Of course the runtime performance is important, but build-test cycle is much more important.
+- The core of the language has to be as simple as possible.
+  - Don't use built-in functions unless necessary. Write functions in Sodigy.
 
 ## `let` keywords
 
@@ -135,40 +140,6 @@ let id_test2 = id('a') == 'a';
 ```
 
 Since `id` is not generic, `x` must have a single, concrete type. If `x` has type `Int`, then `id_test2` is wrong. If it's `Char`, vice versa.
-
-### Decorators
-
-Decorators can decorate almost everything: functions, enums, structs, enum variants, struct fields, and function arguments.
-
-| shape                         | applied to    | what it does                     |
-|-------------------------------|---------------|----------------------------------|
-| `test.eq(val)`                | function `f`  | asserts that `f == val` or `f() == val`.    |
-| `test.expected(args, value)`  | function `f`  | asserts that `f(args) == value`, `args` is a tuple of arguments.  |
-| `test.false`                  | function `f`  | alias for `test.eq(Bool.False)`.  |
-| `test.true`                   | function `f`  | alias for `test.eq(Bool.True)`.   |
-| `test.before(lambda)`         | function `f`  | `lambda` is called everytime `f` is called. It's called before `f`. The lambda may capture `f`'s arguments. |
-| `test.after(lambda)`          | function `f`  | It's like `test.before`, but the lambda takes one input: the output of `f`. |
-
-```
-# A decorator decorates the following function.
-# A decorator is not followed by a semi colon.
-@test.eq(4)
-let add_test = 2 + 2;
-
-# Multiple decorators may decorate a function.
-@test.eq(Bool.True)
-@test.true
-let add_test2 = 2 + 2 == 4;
-
-# It makes sure that `x` is even.
-# Don't forget to use `assert_eq`. Otherwise, the lambda wouldn't have any effect.
-@test.before(\{assert_eq(x % 2, 0)})
-let foo(x: Int) = x + 1;
-
-# It makes sure that `bar` always returns an odd number.
-@test.after(\{ret, assert_eq(ret % 2, 1)})
-let bar(x: Int) = foo(x);
-```
 
 ### Lambda Functions
 

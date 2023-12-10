@@ -20,8 +20,7 @@ pub fn lower_ast_struct(
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
-    decorators: &Vec<ast::Decorator>,
-    doc: Option<InternedString>,
+    attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
 ) -> Result<(), ()> {
     if let Ok(mut f) = lower_ast_func(
@@ -37,8 +36,7 @@ pub fn lower_ast_struct(
         session,
         used_names,
         imports,
-        decorators,
-        doc,
+        attributes,
         name_space,
     ) {
         f.kind = FuncKind::StructConstr;
@@ -55,10 +53,10 @@ fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {
         |ast::FieldDef {
             name, ty, attributes,
         }| ast::ArgDef {
-            // TODO: lower attributes
             name: *name,
             ty: Some(ty.clone()),
             has_question_mark: false,
+            attributes: attributes.clone(),
         }
     ).collect()
 }

@@ -58,6 +58,7 @@ pub struct ArgDef {
     pub name: IdentWithSpan,
     pub ty: Option<TypeDef>,
     pub has_question_mark: bool,
+    pub attributes: Vec<Attribute>,
 }
 
 impl ArgDef {

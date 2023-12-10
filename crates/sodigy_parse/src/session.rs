@@ -6,15 +6,13 @@ use sodigy_lex::LexSession;
 use sodigy_number::SodigyNumber;
 use sodigy_span::SpanRange;
 
+mod endec;
+
 pub struct ParseSession {
     pub tokens: Vec<TokenTree>,
     pub errors: Vec<ParseError>,
     pub warnings: Vec<ParseWarning>,
     pub interner: InternSession,
-
-    // for now, this flag is not used at all: there's no syntax and semantics to import macros from other modules
-    // there's even no way to define new ones
-    // this flag will be used when those are implemented
     pub has_unexpanded_macros: bool,
 }
 
@@ -88,7 +86,7 @@ impl ParseSession {
         let mut errors = vec![];
         let mut curr_state = ExpandState::Init;
 
-        let mut curr_macro_span = SpanRange::dummy(15);
+        let mut curr_macro_span = SpanRange::dummy(16);
         let mut curr_macro_name = vec![];
         let mut curr_macro_args;
 

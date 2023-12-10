@@ -3,6 +3,8 @@ use sodigy_err::{ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
+mod endec;
+
 #[derive(Clone)]
 pub struct ParseWarning {
     kind: ParseWarningKind,

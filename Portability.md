@@ -37,6 +37,7 @@ Below is the list of Rust std funcs/structs used in this project.
 - std::path::PathBuf
   - for file io
 - std::sync::Mutex
+- std::env::args
 
 ## External Crates
 

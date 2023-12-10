@@ -3,8 +3,9 @@
 use sodigy_files::{global_file_session, FileError, FileHash};
 use sodigy_interpreter::{HirEvalCtxt, eval_hir};
 
-mod stages;
+pub mod option;
 mod result;
+mod stages;
 
 use stages::{
     parse_stage,
@@ -32,7 +33,7 @@ pub fn compile_input(input: Vec<u8>) -> ErrorsAndWarnings {
 
 // TODO: there's no type for compile result yet
 pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
-    let (parse_session, errors_and_warnings) = parse_stage(file_hash);
+    let (parse_session, errors_and_warnings) = parse_stage(file_hash, None);
 
     let parse_session = if let Some(parse_session) = parse_session {
         parse_session
@@ -40,7 +41,7 @@ pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
         return errors_and_warnings;
     };
 
-    let (hir_session, errors_and_warnings) = hir_stage(&parse_session, Some(errors_and_warnings));
+    let (hir_session, errors_and_warnings) = hir_stage(&parse_session, Some(errors_and_warnings), None);
     drop(parse_session);
 
     let hir_session = if let Some(hir_session) = hir_session {
@@ -75,3 +76,21 @@ pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
 
     errors_and_warnings
 }
+
+pub const COMPILER_HELP_MESSAGE: &str =
+"Usage: sodigy [OPTIONS] INPUT
+
+Options:
+    -h, --help                      Display this message
+    -v, --version
+    -f, --from [code|tokens|hir]    Specify the type of the input (default: code)
+    -t, --to [code|tokens|hir]      Specify the type of the output (default: hir)
+    -o, --output FILENAME           Write output to <filename> (default: ./a.out)
+    --show-warnings [true|false]    Show warnings messages (default: true)
+    --save-ir [true|false]          Save intermediate representations (default: true)
+    --dump-hir [true|false]         Dump HIR to stdout (default: false)
+";
+
+pub const MAJOR_VERSION: u32 = 0;
+pub const MINOR_VERSION: u32 = 0;
+pub const PATCH_VERSION: u32 = 0;

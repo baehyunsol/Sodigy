@@ -2,7 +2,7 @@ use crate::IdentWithSpan;
 use crate::err::AstError;
 use crate::{Token, TokenKind};
 use sodigy_err::ExpectedToken;
-use sodigy_intern::InternedNumeric;
+use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_keyword::Keyword;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
@@ -215,9 +215,9 @@ impl<'t> Tokens<'t> {
         }
     }
 
-    pub fn expect_doc_comment(&mut self) -> Result<String, AstError> {
+    pub fn expect_doc_comment(&mut self) -> Result<InternedString, AstError> {
         match self.peek() {
-            Some(Token { kind: TokenKind::DocComment(s), .. }) => Ok(s.to_string()),
+            Some(Token { kind: TokenKind::DocComment(s), .. }) => Ok(*s),
             Some(token) => Err(AstError::unexpected_token(
                 token.clone(),
                 ExpectedToken::doc_comment(),

@@ -100,7 +100,7 @@ impl ImportedName {
 // in ast level, it only collects attributes of variants and fields
 #[derive(Clone)]
 pub enum Attribute {
-    DocComment(String),
+    DocComment(IdentWithSpan),
     Decorator(Decorator),
 }
 

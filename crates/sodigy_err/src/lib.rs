@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
 use colored::*;
-use sodigy_files::global_file_session;
+use sodigy_files::{global_file_session, FileError};
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::{HashSet, hash_map};
@@ -38,6 +38,20 @@ impl UniversalError {
 
     pub fn hash(&self) -> u64 {
         self.hash
+    }
+}
+
+impl From<FileError> for UniversalError {
+    fn from(e: FileError) -> UniversalError {
+        UniversalError {
+            rendered: format!(
+                "{}\n{}",
+                "[Error]".red(),
+                e.render_error(),
+            ),
+            first_span: SpanRange::dummy(9),
+            hash: todo!(),
+        }
     }
 }
 

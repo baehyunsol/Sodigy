@@ -1,6 +1,8 @@
+use crate::attr::{Attribute, Decorator};
 use crate::expr::{self as hir, Expr, ExprKind};
-use crate::func::{Arg, Func, FuncDeco};
+use crate::func::{Arg, Func};
 
+// TODO: do we need this?
 pub enum WalkState {
     QuitImmediate,
     Quit,
@@ -44,7 +46,11 @@ pub fn mut_walker_func<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(f: &mu
         return;
     }
 
-    f.decorators.mut_walker(c, worker);
+    for attribute in f.attributes.iter_mut() {
+        if let Attribute::Decorator(d) = attribute {
+            mut_walker_decorator(d, c, worker);
+        }
+    }
 }
 
 pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mut Expr, c: &mut Ctxt, worker: &Box<F>) {
@@ -151,8 +157,10 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
     }
 }
 
-impl FuncDeco {
-    pub fn mut_walker<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(&mut self, c: &mut Ctxt, worker: &Box<F>) {
-        // TODO
+pub fn mut_walker_decorator<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(d: &mut Decorator, c: &mut Ctxt, worker: &Box<F>) {
+    if let Some(args) = &mut d.args {
+        for arg in args.iter_mut() {
+            mut_walker_expr(arg, c, worker);
+        }
     }
 }

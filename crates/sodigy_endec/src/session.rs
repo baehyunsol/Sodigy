@@ -25,6 +25,20 @@ impl EndecSession {
         }
     }
 
+    // when saving encoded data to file,
+    // first write `self.encoded_metadata` to the file, then
+    // write the encoded data
+    pub fn encode_metadata(&self) -> Vec<u8> {
+        let mut result = vec![];
+        let mut dummy_session = EndecSession::new();
+
+        // `str_map` and `str_map_rev` are not neede for decoding
+        self.str_table.encode(&mut result, &mut dummy_session);
+        self.num_table.encode(&mut result, &mut dummy_session);
+
+        result
+    }
+
     pub fn encode_intern_str(&mut self, s: InternedString) -> EncodedInternal {
         match self.str_map.get(&s) {
             Some(s) => *s,

@@ -5,6 +5,8 @@ use sodigy_intern::InternSession;
 use sodigy_number::NumericParseError;
 use sodigy_span::SpanRange;
 
+mod endec;
+
 #[derive(Clone)]
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,

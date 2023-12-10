@@ -24,8 +24,7 @@ pub fn lower_ast_enum(
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
-    decorators: &Vec<ast::Decorator>,
-    doc: Option<InternedString>,
+    attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
 ) -> Result<(), ()> {
     let mut has_error = false;
@@ -52,8 +51,7 @@ pub fn lower_ast_enum(
                     session,
                     used_names,
                     imports,
-                    todo!(),  // decorators
-                    todo!(),  // doc
+                    attributes,
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
@@ -69,6 +67,7 @@ pub fn lower_ast_enum(
                         name: session.make_nth_arg_name(ind),
                         ty: Some(ty.clone()),
                         has_question_mark: false,
+                        attributes: vec![],
                     }
                 ).collect::<Vec<ast::ArgDef>>();
 
@@ -82,8 +81,7 @@ pub fn lower_ast_enum(
                     session,
                     used_names,
                     imports,
-                    todo!(),  // decorators
-                    todo!(),  // doc
+                    attributes,
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
@@ -109,8 +107,7 @@ pub fn lower_ast_enum(
         session,
         used_names,
         imports,
-        decorators,
-        doc,
+        attributes,
         name_space,
     ) {
         f.kind = FuncKind::Enum { variants: variant_uids };

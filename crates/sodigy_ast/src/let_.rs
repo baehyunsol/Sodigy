@@ -14,7 +14,7 @@ use sodigy_uid::Uid;
 pub struct Let {
     pub kind: LetKind,
 
-    // TODO: why do we need this struct?
+    // TODO: `pub attributes: Vec<Attribute>,`
 }
 
 impl Let {

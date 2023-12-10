@@ -1,16 +1,19 @@
 use crate::ErrorsAndWarnings;
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
+use sodigy_endec::{Endec, EndecSession};
 use sodigy_err::SodigyError;
-use sodigy_files::{global_file_session, FileHash};
+use sodigy_files::{global_file_session, write_bytes, FileHash, WriteMode};
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_span::SpanPoint;
 
 // TODO: nicer return type for all the stages
-// TODO: Endec for sessions -> incremental compilation!!
 
-pub fn parse_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarnings) {
+pub fn parse_stage(
+    file_hash: FileHash,
+    save_file_to: Option<String>,
+) -> (Option<ParseSession>, ErrorsAndWarnings) {
     let mut errors_and_warnings = ErrorsAndWarnings::new();
     let file_session = unsafe { global_file_session() };
     let input = file_session.get_file_content(file_hash).unwrap();
@@ -48,6 +51,24 @@ pub fn parse_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarni
     }
 
     else {
+        if let Some(path) = save_file_to {
+            let mut buffer = vec![];
+            let mut endec_session = EndecSession::new();
+            parse_session.encode(&mut buffer, &mut endec_session);
+
+            let metadata = endec_session.encode_metadata();
+
+            if let Err(e) = write_bytes(&path, &metadata, WriteMode::CreateOrTruncate) {
+                errors_and_warnings.push_error(e.into());
+                return (None, errors_and_warnings);
+            }
+
+            if let Err(e) = write_bytes(&path, &buffer, WriteMode::AlwaysAppend) {
+                errors_and_warnings.push_error(e.into());
+                return (None, errors_and_warnings);
+            }
+        }
+
         parse_session.errors.clear();
         parse_session.warnings.clear();
 
@@ -55,7 +76,11 @@ pub fn parse_stage(file_hash: FileHash) -> (Option<ParseSession>, ErrorsAndWarni
     }
 }
 
-pub fn hir_stage(parse_session: &ParseSession, prev_output: Option<ErrorsAndWarnings>) -> (Option<HirSession>, ErrorsAndWarnings) {
+pub fn hir_stage(
+    parse_session: &ParseSession,
+    prev_output: Option<ErrorsAndWarnings>,
+    save_file_to: Option<String>,
+) -> (Option<HirSession>, ErrorsAndWarnings) {
     if parse_session.has_unexpanded_macros {
         // TODO: what do I do here?
         todo!();
@@ -96,6 +121,8 @@ pub fn hir_stage(parse_session: &ParseSession, prev_output: Option<ErrorsAndWarn
     }
 
     else {
+        // TODO: `save_file_to`
+
         hir_session.errors.clear();
         hir_session.warnings.clear();
 

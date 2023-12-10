@@ -63,16 +63,6 @@ let foo_quest(x: T(X, Y)): Y = match x {
 
 ---
 
-publicity
-
-`@public`: 100% public (default)
-
-`@private`: within this module (this file)
-
-`@public.submodule`: within this module and its submodules
-
----
-
 Macros
 
 Like that of `[proc_macro]` in Rust. There's a sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`. Below is the compilation step.
@@ -173,7 +163,10 @@ Python operator
   - it's already a keyword!
   - `a as Ratio` is more straightforward than `a.into(Ratio)`
 
-`b.contains(a)`랑 `a.into(Ratio)`도 그닥 나쁘지 않아 보이는데
+`in`, `as`, `**`는 추가하고 `//`는 추가하지 말자
+
+- `2 ** 3.0`
+  - 당연히 exp가 Int일 때랑 Ratio일 때랑 구현이 달라야 함. 당연히 Int일 때가 더 효율적이겠지. 근데 `2 ** 3.0` 보고 compiler가 최적화 때려도 됨? 그럼 `2 ** a == 2 ** 3.0`이 `False`가 될 수도 있음 (`a == 3.0`일 때)...
 
 ---
 
@@ -315,3 +308,39 @@ list implementation
   - `x.len()`: O(1) -> end - start
   - `x.modify(n, v)`: O(n) -> price for immutability
   - `a +> x`, `x <+ a`: O(n) -> it's fine
+
+---
+
+decorators (impl)
+
+the current implementation is too messy. `FuncDeco`, `ArgDeco`, `EnumDeco`... an enum for every kind of deco? no...
+
+I'm too obsessed with the idea that HIR has to handle decorators.
+
+Implementing decorators in Sodigy? `@method(Int)`, `@public`, and much more... have to be built-in.
+
+If i'm to implement them in Rust, do I have to hard-code all the symbols in the compiler?
+
+1. use universal decorator type: `Hir::Decorator`
+  - `{ DottedNames, Option<Vec<Hir::Expr>> }`
+  - every `Ast::Decorator` is lowered to `Hir::Decorator`
+2. Some obvious decorators are handled in Hir level
+  - eg) `@public`, `@private`, `@test.eq`...
+  - Hir doesn't do error handling at all! for ex, Hir cannot handle `@test.eqq(3)` because there's a typo. then it just lowers the decorator to `Hir::Decorator`, all the error handlings are done later
+  - if `ast::Expr` to `hir::Expr` lowering fails, then HIR can handle that!
+
+---
+
+decorators (spec)
+
+- test-related
+  - `@test.eq(val)`: assert that the return value of the function it decorates matches the given value
+  - `@test.true`, `@test.false`: `@test.eq(True)`, `@test.eq(False)`
+  - `@test.expect(args, val)`: assert that `f(args) == val`
+    - `@test.eq(val)` can be lowered to `@test.expect((), val)`
+  - `@test.before(\{assert(x < 0)})`: when `f` is called, it always make sure that `x`, which is the input of `f`, is less than 0.
+  - `@test.after(\{ret, assert(ret > 0)})`: when `f` is called, it always make sure that the returned value is greater than 0.
+  - when are `@test.before` and `@test.after` enabled? only on test-mode? on test-mode and debug mode? or always?
+- visibility
+  - `@public`, `@private`
+  - which one is the default?

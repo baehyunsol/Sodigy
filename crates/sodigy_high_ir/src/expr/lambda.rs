@@ -1,6 +1,6 @@
 use super::{Expr, ExprKind, Lambda, Scope};
 use crate::IdentWithOrigin;
-use crate::func::{Func, FuncDeco, FuncKind};
+use crate::func::{Func, FuncKind};
 use crate::names::{NameOrigin, NameSpace};
 use crate::session::HirSession;
 use crate::walker::{EmptyMutWalkerState, MutWalkerState, mut_walker_func};
@@ -82,8 +82,7 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
                     generics: vec![],
                     return_val: *value.clone(),
                     return_ty: None,
-                    decorators: FuncDeco::default_lambda(),
-                    doc: None,
+                    attributes: vec![],
                     kind: FuncKind::Lambda,
                     uid,
                 };

@@ -176,7 +176,7 @@ let bitwise_funcs = {
 };
 
 # I want these to be included in STD
-# TODO: write test for these
+# TODO: write tests for these
 @method(Int)
 let first_n_bits(a: Int, n: Int) = {
   let log2 = a.ilog2();

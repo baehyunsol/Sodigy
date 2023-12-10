@@ -26,6 +26,7 @@ members = [
 
 [dependencies]
 
+colored = "2.0.4"
 sodigy_ast = { path = "crates/sodigy_ast" }
 sodigy_err = { path = "crates/sodigy_err" }
 sodigy_endec = { path = "crates/sodigy_endec" }

@@ -1,18 +1,16 @@
-use super::{Arg, Func, FuncDeco};
+use super::{Arg, Func};
 use std::fmt;
 
 impl fmt::Display for Func {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let mut result = vec![];
 
-        if let Some(doc) = self.doc {
-            for line in doc.to_string().lines() {
-                result.push(format!("##> {line}\n"));
-            }
+        result.push(format!("# {:?}\n", self.uid));
+
+        for attribute in self.attributes.iter() {
+            result.push(format!("{attribute}\n"));
         }
 
-        result.push(format!("# {:?}\n", self.uid));
-        result.push(self.decorators.to_string());
         result.push(format!("let {}", self.name.id()));
 
         if !self.generics.is_empty() {
@@ -50,11 +48,5 @@ impl fmt::Display for Arg {
             if self.has_question_mark { "?" } else { "" },
             if let Some(ty) = &self.ty { format!(": {ty}") } else { String::new() },
         )
-    }
-}
-
-impl fmt::Display for FuncDeco {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(fmt, "# TODO: fmt::Display for FuncDeco\n")
     }
 }
