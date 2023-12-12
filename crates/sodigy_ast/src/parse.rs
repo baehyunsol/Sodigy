@@ -2,7 +2,7 @@ use crate::{
     ArgDef,
     BranchArm,
     DottedNames,
-    err::{AstError, AstErrorKind, NewExpectedTokens},
+    error::{AstError, AstErrorKind, NewExpectedTokens},
     expr::{Expr, ExprKind},
     GenericDef,
     IdentWithSpan,
@@ -41,7 +41,7 @@ use crate::{
     value::ValueKind,
     warn::AstWarning,
 };
-use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
+use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::try_intern_short_string;
 use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;

@@ -1,5 +1,5 @@
-use crate::{err::AstError, parse_expr, AstSession, DottedNames, Expr, ExprKind, Tokens, ValueKind};
-use sodigy_err::ErrorContext;
+use crate::{error::AstError, parse_expr, AstSession, DottedNames, Expr, ExprKind, Tokens, ValueKind};
+use sodigy_error::ErrorContext;
 use sodigy_parse::FormattedStringElement;
 use sodigy_span::SpanRange;
 

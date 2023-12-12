@@ -10,8 +10,8 @@ I always use the latest version.
 
 For now, Sodigy is tested on...
 
-- stable 1.74.0
-- nightly 1.76.0 (1fdfe1234 2023-12-06)
+- stable 1.74.1
+- nightly 1.76.0 (21cce21d8 2023-12-11)
 
 on Ubuntu 23.04.
 

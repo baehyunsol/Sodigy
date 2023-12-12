@@ -16,7 +16,7 @@ use super::{
     },
 };
 use crate::lower_ast_ty;
-use crate::err::HirError;
+use crate::error::HirError;
 use crate::func::Arg;
 use crate::names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
 use crate::pattern::{DestructuredPattern, lower_patterns_to_name_bindings, lower_ast_pattern};
@@ -93,7 +93,7 @@ pub fn lower_ast_expr(
                     else {
                         session.push_error(HirError::undefined_name(
                             IdentWithSpan::new(*id, e.span),
-    
+
                             // This is VERY EXPENSIVE
                             // make sure it's called only when the compilation fails
                             name_space.find_similar_names(*id),

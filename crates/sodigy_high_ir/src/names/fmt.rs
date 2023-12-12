@@ -1,5 +1,5 @@
 use super::NameBindingType;
-use sodigy_err::RenderError;
+use sodigy_error::RenderError;
 
 impl RenderError for NameBindingType {
     // "unused {self}" should make sense

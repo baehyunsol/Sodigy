@@ -1,7 +1,7 @@
-pub mod err;
+pub mod error;
 
-use super::err::ExpectedChars;
-use err::ParseNumberError;
+use super::error::ExpectedChars;
+use error::ParseNumberError;
 
 pub fn bin_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
     if n.is_empty() {
@@ -123,7 +123,7 @@ fn to_n(c: u8) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::err::ExpectedChars;
+    use crate::error::ExpectedChars;
 
     #[test]
     fn xxx_to_dec() {

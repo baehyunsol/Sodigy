@@ -7,7 +7,7 @@ use super::{
     check_range_pattern,
 };
 use crate::lower_ast_ty;
-use crate::err::HirError;
+use crate::error::HirError;
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;

@@ -10,6 +10,7 @@ impl fmt::Display for ErrorContext {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let s = match self {
             ErrorContext::Unknown => "",
+            ErrorContext::ParsingCommandLine => "parsing command line arguments",
             ErrorContext::ExpandingMacro => "expanding a macro",
             ErrorContext::Lexing => "lexing",
             ErrorContext::LexingNumericLiteral => "lexing a numeric literal",

@@ -1,12 +1,13 @@
 [package]
-name = "sodigy_err"
+name = "sodigy_clap"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+smallvec = "1.11.1"
 sodigy_files = { path = "../sodigy_files" }
+sodigy_error = { path = "../sodigy_error" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_span = { path = "../sodigy_span" }
-colored = "2.0.4"

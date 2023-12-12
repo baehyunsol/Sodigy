@@ -1,7 +1,7 @@
 use crate::ErrorsAndWarnings;
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_endec::{Endec, EndecSession};
-use sodigy_err::SodigyError;
+use sodigy_error::SodigyError;
 use sodigy_files::{global_file_session, write_bytes, FileHash, WriteMode};
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};

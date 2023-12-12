@@ -1,13 +1,13 @@
 #![deny(unused_imports)]
 
 mod cache;
-mod err;
+mod error;
 mod funcs;
 mod session;
 
 use std::sync::Mutex;
 
-pub use err::*;
+pub use error::*;
 pub use funcs::*;
 pub use session::{
     FileHash,

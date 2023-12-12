@@ -1,6 +1,6 @@
 use crate::{Delim, ParseError, Punct, TokenTree, TokenTreeKind};
 use crate::warn::ParseWarning;
-use sodigy_err::{ErrorContext, ExpectedToken, SodigyError};
+use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_number::SodigyNumber;

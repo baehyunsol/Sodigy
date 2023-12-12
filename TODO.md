@@ -344,3 +344,22 @@ decorators (spec)
 - visibility
   - `@public`, `@private`
   - which one is the default?
+
+---
+
+linear type system (check in MIR)
+
+- `let foo(x: Int, y: Int): Int = bar(...);`
+  - check how many times `x` is used
+    - none: warning
+    - exactly once: maybe useful later when doing RC optimization
+    - not known at compile time due to branch
+  - check how many times foreign uid is used
+    - for example `bar` is used...
+    - at least once / 0 ~ more: use this info when building dependency graphs
+      - for ex, if `foo` calls itself at least once, that's an infinite recursion
+- `{let x = ...; let y = ...; ...}`
+  - check how many times `x` is used
+    - none: warning
+    - exactly once: remove `let x = ...;` and replace `x` with its value
+    - at least once: no need for lazy evaluation, just evaluate this eagerly when the scope is entered

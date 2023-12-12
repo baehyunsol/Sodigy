@@ -1,5 +1,5 @@
 use smallvec::{SmallVec, smallvec};
-use sodigy_err::{ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 

@@ -3,7 +3,6 @@
 use sodigy_files::{global_file_session, FileError, FileHash};
 use sodigy_interpreter::{HirEvalCtxt, eval_hir};
 
-pub mod option;
 mod result;
 mod stages;
 
@@ -91,6 +90,6 @@ Options:
     --dump-hir [true|false]         Dump HIR to stdout (default: false)
 ";
 
-pub const MAJOR_VERSION: u32 = 0;
-pub const MINOR_VERSION: u32 = 0;
-pub const PATCH_VERSION: u32 = 0;
+pub const MAJOR_VERSION: u8 = 0;
+pub const MINOR_VERSION: u8 = 0;
+pub const PATCH_VERSION: u8 = 0;

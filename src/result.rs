@@ -1,4 +1,4 @@
-use sodigy_err::UniversalError;
+use sodigy_error::UniversalError;
 use std::collections::HashSet;
 
 #[derive(Default)]

@@ -1,10 +1,10 @@
 use smallvec::{smallvec, SmallVec};
-use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
 use crate::QuoteKind;
-use crate::num::err::ParseNumberError;
+use crate::num::error::ParseNumberError;
 
 #[derive(Clone)]
 pub struct LexError {

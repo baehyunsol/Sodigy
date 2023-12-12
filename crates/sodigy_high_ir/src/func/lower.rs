@@ -1,13 +1,13 @@
 use super::{Arg, Func, FuncKind};
 use crate::{lower_ast_expr, lower_ast_ty};
 use crate::attr::lower_ast_attributes;
-use crate::err::HirError;
+use crate::error::HirError;
 use crate::expr::try_warn_unnecessary_paren;
 use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan};
-use sodigy_err::SodigyError;
+use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;

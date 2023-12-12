@@ -1,4 +1,4 @@
-use crate::err::AstError;
+use crate::error::AstError;
 use crate::stmt::Stmt;
 use crate::warn::AstWarning;
 use sodigy_intern::{InternedString, InternSession};

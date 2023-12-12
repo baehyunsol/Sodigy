@@ -5,7 +5,7 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
 mod endec;
-mod err;
+mod error;
 mod expr;
 mod fmt;
 mod let_;

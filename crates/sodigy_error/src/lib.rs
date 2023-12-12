@@ -108,6 +108,7 @@ impl ExtraErrInfo {
 #[derive(Clone, Copy, PartialEq)]
 pub enum ErrorContext {
     Unknown,
+    ParsingCommandLine,
     ExpandingMacro,
     Lexing,
     LexingNumericLiteral,
@@ -234,8 +235,9 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let color_scheme = self.color_scheme();
 
         let span = match &self.get_error_info().show_span {
-            _ if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
+            true if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
             true => render_spans(&spans, color_scheme),
+            false if spans.is_empty() => String::new(),
             false => show_file_names(&spans),
         };
 

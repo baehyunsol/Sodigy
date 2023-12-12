@@ -1,5 +1,5 @@
 // #![allow(dead_code)]
-use crate::err::FileError;
+use crate::error::FileError;
 use std::collections::hash_map;
 use std::fs::{self, File, OpenOptions};
 use std::hash::{Hash, Hasher};

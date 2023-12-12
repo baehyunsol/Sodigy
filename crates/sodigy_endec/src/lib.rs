@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 use std::collections::HashMap;
 
-mod err;
+mod error;
 mod int;
 mod no_cycle;
 mod session;
@@ -9,7 +9,7 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use err::EndecErr;
+pub use error::EndecErr;
 pub use session::EndecSession;
 
 pub trait Endec {

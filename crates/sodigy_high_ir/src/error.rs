@@ -1,6 +1,6 @@
 use smallvec::{smallvec, SmallVec};
 use sodigy_ast::{self as ast, IdentWithSpan};
-use sodigy_err::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 

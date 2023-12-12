@@ -1,6 +1,6 @@
 use crate::IdentWithSpan;
 use smallvec::{smallvec, SmallVec};
-use sodigy_err::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_parse::Punct;
 use sodigy_span::SpanRange;

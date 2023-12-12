@@ -1,6 +1,6 @@
 use crate::{DUMMY_FILE_HASH, IS_FILE_SESSION_INIT, LOCK};
 use crate::cache::FileCache;
-use crate::err::FileError;
+use crate::error::FileError;
 use std::collections::{hash_map, HashMap, HashSet};
 use std::hash::Hasher;
 
@@ -10,14 +10,13 @@ pub type Path = String;
 pub struct Session {
     tmp_files: HashMap<FileHash, Vec<u8>>,  // used for tests
     files: HashMap<FileHash, Path>,
-
     tmp_files_rev: HashMap<Vec<u8>, FileHash>,
     files_rev: HashMap<Path, FileHash>,
-
     file_cache: FileCache,
 
     // it detects hash collisions
     hashes: HashSet<FileHash>,
+    name_aliases: HashMap<FileHash, String>,
 }
 
 impl Session {
@@ -37,16 +36,25 @@ impl Session {
             files_rev: HashMap::new(),
             hashes,
             file_cache: FileCache::new(),
+            name_aliases: HashMap::new(),
         }
     }
 
+    pub fn set_name_alias(&mut self, file: FileHash, name: String) {
+        self.name_aliases.insert(file, name);
+    }
+
+    /// It returns the filename of the given `FileHash`.
     pub fn render_file_hash(&self, file: FileHash) -> String {
-        match self.files.get(&file) {
-            Some(p) => p.to_string(),
-            _ => match self.tmp_files.get(&file) {
-                Some(_) => format!("tmp_{:x}", file & 0xfffffff),
-                _ => "FILE_NOT_FOUND".to_string(),
-            }
+        match self.name_aliases.get(&file) {
+            Some(n) => n.to_string(),
+            None => match self.files.get(&file) {
+                Some(p) => p.to_string(),
+                _ => match self.tmp_files.get(&file) {
+                    Some(_) => format!("tmp_{:x}", file & 0xfffffff),
+                    _ => "FILE_NOT_FOUND".to_string(),
+                }
+            },
         }
     }
 

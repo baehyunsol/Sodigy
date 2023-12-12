@@ -1,7 +1,7 @@
 use crate::{IdentWithSpan, Token, TokenKind};
 use crate::pattern::{Pattern, PatternKind};
 use smallvec::{smallvec, SmallVec};
-use sodigy_err::{
+use sodigy_error::{
     substr_edit_distance,
     ErrorContext,
     ExpectedToken,
@@ -9,7 +9,7 @@ use sodigy_err::{
     SodigyError,
     SodigyErrorKind,
 };
-use sodigy_err::RenderError;
+use sodigy_error::RenderError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_keyword::Keyword;
 use sodigy_parse::Delim;

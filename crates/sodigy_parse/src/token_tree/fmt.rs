@@ -1,5 +1,5 @@
 use super::{FormattedStringElement, TokenTree, TokenTreeKind};
-use sodigy_err::RenderError;
+use sodigy_error::RenderError;
 use sodigy_intern::try_intern_short_string;
 use sodigy_span::SpanRange;
 use std::fmt;

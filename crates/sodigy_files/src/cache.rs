@@ -1,5 +1,5 @@
 use crate::{DUMMY_FILE_HASH, last_modified, read_bytes, FileHash};
-use crate::err::FileError;
+use crate::error::FileError;
 use sodigy_test::sodigy_assert_eq;
 use std::collections::HashMap;
 use std::sync::Mutex;

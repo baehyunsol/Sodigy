@@ -4,7 +4,7 @@ use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
 
 mod delim;
-mod err;
+mod error;
 mod formatted_str;
 mod punct;
 mod session;
@@ -15,7 +15,7 @@ mod warn;
 mod tests;
 
 pub use delim::{Delim, DelimStart};
-pub use err::ParseError;
+pub use error::ParseError;
 use formatted_str::parse_str;
 pub use formatted_str::FormattedStringElement;
 pub use punct::Punct;

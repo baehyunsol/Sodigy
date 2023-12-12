@@ -3,10 +3,10 @@
 use hmath::BigInt;
 use sodigy_test::sodigy_assert;
 
-mod err;
+mod error;
 mod fmt;
 
-pub use err::NumericParseError;
+pub use error::NumericParseError;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum SodigyNumber {

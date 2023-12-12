@@ -1,5 +1,5 @@
 use super::{Pattern, PatternKind};
-use sodigy_err::RenderError;
+use sodigy_error::RenderError;
 use std::fmt;
 
 impl fmt::Display for Pattern {

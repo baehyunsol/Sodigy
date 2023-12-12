@@ -1,4 +1,4 @@
-use crate::err::HirError;
+use crate::error::HirError;
 use crate::func::Func;
 use crate::warn::HirWarning;
 use smallvec::{SmallVec, smallvec};

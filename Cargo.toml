@@ -9,7 +9,8 @@ edition = "2021"
 [workspace]
 members = [
     "crates/sodigy_ast",
-    "crates/sodigy_err",
+    "crates/sodigy_clap",
+    "crates/sodigy_error",
     "crates/sodigy_endec",
     "crates/sodigy_files",
     "crates/sodigy_high_ir",
@@ -28,7 +29,8 @@ members = [
 
 colored = "2.0.4"
 sodigy_ast = { path = "crates/sodigy_ast" }
-sodigy_err = { path = "crates/sodigy_err" }
+sodigy_clap = { path = "crates/sodigy_clap" }
+sodigy_error = { path = "crates/sodigy_error" }
 sodigy_endec = { path = "crates/sodigy_endec" }
 sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }

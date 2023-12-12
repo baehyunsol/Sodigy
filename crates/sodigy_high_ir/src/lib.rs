@@ -11,7 +11,7 @@ mod attr;
 mod doc_comment;
 mod endec;
 mod enum_;
-mod err;
+mod error;
 pub mod expr;
 mod fmt;
 mod func;
@@ -25,7 +25,7 @@ mod warn;
 pub use attr::{Attribute, Decorator};
 use doc_comment::concat_doc_comments;
 use enum_::lower_ast_enum;
-use err::HirError;
+use error::HirError;
 pub use expr::{
     Branch, BranchArm,
     Expr, ExprKind,

@@ -1,7 +1,7 @@
-use crate::err::LexError;
+use crate::error::LexError;
 use crate::token::{Token, TokenKind};
 
-use sodigy_err::{ErrorContext, SodigyError};
+use sodigy_error::{ErrorContext, SodigyError};
 use sodigy_intern::{InternSession, InternedString};
 use sodigy_span::SpanRange;
 

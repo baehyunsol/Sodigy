@@ -4,10 +4,13 @@ cargo clean
 cd crates/sodigy_ast
 cargo test
 cargo test --release
+cd ../sodigy_clap
+cargo test
+cargo test --release
 cd ../sodigy_endec
 cargo test
 cargo test --release
-cd ../sodigy_err
+cd ../sodigy_error
 cargo test
 cargo test --release
 cd ../sodigy_files

@@ -1,5 +1,5 @@
 use super::*;
-use sodigy_err::SodigyError;
+use sodigy_error::SodigyError;
 use sodigy_files::{get_all_sdg, global_file_session};
 use sodigy_lex::{lex, LexSession};
 use sodigy_span::SpanPoint;

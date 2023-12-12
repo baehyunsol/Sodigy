@@ -26,7 +26,7 @@ Most error messages and warning messages are from Rust.
     - when I placed `[]` after a method definition, for no reason
   - ``` visibility qualifiers are not permitted here ```
     - when I placed `pub` in front of `fn` in trait implementation
-  - ``` unresolved import `crate::err::SodigyError` ```
+  - ``` unresolved import `crate::error::SodigyError` ```
     - ``` no `SodigyError` in `err` ```
   - ``` expected item after attributes ```
   - ``` expected one of `(`, `,`, `=`, `{`, or `}`, found `:` ```

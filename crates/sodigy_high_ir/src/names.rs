@@ -1,5 +1,5 @@
 use sodigy_ast::{ArgDef, IdentWithSpan};
-use sodigy_err::substr_edit_distance;
+use sodigy_error::substr_edit_distance;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
 use sodigy_test::sodigy_assert;

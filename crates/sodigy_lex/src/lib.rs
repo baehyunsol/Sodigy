@@ -1,16 +1,16 @@
 #![deny(unused_imports)]
 
 mod endec;
-mod err;
+mod error;
 mod num;
 mod tests;
 mod token;
 mod session;
 
-pub use err::LexError;
+pub use error::LexError;
 use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 
-use sodigy_err::{ErrorContext, SodigyError};
+use sodigy_error::{ErrorContext, SodigyError};
 use sodigy_span::SpanPoint;
 use sodigy_test::{sodigy_assert, TEST_MODE};
 
