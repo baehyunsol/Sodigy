@@ -79,12 +79,20 @@ pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
 pub const COMPILER_HELP_MESSAGE: &str =
 "Usage: sodigy [OPTIONS] INPUT
 
+Examples:
+    sodigy a.sdg --to tokens -o a.tokens
+        It reads `a.sdg` and converts it into tokens. But it doesn't make an AST
+        and save the tokens to `a.tokens`. You can later resume the compilation
+        from this stage.
+
 Options:
     -h, --help                      Display this message
     -v, --version
-    -f, --from [code|tokens|hir]    Specify the type of the input (default: code)
-    -t, --to [code|tokens|hir]      Specify the type of the output (default: hir)
-    -o, --output FILENAME           Write output to <filename> (default: ./a.out)
+    -t, --to [tokens|hir]           Specify the type of the output
+                                    It tries to infer the output type from the extension of the output.
+                                    If the the extension and `-t` doesn't match, `-t` has higher priority.
+                                    If there's no other information the default value is hir.
+    -o, --output FILENAME           Write output to <filename>
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
     --dump-hir [true|false]         Dump HIR to stdout (default: false)

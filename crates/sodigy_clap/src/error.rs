@@ -1,4 +1,4 @@
-use crate::flag::FLAGS;
+use crate::flag::{Flag, FLAGS};
 use crate::token::TokenKind;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
@@ -6,6 +6,7 @@ use sodigy_error::{
     substr_edit_distance,
     ErrorContext,
     ExtraErrInfo,
+    RenderError,
     SodigyError,
     SodigyErrorKind,
 };
@@ -26,6 +27,7 @@ impl ClapError {
                 let mut closest_flag = vec![];
                 let mut closest_dist = usize::MAX;
 
+                // there's no point in searching short flags
                 for flag in FLAGS.iter() {
                     let flag = flag.long();
                     let dist = substr_edit_distance(&token, flag);
@@ -83,6 +85,30 @@ impl ClapError {
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
+
+    pub fn no_input_files() -> Self {
+        ClapError {
+            kind: ClapErrorKind::NoInputFiles,
+            spans: smallvec![],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
+        }
+    }
+
+    pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
+        ClapError {
+            kind: ClapErrorKind::SameFlagMultipleTimes(flag),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
+
+    pub fn unnecessary_flag(flag: Flag, span: SpanRange) -> Self {
+        ClapError {
+            kind: ClapErrorKind::UnnecessaryFlag(flag),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
 }
 
 impl SodigyError<ClapErrorKind> for ClapError {
@@ -106,9 +132,8 @@ impl SodigyError<ClapErrorKind> for ClapError {
         &self.kind
     }
 
-    // do we even need this?
     fn index(&self) -> u32 {
-        todo!()
+        2
     }
 }
 
@@ -118,6 +143,9 @@ pub enum ClapErrorKind {
     InvalidArgument(TokenKind, String),
     NoArgsAtAll,
     NoArg(TokenKind),
+    NoInputFiles,
+    SameFlagMultipleTimes(Flag),
+    UnnecessaryFlag(Flag),
 }
 
 impl SodigyErrorKind for ClapErrorKind {
@@ -134,6 +162,9 @@ impl SodigyErrorKind for ClapErrorKind {
                 "expected {}, got nothing",
                 concat_commas(&kind.all_possible_values(), "or", "`", "`"),
             ),
+            ClapErrorKind::NoInputFiles => String::from("no input files"),
+            ClapErrorKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
+            ClapErrorKind::UnnecessaryFlag(flag) => format!("unnecessary flag: `{}`", flag.render_error()),
         }
     }
 
@@ -141,14 +172,30 @@ impl SodigyErrorKind for ClapErrorKind {
         match self {
             ClapErrorKind::InvalidFlag(_)
             | ClapErrorKind::NoArgsAtAll => String::from("Try `sodigy --help` to see available options."),
+            ClapErrorKind::UnnecessaryFlag(flag) => match flag {
+                Flag::Help => String::from("`--help` doesn't take extra arguments."),
+                Flag::Version => String::from("`--version` doesn't take extra arguments."),
+                _ => unreachable!(),
+            },
             ClapErrorKind::InvalidUtf8
             | ClapErrorKind::InvalidArgument(_, _)
-            | ClapErrorKind::NoArg(_) => String::new(),
+            | ClapErrorKind::NoArg(_)
+            | ClapErrorKind::NoInputFiles
+            | ClapErrorKind::SameFlagMultipleTimes(_) => String::new(),
         }
     }
 
-    // do we even need this?
+    // we don't need this, but I want it to look more complete
     fn index(&self) -> u32 {
-        todo!()
+        match self {
+            ClapErrorKind::InvalidFlag(_) => 0,
+            ClapErrorKind::InvalidUtf8 => 1,
+            ClapErrorKind::InvalidArgument(_, _) => 2,
+            ClapErrorKind::NoArgsAtAll => 3,
+            ClapErrorKind::NoArg(_) => 4,
+            ClapErrorKind::NoInputFiles => 5,
+            ClapErrorKind::SameFlagMultipleTimes(_) => 6,
+            ClapErrorKind::UnnecessaryFlag(_) => 7,
+        }
     }
 }

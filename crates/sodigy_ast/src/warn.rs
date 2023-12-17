@@ -55,7 +55,7 @@ impl SodigyError<AstWarningKind> for AstWarning {
     }
 
     fn index(&self) -> u32 {
-        4
+        1
     }
 }
 

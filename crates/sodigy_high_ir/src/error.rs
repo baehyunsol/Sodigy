@@ -121,7 +121,7 @@ impl SodigyError<HirErrorKind> for HirError {
     }
 
     fn index(&self) -> u32 {
-        5
+        4
     }
 }
 

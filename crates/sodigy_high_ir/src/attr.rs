@@ -5,7 +5,7 @@ mod endec;
 mod fmt;
 mod lower;
 
-pub use lower::{lower_ast_attributes, lower_ast_decorator};
+pub use lower::lower_ast_attributes;
 
 #[derive(Clone)]
 pub enum Attribute {

@@ -1,9 +1,10 @@
 use crate::token::TokenKind;
 
-#[derive(Clone, Copy)]
+mod fmt;
+
+#[derive(Clone, Copy, Debug)]
 pub enum Flag {
     Output,
-    From,
     To,
     Help,
     Version,
@@ -12,9 +13,8 @@ pub enum Flag {
     DumpHir,
 }
 
-pub const FLAGS: [Flag; 8] = [
+pub const FLAGS: [Flag; 7] = [
     Flag::Output,
-    Flag::From,
     Flag::To,
     Flag::Help,
     Flag::Version,
@@ -28,8 +28,7 @@ impl Flag {
     pub fn param_type(&self) -> TokenKind {
         match self {
             Flag::Output => TokenKind::Path,
-            Flag::From
-            | Flag::To => TokenKind::Stage,
+            Flag::To => TokenKind::Stage,
             Flag::ShowWarnings
             | Flag::SaveIr
             | Flag::DumpHir => TokenKind::Bool,
@@ -41,7 +40,6 @@ impl Flag {
     pub fn short(&self) -> Option<&[u8]> {
         match self {
             Flag::Output => Some(b"-o"),
-            Flag::From => Some(b"-f"),
             Flag::To => Some(b"-t"),
             Flag::Help => Some(b"-h"),
             Flag::Version => Some(b"-v"),
@@ -54,7 +52,6 @@ impl Flag {
     pub fn long(&self) -> &[u8] {
         match self {
             Flag::Output => b"--output",
-            Flag::From => b"--from",
             Flag::To => b"--to",
             Flag::Help => b"--help",
             Flag::Version => b"--version",

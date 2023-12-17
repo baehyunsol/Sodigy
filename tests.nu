@@ -50,5 +50,6 @@ cd ../sodigy_uid
 cargo test
 cargo test --release
 cd ../..
+cargo doc
 cargo test
 cargo test --release

@@ -1,14 +1,15 @@
-use crate::IrStage;
+use crate::stages::IrStage;
 use crate::flag::{Flag, FLAGS};
 use sodigy_span::SpanRange;
 
+#[derive(Debug)]
 pub struct Token {
     pub kind: TokenKind,
     pub value: TokenValue,
     pub span: SpanRange,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum TokenKind {
     Flag,
     Path,
@@ -34,7 +35,6 @@ impl TokenKind {
                 result
             },
             TokenKind::Stage => vec![
-                "code".to_string(),
                 "tokens".to_string(),
                 "hir".to_string(),
             ],
@@ -48,6 +48,7 @@ impl TokenKind {
     }
 }
 
+#[derive(Debug)]
 pub enum TokenValue {
     Flag(Flag),
     Path(String),
@@ -61,7 +62,6 @@ impl TokenValue {
         match kind {
             TokenKind::Path => Some(TokenValue::Path(buf.to_string())),
             TokenKind::Stage => match buf {
-                "code" => Some(TokenValue::Stage(IrStage::Code)),
                 "tokens" => Some(TokenValue::Stage(IrStage::Tokens)),
                 "hir" => Some(TokenValue::Stage(IrStage::HighIr)),
                 _ => None,
@@ -73,6 +73,34 @@ impl TokenValue {
             },
             TokenKind::None => Some(TokenValue::None),
             _ => None,
+        }
+    }
+
+    pub fn unwrap_path(&self) -> String {
+        match self {
+            TokenValue::Path(p) => p.to_string(),
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_flag(&self) -> Flag {
+        match self {
+            TokenValue::Flag(f) => *f,
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_stage(&self) -> IrStage {
+        match self {
+            TokenValue::Stage(s) => *s,
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_bool(&self) -> bool {
+        match self {
+            TokenValue::Bool(b) => *b,
+            _ => panic!(),
         }
     }
 }

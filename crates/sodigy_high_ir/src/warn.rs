@@ -82,7 +82,7 @@ impl SodigyError<HirWarningKind> for HirWarning {
     }
 
     fn index(&self) -> u32 {
-        6
+        5
     }
 }
 

@@ -99,7 +99,7 @@ impl SodigyError<LexErrorKind> for LexError {
     }
 
     fn index(&self) -> u32 {
-        0
+        6
     }
 }
 

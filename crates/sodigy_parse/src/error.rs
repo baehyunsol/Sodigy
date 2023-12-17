@@ -1,6 +1,12 @@
 use crate::token_tree::{TokenTree, TokenTreeKind};
 use smallvec::{smallvec, SmallVec};
-use sodigy_error::{ExpectedToken, ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind};
+use sodigy_error::{
+    ExpectedToken,
+    ExtraErrInfo,
+    RenderError,
+    SodigyError,
+    SodigyErrorKind,
+};
 use sodigy_intern::InternSession;
 use sodigy_number::NumericParseError;
 use sodigy_span::SpanRange;
@@ -118,7 +124,7 @@ impl SodigyError<ParseErrorKind> for ParseError {
     }
 
     fn index(&self) -> u32 {
-        1
+        7
     }
 }
 

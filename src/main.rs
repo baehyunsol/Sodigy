@@ -13,29 +13,36 @@ fn main() {
     // test purpose
     std::env::set_var("RUST_BACKTRACE", "FULL");
 
-    match parse_cli_args() {
-        Ok(opt) => {
-            if let Some(sp) = opt.do_not_compile_and_print_this {
-                match sp {
-                    SpecialOutput::HelpMessage => {
-                        println!("{COMPILER_HELP_MESSAGE}");
-                    },
-                    SpecialOutput::VersionInfo => {
-                        println!("sodigy {MAJOR_VERSION}.{MINOR_VERSION}.{PATCH_VERSION}");
-                    },
-                }
+    let clap_result = parse_cli_args();
 
-                return;
-            }
+    for warning in clap_result.warnings {
+        println!("{}\n", warning.render_error());
+    }
 
-            todo!()
+    if !clap_result.errors.is_empty() {
+        for error in clap_result.errors.iter() {
+            println!("{}\n", error.render_error());
         }
-        Err(e) => {
-            for e in e.iter() {
-                println!("{}\n", e.render_error());
+
+        return;
+    }
+
+    else {
+        let opt = clap_result.result;
+
+        if let Some(sp) = opt.do_not_compile_and_print_this {
+            match sp {
+                SpecialOutput::HelpMessage => {
+                    println!("{COMPILER_HELP_MESSAGE}");
+                },
+                SpecialOutput::VersionInfo => {
+                    println!("sodigy {MAJOR_VERSION}.{MINOR_VERSION}.{PATCH_VERSION}");
+                },
             }
 
             return;
-        },
+        }
+
+        todo!()
     }
 }

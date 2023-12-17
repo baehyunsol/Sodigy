@@ -231,7 +231,7 @@ impl SodigyError<AstErrorKind> for AstError {
     }
 
     fn index(&self) -> u32 {
-        3
+        0
     }
 }
 
