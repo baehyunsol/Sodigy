@@ -1,5 +1,5 @@
 use super::{InfixOp, PostfixOp, PrefixOp};
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 
 impl Endec for PrefixOp {
@@ -10,7 +10,7 @@ impl Endec for PrefixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -18,10 +18,10 @@ impl Endec for PrefixOp {
                 match *n {
                     0 => Ok(PrefixOp::Not),
                     1 => Ok(PrefixOp::Neg),
-                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }
@@ -34,7 +34,7 @@ impl Endec for PostfixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -42,10 +42,10 @@ impl Endec for PostfixOp {
                 match *n {
                     0 => Ok(PostfixOp::Range),
                     1 => Ok(PostfixOp::QuestionMark),
-                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }
@@ -84,7 +84,7 @@ impl Endec for InfixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -115,10 +115,10 @@ impl Endec for InfixOp {
                     22 => Ok(InfixOp::Range),
                     23 => Ok(InfixOp::InclusiveRange),
                     24 => Ok(InfixOp::FieldModifier(InternedString::decode(buf, ind, session)?)),
-                    25.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    25.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

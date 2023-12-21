@@ -173,11 +173,9 @@ pub fn lower_stmts(
                         // TODO: `try_convert_closures_to_lambdas` on StructDefs and EnumDefs
                         try_convert_closures_to_lambdas(&mut f);
                         give_names_to_lambdas(&mut f, &mut lambda_context);
-                        println!("\n{}\n", f);
 
                         // TODO: `try_convert_closures_to_lambdas` on these
                         for func in lambda_context.collected_lambdas.into_iter() {
-                            println!("\n{}\n", func);
                             session.func_defs.insert(func.name.id(), func);
                         }
 
@@ -189,7 +187,9 @@ pub fn lower_stmts(
                         variants,
                         uid,
                     } => {
-                        lower_ast_enum(
+                        // errors are pushed to `session` by this function
+                        // there's no extra thing to do
+                        let _ = lower_ast_enum(
                             name,
                             generics,
                             variants,
@@ -207,7 +207,9 @@ pub fn lower_stmts(
                         fields,
                         uid,
                     } => {
-                        lower_ast_struct(
+                        // errors are pushed to `session` by this function
+                        // there's no extra thing to do
+                        let _ = lower_ast_struct(
                             name,
                             generics,
                             fields,

@@ -6,6 +6,8 @@ use sodigy_error::{ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
+mod endec;
+
 pub struct HirWarning {
     kind: HirWarningKind,
     spans: SmallVec<[SpanRange; 1]>,

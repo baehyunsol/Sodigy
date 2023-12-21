@@ -1,5 +1,5 @@
 use super::Punct;
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 
 impl Endec for Punct {
@@ -47,7 +47,7 @@ impl Endec for Punct {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -89,10 +89,10 @@ impl Endec for Punct {
                     33 => Ok(Punct::Append),
                     34 => Ok(Punct::Prepend),
                     35 => Ok(Punct::FieldModifier(InternedString::decode(buf, ind, session)?)),
-                    36.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    36.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::IdentWithSpan;
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
@@ -9,7 +9,7 @@ impl Endec for IdentWithSpan {
         self.1.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(IdentWithSpan(
             InternedString::decode(buf, ind, session)?,
             SpanRange::decode(buf, ind, session)?,

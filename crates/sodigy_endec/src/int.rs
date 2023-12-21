@@ -1,18 +1,18 @@
-use crate::{Endec, EndecErr, EndecSession};
+use crate::{Endec, EndecError, EndecSession};
 
 impl Endec for u8 {
     fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         buf.push(*self);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         if let Some(n) = buf.get(*index) {
             *index += 1;
             return Ok(*n);
         }
 
         else {
-            return Err(EndecErr::Eof);
+            return Err(EndecError::Eof);
         }
     }
 }
@@ -26,14 +26,14 @@ impl Endec for u16 {
         buf.push(lo);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match (buf.get(*index), buf.get(*index + 1)) {
             (Some(m), Some(n)) => {
                 *index += 2;
 
                 Ok(((*m as u16) << 8) | *n as u16)
             },
-            _ => Err(EndecErr::Eof),
+            _ => Err(EndecError::Eof),
         }
     }
 }
@@ -75,7 +75,7 @@ impl Endec for u32 {
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         let mut result: u32 = 0;
 
         loop {
@@ -83,19 +83,19 @@ impl Endec for u32 {
                 *index += 1;
 
                 if *n < (1 << 7) {
-                    result = result.checked_shl(7).ok_or(EndecErr::Overflow)?;
-                    result = result.checked_add(*n as u32).ok_or(EndecErr::Overflow)?;
+                    result = result.checked_shl(7).ok_or(EndecError::Overflow)?;
+                    result = result.checked_add(*n as u32).ok_or(EndecError::Overflow)?;
                     return Ok(result);
                 }
 
                 else {
-                    result = result.checked_shl(7).ok_or(EndecErr::Overflow)?;
-                    result = result.checked_add((*n - (1 << 7)) as u32).ok_or(EndecErr::Overflow)?;
+                    result = result.checked_shl(7).ok_or(EndecError::Overflow)?;
+                    result = result.checked_add((*n - (1 << 7)) as u32).ok_or(EndecError::Overflow)?;
                 }
             }
 
             else {
-                return Err(EndecErr::Eof);
+                return Err(EndecError::Eof);
             }
         }
     }
@@ -204,7 +204,7 @@ impl Endec for u64 {
     }
 
     // How do I make macro for this?
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         let mut result: u64 = 0;
 
         loop {
@@ -212,19 +212,19 @@ impl Endec for u64 {
                 *index += 1;
 
                 if *n < (1 << 7) {
-                    result = result.checked_shl(7).ok_or_else(|| EndecErr::Overflow)?;
-                    result = result.checked_add(*n as u64).ok_or_else(|| EndecErr::Overflow)?;
+                    result = result.checked_shl(7).ok_or_else(|| EndecError::Overflow)?;
+                    result = result.checked_add(*n as u64).ok_or_else(|| EndecError::Overflow)?;
                     return Ok(result);
                 }
 
                 else {
-                    result = result.checked_shl(7).ok_or_else(|| EndecErr::Overflow)?;
-                    result = result.checked_add((*n - (1 << 7)) as u64).ok_or_else(|| EndecErr::Overflow)?;
+                    result = result.checked_shl(7).ok_or_else(|| EndecError::Overflow)?;
+                    result = result.checked_add((*n - (1 << 7)) as u64).ok_or_else(|| EndecError::Overflow)?;
                 }
             }
 
             else {
-                return Err(EndecErr::Eof);
+                return Err(EndecError::Eof);
             }
         }
     }
@@ -239,7 +239,7 @@ impl Endec for u128 {
         lo.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         let hi = u64::decode(buf, index, session)?;
         let lo = u64::decode(buf, index, session)?;
 
@@ -252,7 +252,7 @@ impl Endec for usize {
         (*self as u64).encode(buf, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         u64::decode(buf, index, session).map(|n| n as usize)
     }
 }
@@ -267,7 +267,7 @@ macro_rules! endec_signed {
                 }
             }
 
-            fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+            fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
                 unsafe {
                     let s = <$uty>::decode(buf, index, session)?;
                     Ok(std::mem::transmute(s))

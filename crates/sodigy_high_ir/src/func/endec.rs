@@ -1,7 +1,7 @@
 use super::{Arg, Func, FuncKind};
 use crate::{Attribute, Type, expr::Expr};
 use sodigy_ast::{GenericDef, IdentWithSpan};
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_uid::Uid;
 
 impl Endec for Func {
@@ -16,7 +16,7 @@ impl Endec for Func {
         self.uid.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Func {
             name: IdentWithSpan::decode(buf, ind, session)?,
             args: Option::<Vec<Arg>>::decode(buf, ind, session)?,
@@ -37,7 +37,7 @@ impl Endec for Arg {
         self.has_question_mark.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Arg {
             name: IdentWithSpan::decode(buf, ind, session)?,
             ty: Option::<Type>::decode(buf, ind, session)?,
@@ -63,7 +63,7 @@ impl Endec for FuncKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -78,10 +78,10 @@ impl Endec for FuncKind {
                         parent: Uid::decode(buf, ind, session)?,
                     }),
                     4 => Ok(FuncKind::StructConstr),
-                    5.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    5.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

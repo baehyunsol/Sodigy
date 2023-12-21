@@ -4,6 +4,8 @@ use sodigy_error::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
+mod endec;
+
 #[derive(Clone)]
 pub struct HirError {
     kind: HirErrorKind,

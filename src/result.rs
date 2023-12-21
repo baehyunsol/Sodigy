@@ -35,6 +35,10 @@ impl ErrorsAndWarnings {
         }
     }
 
+    pub fn has_error(&self) -> bool {
+        !self.errors.is_empty()
+    }
+
     pub fn concat_errors(&mut self) -> String {
         self.errors.sort_by_key(|w| w.first_span());
 

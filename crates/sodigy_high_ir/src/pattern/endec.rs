@@ -1,7 +1,7 @@
 use crate::Type;
 use super::{Pattern, PatternKind};
 use sodigy_ast::IdentWithSpan;
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_span::SpanRange;
 
 impl Endec for Pattern {
@@ -12,7 +12,7 @@ impl Endec for Pattern {
         self.bind.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Pattern {
             kind: PatternKind::decode(buf, ind, session)?,
             span: SpanRange::decode(buf, ind, session)?,
@@ -27,7 +27,7 @@ impl Endec for PatternKind {
         todo!()
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         todo!()
     }
 }

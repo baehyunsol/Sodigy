@@ -6,7 +6,7 @@ use crate::{
     TokenTree,
     TokenTreeKind,
 };
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_keyword::Keyword;
 use sodigy_span::SpanRange;
@@ -17,7 +17,7 @@ impl Endec for TokenTree {
         self.span.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(TokenTree {
             kind: TokenTreeKind::decode(buf, ind, session)?,
             span: SpanRange::decode(buf, ind, session)?,
@@ -72,7 +72,7 @@ impl Endec for TokenTreeKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -98,10 +98,10 @@ impl Endec for TokenTreeKind {
                         name: Vec::<TokenTree>::decode(buf, ind, session)?,
                         args: Vec::<TokenTree>::decode(buf, ind, session)?,
                     }),
-                    9.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    9.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

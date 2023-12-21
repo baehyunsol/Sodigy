@@ -293,6 +293,10 @@ fn lower_ast_pattern_kind(
                 }
             }
 
+            if has_error {
+                return Err(());
+            }
+
             PatternKind::Tuple(result)
         },
         _ => {

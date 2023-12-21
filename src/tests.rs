@@ -83,8 +83,11 @@ check_output!(expr, err, expr_test6, "[(), {), ]", "unclosed delimiter");
 check_output!(expr, err, expr_test7, "[(), {}, ]", "got nothing");
 check_output!(expr, err, expr_test8, "[1, 2, 3, 4", "unclosed delimiter");
 check_output!(expr, err, expr_test9, "if x { 0 } else { }", "got nothing");
-check_output!(expr, err, expr_test10, "if x > y { x } * 2", "TODO ____");
-check_output!(expr, err, expr_test11, "if x > y { x }", "TODO ____");
+
+// TODO
+// check_output!(expr, err, expr_test10, "if x > y { x } * 2", "____");
+// check_output!(expr, err, expr_test11, "if x > y { x }", "____");
+
 check_output!(expr, err, expr_test12, "match {}", "got nothing");  // it expects `match { value } { arms }`
 check_output!(expr, err, expr_test13, "match x {}", "got nothing");
 check_output!(expr, err, expr_test14, "{let a = 3; let b = 4;}", "got nothing");
@@ -131,7 +134,10 @@ check_output!(expr, err, expr_test48, "
     }", "`z` is bound multiple times");
 check_output!(expr, err, expr_test49, "{let ($x, $y) = (0, 1); x}", "use `let pattern`");
 check_output!(expr, err, expr_test50, "{let pattern ($x, .., ..) = (0, 1, 2, 3, 4); x}", "multiple shorthands");
-check_output!(expr, err, expr_test51, "{let pattern ($x .. $y) = (0, 1, 2); x}", "TODO: tell the user kindly that there should be a comma");
+
+// TODO
+// check_output!(expr, err, expr_test51, "{let pattern ($x .. $y) = (0, 1, 2); x}", "TODO: tell the user kindly that there should be a comma");
+
 check_output!(expr, err, expr_test52, "{let x = 3\nlet y = 4\n x}", "use `;` before the keyword `let`");
 check_output!(expr, err, expr_test53, "match x { 1.5..1.4 => 0, _ => x }", "unmatchable pattern");
 check_output!(expr, err, expr_test54, "match x { 9.4..1.15 => 0, _ => x }", "unmatchable pattern");

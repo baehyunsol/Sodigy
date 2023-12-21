@@ -40,7 +40,10 @@ impl ClapError {
 
                 let mut extra = ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine);
 
-                if token.len() > 3 && closest_dist < 3 {
+                //  --xx -> --to  (no sense)
+                //  --tx -> --to  (makes sense)
+                //  --verrrion -> --verrrion (makes sense)
+                if (token.len() > 4 && closest_dist < 3) || (token.len() == 4 && closest_dist < 2) {
                     extra.set_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
                 }
 

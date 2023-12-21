@@ -46,11 +46,20 @@ impl From<FileError> for UniversalError {
         UniversalError {
             rendered: format!(
                 "{}\n{}",
-                "[Error]".red(),
+                "[Error while doing File IO]".red(),
                 e.render_error(),
             ),
             first_span: SpanRange::dummy(9),
-            hash: todo!(),
+            hash: {
+                let mut hasher = hash_map::DefaultHasher::new();
+                hasher.write(&e.kind.hash_u64().to_be_bytes());
+
+                if let Some(p) = &e.given_path {
+                    hasher.write(p.as_bytes());
+                }
+
+                hasher.finish()
+            },
         }
     }
 }

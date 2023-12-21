@@ -1,4 +1,4 @@
-use crate::{Endec, EndecErr};
+use crate::{Endec, EndecError};
 use sodigy_intern::{InternedNumeric, InternedString, unintern_numeric, unintern_string};
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
@@ -67,12 +67,12 @@ impl EndecSession {
         }
     }
 
-    pub fn decode_intern_str(&self, e: EncodedInternal) -> Result<InternedString, EndecErr> {
-        self.str_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecErr::InvalidInternedString)
+    pub fn decode_intern_str(&self, e: EncodedInternal) -> Result<InternedString, EndecError> {
+        self.str_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::InvalidInternedString)
     }
 
-    pub fn decode_intern_num(&self, e: EncodedInternal) -> Result<InternedNumeric, EndecErr> {
-        self.num_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecErr::InvalidInternedNumeric)
+    pub fn decode_intern_num(&self, e: EncodedInternal) -> Result<InternedNumeric, EndecError> {
+        self.num_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::InvalidInternedNumeric)
     }
 }
 
@@ -84,7 +84,7 @@ impl Endec for EncodedInternal {
         self.0.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(EncodedInternal(u32::decode(buf, ind, session)?))
     }
 }

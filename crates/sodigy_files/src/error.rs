@@ -1,25 +1,13 @@
 use crate::FileHash;
+use std::collections::hash_map;
 use std::ffi::OsString;
+use std::hash::Hasher;
 use std::io;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileError {
-    kind: FileErrorKind,
-    given_path: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum FileErrorKind {
-    FileNotFound,
-    PermissionDenied,
-    AlreadyExists,
-    OsStrErr(OsString),
-
-    // Sodigy specific errors
-    InvalidFileHash(FileHash),
-    MetadataNotSupported,
-    ModifiedWhileCompilation,
-    HashCollision,
+    pub kind: FileErrorKind,
+    pub given_path: Option<String>,
 }
 
 impl FileError {
@@ -101,15 +89,54 @@ impl FileError {
             FileErrorKind::InvalidFileHash(hash) => format!(
                 "invalid file hash: {hash}"
             ),
-            FileErrorKind::MetadataNotSupported => String::from(
+            FileErrorKind::MetadataNotSupported => format!(
                 "unable to read file metadata: `{path}`"
             ),
-            FileErrorKind::ModifiedWhileCompilation => String::from(
+            FileErrorKind::ModifiedWhileCompilation => format!(
                 "source file modified while compilation: `{path}`"
             ),
             FileErrorKind::HashCollision => format!(
                 "hash collision: `{path}`"
             ),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum FileErrorKind {
+    FileNotFound,
+    PermissionDenied,
+    AlreadyExists,
+    OsStrErr(OsString),
+
+    // Sodigy specific errors
+    InvalidFileHash(FileHash),
+    MetadataNotSupported,
+    ModifiedWhileCompilation,
+    HashCollision,
+}
+
+impl FileErrorKind {
+    pub fn hash_u64(&self) -> u64 {
+        match self {
+            FileErrorKind::FileNotFound => 0,
+            FileErrorKind::PermissionDenied => 1,
+            FileErrorKind::AlreadyExists => 2,
+            FileErrorKind::OsStrErr(s) => {
+                let mut hasher = hash_map::DefaultHasher::new();
+                hasher.write(s.as_encoded_bytes());
+
+                hasher.finish()
+            },
+            FileErrorKind::InvalidFileHash(h) => {
+                let mut hasher = hash_map::DefaultHasher::new();
+                hasher.write(&h.to_be_bytes());
+
+                hasher.finish()
+            },
+            FileErrorKind::MetadataNotSupported => 3,
+            FileErrorKind::ModifiedWhileCompilation => 4,
+            FileErrorKind::HashCollision => 5,
         }
     }
 }

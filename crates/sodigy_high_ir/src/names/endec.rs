@@ -1,5 +1,5 @@
 use super::{IdentWithOrigin, NameOrigin};
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
@@ -9,7 +9,7 @@ impl Endec for IdentWithOrigin {
         self.1.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(IdentWithOrigin(
             InternedString::decode(buf, ind, session)?,
             NameOrigin::decode(buf, ind, session)?,
@@ -47,7 +47,7 @@ impl Endec for NameOrigin {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -62,10 +62,10 @@ impl Endec for NameOrigin {
                         lambda: Uid::decode(buf, ind, session)?,
                         index: usize::decode(buf, ind, session)?,
                     }),
-                    6.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    6.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

@@ -10,6 +10,8 @@ use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
 
+mod endec;
+
 pub struct HirSession {
     pub errors: Vec<HirError>,
     pub warnings: Vec<HirWarning>,
@@ -115,6 +117,16 @@ impl HirSession {
 
     pub fn get_prelude_names(&self) -> HashSet<InternedString> {
         PRELUDES.keys().map(|k| *k).collect()
+    }
+
+    pub fn dump_hir(&self) -> String {
+        let mut lines = Vec::with_capacity(self.func_defs.len());
+
+        for f in self.func_defs.values() {
+            lines.push(f.to_string());
+        }
+
+        lines.join("\n\n")
     }
 
     pub fn push_error(&mut self, error: HirError) {

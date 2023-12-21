@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum EndecErr {
+pub enum EndecError {
     Eof,
     Overflow,
     FromUtf8Error,
@@ -8,8 +8,8 @@ pub enum EndecErr {
     InvalidInternedNumeric,
 }
 
-impl From<std::string::FromUtf8Error> for EndecErr {
+impl From<std::string::FromUtf8Error> for EndecError {
     fn from(_: std::string::FromUtf8Error) -> Self {
-        EndecErr::FromUtf8Error
+        EndecError::FromUtf8Error
     }
 }

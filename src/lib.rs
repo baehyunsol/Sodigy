@@ -3,8 +3,8 @@
 use sodigy_files::{global_file_session, FileError, FileHash};
 use sodigy_interpreter::{HirEvalCtxt, eval_hir};
 
-mod result;
-mod stages;
+pub mod result;
+pub mod stages;
 
 use stages::{
     parse_stage,
@@ -32,7 +32,7 @@ pub fn compile_input(input: Vec<u8>) -> ErrorsAndWarnings {
 
 // TODO: there's no type for compile result yet
 pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
-    let (parse_session, errors_and_warnings) = parse_stage(file_hash, None);
+    let (parse_session, errors_and_warnings) = parse_stage(file_hash, None, None);
 
     let parse_session = if let Some(parse_session) = parse_session {
         parse_session
@@ -81,9 +81,13 @@ pub const COMPILER_HELP_MESSAGE: &str =
 
 Examples:
     sodigy a.sdg --to tokens -o a.tokens
-        It reads `a.sdg` and converts it into tokens. But it doesn't make an AST
-        and save the tokens to `a.tokens`. You can later resume the compilation
+        It reads `a.sdg` and converts the code into tokens. But it doesn't make an AST.
+        It just saves the tokens to `a.tokens`. You can later resume the compilation
         from this stage.
+
+    sodigy a.tokens --to hir -o a.hir
+        In the previous example, we paused the compilation before building an AST.
+        This option resumes the compilation and generates an HIR.
 
 Options:
     -h, --help                      Display this message
@@ -92,7 +96,7 @@ Options:
                                     It tries to infer the output type from the extension of the output.
                                     If the the extension and `-t` doesn't match, `-t` has higher priority.
                                     If there's no other information the default value is hir.
-    -o, --output FILENAME           Write output to <filename>
+    -o, --output FILENAME           Write output to <FILENAME>
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
     --dump-hir [true|false]         Dump HIR to stdout (default: false)

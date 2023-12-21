@@ -21,7 +21,7 @@ use sodigy_ast::{
     PostfixOp,
     PrefixOp,
 };
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -32,7 +32,7 @@ impl Endec for Expr {
         self.span.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Expr {
             kind: ExprKind::decode(buf, ind, session)?,
             span: SpanRange::decode(buf, ind, session)?,
@@ -147,7 +147,7 @@ impl Endec for ExprKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -208,10 +208,10 @@ impl Endec for ExprKind {
                         Box::new(Expr::decode(buf, ind, session)?),
                         Box::new(Expr::decode(buf, ind, session)?),
                     )),
-                    18.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    18.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }
@@ -224,7 +224,7 @@ impl Endec for ScopedLet {
         self.is_real.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(ScopedLet {
             name: IdentWithSpan::decode(buf, ind, session)?,
             value: Expr::decode(buf, ind, session)?,
@@ -241,7 +241,7 @@ impl Endec for MatchArm {
         self.guard.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(MatchArm {
             pattern: Pattern::decode(buf, ind, session)?,
             value: Expr::decode(buf, ind, session)?,
@@ -257,7 +257,7 @@ impl Endec for BranchArm {
         self.value.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(BranchArm {
             cond: Option::<Expr>::decode(buf, ind, session)?,
             pattern_bind: Option::<Expr>::decode(buf, ind, session)?,
@@ -272,7 +272,7 @@ impl Endec for StructInitField {
         self.value.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(StructInitField {
             name: IdentWithSpan::decode(buf, ind, session)?,
             value: Expr::decode(buf, ind, session)?,

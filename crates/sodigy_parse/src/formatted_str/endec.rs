@@ -1,6 +1,6 @@
 use super::FormattedStringElement;
 use crate::TokenTree;
-use sodigy_endec::{Endec, EndecErr, EndecSession};
+use sodigy_endec::{Endec, EndecError, EndecSession};
 
 /*pub enum FormattedStringElement {
     Value(Vec<TokenTree>),
@@ -21,7 +21,7 @@ impl Endec for FormattedStringElement {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecErr> {
+    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*ind) {
             Some(n) => {
                 *ind += 1;
@@ -29,10 +29,10 @@ impl Endec for FormattedStringElement {
                 match *n {
                     0 => Ok(FormattedStringElement::Value(Vec::<TokenTree>::decode(buf, ind, session)?)),
                     1 => Ok(FormattedStringElement::Literal(String::decode(buf, ind, session)?)),
-                    2.. => Err(EndecErr::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
                 }
             },
-            None => Err(EndecErr::Eof),
+            None => Err(EndecError::Eof),
         }
     }
 }

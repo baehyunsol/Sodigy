@@ -19,7 +19,7 @@ pub use error::ClapError;
 use flag::Flag;
 use parse::{into_file, into_tokens};
 pub use session::ClapSession;
-use stages::IrStage;
+pub use stages::IrStage;
 use token::{Token, TokenKind, TokenValue};
 pub use warn::ClapWarning;
 

@@ -53,3 +53,6 @@ cd ../..
 cargo doc
 cargo test
 cargo test --release
+
+# it requires `cargo-depgraph`
+cargo depgraph | dot -Tpng | save -f dep_graph.png

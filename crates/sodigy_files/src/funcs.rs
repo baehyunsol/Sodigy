@@ -38,12 +38,10 @@ impl From<WriteMode> for OpenOptions {
 }
 
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
-
     match fs::read(path) {
         Ok(data) => Ok(data),
         Err(e) => Err(FileError::from_std(e, path)),
     }
-
 }
 
 pub fn read_string(path: &str) -> Result<String, FileError> {
@@ -56,7 +54,6 @@ pub fn read_string(path: &str) -> Result<String, FileError> {
             Err(e) => Err(FileError::from_std(e, path)),
         }
     }
-
 }
 
 pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<(), FileError> {
@@ -69,7 +66,6 @@ pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<()
         },
         Err(e) => Err(FileError::from_std(e, path)),
     }
-
 }
 
 pub fn write_string(path: &str, s: &str, write_mode: WriteMode) -> Result<(), FileError> {
@@ -197,6 +193,10 @@ pub fn read_dir(path: &str) -> Result<Vec<String>, FileError> {
             Ok(result)
         }
     }
+}
+
+pub fn remove_file(path: &str) -> Result<(), FileError> {
+    fs::remove_file(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn get_all_sdg(path: &str, recurs: bool, ext: &str) -> Result<Vec<String>, FileError> {
