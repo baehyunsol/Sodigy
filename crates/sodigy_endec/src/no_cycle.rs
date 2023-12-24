@@ -12,8 +12,8 @@ impl Endec for InternedString {
         e.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let e = EncodedInternal::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let e = EncodedInternal::decode(buf, index, session)?;
         Ok(session.decode_intern_str(e)?)
     }
 }
@@ -24,8 +24,8 @@ impl Endec for InternedNumeric {
         e.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let e = EncodedInternal::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let e = EncodedInternal::decode(buf, index, session)?;
         Ok(session.decode_intern_num(e)?)
     }
 }
@@ -47,10 +47,10 @@ impl Endec for Keyword {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(Keyword::Let),
@@ -64,10 +64,10 @@ impl Endec for Keyword {
                     8 => Ok(Keyword::Else),
                     9 => Ok(Keyword::Pattern),
                     10 => Ok(Keyword::Match),
-                    11.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    11.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -90,19 +90,19 @@ impl Endec for SodigyNumber {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
-                    0 => Ok(SodigyNumber::Big(Box::new(BigNumber::decode(buf, ind, session)?))),
-                    1 => Ok(SodigyNumber::SmallInt(u64::decode(buf, ind, session)?)),
-                    2 => Ok(SodigyNumber::SmallRatio(u64::decode(buf, ind, session)?)),
-                    3.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    0 => Ok(SodigyNumber::Big(Box::new(BigNumber::decode(buf, index, session)?))),
+                    1 => Ok(SodigyNumber::SmallInt(u64::decode(buf, index, session)?)),
+                    2 => Ok(SodigyNumber::SmallRatio(u64::decode(buf, index, session)?)),
+                    3.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -114,11 +114,11 @@ impl Endec for BigNumber {
         self.is_integer.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(BigNumber {
-            digits: Vec::<u8>::decode(buf, ind, session)?,
-            exp: i64::decode(buf, ind, session)?,
-            is_integer: bool::decode(buf, ind, session)?,
+            digits: Vec::<u8>::decode(buf, index, session)?,
+            exp: i64::decode(buf, index, session)?,
+            is_integer: bool::decode(buf, index, session)?,
         })
     }
 }

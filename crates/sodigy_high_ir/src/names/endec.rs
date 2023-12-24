@@ -9,10 +9,10 @@ impl Endec for IdentWithOrigin {
         self.1.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(IdentWithOrigin(
-            InternedString::decode(buf, ind, session)?,
-            NameOrigin::decode(buf, ind, session)?,
+            InternedString::decode(buf, index, session)?,
+            NameOrigin::decode(buf, index, session)?,
         ))
     }
 }
@@ -47,25 +47,25 @@ impl Endec for NameOrigin {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(NameOrigin::Prelude),
-                    1 => Ok(NameOrigin::FuncArg { index: usize::decode(buf, ind, session)? }),
-                    2 => Ok(NameOrigin::FuncGeneric { index: usize::decode(buf, ind, session)? }),
-                    3 => Ok(NameOrigin::Local { origin: Uid::decode(buf, ind, session)? }),
-                    4 => Ok(NameOrigin::Global { origin: Option::<Uid>::decode(buf, ind, session)? }),
+                    1 => Ok(NameOrigin::FuncArg { index: usize::decode(buf, index, session)? }),
+                    2 => Ok(NameOrigin::FuncGeneric { index: usize::decode(buf, index, session)? }),
+                    3 => Ok(NameOrigin::Local { origin: Uid::decode(buf, index, session)? }),
+                    4 => Ok(NameOrigin::Global { origin: Option::<Uid>::decode(buf, index, session)? }),
                     5 => Ok(NameOrigin::Captured {
-                        lambda: Uid::decode(buf, ind, session)?,
-                        index: usize::decode(buf, ind, session)?,
+                        lambda: Uid::decode(buf, index, session)?,
+                        index: usize::decode(buf, index, session)?,
                     }),
-                    6.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    6.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

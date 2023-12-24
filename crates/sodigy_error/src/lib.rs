@@ -1,7 +1,7 @@
 #![deny(unused_imports)]
 
-use colored::*;
-use sodigy_files::{global_file_session, FileError};
+use colored::Colorize;
+use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::{HashSet, hash_map};
@@ -10,59 +10,12 @@ use std::hash::Hasher;
 mod dist;
 mod expected_token;
 mod fmt;
+mod universal;
 
 pub use dist::substr_edit_distance;
 pub use expected_token::ExpectedToken;
 pub use fmt::RenderError;
-
-/// Any error type that implements SodigyError can be converted to this type.
-/// The compiler uses this type to manage all the errors and warnings.
-pub struct UniversalError {
-    rendered: String,
-
-    /// It's used to sort the errors by span.
-    first_span: SpanRange,
-
-    /// It's used to remove duplicate errors.
-    hash: u64,
-}
-
-impl UniversalError {
-    pub fn rendered(&self) -> &String {
-        &self.rendered
-    }
-
-    pub fn first_span(&self) -> SpanRange {
-        self.first_span
-    }
-
-    pub fn hash(&self) -> u64 {
-        self.hash
-    }
-}
-
-impl From<FileError> for UniversalError {
-    fn from(e: FileError) -> UniversalError {
-        UniversalError {
-            rendered: format!(
-                "{}\n{}",
-                "[Error while doing File IO]".red(),
-                e.render_error(),
-            ),
-            first_span: SpanRange::dummy(9),
-            hash: {
-                let mut hasher = hash_map::DefaultHasher::new();
-                hasher.write(&e.kind.hash_u64().to_be_bytes());
-
-                if let Some(p) = &e.given_path {
-                    hasher.write(p.as_bytes());
-                }
-
-                hasher.finish()
-            },
-        }
-    }
-}
+pub use universal::UniversalError;
 
 #[derive(Clone)]
 pub struct ExtraErrInfo {

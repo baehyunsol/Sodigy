@@ -1,5 +1,11 @@
 use crate::{Endec, EndecError};
-use sodigy_intern::{InternedNumeric, InternedString, unintern_numeric, unintern_string};
+use sodigy_intern::{
+    InternedNumeric,
+    InternedString,
+    InternSession,
+    unintern_numeric,
+    unintern_string,
+};
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
 
@@ -25,18 +31,57 @@ impl EndecSession {
         }
     }
 
-    // when saving encoded data to file,
-    // first write `self.encoded_metadata` to the file, then
+    // when saving encoded data to a file,
+    // first write `self.encoded_metadata()` to the file, then
     // write the encoded data
     pub fn encode_metadata(&self) -> Vec<u8> {
         let mut result = vec![];
         let mut dummy_session = EndecSession::new();
 
-        // `str_map` and `str_map_rev` are not neede for decoding
+        // `str_map` and `str_map_rev` are unnecessary for decoding
         self.str_table.encode(&mut result, &mut dummy_session);
         self.num_table.encode(&mut result, &mut dummy_session);
 
         result
+    }
+
+    // when loading encoded data from a file,
+    // first construct `Self` from decoding the file, then
+    // start loading the actual data
+    pub fn decode_metadata(buf: &[u8], index: &mut usize) -> Result<Self, EndecError> {
+        let mut dummy_session = EndecSession::new();
+        let mut intern_session = InternSession::new();
+
+        let str_table = HashMap::<EncodedInternal, Vec<u8>>::decode(buf, index, &mut dummy_session)?;
+        let mut str_map = HashMap::with_capacity(str_table.len());
+        let mut str_map_rev = HashMap::with_capacity(str_table.len());
+
+        for (enc, s) in str_table.iter() {
+            let interned_string = intern_session.intern_string(s.to_vec());
+
+            str_map.insert(interned_string, *enc);
+            str_map_rev.insert(*enc, interned_string);
+        }
+
+        let num_table = HashMap::<EncodedInternal, SodigyNumber>::decode(buf, index, &mut dummy_session)?;
+        let mut num_map = HashMap::with_capacity(num_table.len());
+        let mut num_map_rev = HashMap::with_capacity(num_table.len());
+
+        for (enc, s) in num_table.iter() {
+            let interned_numeric = intern_session.intern_numeric(s.clone());
+
+            num_map.insert(interned_numeric, *enc);
+            num_map_rev.insert(*enc, interned_numeric);
+        }
+
+        Ok(EndecSession {
+            str_table,
+            str_map,
+            str_map_rev,
+            num_table,
+            num_map,
+            num_map_rev,
+        })
     }
 
     pub fn encode_intern_str(&mut self, s: InternedString) -> EncodedInternal {
@@ -68,11 +113,11 @@ impl EndecSession {
     }
 
     pub fn decode_intern_str(&self, e: EncodedInternal) -> Result<InternedString, EndecError> {
-        self.str_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::InvalidInternedString)
+        self.str_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::invalid_interned_string())
     }
 
     pub fn decode_intern_num(&self, e: EncodedInternal) -> Result<InternedNumeric, EndecError> {
-        self.num_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::InvalidInternedNumeric)
+        self.num_map_rev.get(&e).map(|i| *i).ok_or_else(|| EndecError::invalid_interned_numeric())
     }
 }
 
@@ -84,8 +129,8 @@ impl Endec for EncodedInternal {
         self.0.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(EncodedInternal(u32::decode(buf, ind, session)?))
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(EncodedInternal(u32::decode(buf, index, session)?))
     }
 }
 

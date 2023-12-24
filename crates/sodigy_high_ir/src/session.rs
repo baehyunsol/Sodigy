@@ -88,13 +88,13 @@ impl HirSession {
         unreachable!()
     }
 
-    pub fn get_tuple_field_expr(&mut self, ind: usize) -> InternedString {
-        if ind < self.field_exprs.len() {
-            self.field_exprs[ind]
+    pub fn get_tuple_field_expr(&mut self, index: usize) -> InternedString {
+        if index < self.field_exprs.len() {
+            self.field_exprs[index]
         }
 
         else {
-            while self.field_exprs.len() <= ind {
+            while self.field_exprs.len() <= index {
                 self.field_exprs.push(
                     self.interner.intern_string(
                         format!("_{}", self.field_exprs.len()).as_bytes().to_vec()
@@ -102,16 +102,16 @@ impl HirSession {
                 );
             }
 
-            self.field_exprs[ind]
+            self.field_exprs[index]
         }
     }
 
     // `tmp` in `let Some<T>(tmp: T): Option(T) = ...;`
-    pub fn make_nth_arg_name(&mut self, ind: usize) -> IdentWithSpan {
+    pub fn make_nth_arg_name(&mut self, index: usize) -> IdentWithSpan {
         // there's no reason to define another method :)
         IdentWithSpan::new(
-            self.get_tuple_field_expr(ind),
-            SpanRange::dummy(10),
+            self.get_tuple_field_expr(index),
+            SpanRange::dummy(11),
         )
     }
 

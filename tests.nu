@@ -1,5 +1,8 @@
 # Experimental
 
+let start = date now | date to-record
+let start_sec = $start.second + $start.minute * 60 + $start.hour * 3600 + $start.day * 86400
+
 cargo clean
 cd crates/sodigy_ast
 cargo test
@@ -56,3 +59,10 @@ cargo test --release
 
 # it requires `cargo-depgraph`
 cargo depgraph | dot -Tpng | save -f dep_graph.png
+
+let end = date now | date to-record
+let end_sec = $end.second + $end.minute * 60 + $end.hour * 3600 + $end.day * 86400
+
+let elt = $end_sec - $start_sec
+
+echo $"took ($elt) seconds..."

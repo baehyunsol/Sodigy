@@ -58,7 +58,7 @@ pub fn lower_patterns_to_name_bindings(
 
             // let tmp = foo();
             name_bindings.push(DestructuredPattern::new(
-                IdentWithSpan::new(tmp_name, SpanRange::dummy(11)),  // $tmp
+                IdentWithSpan::new(tmp_name, SpanRange::dummy(12)),  // $tmp
                 expr.clone(),
                 pattern.ty.clone(),
                 false,  // not a real name
@@ -67,7 +67,7 @@ pub fn lower_patterns_to_name_bindings(
             let name_bindings_len = name_bindings.len();
             let mut shorthand_index = None;
 
-            for (ind, curr_pattern) in patterns.iter().enumerate() {
+            for (index, curr_pattern) in patterns.iter().enumerate() {
                 if curr_pattern.is_wildcard() {
                     if let Some(bind) = &curr_pattern.bind {
                         session.push_warning(
@@ -88,7 +88,7 @@ pub fn lower_patterns_to_name_bindings(
                     }
 
                     else {
-                        shorthand_index = Some(ind);
+                        shorthand_index = Some(index);
 
                         // `let pattern (_, $x @ .., _) = (0, 1, 2, 3);`
                         // -> `let x = (1, 2);`
@@ -106,7 +106,7 @@ pub fn lower_patterns_to_name_bindings(
                     todo!()
                 } else {
                     // `0` -> `_0`
-                    let field_expr = session.get_tuple_field_expr(ind);
+                    let field_expr = session.get_tuple_field_expr(index);
 
                     // `tmp` + `_0` -> `tmp._0`
                     field_expr_with_name_and_index(tmp_name, field_expr)
@@ -356,11 +356,11 @@ fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -
         kind: ast::ExprKind::Path {
             pre: Box::new(ast::Expr {
                 kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
-                span: SpanRange::dummy(12),
+                span: SpanRange::dummy(13),
             }),
-            post: IdentWithSpan::new(field, SpanRange::dummy(13)),
+            post: IdentWithSpan::new(field, SpanRange::dummy(14)),
         },
-        span: SpanRange::dummy(14),
+        span: SpanRange::dummy(15),
     }
 }
 

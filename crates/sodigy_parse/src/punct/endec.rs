@@ -47,10 +47,10 @@ impl Endec for Punct {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(Punct::At),
@@ -88,11 +88,11 @@ impl Endec for Punct {
                     32 => Ok(Punct::RArrow),
                     33 => Ok(Punct::Append),
                     34 => Ok(Punct::Prepend),
-                    35 => Ok(Punct::FieldModifier(InternedString::decode(buf, ind, session)?)),
-                    36.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    35 => Ok(Punct::FieldModifier(InternedString::decode(buf, index, session)?)),
+                    36.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

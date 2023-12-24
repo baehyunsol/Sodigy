@@ -6,7 +6,7 @@ impl Endec for Uid {
         self.0.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(Uid(u128::decode(buf, ind, session)?))
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(Uid(u128::decode(buf, index, session)?))
     }
 }

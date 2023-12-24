@@ -161,13 +161,13 @@ pub fn find_and_replace_captured_values(
             let mut name_index = None;
 
             // linear search is fine because `captured_values` is small enough in most cases
-            for (ind, val) in c.captured_values.iter().enumerate() {
+            for (index, val) in c.captured_values.iter().enumerate() {
                 if let ExprKind::Identifier(id_ori_) = &val.kind {
                     let id_ = id_ori_.id();
                     let origin_ = *id_ori_.origin();
 
                     if (id, origin) == (id_, origin_) {
-                        name_index = Some(ind);
+                        name_index = Some(index);
                         break;
                     }
                 }

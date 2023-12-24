@@ -8,11 +8,11 @@ impl Endec for SpanRange {
         self.end.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(SpanRange {
-            file: u64::decode(buf, ind, session)?,
-            start: usize::decode(buf, ind, session)?,
-            end: usize::decode(buf, ind, session)?,
+            file: u64::decode(buf, index, session)?,
+            start: usize::decode(buf, index, session)?,
+            end: usize::decode(buf, index, session)?,
         })
     }
 }

@@ -17,10 +17,10 @@ impl Endec for TokenTree {
         self.span.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(TokenTree {
-            kind: TokenTreeKind::decode(buf, ind, session)?,
-            span: SpanRange::decode(buf, ind, session)?,
+            kind: TokenTreeKind::decode(buf, index, session)?,
+            span: SpanRange::decode(buf, index, session)?,
         })
     }
 }
@@ -72,36 +72,36 @@ impl Endec for TokenTreeKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
-                    0 => Ok(TokenTreeKind::Identifier(InternedString::decode(buf, ind, session)?)),
-                    1 => Ok(TokenTreeKind::Keyword(Keyword::decode(buf, ind, session)?)),
-                    2 => Ok(TokenTreeKind::Number(InternedNumeric::decode(buf, ind, session)?)),
-                    3 => Ok(TokenTreeKind::Punct(Punct::decode(buf, ind, session)?)),
+                    0 => Ok(TokenTreeKind::Identifier(InternedString::decode(buf, index, session)?)),
+                    1 => Ok(TokenTreeKind::Keyword(Keyword::decode(buf, index, session)?)),
+                    2 => Ok(TokenTreeKind::Number(InternedNumeric::decode(buf, index, session)?)),
+                    3 => Ok(TokenTreeKind::Punct(Punct::decode(buf, index, session)?)),
                     4 => Ok(TokenTreeKind::Group {
-                        delim: Delim::decode(buf, ind, session)?,
-                        tokens: Vec::<TokenTree>::decode(buf, ind, session)?,
-                        prefix: u8::decode(buf, ind, session)?,
+                        delim: Delim::decode(buf, index, session)?,
+                        tokens: Vec::<TokenTree>::decode(buf, index, session)?,
+                        prefix: u8::decode(buf, index, session)?,
                     }),
                     5 => Ok(TokenTreeKind::String {
-                        kind: QuoteKind::decode(buf, ind, session)?,
-                        content: InternedString::decode(buf, ind, session)?,
-                        is_binary: bool::decode(buf, ind, session)?,
+                        kind: QuoteKind::decode(buf, index, session)?,
+                        content: InternedString::decode(buf, index, session)?,
+                        is_binary: bool::decode(buf, index, session)?,
                     }),
-                    6 => Ok(TokenTreeKind::FormattedString(Vec::<FormattedStringElement>::decode(buf, ind, session)?)),
-                    7 => Ok(TokenTreeKind::DocComment(InternedString::decode(buf, ind, session)?)),
+                    6 => Ok(TokenTreeKind::FormattedString(Vec::<FormattedStringElement>::decode(buf, index, session)?)),
+                    7 => Ok(TokenTreeKind::DocComment(InternedString::decode(buf, index, session)?)),
                     8 => Ok(TokenTreeKind::Macro {
-                        name: Vec::<TokenTree>::decode(buf, ind, session)?,
-                        args: Vec::<TokenTree>::decode(buf, ind, session)?,
+                        name: Vec::<TokenTree>::decode(buf, index, session)?,
+                        args: Vec::<TokenTree>::decode(buf, index, session)?,
                     }),
-                    9.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    9.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

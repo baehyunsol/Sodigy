@@ -1,8 +1,0 @@
-let def_name_collision() = _;
-let def_name_collision() = _;
-
-let name_collision1(x: Int, x: Int): Int = x;
-
-let name_collision2<T, T>(x: Int): Int = x;
-
-let name_collision3<T>(T: Int): Int = T;

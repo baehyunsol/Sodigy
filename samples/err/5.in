@@ -1,4 +1,0 @@
-import a.b.c;
-
-@c({let x = 3; let y = 4; x + y + z})
-let tester: Int = 0;

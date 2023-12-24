@@ -21,18 +21,18 @@ impl Endec for FormattedStringElement {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
-                    0 => Ok(FormattedStringElement::Value(Vec::<TokenTree>::decode(buf, ind, session)?)),
-                    1 => Ok(FormattedStringElement::Literal(String::decode(buf, ind, session)?)),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    0 => Ok(FormattedStringElement::Value(Vec::<TokenTree>::decode(buf, index, session)?)),
+                    1 => Ok(FormattedStringElement::Literal(String::decode(buf, index, session)?)),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

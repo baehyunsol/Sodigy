@@ -9,10 +9,10 @@ impl Endec for IdentWithSpan {
         self.1.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(IdentWithSpan(
-            InternedString::decode(buf, ind, session)?,
-            SpanRange::decode(buf, ind, session)?,
+            InternedString::decode(buf, index, session)?,
+            SpanRange::decode(buf, index, session)?,
         ))
     }
 }

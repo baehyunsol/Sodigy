@@ -1,8 +1,0 @@
-# 한글 주석은 달아도 되지?
-
-let lambda_test: Int = {
-    let l = \{x: Int, y: InvalidName, x + y + a + b};
-    let a: Int = 3;
-
-    l(a)
-};

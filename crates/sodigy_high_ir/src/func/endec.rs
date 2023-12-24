@@ -16,16 +16,16 @@ impl Endec for Func {
         self.uid.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Func {
-            name: IdentWithSpan::decode(buf, ind, session)?,
-            args: Option::<Vec<Arg>>::decode(buf, ind, session)?,
-            generics: Vec::<GenericDef>::decode(buf, ind, session)?,
-            return_val: Expr::decode(buf, ind, session)?,
-            return_ty: Option::<Type>::decode(buf, ind, session)?,
-            attributes: Vec::<Attribute>::decode(buf, ind, session)?,
-            kind: FuncKind::decode(buf, ind, session)?,
-            uid: Uid::decode(buf, ind, session)?,
+            name: IdentWithSpan::decode(buf, index, session)?,
+            args: Option::<Vec<Arg>>::decode(buf, index, session)?,
+            generics: Vec::<GenericDef>::decode(buf, index, session)?,
+            return_val: Expr::decode(buf, index, session)?,
+            return_ty: Option::<Type>::decode(buf, index, session)?,
+            attributes: Vec::<Attribute>::decode(buf, index, session)?,
+            kind: FuncKind::decode(buf, index, session)?,
+            uid: Uid::decode(buf, index, session)?,
         })
     }
 }
@@ -37,11 +37,11 @@ impl Endec for Arg {
         self.has_question_mark.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Arg {
-            name: IdentWithSpan::decode(buf, ind, session)?,
-            ty: Option::<Type>::decode(buf, ind, session)?,
-            has_question_mark: bool::decode(buf, ind, session)?,
+            name: IdentWithSpan::decode(buf, index, session)?,
+            ty: Option::<Type>::decode(buf, index, session)?,
+            has_question_mark: bool::decode(buf, index, session)?,
         })
     }
 }
@@ -63,25 +63,25 @@ impl Endec for FuncKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(FuncKind::Normal),
                     1 => Ok(FuncKind::Lambda),
                     2 => Ok(FuncKind::Enum {
-                        variants: Vec::<Uid>::decode(buf, ind, session)?,
+                        variants: Vec::<Uid>::decode(buf, index, session)?,
                     }),
                     3 => Ok(FuncKind::EnumVariant {
-                        parent: Uid::decode(buf, ind, session)?,
+                        parent: Uid::decode(buf, index, session)?,
                     }),
                     4 => Ok(FuncKind::StructConstr),
-                    5.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    5.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

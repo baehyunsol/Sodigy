@@ -31,11 +31,11 @@ pub fn concat_doc_comments(
 }
 
 fn remove_leading_whitespace(s: &[u8]) -> String {
-    let mut ind = 0;
+    let mut index = 0;
 
-    while s.get(ind) == Some(&b' ') {
-        ind += 1;
+    while s.get(index) == Some(&b' ') {
+        index += 1;
     }
 
-    String::from_utf8(s[ind..].to_vec()).unwrap()
+    String::from_utf8(s[index..].to_vec()).unwrap()
 }

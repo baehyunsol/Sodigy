@@ -2,13 +2,13 @@ use crate::{DUMMY_FILE_HASH, last_modified, read_bytes, FileHash};
 use crate::error::FileError;
 use sodigy_test::sodigy_assert_eq;
 use std::collections::HashMap;
-use std::sync::Mutex;
+
+// `FileCache` is not synchronized at all!
+// It's caller's responsibility to use proper lock mechanisms
 
 // TODO: test with small `FILE_CACHE_SIZE` and `SIZE_LIMIT` (after `@test`s in Sodigy are implemented)
 const FILE_CACHE_SIZE: usize = 64;
 const SIZE_LIMIT: usize = 256 * 1024 * 1024;
-
-static mut CACHE_LOCK: Mutex<()> = Mutex::new(());
 
 type Path = String;
 
@@ -73,9 +73,7 @@ impl FileCache {
         loop {
             if self.count[self.cursor] == 0 {
                 match read_bytes(path) {
-                    Ok(f) => unsafe {
-                        let lock = CACHE_LOCK.lock();
-
+                    Ok(f) => {
                         // might have changed while waiting for the lock
                         if self.count[self.cursor] != 0 {
                             continue;
@@ -110,8 +108,6 @@ impl FileCache {
                             self.data[self.cursor] = (DUMMY_FILE_HASH, vec![]);
                             self.count[self.cursor] = 0;
                         }
-
-                        drop(lock);
 
                         return Ok(());
                     },

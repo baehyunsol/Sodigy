@@ -17,18 +17,18 @@ impl Endec for Attribute {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
-                    0 => Ok(Attribute::DocComment(IdentWithSpan::decode(buf, ind, session)?)),
-                    1 => Ok(Attribute::Decorator(Decorator::decode(buf, ind, session)?)),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    0 => Ok(Attribute::DocComment(IdentWithSpan::decode(buf, index, session)?)),
+                    1 => Ok(Attribute::Decorator(Decorator::decode(buf, index, session)?)),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -39,10 +39,10 @@ impl Endec for Decorator {
         self.args.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Decorator {
-            name: Vec::<IdentWithSpan>::decode(buf, ind, session)?,
-            args: Option::<Vec<Expr>>::decode(buf, ind, session)?,
+            name: Vec::<IdentWithSpan>::decode(buf, index, session)?,
+            args: Option::<Vec<Expr>>::decode(buf, index, session)?,
         })
     }
 }

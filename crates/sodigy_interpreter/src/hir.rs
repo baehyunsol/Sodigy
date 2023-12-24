@@ -37,10 +37,10 @@ impl HirEvalCtxt {
         let mut funcs = HashMap::with_capacity(sess.func_defs.len());
 
         for func in sess.func_defs.values() {
-            let ind = func_map.len();
+            let index = func_map.len();
 
-            func_map.insert(func.uid, ind);
-            funcs.insert(ind, func.clone());
+            func_map.insert(func.uid, index);
+            funcs.insert(index, func.clone());
         }
 
         HirEvalCtxt {
@@ -55,24 +55,24 @@ impl HirEvalCtxt {
     }
 
     pub fn push_scoped_let(&mut self, name: InternedString, uid: Uid, value: &hir::Expr) {
-        let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].insert((uid, name), LazyEvalData::NotEvaled(value.clone()));
+        let last_index = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_index].insert((uid, name), LazyEvalData::NotEvaled(value.clone()));
     }
 
     pub fn pop_scoped_let(&mut self, name: InternedString, uid: Uid) {
-        let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].remove(&(uid, name)).unwrap();
+        let last_index = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_index].remove(&(uid, name)).unwrap();
     }
 
     pub fn get_scoped_let(&mut self, name: InternedString, uid: Uid) -> Option<&LazyEvalData> {
-        let last_ind = self.scoped_lets.len() - 1;
-        self.scoped_lets[last_ind].get(&(uid, name))
+        let last_index = self.scoped_lets.len() - 1;
+        self.scoped_lets[last_index].get(&(uid, name))
     }
 
     pub fn update_scoped_let(&mut self, name: InternedString, uid: Uid, value: Rc<SodigyData>) {
-        let last_ind = self.scoped_lets.len() - 1;
+        let last_index = self.scoped_lets.len() - 1;
 
-        match self.scoped_lets[last_ind].get_mut(&(uid, name)) {
+        match self.scoped_lets[last_index].get_mut(&(uid, name)) {
             Some(d) => {
                 *d = LazyEvalData::Evaled(value);
             },
@@ -129,8 +129,8 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
         hir::ExprKind::Identifier(id_ori) => match id_ori.origin() {
                 hir::NameOrigin::FuncArg { index } => Ok(ctxt.get_func_arg(*index)),
                 hir::NameOrigin::Global { origin: Some(origin) } => {
-                    let func_index = if let Some(ind) = ctxt.get_func_by_uid(*origin) {
-                        ind
+                    let func_index = if let Some(index) = ctxt.get_func_by_uid(*origin) {
+                        index
                     } else {
                         return Err(HirEvalError::TODO(format!("name resolving `{}`", id_ori.id().render_error())));
                     };

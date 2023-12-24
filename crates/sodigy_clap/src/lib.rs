@@ -214,7 +214,7 @@ pub fn parse_cli_args() -> ClapSession {
             do_not_compile_and_print_this: None,
             input_files,
             output_format,
-            output_path,
+            output_path: Some(output_path),
             show_warnings: show_warnings.unwrap_or(true),
             save_ir: save_ir.unwrap_or(true),
             dump_hir: dump_hir.unwrap_or(false),
@@ -233,7 +233,7 @@ pub fn parse_cli_args() -> ClapSession {
 pub struct CompilerOption {
     pub do_not_compile_and_print_this: Option<SpecialOutput>,
     pub input_files: Vec<String>,
-    pub output_path: String,
+    pub output_path: Option<String>,
     pub output_format: IrStage,
     pub show_warnings: bool,
     pub save_ir: bool,
@@ -255,6 +255,20 @@ impl CompilerOption {
             ..CompilerOption::default()
         }
     }
+
+    pub fn test_runner(file_name: &str) -> Self {
+        CompilerOption {
+            do_not_compile_and_print_this: None,
+            input_files: vec![file_name.to_string()],
+            output_path: None,
+
+            // TODO: always set it to the latest stage possible
+            output_format: IrStage::HighIr,
+            show_warnings: true,
+            save_ir: false,
+            dump_hir: false,
+        }
+    }
 }
 
 impl Default for CompilerOption {
@@ -262,7 +276,7 @@ impl Default for CompilerOption {
         CompilerOption {
             do_not_compile_and_print_this: None,
             input_files: vec![],
-            output_path: String::from("./a.out"),
+            output_path: Some(String::from("./a.out")),
 
             // TODO: it has to be IrStage::Binary, but that's not implemented yet
             output_format: IrStage::HighIr,

@@ -27,7 +27,6 @@ members = [
 
 [dependencies]
 
-colored = "2.0.4"
 sodigy_ast = { path = "crates/sodigy_ast" }
 sodigy_clap = { path = "crates/sodigy_clap" }
 sodigy_error = { path = "crates/sodigy_error" }
@@ -44,3 +43,6 @@ sodigy_prelude = { path = "crates/sodigy_prelude" }
 sodigy_span = { path = "crates/sodigy_span" }
 sodigy_test = { path = "crates/sodigy_test" }
 sodigy_uid = { path = "crates/sodigy_uid" }
+
+[dev-dependencies]
+rand = "0.8.5"

@@ -10,18 +10,18 @@ impl Endec for PrefixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(PrefixOp::Not),
                     1 => Ok(PrefixOp::Neg),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -34,18 +34,18 @@ impl Endec for PostfixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(PostfixOp::Range),
                     1 => Ok(PostfixOp::QuestionMark),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -84,10 +84,10 @@ impl Endec for InfixOp {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(InfixOp::Add),
@@ -114,11 +114,11 @@ impl Endec for InfixOp {
                     21 => Ok(InfixOp::Prepend),
                     22 => Ok(InfixOp::Range),
                     23 => Ok(InfixOp::InclusiveRange),
-                    24 => Ok(InfixOp::FieldModifier(InternedString::decode(buf, ind, session)?)),
-                    25.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    24 => Ok(InfixOp::FieldModifier(InternedString::decode(buf, index, session)?)),
+                    25.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

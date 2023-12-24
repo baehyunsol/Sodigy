@@ -9,18 +9,18 @@ impl Endec for QuoteKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(QuoteKind::Double),
                     1 => Ok(QuoteKind::Single),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }

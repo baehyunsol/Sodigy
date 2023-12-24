@@ -1,7 +1,0 @@
-import a as babb;
-
-let func1: babb = babb;
-
-let func2: aabb = babb;
-
-let func3: bcbb = bcbb;

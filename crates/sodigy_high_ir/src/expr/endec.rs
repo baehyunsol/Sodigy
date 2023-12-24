@@ -32,10 +32,10 @@ impl Endec for Expr {
         self.span.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Expr {
-            kind: ExprKind::decode(buf, ind, session)?,
-            span: SpanRange::decode(buf, ind, session)?,
+            kind: ExprKind::decode(buf, index, session)?,
+            span: SpanRange::decode(buf, index, session)?,
         })
     }
 }
@@ -147,71 +147,71 @@ impl Endec for ExprKind {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
-                    0 => Ok(ExprKind::Identifier(IdentWithOrigin::decode(buf, ind, session)?)),
-                    1 => Ok(ExprKind::Integer(InternedNumeric::decode(buf, ind, session)?)),
-                    2 => Ok(ExprKind::Ratio(InternedNumeric::decode(buf, ind, session)?)),
-                    3 => Ok(ExprKind::Char(char::decode(buf, ind, session)?)),
+                    0 => Ok(ExprKind::Identifier(IdentWithOrigin::decode(buf, index, session)?)),
+                    1 => Ok(ExprKind::Integer(InternedNumeric::decode(buf, index, session)?)),
+                    2 => Ok(ExprKind::Ratio(InternedNumeric::decode(buf, index, session)?)),
+                    3 => Ok(ExprKind::Char(char::decode(buf, index, session)?)),
                     4 => Ok(ExprKind::String {
-                        s: InternedString::decode(buf, ind, session)?,
-                        is_binary: bool::decode(buf, ind, session)?
+                        s: InternedString::decode(buf, index, session)?,
+                        is_binary: bool::decode(buf, index, session)?
                     }),
                     5 => Ok(ExprKind::Call {
-                        func: Box::new(Expr::decode(buf, ind, session)?),
-                        args: Vec::<Expr>::decode(buf, ind, session)?,
+                        func: Box::new(Expr::decode(buf, index, session)?),
+                        args: Vec::<Expr>::decode(buf, index, session)?,
                     }),
-                    6 => Ok(ExprKind::List(Vec::<Expr>::decode(buf, ind, session)?)),
-                    7 => Ok(ExprKind::Tuple(Vec::<Expr>::decode(buf, ind, session)?)),
-                    8 => Ok(ExprKind::Format(Vec::<Expr>::decode(buf, ind, session)?)),
+                    6 => Ok(ExprKind::List(Vec::<Expr>::decode(buf, index, session)?)),
+                    7 => Ok(ExprKind::Tuple(Vec::<Expr>::decode(buf, index, session)?)),
+                    8 => Ok(ExprKind::Format(Vec::<Expr>::decode(buf, index, session)?)),
                     9 => Ok(ExprKind::Scope(Scope {
-                        original_patterns: Vec::<(Pattern, Expr)>::decode(buf, ind, session)?,
-                        lets: Vec::<ScopedLet>::decode(buf, ind, session)?,
-                        value: Box::new(Expr::decode(buf, ind, session)?),
-                        uid: Uid::decode(buf, ind, session)?,
+                        original_patterns: Vec::<(Pattern, Expr)>::decode(buf, index, session)?,
+                        lets: Vec::<ScopedLet>::decode(buf, index, session)?,
+                        value: Box::new(Expr::decode(buf, index, session)?),
+                        uid: Uid::decode(buf, index, session)?,
                     })),
                     10 => Ok(ExprKind::Match(Match {
-                        arms: Vec::<MatchArm>::decode(buf, ind, session)?,
-                        value: Box::new(Expr::decode(buf, ind, session)?),
+                        arms: Vec::<MatchArm>::decode(buf, index, session)?,
+                        value: Box::new(Expr::decode(buf, index, session)?),
                     })),
                     11 => Ok(ExprKind::Lambda(Lambda {
-                        args: Vec::<Arg>::decode(buf, ind, session)?,
-                        value: Box::new(Expr::decode(buf, ind, session)?),
-                        captured_values: Vec::<Expr>::decode(buf, ind, session)?,
-                        uid: Uid::decode(buf, ind, session)?,
-                        return_ty: Option::<Box<Type>>::decode(buf, ind, session)?,
-                        lowered_from_scoped_let: bool::decode(buf, ind, session)?,
+                        args: Vec::<Arg>::decode(buf, index, session)?,
+                        value: Box::new(Expr::decode(buf, index, session)?),
+                        captured_values: Vec::<Expr>::decode(buf, index, session)?,
+                        uid: Uid::decode(buf, index, session)?,
+                        return_ty: Option::<Box<Type>>::decode(buf, index, session)?,
+                        lowered_from_scoped_let: bool::decode(buf, index, session)?,
                     })),
-                    12 => Ok(ExprKind::Branch(Branch { arms: Vec::<BranchArm>::decode(buf, ind, session)? })),
+                    12 => Ok(ExprKind::Branch(Branch { arms: Vec::<BranchArm>::decode(buf, index, session)? })),
                     13 => Ok(ExprKind::StructInit(StructInit {
-                        struct_: Box::new(Expr::decode(buf, ind, session)?),
-                        fields: Vec::<StructInitField>::decode(buf, ind, session)?,
+                        struct_: Box::new(Expr::decode(buf, index, session)?),
+                        fields: Vec::<StructInitField>::decode(buf, index, session)?,
                     })),
                     14 => Ok(ExprKind::Path {
-                        head: Box::new(Expr::decode(buf, ind, session)?),
-                        tail: Vec::<IdentWithSpan>::decode(buf, ind, session)?,
+                        head: Box::new(Expr::decode(buf, index, session)?),
+                        tail: Vec::<IdentWithSpan>::decode(buf, index, session)?,
                     }),
                     15 => Ok(ExprKind::PrefixOp(
-                        PrefixOp::decode(buf, ind, session)?,
-                        Box::new(Expr::decode(buf, ind, session)?),
+                        PrefixOp::decode(buf, index, session)?,
+                        Box::new(Expr::decode(buf, index, session)?),
                     )),
                     16 => Ok(ExprKind::PostfixOp(
-                        PostfixOp::decode(buf, ind, session)?,
-                        Box::new(Expr::decode(buf, ind, session)?),
+                        PostfixOp::decode(buf, index, session)?,
+                        Box::new(Expr::decode(buf, index, session)?),
                     )),
                     17 => Ok(ExprKind::InfixOp(
-                        InfixOp::decode(buf, ind, session)?,
-                        Box::new(Expr::decode(buf, ind, session)?),
-                        Box::new(Expr::decode(buf, ind, session)?),
+                        InfixOp::decode(buf, index, session)?,
+                        Box::new(Expr::decode(buf, index, session)?),
+                        Box::new(Expr::decode(buf, index, session)?),
                     )),
-                    18.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    18.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -224,12 +224,12 @@ impl Endec for ScopedLet {
         self.is_real.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(ScopedLet {
-            name: IdentWithSpan::decode(buf, ind, session)?,
-            value: Expr::decode(buf, ind, session)?,
-            ty: Option::<Type>::decode(buf, ind, session)?,
-            is_real: bool::decode(buf, ind, session)?,
+            name: IdentWithSpan::decode(buf, index, session)?,
+            value: Expr::decode(buf, index, session)?,
+            ty: Option::<Type>::decode(buf, index, session)?,
+            is_real: bool::decode(buf, index, session)?,
         })
     }
 }
@@ -241,11 +241,11 @@ impl Endec for MatchArm {
         self.guard.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(MatchArm {
-            pattern: Pattern::decode(buf, ind, session)?,
-            value: Expr::decode(buf, ind, session)?,
-            guard: Option::<Expr>::decode(buf, ind, session)?,
+            pattern: Pattern::decode(buf, index, session)?,
+            value: Expr::decode(buf, index, session)?,
+            guard: Option::<Expr>::decode(buf, index, session)?,
         })
     }
 }
@@ -257,11 +257,11 @@ impl Endec for BranchArm {
         self.value.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(BranchArm {
-            cond: Option::<Expr>::decode(buf, ind, session)?,
-            pattern_bind: Option::<Expr>::decode(buf, ind, session)?,
-            value: Expr::decode(buf, ind, session)?,
+            cond: Option::<Expr>::decode(buf, index, session)?,
+            pattern_bind: Option::<Expr>::decode(buf, index, session)?,
+            value: Expr::decode(buf, index, session)?,
         })
     }
 }
@@ -272,10 +272,10 @@ impl Endec for StructInitField {
         self.value.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(StructInitField {
-            name: IdentWithSpan::decode(buf, ind, session)?,
-            value: Expr::decode(buf, ind, session)?,
+            name: IdentWithSpan::decode(buf, index, session)?,
+            value: Expr::decode(buf, index, session)?,
         })
     }
 }

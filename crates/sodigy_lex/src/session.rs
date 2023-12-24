@@ -63,7 +63,7 @@ impl LexSession {
             _ => {
                 self.tokens.push(Token {
                     kind: TokenKind::Whitespace,
-                    span: SpanRange::dummy(15),
+                    span: SpanRange::dummy(16),
                 });
             }
         }

@@ -144,12 +144,18 @@ impl Session {
     }
 
     fn get_fs_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {
+        let lock = unsafe { LOCK.lock().unwrap() };
+
         match self.file_cache.get(hash) {
             // it's just `Ok(v)`
             // the compiler thinks `v` and `self.get_fs_file_content` violates the borrow rules,
             // but they don't! It's a limitation of the current borrow checker
             // the Rust team says the next version of the borrow checker will fix this
-            Some(v) => unsafe { Ok(&*(v as *const [u8])) },
+            Some(v) => unsafe {
+                drop(lock);
+
+                Ok(&*(v as *const [u8]))
+            },
 
             None => {
                 let path = match self.files.get(&hash) {
@@ -160,6 +166,7 @@ impl Session {
                 };
 
                 self.file_cache.insert(hash, path)?;
+                drop(lock);
 
                 self.get_fs_file_content(hash)
             },

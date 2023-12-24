@@ -6,7 +6,7 @@ impl Endec for Type {
         self.0.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(Type(Expr::decode(buf, ind, session)?))
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(Type(Expr::decode(buf, index, session)?))
     }
 }

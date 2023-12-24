@@ -1,28 +1,52 @@
-use super::compile_input;
+use crate::{ErrorsAndWarnings, run};
+use sodigy_clap::CompilerOption;
+
+// TODO: nicer return type
+fn compile_raw_input(code: Vec<u8>) -> ErrorsAndWarnings {
+    // TODO
+    // `FileSession` can handle tmp files, but this function is not utilizing tmp files...
+    // In order to use tmp files, all the functions in `./stages.rs` have to be modified.
+    // That's another inefficiency: tmp files are only used in tests, but the modified stages
+    // will add overheads in real use cases...
+    // So, for now, I'm creating an actual file and make the compiler read the file
+    use sodigy_files::*;
+
+    // let's avoid name collisions with `rand::random`
+    let file_name = format!("./__{:x}.tmp", rand::random::<u128>());
+    write_bytes(&file_name, &code, WriteMode::CreateOrTruncate).unwrap();
+    let res = run(CompilerOption::test_runner(&file_name));
+    remove_file(&file_name).unwrap();
+
+    res
+}
 
 macro_rules! check_output {
     (stmt, err, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_errors, $test_name, "", $body, "", $msg);
+        check_output!(concat_errors, $test_name, vec![], ($body).as_bytes().to_vec(), vec![], $msg);
     };
     (expr, err, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_errors, $test_name, "let foo(x: Int, y: Int) = ", $body, ";", $msg);
+        check_output!(concat_errors, $test_name, b"let foo(x: Int, y: Int) = ".to_vec(), ($body).as_bytes().to_vec(), vec![b';'], $msg);
     };
     (stmt, warn, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_warnings, $test_name, "", $body, "", $msg);
+        check_output!(concat_warnings, $test_name, vec![], ($body).as_bytes().to_vec(), vec![], $msg);
     };
     (expr, warn, $test_name: ident, $body: expr, $msg: expr) => {
-        check_output!(concat_warnings, $test_name, "let foo(x: Int, y: Int) = ", $body, ";", $msg);
+        check_output!(concat_warnings, $test_name, b"let foo(x: Int, y: Int) = ".to_vec(), ($body).as_bytes().to_vec(), vec![b';'], $msg);
+    };
+    (non_utf8, $test_name: ident, $body: expr, $msg: expr) => {
+        check_output!(concat_errors, $test_name, vec![], $body, vec![], $msg);
     };
     ($error_or_warning: ident, $test_name: ident, $prefix: expr, $body: expr, $suffix: expr, $msg: expr) => {
         #[test]
         fn $test_name() {
-            let code = format!(
-                "{}{}{}",
-                $prefix, $body, $suffix,
-            );
-            let mut res = compile_input(
-                code.as_bytes().to_vec()
-            );
+            let code = vec![
+                $prefix,
+                $body,
+                $suffix,
+            ].concat();
+            let code_str = String::from_utf8_lossy(&code).to_string();
+            let mut res = compile_raw_input(code);
+
             let output = res.$error_or_warning();
             let msg_normalized = String::from_utf8_lossy(&normalize($msg)).to_string();
             let output_normalized = String::from_utf8_lossy(&normalize(&output)).to_string();
@@ -32,7 +56,7 @@ macro_rules! check_output {
 
             if !output_normalized.contains(&msg_normalized) || always_panic {
                 panic!(
-                    "\n-----\nCode: {code}\n\nExpected: {}\n\nGot: \n{output}\n-----\n",
+                    "\n-----\nCode: {code_str}\n\nExpected: {}\n\nGot: \n{output}\n-----\n",
                     $msg,
                 );
             }
@@ -70,8 +94,52 @@ check_output!(stmt, err, stmt_test3, "let foo<GenericName>() = generic_name;", "
 check_output!(stmt, err, stmt_test4, "let foo<GenericName, >() = generic_name;", "similar name exists");
 check_output!(stmt, err, stmt_test5, "def PI = 3;", "Do you mean `let`?");
 check_output!(stmt, err, stmt_test6, "ket foo() = 3;", "you mean `let`?");
+check_output!(stmt, err, stmt_test7, "let ZERO: int = 0;", "undefined name `int`");
+check_output!(stmt, err, stmt_test8, "let lambda_test: Int = {
+    # 한글 주석은 달아도 되지?
+    let l = \\{x: Int, y: InvalidName, x + y + a + b};
+    let a: Int = 3;
+
+    l(a)
+};", "undefined name `InvalidName`");
+check_output!(stmt, err, stmt_test9, "let name_test: Int = {
+    let 🦫 = \"beaver\";
+
+    0
+};", "got character '🦫'");
 check_output!(stmt, err, no_dependent_types1, "let foo(x: y, y: Int) = 0;", "dependent types");
 check_output!(stmt, err, no_dependent_types2, "let foo(x: Int, y: x) = 0;", "dependent types");
+check_output!(stmt, err, long_error_span, "
+# Long Error Spans
+
+\"
+ErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorError
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+                                                                                                                             Error
+\"
+", "expected a statement, got `\"...\"`");
+
+// TODO: more name collisions
+check_output!(stmt, err, name_collision1, "let foo = 3; module foo;", "`foo` is bound multiple times");
+
+// non-utf8 inputs
+check_output!(non_utf8, non_utf8_comment, make_non_utf8("# U\nlet main = 123;"), "invalid utf-8");
+check_output!(non_utf8, non_utf8_ident, make_non_utf8("let main = {let U = 1; let x = 2; x + y};"), "invalid utf-8");
+check_output!(non_utf8, non_utf8_string, make_non_utf8("let main = \"U\";"), "invalid utf-8");
 
 // error messages for invalid exprs
 check_output!(expr, err, expr_test1, "1...3.", "invalid literal: `...`");
@@ -134,6 +202,7 @@ check_output!(expr, err, expr_test48, "
     }", "`z` is bound multiple times");
 check_output!(expr, err, expr_test49, "{let ($x, $y) = (0, 1); x}", "use `let pattern`");
 check_output!(expr, err, expr_test50, "{let pattern ($x, .., ..) = (0, 1, 2, 3, 4); x}", "multiple shorthands");
+check_output!(expr, err, expr_test51, "[[1, 2, 3, 4[], 5]]", "got nothing");
 
 // TODO
 // check_output!(expr, err, expr_test51, "{let pattern ($x .. $y) = (0, 1, 2); x}", "TODO: tell the user kindly that there should be a comma");
@@ -168,3 +237,21 @@ check_output!(expr, warn, expr_warn_test10, "
         x + y + z
     }", "unused local name binding in a scoped let: `w`");
 check_output!(expr, warn, expr_warn_test11, "{let pattern ($x @ _, $y) = (0, 1); y}", "name binding on wildcard");
+
+fn make_non_utf8(s: &str) -> Vec<u8> {
+    let mut result = Vec::with_capacity(s.len() + 4);
+
+    for c in s.as_bytes().iter() {
+        if *c == b'U' {
+            result.push(200);
+            result.push(200);
+            result.push(200);
+        }
+
+        else {
+            result.push(*c);
+        }
+    }
+
+    result
+}

@@ -130,10 +130,10 @@ impl fmt::Display for ExprKind {
             ExprKind::Branch(Branch { arms }) => {
                 let mut result = Vec::with_capacity(arms.len());
 
-                for (ind, BranchArm { cond, pattern_bind, value }) in arms.iter().enumerate() {
+                for (index, BranchArm { cond, pattern_bind, value }) in arms.iter().enumerate() {
                     result.push(format!(
                         "{}{}{}",
-                        if ind == 0 {
+                        if index == 0 {
                             "if "
                         } else if cond.is_some() {
                             "else if "

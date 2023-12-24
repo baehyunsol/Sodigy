@@ -63,8 +63,8 @@ pub fn lower_ast_enum(
             // let Some<T>(val: T): Option(T) = ...;
             ast::VariantKind::Tuple(types) => {
                 let args = types.iter().enumerate().map(
-                    |(ind, ty)| ast::ArgDef {
-                        name: session.make_nth_arg_name(ind),
+                    |(index, ty)| ast::ArgDef {
+                        name: session.make_nth_arg_name(index),
                         ty: Some(ty.clone()),
                         has_question_mark: false,
                         attributes: vec![],

@@ -12,7 +12,7 @@ impl Endec for u8 {
         }
 
         else {
-            return Err(EndecError::Eof);
+            return Err(EndecError::eof());
         }
     }
 }
@@ -33,7 +33,7 @@ impl Endec for u16 {
 
                 Ok(((*m as u16) << 8) | *n as u16)
             },
-            _ => Err(EndecError::Eof),
+            _ => Err(EndecError::eof()),
         }
     }
 }
@@ -83,19 +83,19 @@ impl Endec for u32 {
                 *index += 1;
 
                 if *n < (1 << 7) {
-                    result = result.checked_shl(7).ok_or(EndecError::Overflow)?;
-                    result = result.checked_add(*n as u32).ok_or(EndecError::Overflow)?;
+                    result = result.checked_shl(7).ok_or(EndecError::overflow())?;
+                    result = result.checked_add(*n as u32).ok_or(EndecError::overflow())?;
                     return Ok(result);
                 }
 
                 else {
-                    result = result.checked_shl(7).ok_or(EndecError::Overflow)?;
-                    result = result.checked_add((*n - (1 << 7)) as u32).ok_or(EndecError::Overflow)?;
+                    result = result.checked_shl(7).ok_or(EndecError::overflow())?;
+                    result = result.checked_add((*n - (1 << 7)) as u32).ok_or(EndecError::overflow())?;
                 }
             }
 
             else {
-                return Err(EndecError::Eof);
+                return Err(EndecError::eof());
             }
         }
     }
@@ -212,19 +212,19 @@ impl Endec for u64 {
                 *index += 1;
 
                 if *n < (1 << 7) {
-                    result = result.checked_shl(7).ok_or_else(|| EndecError::Overflow)?;
-                    result = result.checked_add(*n as u64).ok_or_else(|| EndecError::Overflow)?;
+                    result = result.checked_shl(7).ok_or_else(|| EndecError::overflow())?;
+                    result = result.checked_add(*n as u64).ok_or_else(|| EndecError::overflow())?;
                     return Ok(result);
                 }
 
                 else {
-                    result = result.checked_shl(7).ok_or_else(|| EndecError::Overflow)?;
-                    result = result.checked_add((*n - (1 << 7)) as u64).ok_or_else(|| EndecError::Overflow)?;
+                    result = result.checked_shl(7).ok_or_else(|| EndecError::overflow())?;
+                    result = result.checked_add((*n - (1 << 7)) as u64).ok_or_else(|| EndecError::overflow())?;
                 }
             }
 
             else {
-                return Err(EndecError::Eof);
+                return Err(EndecError::eof());
             }
         }
     }

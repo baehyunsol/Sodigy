@@ -15,13 +15,13 @@ impl Endec for HirSession {
         // There's no point in encoding the other fields
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         let mut res = Self::new();
 
         // There's no point in decoding the other fields
-        res.errors = Vec::<HirError>::decode(buf, ind, session)?;
-        res.warnings = Vec::<HirWarning>::decode(buf, ind, session)?;
-        res.func_defs = HashMap::<InternedString, Func>::decode(buf, ind, session)?;
+        res.errors = Vec::<HirError>::decode(buf, index, session)?;
+        res.warnings = Vec::<HirWarning>::decode(buf, index, session)?;
+        res.func_defs = HashMap::<InternedString, Func>::decode(buf, index, session)?;
 
         Ok(res)
     }

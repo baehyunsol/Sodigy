@@ -1,5 +1,5 @@
 #![deny(unused_imports)]
-use sodigy_files::{FileError, WriteMode, remove_file, write_bytes};
+use sodigy_files::{FileError, WriteMode, read_bytes, remove_file, write_bytes};
 use std::collections::HashMap;
 
 mod error;
@@ -17,7 +17,7 @@ pub trait Endec {
     fn encode(&self, buf: &mut Vec<u8>, sess: &mut EndecSession);
 
     /// It moves the cursor (`ind`) after decoding. If the decoding fails, it may or may not move the cursor.
-    fn decode(buf: &[u8], ind: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> where Self: Sized;
+    fn decode(buf: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> where Self: Sized;
 
     fn save_to_file(&self, path: &str) -> Result<(), FileError> {
         let mut buffer = vec![];
@@ -38,6 +38,22 @@ pub trait Endec {
 
         Ok(())
     }
+
+    fn load_from_file(path: &str) -> Result<Self, EndecError> where Self: Sized {
+        match read_bytes(path) {
+            Ok(b) => {
+                let mut index = 0;
+                let mut session = EndecSession::decode_metadata(&b, &mut index).map_err(
+                    |mut e| e.set_path(&path.to_string()).to_owned()
+                )?;
+
+                Self::decode(&b, &mut index, &mut session)
+            },
+            Err(e) => {
+                return Err(e.into());
+            },
+        }
+    }
 }
 
 impl Endec for char {
@@ -45,10 +61,10 @@ impl Endec for char {
         (*self as u32).encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let c = u32::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let c = u32::decode(buf, index, session)?;
 
-        char::from_u32(c).ok_or_else(|| EndecError::FromUtf8Error)
+        char::from_u32(c).ok_or_else(|| EndecError::invalid_char(c))
     }
 }
 
@@ -57,18 +73,18 @@ impl Endec for bool {
         buf.push(*self as u8);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(false),
                     1 => Ok(true),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -79,8 +95,8 @@ impl Endec for String {
         (<&str as Into<Vec<u8>>>::into(&self)).encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let v8 = Vec::<u8>::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let v8 = Vec::<u8>::decode(buf, index, session)?;
 
         String::from_utf8(v8).map_err(|e| e.into())
     }
@@ -96,13 +112,13 @@ impl <T: Endec + std::hash::Hash + std::cmp::Eq, U: Endec> Endec for HashMap<T, 
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let len = usize::decode(buf, index, session)?;
         let mut result = HashMap::with_capacity(len);
 
         for _ in 0..len {
-            let k = T::decode(buf, ind, session)?;
-            let v = U::decode(buf, ind, session)?;
+            let k = T::decode(buf, index, session)?;
+            let v = U::decode(buf, index, session)?;
             result.insert(k, v);
         }
 
@@ -119,12 +135,12 @@ impl<T: Endec> Endec for Vec<T> {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, ind, session)?;
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let len = usize::decode(buf, index, session)?;
         let mut result = Vec::with_capacity(len);
 
         for _ in 0..len {
-            result.push(T::decode(buf, ind, session)?);
+            result.push(T::decode(buf, index, session)?);
         }
 
         Ok(result)
@@ -143,18 +159,18 @@ impl<T: Endec> Endec for Option<T> {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(None),
-                    1 => Ok(Some(T::decode(buf, ind, session)?)),
-                    2.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    1 => Ok(Some(T::decode(buf, index, session)?)),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
@@ -165,10 +181,10 @@ impl<T: Endec, U: Endec> Endec for (T, U) {
         self.1.encode(buf, sess);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
         Ok((
-            T::decode(buf, ind, sess)?,
-            U::decode(buf, ind, sess)?,
+            T::decode(buf, index, sess)?,
+            U::decode(buf, index, sess)?,
         ))
     }
 }
@@ -178,7 +194,7 @@ impl <T: Endec> Endec for Box<T> {
         self.as_ref().encode(buf, sess);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(Box::new(T::decode(buf, ind, sess)?))
+    fn decode(buf: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(Box::new(T::decode(buf, index, sess)?))
     }
 }

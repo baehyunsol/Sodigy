@@ -13,15 +13,15 @@ impl Endec for ParseSession {
         self.has_unexpanded_macros.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         // there's no point in decoding InternSession
 
         Ok(ParseSession {
-            tokens: Vec::<TokenTree>::decode(buf, ind, session)?,
-            errors: Vec::<ParseError>::decode(buf, ind, session)?,
-            warnings: Vec::<ParseWarning>::decode(buf, ind, session)?,
+            tokens: Vec::<TokenTree>::decode(buf, index, session)?,
+            errors: Vec::<ParseError>::decode(buf, index, session)?,
+            warnings: Vec::<ParseWarning>::decode(buf, index, session)?,
             interner: InternSession::new(),
-            has_unexpanded_macros: bool::decode(buf, ind, session)?,
+            has_unexpanded_macros: bool::decode(buf, index, session)?,
         })
     }
 }

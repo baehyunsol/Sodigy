@@ -12,12 +12,12 @@ impl Endec for Pattern {
         self.bind.encode(buf, session);
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Pattern {
-            kind: PatternKind::decode(buf, ind, session)?,
-            span: SpanRange::decode(buf, ind, session)?,
-            ty: Option::<Type>::decode(buf, ind, session)?,
-            bind: Option::<IdentWithSpan>::decode(buf, ind, session)?,
+            kind: PatternKind::decode(buf, index, session)?,
+            span: SpanRange::decode(buf, index, session)?,
+            ty: Option::<Type>::decode(buf, index, session)?,
+            bind: Option::<IdentWithSpan>::decode(buf, index, session)?,
         })
     }
 }
@@ -27,7 +27,7 @@ impl Endec for PatternKind {
         todo!()
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         todo!()
     }
 }

@@ -10,19 +10,19 @@ impl Endec for Delim {
         }
     }
 
-    fn decode(buf: &[u8], ind: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*ind) {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
             Some(n) => {
-                *ind += 1;
+                *index += 1;
 
                 match *n {
                     0 => Ok(Delim::Brace),
                     1 => Ok(Delim::Bracket),
                     2 => Ok(Delim::Paren),
-                    3.. => Err(EndecError::InvalidEnumVariant { variant_index: *n }),
+                    3.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
-            None => Err(EndecError::Eof),
+            None => Err(EndecError::eof()),
         }
     }
 }
