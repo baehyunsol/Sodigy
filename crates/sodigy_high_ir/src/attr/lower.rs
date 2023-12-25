@@ -64,7 +64,6 @@ pub fn lower_ast_attributes(
     for attribute in attributes.iter() {
         match attribute {
             ast::Attribute::DocComment(d) => {
-                // the `concat_doc_comments` function takes `Vec<(InternedString, T)>` type
                 doc_comments.push(*d);
             }
             ast::Attribute::Decorator(d) => {

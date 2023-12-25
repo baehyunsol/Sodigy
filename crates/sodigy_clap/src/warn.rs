@@ -33,6 +33,18 @@ impl ClapWarning {
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
+
+    pub fn path_is_set_flag_is_not_set(
+        is_set: Flag,
+        is_not_set: Flag,
+        spans: Vec<SpanRange>,
+    ) -> Self {
+        ClapWarning {
+            kind: ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set },
+            spans: spans.into(),
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
 }
 
 impl SodigyError<ClapWarningKind> for ClapWarning {
@@ -72,6 +84,10 @@ pub enum ClapWarningKind {
         format: IrStage,
     },
     SameFlagMultipleTimes(Flag),
+    PathIsSetFlagIsNotSet {
+        is_set: Flag,
+        is_not_set: Flag,
+    },
 }
 
 impl SodigyErrorKind for ClapWarningKind {
@@ -79,6 +95,7 @@ impl SodigyErrorKind for ClapWarningKind {
         match self {
             ClapWarningKind::ExtMismatch { .. } => String::from("mismatch between the extension of path and `--to` option"),
             ClapWarningKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
+            ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set } => format!("`{}` is set, but `{}` is not set", is_set.render_error(), is_not_set.render_error()),
         }
     }
 
@@ -90,6 +107,7 @@ impl SodigyErrorKind for ClapWarningKind {
                 format.render_error(),
             ),
             ClapWarningKind::SameFlagMultipleTimes(_) => String::new(),
+            ClapWarningKind::PathIsSetFlagIsNotSet { is_set, .. } => format!("`{}` doesn't do anything.", is_set.render_error()),
         }
     }
 
@@ -98,6 +116,7 @@ impl SodigyErrorKind for ClapWarningKind {
         match self {
             ClapWarningKind::ExtMismatch { .. } => 0,
             ClapWarningKind::SameFlagMultipleTimes(_) => 1,
+            ClapWarningKind::PathIsSetFlagIsNotSet { .. } => 2,
         }
     }
 }

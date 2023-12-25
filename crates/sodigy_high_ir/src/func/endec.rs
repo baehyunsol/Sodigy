@@ -35,6 +35,7 @@ impl Endec for Arg {
         self.name.encode(buf, session);
         self.ty.encode(buf, session);
         self.has_question_mark.encode(buf, session);
+        self.attributes.encode(buf, session);
     }
 
     fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -42,6 +43,7 @@ impl Endec for Arg {
             name: IdentWithSpan::decode(buf, index, session)?,
             ty: Option::<Type>::decode(buf, index, session)?,
             has_question_mark: bool::decode(buf, index, session)?,
+            attributes: Vec::<Attribute>::decode(buf, index, session)?,
         })
     }
 }

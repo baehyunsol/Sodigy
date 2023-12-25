@@ -4,7 +4,7 @@ use sodigy_parse::Punct;
 mod endec;
 mod fmt;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PrefixOp {
     Not,
     Neg,
@@ -22,7 +22,7 @@ impl TryFrom<Punct> for PrefixOp {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum PostfixOp {
     Range,
     QuestionMark,
@@ -40,7 +40,7 @@ impl TryFrom<Punct> for PostfixOp {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum InfixOp {
     Add,
     Sub,

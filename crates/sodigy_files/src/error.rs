@@ -100,6 +100,17 @@ impl FileError {
             ),
         }
     }
+
+    pub fn hash_u64(&self) -> u64 {
+        let mut hasher = hash_map::DefaultHasher::new();
+        hasher.write(&self.kind.hash_u64().to_be_bytes());
+
+        if let Some(p) = &self.given_path {
+            hasher.write(p.as_bytes());
+        }
+
+        hasher.finish()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

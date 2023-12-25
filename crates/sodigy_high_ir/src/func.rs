@@ -28,6 +28,7 @@ pub struct Arg {
     pub name: IdentWithSpan,
     pub ty: Option<hir::Type>,
     pub has_question_mark: bool,
+    pub attributes: Vec<hir::Attribute>,
 }
 
 #[derive(Clone)]

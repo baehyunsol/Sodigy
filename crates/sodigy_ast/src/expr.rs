@@ -4,7 +4,7 @@ use sodigy_span::SpanRange;
 
 mod fmt;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: SpanRange,
@@ -32,7 +32,7 @@ impl Expr {
  *  match: keyword `match`              *
  ****************************************/
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ExprKind {
     Value(ValueKind),
     PrefixOp(PrefixOp, Box<Expr>),

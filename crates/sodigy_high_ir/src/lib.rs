@@ -120,6 +120,7 @@ pub fn lower_stmts(
         let span = stmt.span;
 
         match &stmt.kind {
+            // TODO: collect attributes in AST level: AST::Let has `.attributes`
             StmtKind::DocComment(c) => {
                 ast_attributes.push(ast::Attribute::DocComment(IdentWithSpan::new(*c, span)));
             },

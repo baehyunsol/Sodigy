@@ -55,16 +55,17 @@ impl ErrorsAndWarnings {
         ).collect::<Vec<String>>().join("\n\n")
     }
 
-    pub fn print_results(&mut self) {
-        println!("{}\n", self.concat_warnings());
-        println!("{}\n", self.concat_errors());
-
-        println!(
-            "had {} error{} and {} warning{} in total",
-            self.errors.len(),
-            if self.errors.len() < 2 { "" } else { "s" },
-            self.warnings.len(),
-            if self.warnings.len() < 2 { "" } else { "s" },
-        );
+    pub fn concat_results(&mut self) -> String {
+        vec![
+            self.concat_warnings(),
+            self.concat_errors(),
+            format!(
+                "had {} error{} and {} warning{} in total",
+                self.errors.len(),
+                if self.errors.len() < 2 { "" } else { "s" },
+                self.warnings.len(),
+                if self.warnings.len() < 2 { "" } else { "s" },
+            ),
+        ].join("\n\n")
     }
 }

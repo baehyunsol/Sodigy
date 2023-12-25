@@ -134,7 +134,7 @@ pub fn render_spans(spans: &[SpanRange], color: ColorScheme) -> String {
 
             else {
                 if line.has_highlighted_char {
-                    if let None = pos {
+                    if pos.is_none() {
                         pos = Some(line.get_pos());
                     }
                 }

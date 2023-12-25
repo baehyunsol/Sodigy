@@ -53,7 +53,7 @@ impl IdentWithSpan {
 
 pub type DottedNames = Vec<IdentWithSpan>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ArgDef {
     pub name: IdentWithSpan,
     pub ty: Option<TypeDef>,
@@ -67,7 +67,7 @@ impl ArgDef {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ScopeBlock {
     pub lets: Vec<Let>,
     pub value: Box<Expr>,
@@ -80,7 +80,7 @@ impl ScopeBlock {
 }
 
 // for now, a type is a comp-time evaluable expression, whose type is `Type`.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TypeDef(pub Expr);
 
 impl TypeDef {
@@ -91,7 +91,7 @@ impl TypeDef {
 
 pub type GenericDef = IdentWithSpan;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
@@ -99,14 +99,14 @@ pub struct MatchArm {
     pub uid: Uid,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BranchArm {
     pub cond: Option<Expr>,
     pub pattern_bind: Option<Pattern>,  // `if pattern` pattern_bind = cond { value }
     pub value: Expr,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StructInitDef {
     pub field: IdentWithSpan,
     pub value: Expr,

@@ -4,6 +4,7 @@ use crate::token::{Token, TokenKind, TokenValue};
 use sodigy_files::{FileHash, global_file_session};
 use sodigy_span::SpanPoint;
 
+// TODO: break lines if the input is too long
 /// It converts command line arguments into a file, so that we can use spans.
 pub fn into_file() -> (Vec<u8>, FileHash) {
     let mut args = std::env::args().map(

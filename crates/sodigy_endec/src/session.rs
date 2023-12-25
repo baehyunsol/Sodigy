@@ -91,6 +91,7 @@ impl EndecSession {
                 let n: EncodedInternal = self.str_map.len().into();
 
                 self.str_map.insert(s, n);
+                self.str_map_rev.insert(n, s);
                 self.str_table.insert(n, unintern_string(s));
 
                 n
@@ -105,6 +106,7 @@ impl EndecSession {
                 let n: EncodedInternal = self.num_map.len().into();
 
                 self.num_map.insert(s, n);
+                self.num_map_rev.insert(n, s);
                 self.num_table.insert(n, unintern_numeric(s));
 
                 n

@@ -57,7 +57,7 @@ impl ParseSession {
 
     /// EXPENSIVE
     pub fn dump_tokens(&self) -> String {
-        self.tokens.iter().map(|t| format!("{t}")).collect::<Vec<String>>().join(" ")
+        self.tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" ")
     }
 
     pub fn get_errors(&self) -> &Vec<ParseError> {

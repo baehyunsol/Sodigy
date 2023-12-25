@@ -17,7 +17,7 @@ pub use expected_token::ExpectedToken;
 pub use fmt::RenderError;
 pub use universal::UniversalError;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ExtraErrInfo {
     // very context-specific message for an error,
     // for example, there may be a very specific context for `UnexpectedToken`s (suspicious typos, deprecated features, etc...)
@@ -67,7 +67,7 @@ impl ExtraErrInfo {
 }
 
 // TODO: Option<SpanRange> for ErrorContext
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ErrorContext {
     Unknown,
     ParsingCommandLine,

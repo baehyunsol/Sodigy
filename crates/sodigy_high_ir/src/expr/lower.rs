@@ -16,6 +16,7 @@ use super::{
     },
 };
 use crate::lower_ast_ty;
+use crate::attr::lower_ast_attributes;
 use crate::error::HirError;
 use crate::func::Arg;
 use crate::names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
@@ -203,7 +204,6 @@ pub fn lower_ast_expr(
                 let mut captured_values = vec![];
                 let mut has_error = false;
 
-                // TODO: lower attributes
                 for ast::ArgDef { name, ty, has_question_mark, attributes } in args.iter() {
                     match arg_names.insert(name.id(), *name) {
                         Some(prev) => {
@@ -236,16 +236,32 @@ pub fn lower_ast_expr(
                             Some(ty)
                         } else {
                             has_error = true;
+
                             None
                         }
                     } else {
                         None
                     };
 
+                    let attributes = if let Ok(attributes) = lower_ast_attributes(
+                        attributes,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    ) {
+                        attributes
+                    } else {
+                        has_error = true;
+
+                        vec![]
+                    };
+
                     hir_args.push(Arg {
                         name: *name,
                         ty,
                         has_question_mark: *has_question_mark,
+                        attributes,
                     });
                 }
 

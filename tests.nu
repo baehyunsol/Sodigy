@@ -60,6 +60,8 @@ cargo test --release
 # it requires `cargo-depgraph`
 cargo depgraph | dot -Tpng | save -f dep_graph.png
 
+nu clean.nu
+
 let end = date now | date to-record
 let end_sec = $end.second + $end.minute * 60 + $end.hour * 3600 + $end.day * 86400
 

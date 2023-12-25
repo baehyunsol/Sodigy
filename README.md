@@ -370,6 +370,10 @@ You can shift negative counts. For example, `a << -5` is `a >> 5`.
 
 ## Comments
 
+TODO: use `#>` instead of `##>`.
+
+TODO: use `#!` and `!#` instead of `##!` and `!##`.
+
 `#` for a single line comment, `##>` for a doc-comment and `##!` \~ `!##` for a multiline comment.
 
 ```
@@ -385,6 +389,10 @@ let add(x: Int, y: Int): Int = x + y;
 ```
 
 `##! ... !##`s can be nested, of course.
+
+## Macros
+
+TODO
 
 ## For Rust programmers
 

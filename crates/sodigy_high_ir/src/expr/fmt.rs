@@ -110,7 +110,8 @@ impl fmt::Display for ExprKind {
             ExprKind::Lambda(Lambda { args, value, .. }) => {
                 let mut result = Vec::with_capacity(args.len() + 1);
 
-                for Arg { name, ty, has_question_mark } in args.iter() {
+                for Arg { name, ty, has_question_mark, attributes } in args.iter() {
+                    // TODO: render `attributes`
                     result.push(format!(
                         "{}{}{}",
                         name.id(),

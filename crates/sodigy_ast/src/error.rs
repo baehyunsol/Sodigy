@@ -1,5 +1,6 @@
 use crate::{IdentWithSpan, Token, TokenKind};
 use crate::pattern::{Pattern, PatternKind};
+use crate::stmt::Attribute;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     substr_edit_distance,
@@ -19,7 +20,7 @@ const STMT_START_KEYWORDS: [&'static str; 3] = [
     "let", "module", "import",
 ];
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AstError {
     pub(crate) kind: AstErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
@@ -192,6 +193,14 @@ impl AstError {
         }
     }
 
+    pub fn stranded_attribute(attributes: Vec<Attribute>, ctxt: AttributeIn) -> Self {
+        AstError {
+            kind: AstErrorKind::StrandedAttribute { ctxt, multiple_attributes: attributes.len() > 1 },
+            spans: attributes.iter().map(|attr| attr.span()).collect(),
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingFuncArgs),
+        }
+    }
+
     pub fn invalid_utf8(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
@@ -235,7 +244,7 @@ impl SodigyError<AstErrorKind> for AstError {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AstErrorKind {
     UnexpectedToken(TokenKind, ExpectedToken<TokenKind>),
     UnexpectedEnd(ExpectedToken<TokenKind>),
@@ -250,6 +259,11 @@ pub enum AstErrorKind {
     ExpectedBindingGotPattern(PatternKind),
     MultipleShorthandsInOnePattern,
     NoGenericsAllowed,
+    StrandedAttribute {
+        // these fields help making nicer error messages
+        ctxt: AttributeIn,
+        multiple_attributes: bool,
+    },
     InvalidUtf8,
     TODO(String),
 }
@@ -270,6 +284,23 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::ExpectedBindingGotPattern(p) => format!("expected a name binding, get pattern `{}`", p.render_error()),
             AstErrorKind::MultipleShorthandsInOnePattern => String::from("multiple shorthands in one pattern"),
             AstErrorKind::NoGenericsAllowed => String::from("generic parameter not allowed here"),
+            AstErrorKind::StrandedAttribute { ctxt, multiple_attributes } => {
+                let (a, s) = if *multiple_attributes {
+                    ("", "s")
+                } else {
+                    ("a ", "")
+                };
+
+                let ctxt = match ctxt {
+                    AttributeIn::TopLevel => " source code",
+                    AttributeIn::FuncArg => " function argument list",
+                    AttributeIn::ScopedLet => " scoped block",
+                    AttributeIn::Enum => "n enum body",
+                    AttributeIn::Struct => " struct body",
+                };
+
+                format!("{a}stranded attribute{s} in a{ctxt}")
+            },
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -300,6 +331,15 @@ impl SodigyErrorKind for AstErrorKind {
                 ),
                 _ => String::new(),
             },
+            AstErrorKind::StrandedAttribute { multiple_attributes, .. } => {
+                let (this, s, does) = if *multiple_attributes {
+                    ("These", "s", "do")
+                } else {
+                    ("This", "", "does")
+                };
+
+                format!("{this} attribute{s} {does}n't do anything.")
+            },
             AstErrorKind::NoGenericsAllowed => String::from("Generic parameters are only allowed in top-level statements."),
             AstErrorKind::MultipleShorthandsInOnePattern
             | AstErrorKind::InvalidUtf8 => String::new(),
@@ -321,10 +361,23 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::ExpectedBindingGotPattern(..) => 10,
             AstErrorKind::MultipleShorthandsInOnePattern => 11,
             AstErrorKind::NoGenericsAllowed => 12,
-            AstErrorKind::InvalidUtf8 => 13,
+            AstErrorKind::StrandedAttribute { .. } => 13,
+            AstErrorKind::InvalidUtf8 => 14,
             AstErrorKind::TODO(..) => 63,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum AttributeIn {
+    TopLevel,
+    ScopedLet,
+    FuncArg,
+
+    // Those 2 are not instantiated:
+    // enum and struct bodies are parsed in a different way
+    Enum,
+    Struct,
 }
 
 // walk-around: the rust compiler doesn't allow me to define

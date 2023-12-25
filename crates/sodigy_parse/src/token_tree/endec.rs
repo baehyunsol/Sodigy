@@ -105,3 +105,60 @@ impl Endec for TokenTreeKind {
         }
     }
 }
+
+#[cfg(test)]
+use sodigy_intern::{intern_numeric, intern_string};
+
+#[cfg(test)]
+use sodigy_number::SodigyNumber;
+
+#[test]
+fn endec_test() {
+    let sample = vec![
+        TokenTree {
+            kind: TokenTreeKind::DocComment(intern_string((b"This is a doc-comment.").to_vec())),
+            span: SpanRange::dummy(10),
+        },
+        TokenTree {
+            kind: TokenTreeKind::Punct(Punct::At),
+            span: SpanRange::dummy(100),
+        },
+        TokenTree {
+            kind: TokenTreeKind::Identifier(intern_string((b"test").to_vec())),
+            span: SpanRange::dummy(101),
+        },
+        TokenTree {
+            kind: TokenTreeKind::Punct(Punct::Dot),
+            span: SpanRange::dummy(102),
+        },
+        TokenTree {
+            kind: TokenTreeKind::Identifier(intern_string((b"eq").to_vec())),
+            span: SpanRange::dummy(103),
+        },
+        TokenTree {
+            kind: TokenTreeKind::Group {
+                delim: Delim::Paren,
+                prefix: b'\0',
+                tokens: vec![
+                    TokenTree {
+                        kind: TokenTreeKind::Number(intern_numeric(SodigyNumber::SmallInt(0))),
+                        span: SpanRange::dummy(104),
+                    }
+                ],
+            },
+            span: SpanRange::dummy(105),
+        },
+    ];
+    let mut buf = vec![];
+    let mut session = EndecSession::new();
+
+    sample.encode(&mut buf, &mut session);
+
+    let mut index = 0;
+    let reconstructed = Vec::<TokenTree>::decode(&buf, &mut index, &mut session).unwrap();
+
+    assert_eq!(
+        format!("{sample:?}"),
+        format!("{reconstructed:?}"),
+    );
+}

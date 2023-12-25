@@ -7,20 +7,21 @@ use crate::{
     pattern::Pattern,
     TypeDef,
     VariantDef,
+    stmt::Attribute,
 };
 use sodigy_uid::Uid;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Let {
     pub kind: LetKind,
-
-    // TODO: `pub attributes: Vec<Attribute>,`
+    pub attributes: Vec<Attribute>,
 }
 
 impl Let {
-    pub fn pattern(pattern: Pattern, expr: Expr) -> Self {
+    pub fn pattern(pattern: Pattern, expr: Expr, attributes: Vec<Attribute>) -> Self {
         Let {
             kind: LetKind::Pattern(pattern, expr),
+            attributes,
         }
     }
 
@@ -30,6 +31,7 @@ impl Let {
         args: Option<Vec<ArgDef>>,
         return_ty: Option<TypeDef>,
         return_val: Expr,
+        attributes: Vec<Attribute>,
     ) -> Self {
         if let Some(args) = args {
             Let {
@@ -39,6 +41,7 @@ impl Let {
                     return_val,
                     uid: Uid::new_def(),
                 },
+                attributes,
             }
         }
 
@@ -49,6 +52,7 @@ impl Let {
                     return_ty, return_val,
                     uid: Uid::new_def(),
                 },
+                attributes,
             }
         }
     }
@@ -57,6 +61,7 @@ impl Let {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
         variants: Vec<VariantDef>,
+        attributes: Vec<Attribute>,
     ) -> Self {
         Let {
             kind: LetKind::Enum {
@@ -65,6 +70,7 @@ impl Let {
                 variants,
                 uid: Uid::new_enum(),
             },
+            attributes,
         }
     }
 
@@ -72,6 +78,7 @@ impl Let {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
         fields: Vec<FieldDef>,
+        attributes: Vec<Attribute>,
     ) -> Self {
         Let {
             kind: LetKind::Struct {
@@ -80,6 +87,7 @@ impl Let {
                 fields,
                 uid: Uid::new_struct(),
             },
+            attributes,
         }
     }
 
@@ -104,7 +112,7 @@ impl Let {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LetKind {
     Pattern(Pattern, Expr),
     Incallable {

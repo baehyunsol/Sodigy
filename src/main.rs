@@ -25,6 +25,6 @@ fn main() {
     else {
         let mut errors_and_warnings = run(clap_result.result);
 
-        errors_and_warnings.print_results();
+        println!("{}", errors_and_warnings.concat_results());
     }
 }

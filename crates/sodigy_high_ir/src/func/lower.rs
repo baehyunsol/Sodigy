@@ -73,11 +73,26 @@ pub fn lower_ast_func(
                 None
             };
 
+            let attributes = if let Ok(attributes) = lower_ast_attributes(
+                attributes,
+                session,
+                used_names,
+                imports,
+                name_space,
+            ) {
+                attributes
+            } else {
+                has_error = true;
+
+                vec![]
+            };
+
             // TODO: lower attributes
             args_buf.push(Arg {
                 name: *name,
                 ty,
                 has_question_mark: *has_question_mark,
+                attributes,
             });
         }
 

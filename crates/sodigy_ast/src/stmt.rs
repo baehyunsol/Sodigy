@@ -98,35 +98,56 @@ impl ImportedName {
 
 // attributes of enums and structs are collected later
 // in ast level, it only collects attributes of variants and fields
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Attribute {
     DocComment(IdentWithSpan),
     Decorator(Decorator),
 }
 
-#[derive(Clone)]
+impl Attribute {
+    pub fn span(&self) -> SpanRange {
+        match self {
+            Attribute::DocComment(iws) => *iws.span(),
+            Attribute::Decorator(dec) => dec.span(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct VariantDef {
     pub name: IdentWithSpan,
     pub args: VariantKind,
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum VariantKind {
     Empty,
     Tuple(Vec<TypeDef>),
     Struct(Vec<FieldDef>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FieldDef {
     pub name: IdentWithSpan,
     pub ty: TypeDef,
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Decorator {
     pub name: DottedNames,
     pub args: Option<Vec<Expr>>,
+}
+
+impl Decorator {
+    pub fn span(&self) -> SpanRange {
+        let mut result = *self.name[0].span();
+
+        for name in self.name[1..].iter() {
+            result = result.merge(*name.span());
+        }
+
+        result
+    }
 }

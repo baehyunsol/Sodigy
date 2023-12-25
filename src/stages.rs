@@ -1,9 +1,9 @@
 use crate::ErrorsAndWarnings;
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_clap::{CompilerOption, IrStage};
-use sodigy_endec::Endec;
+use sodigy_endec::{Endec, EndecError};
 use sodigy_error::SodigyError;
-use sodigy_files::{file_name, global_file_session, FileError};
+use sodigy_files::{file_name, global_file_session, read_bytes, write_string, FileError, WriteMode};
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
@@ -85,6 +85,21 @@ pub fn parse_file(
             }
         }
 
+        if compiler_option.dump_tokens {
+            let res = parse_session.dump_tokens();
+
+            if let Some(path) = &compiler_option.dump_tokens_to {
+                if let Err(e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    // TODO: I want to add a context here: `while dumping tokens to file`
+                    errors_and_warnings.push_error(e.into());
+                }
+            }
+
+            else {
+                println!("{res}");
+            }
+        }
+
         parse_session.errors.clear();
         parse_session.warnings.clear();
 
@@ -119,6 +134,12 @@ pub fn hir_from_tokens(
             Err(e) => {
                 let mut errors_and_warnings = prev_output.unwrap_or_default();
                 errors_and_warnings.push_error(e.into());
+
+                if is_human_readable(file) {
+                    errors_and_warnings.push_error(
+                        EndecError::human_readable_file("--dump-tokens", file).into()
+                    );
+                }
 
                 return (None, errors_and_warnings);
             },
@@ -193,7 +214,18 @@ pub fn hir_from_tokens(
         }
 
         if compiler_option.dump_hir {
-            println!("{}", hir_session.dump_hir());
+            let res = hir_session.dump_hir();
+
+            if let Some(path) = &compiler_option.dump_hir_to {
+                if let Err(e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    // TODO: I want to add a context here: `while dumping hir to file`
+                    errors_and_warnings.push_error(e.into());
+                }
+            }
+
+            else {
+                println!("{res}");
+            }
         }
 
         hir_session.errors.clear();
@@ -224,4 +256,23 @@ fn hash_string(s: &str) -> u64 {
     }
 
     res
+}
+
+fn is_human_readable(file: &Path) -> bool {
+    if let Ok(buf) = read_bytes(file) {
+        if let Ok(s) = String::from_utf8(buf) {
+            for c in s.chars() {
+                let c = c as u32;
+
+                // non-readable characters
+                if c < 9 || 12 < c && c < 32 {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    false
 }

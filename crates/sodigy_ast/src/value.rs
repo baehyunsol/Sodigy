@@ -2,7 +2,7 @@ use crate::{ArgDef, expr::Expr, ScopeBlock, TypeDef};
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_uid::Uid;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ValueKind {
     Identifier(InternedString),
     Number(InternedNumeric),

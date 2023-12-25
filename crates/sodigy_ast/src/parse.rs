@@ -2,7 +2,7 @@ use crate::{
     ArgDef,
     BranchArm,
     DottedNames,
-    error::{AstError, AstErrorKind, NewExpectedTokens},
+    error::{AstError, AstErrorKind, AttributeIn, NewExpectedTokens},
     expr::{Expr, ExprKind},
     GenericDef,
     IdentWithSpan,
@@ -61,7 +61,12 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                 match keyword {
                     Keyword::Let => {
-                        match parse_let_statement(tokens, session, true) {
+                        match parse_let_statement(
+                            tokens,
+                            session,
+                            true,
+                            vec![],  // Attributes
+                        ) {
                             Ok(l) => {
                                 session.push_stmt(Stmt {
                                     kind: StmtKind::Let(l),
@@ -933,7 +938,8 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
     loop {
         if tokens.is_finished() {
             if !attributes.is_empty() {
-                // TODO: err: unused attribute
+                session.push_error(AstError::stranded_attribute(attributes, AttributeIn::FuncArg));
+                return Err(());
             }
 
             return Ok(args);
@@ -955,10 +961,12 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
 
             attributes.push(Attribute::DocComment(
                 IdentWithSpan::new(
-                    tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                    tokens.expect_doc_comment().unwrap(),
                     curr_span,
                 )
             ));
+
+            tokens.step().unwrap();
             continue;
         }
 
@@ -1070,17 +1078,52 @@ fn parse_scope_block(
     }
 
     let mut lets = vec![];
+    let mut attributes = vec![];
+    let mut has_error = false;
 
     loop {
-        if !tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
-            break;
+        if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
+            tokens.step().unwrap();
+            lets.push(parse_let_statement(tokens, session, false, attributes.clone())?);
+            attributes.clear();
         }
 
-        tokens.step().unwrap();
+        else if tokens.is_curr_token_doc_comment() {
+            let curr_span = tokens.peek_span().unwrap();
 
-        // TODO: collect decorators and doc comments
+            attributes.push(Attribute::DocComment(
+                IdentWithSpan::new(
+                    tokens.expect_doc_comment().unwrap(),
+                    curr_span,
+                )
+            ));
 
-        lets.push(parse_let_statement(tokens, session, false)?);
+            tokens.step().unwrap();
+        }
+
+        // we have to make sure that `@` is always a decorator, not an expression
+        // for now, this holds because all the macros are expanded before the AST pass
+        else if tokens.is_curr_token(TokenKind::Punct(Punct::At)) {
+            let at_span = tokens.step().unwrap().span;
+
+            let (deco, _) = parse_decorator(
+                at_span, tokens, session,
+            )?;
+
+            attributes.push(Attribute::Decorator(deco));
+        }
+
+        else {
+            if !attributes.is_empty() {
+                session.push_error(AstError::stranded_attribute(
+                    attributes,
+                    AttributeIn::ScopedLet,
+                ));
+                has_error = true;
+            }
+
+            break;
+        }
     }
 
     let value = parse_expr(
@@ -1105,6 +1148,10 @@ fn parse_scope_block(
 
         session.push_error(e);
 
+        return Err(());
+    }
+
+    if has_error {
         return Err(());
     }
 
@@ -1668,7 +1715,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
 
                 attributes.push(Attribute::DocComment(
                     IdentWithSpan::new(
-                        tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                        tokens.expect_doc_comment().unwrap(),
                         curr_span,
                     )
                 ));
@@ -1758,7 +1805,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
 
                 attributes.push(Attribute::DocComment(
                     IdentWithSpan::new(
-                        tokens.expect_doc_comment().unwrap_or_else(|_| unreachable!()),
+                        tokens.expect_doc_comment().unwrap(),
                         curr_span,
                     )
                 ));
@@ -2134,6 +2181,7 @@ fn parse_let_statement(
     tokens: &mut Tokens,
     session: &mut AstSession,
     allows_generics: bool,
+    attributes: Vec<Attribute>,
 ) -> Result<Let, ()> {
     let result = match tokens.step() {
         Some(Token {
@@ -2156,7 +2204,7 @@ fn parse_let_statement(
 
                     let expr = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingLetStatement), assign_span)?;
 
-                    Let::pattern(pattern, expr)
+                    Let::pattern(pattern, expr, attributes)
                 },
                 k @ (Keyword::Enum | Keyword::Struct) => {
                     let name = match tokens.expect_ident() {
@@ -2208,6 +2256,7 @@ fn parse_let_statement(
                                     name,
                                     generics,
                                     parse_enum_body(&mut group_tokens, session)?,
+                                    attributes,
                                 )
                             }
 
@@ -2216,6 +2265,7 @@ fn parse_let_statement(
                                     name,
                                     generics,
                                     parse_struct_body(&mut group_tokens, session, last_token_span)?,
+                                    attributes,
                                 )
                             }
                         },
@@ -2323,7 +2373,7 @@ fn parse_let_statement(
             }
 
             else {
-                Let::def(name, generics, args, return_ty, return_val)
+                Let::def(name, generics, args, return_ty, return_val, attributes)
             }
         },
         Some(token) => {

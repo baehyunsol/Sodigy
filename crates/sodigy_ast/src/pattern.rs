@@ -11,7 +11,7 @@ mod parse;
 
 pub(crate) use parse::parse_pattern;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Pattern {
     pub kind: PatternKind,
     pub ty: Option<TypeDef>,
@@ -112,7 +112,7 @@ impl Pattern {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum PatternKind {
     Identifier(InternedString),
     Number {
@@ -177,7 +177,7 @@ impl PatternKind {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PatField {
     pub name: IdentWithSpan,
     pub pattern: Pattern,

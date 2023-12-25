@@ -8,6 +8,7 @@ use sodigy_number::{BigNumber, SodigyNumber};
 
 impl Endec for InternedString {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        // TODO: optimization: if this InternedString appears only once, don't intern it: just encode the raw string!
         let e = session.encode_intern_str(*self);
         e.encode(buf, session);
     }
@@ -20,6 +21,7 @@ impl Endec for InternedString {
 
 impl Endec for InternedNumeric {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        // TODO: optimization: if this InternedNumeric appears only once, don't intern it: just encode the raw SodigyNumber!
         let e = session.encode_intern_num(*self);
         e.encode(buf, session);
     }

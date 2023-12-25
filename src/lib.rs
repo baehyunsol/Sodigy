@@ -138,10 +138,15 @@ Options:
                                     It tries to infer the output type from the extension of the output.
                                     If the the extension and `-t` doesn't match, `-t` has higher priority.
                                     If there's no other information the default value is hir.
-    -o, --output FILENAME           Write output to <FILENAME>
+    -o, --output PATH               Write output to <PATH>
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
+    --dump-tokens [true|false]      Dump tokens to stdout (default: false)
+    --dump-tokens-to PATH           If `dump-tokens` is set, the tokens are dumped to <PATH>
+                                    instead of stdout. If `dump-tokens` is not set, it doesn't do anything.
     --dump-hir [true|false]         Dump HIR to stdout (default: false)
+    --dump-hir-to PATH              If `dump-hir` is set, the HIR is dumped to <PATH>
+                                    instead of stdout. If `dump-hir` is not set, it doesn't do anything.
 ";
 
 pub const MAJOR_VERSION: u8 = 0;

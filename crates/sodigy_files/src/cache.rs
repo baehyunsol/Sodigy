@@ -41,7 +41,7 @@ impl FileCache {
     }
 
     // TODO: lifetime of `self` and `[u8]` are different,
-    // but the compiler doesn't know that
+    // but the compiler doesn't know that -> this rarely causes VERY VERY SERIOUS problems
     pub fn get(&mut self, hash: FileHash) -> Option<&[u8]> {
         sodigy_assert_eq!(
             self.data.iter().map(
