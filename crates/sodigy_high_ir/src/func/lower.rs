@@ -87,7 +87,6 @@ pub fn lower_ast_func(
                 vec![]
             };
 
-            // TODO: lower attributes
             args_buf.push(Arg {
                 name: *name,
                 ty,

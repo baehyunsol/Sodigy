@@ -1,4 +1,4 @@
-// These are defined in this module in order to avoid cyclic dependencies.
+// modules that cannot depend on `sodigy_endec`
 
 use crate::{Endec, EndecError, EndecSession};
 use crate::session::EncodedInternal;

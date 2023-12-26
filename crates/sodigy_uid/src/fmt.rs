@@ -30,8 +30,6 @@ impl fmt::Debug for Uid {
             "not_prelude"
         };
 
-        let data = self.0 & !(0xff >> 120);
-
         write!(
             fmt,
             "Uid({ty}, {prelude})"

@@ -144,8 +144,32 @@ pub fn hir_from_tokens(
                 return (None, errors_and_warnings);
             },
         },
-        Some(IrStage::HighIr) => {  // HirSession is already here!
-            todo!()
+        Some(IrStage::HighIr) => match HirSession::load_from_file(file) {  // HirSession is already here!
+            Ok(hir_session) => {
+                let mut errors_and_warnings = prev_output.unwrap_or_default();
+
+                for error in hir_session.get_errors() {
+                    errors_and_warnings.push_error(error.to_universal());
+                }
+
+                for warning in hir_session.get_warnings() {
+                    errors_and_warnings.push_warning(warning.to_universal());
+                }
+
+                return (Some(hir_session), errors_and_warnings);
+            },
+            Err(e) => {
+                let mut errors_and_warnings = prev_output.unwrap_or_default();
+                errors_and_warnings.push_error(e.into());
+
+                if is_human_readable(file) {
+                    errors_and_warnings.push_error(
+                        EndecError::human_readable_file("--dump-hir", file).into()
+                    );
+                }
+
+                return (None, errors_and_warnings);
+            },
         },
 
         // Let's assume it's a code file

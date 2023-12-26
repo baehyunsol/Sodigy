@@ -1,10 +1,8 @@
 #![deny(unused_imports)]
 use sodigy_files::{FileError, WriteMode, read_bytes, remove_file, write_bytes};
-use std::collections::HashMap;
 
 mod error;
-mod int;
-mod no_cycle;
+mod impls;
 mod session;
 
 #[cfg(test)]
@@ -99,51 +97,6 @@ impl Endec for String {
         let v8 = Vec::<u8>::decode(buf, index, session)?;
 
         String::from_utf8(v8).map_err(|e| e.into())
-    }
-}
-
-impl <T: Endec + std::hash::Hash + std::cmp::Eq, U: Endec> Endec for HashMap<T, U> {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.len().encode(buf, session);
-
-        for (k, v) in self.iter() {
-            k.encode(buf, session);
-            v.encode(buf, session);
-        }
-    }
-
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, index, session)?;
-        let mut result = HashMap::with_capacity(len);
-
-        for _ in 0..len {
-            let k = T::decode(buf, index, session)?;
-            let v = U::decode(buf, index, session)?;
-            result.insert(k, v);
-        }
-
-        Ok(result)
-    }
-}
-
-impl<T: Endec> Endec for Vec<T> {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.len().encode(buf, session);
-
-        for v in self.iter() {
-            v.encode(buf, session);
-        }
-    }
-
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, index, session)?;
-        let mut result = Vec::with_capacity(len);
-
-        for _ in 0..len {
-            result.push(T::decode(buf, index, session)?);
-        }
-
-        Ok(result)
     }
 }
 

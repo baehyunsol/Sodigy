@@ -1,3 +1,5 @@
+mod endec;
+
 #[derive(Clone, Debug)]
 pub enum ExpectedToken<T> {
     AnyIdentifier,

@@ -7,90 +7,19 @@ use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::{HashSet, hash_map};
 use std::hash::Hasher;
 
+mod ctxt;
 mod dist;
 mod expected_token;
+mod extra_info;
 mod fmt;
 mod universal;
 
+pub use ctxt::ErrorContext;
 pub use dist::substr_edit_distance;
 pub use expected_token::ExpectedToken;
+pub use extra_info::ExtraErrInfo;
 pub use fmt::RenderError;
 pub use universal::UniversalError;
-
-#[derive(Clone, Debug)]
-pub struct ExtraErrInfo {
-    // very context-specific message for an error,
-    // for example, there may be a very specific context for `UnexpectedToken`s (suspicious typos, deprecated features, etc...)
-    msg: String,
-    context: ErrorContext,
-    show_span: bool,
-}
-
-impl ExtraErrInfo {
-    pub fn none() -> Self {
-        ExtraErrInfo {
-            msg: String::new(),
-            context: ErrorContext::Unknown,
-            show_span: true,
-        }
-    }
-
-    pub fn at_context(context: ErrorContext) -> Self {
-        ExtraErrInfo {
-            msg: String::new(),
-            context,
-            show_span: true,
-        }
-    }
-
-    pub fn has_message(&self) -> bool {
-        !self.msg.is_empty()
-    }
-
-    pub fn set_err_context(&mut self, context: ErrorContext) -> &mut Self {
-        self.context = context;
-
-        self
-    }
-
-    pub fn set_message(&mut self, msg: String) -> &mut Self {
-        self.msg = msg;
-
-        self
-    }
-
-    pub fn set_show_span(&mut self, show_span: bool) -> &mut Self {
-        self.show_span = show_span;
-
-        self
-    }
-}
-
-// TODO: Option<SpanRange> for ErrorContext
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ErrorContext {
-    Unknown,
-    ParsingCommandLine,
-    ExpandingMacro,
-    Lexing,
-    LexingNumericLiteral,
-    ParsingLetStatement,
-    ParsingImportStatement,
-    ParsingFuncName,
-    ParsingFuncRetType,
-    ParsingFuncBody,
-    ParsingFuncArgs,
-    ParsingEnumBody,
-    ParsingStructBody,
-    ParsingStructInit,
-    ParsingMatchBody,
-    ParsingBranchCondition,
-    ParsingLambdaBody,
-    ParsingScopeBlock,
-    ParsingFormattedString,
-    ParsingPattern,
-    ParsingTypeInPattern,
-}
 
 pub trait SodigyError<K: SodigyErrorKind> {
     fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo;

@@ -6,8 +6,7 @@ use std::collections::HashMap;
 // `FileCache` is not synchronized at all!
 // It's caller's responsibility to use proper lock mechanisms
 
-// TODO: test with small `FILE_CACHE_SIZE` and `SIZE_LIMIT` (after `@test`s in Sodigy are implemented)
-const FILE_CACHE_SIZE: usize = 64;
+const FILE_CACHE_SIZE: usize = 128;
 const SIZE_LIMIT: usize = 256 * 1024 * 1024;
 
 type Path = String;
@@ -41,7 +40,7 @@ impl FileCache {
     }
 
     // TODO: lifetime of `self` and `[u8]` are different,
-    // but the compiler doesn't know that -> this rarely causes VERY VERY SERIOUS problems
+    // but the compiler doesn't know that -> this causes VERY VERY SERIOUS problems VERY VERY OFTEN
     pub fn get(&mut self, hash: FileHash) -> Option<&[u8]> {
         sodigy_assert_eq!(
             self.data.iter().map(
