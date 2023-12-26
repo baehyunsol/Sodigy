@@ -1,6 +1,7 @@
 use crate::run;
+use crate::stages::generate_path_for_ir;
 use sodigy_clap::{CompilerOption, IrStage};
-use sodigy_files::{read_bytes, remove_file};
+use sodigy_files::{read_bytes, remove_dir_all};
 
 // 1. code -> tokens -> hir
 // 2. tokens (from saved ir) -> hir
@@ -9,60 +10,58 @@ use sodigy_files::{read_bytes, remove_file};
 
 fn runner(path: &str) {
     // let's avoid name collisions with `rand::random`
-    let file_name_prefix = format!("__{:x}", rand::random::<u128>());
-    let tokens1 = format!("./{file_name_prefix}_tokens1.tokens");
-    let hir1 = format!("./{file_name_prefix}_hir1.hir");
-    let hir2 = format!("./{file_name_prefix}_hir2.hir");
+    let tmp_dir_name = format!("./__tmp_{:x}", rand::random::<u64>());
+    let dump_hir_to_1 = format!("{tmp_dir_name}/hir1.hir");
+    let dump_hir_to_2 = format!("{tmp_dir_name}/hir2.hir");
 
     let base_comp_opt = CompilerOption {
         do_not_compile_and_print_this: None,
         output_path: None,
-        save_ir: false,
+        save_ir: true,
+        save_ir_to: tmp_dir_name.clone(),
         show_warnings: true,
+        dump_tokens: false,
+        dump_hir: true,
         ..CompilerOption::default()
     };
 
-    // TODO: `dump_tokens` dumps human-readable tokens, but the compiler reads tokens from endec-ed tokens...
-    // it has to use `--save-ir` flag to dump tokens
-    // TODO: more options for `--save-ir`
-
-    // code -> tokens -> hir
-    // saves `__XXX_tokens1.tokens`
-    // saves `__XXX_hir1.hir`
     let opt1 = CompilerOption {
         input_files: vec![path.to_string()],
         output_format: IrStage::HighIr,
-        dump_tokens: true,
-        dump_tokens_to: Some(tokens1.clone()),
-        dump_hir: true,
-        dump_hir_to: Some(hir1.clone()),
+        dump_hir_to: Some(dump_hir_to_1.clone()),
         ..base_comp_opt.clone()
     };
 
     let errors1 = run(opt1).concat_results();
+    let input2 = generate_path_for_ir(&tmp_dir_name, &path.to_string(), "tokens").unwrap();
 
     let opt2 = CompilerOption {
-        input_files: vec![tokens1.clone()],
+        input_files: vec![input2],
         output_format: IrStage::HighIr,
-        dump_tokens: false,
-        dump_tokens_to: None,
-        dump_hir: true,
-        dump_hir_to: Some(hir2.clone()),
+        dump_hir_to: Some(dump_hir_to_2.clone()),
         ..base_comp_opt.clone()
     };
 
     let errors2 = run(opt2).concat_results();
 
+    let sep = "\n\n-------------------------\n\n";
+
     if errors1 != errors2 {
-        panic!("Compilations are not consistent!\n\n{errors1}\n\n{errors2}");
+        panic!("Compilations are not consistent!{sep}{errors1}{sep}{errors2}");
     }
 
-    let hir1_content = read_bytes(&hir1).unwrap();
-    let hir2_content = read_bytes(&hir2).unwrap();
+    let hir1_content = read_bytes(&dump_hir_to_1).unwrap();
+    let hir2_content = read_bytes(&dump_hir_to_2).unwrap();
 
-    remove_file(&tokens1).unwrap();
-    remove_file(&hir1).unwrap();
-    remove_file(&hir2).unwrap();
+    if hir1_content != hir2_content {
+        panic!(
+            "Compilations are not consistent!{sep}{}{sep}{}",
+            String::from_utf8_lossy(&hir1_content).to_string(),
+            String::from_utf8_lossy(&hir2_content).to_string(),
+        );
+    }
+
+    remove_dir_all(&tmp_dir_name).unwrap()
 }
 
 macro_rules! run_test {
@@ -76,3 +75,4 @@ macro_rules! run_test {
 
 // make sure that all the `.sdg` files have no compile-errors
 run_test!(stage_dump_test1, "./samples/easy.sdg");
+run_test!(stage_dump_test2, "./samples/empty.sdg");

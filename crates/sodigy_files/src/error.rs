@@ -52,6 +52,13 @@ impl FileError {
         }
     }
 
+    pub fn cannot_create_file(there_exists_a_dir: bool, path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::CannotCreateFile { there_exists_a_dir },
+            given_path: Some(path.to_string()),
+        }
+    }
+
     pub(crate) fn os_str_err(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
@@ -66,7 +73,8 @@ impl FileError {
             | FileErrorKind::AlreadyExists
             | FileErrorKind::MetadataNotSupported
             | FileErrorKind::HashCollision
-            | FileErrorKind::ModifiedWhileCompilation => {
+            | FileErrorKind::ModifiedWhileCompilation
+            | FileErrorKind::CannotCreateFile { .. } => {
                 self.given_path.as_ref().unwrap().to_string()
             },
             FileErrorKind::OsStrErr(_)
@@ -98,6 +106,17 @@ impl FileError {
             FileErrorKind::HashCollision => format!(
                 "hash collision: `{path}`"
             ),
+            FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
+                let (has_to_create, there_exists) = if *there_exists_a_dir {
+                    ("file", "directory")
+                } else {
+                    ("directory", "file")
+                };
+
+                format!(
+                    "cannot create {has_to_create}: `{path}`\nIt has to create a {has_to_create} named `{path}`, but there exists a {there_exists} with the same name.",
+                )
+            },
         }
     }
 
@@ -125,6 +144,12 @@ pub enum FileErrorKind {
     MetadataNotSupported,
     ModifiedWhileCompilation,
     HashCollision,
+
+    // Its name is misleading... but I can't think of any better one
+    // it's raised when
+    // 1. it has to make a file named X, but there exists a dir named X
+    // 2. vice versa
+    CannotCreateFile { there_exists_a_dir: bool },
 }
 
 impl FileErrorKind {
@@ -148,6 +173,9 @@ impl FileErrorKind {
             FileErrorKind::MetadataNotSupported => 3,
             FileErrorKind::ModifiedWhileCompilation => 4,
             FileErrorKind::HashCollision => 5,
+            FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
+                ((*there_exists_a_dir as u64) << 4) | 6
+            },
         }
     }
 }

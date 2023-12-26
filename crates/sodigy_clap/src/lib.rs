@@ -73,12 +73,15 @@ pub fn parse_cli_args() -> ClapSession {
         let mut output_format = None;
         let mut show_warnings = None;
         let mut save_ir = None;
+        let mut save_ir_to = None;
         let mut dump_tokens = None;
         let mut dump_tokens_to = None;
         let mut dump_hir = None;
         let mut dump_hir_to = None;
 
         // these are later used for warnings/errors
+        let mut save_ir_span = None;
+        let mut save_ir_to_span = None;
         let mut dump_tokens_span = None;
         let mut dump_tokens_to_span = None;
         let mut dump_hir_span = None;
@@ -123,12 +126,25 @@ pub fn parse_cli_args() -> ClapSession {
                             }
                         },
                         Flag::SaveIr => {
+                            save_ir_span = Some(tokens[index].span.merge(tokens[index + 1].span));
+
                             if save_ir.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::SaveIr, tokens[index].span));
                             }
 
                             else {
                                 save_ir = Some(tokens[index + 1].value.unwrap_bool());
+                            }
+                        },
+                        Flag::SaveIrTo => {
+                            save_ir_to_span = Some(tokens[index].span.merge(tokens[index + 1].span));
+
+                            if save_ir_to.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::SaveIrTo, tokens[index].span));
+                            }
+
+                            else {
+                                save_ir_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
                         Flag::DumpTokens => {
@@ -248,22 +264,24 @@ pub fn parse_cli_args() -> ClapSession {
             },
         };
 
-        if dump_hir_to.is_some() && (dump_hir.is_none() || dump_hir == Some(false)) {
+        // `--save-ir` is true by default
+        if save_ir_to.is_some() && save_ir == Some(false) {
             let mut spans = vec![
-                dump_hir_to_span.unwrap(),
+                save_ir_to_span.unwrap(),
             ];
 
-            if let Some(span) = dump_hir_span {
+            if let Some(span) = save_ir_span {
                 spans.push(span);
             }
 
             warnings.push(ClapWarning::path_is_set_flag_is_not_set(
-                Flag::DumpHirTo,  // is set
-                Flag::DumpHir,    // is not set
+                Flag::SaveIrTo,  // is set
+                Flag::SaveIr,    // is not set
                 spans,
             ));
         }
 
+        // `--dump-tokens` is false by default
         if dump_tokens_to.is_some() && (dump_tokens.is_none() || dump_tokens == Some(false)) {
             let mut spans = vec![
                 dump_tokens_to_span.unwrap(),
@@ -280,6 +298,23 @@ pub fn parse_cli_args() -> ClapSession {
             ));
         }
 
+        // `--dump-hir` is false by default
+        if dump_hir_to.is_some() && (dump_hir.is_none() || dump_hir == Some(false)) {
+            let mut spans = vec![
+                dump_hir_to_span.unwrap(),
+            ];
+
+            if let Some(span) = dump_hir_span {
+                spans.push(span);
+            }
+
+            warnings.push(ClapWarning::path_is_set_flag_is_not_set(
+                Flag::DumpHirTo,  // is set
+                Flag::DumpHir,    // is not set
+                spans,
+            ));
+        }
+
         // it not only mutes compiler warnings, but also clap warnings
         if show_warnings == Some(false) {
             warnings.clear();
@@ -292,6 +327,7 @@ pub fn parse_cli_args() -> ClapSession {
             output_path: Some(output_path),
             show_warnings: show_warnings.unwrap_or(true),
             save_ir: save_ir.unwrap_or(true),
+            save_ir_to: save_ir_to.unwrap_or_else(|| "./__sdg_cache".to_string()),
             dump_tokens: dump_tokens.unwrap_or(false),
             dump_tokens_to,
             dump_hir: dump_hir.unwrap_or(false),
@@ -320,6 +356,7 @@ pub struct CompilerOption {
     pub output_format: IrStage,
     pub show_warnings: bool,
     pub save_ir: bool,
+    pub save_ir_to: String,
     pub dump_tokens: bool,
     pub dump_tokens_to: Option<String>,
     pub dump_hir: bool,
@@ -364,6 +401,7 @@ impl Default for CompilerOption {
             output_format: IrStage::HighIr,
             show_warnings: true,
             save_ir: true,
+            save_ir_to: String::from("./__sdg_cache"),
             dump_tokens: false,
             dump_tokens_to: None,
             dump_hir: false,

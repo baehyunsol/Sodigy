@@ -5,7 +5,7 @@ impl fmt::Display for Uid {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             fmt,
-            "uid#{}",
+            "uid#{:x}",
             self.0,
         )
     }
@@ -34,7 +34,7 @@ impl fmt::Debug for Uid {
 
         write!(
             fmt,
-            "Uid({ty}, {prelude}, {data:x})"
+            "Uid({ty}, {prelude})"
         )
     }
 }

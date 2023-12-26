@@ -4,7 +4,7 @@ use std::collections::hash_map;
 use std::fs::{self, File, OpenOptions};
 use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 /// ```nohighlight
@@ -38,10 +38,7 @@ impl From<WriteMode> for OpenOptions {
 }
 
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
-    match fs::read(path) {
-        Ok(data) => Ok(data),
-        Err(e) => Err(FileError::from_std(e, path)),
-    }
+    fs::read(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn read_string(path: &str) -> Result<String, FileError> {
@@ -72,7 +69,7 @@ pub fn write_string(path: &str, s: &str, write_mode: WriteMode) -> Result<(), Fi
     write_bytes(path, s.as_bytes(), write_mode)
 }
 
-// `a/b/c.d` -> `c`
+/// `a/b/c.d` -> `c`
 pub fn file_name(path: &str) -> Result<String, FileError> {
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
@@ -85,7 +82,7 @@ pub fn file_name(path: &str) -> Result<String, FileError> {
     }
 }
 
-// `a/b/c.d` -> `d`
+/// `a/b/c.d` -> `d`
 pub fn extension(path: &str) -> Result<Option<String>, FileError> {
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
@@ -98,7 +95,7 @@ pub fn extension(path: &str) -> Result<Option<String>, FileError> {
     }
 }
 
-// `a/b/c.d` -> `c.d`
+/// `a/b/c.d` -> `c.d`
 pub fn basename(path: &str) -> Result<String, FileError> {
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
@@ -111,7 +108,7 @@ pub fn basename(path: &str) -> Result<String, FileError> {
     }
 }
 
-// `a/b/`, `c.d` -> `a/b/c.d`
+/// `a/b/`, `c.d` -> `a/b/c.d`
 pub fn join(path: &str, child: &str) -> Result<String, FileError> {
     let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
     let child = PathBuf::from_str(child).unwrap();  // Infallible
@@ -124,7 +121,7 @@ pub fn join(path: &str, child: &str) -> Result<String, FileError> {
     }
 }
 
-// `a/b/c.d, e` -> `a/b/c.e`
+/// `a/b/c.d, e` -> `a/b/c.e`
 pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
     let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
 
@@ -139,18 +136,28 @@ pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
     }
 }
 
+/// It returns `false` if `path` doesn't exist
 pub fn is_dir(path: &str) -> bool {
-    match PathBuf::from_str(path) {
-        Err(_) => false,
-        Ok(path) => path.is_dir(),
-    }
+    PathBuf::from_str(path).map(|path| path.is_dir()).unwrap_or(false)
 }
 
 pub fn exists(path: &str) -> bool {
-    match PathBuf::from_str(path) {
-        Err(_) => false,
-        Ok(path) => path.exists(),
-    }
+    PathBuf::from_str(path).map(|path| path.exists()).unwrap_or(false)
+}
+
+/// `a/b/c.d` -> `a/b/`
+pub fn parent(path: &str) -> String {
+    let path = Path::new(path);
+
+    path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| String::new())
+}
+
+pub fn create_dir(path: &str) -> Result<(), FileError> {
+    fs::create_dir(path).map_err(|e| FileError::from_std(e, path))
+}
+
+pub fn create_dir_all(path: &str) -> Result<(), FileError> {
+    fs::create_dir_all(path).map_err(|e| FileError::from_std(e, path))
 }
 
 // it only returns the hash value of the modified time
@@ -197,6 +204,14 @@ pub fn read_dir(path: &str) -> Result<Vec<String>, FileError> {
 
 pub fn remove_file(path: &str) -> Result<(), FileError> {
     fs::remove_file(path).map_err(|e| FileError::from_std(e, path))
+}
+
+pub fn remove_dir(path: &str) -> Result<(), FileError> {
+    fs::remove_dir(path).map_err(|e| FileError::from_std(e, path))
+}
+
+pub fn remove_dir_all(path: &str) -> Result<(), FileError> {
+    fs::remove_dir_all(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn get_all_sdg(path: &str, recurs: bool, ext: &str) -> Result<Vec<String>, FileError> {

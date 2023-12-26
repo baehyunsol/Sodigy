@@ -72,7 +72,7 @@ pub fn parse_file(
 
     else {
         if compiler_option.save_ir {
-            let tmp_path = match generate_tmp_path(file, "tokens") {
+            let tmp_path = match generate_path_for_ir(&compiler_option.save_ir_to, file, "tokens") {
                 Ok(p) => p.to_string(),
                 Err(e) => {
                     errors_and_warnings.push_error(e.into());
@@ -200,7 +200,7 @@ pub fn hir_from_tokens(
 
     else {
         if compiler_option.save_ir {
-            let tmp_path = match generate_tmp_path(file, "hir") {
+            let tmp_path = match generate_path_for_ir(&compiler_option.save_ir_to, file, "hir") {
                 Ok(p) => p.to_string(),
                 Err(e) => {
                     errors_and_warnings.push_error(e.into());
@@ -236,12 +236,11 @@ pub fn hir_from_tokens(
 }
 
 // TODO: find better place for these functions
-fn generate_tmp_path(base: &Path, ext: &str) -> Result<Path, FileError> {
-    // TODO: make the path more configurable
-    let file_name = file_name(base)?;
-    let file_hash = hash_string(base) & 0xfff_ffff;
+pub fn generate_path_for_ir(base: &Path, original_file: &Path, ext: &str) -> Result<Path, FileError> {
+    let file_name = file_name(original_file)?;
+    let file_hash = hash_string(original_file) & 0xf_ffff_ffff;
 
-    Ok(format!("./{file_hash:07x}_{file_name}.{ext}"))
+    Ok(format!("{base}/{file_hash:09x}_{file_name}.{ext}"))
 }
 
 fn hash_string(s: &str) -> u64 {

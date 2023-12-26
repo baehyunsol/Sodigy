@@ -10,6 +10,8 @@ use crate::result::ErrorsAndWarnings;
 use crate::stages::{hir_from_tokens, parse_file};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
+use sodigy_error::UniversalError;
+use sodigy_files::{create_dir_all, exists, is_dir, parent, FileError};
 
 // TODO: nicer type for compile results
 pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
@@ -27,10 +29,27 @@ pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
     }
 
     let mut errors_and_warnings = ErrorsAndWarnings::new();
-    let output_format = options.output_format;
+
+    for (is_necessary, is_file, path) in [
+        // (is_necessary, is_file, path)
+        (options.output_path.is_some(), true, options.output_path.as_ref()),
+        (options.save_ir, false, Some(&options.save_ir_to),),
+        (options.dump_tokens, true, options.dump_tokens_to.as_ref()),
+        (options.dump_hir, true, options.dump_hir_to.as_ref()),
+    ] {
+        if !is_necessary || path.is_none() {
+            continue;
+        }
+
+        if let Err(e) = try_make_intermediate_paths(
+            is_file, path.unwrap(),
+        ) {
+            errors_and_warnings.push_error(e);
+        }
+    }
 
     for file_path in options.input_files.iter() {
-        let (result, mut errors_and_warnings_) = match output_format {
+        let (result, mut errors_and_warnings_) = match options.output_format {
             IrStage::Tokens => {
                 let (r, o) = parse_file(file_path, Some(errors_and_warnings), &options);
 
@@ -56,6 +75,54 @@ pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
     }
 
     errors_and_warnings
+}
+
+// TODO: there must be a better place for this function
+fn try_make_intermediate_paths(
+    is_file: bool, path: &String,
+) -> Result<(), UniversalError> {
+    if exists(path) {
+        if is_dir(path) {
+            // we have to make a file named X,
+            // but there exists a dir named X
+            if is_file {
+                Err(FileError::cannot_create_file(true /* there exists a dir */, path).into())
+            }
+
+            // we have to make a dir named X,
+            // and it's already there
+            else {
+                Ok(())
+            }
+        }
+
+        // this branch is for files
+        // the compiler ignores anything other than dirs and files
+        else {
+            // we have to make a file named X,
+            // and it's already there
+            // we'll truncate it
+            if is_file {
+                Ok(())
+            }
+
+            // we have to make a dir named X,
+            // but there exists a file named X
+            else {
+                Err(FileError::cannot_create_file(false /* there exists a file */, path).into())
+            }
+        }
+    }
+
+    else {
+        let dir_to_create = if is_file {
+            parent(path)
+        } else {
+            path.to_string()
+        };
+
+        create_dir_all(&dir_to_create).map_err(|e| e.into())
+    }
 }
 
 // TODO: remove these functions
@@ -141,6 +208,8 @@ Options:
     -o, --output PATH               Write output to <PATH>
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
+    --save-ir-to PATH               Directory to save intermediates (default: `./__sdg_cache`)
+                                    Unlike `--output` and `--dump-hir-to`, it's a directory, not a file.
     --dump-tokens [true|false]      Dump tokens to stdout (default: false)
     --dump-tokens-to PATH           If `dump-tokens` is set, the tokens are dumped to <PATH>
                                     instead of stdout. If `dump-tokens` is not set, it doesn't do anything.

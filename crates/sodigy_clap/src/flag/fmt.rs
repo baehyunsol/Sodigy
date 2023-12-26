@@ -10,6 +10,7 @@ impl RenderError for Flag {
             Flag::Version => "version",
             Flag::ShowWarnings => "show-warnings",
             Flag::SaveIr => "save-ir",
+            Flag::SaveIrTo => "save-ir-to",
             Flag::DumpTokens => "dump-tokens",
             Flag::DumpTokensTo => "dump-tokens-to",
             Flag::DumpHir => "dump-hir",
