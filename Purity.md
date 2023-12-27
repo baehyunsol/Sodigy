@@ -69,7 +69,7 @@ Impure functions.
 
 ```
 run_last_debug(
-    print(f"{x}"),
+    print(f"\{x}"),
     x,
 )
 ```
@@ -121,13 +121,13 @@ Thanks to this function, `assert` and `assert_eq` are also functions.
 ```
 run_debug(
     run_last_debug(
-        print(f"f(x: {x}, y: {y})"),
+        print(f"f(x: \{x}, y: \{y})"),
         indent_in(),
         store_tmp_value(f(x, y)),
         peek_tmp_value(),
     ),
     indent_out(),
-    print(f"returned with result {res}"),
+    print(f"returned with result \{res}"),
     pop_tmp_value(),
 )
 ```
@@ -162,7 +162,7 @@ let bar = baz();
 run_last_debug(
     if foo != x {
         run(
-            print(f"assertion failure: {foo} != {x}"),
+            print(f"assertion failure: \{foo} != \{x}"),
             set_test_failure_flag(true),
         )
     } else {
@@ -170,7 +170,7 @@ run_last_debug(
     },
     if bar != y {
         run(
-            print(f"assertion failure: {bar} != {y}"),
+            print(f"assertion failure: \{bar} != \{y}"),
             set_test_failure_flag(true),
         )
     } else {
@@ -185,7 +185,7 @@ run_last_debug(
 
 ```
 let foo(x, y) = run_last_debug(
-    print(f"foo(x: {x}, y: {y})"),
+    print(f"foo(x: \{x}, y: \{y})"),
     input(),  # waits for the user to continue
     foo(x, y),
 );

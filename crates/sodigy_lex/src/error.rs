@@ -30,6 +30,14 @@ impl LexError {
         }
     }
 
+    pub fn invalid_character_escape(c: u8, span: SpanRange) -> Self {
+        LexError {
+            kind: LexErrorKind::InvalidCharacterEscape(c),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn unfinished_comment(span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnfinishedComment,
@@ -49,6 +57,14 @@ impl LexError {
     pub fn unfinished_num_literal(span: SpanRange) -> Self {
         LexError {
             kind: LexErrorKind::UnfinishedNumLiteral(ExpectedChars::Any),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn unfinished_fstring(span: SpanRange) -> Self {
+        LexError {
+            kind: LexErrorKind::UnfinishedFString,
             spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
@@ -131,10 +147,12 @@ impl ExpectedChars {
 #[derive(Clone)]
 pub enum LexErrorKind {
     InvalidUtf8,
+    InvalidCharacterEscape(u8),
     UnexpectedChar(char, ExpectedChars),
     UnfinishedComment,  // must be CommentKind::Multi
     UnfinishedString(QuoteKind),
     UnfinishedNumLiteral(ExpectedChars),
+    UnfinishedFString,
 }
 
 impl From<ParseNumberError> for LexErrorKind {
@@ -148,32 +166,44 @@ impl From<ParseNumberError> for LexErrorKind {
 impl SodigyErrorKind for LexErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            LexErrorKind::InvalidUtf8 => "invalid utf-8".to_string(),
+            LexErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
+            LexErrorKind::InvalidCharacterEscape(c) => format!("invalid character escape: `\\{}`", *c as char),
             LexErrorKind::UnexpectedChar(c, e) => format!(
                 "expected character {}, got character {c:?}",
                 e.list(),
             ),
-            LexErrorKind::UnfinishedComment => "unterminated block comment".to_string(),
+            LexErrorKind::UnfinishedComment => String::from("unterminated block comment"),
             LexErrorKind::UnfinishedString(q) => if *q == QuoteKind::Double {
                 "unterminated string literal"
             } else {
                 "unterminated character literal"
             }.to_string(),
-            LexErrorKind::UnfinishedNumLiteral(_) => "unterminated numeric literal".to_string(),
+            LexErrorKind::UnfinishedNumLiteral(_) => String::from("unterminated numeric literal"),
+            LexErrorKind::UnfinishedFString => String::from("unterminated `\\{` in a literal"),
         }
     }
 
     fn help(&self, _: &mut InternSession) -> String {
-        String::new()
+        match self {
+            LexErrorKind::UnfinishedFString => String::from("If you want a `\\` character and a `{` character, try `\\\\{`."),
+            LexErrorKind::InvalidCharacterEscape(c) => format!("If you want a `\\` character and a `{}` character, try `\\\\{}`.", *c as char, *c as char),
+            LexErrorKind::InvalidUtf8
+            | LexErrorKind::UnexpectedChar(_, _)
+            | LexErrorKind::UnfinishedComment
+            | LexErrorKind::UnfinishedString(_)
+            | LexErrorKind::UnfinishedNumLiteral(_) => String::new(),
+        }
     }
 
     fn index(&self) -> u32 {
         match self {
             LexErrorKind::InvalidUtf8 => 0,
-            LexErrorKind::UnexpectedChar(_, _) => 1,
-            LexErrorKind::UnfinishedComment => 2,
-            LexErrorKind::UnfinishedString(_) => 3,
-            LexErrorKind::UnfinishedNumLiteral(_) => 4,
+            LexErrorKind::InvalidCharacterEscape(_) => 1,
+            LexErrorKind::UnexpectedChar(_, _) => 2,
+            LexErrorKind::UnfinishedComment => 3,
+            LexErrorKind::UnfinishedString(_) => 4,
+            LexErrorKind::UnfinishedNumLiteral(_) => 5,
+            LexErrorKind::UnfinishedFString => 6,
         }
     }
 }

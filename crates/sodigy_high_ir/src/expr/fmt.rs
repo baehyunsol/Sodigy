@@ -66,7 +66,7 @@ impl fmt::Display for ExprKind {
                             sodigy_assert!(!*is_binary);
                             s.escaped_no_quotes()
                         },
-                        _ => format!("{{{elem}}}"),
+                        _ => format!("\\{{{elem}}}"),
                     }
                 ).collect::<Vec<String>>().concat(),
             ),

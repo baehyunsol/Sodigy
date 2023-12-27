@@ -8,7 +8,7 @@ impl fmt::Debug for TokenKind {
             "{}",
             match self {
                 TokenKind::Comment { kind, content } => format!("Comment({kind:?}, {content:?})"),
-                TokenKind::String { kind, content } => format!("String({kind:?}, {content:?})"),
+                TokenKind::String { kind, content, .. } => format!("String({kind:?}, {content:?})"),
                 TokenKind::Identifier(id) => format!("Identifier({id:?})"),
                 TokenKind::Number(n) => format!("Number({:?})", String::from_utf8(n.to_vec()).unwrap()),
                 TokenKind::Whitespace => format!("Whitespace"),
@@ -36,7 +36,7 @@ impl fmt::Display for TokenKind {
                     CommentKind::Multi => format!("##! ... !##"),
                     CommentKind::Doc => format!("##>{}\n", content),
                 },
-                TokenKind::String { kind, content } => {
+                TokenKind::String { kind, content, .. } => {
                     let result = format!("{content:?}").as_bytes().to_vec();
                     let result = result[1..(result.len() - 1)].to_vec();
 

@@ -17,9 +17,17 @@ use sodigy_test::{sodigy_assert, TEST_MODE};
 pub use session::LexSession;
 pub use token::{Token, TokenKind};
 
+/// This marker is used in order to differentiate '\\{}' and '\{}'.
+/// It uses a special value that is never used in valid UTF-8 strings.
+pub const FSTRING_START_MARKER: u8 = 251;
+
 pub enum LexState {
     Init,
-    String { marker: u8, escaped: bool },
+    String {
+        marker: u8,
+        escape: StringEscapeType,
+        is_fstring: bool,  // has `\{` literal
+    },
     Comment { kind: CommentKind, nest: usize },
     Identifier,
 
@@ -58,6 +66,14 @@ impl From<u8> for QuoteKind {
     }
 }
 
+enum StringEscapeType {
+    None,
+    Backslash,
+
+    // f-strings can be nested
+    FString(u16),
+}
+
 pub fn lex(
     input: &[u8],
     mut index: usize,
@@ -79,7 +95,11 @@ pub fn lex(
 
                         match c {
                             b'"' | b'\'' => {
-                                curr_state = LexState::String { marker: c, escaped: false };
+                                curr_state = LexState::String {
+                                    marker: c,
+                                    escape: StringEscapeType::None,
+                                    is_fstring: false,
+                                };
                                 curr_token_span_start = span_start.offset(index as i32);
                             },
                             b'#' => {
@@ -138,39 +158,79 @@ pub fn lex(
                             },
                         }
                     },
-                    LexState::String { marker, escaped } => {
-                        if *escaped {
-                            *escaped = false;
-                            tmp_buf.push(handle_escape_char(c));
-                        }
+                    LexState::String { marker, escape, is_fstring } => {
+                        match escape {
+                            StringEscapeType::Backslash => {
+                                if c == b'{' {
+                                    *escape = StringEscapeType::FString(1);
+                                    *is_fstring = true;
+                                    tmp_buf.push(FSTRING_START_MARKER);
+                                }
 
-                        else if c == b'\\' {
-                            *escaped = true;
-                        }
+                                else {
+                                    *escape = StringEscapeType::None;
 
-                        else if c == *marker {
-                            let content = match String::from_utf8(tmp_buf.clone()) {
-                                Ok(c) => c,
-                                Err(_) => {
-                                    session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
-                                    return Err(());
-                                },
-                            };
+                                    match handle_escape_char(c) {
+                                        Ok(c) => {
+                                            tmp_buf.push(c);
+                                        },
+                                        Err(e) => {
+                                            session.push_error(LexError::invalid_character_escape(
+                                                e,
+                                                curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
+                                            ));
 
-                            session.push_token(Token {
-                                kind: TokenKind::String {
-                                    kind: (*marker).into(),
-                                    content,
-                                },
-                                span: curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
-                            });
+                                            return Err(());
+                                        },
+                                    }
+                                }
+                            },
+                            StringEscapeType::FString(stack) => {
+                                if c == b'{' {
+                                    *stack += 1;
+                                }
 
-                            tmp_buf.clear();
-                            curr_state = LexState::Init;
-                        }
+                                else if c == b'}' {
+                                    *stack -= 1;
 
-                        else {
-                            tmp_buf.push(c);
+                                    if *stack == 0 {
+                                        *escape = StringEscapeType::None;
+                                    }
+                                }
+
+                                tmp_buf.push(c);
+                            },
+                            StringEscapeType::None => {
+                                if c == b'\\' {
+                                    *escape = StringEscapeType::Backslash;
+                                }
+
+                                else if c == *marker {
+                                    let content = match string_from_utf8(tmp_buf.clone()) {
+                                        Ok(c) => c,
+                                        Err(_) => {
+                                            session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
+                                            return Err(());
+                                        },
+                                    };
+
+                                    session.push_token(Token {
+                                        kind: TokenKind::String {
+                                            kind: (*marker).into(),
+                                            content,
+                                            is_fstring: *is_fstring,
+                                        },
+                                        span: curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
+                                    });
+
+                                    tmp_buf.clear();
+                                    curr_state = LexState::Init;
+                                }
+
+                                else {
+                                    tmp_buf.push(c);
+                                }
+                            },
                         }
                     },
                     LexState::Comment { kind, nest } => {
@@ -624,6 +684,10 @@ pub fn lex(
                         ));
                         return Err(());
                     },
+                    LexState::String { escape: StringEscapeType::FString(_), .. } => {
+                        session.push_error(LexError::unfinished_fstring(curr_token_span_start.into_range()));
+                        return Err(());
+                    },
                     LexState::String { marker, .. } => {
                         session.push_error(LexError::unfinished_string(marker.into(), curr_token_span_start.into_range()));
                         return Err(());
@@ -720,14 +784,51 @@ fn is_multiline_comment_end(buf: &[u8], index: usize) -> bool {
     matches!((buf.get(index), buf.get(index + 1), buf.get(index + 2)), (Some(b'!'), Some(b'#'), Some(b'#')))
 }
 
+// like `String::from_utf8` of Rust std, but it also allows `FSTRING_START_MARKER`
+fn string_from_utf8(utf8: Vec<u8>) -> Result<String, ()> {
+    let mut index = 0;
+
+    while index < utf8.len() {
+        if utf8[index] < 128 || utf8[index] == FSTRING_START_MARKER {
+            index += 1;
+            continue;
+        }
+
+        if let Some(c) = try_get_char(&utf8, index) {
+            let c = c as u32;
+
+            if c < 2048 {
+                index += 2;
+            }
+
+            else if c < 65536 {
+                index += 3;
+            }
+
+            else {
+                index += 4;
+            }
+        }
+
+        else {
+            return Err(());
+        }
+    }
+
+    unsafe { Ok(String::from_utf8_unchecked(utf8)) }
+}
+
 // '\\' + c = result
-fn handle_escape_char(c: u8) -> u8 {
+fn handle_escape_char(c: u8) -> Result<u8, u8> {
     match c {
-        b'n' => b'\n',
-        b'r' => b'\r',
-        b't' => b'\t',
-        b'0' => b'\0',
-        _ => c,
+        b'n' => Ok(b'\n'),
+        b'r' => Ok(b'\r'),
+        b't' => Ok(b'\t'),
+        b'0' => Ok(b'\0'),
+        b'\'' => Ok(b'\''),
+        b'"' => Ok(b'"'),
+        b'\\' => Ok(b'\\'),
+        _ => Err(c),
     }
 }
 

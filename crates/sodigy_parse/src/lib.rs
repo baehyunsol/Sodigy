@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use sodigy_error::SodigyError;
 use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
 
@@ -42,7 +43,19 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                 TokenKind::Comment { .. } => {
                     /* nop */
                 },
-                TokenKind::String { kind, content } /* prefixed string literals are already handled */ => {
+                TokenKind::String { kind, content, is_fstring } /* prefixed string literals are already handled */ => {
+                    if *is_fstring {
+                        let mut error = ParseError::fstring_without_prefix(false, token.span);
+                        error.set_message(
+                            "Also, use double quotes for a format-string. Single quotes are for a character literals.".to_string()
+                        );
+
+                        session.push_error(error);
+
+                        // don't return here! find more errors!
+                        // return Err(());
+                    }
+
                     let content = session.intern_string(content.as_bytes().to_vec());
 
                     session.push_token(TokenTree {
@@ -219,12 +232,17 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
 
                         // `b"123"` is okay, but `b "123"` is not.
                         match tokens.get(index + 1) {
-                            Some(Token { kind: TokenKind::String { kind: quote_kind, content }, span: span2 }) => {
+                            Some(Token { kind: TokenKind::String { kind: quote_kind, content, is_fstring }, span: span2 }) => {
                                 let span2 = *span2;
                                 let quote_kind = *quote_kind;
 
                                 if quote_kind == QuoteKind::Double {
                                     if is_b {
+                                        if *is_fstring {
+                                            session.push_error(ParseError::fstring_without_prefix(true, token.span));
+                                            return Err(());
+                                        }
+
                                         let content = session.intern_string(content.as_bytes().to_vec());
 
                                         session.push_token(
@@ -257,7 +275,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                 }
 
                                 else {
-                                    session.push_error(ParseError::f_string_single_quote(span2));
+                                    session.push_error(ParseError::fstring_single_quote(span2));
                                     return Err(());
                                 }
                             },

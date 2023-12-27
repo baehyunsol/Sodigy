@@ -172,18 +172,18 @@ Beside normal string literals, there are two special ones: formatted strings and
 
 #### Formatted strings
 
-Formatted strings are like that of Python (as far as I know). A letter `f` followed by a string literal is a formatted string.
+A letter `f` followed by a string literal makes a formatted-string.
 
 ```
 {
     let a = 3;
     let b = 4;
 
-    f"{a} + {b} = {a + b}"
+    f"\{a} + \{b} = \{a + b}"
 }
 ```
 
-The above value is evaluated to `"3 + 4 = 7"`. Like in Python!
+The above value is evaluated to `"3 + 4 = 7"`.
 
 #### Bytes
 

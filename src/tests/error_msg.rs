@@ -187,12 +187,12 @@ check_output!(expr, err, expr_test20, "foo(100 100)", "got `100`");
 check_output!(expr, err, expr_test21, "한글넣으면죽음?", "got character '한'");
 check_output!(expr, err, expr_test22, "{}", "got nothing");
 check_output!(expr, err, expr_test22_2, "{{}}", "got nothing");
-check_output!(expr, err, expr_test23, "f'{x} + {y} = {x + y}'", "single quotes");
-check_output!(expr, err, expr_test24, "f\"ABC {}\"", "empty format-string");
-check_output!(expr, err, expr_test25, "f\"ABC {1 + }\"", "got nothing");
-check_output!(expr, err, expr_test26, "f\"ABC { [][]}\"", "got nothing");
+check_output!(expr, err, expr_test23, "f'\\{x} + \\{y} = \\{x + y}'", "single quotes");
+check_output!(expr, err, expr_test24, "f\"ABC \\{}\"", "empty format-string");
+check_output!(expr, err, expr_test25, "f\"ABC \\{1 + }\"", "got nothing");
+check_output!(expr, err, expr_test26, "f\"ABC \\{ [][]}\"", "got nothing");
 check_output!(expr, err, expr_test27, "(b \"ABC 한글 DEF\")", "got `\"...\"`");
-check_output!(expr, err, expr_test28, "(f \"{a} + {b} = {a + b}\")", "got `\"...\"`");
+check_output!(expr, err, expr_test28, "(f \"\\{a} + \\{b} = \\{a + b}\")", "add `f`");
 check_output!(expr, err, expr_test29, "[0, 1, 2, 3] `10 1", "field modifier without");
 check_output!(expr, err, expr_test30, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
 check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "name `x` is bound multiple times");
@@ -229,6 +229,12 @@ check_output!(expr, err, expr_test51, "[[1, 2, 3, 4[], 5]]", "got nothing");
 check_output!(expr, err, expr_test52, "{let x = 3\nlet y = 4\n x}", "use `;` before the keyword `let`");
 check_output!(expr, err, expr_test53, "match x { 1.5..1.4 => 0, _ => x }", "unmatchable pattern");
 check_output!(expr, err, expr_test54, "match x { 9.4..1.15 => 0, _ => x }", "unmatchable pattern");
+check_output!(expr, err, expr_test55, "\"\\l\"", "try `\\\\l`");
+
+check_output!(expr, err, fstring1, "f\"\\{1 + 3\"", "unterminated `\\{`");
+check_output!(expr, err, fstring2, "\"\\{1 + 3}\"", "add `f`");
+check_output!(expr, err, fstring3, "\'\\{1 + 3}\'", "use double quote");
+check_output!(expr, err, fstring4, "b\"\\{1 + 3}\"", "format-string with a prefix `b`");
 
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
@@ -241,21 +247,20 @@ check_output!(stmt, warn, stmt_warn_test6, "import x, y, z;", "unused import: `z
 // warnings for exprs
 check_output!(expr, warn, expr_warn_test1, "{let x = 3; 0}", "unused local name binding");
 check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, }", "multiple name bindings");
-check_output!(expr, warn, expr_warn_test3, "f\"{1\"", "unmatched");
-check_output!(expr, warn, expr_warn_test4, "f\"1234\"", "nothing to evaluate");
-check_output!(expr, warn, expr_warn_test5, "{{5}}", "unnecessary parenthesis");
-check_output!(expr, warn, expr_warn_test6, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
-check_output!(expr, warn, expr_warn_test7, "match x { 0.1..~0.1 => 0, _ => x }", "`1e-1..~1e-1` is just `1e-1`");
-check_output!(expr, warn, expr_warn_test8, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");
-check_output!(expr, warn, expr_warn_test9, "{let pattern ($x, $y) = (0, 1); x}", "unused local name binding");
-check_output!(expr, warn, expr_warn_test10, "
+check_output!(expr, warn, expr_warn_test3, "f\"1234\"", "nothing to evaluate");
+check_output!(expr, warn, expr_warn_test4, "{{5}}", "unnecessary parenthesis");
+check_output!(expr, warn, expr_warn_test5, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
+check_output!(expr, warn, expr_warn_test6, "match x { 0.1..~0.1 => 0, _ => x }", "`1e-1..~1e-1` is just `1e-1`");
+check_output!(expr, warn, expr_warn_test7, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");
+check_output!(expr, warn, expr_warn_test8, "{let pattern ($x, $y) = (0, 1); x}", "unused local name binding");
+check_output!(expr, warn, expr_warn_test9, "
     {
         let pattern ($x, ($y, $z)) = (0, (1, 2));
         let w = 10;
 
         x + y + z
     }", "unused local name binding in a scoped let: `w`");
-check_output!(expr, warn, expr_warn_test11, "{let pattern ($x @ _, $y) = (0, 1); y}", "name binding on wildcard");
+check_output!(expr, warn, expr_warn_test10, "{let pattern ($x @ _, $y) = (0, 1); y}", "name binding on wildcard");
 
 fn make_non_utf8(s: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(s.len() + 4);

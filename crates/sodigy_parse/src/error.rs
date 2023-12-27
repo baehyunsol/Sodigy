@@ -37,7 +37,7 @@ impl ParseError {
         }
     }
 
-    pub fn empty_f_string(span: SpanRange) -> Self {
+    pub fn empty_fstring(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::EmptyFString,
             spans: smallvec![span],
@@ -77,9 +77,17 @@ impl ParseError {
         }
     }
 
-    pub fn f_string_single_quote(span: SpanRange) -> Self {
+    pub fn fstring_single_quote(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::FStringSingleQuote,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn fstring_without_prefix(has_prefix_b: bool, span: SpanRange) -> Self {
+        ParseError {
+            kind: ParseErrorKind::FStringWithoutPrefix { has_prefix_b },
             spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
@@ -134,6 +142,7 @@ pub enum ParseErrorKind {
     MismatchDelim(u8),    // no start
     EmptyFString,
     FStringSingleQuote,
+    FStringWithoutPrefix { has_prefix_b: bool },
     ThreeDots,
     LonelyBacktick,
     LonelyBackslash,
@@ -165,6 +174,13 @@ impl SodigyErrorKind for ParseErrorKind {
             ParseErrorKind::LonelyBacktick => "field modifier without a field name".to_string(),
             ParseErrorKind::LonelyBackslash => "unexpected character `\\`".to_string(),
             ParseErrorKind::FStringSingleQuote => "format-string with single quotes".to_string(),
+            ParseErrorKind::FStringWithoutPrefix {
+                has_prefix_b
+            } => if *has_prefix_b {
+                "format-string with a prefix `b`"
+            } else {
+                "format-string without a prefix `f`"
+            }.to_string(),
             ParseErrorKind::UnexpectedToken(token, expected) => format!("expected {expected}, got `{}`", token.render_error()),
             ParseErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -178,7 +194,14 @@ it uses 64-bit integer for its exponent. That means `123e100000` is okay, but `1
             ParseErrorKind::ThreeDots => "If you are to make a range of decimal-pointed numbers, use parenthesis. \
 For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::LonelyBacktick => "You have to specify the name of the field you want to modify. A backtick character alone doesn't do anything.".to_string(),
-            ParseErrorKind::FStringSingleQuote => "Use `\"...\"` instead of `'...'`.".to_string(),
+            ParseErrorKind::FStringSingleQuote => "Use `f\"...\"` instead of `f'...'`.".to_string(),
+            ParseErrorKind::FStringWithoutPrefix {
+                has_prefix_b
+            } => if *has_prefix_b {
+                "A format-literal `\\{` is not allowed in a binary literal. Try `\\\\{` to escaped the backslash character."
+            } else {
+                "Add `f` before `\"`."
+            }.to_string(),
             ParseErrorKind::UnfinishedDelim(_)
             | ParseErrorKind::MismatchDelim(_)
             | ParseErrorKind::LonelyBackslash
@@ -193,11 +216,12 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::MismatchDelim(_) => 1,
             ParseErrorKind::EmptyFString => 2,
             ParseErrorKind::FStringSingleQuote => 3,
-            ParseErrorKind::ThreeDots => 4,
-            ParseErrorKind::LonelyBacktick => 5,
-            ParseErrorKind::LonelyBackslash => 6,
-            ParseErrorKind::NumericExpOverflow => 7,
-            ParseErrorKind::UnexpectedToken(_, _) => 8,
+            ParseErrorKind::FStringWithoutPrefix { .. } => 4,
+            ParseErrorKind::ThreeDots => 5,
+            ParseErrorKind::LonelyBacktick => 6,
+            ParseErrorKind::LonelyBackslash => 7,
+            ParseErrorKind::NumericExpOverflow => 8,
+            ParseErrorKind::UnexpectedToken(_, _) => 9,
             ParseErrorKind::TODO(_) => 63,
         }
     }

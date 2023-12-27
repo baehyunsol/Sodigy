@@ -13,7 +13,7 @@ pub struct ParseWarning {
 }
 
 impl ParseWarning {
-    pub fn nothing_to_eval_in_f_string(span: SpanRange) -> Self {
+    pub fn nothing_to_eval_in_fstring(span: SpanRange) -> Self {
         ParseWarning {
             kind: ParseWarningKind::NothingToEvalInFString,
             spans: smallvec![span],

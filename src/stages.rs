@@ -97,6 +97,7 @@ pub fn parse_file(
             }
 
             else {
+                // TODO: dump after warnings and errors
                 println!("{res}");
             }
         }
@@ -249,6 +250,7 @@ pub fn hir_from_tokens(
             }
 
             else {
+                // TODO: dump after warnings and errors
                 println!("{res}");
             }
         }

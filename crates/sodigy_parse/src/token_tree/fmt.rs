@@ -45,7 +45,7 @@ impl fmt::Display for TokenTreeKind {
                             |elem| match elem {
                                 FormattedStringElement::Literal(l) => l.to_string(),
                                 FormattedStringElement::Value(v) => format!(
-                                    "{{{}}}",
+                                    "\\{{{}}}",
                                     v.iter().map(
                                         |v| v.to_string()
                                     ).collect::<Vec<String>>().join(" "),

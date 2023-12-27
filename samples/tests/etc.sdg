@@ -91,14 +91,14 @@ let format_string_test: String = {
     let a = 3;
     let b = 4;
 
-    f"{a} + {b} = {a + b}"
+    f"\{a} + \{b} = \{a + b}"
 };
 
-@test.eq(["7", "{3 + 4}", "{7}"])
+@test.eq(["7", "{7}", "7"])
 let format_string_test2: String = [
-    f"{3 + 4}",
-    f"{{3 + 4}}",
-    f"{{{3 + 4}}}",
+    f"\{3 + 4}",
+    f"{\{3 + 4}}",
+    f"\{f"\{3 + 4}"}",
 ];
 
 @test.eq([1, 2, 3, 4, 5, 6])
@@ -137,10 +137,6 @@ let EMPTY_TUPLE: () = ();
 
 @test.eq([])
 let EMPTY_LIST: List(Int) = [];
-
-# It's okay for braces to be unmatched!
-@test.eq(["{1", "{{1", "{1 {1"])
-let format_string_not_an_error = [f"{1", f"{{1", f"{1 {1"];
 
 @test.eq(42)
 let fourty_two = {

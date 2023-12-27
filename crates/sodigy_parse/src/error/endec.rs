@@ -34,17 +34,23 @@ impl Endec for ParseErrorKind {
             },
             ParseErrorKind::EmptyFString => { buf.push(2); },
             ParseErrorKind::FStringSingleQuote => { buf.push(3); },
-            ParseErrorKind::ThreeDots => { buf.push(4); },
-            ParseErrorKind::LonelyBacktick => { buf.push(5); },
-            ParseErrorKind::LonelyBackslash => { buf.push(6); },
+            ParseErrorKind::FStringWithoutPrefix {
+                has_prefix_b
+            } => {
+                buf.push(4);
+                has_prefix_b.encode(buf, session);
+            },
+            ParseErrorKind::ThreeDots => { buf.push(5); },
+            ParseErrorKind::LonelyBacktick => { buf.push(6); },
+            ParseErrorKind::LonelyBackslash => { buf.push(7); },
             ParseErrorKind::UnexpectedToken(kind, expected) => {
-                buf.push(7);
+                buf.push(8);
                 kind.encode(buf, session);
                 expected.encode(buf, session);
             },
-            ParseErrorKind::NumericExpOverflow => { buf.push(8); },
+            ParseErrorKind::NumericExpOverflow => { buf.push(9); },
             ParseErrorKind::TODO(s) => {
-                buf.push(9);
+                buf.push(10);
                 s.encode(buf, session);
             },
         }
@@ -60,16 +66,19 @@ impl Endec for ParseErrorKind {
                     1 => Ok(ParseErrorKind::MismatchDelim(u8::decode(buf, index, session)?)),
                     2 => Ok(ParseErrorKind::EmptyFString),
                     3 => Ok(ParseErrorKind::FStringSingleQuote),
-                    4 => Ok(ParseErrorKind::ThreeDots),
-                    5 => Ok(ParseErrorKind::LonelyBacktick),
-                    6 => Ok(ParseErrorKind::LonelyBackslash),
-                    7 => Ok(ParseErrorKind::UnexpectedToken(
+                    4 => Ok(ParseErrorKind::FStringWithoutPrefix {
+                        has_prefix_b: bool::decode(buf, index, session)?,
+                    }),
+                    5 => Ok(ParseErrorKind::ThreeDots),
+                    6 => Ok(ParseErrorKind::LonelyBacktick),
+                    7 => Ok(ParseErrorKind::LonelyBackslash),
+                    8 => Ok(ParseErrorKind::UnexpectedToken(
                         TokenTreeKind::decode(buf, index, session)?,
                         ExpectedToken::<TokenTreeKind>::decode(buf, index, session)?,
                     )),
-                    8 => Ok(ParseErrorKind::NumericExpOverflow),
-                    9 => Ok(ParseErrorKind::TODO(String::decode(buf, index, session)?)),
-                    10.. => Err(EndecError::invalid_enum_variant(*n)),
+                    9 => Ok(ParseErrorKind::NumericExpOverflow),
+                    10 => Ok(ParseErrorKind::TODO(String::decode(buf, index, session)?)),
+                    11.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

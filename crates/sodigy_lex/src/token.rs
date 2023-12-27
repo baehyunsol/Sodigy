@@ -23,7 +23,11 @@ pub enum TokenKind {
     Comment { kind: CommentKind, content: String },
 
     // span includes quotes
-    String { kind: QuoteKind, content: String },
+    String {
+        kind: QuoteKind,
+        content: String,
+        is_fstring: bool,  // has `\{` literal
+    },
 
     Identifier(InternedString),
 
