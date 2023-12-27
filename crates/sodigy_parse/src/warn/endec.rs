@@ -21,14 +21,14 @@ impl Endec for ParseWarning {
 }
 
 impl Endec for ParseWarningKind {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
             ParseWarningKind::NothingToEvalInFString => { buf.push(0); },
             ParseWarningKind::UnmatchedCurlyBrace => { buf.push(1); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*index) {
             Some(n) => {
                 *index += 1;

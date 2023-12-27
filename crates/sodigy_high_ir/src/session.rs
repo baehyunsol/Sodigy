@@ -111,7 +111,7 @@ impl HirSession {
         // there's no reason to define another method :)
         IdentWithSpan::new(
             self.get_tuple_field_expr(index),
-            SpanRange::dummy(11),
+            SpanRange::dummy(0x1fc513e3),
         )
     }
 

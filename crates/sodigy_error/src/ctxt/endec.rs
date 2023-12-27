@@ -2,7 +2,7 @@ use super::ErrorContext;
 use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl Endec for ErrorContext {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
             ErrorContext::Unknown => { buf.push(0); },
             ErrorContext::ParsingCommandLine => { buf.push(1); },
@@ -28,7 +28,7 @@ impl Endec for ErrorContext {
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match buf.get(*index) {
             Some(n) => {
                 *index += 1;

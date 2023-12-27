@@ -28,8 +28,8 @@ impl Expr {
  *  pre/post/infix op: the operator     *
  *  path: `.`                           *
  *  call: the parenthesis               *
- *  branch: keyword `if`                *
- *  match: keyword `match`              *
+ *  branch: the first `if` keyword      *
+ *  match: `match` keyword              *
  ****************************************/
 
 #[derive(Clone, Debug)]
@@ -49,8 +49,14 @@ pub enum ExprKind {
         fields: Vec<StructInitDef>,
     },
 
+    // Better be defined in a recursive way?
     Branch(Vec<BranchArm>),
-    Match { value: Box<Expr>, arms: Vec<MatchArm> },
+
+    Match {
+        value: Box<Expr>,
+        arms: Vec<MatchArm>,
+        is_lowered_from_if_pattern: bool,
+    },
 
     // It doesn't do anything in runtime. It's just for diagnosis.
     Parenthesis(Box<Expr>),

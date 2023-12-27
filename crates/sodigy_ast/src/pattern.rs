@@ -84,7 +84,16 @@ impl Pattern {
         }
 
         if let Some(id) = &self.bind {
-            buffer.push(*id);
+            // let's not push the same name twice
+            if let PatternKind::Binding(name) = &self.kind {
+                if id.id() != *name {
+                    buffer.push(*id);
+                }
+            }
+
+            else {
+                buffer.push(*id);
+            }
         }
     }
 
@@ -99,6 +108,15 @@ impl Pattern {
             kind: PatternKind::Or(Box::new(pat1), Box::new(pat2)),
             ty: None,
             span,
+            bind: None,
+        }
+    }
+
+    pub fn dummy_wildcard() -> Self {
+        Pattern {
+            kind: PatternKind::Wildcard,
+            ty: None,
+            span: SpanRange::dummy(0x130cd8bc),
             bind: None,
         }
     }

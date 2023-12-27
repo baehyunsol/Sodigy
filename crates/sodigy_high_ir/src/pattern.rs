@@ -31,6 +31,12 @@ pub enum PatternKind {
     },
 
     Tuple(Vec<Pattern>),
+    TupleStruct {
+        name: ast::DottedNames,
+        fields: Vec<Pattern>,
+    },
+
+    Wildcard,
 }
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.
@@ -53,7 +59,8 @@ impl DestructuredPattern {
 
 #[derive(Clone, Copy, Debug)]
 pub enum RangeType {
-    Integer, Char,
+    Integer,
+    Char,
     Ratio,
 }
 

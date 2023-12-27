@@ -17,6 +17,9 @@ enum ParseState {
     Literal,
 }
 
+// TODO: how about `f"\{x} + \{y} = \{x + y}"`?
+// that makes it much easier to deal with `{` chars: `f"{\{x}, \{y}}"`
+// in this case, unmatched {}s in an f-string are errors, not warnings
 pub fn parse_str(
     s: &[u8],  // content of string (excluding `f` and `"`s)
     span_start: SpanPoint,  // span of `s[0]`

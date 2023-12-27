@@ -93,10 +93,11 @@ impl Endec for ExprKind {
                 value.encode(buf, session);
                 uid.encode(buf, session);
             },
-            ExprKind::Match(Match { arms, value }) => {
+            ExprKind::Match(Match { arms, value, is_lowered_from_if_pattern }) => {
                 buf.push(10);
                 arms.encode(buf, session);
                 value.encode(buf, session);
+                is_lowered_from_if_pattern.encode(buf, session);
             },
             ExprKind::Lambda(Lambda {
                 args,
@@ -177,6 +178,7 @@ impl Endec for ExprKind {
                     10 => Ok(ExprKind::Match(Match {
                         arms: Vec::<MatchArm>::decode(buf, index, session)?,
                         value: Box::new(Expr::decode(buf, index, session)?),
+                        is_lowered_from_if_pattern: bool::decode(buf, index, session)?,
                     })),
                     11 => Ok(ExprKind::Lambda(Lambda {
                         args: Vec::<Arg>::decode(buf, index, session)?,
@@ -253,14 +255,12 @@ impl Endec for MatchArm {
 impl Endec for BranchArm {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
         self.cond.encode(buf, session);
-        self.pattern_bind.encode(buf, session);
         self.value.encode(buf, session);
     }
 
     fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(BranchArm {
             cond: Option::<Expr>::decode(buf, index, session)?,
-            pattern_bind: Option::<Expr>::decode(buf, index, session)?,
             value: Expr::decode(buf, index, session)?,
         })
     }

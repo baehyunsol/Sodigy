@@ -101,6 +101,7 @@ pub struct MatchArm {
 
 #[derive(Clone, Debug)]
 pub struct BranchArm {
+    pub span: SpanRange,  // merged span of `if`, `else` and `pattern` keywords
     pub cond: Option<Expr>,
     pub pattern_bind: Option<Pattern>,  // `if pattern` pattern_bind = cond { value }
     pub value: Expr,

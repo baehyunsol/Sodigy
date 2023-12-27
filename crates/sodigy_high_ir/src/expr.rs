@@ -98,6 +98,7 @@ impl ScopedLet {
 pub struct Match {
     pub arms: Vec<MatchArm>,
     pub value: Box<Expr>,
+    pub is_lowered_from_if_pattern: bool,
 }
 
 #[derive(Clone)]
@@ -127,7 +128,6 @@ pub struct Branch {
 #[derive(Clone)]
 pub struct BranchArm {
     pub cond: Option<Expr>,
-    pub pattern_bind: Option<Expr>,
     pub value: Expr,
 }
 

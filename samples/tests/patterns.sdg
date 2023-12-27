@@ -63,3 +63,6 @@ let shorthand_tests = {
 
     x
 };
+
+@test.eq(7)
+let if_pattern_test = if pattern ((), ($x, $y)) = ((), (3, 4)) { x + y } else { 5 };

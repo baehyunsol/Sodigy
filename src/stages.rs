@@ -12,6 +12,7 @@ use sodigy_span::SpanPoint;
 type Path = String;
 
 // TODO: nicer return type for all the stages
+// TODO: search for saved irs before running a stage: use one if exists
 
 pub fn parse_file(
     file: &Path,

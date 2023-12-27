@@ -58,7 +58,7 @@ pub fn lower_patterns_to_name_bindings(
 
             // let tmp = foo();
             name_bindings.push(DestructuredPattern::new(
-                IdentWithSpan::new(tmp_name, SpanRange::dummy(12)),  // $tmp
+                IdentWithSpan::new(tmp_name, SpanRange::dummy(0xb37cd590)),  // $tmp
                 expr.clone(),
                 pattern.ty.clone(),
                 false,  // not a real name
@@ -299,6 +299,33 @@ fn lower_ast_pattern_kind(
 
             PatternKind::Tuple(result)
         },
+        ast::PatternKind::TupleStruct { name, fields } => {
+            let mut result = Vec::with_capacity(fields.len());
+            let mut has_error = false;
+
+            for pattern in fields.iter() {
+                if let Ok(pattern) = lower_ast_pattern(
+                    pattern,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                ) {
+                    result.push(pattern);
+                }
+
+                else {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+
+            PatternKind::TupleStruct { name: name.to_vec(), fields: result }
+        },
+        ast::PatternKind::Wildcard => PatternKind::Wildcard,
         _ => {
             session.push_error(HirError::todo("patterns", span));
             return Err(());
@@ -356,11 +383,11 @@ fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -
         kind: ast::ExprKind::Path {
             pre: Box::new(ast::Expr {
                 kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
-                span: SpanRange::dummy(13),
+                span: SpanRange::dummy(0x923a3852),
             }),
-            post: IdentWithSpan::new(field, SpanRange::dummy(14)),
+            post: IdentWithSpan::new(field, SpanRange::dummy(0x0716df33)),
         },
-        span: SpanRange::dummy(15),
+        span: SpanRange::dummy(0x9edc0524),
     }
 }
 

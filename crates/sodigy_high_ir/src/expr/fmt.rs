@@ -89,7 +89,7 @@ impl fmt::Display for ExprKind {
 
                 format!("{{{}}}", result.join("; "))
             },
-            ExprKind::Match(Match { arms, value }) => {
+            ExprKind::Match(Match { arms, value, .. }) => {
                 let mut arms_rendered = Vec::with_capacity(arms.len());
 
                 for MatchArm { pattern, value, guard } in arms.iter() {
@@ -131,7 +131,7 @@ impl fmt::Display for ExprKind {
             ExprKind::Branch(Branch { arms }) => {
                 let mut result = Vec::with_capacity(arms.len());
 
-                for (index, BranchArm { cond, pattern_bind, value }) in arms.iter().enumerate() {
+                for (index, BranchArm { cond, value }) in arms.iter().enumerate() {
                     result.push(format!(
                         "{}{}{}",
                         if index == 0 {
@@ -141,18 +141,10 @@ impl fmt::Display for ExprKind {
                         } else {
                             "else "
                         },
-                        if let Some(pattern_bind) = pattern_bind {
-                            format!(
-                                "pattern {} = {}",
-                                pattern_bind,
-                                cond.as_ref().unwrap(),
-                            )
+                        if let Some(cond) = cond {
+                            format!("{cond} ")
                         } else {
-                            if let Some(cond) = cond {
-                                format!("{cond} ")
-                            } else {
-                                String::new()
-                            }
+                            String::new()
                         },
                         {
                             // pretty print: remove unnecessary braces

@@ -95,7 +95,7 @@ pub enum HirWarningKind {
         is_brace: bool,
     },
     PointRange {  // `0..~0`
-        from:NumberLike,
+        from: NumberLike,
         to: NumberLike,
         ty: RangeType,
     },

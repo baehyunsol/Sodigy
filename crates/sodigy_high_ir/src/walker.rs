@@ -97,7 +97,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
                 mut_walker_expr(value, c, worker);
             }
         },
-        ExprKind::Match(hir::Match { arms, value }) => {
+        ExprKind::Match(hir::Match { arms, value, .. }) => {
             mut_walker_expr(value, c, worker);
 
             for hir::MatchArm { value, guard, .. } in arms.iter_mut() {
@@ -124,15 +124,11 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
             }
         },
         ExprKind::Branch(hir::Branch { arms }) => {
-            for hir::BranchArm { cond, pattern_bind, value } in arms.iter_mut() {
+            for hir::BranchArm { cond, value } in arms.iter_mut() {
                 mut_walker_expr(value, c, worker);
 
                 if let Some(cond) = cond {
                     mut_walker_expr(cond, c, worker);
-                }
-
-                if let Some(pattern_bind) = pattern_bind {
-                    mut_walker_expr(pattern_bind, c, worker);
                 }
             }
         },

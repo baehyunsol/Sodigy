@@ -289,16 +289,17 @@ pub fn parse_expr(
             let span = *span;
             tokens.backward().unwrap();
             let mut branch_arms = vec![];
+            let mut else_span = None;
 
             loop {
-                branch_arms.push(parse_branch_arm(tokens, session, span)?);
+                branch_arms.push(parse_branch_arm(tokens, session, span, else_span)?);
 
                 if !tokens.is_curr_token(TokenKind::Keyword(Keyword::Else)) {
                     break;
                 }
 
                 // step `else`
-                tokens.step().unwrap();
+                else_span = Some(tokens.step().unwrap().span);
             }
 
             Expr {
@@ -331,6 +332,7 @@ pub fn parse_expr(
                         kind: ExprKind::Match {
                             value: Box::new(value),
                             arms,
+                            is_lowered_from_if_pattern: false,
                         },
                         span: span.merge(last_token_span),
                     }
@@ -1436,16 +1438,23 @@ fn parse_branch_arm(
 
     // when `tokens` is empty, it uses this span for the error message
     parent_span: SpanRange,
+    else_span: Option<SpanRange>,
 ) -> Result<BranchArm, ()> {
     match tokens.step() {
         Some(Token {
             kind: TokenKind::Keyword(Keyword::If),
             span: if_span,
         }) => {
-            let if_span = *if_span;
+            let mut head_span = if let Some(span) = else_span {
+                span.merge(*if_span)
+            } else {
+                *if_span
+            };
             let mut pattern_bind = None;
 
             if tokens.is_curr_token(TokenKind::Keyword(Keyword::Pattern)) {
+                head_span = head_span.merge(tokens.step().unwrap().span);
+
                 let pat = parse_pattern(tokens, session)?;
 
                 if let Err(mut e) = tokens.consume(TokenKind::assign()) {
@@ -1460,7 +1469,7 @@ fn parse_branch_arm(
                 pattern_bind = Some(pat);
             }
 
-            let cond = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingBranchCondition), if_span)?;
+            let cond = parse_expr(tokens, session, 0, false, Some(ErrorContext::ParsingBranchCondition), head_span)?;
             let span = tokens.peek_span();
 
             match tokens.expect_group(Delim::Brace) {
@@ -1484,6 +1493,7 @@ fn parse_branch_arm(
                         cond: Some(cond),
                         pattern_bind,
                         value,
+                        span: head_span,
                     })
                 },
                 Err(e) => {
@@ -1520,6 +1530,7 @@ fn parse_branch_arm(
                 cond: None,
                 pattern_bind: None,
                 value,
+                span: else_span.unwrap(),
             })
         },
         Some(token) => {
@@ -2018,7 +2029,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
             },
             None => {
                 session.push_error(AstError::unexpected_end(
-                    tokens.span_end().unwrap_or(SpanRange::dummy(1)),
+                    tokens.span_end().unwrap_or(SpanRange::dummy(0x5b553e85)),
                     ExpectedToken::comma_or_gt(),
                 ));
 
@@ -2396,7 +2407,7 @@ fn parse_let_statement(
         },
         None => {
             session.push_error(AstError::unexpected_end(
-                tokens.span_end().unwrap_or(SpanRange::dummy(2)),
+                tokens.span_end().unwrap_or(SpanRange::dummy(0x05fc6577)),
                 ExpectedToken::let_statement(),
             ).set_err_context(
                 ErrorContext::ParsingLetStatement

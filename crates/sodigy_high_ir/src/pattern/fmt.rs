@@ -34,6 +34,16 @@ impl fmt::Display for PatternKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let result = match self {
             PatternKind::Binding(name) => format!("${name}"),
+            PatternKind::TupleStruct { name, fields } => format!(
+                "{}({})",
+                name.iter().map(
+                    |name| name.id().to_string()
+                ).collect::<Vec<_>>().join("."),
+                fields.iter().map(
+                    |pat| pat.to_string()
+                ).collect::<Vec<_>>().join(", ")
+            ),
+            PatternKind::Wildcard => String::from("_"),
             _ => todo!(),
         };
 

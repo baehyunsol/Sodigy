@@ -1,4 +1,4 @@
-use super::{IdentWithOrigin, NameOrigin};
+use super::{IdentWithOrigin, NameBindingType, NameOrigin};
 use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
@@ -63,6 +63,40 @@ impl Endec for NameOrigin {
                         index: usize::decode(buf, index, session)?,
                     }),
                     6.. => Err(EndecError::invalid_enum_variant(*n)),
+                }
+            },
+            None => Err(EndecError::eof()),
+        }
+    }
+}
+
+impl Endec for NameBindingType {
+    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        match self {
+            NameBindingType::ScopedLet => { buf.push(0); },
+            NameBindingType::FuncArg => { buf.push(1); },
+            NameBindingType::FuncGeneric => { buf.push(2); },
+            NameBindingType::LambdaArg => { buf.push(3); },
+            NameBindingType::MatchArm => { buf.push(4); },
+            NameBindingType::IfPattern => { buf.push(5); },
+            NameBindingType::Import => { buf.push(6); },
+        }
+    }
+
+    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buf.get(*index) {
+            Some(n) => {
+                *index += 1;
+
+                match *n {
+                    0 => Ok(NameBindingType::ScopedLet),
+                    1 => Ok(NameBindingType::FuncArg),
+                    2 => Ok(NameBindingType::FuncGeneric),
+                    3 => Ok(NameBindingType::LambdaArg),
+                    4 => Ok(NameBindingType::MatchArm),
+                    5 => Ok(NameBindingType::IfPattern),
+                    6 => Ok(NameBindingType::Import),
+                    7.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

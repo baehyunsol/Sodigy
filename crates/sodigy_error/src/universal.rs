@@ -37,7 +37,7 @@ impl From<FileError> for UniversalError {
                 "[Error while doing File IO]".red(),
                 e.render_error(),
             ),
-            first_span: SpanRange::dummy(9),
+            first_span: SpanRange::dummy(0x608e7df7),
             hash: e.hash_u64(),
         }
     }
@@ -51,7 +51,7 @@ impl From<EndecError> for UniversalError {
                 "[Error while decoding a file]".red(),
                 e.render_error(),
             ),
-            first_span: SpanRange::dummy(10),
+            first_span: SpanRange::dummy(0x20060f7a),
             hash: e.hash_u64(),
         }
     }

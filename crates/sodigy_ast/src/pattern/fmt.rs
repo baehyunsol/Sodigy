@@ -101,6 +101,18 @@ impl fmt::Display for PatternKind {
                     rhs.to_string()
                 },
             ),
+            PatternKind::TupleStruct {
+                name, fields,
+            } => {
+                let name = name.iter().map(
+                    |name| name.id().to_string()
+                ).collect::<Vec<String>>().join(".");
+                let patterns = fields.iter().map(
+                    |pat| pat.to_string()
+                ).collect::<Vec<String>>().join(", ");
+
+                format!("{name}({patterns})")
+            },
             _ => todo!(),
         };
 

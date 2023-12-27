@@ -166,7 +166,7 @@ impl<'t> Tokens<'t> {
                 ExpectedToken::ident(),
             )),
             None => Err(AstError::unexpected_end(
-                self.span_end().unwrap_or(SpanRange::dummy(3)),
+                self.span_end().unwrap_or(SpanRange::dummy(0x9ae35b41)),
                 ExpectedToken::ident(),
             )),
         }
@@ -189,7 +189,7 @@ impl<'t> Tokens<'t> {
                 ExpectedToken::number(),
             )),
             None => Err(AstError::unexpected_end(
-                self.span_end().unwrap_or(SpanRange::dummy(4)),
+                self.span_end().unwrap_or(SpanRange::dummy(0x77686d16)),
                 ExpectedToken::number(),
             )),
         }
@@ -209,7 +209,7 @@ impl<'t> Tokens<'t> {
                 ExpectedToken::specific(TokenKind::Group { delim, tokens: vec![], prefix: b'\0' }),
             )),
             None => Err(AstError::unexpected_end(
-                self.span_end().unwrap_or(SpanRange::dummy(5)),
+                self.span_end().unwrap_or(SpanRange::dummy(0xb683c5e3)),
                 ExpectedToken::specific(TokenKind::Group { delim, tokens: vec![], prefix: b'\0' }),
             )),
         }
@@ -223,7 +223,7 @@ impl<'t> Tokens<'t> {
                 ExpectedToken::doc_comment(),
             )),
             None => Err(AstError::unexpected_end(
-                self.span_end().unwrap_or(SpanRange::dummy(6)),
+                self.span_end().unwrap_or(SpanRange::dummy(0xbb182dfd)),
                 ExpectedToken::doc_comment(),
             )),
         }
@@ -243,7 +243,7 @@ impl<'t> Tokens<'t> {
                 ExpectedToken::specific(token_kind),
             )),
             None => Err(AstError::unexpected_end(
-                self.span_end().unwrap_or(SpanRange::dummy(7)),
+                self.span_end().unwrap_or(SpanRange::dummy(0x6e6a7970)),
                 ExpectedToken::specific(token_kind),
             )),
         }

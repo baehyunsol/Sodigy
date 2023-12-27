@@ -28,6 +28,7 @@ use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
+use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 // This function tries to continue lowering even when errors are found.
@@ -695,11 +696,89 @@ pub fn lower_ast_expr(
             let mut branch_arms = Vec::with_capacity(arms.len());
             let mut has_error = false;
 
-            for ast::BranchArm {
-                cond,
-                pattern_bind,
-                value,
-            } in arms.iter() {
+            // `if pattern` statements are lowered to `match` statements
+            if arms[0].pattern_bind.is_some() {
+                // `if pattern PAT = COND { EXPR1 } else { EXPR2 }`
+                // -> `match COND { PAT => EXPR1, _ => EXPR2 }`
+                return if arms.len() == 2 {
+                    let match_expr = ast::Expr {
+                        kind: ast::ExprKind::Match {
+                            value: Box::new(arms[0].cond.clone().unwrap()),
+                            arms: vec![
+                                ast::MatchArm {
+                                    pattern: arms[0].pattern_bind.clone().unwrap(),
+                                    guard: None,
+                                    value: arms[0].value.clone(),
+                                    uid: Uid::new_match_arm(),
+                                },
+                                ast::MatchArm {
+                                    pattern: ast::Pattern::dummy_wildcard(),
+                                    guard: None,
+                                    value: arms[1].value.clone(),
+                                    uid: Uid::new_match_arm(),
+                                },
+                            ],
+                            is_lowered_from_if_pattern: true,
+                        },
+                        span: e.span,
+                    };
+
+                    lower_ast_expr(
+                        &match_expr,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    )
+                }
+
+                // `if pattern PAT = COND { EXPR } else if ... `
+                // -> `match COND { PAT => EXPR, _ => if ... }`
+                else {
+                    let match_expr = ast::Expr {
+                        kind: ast::ExprKind::Match {
+                            value: Box::new(arms[0].cond.clone().unwrap()),
+                            arms: vec![
+                                ast::MatchArm {
+                                    pattern: arms[0].pattern_bind.clone().unwrap(),
+                                    guard: None,
+                                    value: arms[0].value.clone(),
+                                    uid: Uid::new_match_arm(),
+                                },
+                                ast::MatchArm {
+                                    pattern: ast::Pattern::dummy_wildcard(),
+                                    guard: None,
+                                    value: ast::Expr {
+                                        kind: ast::ExprKind::Branch(arms[1..].to_vec()),
+                                        span: arms[1].span,
+                                    },
+                                    uid: Uid::new_match_arm(),
+                                },
+                            ],
+                            is_lowered_from_if_pattern: true,
+                        },
+                        span: e.span,
+                    };
+
+                    lower_ast_expr(
+                        &match_expr,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    )
+                };
+            }
+
+            for (
+                index,
+                ast::BranchArm {
+                    cond,
+                    pattern_bind,
+                    value,
+                    span,  // of the current `else`
+                },
+            ) in arms.iter().enumerate() {
                 if let Some(cond) = cond {
                     let cond = if let Ok(cond) = lower_ast_expr(
                         cond,
@@ -714,10 +793,34 @@ pub fn lower_ast_expr(
                         continue;
                     };
 
+                    // `if COND1 { EXPR1 } else if pattern PAT = COND2 { EXPR2 } else { EXPR3 }`
+                    // -> `if COND1 { EXPR1 } else { if pattern PAT = COND2 { EXPR2 } else { EXPR3 } }`
+                    // -> `if COND1 { EXPR1 } else { match COND2 { PAT => EXPR2, _ => EXPR3 } }`
                     if let Some(pattern_bind) = pattern_bind {
-                        session.push_error(HirError::todo("if-pattern", e.span));
-                        has_error = true;
-                        continue;
+                        let else_branch = ast::Expr {
+                            kind: ast::ExprKind::Branch(arms[index..].to_vec()),
+                            span: *span,
+                        };
+
+                        let else_branch = if let Ok(e) = lower_ast_expr(
+                            &else_branch,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        ) {
+                            e
+                        } else {
+                            has_error = true;
+                            break;
+                        };
+
+                        branch_arms.push(BranchArm {
+                            cond: None,
+                            value: else_branch,
+                        });
+
+                        break;
                     }
 
                     else {
@@ -730,7 +833,6 @@ pub fn lower_ast_expr(
                         ) {
                             branch_arms.push(BranchArm {
                                 cond: Some(cond),
-                                pattern_bind: None,
                                 value,
                             });
                         }
@@ -753,7 +855,6 @@ pub fn lower_ast_expr(
                     ) {
                         branch_arms.push(BranchArm {
                             cond: None,
-                            pattern_bind: None,
                             value,
                         });
                     }
@@ -773,7 +874,7 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
-        ast::ExprKind::Match { value, arms } => {
+        ast::ExprKind::Match { value, arms, is_lowered_from_if_pattern } => {
             try_warn_unnecessary_paren(value, session);
 
             let result_value = lower_ast_expr(
@@ -859,6 +960,7 @@ pub fn lower_ast_expr(
                 kind: ExprKind::Match(Match {
                     arms: result_arms,
                     value: Box::new(result_value?),
+                    is_lowered_from_if_pattern: *is_lowered_from_if_pattern,
                 }),
                 span: e.span,
             }

@@ -206,11 +206,7 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
             }))
         },
         hir::ExprKind::Branch(hir::Branch { arms }) => {
-            for hir::BranchArm { cond, pattern_bind, value } in arms.iter() {
-                if pattern_bind.is_some() {
-                    return Err(HirEvalError::TODO(String::from("if pattern")));
-                }
-
+            for hir::BranchArm { cond, value } in arms.iter() {
                 if let Some(cond) = cond {
                     ctxt.inc_call_depth();
                     let cond = eval_hir(cond, ctxt)?;

@@ -540,7 +540,7 @@ fn parse_pattern_value(
         },
         None => {
             session.push_error(AstError::unexpected_end(
-                tokens.span_end().unwrap_or(SpanRange::dummy(8)),
+                tokens.span_end().unwrap_or(SpanRange::dummy(0xec9ddc98)),
                 ExpectedToken::pattern(),
             ));
             return Err(());
