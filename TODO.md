@@ -199,12 +199,6 @@ how about `first_n_bits(n: Int)`, `last_n_bits(n: Int)`
 
 ---
 
-compiler cmd line args
-
-it should get inspiration from `rustc`, not `cargo`
-
----
-
 documents
 
 compiler outputs data for documentation (maybe in JSON?)
