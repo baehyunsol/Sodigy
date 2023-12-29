@@ -34,6 +34,9 @@ cargo test --release
 cd ../sodigy_lex
 cargo test
 cargo test --release
+cd ../sodigy_mid_ir
+cargo test
+cargo test --release
 cd ../sodigy_number
 cargo test
 cargo test --release

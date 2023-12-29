@@ -363,3 +363,21 @@ linear type system (check in MIR)
     - none: warning
     - exactly once: remove `let x = ...;` and replace `x` with its value
     - at least once: no need for lazy evaluation, just evaluate this eagerly when the scope is entered
+
+---
+
+How other languages import modules
+
+- Python: `import A`
+  - There must be `A.py` somewhere. There are predefined rules to find `A.py`.
+- Rust: `use A`
+  - `Cargo.toml` tells you what `A` is.
+- Go: `import "A"`
+  - `go.mod` and `go get A` tells you what and where `A` is.
+
+---
+
+read
+
+- https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
+- https://github.com/purescript/documentation/blob/master/language/Types.md
