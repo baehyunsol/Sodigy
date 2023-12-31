@@ -167,6 +167,7 @@ Python operator
 
 - `2 ** 3.0`
   - 당연히 exp가 Int일 때랑 Ratio일 때랑 구현이 달라야 함. 당연히 Int일 때가 더 효율적이겠지. 근데 `2 ** 3.0` 보고 compiler가 최적화 때려도 됨? 그럼 `2 ** a == 2 ** 3.0`이 `False`가 될 수도 있음 (`a == 3.0`일 때)...
+  - 그렇다고 구현을 다르게 해버리면 `2 ** 3.0 == 2 ** 3`이 `False`가 됨
 
 ---
 
@@ -375,3 +376,14 @@ read
 
 - https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
 - https://github.com/purescript/documentation/blob/master/language/Types.md
+
+---
+
+Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
+
+- 둘다 적당히 크면 LSB 날리고
+- 분모만 크면 0이라고 해버리고
+- 분자만 크면...
+  - runtime error??
+  - `inf`?? -> 이거는 어떻게 표현?
+    - `1/0`하고 `-1/0`으로 표현할까? 이러면 if문 몇개 더 필요하긴한데 꽤 깔끔할 듯?

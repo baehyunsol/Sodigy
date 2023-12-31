@@ -2,6 +2,7 @@ use crate::{
     global::global_intern_session,
     InternedNumeric,
     InternedString,
+    numeric::try_intern_small_integer,
     string::try_intern_short_string,
 };
 use sodigy_keyword::keywords;
@@ -42,8 +43,7 @@ impl Session {
             Some(i) => *i,
             None => unsafe {
                 let ii = if let Some(s) = try_intern_short_string(&string) {
-                    // `string` is not a keyword because keywords are already in the table
-                    s
+                    return s;
                 } else {
                     let g = global_intern_session();
 
@@ -62,9 +62,17 @@ impl Session {
         match self.local_numeric_table.get(&numeric) {
             Some(i) => *i,
             None => unsafe {
-                let g = global_intern_session();
+                let ii = match u32::try_from(&numeric) {
+                    Ok(n) if let Some(n) = try_intern_small_integer(n) => {
+                        return n;
+                    },
+                    _ => {
+                        let g = global_intern_session();
 
-                let ii = g.intern_numeric(numeric.clone());
+                        g.intern_numeric(numeric.clone())
+                    },
+                };
+
                 self.local_numeric_table.insert(numeric.clone(), ii);
                 self.local_numeric_table_rev.insert(ii, numeric.clone());
 
@@ -108,11 +116,23 @@ impl Session {
 
     pub fn unintern_numeric(&mut self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
         match self.unintern_numeric_fast(numeric) {
-            Some(n) => Some(n),
+            // trust me, it's safe
+            Some(n) => unsafe { std::mem::transmute::<Option<&SodigyNumber>, Option<&'static SodigyNumber>>(Some(n)) },
             None => unsafe {
-                let g = global_intern_session();
+                if let Some(n) = numeric.try_unwrap_small_integer() {
+                    let n = SodigyNumber::SmallInt(n as u64);
 
-                g.numerics_rev.get(&numeric)
+                    self.local_numeric_table.insert(n.clone(), numeric);
+                    self.local_numeric_table_rev.insert(numeric, n.clone());
+
+                    self.unintern_numeric(numeric)
+                }
+
+                else {
+                    let g = global_intern_session();
+
+                    g.numerics_rev.get(&numeric)
+                }
             },
         }
     }

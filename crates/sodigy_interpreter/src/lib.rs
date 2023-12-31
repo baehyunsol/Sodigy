@@ -102,7 +102,7 @@ pub trait IntoHmath {
 
 impl IntoHmath for InternedNumeric {
     fn into_hmath_big_int(&self) -> Result<BigInt, ConvertError> {
-        if let Some(n) = self.try_unwrap_small_int() {
+        if let Some(n) = self.try_unwrap_small_integer() {
             Ok(BigInt::from(n))
         }
 

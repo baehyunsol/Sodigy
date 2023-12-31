@@ -37,6 +37,12 @@ For performance reasons, all the literals are interned.
 
 In order to make the life of programmers easier, the compiler tries to emit as many error messages as possible. When an error is found, it doesn't stop the compilation immediately. It tries to continue analysis and compilation until it makes no sense at all. If you're adding a new error to the compiler, please make sure to keep this in mind. For example, let's say there's a name collision in a function. If you just stop the entire thing at that point, you're missing potential errors in other functions. There could be more!
 
+## Sodigy-first
+
+If you're implementing a Sodigy function, it has to be written in Sodigy. For example, a sqrt function can be implemented either in C (and all the other backends) or Sodigy. It has to be in Sodigy. Everything has to be in Sodigy except very primitive functions.
+
+That's one of the reason Sodigy uses rational numbers instead of floating point numbers.
+
 ## ETC
 
 Don't make references if `size_of::<T>` is less than or equal to 128 bits.

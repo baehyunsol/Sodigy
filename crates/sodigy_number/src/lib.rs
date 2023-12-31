@@ -82,6 +82,79 @@ impl SodigyNumber {
         }
     }
 
+    pub fn get_denom_and_numer(&self) -> (SodigyNumber, SodigyNumber) {
+        match self {
+            SodigyNumber::Big(n) => n.get_denom_and_numer(),
+            SodigyNumber::SmallInt(n) => (
+                SodigyNumber::SmallInt(1),
+                SodigyNumber::SmallInt(*n),
+            ),
+            SodigyNumber::SmallRatio(n) => {
+                // self = digit * 10^exp
+                let exp = (*n & 0xffff) as i64 - 32768;
+                let mut digits = *n >> 16;
+
+                // self = digits * 2^twos * 5^fives
+                let mut twos = exp;
+                let mut fives = exp;
+
+                while digits & 1 == 0 {
+                    digits >>= 1;
+                    twos += 1;
+                }
+
+                while digits % 5 == 0 {
+                    digits /= 5;
+                    fives += 1;
+                }
+
+                let mut numer = digits as u128;
+                let mut denom = 1u128;
+
+                while twos < 0 {
+                    denom <<= 1;
+                    twos += 1;
+
+                    if denom >= (1 << 64) {
+                        return get_denom_and_numer_fallback(denom, numer, twos, fives);
+                    }
+                }
+
+                while twos > 0 {
+                    numer <<= 1;
+                    twos -= 1;
+
+                    if numer >= (1 << 64) {
+                        return get_denom_and_numer_fallback(denom, numer, twos, fives);
+                    }
+                }
+
+                while fives < 0 {
+                    denom *= 5;
+                    fives += 1;
+
+                    if denom >= (1 << 64) {
+                        return get_denom_and_numer_fallback(denom, numer, twos, fives);
+                    }
+                }
+
+                while fives > 0 {
+                    numer *= 5;
+                    fives -= 1;
+
+                    if numer >= (1 << 64) {
+                        return get_denom_and_numer_fallback(denom, numer, twos, fives);
+                    }
+                }
+
+                (
+                    SodigyNumber::SmallInt(denom as u64),
+                    SodigyNumber::SmallInt(numer as u64),
+                )
+            },
+        }
+    }
+
     // unfortunate that `SodigyNumber` is unsigned
     pub fn minus_one(n: Self, is_negative: bool) -> (Self, /* is_negative */ bool) {
         sodigy_assert!(n.is_integer());
@@ -157,6 +230,10 @@ impl SodigyNumber {
             _ => todo!(),
         }
     }
+}
+
+fn get_denom_and_numer_fallback(denom: u128, numer: u128, twos: i64, fives: i64) -> (SodigyNumber, SodigyNumber) {
+    todo!()
 }
 
 impl From<u32> for SodigyNumber {
@@ -302,6 +379,17 @@ impl BigNumber {
         self.digits == b"0"
     }
 
+    pub fn get_denom_and_numer(&self) -> (SodigyNumber, SodigyNumber) {
+        if self.is_integer {(
+            SodigyNumber::SmallInt(1),
+            SodigyNumber::Big(Box::new(self.clone())),
+        )}
+
+        else {
+            todo!()
+        }
+    }
+
     pub fn to_hmath_bi(&self) -> BigInt {
         BigInt::from_string(
             unsafe { &String::from_utf8_unchecked(
@@ -392,6 +480,7 @@ mod tests {
             ("123.456e10", "123456", 7, false),
             ("0.123", "123", -3, false),
             ("1230", "123", 1, true),
+            ("1230.0", "123", 1, false),
             ("0.0123", "123", -4, false),
             ("0.0123e3", "123", -1, false),
             ("0.0123e-3", "123", -7, false),
@@ -408,6 +497,48 @@ mod tests {
                     is_integer,
                 }
             );
+        }
+    }
+
+    #[test]
+    fn gt_test() {
+        let samples = vec![
+            ("1.5", "1.25"),
+            ("1.64", "1.2"),
+            ("7.9", "1.23"),
+            ("17e100", "101e99"),
+
+            // TODO
+            // ("1.0", "0"),
+        ];
+
+        // always a > b
+        for (a, b) in samples.into_iter() {
+            let a = SodigyNumber::from_string(a.as_bytes()).unwrap();
+            let b = SodigyNumber::from_string(b.as_bytes()).unwrap();
+
+            assert!(a.gt(&b));
+        }
+    }
+
+    #[test]
+    fn denom_numer_test() {
+        let samples = [
+            ("1.2", 5, 6),
+            ("1.02", 50, 51),
+            ("10.2", 5, 51),
+            ("1.75", 4, 7),
+            ("17.5", 2, 35),
+            ("3.14", 50, 157),
+        ];
+
+        for (s, denom_, numer_) in samples.into_iter() {
+            let n = BigNumber::from_string(s.as_bytes()).unwrap();
+            let n = SodigyNumber::SmallRatio(n.try_into_u64().unwrap());
+            let (denom, numer) = n.get_denom_and_numer();
+
+            assert_eq!(SodigyNumber::SmallInt(denom_), denom);
+            assert_eq!(SodigyNumber::SmallInt(numer_), numer);
         }
     }
 }

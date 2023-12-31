@@ -1,4 +1,5 @@
 #![deny(unused_imports)]
+#![feature(if_let_guard)]
 
 use sodigy_number::SodigyNumber;
 
@@ -11,27 +12,37 @@ mod string;
 #[cfg(test)]
 mod tests;
 
-pub use numeric::InternedNumeric;
+pub use numeric::{InternedNumeric, try_intern_small_integer};
 pub use string::{InternedString, try_intern_short_string};
 
 pub use session::Session as InternSession;
 
-/// This function is very expensive. Please use this function only for test purpose.
+/// If you have a local intern_session, you should prefer using that.
 pub fn intern_string(s: Vec<u8>) -> InternedString {
     let g = unsafe { global::global_intern_session() };
 
     g.intern_string(s)
 }
 
-/// This function is very expensive. Please use this function only for test purpose.
+/// If you have a local intern_session, you should prefer using that.
 pub fn intern_numeric(n: SodigyNumber) -> InternedNumeric {
     let g = unsafe { global::global_intern_session() };
 
     g.intern_numeric(n)
 }
 
-/// This function is very expensive. Please use this function only for test purpose.
-/// If you have a local intern session, use `Session.unintern_string_fast` instead of this one.
+/// If you have a local intern_session, you should prefer using that.
+pub fn intern_numeric_u32(n: u32) -> InternedNumeric {
+    if let Some(n) = try_intern_small_integer(n) {
+        n
+    }
+
+    else {
+        intern_numeric(SodigyNumber::SmallInt(n as u64))
+    }
+}
+
+/// If you have a local intern_session, you should prefer using that.
 pub fn unintern_string(s: InternedString) -> Vec<u8> {
     if let Some((length, bytes)) = s.try_unwrap_short_string() {
         bytes[0..(length as usize)].to_vec()
@@ -40,12 +51,21 @@ pub fn unintern_string(s: InternedString) -> Vec<u8> {
     else {
         let g = unsafe { global::global_intern_session() };
 
+        // if it fails, that's ICE
         g.strings_rev.get(&s).unwrap().to_vec()
     }
 }
 
+/// If you have a local intern_session, you should prefer using that.
 pub fn unintern_numeric(n: InternedNumeric) -> SodigyNumber {
-    let g = unsafe { global::global_intern_session() };
+    if let Some(n) = n.try_unwrap_small_integer() {
+        SodigyNumber::SmallInt(n as u64)
+    }
 
-    g.numerics_rev.get(&n).unwrap().clone()
+    else {
+        let g = unsafe { global::global_intern_session() };
+
+        // if it fails, that's ICE
+        g.numerics_rev.get(&n).unwrap().clone()
+    }
 }

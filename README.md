@@ -164,9 +164,7 @@ let adder_test: Int = adder(5)(3);
 
 ### String Literals
 
-Sodigy doesn't distinguish double-quoted literals and single-quoted literals. It only has `String` type, but no `Char` type. It may change in the future.
-
-Internally, Sodigy strings are lists of integers. Each integer represent a character, not a byte. For example, a korean character "한" is 3 bytes in UTF-8. It's `[237, 149, 156]` in Rust, and `"한".len()` is 3 in Rust. But in Sodigy, it's a single character, which is 54620 in integer. It makes Sodigy slower than Rust, but makes it much easier to deal with strings, especially indexing.
+In Sodigy, a String is a `List(Char)`. See [`Char`](#character).
 
 Beside normal string literals, there are two special ones: formatted strings and bytes.
 
@@ -187,7 +185,7 @@ The above value is evaluated to `"3 + 4 = 7"`.
 
 #### Bytes
 
-Byte literals are like that of Rust (as far as I know). A letter `b` followed by a string literal is bytes.
+`Bytes` in Sodigy is a `List(Byte)`. Unlike [`Char`](#character), a `Byte` represents a byte in UTF-8 sequence.
 
 ```
 @test.eq((3, 9))
@@ -196,6 +194,18 @@ let bytes = {
     let b = b"가나다";
 
     (s.len(), b.len())
+};
+```
+
+### Character
+
+A `Char` in Sodigy represents a UTF-8 code point. It's a very thin wrapper over an integer.
+
+```
+@test.true
+let chars = {
+    'a' as Int == 97
+    && '가' as Int == 44032
 };
 ```
 
@@ -237,11 +247,11 @@ Types in Sodigy are first-class objects. The type checker (which is not implmene
 
 ### Integers
 
-Sodigy uses arbitrary-width integers.
+Sodigy uses arbitrary-width integers. There's no integer overflow in Sodigy.
 
 ### Ratio
 
-Sodigy doesn't use floating points, but rational numbers.
+Sodigy doesn't use floating points, but rational numbers. It gives you much more precise results, but is more expensive.
 
 ### Enums
 

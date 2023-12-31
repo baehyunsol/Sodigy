@@ -17,7 +17,7 @@ pub use lower::{lower_ast_expr, try_warn_unnecessary_paren};
 #[derive(Clone)]
 pub struct Expr {
     pub kind: ExprKind,
-    span: SpanRange,
+    pub span: SpanRange,
 }
 
 #[derive(Clone)]

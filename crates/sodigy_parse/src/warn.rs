@@ -56,7 +56,7 @@ impl SodigyError<ParseWarningKind> for ParseWarning {
     }
 
     fn index(&self) -> u32 {
-        8
+        9
     }
 }
 

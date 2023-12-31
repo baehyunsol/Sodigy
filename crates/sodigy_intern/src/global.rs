@@ -1,12 +1,8 @@
 use crate::{
     InternedNumeric,
     InternedString,
-    prelude::{
-        DATA_BIT_WIDTH,
-        DATA_MASK,
-        IS_INTEGER,
-        IS_SMALL_INTEGER,
-    },
+    numeric::try_intern_small_integer,
+    prelude::DATA_MASK,
     string::try_intern_short_string,
 };
 use sodigy_keyword::keywords;
@@ -16,7 +12,7 @@ use std::sync::Mutex;
 
 static mut LOCK: Mutex<()> = Mutex::new(());
 static mut IS_INIT: bool = false;
-pub static mut GLOBAL: *mut GlobalInternSession = std::ptr::null_mut();
+static mut GLOBAL: *mut GlobalInternSession = std::ptr::null_mut();
 
 unsafe fn init_global() {
     if IS_INIT {
@@ -40,7 +36,7 @@ unsafe fn init_global() {
     drop(lock);
 }
 
-pub unsafe fn global_intern_session() -> &'static mut GlobalInternSession {
+pub(crate) unsafe fn global_intern_session() -> &'static mut GlobalInternSession {
     if !IS_INIT {
         init_global();
     }
@@ -112,38 +108,30 @@ impl GlobalInternSession {
 
             match self.numerics.get(&numeric) {
                 Some(ii) => *ii,
-                None => {
-                    let ii = self.get_new_numeric_index(
-                        numeric.is_integer(),
-                        u32::try_from(&numeric).ok(),
-                    );
+                None => match u32::try_from(&numeric) {
+                    Ok(n) if let Some(nn) = try_intern_small_integer(n) => {
+                        drop(lock);
 
-                    self.numerics.insert(numeric.clone(), ii);
-                    self.numerics_rev.insert(ii, numeric);
+                        nn
+                    },
+                    _ => {
+                        let ii = self.get_new_numeric_index();
 
-                    drop(lock);
+                        self.numerics.insert(numeric.clone(), ii);
+                        self.numerics_rev.insert(ii, numeric);
 
-                    ii
+                        drop(lock);
+
+                        ii
+                    },
                 },
             }
         }
     }
 
-    fn get_new_numeric_index(&self, is_integer: bool, try_into_u32: Option<u32>) -> InternedNumeric {
-        let mut is_small_integer = false;
+    fn get_new_numeric_index(&self) -> InternedNumeric {
+        let data = self.numerics.len() as u32 & DATA_MASK;
 
-        let data = match try_into_u32 {
-            Some(n) if n < (1 << DATA_BIT_WIDTH) => {
-                is_small_integer = true;
-
-                n
-            },
-            _ => self.numerics.len() as u32 & DATA_MASK,
-        };
-
-        let is_integer = is_integer as u32 * IS_INTEGER;
-        let is_small_integer = is_small_integer as u32 * IS_SMALL_INTEGER;
-
-        InternedNumeric(data | is_integer | is_small_integer)
+        InternedNumeric(data)
     }
 }

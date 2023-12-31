@@ -107,7 +107,7 @@ impl InternedNumeric {
         self.0 == (0 | IS_INTEGER | IS_SMALL_INTEGER)
     }
 
-    pub fn try_unwrap_small_int(&self) -> Option<u32> {
+    pub fn try_unwrap_small_integer(&self) -> Option<u32> {
         if self.0 & IS_SMALL_INTEGER != 0 {
             Some(self.0 & DATA_MASK)
         }

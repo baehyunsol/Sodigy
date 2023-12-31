@@ -27,9 +27,15 @@ pub(crate) const SCOPE_BLOCK: u128  = 0x6 << 124;
 pub(crate) const MATCH_ARM: u128    = 0x7 << 124;
 
 // Metadata
-pub(crate) const PRELUDE_MASK: u128 = 0b1000 << 120;
+pub(crate) const IS_PRELUDE: u128 = 0b1000 << 120;
+pub(crate) const IS_DUMMY: u128 = 0b0100 << 120;
 
 impl Uid {
+    // dummy data is only for place-holder, do not use dummy uid in real compilations!
+    pub const fn dummy(data: u128) -> Self {
+        Uid(data & ERASER | IS_DUMMY)
+    }
+
     pub fn new_scope() -> Self {
         Uid(rand::random::<u128>() & ERASER | SCOPE_BLOCK)
     }
@@ -67,12 +73,16 @@ impl Uid {
     }
 
     #[must_use = "method returns a new uid and does not mutate the original value"]
-    pub fn mark_prelude(self) -> Self {
-        Uid(self.0 | PRELUDE_MASK)
+    pub const fn mark_prelude(self) -> Self {
+        Uid(self.0 | IS_PRELUDE)
     }
 
     pub fn is_prelude(self) -> bool {
-        self.0 & PRELUDE_MASK != 0
+        self.0 & IS_PRELUDE != 0
+    }
+
+    pub fn is_dummy(self) -> bool {
+        self.0 & IS_DUMMY != 0
     }
 
     // result < 16

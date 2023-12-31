@@ -1,5 +1,5 @@
 use super::InternedNumeric;
-use crate::global::global_intern_session;
+use crate::unintern_numeric;
 use std::fmt;
 
 impl fmt::Debug for InternedNumeric {
@@ -7,14 +7,7 @@ impl fmt::Debug for InternedNumeric {
         write!(
             fmt,
             "{}",
-            unsafe {
-                let g = global_intern_session();
-
-                match g.numerics_rev.get(self) {
-                    Some(n) => format!("{n:?}"),
-                    _ => "(ERROR: Uninterned Numeric)".to_string(),
-                }
-            },
+            unintern_numeric(*self),
         )
     }
 }
@@ -24,14 +17,7 @@ impl fmt::Display for InternedNumeric {
         write!(
             fmt,
             "{}",
-            unsafe {
-                let g = global_intern_session();
-
-                match g.numerics_rev.get(self) {
-                    Some(n) => n.to_string(),
-                    _ => "(ERROR: Uninterned Numeric)".to_string(),
-                }
-            },
+            unintern_numeric(*self),
         )
     }
 }

@@ -6,18 +6,7 @@ On Linux, Mac and Windows, all you need is a Rust compiler (for now, it's only t
 
 ## MSRV
 
-I always use the latest version.
-
-For now, Sodigy is tested on...
-
-- stable 1.74.1
-- nightly 1.76.0 (21cce21d8 2023-12-11)
-
-on Ubuntu 23.04.
-
-## Nightly
-
-It doesn't use any nightly rust feature. Stable channel would do.
+Sodigy only runs on nightly Rust. For now, it's tested on Rust 1.77.0-nightly (3cdd004e5 2023-12-29), on Ubuntu 23.10.
 
 ## Std
 
