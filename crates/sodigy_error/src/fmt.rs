@@ -1,4 +1,6 @@
 use crate::{concat_commas, ErrorContext, ExpectedToken};
+use sodigy_endec::EndecErrorContext;
+use sodigy_files::FileErrorContext;
 use std::fmt;
 
 /// All the error messages use this function to print objects
@@ -36,6 +38,12 @@ impl fmt::Display for ErrorContext {
     }
 }
 
+impl RenderError for ErrorContext {
+    fn render_error(&self) -> String {
+        self.to_string()
+    }
+}
+
 impl<T: RenderError> fmt::Display for ExpectedToken<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
@@ -62,5 +70,27 @@ impl<T: RenderError> fmt::Display for ExpectedToken<T> {
                 ),
             },
         )
+    }
+}
+
+impl RenderError for FileErrorContext {
+    fn render_error(&self) -> String {
+        match self {
+            FileErrorContext::None => "doing file IO",
+            FileErrorContext::SavingIr => "saving intermediate representation",
+            FileErrorContext::CleaningIr => "cleaning intermediate representations",
+            FileErrorContext::DumpingTokensToFile => "dumping tokens to file",
+            FileErrorContext::DumpingHirToFile => "dumping hir to file",
+        }.to_string()
+    }
+}
+
+impl RenderError for EndecErrorContext {
+    fn render_error(&self) -> String {
+        match self {
+            EndecErrorContext::None => "decoding a file",
+            EndecErrorContext::ConstructingTokensFromIr => "constructing tokens from saved ir",
+            EndecErrorContext::ConstructingHirFromIr => "constructing hir from saved ir",
+        }.to_string()
     }
 }

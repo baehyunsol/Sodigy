@@ -80,7 +80,8 @@ pub trait SodigyError<K: SodigyErrorKind> {
     }
 
     fn to_universal(&self) -> UniversalError {
-        let rendered = self.render_error();
+        let context = self.get_error_info().context.render_error();
+        let message = self.render_error(false);
         let hash = {
             let mut hasher = hash_map::DefaultHasher::new();
             hasher.write(&self.get_first_span().hash128().to_be_bytes());
@@ -92,18 +93,24 @@ pub trait SodigyError<K: SodigyErrorKind> {
         };
 
         UniversalError {
-            rendered,
+            context,
+            message,
+            is_warning: self.is_warning(),
             first_span: self.get_first_span(),
             hash,
         }
     }
 
     // This function is VERY VERY EXPENSIVE.
-    fn render_error(&self) -> String {
+    fn render_error(&self, render_title: bool) -> String {
         let mut intern_session = InternSession::new();
-        let context = match &self.get_error_info().context {
-            ErrorContext::Unknown => String::new(),
-            c => format!(" while {c}"),
+        let title = if render_title {
+            format!("{}\n", render_error_title(
+                self.get_error_info().context.render_error(),
+                self.is_warning(),
+            ))
+        } else {
+            String::new()
         };
 
         let kind = self.err_kind();
@@ -130,12 +137,6 @@ pub trait SodigyError<K: SodigyErrorKind> {
             true => render_spans(&spans, color_scheme),
             false if spans.is_empty() => String::new(),
             false => show_file_names(&spans),
-        };
-
-        let title = if self.is_warning() {
-            format!("[Warning]").yellow()
-        } else {
-            format!("[Error{context}]").red()
         };
 
         format!(
@@ -173,4 +174,21 @@ fn show_file_names(spans: &[SpanRange]) -> String {
     ).collect::<HashSet<String>>().into_iter().collect::<Vec<String>>();
 
     concat_commas(&file_names, "and", "<", ">")
+}
+
+pub(crate) fn render_error_title(
+    context: String,
+    is_warning: bool,
+) -> String {
+    if is_warning {
+        "[Warning]".yellow()
+    } else {
+        let context = if context.is_empty() {
+            String::new()
+        } else {
+            format!(" while {context}")
+        };
+
+        format!("[Error{context}]").red()
+    }.to_string()
 }

@@ -1,4 +1,4 @@
-use colored::Colorize;
+use crate::{RenderError, render_error_title};
 use sodigy_endec::EndecError;
 use sodigy_files::FileError;
 use sodigy_span::SpanRange;
@@ -6,7 +6,11 @@ use sodigy_span::SpanRange;
 /// Any error type that implements SodigyError can be converted to this type.
 /// The compiler uses this type to manage all the errors and warnings.
 pub struct UniversalError {
-    pub(crate) rendered: String,
+    pub(crate) context: String,
+
+    // `message` includes rendered spans
+    pub(crate) message: String,
+    pub is_warning: bool,
 
     /// It's used to sort the errors by span.
     pub(crate) first_span: SpanRange,
@@ -16,8 +20,13 @@ pub struct UniversalError {
 }
 
 impl UniversalError {
-    pub fn rendered(&self) -> &String {
-        &self.rendered
+    pub fn rendered(&self) -> String {
+        let title = render_error_title(
+            self.context.clone(),
+            self.is_warning,
+        );
+
+        format!("{title}\n{}", self.message)
     }
 
     pub fn first_span(&self) -> SpanRange {
@@ -29,14 +38,13 @@ impl UniversalError {
     }
 }
 
+// TODO: `From<FileError> for UniversalError` and `From<EndecError> for UniversalError` look the same
 impl From<FileError> for UniversalError {
     fn from(e: FileError) -> UniversalError {
         UniversalError {
-            rendered: format!(
-                "{}\n{}",
-                "[Error while doing File IO]".red(),
-                e.render_error(),
-            ),
+            context: e.context.render_error(),
+            message: e.render_error(),
+            is_warning: false,
             first_span: SpanRange::dummy(0x608e7df7),
             hash: e.hash_u64(),
         }
@@ -46,11 +54,9 @@ impl From<FileError> for UniversalError {
 impl From<EndecError> for UniversalError {
     fn from(e: EndecError) -> UniversalError {
         UniversalError {
-            rendered: format!(
-                "{}\n{}",
-                "[Error while decoding a file]".red(),
-                e.render_error(),
-            ),
+            context: e.context.render_error(),
+            message: e.render_error(),
+            is_warning: false,
             first_span: SpanRange::dummy(0x20060f7a),
             hash: e.hash_u64(),
         }

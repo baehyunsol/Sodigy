@@ -14,6 +14,7 @@ impl RenderError for Flag {
             Flag::DumpTokensTo => "dump-tokens-to",
             Flag::DumpHir => "dump-hir",
             Flag::DumpHirTo => "dump-hir-to",
+            Flag::Clean => "clean",
         }.to_string()
     }
 }

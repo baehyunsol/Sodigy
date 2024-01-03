@@ -1,4 +1,4 @@
-use sodigy_files::FileError;
+use sodigy_files::{FileError, FileErrorContext};
 use std::collections::hash_map;
 use std::hash::Hasher;
 use std::string::FromUtf8Error;
@@ -11,6 +11,7 @@ pub struct EndecError {
 
     // when endec/ing a file, this field is set
     path: Option<Path>,
+    pub context: EndecErrorContext,
 }
 
 impl EndecError {
@@ -20,10 +21,19 @@ impl EndecError {
         self
     }
 
+    pub fn set_context(&mut self, context: EndecErrorContext) -> &mut Self {
+        if self.context == EndecErrorContext::None {
+            self.context = context;
+        }
+
+        self
+    }
+
     pub fn eof() -> Self {
         EndecError {
             kind: EndecErrorKind::Eof,
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -31,6 +41,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::Overflow,
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -38,6 +49,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::InvalidChar(c),
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -45,6 +57,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::InvalidEnumVariant { variant_index },
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -52,6 +65,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::InvalidInternedNumeric,
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -59,6 +73,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::InvalidInternedString,
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -66,6 +81,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::FileIsModified,
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 
@@ -73,6 +89,7 @@ impl EndecError {
         EndecError {
             kind: EndecErrorKind::HumanReadableFile { generated_by: generated_by.to_string() },
             path: Some(path.to_string()),
+            context: EndecErrorContext::None,
         }
     }
 
@@ -158,11 +175,19 @@ impl EndecErrorKind {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum EndecErrorContext {
+    None,
+    ConstructingTokensFromIr,
+    ConstructingHirFromIr,
+}
+
 impl From<FromUtf8Error> for EndecError {
     fn from(e: FromUtf8Error) -> Self {
         EndecError {
             kind: EndecErrorKind::FromUtf8Error(e),
             path: None,
+            context: EndecErrorContext::None,
         }
     }
 }
@@ -170,6 +195,14 @@ impl From<FromUtf8Error> for EndecError {
 impl From<FileError> for EndecError {
     fn from(e: FileError) -> Self {
         EndecError {
+            // TODO: what's the point of this match statement?
+            context: match &e.context {
+                FileErrorContext::None
+                | FileErrorContext::DumpingHirToFile
+                | FileErrorContext::DumpingTokensToFile
+                | FileErrorContext::SavingIr
+                | FileErrorContext::CleaningIr => EndecErrorContext::None,
+            },
             path: e.given_path.clone(),
             kind: EndecErrorKind::FileError(e),
         }

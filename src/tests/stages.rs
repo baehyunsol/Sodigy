@@ -17,7 +17,7 @@ fn runner(path: &str) {
     // We don't have to set `--ignore-saved-ir` in this case
     // -> input file changes each time!
     let base_comp_opt = CompilerOption {
-        do_not_compile_and_print_this: None,
+        do_not_compile_and_do_this: None,
         output_path: None,
         save_ir: true,
         show_warnings: true,

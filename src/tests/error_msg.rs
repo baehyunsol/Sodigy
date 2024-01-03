@@ -1,8 +1,7 @@
-use crate::{ErrorsAndWarnings, run};
+use crate::{CompilerOutput, run};
 use sodigy_clap::CompilerOption;
 
-// TODO: nicer return type
-fn compile_raw_input(code: Vec<u8>) -> ErrorsAndWarnings {
+fn compile_raw_input(code: Vec<u8>) -> CompilerOutput {
     // TODO
     // `FileSession` can handle tmp files, but this function is not utilizing tmp files...
     // In order to use tmp files, all the functions in `./stages.rs` have to be modified.

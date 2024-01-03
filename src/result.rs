@@ -2,37 +2,51 @@ use sodigy_error::UniversalError;
 use std::collections::HashSet;
 
 #[derive(Default)]
-pub struct ErrorsAndWarnings {
+pub struct CompilerOutput {
     errors: Vec<UniversalError>,
     warnings: Vec<UniversalError>,
 
+    // any other stuff to print
+    stdout: Vec<String>,
+
+    pub show_overall_result: bool,
     error_hashes: HashSet<u64>,
     warning_hashes: HashSet<u64>,
 }
 
-impl ErrorsAndWarnings {
+impl CompilerOutput {
     pub fn new() -> Self {
-        ErrorsAndWarnings {
+        CompilerOutput {
             errors: vec![],
             warnings: vec![],
+            stdout: vec![],
 
+            show_overall_result: true,
             error_hashes: HashSet::new(),
             warning_hashes: HashSet::new(),
         }
     }
 
-    pub fn push_error(&mut self, error: UniversalError) {
+    pub fn push_error(&mut self, mut error: UniversalError) {
+        error.is_warning = false;
+
         if !self.error_hashes.contains(&error.hash()) {
             self.error_hashes.insert(error.hash());
             self.errors.push(error);
         }
     }
 
-    pub fn push_warning(&mut self, warning: UniversalError) {
+    pub fn push_warning(&mut self, mut warning: UniversalError) {
+        warning.is_warning = true;
+
         if !self.warning_hashes.contains(&warning.hash()) {
             self.warning_hashes.insert(warning.hash());
             self.warnings.push(warning);
         }
+    }
+
+    pub fn dump_to_stdout(&mut self, message: String) {
+        self.stdout.push(message);
     }
 
     pub fn has_error(&self) -> bool {
@@ -56,16 +70,34 @@ impl ErrorsAndWarnings {
     }
 
     pub fn concat_results(&mut self) -> String {
-        vec![
-            self.concat_warnings(),
-            self.concat_errors(),
-            format!(
+        let mut result = vec![];
+        let warnings = self.concat_warnings();
+        let errors = self.concat_errors();
+
+        if !warnings.is_empty() {
+            result.push(warnings);
+        }
+
+        if !errors.is_empty() {
+            result.push(errors);
+        }
+
+        if !self.stdout.is_empty() {
+            result.push(self.stdout.clone().join("\n"));
+        }
+
+        if self.show_overall_result {
+            let overall = format!(
                 "had {} error{} and {} warning{} in total",
                 self.errors.len(),
                 if self.errors.len() < 2 { "" } else { "s" },
                 self.warnings.len(),
                 if self.warnings.len() < 2 { "" } else { "s" },
-            ),
-        ].join("\n\n")
+            );
+
+            result.push(overall);
+        }
+
+        result.join("\n\n")
     }
 }

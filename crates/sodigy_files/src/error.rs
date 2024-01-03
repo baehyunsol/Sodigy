@@ -4,10 +4,11 @@ use std::ffi::OsString;
 use std::hash::Hasher;
 use std::io;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FileError {
     pub kind: FileErrorKind,
     pub given_path: Option<String>,
+    pub context: FileErrorContext,
 }
 
 impl FileError {
@@ -20,14 +21,25 @@ impl FileError {
         };
 
         FileError {
-            kind, given_path: Some(given_path.to_string())
+            kind,
+            given_path: Some(given_path.to_string()),
+            context: FileErrorContext::None,
         }
+    }
+
+    pub fn set_context(&mut self, context: FileErrorContext) -> &mut Self {
+        if self.context == FileErrorContext::None {
+            self.context = context;
+        }
+
+        self
     }
 
     pub fn invalid_file_hash(hash: FileHash) -> Self {
         FileError {
             kind: FileErrorKind::InvalidFileHash(hash),
             given_path: None,
+            context: FileErrorContext::None,
         }
     }
 
@@ -35,6 +47,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::ModifiedWhileCompilation,
             given_path: Some(given_path.to_string()),
+            context: FileErrorContext::None,
         }
     }
 
@@ -42,6 +55,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::MetadataNotSupported,
             given_path: Some(given_path.to_string()),
+            context: FileErrorContext::None,
         }
     }
 
@@ -49,6 +63,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::HashCollision,
             given_path: Some(given_path.to_string()),
+            context: FileErrorContext::None,
         }
     }
 
@@ -56,6 +71,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::CannotCreateFile { there_exists_a_dir },
             given_path: Some(path.to_string()),
+            context: FileErrorContext::None,
         }
     }
 
@@ -63,6 +79,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::Unknown(msg),
             given_path: path,
+            context: FileErrorContext::None,
         }
     }
 
@@ -70,6 +87,7 @@ impl FileError {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
             given_path: None,
+            context: FileErrorContext::None,
         }
     }
 
@@ -130,7 +148,7 @@ impl FileError {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum FileErrorKind {
     FileNotFound,
     PermissionDenied,
@@ -183,4 +201,13 @@ impl FileErrorKind {
             },
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FileErrorContext {
+    None,
+    SavingIr,
+    CleaningIr,
+    DumpingTokensToFile,
+    DumpingHirToFile,
 }

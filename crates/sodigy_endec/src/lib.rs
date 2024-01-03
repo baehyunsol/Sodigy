@@ -8,7 +8,7 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use error::{EndecError, EndecErrorKind};
+pub use error::{EndecError, EndecErrorContext, EndecErrorKind};
 pub use session::EndecSession;
 
 pub trait Endec {

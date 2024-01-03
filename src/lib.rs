@@ -2,33 +2,38 @@
 
 pub mod result;
 pub mod stages;
+pub mod utils;
 
 #[cfg(test)]
 mod tests;
 
-use crate::result::ErrorsAndWarnings;
+use crate::result::CompilerOutput;
 use crate::stages::{hir_from_tokens, parse_file};
+use crate::utils::{clean_irs, try_make_intermediate_paths};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
-use sodigy_error::UniversalError;
-use sodigy_files::{create_dir_all, exists, is_dir, parent, FileError};
 
-// TODO: nicer type for compile results
-pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
-    if let Some(sp) = options.do_not_compile_and_print_this {
+pub fn run(options: CompilerOption) -> CompilerOutput {
+    let mut compiler_output = CompilerOutput::new();
+
+    if let Some(sp) = options.do_not_compile_and_do_this {
         match sp {
             SpecialOutput::HelpMessage => {
-                println!("{COMPILER_HELP_MESSAGE}");
+                compiler_output.dump_to_stdout(format!("{COMPILER_HELP_MESSAGE}"));
+                compiler_output.show_overall_result = false;
             },
             SpecialOutput::VersionInfo => {
-                println!("sodigy {MAJOR_VERSION}.{MINOR_VERSION}.{PATCH_VERSION}");
+                compiler_output.dump_to_stdout(format!("sodigy {MAJOR_VERSION}.{MINOR_VERSION}.{PATCH_VERSION}"));
+                compiler_output.show_overall_result = false;
+            },
+            SpecialOutput::CleanIrs => {
+                clean_irs(".", &mut compiler_output);
+                compiler_output.dump_to_stdout(format!("cleaning done..."));
             },
         }
 
-        return ErrorsAndWarnings::new();
+        return compiler_output;
     }
-
-    let mut errors_and_warnings = ErrorsAndWarnings::new();
 
     for (is_necessary, is_file, path) in [
         // (is_necessary, is_file, path)
@@ -47,19 +52,19 @@ pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
         if let Err(e) = try_make_intermediate_paths(
             is_file, path.unwrap(),
         ) {
-            errors_and_warnings.push_error(e);
+            compiler_output.push_error(e);
         }
     }
 
     for file_path in options.input_files.iter() {
         let (result, mut errors_and_warnings_) = match options.output_format {
             IrStage::Tokens => {
-                let (r, o) = parse_file(file_path, Some(errors_and_warnings), &options);
+                let (r, o) = parse_file(file_path, Some(compiler_output), &options);
 
                 (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
             },
             IrStage::HighIr => {
-                let (r, o) = hir_from_tokens(file_path, Some(errors_and_warnings), &options);
+                let (r, o) = hir_from_tokens(file_path, Some(compiler_output), &options);
 
                 (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
             },
@@ -74,91 +79,43 @@ pub fn run(options: CompilerOption) -> ErrorsAndWarnings {
             }
         }
 
-        errors_and_warnings = errors_and_warnings_;
+        compiler_output = errors_and_warnings_;
     }
 
-    errors_and_warnings
-}
-
-// TODO: there must be a better place for this function
-fn try_make_intermediate_paths(
-    is_file: bool, path: &String,
-) -> Result<(), UniversalError> {
-    if exists(path) {
-        if is_dir(path) {
-            // we have to make a file named X,
-            // but there exists a dir named X
-            if is_file {
-                Err(FileError::cannot_create_file(true /* there exists a dir */, path).into())
-            }
-
-            // we have to make a dir named X,
-            // and it's already there
-            else {
-                Ok(())
-            }
-        }
-
-        // this branch is for files
-        // the compiler ignores anything other than dirs and files
-        else {
-            // we have to make a file named X,
-            // and it's already there
-            // we'll truncate it
-            if is_file {
-                Ok(())
-            }
-
-            // we have to make a dir named X,
-            // but there exists a file named X
-            else {
-                Err(FileError::cannot_create_file(false /* there exists a file */, path).into())
-            }
-        }
-    }
-
-    else {
-        let dir_to_create = if is_file {
-            parent(path).map_err(|e| UniversalError::from(e))?
-        } else {
-            path.to_string()
-        };
-
-        create_dir_all(&dir_to_create).map_err(|e| e.into())
-    }
+    compiler_output
 }
 
 // TODO: remove these functions
-// pub fn compile_file(path: String) -> Result<ErrorsAndWarnings, FileError> {
+// pub fn compile_file(path: String) -> Result<CompilerOutput, FileError> {
 //     let file_session = unsafe { global_file_session() };
 //     let file = file_session.register_file(&path)?;
 
 //     Ok(compile(file))
 // }
 
-// pub fn compile_input(input: Vec<u8>) -> ErrorsAndWarnings {
+// pub fn compile_input(input: Vec<u8>) -> CompilerOutput {
 //     let file_session = unsafe { global_file_session() };
 //     let file = file_session.register_tmp_file(input);
 
 //     compile(file)
 // }
 
-// pub fn compile(file_hash: FileHash) -> ErrorsAndWarnings {
-//     let (parse_session, errors_and_warnings) = parse_stage(file_hash, None, None);
+// pub fn compile(file_hash: FileHash) -> CompilerOutput {
+//     let (parse_session, compiler_output) = parse_stage(file_hash, None, None);
 
 //     let parse_session = if let Some(parse_session) = parse_session {
 //         parse_session
 //     } else {
-//         return errors_and_warnings;
+//         return compiler_output;
 //     };
 
-//     let (hir_session, errors_and_warnings) = hir_stage(&parse_session, Some(errors_and_warnings), None);
+//     let (hir_session, compiler_output) = hir_stage(&parse_session, Some(compiler_output), None);
 //     drop(parse_session);
 
 //     let hir_session = if let Some(hir_session) = hir_session {
 //         hir_session
 //     } else {
-//         return errors_and_warnings;
+//         return compiler_output;
 //     };
 
 //     // TODO: this is a tmp code for testing
@@ -185,9 +142,10 @@ fn try_make_intermediate_paths(
 //         }
 //     }
 
-//     errors_and_warnings
+//     compiler_output
 // }
 
+pub const SAVE_IRS_AT: &str = "__sdg_cache";
 pub const COMPILER_HELP_MESSAGE: &str =
 "Usage: sodigy [OPTIONS] INPUT
 
@@ -223,9 +181,11 @@ Options:
     --dump-hir [true|false]         Dump HIR to stdout (default: false)
     --dump-hir-to PATH              If `dump-hir` is set, the HIR is dumped to <PATH>
                                     instead of stdout. If `dump-hir` is not set, it doesn't do anything.
+    --verbose [0|1|2]               Set verbosity (default 1)
+                                    Set it to 0 to silence it. Set it to 2 for verbose output.
+                                    TODO: not implemented yet
     --clean                         Remove all the `__sdg_cache` directories in PWD and its sub directories.
                                     This doesn't remove dumped outputs.
-                                    TODO: not implemented yet
 ";
 
 pub const MAJOR_VERSION: u8 = 0;

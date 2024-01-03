@@ -23,6 +23,9 @@ pub use stages::IrStage;
 use token::{Token, TokenKind, TokenValue};
 pub use warn::ClapWarning;
 
+// TODO: what if `--help`, `--version` or `--clean` expects more flags?
+// I want to set verbosity of `--clean`
+
 pub fn parse_cli_args() -> ClapSession {
     let (input, file) = into_file();
 
@@ -45,6 +48,9 @@ pub fn parse_cli_args() -> ClapSession {
                 ),
                 TokenValue::Flag(Flag::Version) => ClapSession::with_result(
                     CompilerOption::version_info()
+                ),
+                TokenValue::Flag(Flag::Clean) => ClapSession::with_result(
+                    CompilerOption::clean_irs()
                 ),
 
                 // otherwise, `into_tokens` should have returned `Err(e)`
@@ -86,6 +92,7 @@ pub fn parse_cli_args() -> ClapSession {
 
         let mut help_flag = None;
         let mut version_flag = None;
+        let mut clean_flag = None;
 
         // `into_tokens` guarantees that every flag has a valid argument
         while index < tokens.len() {
@@ -193,6 +200,15 @@ pub fn parse_cli_args() -> ClapSession {
                                 version_flag = Some(tokens[index].span);
                             }
                         },
+                        Flag::Clean => {
+                            if let Some(_) = version_flag {
+                                warnings.push(ClapWarning::same_flag_multiple_times(Flag::Clean, tokens[index].span));
+                            }
+
+                            else {
+                                clean_flag = Some(tokens[index].span);
+                            }
+                        },
                     }
 
                     index += 1;
@@ -215,6 +231,10 @@ pub fn parse_cli_args() -> ClapSession {
 
         if let Some(span) = version_flag {
             errors.push(ClapError::unnecessary_flag(Flag::Version, span));
+        }
+
+        if let Some(span) = clean_flag {
+            errors.push(ClapError::unnecessary_flag(Flag::Clean, span));
         }
 
         let (output_format, output_path) = match (output_format, output_path) {
@@ -288,7 +308,7 @@ pub fn parse_cli_args() -> ClapSession {
         }
 
         let comp_option = CompilerOption {
-            do_not_compile_and_print_this: None,
+            do_not_compile_and_do_this: None,
             input_files,
             output_format,
             output_path: Some(output_path),
@@ -312,7 +332,7 @@ pub fn parse_cli_args() -> ClapSession {
 
 #[derive(Clone)]
 pub struct CompilerOption {
-    pub do_not_compile_and_print_this: Option<SpecialOutput>,
+    pub do_not_compile_and_do_this: Option<SpecialOutput>,
 
     // TODO: glob patterns (it works in GCC)
     // ex) `c*.sdg`
@@ -330,23 +350,27 @@ pub struct CompilerOption {
 
 impl CompilerOption {
     pub fn help_message() -> Self {
-        CompilerOption::print_this_and_quit(SpecialOutput::HelpMessage)
+        CompilerOption::do_this_and_quit(SpecialOutput::HelpMessage)
     }
 
     pub fn version_info() -> Self {
-        CompilerOption::print_this_and_quit(SpecialOutput::VersionInfo)
+        CompilerOption::do_this_and_quit(SpecialOutput::VersionInfo)
     }
 
-    pub fn print_this_and_quit(s: SpecialOutput) -> Self {
+    pub fn clean_irs() -> Self {
+        CompilerOption::do_this_and_quit(SpecialOutput::CleanIrs)
+    }
+
+    pub fn do_this_and_quit(s: SpecialOutput) -> Self {
         CompilerOption {
-            do_not_compile_and_print_this: Some(s),
+            do_not_compile_and_do_this: Some(s),
             ..CompilerOption::default()
         }
     }
 
     pub fn test_runner(file_name: &str) -> Self {
         CompilerOption {
-            do_not_compile_and_print_this: None,
+            do_not_compile_and_do_this: None,
             input_files: vec![file_name.to_string()],
             output_path: None,
             save_ir: false,
@@ -358,7 +382,7 @@ impl CompilerOption {
 impl Default for CompilerOption {
     fn default() -> Self {
         CompilerOption {
-            do_not_compile_and_print_this: None,
+            do_not_compile_and_do_this: None,
             input_files: vec![],
             output_path: Some(String::from("./a.out")),
 
@@ -378,4 +402,5 @@ impl Default for CompilerOption {
 pub enum SpecialOutput {
     HelpMessage,
     VersionInfo,
+    CleanIrs,
 }

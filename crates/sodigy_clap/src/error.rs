@@ -175,11 +175,10 @@ impl SodigyErrorKind for ClapErrorKind {
         match self {
             ClapErrorKind::InvalidFlag(_)
             | ClapErrorKind::NoArgsAtAll => String::from("Try `sodigy --help` to see available options."),
-            ClapErrorKind::UnnecessaryFlag(flag) => match flag {
-                Flag::Help => String::from("`--help` doesn't take extra arguments."),
-                Flag::Version => String::from("`--version` doesn't take extra arguments."),
-                _ => unreachable!(),
-            },
+            ClapErrorKind::UnnecessaryFlag(flag) => format!(
+                "`{}` doesn't take extra arguments",
+                String::from_utf8(flag.long().to_vec()).unwrap(),
+            ),
             ClapErrorKind::InvalidUtf8
             | ClapErrorKind::InvalidArgument(_, _)
             | ClapErrorKind::NoArg(_)
