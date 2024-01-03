@@ -14,6 +14,7 @@ Most error messages and warning messages are from Rust.
   - ``` could not compile `sdg_ast` (lib) due to 5 previous errors; 2 warnings emitted ```
   - ``` cannot find function `doto` in this scope ```
   - ``` cannot find macro `printll` in this scope ```
+  - ``` cannot add `char` to `{integer}` ```
     - ``` help: a macro with a similar name exists: `println` ```
   - ``` no method named `write` found for struct `File` in the current scope ```
   - ``` mismatched types ```

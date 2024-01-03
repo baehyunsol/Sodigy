@@ -16,7 +16,7 @@ impl FileError {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
             io::ErrorKind::PermissionDenied => FileErrorKind::PermissionDenied,
             io::ErrorKind::AlreadyExists => FileErrorKind::AlreadyExists,
-            _ => panic!("e: {e:?}, path: {given_path}"),
+            _ => FileErrorKind::Unknown(format!("{e:?}")),
         };
 
         FileError {
@@ -59,6 +59,13 @@ impl FileError {
         }
     }
 
+    pub fn unknown(msg: String, path: Option<String>) -> Self {
+        FileError {
+            kind: FileErrorKind::Unknown(msg),
+            given_path: path,
+        }
+    }
+
     pub(crate) fn os_str_err(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
@@ -67,19 +74,7 @@ impl FileError {
     }
 
     pub fn render_error(&self) -> String {
-        let path = match self.kind {
-            FileErrorKind::FileNotFound
-            | FileErrorKind::PermissionDenied
-            | FileErrorKind::AlreadyExists
-            | FileErrorKind::MetadataNotSupported
-            | FileErrorKind::HashCollision
-            | FileErrorKind::ModifiedWhileCompilation
-            | FileErrorKind::CannotCreateFile { .. } => {
-                self.given_path.as_ref().unwrap().to_string()
-            },
-            FileErrorKind::OsStrErr(_)
-            | FileErrorKind::InvalidFileHash(_) => String::new(),
-        };
+        let path = self.given_path.as_ref().map(|p| p.to_string()).unwrap_or(String::new());
 
         match &self.kind {
             FileErrorKind::FileNotFound => format!(
@@ -90,6 +85,9 @@ impl FileError {
             ),
             FileErrorKind::AlreadyExists => format!(
                 "file already exists: `{path}`"
+            ),
+            FileErrorKind::Unknown(msg) => format!(
+                "unknown file error: `{msg}`"
             ),
             FileErrorKind::OsStrErr(os_str) => format!(
                 "error converting os_str: `{os_str:?}`"
@@ -138,6 +136,7 @@ pub enum FileErrorKind {
     PermissionDenied,
     AlreadyExists,
     OsStrErr(OsString),
+    Unknown(String),
 
     // Sodigy specific errors
     InvalidFileHash(FileHash),
@@ -161,6 +160,12 @@ impl FileErrorKind {
             FileErrorKind::OsStrErr(s) => {
                 let mut hasher = hash_map::DefaultHasher::new();
                 hasher.write(s.as_encoded_bytes());
+
+                hasher.finish()
+            },
+            FileErrorKind::Unknown(s) => {
+                let mut hasher = hash_map::DefaultHasher::new();
+                hasher.write(s.as_bytes());
 
                 hasher.finish()
             },

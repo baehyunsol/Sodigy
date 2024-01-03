@@ -1,20 +1,33 @@
-use crate::def::Def;
-use crate::expr::{Expr, ExprKind};
-use crate::prelude::{PreludeData, uids};
-use crate::ty::Type;
-use crate::ty_class::TypeClassQuery;
+use crate::{
+    def::Def,
+    error::MirError,
+    expr::{Expr, ExprKind},
+    prelude::{PreludeData, uids},
+    session::MirSession,
+    ty::{Type, is_subtype_of},
+    ty_class::TypeClassQuery,
+};
 use sodigy_high_ir as hir;
 use sodigy_intern::InternedString;
+use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::HashMap;
 
 pub fn lower_hir_expr(
     e: &hir::Expr,
+    session: &mut MirSession,
     preludes: &HashMap<InternedString, PreludeData>,
     global_defs: &HashMap<Uid, Def>,
-    type_annotation: &Option<Type>,  // it's lowered by the caller
+
+    // it's lowered by the caller
+    type_annotation: &Option<Type>,
+
+    // it helps making error messages
+    type_annot_span: Option<SpanRange>,
     type_classes: &TypeClassQuery,
 ) -> Result<Expr, ()> {
+    let mut has_error = false;
+
     let res = match &e.kind {
         hir::ExprKind::Identifier(origin) => {
             let id = origin.id();
@@ -37,7 +50,7 @@ pub fn lower_hir_expr(
                 },
                 hir::NameOrigin::Global { origin: None } => {
                     // search this name in some table,
-                    // then figure out def and uid of thie name
+                    // then figure out def and uid of this name
                     todo!()
                 },
                 _ => todo!(),
@@ -71,9 +84,14 @@ pub fn lower_hir_expr(
         } => {
             let func = lower_hir_expr(
                 func.as_ref(),
+                session,
                 preludes,
                 global_defs,
-                &None,  // you cannot annotate type here
+
+                // you cannot annotate type here
+                &None,
+                None,
+
                 type_classes,
             );
             let mut mir_args = Vec::with_capacity(args.len());
@@ -81,14 +99,19 @@ pub fn lower_hir_expr(
             for arg in args.iter() {
                 if let Ok(mir_arg) = lower_hir_expr(
                     arg,
+                    session,
                     preludes,
                     global_defs,
-                    &None,  // you cannot annotate type here
+
+                    // you cannot annotate type here
+                    &None,
+                    None,
+    
                     type_classes,
                 ) {
                     mir_args.push(mir_arg);
                 } else {
-                    // TODO: has error
+                    has_error = true;
                 }
             }
 
@@ -111,33 +134,51 @@ pub fn lower_hir_expr(
             for element in elements.iter() {
                 if let Ok(e) = lower_hir_expr(
                     element,
+                    session,
                     preludes,
                     global_defs,
                     &elem_ty_anno,
+                    None,  // ty_anno_span
                     type_classes,
                 ) {
                     result.push(e);
                 }
 
                 else {
-                    // TODO: has error
+                    has_error = true;
                 }
             }
 
-            let ty = if result.is_empty() {
-                // TODO: set type of an empty list
-                // if there's a type annotation, use that
-                // otherwise... then what?
-                todo!()
+            let ty = if has_error {
+                return Err(());
+            }
+
+            else if result.is_empty() {
+                match type_annotation {
+                    Some(ty) if ty.is_list_of().is_some() => ty.clone(),
+                    _ => Type::Param(
+                        uids::LIST_DEF,
+                        vec![Type::Placeholder],
+                    ),
+                }
             }
 
             else {
-                // TODO: check type
-                todo!();
+                let list_ty = &result[0].ty;
+
+                for elem in result[1..].iter() {
+                    if !is_subtype_of(
+                        list_ty,
+                        &elem.ty,
+                    ) {
+                        // TODO: raise type error
+                        todo!();
+                    }
+                }
 
                 Type::Param(
                     uids::LIST_DEF,
-                    vec![result[0].ty.clone()],
+                    vec![list_ty.clone()],
                 )
             };
 
@@ -153,32 +194,46 @@ pub fn lower_hir_expr(
         hir::ExprKind::InfixOp(op, rhs, lhs) => {
             let rhs = lower_hir_expr(
                 rhs.as_ref(),
+                session,
                 preludes,
                 global_defs,
-                &None,  // you cannot annotate type here
+
+                // you cannot annotate type here
+                &None,
+                None,
+
                 type_classes,
             );
             let lhs = lower_hir_expr(
                 lhs.as_ref(),
+                session,
                 preludes,
                 global_defs,
-                &None,  // you cannot annotate type here
+
+                // you cannot annotate type here
+                &None,
+                None,
+
                 type_classes,
             );
 
             let (rhs, lhs) = match (rhs, lhs) {
                 (Ok(rhs), Ok(lhs)) => (rhs, lhs),
                 _ => {
-                    // TODO: Error
-                    todo!()
+                    return Err(());
                 },
             };
 
             let f = if let Some(f) = type_classes.query_2_args((*op).into(), &rhs.ty, &lhs.ty) {
                 f
             } else {
-                // TODO: Error, this trait is not implemented for these types
-                todo!()
+                // TODO: separate type for TyErrors?
+                session.push_error(MirError::type_class_not_implemented(
+                    (*op).into(),
+                    vec![rhs.ty.clone(), lhs.ty.clone()],
+                    e.span,
+                ));
+                return Err(());
             };
 
             Expr {
@@ -193,9 +248,30 @@ pub fn lower_hir_expr(
         _ => todo!(),
     };
 
-    if let Some(ty) = type_annotation {
-        // TODO: see if type_annotation and res.ty matches
+    // Do not check types when there's an error
+    if has_error {
+        Err(())
     }
 
-    Ok(res)
+    else {
+        if let Some(ty) = type_annotation {
+            if !is_subtype_of(
+                ty,
+                &res.ty
+            ) {
+                session.push_error(MirError::type_mismatch(
+                    // expected
+                    ty.clone(),
+                    type_annot_span,
+
+                    // got
+                    res.ty.clone(),
+                    res.span,
+                ));
+                return Err(());
+            }
+        }
+
+        Ok(res)
+    }
 }

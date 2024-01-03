@@ -33,7 +33,7 @@ impl Expr {
         }
     }
 
-    // a String in Sodigy is a List(Char)
+    // String = List(Char)
     pub fn new_string(s: &InternedString) -> Self {
         // it's guaranteed to be a valid UTF-8
         let s = unsafe { String::from_utf8_unchecked(unintern_string(*s).to_vec()) };
@@ -49,6 +49,7 @@ impl Expr {
         }
     }
 
+    // Bytes = List(Byte)
     pub fn new_bytes(s: &InternedString) -> Self {
         let s = unintern_string(*s);
         let args = s.iter().map(|c| Expr::new_byte(*c)).collect();

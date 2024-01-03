@@ -146,10 +146,17 @@ pub fn exists(path: &str) -> bool {
 }
 
 /// `a/b/c.d` -> `a/b/`
-pub fn parent(path: &str) -> String {
-    let path = Path::new(path);
+pub fn parent(path: &str) -> Result<String, FileError> {
+    let std_path = Path::new(path);
 
-    path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| String::new())
+    std_path.parent().map(
+        |p| p.to_string_lossy().to_string()
+    ).ok_or_else(
+        || FileError::unknown(
+            String::from("function `parent` died"),
+            Some(path.to_string()),
+        )
+    )
 }
 
 pub fn create_dir(path: &str) -> Result<(), FileError> {

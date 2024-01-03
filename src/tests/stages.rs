@@ -14,11 +14,12 @@ fn runner(path: &str) {
     let dump_hir_to_1 = format!("{tmp_dir_name}/hir1.hir");
     let dump_hir_to_2 = format!("{tmp_dir_name}/hir2.hir");
 
+    // We don't have to set `--ignore-saved-ir` in this case
+    // -> input file changes each time!
     let base_comp_opt = CompilerOption {
         do_not_compile_and_print_this: None,
         output_path: None,
         save_ir: true,
-        save_ir_to: tmp_dir_name.clone(),
         show_warnings: true,
         dump_tokens: false,
         dump_hir: true,
@@ -33,7 +34,7 @@ fn runner(path: &str) {
     };
 
     let errors1 = run(opt1).concat_results();
-    let input2 = generate_path_for_ir(&tmp_dir_name, &path.to_string(), "tokens").unwrap();
+    let input2 = generate_path_for_ir(&path.to_string(), "tokens", false).unwrap();
 
     let opt2 = CompilerOption {
         input_files: vec![input2],

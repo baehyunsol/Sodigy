@@ -10,21 +10,19 @@ pub enum Flag {
     Version,
     ShowWarnings,
     SaveIr,
-    SaveIrTo,
     DumpTokens,
     DumpTokensTo,
     DumpHir,
     DumpHirTo,
 }
 
-pub const FLAGS: [Flag; 11] = [
+pub const FLAGS: [Flag; 10] = [
     Flag::Output,
     Flag::To,
     Flag::Help,
     Flag::Version,
     Flag::ShowWarnings,
     Flag::SaveIr,
-    Flag::SaveIrTo,
     Flag::DumpTokens,
     Flag::DumpTokensTo,
     Flag::DumpHir,
@@ -36,7 +34,6 @@ impl Flag {
     pub fn param_type(&self) -> TokenKind {
         match self {
             Flag::Output
-            | Flag::SaveIrTo
             | Flag::DumpTokensTo
             | Flag::DumpHirTo => TokenKind::Path,
             Flag::To => TokenKind::Stage,
@@ -57,7 +54,6 @@ impl Flag {
             Flag::Version => Some(b"-v"),
             Flag::ShowWarnings
             | Flag::SaveIr
-            | Flag::SaveIrTo
             | Flag::DumpTokens
             | Flag::DumpTokensTo
             | Flag::DumpHir
@@ -73,7 +69,6 @@ impl Flag {
             Flag::Version => b"--version",
             Flag::ShowWarnings => b"--show-warnings",
             Flag::SaveIr => b"--save-ir",
-            Flag::SaveIrTo => b"--save-ir-to",
             Flag::DumpTokens => b"--dump-tokens",
             Flag::DumpTokensTo => b"--dump-tokens-to",
             Flag::DumpHir => b"--dump-hir",

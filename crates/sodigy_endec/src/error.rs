@@ -7,7 +7,7 @@ type Path = String;
 
 #[derive(Clone, Debug)]
 pub struct EndecError {
-    kind: EndecErrorKind,
+    pub kind: EndecErrorKind,
 
     // when endec/ing a file, this field is set
     path: Option<Path>,
@@ -62,6 +62,13 @@ impl EndecError {
         }
     }
 
+    pub fn file_is_modified() -> Self {
+        EndecError {
+            kind: EndecErrorKind::FileIsModified,
+            path: None,
+        }
+    }
+
     pub fn human_readable_file(generated_by: &str, path: &Path) -> Self {
         EndecError {
             kind: EndecErrorKind::HumanReadableFile { generated_by: generated_by.to_string() },
@@ -84,6 +91,8 @@ impl EndecError {
                 EndecErrorKind::FromUtf8Error(e) => format!("invalid utf-8: {e:?}"),
                 EndecErrorKind::InvalidChar(c) => format!("invalid char: '\\x{c:x}'"),
                 EndecErrorKind::FileError(e) => e.render_error(),
+                // if file is modified, the compiler has to construct the session from scratch, not throwing this error
+                EndecErrorKind::FileIsModified => String::from("If you see this error, that's an Internal Compiler Error. Please report bug."),
                 EndecErrorKind::InvalidEnumVariant { variant_index } => format!("invalid enum variant: {variant_index}"),
                 EndecErrorKind::InvalidInternedString => String::from("invalid interned string"),
                 EndecErrorKind::InvalidInternedNumeric => String::from("invalid interned numeric"),
@@ -113,12 +122,13 @@ impl EndecError {
 }
 
 #[derive(Clone, Debug)]
-enum EndecErrorKind {
+pub enum EndecErrorKind {
     Eof,
     Overflow,
     FromUtf8Error(FromUtf8Error),
     InvalidChar(u32),
     FileError(FileError),
+    FileIsModified,
     InvalidEnumVariant { variant_index: u8 },
     InvalidInternedString,
     InvalidInternedNumeric,
@@ -139,10 +149,11 @@ impl EndecErrorKind {
 
                 h & 0xffff_ffff_ffff_0000 | 4
             },
-            EndecErrorKind::InvalidEnumVariant { variant_index } => ((*variant_index as u64) << 8) | 5,
-            EndecErrorKind::InvalidInternedString => 6,
-            EndecErrorKind::InvalidInternedNumeric => 7,
-            EndecErrorKind::HumanReadableFile { .. } => 8,
+            EndecErrorKind::FileIsModified => 5,
+            EndecErrorKind::InvalidEnumVariant { variant_index } => ((*variant_index as u64) << 8) | 6,
+            EndecErrorKind::InvalidInternedString => 7,
+            EndecErrorKind::InvalidInternedNumeric => 8,
+            EndecErrorKind::HumanReadableFile { .. } => 9,
         }
     }
 }

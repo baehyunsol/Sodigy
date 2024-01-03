@@ -10,3 +10,6 @@ pub const LIST_INIT: Uid = Uid::dummy(105).mark_prelude();
 pub const STRING_DEF: Uid = Uid::dummy(106).mark_prelude();
 pub const BYTES_DEF: Uid = Uid::dummy(107).mark_prelude();
 pub const BYTE_DEF: Uid = Uid::dummy(108).mark_prelude();
+
+// `Func` type
+pub const FUNC_DEF: Uid = Uid::dummy(109).mark_prelude();

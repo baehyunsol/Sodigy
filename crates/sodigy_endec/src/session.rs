@@ -32,11 +32,20 @@ impl EndecSession {
     }
 
     // when saving encoded data to a file,
-    // first write `self.encoded_metadata()` to the file, then
+    // first write `self.encode_session()` to the file, then
     // write the encoded data
-    pub fn encode_metadata(&self) -> Vec<u8> {
+    pub fn encode_session(&self, file_metadata: Option<u64>) -> Vec<u8> {
         let mut result = vec![];
         let mut dummy_session = EndecSession::new();
+
+        // if it's set, `decode_session` would check the metadata of the file,
+        // and would raise Err if the metadata does not match
+        //
+        // the compiler checks the metadata of files only when reading `saved_ir`s.
+        // it doesn't check the metadata when the input is given by the programmer.
+        // in those cases, the programmer is responsible to guarantee that the input
+        // is not outdated
+        file_metadata.encode(&mut result, &mut dummy_session);
 
         // `str_map` and `str_map_rev` are unnecessary for decoding
         self.str_table.encode(&mut result, &mut dummy_session);
@@ -48,9 +57,18 @@ impl EndecSession {
     // when loading encoded data from a file,
     // first construct `Self` from decoding the file, then
     // start loading the actual data
-    pub fn decode_metadata(buf: &[u8], index: &mut usize) -> Result<Self, EndecError> {
+    pub fn decode_session(buf: &[u8], index: &mut usize, file_metadata: Option<u64>) -> Result<Self, EndecError> {
         let mut dummy_session = EndecSession::new();
         let mut intern_session = InternSession::new();
+
+        let decoded_file_metadata = Option::<u64>::decode(buf, index, &mut dummy_session)?;
+
+        match (file_metadata, decoded_file_metadata) {
+            (Some(n), Some(m)) if n != m => {
+                return Err(EndecError::file_is_modified());
+            },
+            _ => {},
+        }
 
         let str_table = HashMap::<EncodedInternal, Vec<u8>>::decode(buf, index, &mut dummy_session)?;
         let mut str_map = HashMap::with_capacity(str_table.len());

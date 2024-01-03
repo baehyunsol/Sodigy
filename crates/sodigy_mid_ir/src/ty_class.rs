@@ -1,14 +1,46 @@
 use crate::ty::Type;
 use sodigy_ast::InfixOp;
 use sodigy_uid::Uid;
+use std::collections::HashMap;
 
+// TODO: don't initialize this multiple times -> use one global table
 // you can query type classes using this struct
 // for example, if you query (`+`, Int, Int), it gives you the implementation of the integer addition
-pub struct TypeClassQuery {}
+pub struct TypeClassQuery {
+    trait_with_2_args: HashMap<TypeClass, HashMap<Type, HashMap<Type, TypeClassDef>>>,
+}
 
 impl TypeClassQuery {
-    pub fn query_2_args(&self, ty_class: TypeClass, ty1: &Type, ty2: &Type) -> Option<TypeClassDef> {
-        todo!()
+    pub fn query_2_args(
+        &self,
+        ty_class: TypeClass,
+        ty1: &Type,
+        ty2: &Type,
+    ) -> Option<&TypeClassDef> {
+        // TODO: if ty1 or ty2 is generic, placeholder, or a param with placeholders, they have to be handled specially
+        // -> that's a trait solver!
+        // For ex, if (ty1, ty2) is (List(Int), List(List(Int))),
+        // it has to search for...
+        // _. (List(Int), List(List(Int)))
+        // _. (List(Int), List(List(Any)))
+        // _. (List(Int), List(Any))
+        // _. (List(Int), Any)
+        // _. (List(Any), List(List(Int)))
+        // _. (List(Any), List(List(Any)))
+        // _. (List(Any), List(Any))
+        // _. (List(Any), Any)
+        // _. (Any, List(List(Int)))
+        // _. (Any, List(List(Any)))
+        // _. (Any, List(Any))
+        // _. (Any, Any)
+        // in which order?
+        match self.trait_with_2_args.get(&ty_class) {
+            Some(table) => match table.get(ty1) {
+                Some(table) => table.get(ty2),
+                None => None,
+            },
+            None => None,
+        }
     }
 }
 
@@ -19,6 +51,7 @@ pub struct TypeClassDef {
     pub(crate) ty: Type,
 }
 
+#[derive(Eq, Hash, PartialEq)]
 pub enum TypeClass {
     ToString,
     Add,

@@ -1,4 +1,8 @@
-use smallvec::SmallVec;
+use crate::{
+    ty::Type,
+    ty_class::TypeClass,
+};
+use smallvec::{SmallVec, smallvec};
 use sodigy_error::{
     ExtraErrInfo,
     SodigyError,
@@ -11,6 +15,44 @@ pub struct MirError {
     kind: MirErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrInfo,
+}
+
+impl MirError {
+    pub fn type_class_not_implemented(
+        type_class: TypeClass,
+        types: Vec<Type>,
+        span: SpanRange,
+    ) -> Self {
+        MirError {
+            kind: MirErrorKind::TypeClassNotImplemented(type_class),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn type_mismatch(
+        expected_ty: Type,
+        expected_span: Option<SpanRange>,
+        got_ty: Type,
+        got_span: SpanRange,
+    ) -> Self {
+        let mut spans = smallvec![];
+
+        if let Some(sp) = expected_span {
+            spans.push(sp);
+        }
+
+        spans.push(got_span);
+
+        MirError {
+            kind: MirErrorKind::TypeMisMatch {
+                expected: expected_ty,
+                got: got_ty,
+            },
+            spans,
+            extra: ExtraErrInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<MirErrorKind> for MirError {
@@ -39,7 +81,13 @@ impl SodigyError<MirErrorKind> for MirError {
     }
 }
 
-pub enum MirErrorKind {}
+pub enum MirErrorKind {
+    TypeClassNotImplemented(TypeClass),
+    TypeMisMatch {
+        expected: Type,
+        got: Type,
+    },
+}
 
 impl SodigyErrorKind for MirErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {

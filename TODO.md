@@ -387,3 +387,15 @@ Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
   - runtime error??
   - `inf`?? -> 이거는 어떻게 표현?
     - `1/0`하고 `-1/0`으로 표현할까? 이러면 if문 몇개 더 필요하긴한데 꽤 깔끔할 듯?
+
+---
+
+How about this...
+
+`match`에서 string pattern 쓸 때,
+
+`"ab"..`나 `.."ab"`로 `starts_with`, `ends_with` 나타내는 거임!
+
+---
+
+Type Classes -> `Add for (Int, Int)` 이런 식으로 추가하잖아? custom compiler error도 던질 수 있게 하자! `Add for (List(Any), List(Any))` 하면 무슨 compiler error 던질 지를 Sodigy로도 정할 수 있게 하기!
