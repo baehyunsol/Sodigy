@@ -26,8 +26,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn get_error_info(&self) -> &ExtraErrInfo;
 
-    // errors must have at least 1 span
-    fn get_first_span(&self) -> SpanRange;
+    fn get_first_span(&self) -> Option<SpanRange>;
 
     fn get_spans(&self) -> &[SpanRange];
 
@@ -37,7 +36,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
     /// For example, lex error, parse error and ast error have different ones.
     fn index(&self) -> u32;
 
-    // override this when it's a warning
+    /// override this when it's a warning
     fn is_warning(&self) -> bool {
         false
     }
@@ -84,7 +83,11 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let message = self.render_error(false);
         let hash = {
             let mut hasher = hash_map::DefaultHasher::new();
-            hasher.write(&self.get_first_span().hash128().to_be_bytes());
+
+            if let Some(span) = self.get_first_span() {
+                hasher.write(&span.hash128().to_be_bytes());
+            }
+
             hasher.write(&[self.is_warning() as u8]);
             hasher.write(&self.err_kind().index().to_be_bytes());
             hasher.write(&self.index().to_be_bytes());
@@ -96,7 +99,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
             context,
             message,
             is_warning: self.is_warning(),
-            first_span: self.get_first_span(),
+            first_span: self.get_first_span().unwrap_or_else(|| SpanRange::dummy(0xcbc28514)),
             hash,
         }
     }

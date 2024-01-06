@@ -28,7 +28,12 @@ impl CompilerOutput {
     }
 
     pub fn push_error(&mut self, mut error: UniversalError) {
-        error.is_warning = false;
+        if error.is_warning {
+            // TODO: write log file
+            println!("FIXME: There's an internal compiler error!");
+
+            error.is_warning = false;
+        }
 
         if !self.error_hashes.contains(&error.hash()) {
             self.error_hashes.insert(error.hash());
@@ -37,7 +42,12 @@ impl CompilerOutput {
     }
 
     pub fn push_warning(&mut self, mut warning: UniversalError) {
-        warning.is_warning = true;
+        if !warning.is_warning {
+            // TODO: write log file
+            println!("FIXME: There's an internal compiler error!");
+
+            warning.is_warning = true;
+        }
 
         if !self.warning_hashes.contains(&warning.hash()) {
             self.warning_hashes.insert(warning.hash());
@@ -47,6 +57,27 @@ impl CompilerOutput {
 
     pub fn dump_to_stdout(&mut self, message: String) {
         self.stdout.push(message);
+    }
+
+    pub fn merge(&mut self, other: CompilerOutput) {
+        for error in other.errors.into_iter() {
+            if !self.error_hashes.contains(&error.hash()) {
+                self.error_hashes.insert(error.hash());
+                self.errors.push(error);
+            }
+        }
+
+        for warning in other.warnings.into_iter() {
+            if !self.warning_hashes.contains(&warning.hash()) {
+                self.warning_hashes.insert(warning.hash());
+                self.warnings.push(warning);
+            }
+        }
+
+        // TODO: isn't it reversing the order?
+        for dump in other.stdout.into_iter() {
+            self.stdout.push(dump);
+        }
     }
 
     pub fn has_error(&self) -> bool {

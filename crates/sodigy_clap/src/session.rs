@@ -24,4 +24,8 @@ impl ClapSession {
             result: CompilerOption::default(),
         }
     }
+
+    pub fn has_error(&self) -> bool {
+        !self.errors.is_empty()
+    }
 }

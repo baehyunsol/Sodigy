@@ -1,23 +1,5 @@
-use crate::{CompilerOutput, run};
+use crate::run;
 use sodigy_clap::CompilerOption;
-
-fn compile_raw_input(code: Vec<u8>) -> CompilerOutput {
-    // TODO
-    // `FileSession` can handle tmp files, but this function is not utilizing tmp files...
-    // In order to use tmp files, all the functions in `./stages.rs` have to be modified.
-    // That's another inefficiency: tmp files are only used in tests, but the modified stages
-    // will add overheads in real use cases...
-    // So, for now, I'm creating an actual file and make the compiler read the file
-    use sodigy_files::*;
-
-    // let's avoid name collisions with `rand::random`
-    let file_name = format!("./__{:x}.tmp", rand::random::<u128>());
-    write_bytes(&file_name, &code, WriteMode::CreateOrTruncate).unwrap();
-    let res = run(CompilerOption::test_runner(&file_name));
-    remove_file(&file_name).unwrap();
-
-    res
-}
 
 macro_rules! check_output {
     (stmt, err, $test_name: ident, $body: expr, $msg: expr) => {
@@ -44,7 +26,7 @@ macro_rules! check_output {
                 $suffix,
             ].concat();
             let code_str = String::from_utf8_lossy(&code).to_string();
-            let mut res = compile_raw_input(code);
+            let mut res = run(CompilerOption::test_runner(&code), None);
 
             let output = res.$error_or_warning();
             let msg_normalized = String::from_utf8_lossy(&normalize($msg)).to_string();

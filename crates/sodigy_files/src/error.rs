@@ -146,6 +146,10 @@ impl FileError {
 
         hasher.finish()
     }
+
+    pub fn is_file_not_found_error(&self) -> bool {
+        matches!(self.kind, FileErrorKind::FileNotFound)
+    }
 }
 
 #[derive(Clone, Debug)]

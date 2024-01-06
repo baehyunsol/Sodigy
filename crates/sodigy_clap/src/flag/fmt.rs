@@ -15,6 +15,8 @@ impl RenderError for Flag {
             Flag::DumpHir => "dump-hir",
             Flag::DumpHirTo => "dump-hir-to",
             Flag::Clean => "clean",
+            Flag::Verbose => "verbose",
+            Flag::RawInput => "raw-input",
         }.to_string()
     }
 }

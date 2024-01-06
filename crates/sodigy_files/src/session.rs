@@ -7,6 +7,10 @@ use std::hash::Hasher;
 pub type FileHash = u64;
 pub type Path = String;
 
+// I want to make sure that `register_tmp_file("a.sdg")`
+// and `register_file("a.sdg")` doesn't kill each other
+const TMP_FILE_HASH_KEY: u64 = 11;
+
 pub struct Session {
     tmp_files: HashMap<FileHash, Vec<u8>>,  // used for tests
     files: HashMap<FileHash, Path>,
@@ -20,7 +24,7 @@ pub struct Session {
 }
 
 impl Session {
-    /// It shall not be called directly.
+    /// Don't use this function! You should always use `global_file_session()`
     pub(crate) fn new() -> Self {
         // prevent hasher from initing DUMMY_FILE_HASH accidentally
         let hashes = [DUMMY_FILE_HASH].into_iter().collect();
@@ -59,10 +63,10 @@ impl Session {
     }
 
     /// It returns Err when there's a hash collision
-    fn hash(&mut self, s: &[u8]) -> Result<FileHash, FileError> {
+    fn hash(&mut self, s: &[u8], key: u64) -> Result<FileHash, FileError> {
         let mut hasher = hash_map::DefaultHasher::new();
         hasher.write(s);
-        let hash = hasher.finish();
+        let hash = hasher.finish() ^ key;
 
         if self.hashes.contains(&hash) {
             return Err(FileError::hash_collision(
@@ -75,29 +79,29 @@ impl Session {
         Ok(hash)
     }
 
-    /// It doesn't care about hash collisions, because tmp_files are just for tests.
-    pub fn register_tmp_file(&mut self, content: Vec<u8>) -> FileHash {
+    /// It returns Err when there's a hash collision.
+    pub fn register_tmp_file(&mut self, content: &[u8]) -> Result<FileHash, FileError> {
         let lock = unsafe { LOCK.lock().unwrap() };
 
-        if let Some(f) = self.tmp_files_rev.get(&content) {
-            return *f;
+        if let Some(f) = self.tmp_files_rev.get(content) {
+            return Ok(*f);
         }
 
-        let hash = self.hash(&content).unwrap();
+        let hash = self.hash(content, TMP_FILE_HASH_KEY)?;
 
         self.tmp_files.insert(
             hash,
-            content.clone(),
+            content.to_vec(),
         );
 
         self.tmp_files_rev.insert(
-            content,
+            content.to_vec(),
             hash,
         );
 
         drop(lock);
 
-        hash
+        Ok(hash)
     }
 
     /// It returns Err when there's a hash collision.
@@ -108,7 +112,7 @@ impl Session {
             return Ok(*f);
         }
 
-        let hash = self.hash(path.as_bytes())?;
+        let hash = self.hash(path.as_bytes(), 0)?;
 
         self.files.insert(
             hash,

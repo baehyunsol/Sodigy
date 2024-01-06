@@ -36,6 +36,10 @@ impl UniversalError {
     pub fn hash(&self) -> u64 {
         self.hash
     }
+
+    pub fn append_message(&mut self, m: &str) {
+        self.message = format!("{}\n{m}", self.message);
+    }
 }
 
 // TODO: `From<FileError> for UniversalError` and `From<EndecError> for UniversalError` look the same

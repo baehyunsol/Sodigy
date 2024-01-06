@@ -8,13 +8,13 @@ pub mod utils;
 mod tests;
 
 use crate::result::CompilerOutput;
-use crate::stages::{hir_from_tokens, parse_file};
+use crate::stages::{PathOrRawInput, hir_from_tokens, parse_file};
 use crate::utils::{clean_irs, try_make_intermediate_paths};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
 
-pub fn run(options: CompilerOption) -> CompilerOutput {
-    let mut compiler_output = CompilerOutput::new();
+pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> CompilerOutput {
+    let mut compiler_output = prev_output.unwrap_or_default();
 
     if let Some(sp) = options.do_not_compile_and_do_this {
         match sp {
@@ -56,15 +56,27 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
         }
     }
 
-    for file_path in options.input_files.iter() {
+    let mut inputs = options.input_files.iter().map(
+        |file| PathOrRawInput::Path(file)
+    ).collect::<Vec<_>>();
+
+    if let Some(raw_input) = &options.raw_input {
+        inputs.push(PathOrRawInput::RawInput(raw_input));
+    }
+
+    for input in inputs {
         let (result, mut errors_and_warnings_) = match options.output_format {
             IrStage::Tokens => {
-                let (r, o) = parse_file(file_path, Some(compiler_output), &options);
+                let (r, o) = parse_file(
+                    input,
+                    Some(compiler_output),
+                    &options,
+                );
 
                 (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
             },
             IrStage::HighIr => {
-                let (r, o) = hir_from_tokens(file_path, Some(compiler_output), &options);
+                let (r, o) = hir_from_tokens(input, Some(compiler_output), &options);
 
                 (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
             },
@@ -181,9 +193,9 @@ Options:
     --dump-hir [true|false]         Dump HIR to stdout (default: false)
     --dump-hir-to PATH              If `dump-hir` is set, the HIR is dumped to <PATH>
                                     instead of stdout. If `dump-hir` is not set, it doesn't do anything.
+    --raw-input RAW-INPUT           Compile raw input instead of files.
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.
-                                    TODO: not implemented yet
     --clean                         Remove all the `__sdg_cache` directories in PWD and its sub directories.
                                     This doesn't remove dumped outputs.
 ";

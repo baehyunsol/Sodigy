@@ -25,7 +25,7 @@ fn parse_test() {
 
     for code in codes.into_iter() {
         let mut lex_session = LexSession::new();
-        let f = g.register_tmp_file(code.as_bytes().to_vec());
+        let f = g.register_tmp_file(code.as_bytes()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
         test_runner(f, content, &mut lex_session);
@@ -75,7 +75,7 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
     parse_session.flush_tokens();
 
     let g = unsafe { global_file_session() };
-    let f = g.register_tmp_file(token_round_trip_test.as_bytes().to_vec());
+    let f = g.register_tmp_file(token_round_trip_test.as_bytes()).unwrap();
 
     if let Err(()) = lex(token_round_trip_test.as_bytes(), 0, SpanPoint::at_file(f, 0), lex_session) {
         panic!(

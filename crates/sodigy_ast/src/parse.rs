@@ -1990,7 +1990,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
                     ..
                 }) if params.is_empty() => {
                     session.push_error(AstError::empty_generic_list(
-                        e.get_first_span()
+                        e.get_first_span().unwrap()
                     ));
                     return Err(());
                 },

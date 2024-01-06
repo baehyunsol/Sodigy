@@ -56,8 +56,8 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
         &self.extra
     }
 
-    fn get_first_span(&self) -> SpanRange {
-        self.spans[0]
+    fn get_first_span(&self) -> Option<SpanRange> {
+        self.spans.get(0).copied()
     }
 
     fn get_spans(&self) -> &[SpanRange] {

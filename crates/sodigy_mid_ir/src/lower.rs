@@ -227,7 +227,7 @@ pub fn lower_hir_expr(
             let f = if let Some(f) = type_classes.query_2_args((*op).into(), &rhs.ty, &lhs.ty) {
                 f
             } else {
-                // TODO: separate type for TyErrors?
+                // TODO: how about separate type for TyErrors?
                 session.push_error(MirError::type_class_not_implemented(
                     (*op).into(),
                     vec![rhs.ty.clone(), lhs.ty.clone()],

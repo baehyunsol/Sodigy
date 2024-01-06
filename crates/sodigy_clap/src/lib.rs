@@ -83,6 +83,8 @@ pub fn parse_cli_args() -> ClapSession {
         let mut dump_tokens_to = None;
         let mut dump_hir = None;
         let mut dump_hir_to = None;
+        let mut verbosity = None;
+        let mut raw_input = None;
 
         // these are later used for warnings/errors
         let mut dump_tokens_span = None;
@@ -182,6 +184,32 @@ pub fn parse_cli_args() -> ClapSession {
                                 dump_hir_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
+                        Flag::Verbose => {
+                            if verbosity.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::Verbose, tokens[index].span));
+                            }
+
+                            else {
+                                let n = tokens[index + 1].value.unwrap_int();
+
+                                if n > MAX_VERBOSITY as u64 || MIN_VERBOSITY as u64 > n {
+                                    errors.push(ClapError::integer_range_error(MIN_VERBOSITY as u64, MAX_VERBOSITY as u64 + 1, n, tokens[index + 1].span));
+                                }
+
+                                else {
+                                    verbosity = Some(n as u8);
+                                }
+                            }
+                        },
+                        Flag::RawInput => {
+                            if raw_input.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::RawInput, tokens[index].span));
+                            }
+
+                            else {
+                                raw_input = Some(tokens[index + 1].value.unwrap_raw_input().into_bytes());
+                            }
+                        },
                         Flag::Help => {
                             if let Some(_) = help_flag {
                                 warnings.push(ClapWarning::same_flag_multiple_times(Flag::Help, tokens[index].span));
@@ -221,7 +249,7 @@ pub fn parse_cli_args() -> ClapSession {
             index += 1;
         }
 
-        if input_files.is_empty() {
+        if input_files.is_empty() && raw_input.is_none() {
             errors.push(ClapError::no_input_files());
         }
 
@@ -318,6 +346,8 @@ pub fn parse_cli_args() -> ClapSession {
             dump_tokens_to,
             dump_hir: dump_hir.unwrap_or(false),
             dump_hir_to,
+            verbosity: verbosity.unwrap_or(1),
+            raw_input,
         };
 
         let res = ClapSession {
@@ -330,12 +360,17 @@ pub fn parse_cli_args() -> ClapSession {
     }
 }
 
+// TODO: any better place for these constants?
+const MIN_VERBOSITY: u8 = 0;
+const MAX_VERBOSITY: u8 = 2;
+
 #[derive(Clone)]
 pub struct CompilerOption {
     pub do_not_compile_and_do_this: Option<SpecialOutput>,
 
     // TODO: glob patterns (it works in GCC)
     // ex) `c*.sdg`
+    // is it the shell or the compiler that handles the glob patterns?
     pub input_files: Vec<String>,
 
     pub output_path: Option<String>,
@@ -346,6 +381,13 @@ pub struct CompilerOption {
     pub dump_tokens_to: Option<String>,
     pub dump_hir: bool,
     pub dump_hir_to: Option<String>,
+
+    // TODO: this doesn't do anything
+    pub verbosity: u8,
+
+    // It has to be `Vec<u8>` because the test code has to run
+    // invalid utf-8 strings.
+    pub raw_input: Option<Vec<u8>>,
 }
 
 impl CompilerOption {
@@ -368,12 +410,13 @@ impl CompilerOption {
         }
     }
 
-    pub fn test_runner(file_name: &str) -> Self {
+    pub fn test_runner(code: &[u8]) -> Self {
         CompilerOption {
             do_not_compile_and_do_this: None,
-            input_files: vec![file_name.to_string()],
+            input_files: vec![],
             output_path: None,
             save_ir: false,
+            raw_input: Some(code.to_vec()),
             ..Self::default()
         }
     }
@@ -394,6 +437,8 @@ impl Default for CompilerOption {
             dump_tokens_to: None,
             dump_hir: false,
             dump_hir_to: None,
+            verbosity: 1,
+            raw_input: None,
         }
     }
 }

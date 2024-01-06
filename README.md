@@ -354,6 +354,74 @@ You can index lists and strings with a range. For example, `a[0..3]` takes the f
 
 It's very useful in some cases. For example, if you want a pattern that covers lower case alphabets, it's either `'a'..'{'` or `'a'..~'z'`. The second one looks much better, doesn't it?
 
+### `?`
+
+Sodigy uses `?` to handle errors. It's like `Maybe` monad of Haskell. It's kinda similar to `?`s in Rust, but not the same.
+
+```
+# Don't forget to add `?` after `n`.
+# TODO: how about removing `?` in the function definition?
+let foo(n?: Int): Option(Int) = if n == 0 {
+  None
+} else {
+  Some(n - 1)
+};
+```
+
+Let's say you want to call `foo` 3 times, like `foo(foo(foo(3)))`. Since the return type and input type of `foo` are different, you cannot call it like that. In this case you can use `?` operators like `foo(foo(foo(3)?)?)`. If any of intermediate result is `None`, the final result would be `None`. If it's `Some(Int)`, the calculation continues.
+
+Below shows how you use `foo()?` in Rust.
+
+```rust
+fn foo(n: u32) -> Result<u32, ()> {
+  if n == 0 {
+    Err(())
+  } else {
+    Ok(n - 1)
+  }
+}
+
+// This is how you use `?`s in Rust
+foo(foo(foo(3)?)?)
+```
+
+The code is very similar, but they do different things. In Rust, `?` returns the current function if it's `Err`. But in Sodigy, there's no `return`. It only evaluates, and nothing returns.
+
+Below is a Haskell version.
+
+```haskell
+foo :: Int -> Maybe Int
+foo 0 = Nothing
+foo n = Just $ n - 1
+
+-- Equivalent code in Haskell
+foo 3 >>= foo >>= foo
+```
+
+`foo 3 >>= foo >>= foo` in Haskell and `foo(foo(foo(3)?)?)` in Sodigy are almost identical, except that the Sodigy version is a bit more generic. You'll see the details a few paragraphs later.
+
+One thing to notice about `?` is that the definition of `foo` tells that `n` is a `?`-able argument. In order to use `?` operators, you have to mark the function argument with a `?`. When an argument is `?`-able, it can `?`-ed types as an input.
+
+For example, `n` in `let foo(n?: Int)` can be `3`, `None?`, `Some(3)?`, `Ok(3)?`, `Err(e)?`, ... and many other `?`-able types. The compiler generates multiple versions of `foo`: one without `?` and ones with `?`. When you call `foo` without any question mark, the type checker will choose the version without `?`, and nothing special happens. When you call `foo` with a `?`, the special version is chosen. The special version looks like below.
+
+```
+let foo_special<T>(n: Result(Int, T)): Option(Int) = match n {
+  Ok($n) => foo(n),
+  Err(_) => None,
+};
+```
+
+The compiler first checks whether it can convert a `Result(Int, T)` into an `Option(Int)`. The answer is yes, and it makes a new function like above. `?`-conversion is defined by ___ type class (TODO: type classes). Sodigy std lib defines below conversions.
+
+| From             | To                | Condition                           |
+|------------------|-------------------|-------------------------------------|
+| `Option(T)`      | `Option(T)`       | Always                              |
+| `Result(T, E)`   | `Option(T)`       | Always                              |
+| `Result(T, E1)`  | `Result(T, E2)`   | When `Into(E1, E2)` is implmeneted  |
+
+- When a function has multiple `?`-ed arguments, the order of evaluation is undefined. It has to be specified, but I have to do more investigation.
+- `?`-ed expression is not a special syntax. `?` is just a normal postfix operator. You can even make a list of `?`-ed integers, like `[Some(3)?, None?, Some(5)?]`. `Ok(3)?` and `Some(3)?` have different types, though.
+
 ### Bitwise operators
 
 Sodigy has `^`, `&` and `|`. `>>` and `<<` are WIP. Sodigy's bitwise operation is a bit different from other languages. Integers in Sodigy has an arbitrary length, like in Python. That means binary representation of `7` in Sodigy has three `1`s and infinite number of leading `0`s. Due to this, there's no `~` in Sodigy. `~` on any positive number will result in infinite (not sure whether that's positive or not).

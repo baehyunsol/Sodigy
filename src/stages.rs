@@ -2,7 +2,7 @@ use crate::{CompilerOutput, SAVE_IRS_AT};
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_clap::{CompilerOption, IrStage};
 use sodigy_endec::{Endec, EndecError, EndecErrorContext, EndecErrorKind};
-use sodigy_error::SodigyError;
+use sodigy_error::{SodigyError, UniversalError};
 use sodigy_files::{
     create_dir,
     exists,
@@ -25,66 +25,80 @@ use sodigy_span::SpanPoint;
 
 type Path = String;
 
+#[derive(Clone, Copy)]
+pub(crate) enum PathOrRawInput<'a> {
+    Path(&'a Path),
+    RawInput(&'a Vec<u8>),
+}
+
 // TODO: this file has a lot of duplicate code blocks
 // TODO: nicer return type for all the stages
 // TODO: remove all the hard-coded strings: "tokens", "hir", ...
 // TODO: `parse_file` and `hir_from_tokens` are very similar...
-// TODO: make all the stages able to deal with raw inputs, not just files
 
 pub fn parse_file(
-    file: &Path,
+    input: PathOrRawInput,
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<ParseSession>, CompilerOutput) {
     let mut compiler_output = prev_output.unwrap_or_default();
-
-    if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, "tokens") {
-        match s {
-            Ok(session) => {
-                // TODO: this pattern is used over and over...
-                for error in session.get_errors() {
-                    compiler_output.push_error(error.to_universal());
-                }
-
-                for warning in session.get_warnings() {
-                    compiler_output.push_warning(warning.to_universal());
-                }
-
-                // TODO: this if statement is duplicate
-                if compiler_option.dump_tokens {
-                    let res = session.dump_tokens();
-
-                    if let Some(path) = &compiler_option.dump_tokens_to {
-                        if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                            compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
-                        }
-                    }
-
-                    else {
-                        compiler_output.dump_to_stdout(res);
-                    }
-                }
-
-                return (Some(session), compiler_output);
-            },
-            Err(e) => {
-                // TODO: warn the programmer that something's wrong with the incremental compilation
-                // there's nothing wrong in the compilation, tho
-            },
-        }
-    }
-
     let file_session = unsafe { global_file_session() };
 
-    let file_hash = match file_session.register_file(file) {
-        Ok(f) => f,
-        Err(e) => {
-            compiler_output.push_error(e.into());
-            return (None, compiler_output);
+    let file_hash = match input {
+        PathOrRawInput::Path(file) => {
+            if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, "tokens") {
+                match s {
+                    Ok(session) => {
+                        // TODO: this pattern is used over and over...
+                        for error in session.get_errors() {
+                            compiler_output.push_error(error.to_universal());
+                        }
+
+                        for warning in session.get_warnings() {
+                            compiler_output.push_warning(warning.to_universal());
+                        }
+
+                        // TODO: this if statement is duplicate
+                        if compiler_option.dump_tokens {
+                            let res = session.dump_tokens();
+
+                            if let Some(path) = &compiler_option.dump_tokens_to {
+                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
+                                }
+                            }
+
+                            else {
+                                compiler_output.dump_to_stdout(res);
+                            }
+                        }
+
+                        return (Some(session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+                    },
+                }
+            }
+
+            match file_session.register_file(file) {
+                Ok(f) => f,
+                Err(e) => {
+                    compiler_output.push_error(e.into());
+                    return (None, compiler_output);
+                },
+            }
+        },
+        PathOrRawInput::RawInput(raw_input) => match file_session.register_tmp_file(raw_input) {
+            Ok(f) => f,
+            Err(e) => {
+                compiler_output.push_error(e.into());
+                return (None, compiler_output);
+            },
         },
     };
 
-    let input = match file_session.get_file_content(file_hash) {
+    let code = match file_session.get_file_content(file_hash) {
         Ok(f) => f,
         Err(e) => {
             compiler_output.push_error(e.into());
@@ -95,7 +109,7 @@ pub fn parse_file(
 
     let mut lex_session = LexSession::new();
 
-    if let Err(()) = lex(input, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
+    if let Err(()) = lex(code, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         for error in lex_session.get_errors() {
             compiler_output.push_error(error.to_universal());
         }
@@ -126,28 +140,32 @@ pub fn parse_file(
     }
 
     else {
-        if compiler_option.save_ir {
-            let tmp_path = match generate_path_for_ir(file, "tokens", true) {
-                Ok(p) => p.to_string(),
-                Err(e) => {
-                    compiler_output.push_error(e.into());
-                    return (None, compiler_output);
-                },
-            };
+        match input {
+            PathOrRawInput::Path(file) if compiler_option.save_ir => {
+                if compiler_option.save_ir {
+                    let tmp_path = match generate_path_for_ir(file, "tokens", true) {
+                        Ok(p) => p.to_string(),
+                        Err(e) => {
+                            compiler_output.push_error(e.into());
+                            return (None, compiler_output);
+                        },
+                    };
 
-            let file_metadata = match last_modified(file) {
-                Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-                Err(e) => {
-                    // TODO: warn the programmer that incremental compilation is not working
-                    // compiler_output.push_warning(...);
+                    let file_metadata = match last_modified(file) {
+                        Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
+                        Err(e) => {
+                            compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
 
-                    0
-                },
-            };
+                            0
+                        },
+                    };
 
-            if let Err(mut e) = parse_session.save_to_file(&tmp_path, Some(file_metadata)) {
-                compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
-            }
+                    if let Err(mut e) = parse_session.save_to_file(&tmp_path, Some(file_metadata)) {
+                        compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
+                    }
+                }
+            },
+            _ => {},
         }
 
         if compiler_option.dump_tokens {
@@ -172,125 +190,143 @@ pub fn parse_file(
 }
 
 pub fn hir_from_tokens(
-    file: &Path,
+    input: PathOrRawInput,
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<HirSession>, CompilerOutput) {
-    if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, "hir") {
-        match s {
-            Ok(session) => {
-                let mut compiler_output = prev_output.unwrap_or_default();
+    let mut compiler_output = prev_output.unwrap_or_default();
 
-                // TODO: this pattern is used over and over...
-                for error in session.get_errors() {
-                    compiler_output.push_error(error.to_universal());
-                }
-
-                for warning in session.get_warnings() {
-                    compiler_output.push_warning(warning.to_universal());
-                }
-
-                // TODO: this if statement is duplicate
-                if compiler_option.dump_hir {
-                    let res = session.dump_hir();
-
-                    if let Some(path) = &compiler_option.dump_hir_to {
-                        if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                            compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+    let parse_session = match input {
+        PathOrRawInput::Path(file) => {
+            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, "hir") {
+                match s {
+                    Ok(session) => {
+                        // TODO: this pattern is used over and over...
+                        for error in session.get_errors() {
+                            compiler_output.push_error(error.to_universal());
                         }
-                    }
 
-                    else {
-                        compiler_output.dump_to_stdout(res);
-                    }
+                        for warning in session.get_warnings() {
+                            compiler_output.push_warning(warning.to_universal());
+                        }
+
+                        // TODO: this if statement is duplicate
+                        if compiler_option.dump_hir {
+                            let res = session.dump_hir();
+
+                            if let Some(path) = &compiler_option.dump_hir_to {
+                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                                }
+                            }
+
+                            else {
+                                compiler_output.dump_to_stdout(res);
+                            }
+                        }
+
+                        return (Some(session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+                    },
                 }
+            }
 
-                return (Some(session), compiler_output);
-            },
-            Err(e) => {
-                // TODO: warn the programmer that something's wrong with the incremental compilation
-                // there's nothing wrong in the compilation, tho
-            },
-        }
-    }
+            match IrStage::try_infer_from_ext(file) {
 
-    let (parse_session, mut compiler_output) = match IrStage::try_infer_from_ext(file) {
+                // This file contains ParseSession
+                Some(IrStage::Tokens) => match ParseSession::load_from_file(file, None) {
+                    Ok(parse_session) => {
+                        let mut has_error = false;
 
-        // This file contains ParseSession
-        Some(IrStage::Tokens) => match ParseSession::load_from_file(file, None) {
-            Ok(parse_session) => {
-                let mut compiler_output = prev_output.unwrap_or_default();
-                let mut has_error = false;
+                        for error in parse_session.get_errors() {
+                            compiler_output.push_error(error.to_universal());
+                            has_error = true;
+                        }
 
-                for error in parse_session.get_errors() {
-                    compiler_output.push_error(error.to_universal());
-                    has_error = true;
-                }
+                        for warning in parse_session.get_warnings() {
+                            compiler_output.push_warning(warning.to_universal());
+                        }
 
-                for warning in parse_session.get_warnings() {
-                    compiler_output.push_warning(warning.to_universal());
-                }
+                        // We don't allow an erroneous session to continue compilation
+                        if has_error {
+                            return (None, compiler_output);
+                        }
 
-                // We don't allow an erroneous session to continue compilation
-                if has_error {
+                        parse_session
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-tokens", file)
+                                    .set_context(EndecErrorContext::ConstructingTokensFromIr).to_owned().into()
+                            );
+                        }
+
+                        return (None, compiler_output);
+                    },
+                },
+                Some(IrStage::HighIr) => match HirSession::load_from_file(file, None) {  // HirSession is already here!
+                    Ok(hir_session) => {
+                        for error in hir_session.get_errors() {
+                            compiler_output.push_error(error.to_universal());
+                        }
+
+                        for warning in hir_session.get_warnings() {
+                            compiler_output.push_warning(warning.to_universal());
+                        }
+
+                        return (Some(hir_session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-hir", file)
+                                    .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
+                            );
+                        }
+
+                        return (None, compiler_output);
+                    },
+                },
+
+                // Let's assume it's a code file
+                None => match parse_file(
+                    PathOrRawInput::Path(file),
+                    None,
+                    compiler_option,
+                ) {
+                    (Some(parse_session), output) => {
+                        compiler_output.merge(output);
+
+                        parse_session
+                    },
+                    (None, output) => {
+                        return (None, output);
+                    },
+                },
+            }
+        },
+        _ => {
+            let (parse_session, compiler_output_) = parse_file(
+                input,
+                Some(compiler_output),
+                compiler_option,
+            );
+
+            compiler_output = compiler_output_;
+
+            match parse_session {
+                Some(parse_session) => parse_session,
+                None => {
                     return (None, compiler_output);
-                }
-
-                (parse_session, compiler_output)
-            },
-            Err(e) => {
-                let mut compiler_output = prev_output.unwrap_or_default();
-                compiler_output.push_error(e.into());
-
-                if is_human_readable(file) {
-                    compiler_output.push_error(
-                        EndecError::human_readable_file("--dump-tokens", file)
-                            .set_context(EndecErrorContext::ConstructingTokensFromIr).to_owned().into()
-                    );
-                }
-
-                return (None, compiler_output);
-            },
-        },
-        Some(IrStage::HighIr) => match HirSession::load_from_file(file, None) {  // HirSession is already here!
-            Ok(hir_session) => {
-                let mut compiler_output = prev_output.unwrap_or_default();
-
-                for error in hir_session.get_errors() {
-                    compiler_output.push_error(error.to_universal());
-                }
-
-                for warning in hir_session.get_warnings() {
-                    compiler_output.push_warning(warning.to_universal());
-                }
-
-                return (Some(hir_session), compiler_output);
-            },
-            Err(e) => {
-                let mut compiler_output = prev_output.unwrap_or_default();
-                compiler_output.push_error(e.into());
-
-                if is_human_readable(file) {
-                    compiler_output.push_error(
-                        EndecError::human_readable_file("--dump-hir", file)
-                            .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
-                    );
-                }
-
-                return (None, compiler_output);
-            },
-        },
-
-        // Let's assume it's a code file
-        None => match parse_file(
-            file,
-            prev_output,
-            compiler_option,
-        ) {
-            (Some(parse_session), output) => (parse_session, output),
-            (None, output) => {
-                return (None, output);
-            },
+                },
+            }
         },
     };
 
@@ -332,28 +368,30 @@ pub fn hir_from_tokens(
     }
 
     else {
-        if compiler_option.save_ir {
-            let tmp_path = match generate_path_for_ir(file, "hir", true) {
-                Ok(p) => p.to_string(),
-                Err(e) => {
-                    compiler_output.push_error(e.into());
-                    return (None, compiler_output);
-                },
-            };
+        match input {
+            PathOrRawInput::Path(file) if compiler_option.save_ir => {
+                let tmp_path = match generate_path_for_ir(file, "hir", true) {
+                    Ok(p) => p.to_string(),
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+                        return (None, compiler_output);
+                    },
+                };
 
-            let file_metadata = match last_modified(file) {
-                Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-                Err(e) => {
-                    // TODO: warn the programmer that incremental compilation is not working
-                    // compiler_output.push_warning(...);
+                let file_metadata = match last_modified(file) {
+                    Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
 
-                    0
-                },
-            };
+                        0
+                    },
+                };
 
-            if let Err(mut e) = hir_session.save_to_file(&tmp_path, Some(file_metadata)) {
-                compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
-            }
+                if let Err(mut e) = hir_session.save_to_file(&tmp_path, Some(file_metadata)) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
+                }
+            },
+            _ => {},
         }
 
         if compiler_option.dump_hir {
@@ -424,6 +462,9 @@ pub fn try_construct_session_from_saved_ir<T: Endec>(file: &Path, ext: &str) -> 
 
     let file_metadata = match last_modified(file) {
         Ok(m) => m,
+        Err(e) if e.is_file_not_found_error() => {
+            return None;
+        },
         Err(e) => {
             return Some(Err(e.into()));
         },
@@ -462,4 +503,13 @@ fn is_human_readable(file: &Path) -> bool {
     }
 
     false
+}
+
+fn incremental_compilation_broken(file: &Path, mut error: UniversalError) -> UniversalError {
+    error.is_warning = true;
+    error.append_message(&format!(
+        "Incremental compilation on `{file}` is not working due to this error.\nIf you haven't messed up with `__sdg_cache` directoy, this must be an internal compiler error. Please report this bug."
+    ));
+
+    error
 }

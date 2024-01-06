@@ -15,9 +15,11 @@ pub enum Flag {
     DumpHir,
     DumpHirTo,
     Clean,
+    Verbose,
+    RawInput,
 }
 
-pub const FLAGS: [Flag; 11] = [
+pub const FLAGS: [Flag; 13] = [
     Flag::Output,
     Flag::To,
     Flag::Help,
@@ -29,6 +31,8 @@ pub const FLAGS: [Flag; 11] = [
     Flag::DumpHir,
     Flag::DumpHirTo,
     Flag::Clean,
+    Flag::Verbose,
+    Flag::RawInput,
 ];
 
 impl Flag {
@@ -43,6 +47,8 @@ impl Flag {
             | Flag::SaveIr
             | Flag::DumpTokens
             | Flag::DumpHir => TokenKind::Bool,
+            Flag::Verbose => TokenKind::Int,
+            Flag::RawInput => TokenKind::RawInput,
             Flag::Help
             | Flag::Version
             | Flag::Clean => TokenKind::None,
@@ -61,7 +67,9 @@ impl Flag {
             | Flag::DumpTokensTo
             | Flag::DumpHir
             | Flag::DumpHirTo
-            | Flag::Clean => None,
+            | Flag::Clean
+            | Flag::Verbose
+            | Flag::RawInput => None,
         }
     }
 
@@ -78,6 +86,8 @@ impl Flag {
             Flag::DumpHir => b"--dump-hir",
             Flag::DumpHirTo => b"--dump-hir-to",
             Flag::Clean => b"--clean",
+            Flag::Verbose => b"--verbose",
+            Flag::RawInput => b"--raw-input",
         }
     }
 

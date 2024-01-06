@@ -1,5 +1,5 @@
 use crate::flag::{Flag, FLAGS};
-use crate::token::TokenKind;
+use crate::token::{Token, TokenKind};
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     concat_commas,
@@ -112,6 +112,34 @@ impl ClapError {
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
+
+    // `start` is inclusive, and `end` is exclusive
+    pub fn integer_range_error(start: u64, end: u64, given: u64, span: SpanRange) -> Self {
+        assert!(start < end && (given < start || end <= given));
+
+        ClapError {
+            kind: ClapErrorKind::IntegerRangeError {
+                start, end, given,
+            },
+            spans: smallvec![span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
+
+    pub fn assign_operator(
+        previous_token: Option<&Token>,
+        assign_operator: Token,
+        next_token: Option<&Token>,
+    ) -> Self {
+        ClapError {
+            kind: ClapErrorKind::AssignOperator {
+                previous_token: previous_token.map(|t| t.clone()),
+                next_token: next_token.map(|t| t.clone()),
+            },
+            spans: smallvec![assign_operator.span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
 }
 
 impl SodigyError<ClapErrorKind> for ClapError {
@@ -123,8 +151,8 @@ impl SodigyError<ClapErrorKind> for ClapError {
         &self.extra
     }
 
-    fn get_first_span(&self) -> SpanRange {
-        self.spans[0]
+    fn get_first_span(&self) -> Option<SpanRange> {
+        self.spans.get(0).copied()
     }
 
     fn get_spans(&self) -> &[SpanRange] {
@@ -149,6 +177,15 @@ pub enum ClapErrorKind {
     NoInputFiles,
     SameFlagMultipleTimes(Flag),
     UnnecessaryFlag(Flag),
+    IntegerRangeError {
+        start: u64,  // inclusive
+        end: u64,    // exclusive
+        given: u64,
+    },
+    AssignOperator {
+        previous_token: Option<Token>,
+        next_token: Option<Token>,
+    },
 }
 
 impl SodigyErrorKind for ClapErrorKind {
@@ -168,6 +205,10 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::NoInputFiles => String::from("no input files"),
             ClapErrorKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
             ClapErrorKind::UnnecessaryFlag(flag) => format!("unnecessary flag: `{}`", flag.render_error()),
+            ClapErrorKind::IntegerRangeError { start, end, given } => format!(
+                "expected an integer in range {start}..{end}, got {given}"
+            ),
+            ClapErrorKind::AssignOperator { .. } => String::from("unnecessary assign operator"),
         }
     }
 
@@ -179,11 +220,24 @@ impl SodigyErrorKind for ClapErrorKind {
                 "`{}` doesn't take extra arguments",
                 String::from_utf8(flag.long().to_vec()).unwrap(),
             ),
+            ClapErrorKind::AssignOperator { previous_token, next_token } => {
+                match (previous_token, next_token) {
+                    (Some(p), Some(n)) if p.is_flag() && !n.is_flag() => format!(
+                        "Try `{} {}` instead of `{} = {}`.",
+                        p.render_error(),
+                        n.render_error(),
+                        p.render_error(),
+                        n.render_error(),
+                    ),
+                    _ => String::new(),
+                }
+            },
             ClapErrorKind::InvalidUtf8
             | ClapErrorKind::InvalidArgument(_, _)
             | ClapErrorKind::NoArg(_)
             | ClapErrorKind::NoInputFiles
-            | ClapErrorKind::SameFlagMultipleTimes(_) => String::new(),
+            | ClapErrorKind::SameFlagMultipleTimes(_)
+            | ClapErrorKind::IntegerRangeError { .. } => String::new(),
         }
     }
 
@@ -198,6 +252,8 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::NoInputFiles => 5,
             ClapErrorKind::SameFlagMultipleTimes(_) => 6,
             ClapErrorKind::UnnecessaryFlag(_) => 7,
+            ClapErrorKind::IntegerRangeError { .. } => 8,
+            ClapErrorKind::AssignOperator { .. } => 9,
         }
     }
 }

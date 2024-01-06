@@ -33,7 +33,7 @@ fn runner(path: &str) {
         ..base_comp_opt.clone()
     };
 
-    let errors1 = run(opt1).concat_results();
+    let errors1 = run(opt1, None).concat_results();
     let input2 = generate_path_for_ir(&path.to_string(), "tokens", false).unwrap();
 
     let opt2 = CompilerOption {
@@ -43,7 +43,7 @@ fn runner(path: &str) {
         ..base_comp_opt.clone()
     };
 
-    let errors2 = run(opt2).concat_results();
+    let errors2 = run(opt2, None).concat_results();
 
     let sep = "\n\n-------------------------\n\n";
 

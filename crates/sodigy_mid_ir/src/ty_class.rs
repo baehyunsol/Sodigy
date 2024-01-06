@@ -10,6 +10,13 @@ pub struct TypeClassQuery {
     trait_with_2_args: HashMap<TypeClass, HashMap<Type, HashMap<Type, TypeClassDef>>>,
 }
 
+// https://smallcultfollowing.com/babysteps//blog/2016/09/24/intersection-impls/
+// https://smallcultfollowing.com/babysteps//blog/2016/09/29/distinguishing-reuse-from-override/
+// https://smallcultfollowing.com/babysteps/blog/2016/10/24/supporting-blanket-impls-in-specialization/
+// https://aturon.github.io/tech/2017/02/06/specialization-and-coherence/
+// https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
+// I have to make syntax/semantics of type classes before implementing the compiler...
+
 impl TypeClassQuery {
     pub fn query_2_args(
         &self,

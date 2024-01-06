@@ -24,45 +24,6 @@ functor of `test.after` takes one input: the return value of the function its de
 
 ---
 
-```
-let foo(x?: Int, y?: String): Result(Int, Err) = Result.Ok(bar(x, y));
-```
-
-```
-foo(val1?, val2?)
-
-# becomes
-
-match val1 {
-  T.T1($n) => match val2 {
-    V.V1($s) => Result.Ok(bar(n, s)),
-    V.V2($err) => Result.Err(err as Err),
-  },
-  T.T2($err) => Result.Err(err as Err),
-}
-```
-
-1. `?` is an OPERATOR: `x?` changes the value and type of `x`.
-2. If `x`'s type is `T(X, Y)`, then `x?` has type `Question(T(X, Y))`.
-3. If `foo(x?: X)` exists, then `foo`'s result changes according to the type of the first arg (which is solid)
-  - that would be like below
-
-```
-let foo(x?: X): Y = bar(x);
-
-# becomes
-
-let foo_real(x: X): Y = bar(x);
-
-# each `T` creates new one
-let foo_quest(x: T(X, Y)): Y = match x {
-  T.T1($x) => bar(x),
-  T.T2($err) => ##! there must be a variant of Y for this case !## .. ,
-};
-```
-
----
-
 Macros
 
 Like that of `[proc_macro]` in Rust. There's a sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`. Below is the compilation step.
@@ -372,13 +333,6 @@ How other languages import modules
 
 ---
 
-read
-
-- https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
-- https://github.com/purescript/documentation/blob/master/language/Types.md
-
----
-
 Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
 
 - 둘다 적당히 크면 LSB 날리고
@@ -394,8 +348,22 @@ How about this...
 
 `match`에서 string pattern 쓸 때,
 
-`"ab"..`나 `.."ab"`로 `starts_with`, `ends_with` 나타내는 거임!
+`"ab"..`나 `.."ab"`로 `starts_with`, `ends_with` 나타내는 거임! `"ab".."cd"`로 동시에 쓰는 것도 가능
+
+how about `"ab"..$a.."cd"`? 이거 괜찮은데?? 점점 `p"(%d, %d)"`스러워지긴 하지만, 새로운 문법을 추가하는 건 아니니까 그나마 나은 듯?
 
 ---
 
-Type Classes -> `Add for (Int, Int)` 이런 식으로 추가하잖아? custom compiler error도 던질 수 있게 하자! `Add for (List(Any), List(Any))` 하면 무슨 compiler error 던질 지를 Sodigy로도 정할 수 있게 하기!
+Type Classes
+
+
+https://smallcultfollowing.com/babysteps//blog/2016/09/24/intersection-impls/
+https://smallcultfollowing.com/babysteps//blog/2016/09/29/distinguishing-reuse-from-override/
+https://smallcultfollowing.com/babysteps/blog/2016/10/24/supporting-blanket-impls-in-specialization/
+https://smallcultfollowing.com/babysteps/blog/2022/04/17/coherence-and-crate-level-where-clauses/
+https://aturon.github.io/tech/2017/02/06/specialization-and-coherence/
+https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
+
+Syntax/Semantic 생각해보기!
+
+`Add for (Int, Int)` 이런 식으로 추가하잖아? custom compiler error도 던질 수 있게 하자! `Add for (List(Any), List(Any))` 하면 무슨 compiler error 던질 지를 Sodigy로도 정할 수 있게 하기!
