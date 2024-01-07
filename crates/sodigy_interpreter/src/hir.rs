@@ -184,10 +184,10 @@ pub fn eval_hir(e: &hir::Expr, ctxt: &mut HirEvalCtxt) -> Result<Rc<SodigyData>,
         hir::ExprKind::Char(c) => Ok(Rc::new(
             SodigyData::new_char(*c)
         )),
-        hir::ExprKind::String { s, is_binary } => if *is_binary {
-            Ok(Rc::new(SodigyData::new_bin_data(&unintern_string(*s))))
+        hir::ExprKind::String { content, is_binary } => if *is_binary {
+            Ok(Rc::new(SodigyData::new_bin_data(&unintern_string(*content))))
         } else {
-            Ok(Rc::new(SodigyData::new_string(&unintern_string(*s))))
+            Ok(Rc::new(SodigyData::new_string(&unintern_string(*content))))
         },
         hir::ExprKind::List(elements)
         | hir::ExprKind::Tuple(elements) => {

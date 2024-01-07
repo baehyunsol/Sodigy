@@ -27,6 +27,34 @@ let match_char(c: Char): String = match c {
     _ => "Non Ascii",
 };
 
+@test.eq("DDDLLLUUUAAANNN")
+let match_char_test = {
+    let matches = [
+        match_char('0'), match_char('1'), match_char('2'),
+        match_char('a'), match_char('b'), match_char('c'),
+        match_char('A'), match_char('B'), match_char('C'),
+        match_char('%'), match_char('^'), match_char('&'),
+        match_char('가'), match_char('나'), match_char('다'),
+    ];
+
+    matches.map(\{s, s[0]}).join("")
+};
+
+let match_str(s: String): String = match s {
+    "abc".. => "a",
+    .."def" => "b",
+    "a".."b".."c".."d" => "c",
+    _ => "d",
+};
+
+@test.eq("abcd")
+let match_str_test = [
+    match_str("abcd"),
+    match_str("cdef"),
+    match_str("aaabbbcccddd"),
+    match_str("xyz"),
+].join("");
+
 let unwrap_or_0(n: Option(Int)): Int = match n {
     Option.Some($n) => n,
     Option.None => 0,

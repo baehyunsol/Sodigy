@@ -23,9 +23,10 @@ impl fmt::Display for ValueKind {
         let s = match self {
             ValueKind::Identifier(id) => id.to_string(),
             ValueKind::Number(n) => n.to_string(),
-            ValueKind::String { s, is_binary } => format!(
-                "{}{s:?}",
+            ValueKind::String { content, is_binary } => format!(
+                "{}\"{}\"",
                 if *is_binary { "b" } else { "" },
+                content.escaped_no_quotes(),
             ),
             ValueKind::Char(c) => format!("{c:?}"),
             v @ (ValueKind::List(elems)

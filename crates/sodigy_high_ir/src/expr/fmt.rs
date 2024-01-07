@@ -30,11 +30,11 @@ impl fmt::Display for ExprKind {
             | ExprKind::Ratio(n) => n.to_string(),
             ExprKind::Char(c) => format!("{c:?}"),
             ExprKind::String {
-                s, is_binary
+                content, is_binary
             } => format!(
                 "{}\"{}\"",
                 if *is_binary { "b" } else { "" },
-                s.escaped_no_quotes(),
+                content.escaped_no_quotes(),
             ),
             ExprKind::Call { func, args } => format!(
                 "{}({})",
@@ -62,9 +62,9 @@ impl fmt::Display for ExprKind {
                 "f\"{}\"",
                 elems.iter().map(
                     |elem| match &elem.kind {
-                        ExprKind::String { s, is_binary } => {
+                        ExprKind::String { content, is_binary } => {
                             sodigy_assert!(!*is_binary);
-                            s.escaped_no_quotes()
+                            content.escaped_no_quotes()
                         },
                         _ => format!("\\{{{elem}}}"),
                     }

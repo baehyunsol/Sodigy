@@ -7,7 +7,7 @@ pub enum ValueKind {
     Identifier(InternedString),
     Number(InternedNumeric),
     String {
-        s: InternedString,
+        content: InternedString,
         is_binary: bool,  // `b` prefix
     },
     Char(char),

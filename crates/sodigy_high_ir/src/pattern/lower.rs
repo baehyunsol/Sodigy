@@ -5,6 +5,7 @@ use super::{
     PatternKind,
     RangeType,
     check_range_pattern,
+    string::{StringPattern, lower_string_pattern},
 };
 use crate::lower_ast_ty;
 use crate::error::HirError;
@@ -197,81 +198,105 @@ fn lower_ast_pattern_kind(
     let res = match pattern_kind {
         ast::PatternKind::Binding(name) => PatternKind::Binding(*name),
         ast::PatternKind::Range {
-            from, to, inclusive,
+            from, to,
+            inclusive,
+            is_string,
         } => {
-            let res = match (from.as_ref().map(|f| f.as_ref()), to.as_ref().map(|t| t.as_ref())) {
-                (Some(f), None) => {
-                    // `0..~` doesn't make sense, how can an open end be inclusive?
-                    if *inclusive {
-                        session.push_error(HirError::open_inclusive_range(span));
-                        return Err(());
-                    }
+            // "abc".."def" -> prefix and suffix patterns
+            if *is_string {
+                // inclusive ranges are not allowed for string patterns
+                if *inclusive {
+                    session.push_error(HirError::inclusive_string_pattern(span));
+                    return Err(());
+                }
 
-                    PatternKind::Range {
-                        ty: RangeType::try_from_pattern(
-                            f, session,
-                        )?,
-                        from: NumberLike::try_from_pattern(
-                            f, session,
-                            true,  /* is_inclusive */
-                        )?,
-                        to: NumberLike::OpenEnd {
-                            is_negative: true,
-                        },
-                    }
-                },
-                (None, Some(t)) => {
-                    // `..'a'` -> `'\0'..'a'`
-                    // `..0` -> `-inf..0`
-                    let from = if let ast::PatternKind::Char(_) = &t.kind {
-                        NumberLike::zero()
-                    } else {
-                        NumberLike::OpenEnd {
-                            is_negative: true,
+                let mut result = StringPattern::new();
+
+                lower_string_pattern(
+                    from, to,
+                    session,
+                    &mut result,
+                )?;
+
+                PatternKind::String(result)
+            }
+
+            // 'a'..~'z' or 0..9
+            else {
+                let res = match (from.as_ref().map(|f| f.as_ref()), to.as_ref().map(|t| t.as_ref())) {
+                    (Some(f), None) => {
+                        // `0..~` doesn't make sense, how can an open end be inclusive?
+                        if *inclusive {
+                            session.push_error(HirError::open_inclusive_range(span));
+                            return Err(());
                         }
-                    };
 
-                    PatternKind::Range {
-                        ty: RangeType::try_from_pattern(
-                            t, session,
-                        )?,
-                        from,
-                        to: NumberLike::try_from_pattern(
-                            t, session,
-                            *inclusive,
-                        )?,
-                    }
-                },
-                (Some(f), Some(t)) => {
-                    check_same_type_or_error(
-                        f, t,
-                        session,
-                    )?;
+                        PatternKind::Range {
+                            ty: RangeType::try_from_pattern(
+                                f, session,
+                            )?,
+                            from: NumberLike::try_from_pattern(
+                                f, session,
+                                true,  /* is_inclusive */
+                            )?,
+                            to: NumberLike::OpenEnd {
+                                is_negative: true,
+                            },
+                        }
+                    },
+                    (None, Some(t)) => {
+                        // `..'a'` -> `'\0'..'a'`
+                        // `..0` -> `-inf..0`
+                        let from = if let ast::PatternKind::Char(_) = &t.kind {
+                            NumberLike::zero()
+                        } else {
+                            NumberLike::OpenEnd {
+                                is_negative: true,
+                            }
+                        };
 
-                    PatternKind::Range {
-                        ty: RangeType::try_from_pattern(
-                            t, session,
-                        )?,
-                        from: NumberLike::try_from_pattern(
-                            f, session,
-                            true,  // `is_inclusive` only affects the other side of a range
-                        )?,
-                        to: NumberLike::try_from_pattern(
-                            t, session,
-                            *inclusive,
-                        )?,
-                    }
-                },
-                (None, None) => unreachable!(),
-            };
+                        PatternKind::Range {
+                            ty: RangeType::try_from_pattern(
+                                t, session,
+                            )?,
+                            from,
+                            to: NumberLike::try_from_pattern(
+                                t, session,
+                                *inclusive,
+                            )?,
+                        }
+                    },
+                    (Some(f), Some(t)) => {
+                        check_same_type_or_error(
+                            f, t,
+                            session,
+                        )?;
 
-            check_range_pattern(
-                &res,
-                span,
-                session,
-            )?;
+                        PatternKind::Range {
+                            ty: RangeType::try_from_pattern(
+                                t, session,
+                            )?,
+                            from: NumberLike::try_from_pattern(
+                                f, session,
+                                true,  // `is_inclusive` only affects the other side of a range
+                            )?,
+                            to: NumberLike::try_from_pattern(
+                                t, session,
+                                *inclusive,
+                            )?,
+                        }
+                    },
+                    (None, None) => unreachable!(),
+                };
 
-            res
+                check_range_pattern(
+                    &res,
+                    span,
+                    session,
+                )?;
+
+                res
+            }
         },
         ast::PatternKind::Tuple(patterns) => {
             let mut result = Vec::with_capacity(patterns.len());

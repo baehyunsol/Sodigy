@@ -45,9 +45,12 @@ impl Endec for HirErrorKind {
             HirErrorKind::OpenInclusiveRange => { buf.push(5); },
             HirErrorKind::UnmatchablePattern => { buf.push(6); },
             HirErrorKind::MultipleShorthands => { buf.push(7); },
-            HirErrorKind::TyError => { buf.push(8); },
+            HirErrorKind::InclusiveStringPattern => { buf.push(8); },
+            HirErrorKind::NameBindingNotAllowedHere => { buf.push(9); },
+            HirErrorKind::TyAnnoNotAllowedHere => { buf.push(10); },
+            HirErrorKind::TyError => { buf.push(11); },
             HirErrorKind::TODO(s) => {
-                buf.push(9);
+                buf.push(12);
                 s.encode(buf, session);
             },
         }
@@ -70,9 +73,12 @@ impl Endec for HirErrorKind {
                     5 => Ok(HirErrorKind::OpenInclusiveRange),
                     6 => Ok(HirErrorKind::UnmatchablePattern),
                     7 => Ok(HirErrorKind::MultipleShorthands),
-                    8 => Ok(HirErrorKind::TyError),
-                    9 => Ok(HirErrorKind::TODO(String::decode(buf, index, session)?)),
-                    10.. => Err(EndecError::invalid_enum_variant(*n)),
+                    8 => Ok(HirErrorKind::InclusiveStringPattern),
+                    9 => Ok(HirErrorKind::NameBindingNotAllowedHere),
+                    10 => Ok(HirErrorKind::TyAnnoNotAllowedHere),
+                    11 => Ok(HirErrorKind::TyError),
+                    12 => Ok(HirErrorKind::TODO(String::decode(buf, index, session)?)),
+                    13.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

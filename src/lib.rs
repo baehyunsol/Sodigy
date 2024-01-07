@@ -97,65 +97,32 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
     compiler_output
 }
 
-// TODO: remove these functions
-// pub fn compile_file(path: String) -> Result<CompilerOutput, FileError> {
-//     let file_session = unsafe { global_file_session() };
-//     let file = file_session.register_file(&path)?;
+// TODO: tmp code for running hir
+use sodigy_high_ir::HirSession;
+use sodigy_interpreter::{eval_hir, HirEvalCtxt};
 
-//     Ok(compile(file))
-// }
+pub fn run_hir(hir_session: &HirSession) {
+    let main = sodigy_intern::intern_string(b"main".to_vec());
 
-// pub fn compile_input(input: Vec<u8>) -> CompilerOutput {
-//     let file_session = unsafe { global_file_session() };
-//     let file = file_session.register_tmp_file(input);
+    if let Some(main_func) = hir_session.func_defs.get(&main) {
+        let main_func = main_func.clone();
 
-//     compile(file)
-// }
+        let mut eval_ctxt = HirEvalCtxt::from_session(&hir_session);
 
-// pub fn compile(file_hash: FileHash) -> CompilerOutput {
-//     let (parse_session, compiler_output) = parse_stage(file_hash, None, None);
+        match eval_hir(&main_func.return_val, &mut eval_ctxt) {
+            Ok(v) => {
+                println!("result: {v}");
+            },
+            Err(e) => {
+                println!("result: eval_hir failed: {e:?}");
+            },
+        }
+    }
 
-//     let parse_session = if let Some(parse_session) = parse_session {
-//         parse_session
-//     } else {
-//         return compiler_output;
-//     };
-
-//     let (hir_session, compiler_output) = hir_stage(&parse_session, Some(compiler_output), None);
-//     drop(parse_session);
-
-//     let hir_session = if let Some(hir_session) = hir_session {
-//         hir_session
-//     } else {
-//         return compiler_output;
-//     };
-
-//     // TODO: this is a tmp code for testing
-//     {
-//         let main = sodigy_intern::intern_string(b"main".to_vec());
-
-//         if let Some(main_func) = hir_session.func_defs.get(&main) {
-//             let main_func = main_func.clone();
-
-//             let mut eval_ctxt = HirEvalCtxt::from_session(&hir_session);
-
-//             match eval_hir(&main_func.return_val, &mut eval_ctxt) {
-//                 Ok(v) => {
-//                     println!("result: {v}");
-//                 },
-//                 Err(e) => {
-//                     println!("result: eval_hir failed: {e:?}");
-//                 },
-//             }
-//         }
-
-//         else {
-//             println!("result: no main function");
-//         }
-//     }
-
-//     compiler_output
-// }
+    else {
+        println!("result: no main function");
+    }
+}
 
 pub const SAVE_IRS_AT: &str = "__sdg_cache";
 pub const COMPILER_HELP_MESSAGE: &str =

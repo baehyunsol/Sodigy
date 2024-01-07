@@ -27,7 +27,7 @@ pub enum ExprKind {
     Ratio(InternedNumeric),
     Char(char),
     String {
-        s: InternedString,
+        content: InternedString,
         is_binary: bool,  // `b` prefix
     },
 

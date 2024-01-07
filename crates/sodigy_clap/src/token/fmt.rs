@@ -16,7 +16,7 @@ impl RenderError for TokenValue {
             } else {
                 String::from("<PATH>")
             },
-            TokenValue::RawInput(raw_input) => String::from("<RAW-INPUT>"),
+            TokenValue::RawInput(_) => String::from("<RAW-INPUT>"),
             TokenValue::Stage(stage) => stage.render_error(),
             TokenValue::Bool(b) => if *b {
                 "true"

@@ -117,17 +117,17 @@ impl EndecSession {
         }
     }
 
-    pub fn encode_intern_num(&mut self, s: InternedNumeric) -> EncodedInternal {
-        match self.num_map.get(&s) {
-            Some(s) => *s,
+    pub fn encode_intern_num(&mut self, n: InternedNumeric) -> EncodedInternal {
+        match self.num_map.get(&n) {
+            Some(n) => *n,
             None => {
-                let n: EncodedInternal = self.num_map.len().into();
+                let nn: EncodedInternal = self.num_map.len().into();
 
-                self.num_map.insert(s, n);
-                self.num_map_rev.insert(n, s);
-                self.num_table.insert(n, unintern_numeric(s));
+                self.num_map.insert(n, nn);
+                self.num_map_rev.insert(nn, n);
+                self.num_table.insert(nn, unintern_numeric(n));
 
-                n
+                nn
             },
         }
     }

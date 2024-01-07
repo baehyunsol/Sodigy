@@ -116,8 +116,8 @@ pub fn lower_ast_expr(
                     span: e.span,
                 }
             },
-            ValueKind::String { s, is_binary } => Expr {
-                kind: ExprKind::String { s: *s, is_binary: *is_binary },
+            ValueKind::String { content, is_binary } => Expr {
+                kind: ExprKind::String { content: *content, is_binary: *is_binary },
                 span: e.span,
             },
             ValueKind::Char(c) => Expr {
@@ -164,9 +164,9 @@ pub fn lower_ast_expr(
                 for elem in elems.iter() {
                     match &elem.kind {
                         ast::ExprKind::Value(ast::ValueKind::String {
-                            s,
+                            content,
                             is_binary: false,
-                        }) if s.is_empty() => {
+                        }) if content.is_empty() => {
                             // removes empty strings
                         },
                         _ => match lower_ast_expr(

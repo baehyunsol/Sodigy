@@ -45,6 +45,7 @@ impl Pattern {
             PatternKind::Identifier(_)
             | PatternKind::Number { .. }
             | PatternKind::Char(_)
+            | PatternKind::String { .. }
             | PatternKind::Path(_)
             | PatternKind::Wildcard
             | PatternKind::Shorthand => { /* nop */ },
@@ -128,6 +129,10 @@ impl Pattern {
     pub fn is_shorthand(&self) -> bool {
         self.kind.is_shorthand()
     }
+
+    pub fn is_string(&self) -> bool {
+        self.kind.is_string()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +146,10 @@ pub enum PatternKind {
         is_negative: bool,
     },
     Char(char),
+    String {
+        content: InternedString,
+        is_binary: bool,  // `b` prefix
+    },
     Binding(InternedString),
 
     // path.len() > 1
@@ -152,11 +161,12 @@ pub enum PatternKind {
     // 'a'..~'z'
     Range {
         // either `from` or `to` has to be `Some(_)`
-        // an end must either be
-        // Ident, Number, Char, 
         from: Option<Box<Pattern>>,
         to: Option<Box<Pattern>>,
         inclusive: bool,
+
+        // either `from` or `to` is a string
+        is_string: bool,
     },
 
     // ($a, .., $b)
@@ -192,6 +202,10 @@ impl PatternKind {
 
     pub fn is_shorthand(&self) -> bool {
         matches!(self, PatternKind::Shorthand)
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, PatternKind::String { .. })
     }
 }
 

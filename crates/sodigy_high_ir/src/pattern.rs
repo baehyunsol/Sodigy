@@ -7,8 +7,10 @@ use sodigy_span::SpanRange;
 mod endec;
 mod fmt;
 mod lower;
+pub mod string;
 
 pub use lower::{lower_ast_pattern, lower_patterns_to_name_bindings};
+use string::StringPattern;
 
 #[derive(Clone)]
 pub struct Pattern {
@@ -21,6 +23,8 @@ pub struct Pattern {
 #[derive(Clone)]
 pub enum PatternKind {
     Binding(InternedString),
+
+    String(StringPattern),
 
     Range {
         ty: RangeType,

@@ -7,7 +7,7 @@ use sodigy_span::{SpanPoint, SpanRange};
 // TODO: break lines if the input is too long
 /// It converts command line arguments into a file, so that we can use spans.
 pub fn into_file() -> (Vec<u8>, FileHash) {
-    let mut args = std::env::args().map(
+    let args = std::env::args().map(
         |arg| if arg.chars().any(|c| c == '\n' || c == ' ' || c == '\'' || c == '\"') {
             format!("{arg:?}")
         } else {
@@ -27,8 +27,7 @@ pub fn into_file() -> (Vec<u8>, FileHash) {
 }
 
 pub fn into_tokens(code: &[u8], span_start: SpanPoint) -> Result<Vec<Token>, Vec<ClapError>> {
-    let (tokens, errors) = lex_cli(code, span_start);
-    parse_cli(tokens, errors)
+    parse_cli(lex_cli(code, span_start))
 }
 
 struct TmpToken {
@@ -44,10 +43,9 @@ enum LexState {
 
 /// It seems inefficient to join the splitted tokens then split them again,
 /// but that's the only way to use spans.
-pub fn lex_cli(code: &[u8], span_start: SpanPoint) -> (Vec<TmpToken>, Vec<ClapError>) {
+fn lex_cli(code: &[u8], span_start: SpanPoint) -> Vec<TmpToken> {
     let mut buffer = vec![];
     let mut tokens = vec![];
-    let mut errors = vec![];
     let mut curr_state = LexState::Init;
 
     for (i, c) in code.iter().enumerate() {
@@ -135,7 +133,7 @@ pub fn lex_cli(code: &[u8], span_start: SpanPoint) -> (Vec<TmpToken>, Vec<ClapEr
         });
     }
 
-    (tokens, errors)
+    tokens
 }
 
 enum ParseState {
@@ -143,7 +141,8 @@ enum ParseState {
     ExpectArg(TokenKind),
 }
 
-pub fn parse_cli(tmp_tokens: Vec<TmpToken>, mut errors: Vec<ClapError>) -> Result<Vec<Token>, Vec<ClapError>> {
+fn parse_cli(tmp_tokens: Vec<TmpToken>) -> Result<Vec<Token>, Vec<ClapError>> {
+    let mut errors = vec![];
     let mut curr_state = ParseState::Init;
     let mut tokens = Vec::with_capacity(tmp_tokens.len());
 

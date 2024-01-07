@@ -74,10 +74,10 @@ pub fn lower_hir_expr(
             }
         },
         hir::ExprKind::Char(c) => Expr::new_char(*c).set_span(e.span).to_owned(),
-        hir::ExprKind::String { s, is_binary } => if *is_binary {
-            Expr::new_bytes(s).set_span(e.span).to_owned()
+        hir::ExprKind::String { content, is_binary } => if *is_binary {
+            Expr::new_bytes(content).set_span(e.span).to_owned()
         } else {
-            Expr::new_string(s).set_span(e.span).to_owned()
+            Expr::new_string(content).set_span(e.span).to_owned()
         },
         hir::ExprKind::Call {
             func, args,

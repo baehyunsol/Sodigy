@@ -59,9 +59,9 @@ impl Endec for ExprKind {
                 buf.push(3);
                 c.encode(buf, session);
             },
-            ExprKind::String { s, is_binary } => {
+            ExprKind::String { content, is_binary } => {
                 buf.push(4);
-                s.encode(buf, session);
+                content.encode(buf, session);
                 is_binary.encode(buf, session);
             },
             ExprKind::Call { func, args } => {
@@ -159,7 +159,7 @@ impl Endec for ExprKind {
                     2 => Ok(ExprKind::Ratio(InternedNumeric::decode(buf, index, session)?)),
                     3 => Ok(ExprKind::Char(char::decode(buf, index, session)?)),
                     4 => Ok(ExprKind::String {
-                        s: InternedString::decode(buf, index, session)?,
+                        content: InternedString::decode(buf, index, session)?,
                         is_binary: bool::decode(buf, index, session)?
                     }),
                     5 => Ok(ExprKind::Call {

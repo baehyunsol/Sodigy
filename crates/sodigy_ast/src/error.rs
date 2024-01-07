@@ -208,14 +208,6 @@ impl AstError {
             extra: ExtraErrInfo::none(),
         }
     }
-
-    pub fn todo(msg: &str, span: SpanRange) -> Self {
-        AstError {
-            kind: AstErrorKind::TODO(msg.to_string()),
-            spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
-        }
-    }
 }
 
 impl SodigyError<AstErrorKind> for AstError {
@@ -265,7 +257,6 @@ pub enum AstErrorKind {
         multiple_attributes: bool,
     },
     InvalidUtf8,
-    TODO(String),
 }
 
 impl SodigyErrorKind for AstErrorKind {
@@ -302,7 +293,6 @@ impl SodigyErrorKind for AstErrorKind {
                 format!("{a}stranded attribute{s} in a{ctxt}")
             },
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
-            AstErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
 
@@ -311,8 +301,7 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::UnexpectedToken(_, _)
             | AstErrorKind::UnexpectedEnd(_)
             | AstErrorKind::EmptyScopeBlock
-            | AstErrorKind::EmptyMatchBody
-            | AstErrorKind::TODO(_) => String::new(),
+            | AstErrorKind::EmptyMatchBody => String::new(),
             AstErrorKind::EmptyStructBody => String::from("A struct must have at least one field."),
             AstErrorKind::EmptyGenericList => String::from("Try remove angle brackets."),
             AstErrorKind::BinaryChar => String::from("Try remove prefix `b`."),
@@ -363,7 +352,6 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::NoGenericsAllowed => 12,
             AstErrorKind::StrandedAttribute { .. } => 13,
             AstErrorKind::InvalidUtf8 => 14,
-            AstErrorKind::TODO(..) => 63,
         }
     }
 }

@@ -26,7 +26,7 @@ use sodigy_span::SpanPoint;
 type Path = String;
 
 #[derive(Clone, Copy)]
-pub(crate) enum PathOrRawInput<'a> {
+pub enum PathOrRawInput<'a> {
     Path(&'a Path),
     RawInput(&'a Vec<u8>),
 }

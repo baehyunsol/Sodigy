@@ -81,6 +81,30 @@ impl HirError {
         }
     }
 
+    pub fn inclusive_string_pattern(span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::InclusiveStringPattern,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn name_binding_not_allowed_here(span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::NameBindingNotAllowedHere,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn ty_anno_not_allowed_here(span: SpanRange) -> Self {
+        HirError {
+            kind: HirErrorKind::TyAnnoNotAllowedHere,
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     // tmp variant for type errors.
     // must be replaced with 'real' type errors when
     // Sodigy type system is implemented
@@ -140,6 +164,9 @@ pub enum HirErrorKind {
     OpenInclusiveRange,
     UnmatchablePattern,
     MultipleShorthands,
+    InclusiveStringPattern,
+    NameBindingNotAllowedHere,
+    TyAnnoNotAllowedHere,
 
     // tmp variant for type errors.
     // must be replaced with 'real' type errors when
@@ -159,6 +186,9 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::OpenInclusiveRange => String::from("inclusive range with an open end"),
             HirErrorKind::UnmatchablePattern => String::from("unmatchable pattern"),
             HirErrorKind::MultipleShorthands => String::from("multiple shorthands"),
+            HirErrorKind::InclusiveStringPattern => String::from("inclusive range in a string pattern"),
+            HirErrorKind::NameBindingNotAllowedHere => String::from("name binding not allowed here"),
+            HirErrorKind::TyAnnoNotAllowedHere => String::from("type annotation not allowed here"),
             HirErrorKind::TyError => String::from("TODO: Type Error"),  // Sodigy type system is not complete yet
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
@@ -190,7 +220,15 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::RefutablePatternInLet => String::from("TODO: explain what refutable patterns are."),
             HirErrorKind::UnmatchablePattern => String::from("Nothing can match this pattern."),
             HirErrorKind::MultipleShorthands => String::from("There can be at most one shorthand pattern."),
-            _ => String::new(),
+            HirErrorKind::NameCollision(_)
+            | HirErrorKind::NoDependentTypes(_)
+            | HirErrorKind::UndefinedDeco(_)
+            | HirErrorKind::OpenInclusiveRange
+            | HirErrorKind::InclusiveStringPattern
+            | HirErrorKind::NameBindingNotAllowedHere
+            | HirErrorKind::TyAnnoNotAllowedHere
+            | HirErrorKind::TyError
+            | HirErrorKind::TODO(_) => String::new(),
         }
     }
 
@@ -204,6 +242,9 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::OpenInclusiveRange => 5,
             HirErrorKind::UnmatchablePattern => 6,
             HirErrorKind::MultipleShorthands => 7,
+            HirErrorKind::InclusiveStringPattern => 8,
+            HirErrorKind::NameBindingNotAllowedHere => 9,
+            HirErrorKind::TyAnnoNotAllowedHere => 10,
             HirErrorKind::TyError => 62,
             HirErrorKind::TODO(..) => 63,
         }

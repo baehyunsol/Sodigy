@@ -211,6 +211,13 @@ check_output!(expr, err, expr_test52, "{let x = 3\nlet y = 4\n x}", "use `;` bef
 check_output!(expr, err, expr_test53, "match x { 1.5..1.4 => 0, _ => x }", "unmatchable pattern");
 check_output!(expr, err, expr_test54, "match x { 9.4..1.15 => 0, _ => x }", "unmatchable pattern");
 check_output!(expr, err, expr_test55, "\"\\l\"", "try `\\\\l`");
+check_output!(expr, err, expr_test56, "match \"abc\" { \"a\"..~\"c\" => 0, _ => 1 }", "inclusive range");
+check_output!(expr, err, expr_test57, "match \"abc\" { \"a\"..(\"c\": String) => 0, _ => 1 }", "type annotation not allowed");
+check_output!(expr, err, expr_test58, "match \"abc\" { \"a\"..($c @ \"c\") => 0, _ => 1 }", "name binding not allowed");
+
+// TODO: Type errors are not implemented yet
+// check_output!(expr, err, expr_test59, "match \"abc\" { b\"a\"..\"c\" => 0, _ => 1 }", "------");
+// check_output!(expr, err, expr_test60, "match \"abc\" { b\"a\"..3 => 0, _ => 1 }", "------");
 
 check_output!(expr, err, fstring1, "f\"\\{1 + 3\"", "unterminated `\\{`");
 check_output!(expr, err, fstring2, "\"\\{1 + 3}\"", "add `f`");

@@ -519,7 +519,7 @@ pub fn parse_expr(
             match *kind {
                 QuoteKind::Double => Expr {
                     kind: ExprKind::Value(ValueKind::String {
-                        s: *content,
+                        content: *content,
                         is_binary,
                     }),
                     span,

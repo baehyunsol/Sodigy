@@ -4,11 +4,10 @@ use crate::error::{AstError, AstErrorKind};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
-use crate::utils::try_into_char;
+use crate::utils::{try_into_char, IntoCharErr};
 use crate::warn::AstWarning;
 use smallvec::SmallVec;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
-use sodigy_intern::InternSession;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
 use sodigy_span::SpanRange;
@@ -84,11 +83,14 @@ pub(crate) fn parse_pattern(
                         let rhs = parse_pattern(tokens, session)?;
                         let span = pat.span.merge(rhs.span);
 
+                        let is_string = pat.is_string() || rhs.is_string();
+
                         Ok(Pattern {
                             kind: PatternKind::Range {
                                 from: Some(Box::new(pat)),
                                 to: Some(Box::new(rhs)),
                                 inclusive: matches!(p, Punct::InclusiveRange),
+                                is_string,
                             },
                             span,
                             bind: None,
@@ -98,12 +100,14 @@ pub(crate) fn parse_pattern(
 
                     else {
                         let span = pat.span.merge(punct_span);
+                        let is_string = pat.is_string();
 
                         Ok(Pattern {
                             kind: PatternKind::Range {
                                 from: Some(Box::new(pat)),
                                 to: None,
                                 inclusive: matches!(p, Punct::InclusiveRange),
+                                is_string,
                             },
                             span,
                             bind: None,
@@ -184,12 +188,14 @@ fn parse_pattern_value(
                             session.pop_snapshot().unwrap();
 
                             let span = punct_span.merge(rhs.span);
+                            let is_string = rhs.is_string();
 
                             Pattern {
                                 kind: PatternKind::Range {
                                     from: None,
                                     to: Some(Box::new(rhs)),
                                     inclusive: is_inclusive,
+                                    is_string,
                                 },
                                 span,
                                 bind: None,
@@ -506,29 +512,42 @@ fn parse_pattern_value(
                     return Err(());
                 }
 
-                let mut intern_session = InternSession::new();
-                let content = intern_session.unintern_string(*content).unwrap();
+                else if let Some((length, bytes)) = content.try_unwrap_short_string() {
+                    match try_into_char(&bytes[0..(length as usize)]) {
+                        Ok(c) => Pattern {
+                            kind: PatternKind::Char(c),
+                            span: *span,
+                            bind: None,
+                            ty: None,
+                        },
+                        Err(e) => {
+                            session.push_error(
+                                e.into_ast_error(*span).set_err_context(
+                                    ErrorContext::ParsingPattern
+                                ).to_owned()
+                            );
+                            return Err(());
+                        },
+                    }
+                }
 
-                match try_into_char(content) {
-                    Ok(c) => Pattern {
-                        kind: PatternKind::Char(c),
-                        span: *span,
-                        bind: None,
-                        ty: None,
-                    },
-                    Err(e) => {
-                        session.push_error(
-                            e.into_ast_error(*span).set_err_context(
-                                ErrorContext::ParsingPattern
-                            ).to_owned()
-                        );
-                        return Err(());
-                    },
+                else {
+                    session.push_error(
+                        IntoCharErr::TooLong.into_ast_error(*span).set_err_context(
+                            ErrorContext::ParsingPattern
+                        ).to_owned()
+                    );
+                    return Err(());
                 }
             },
-            QuoteKind::Double => {
-                session.push_error(AstError::todo("string patterns", *span));
-                return Err(());
+            QuoteKind::Double => Pattern {
+                kind: PatternKind::String {
+                    content: *content,
+                    is_binary: *is_binary,
+                },
+                span: *span,
+                bind: None,
+                ty: None,
             },
         },
         Some(token) => {

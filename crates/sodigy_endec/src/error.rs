@@ -1,4 +1,4 @@
-use sodigy_files::{FileError, FileErrorContext};
+use sodigy_files::FileError;
 use std::collections::hash_map;
 use std::hash::Hasher;
 use std::string::FromUtf8Error;
@@ -195,14 +195,7 @@ impl From<FromUtf8Error> for EndecError {
 impl From<FileError> for EndecError {
     fn from(e: FileError) -> Self {
         EndecError {
-            // TODO: what's the point of this match statement?
-            context: match &e.context {
-                FileErrorContext::None
-                | FileErrorContext::DumpingHirToFile
-                | FileErrorContext::DumpingTokensToFile
-                | FileErrorContext::SavingIr
-                | FileErrorContext::CleaningIr => EndecErrorContext::None,
-            },
+            context: EndecErrorContext::None,
             path: e.given_path.clone(),
             kind: EndecErrorKind::FileError(e),
         }

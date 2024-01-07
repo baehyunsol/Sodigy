@@ -12,7 +12,7 @@ pub(crate) fn format_string_into_expr(
         FormattedStringElement::Literal(s) => {
             Ok(Expr {
                 kind: ExprKind::Value(ValueKind::String {
-                    s: session.intern_string(s.as_bytes().to_vec()),
+                    content: session.intern_string(s.as_bytes().to_vec()),
                     is_binary: false,
                 }),
                 span,

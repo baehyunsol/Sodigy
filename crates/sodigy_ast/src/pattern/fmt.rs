@@ -44,7 +44,8 @@ impl fmt::Display for PatternKind {
             | PatternKind::Shorthand
             | PatternKind::Number { .. } => self.render_error(),
             PatternKind::Range {
-                from, to, inclusive
+                from, to, inclusive,
+                is_string: _,
             } => format!(
                 "{}{}{}",
                 if let Some(p) = from {
@@ -126,6 +127,11 @@ impl RenderError for PatternKind {
             PatternKind::Identifier(id) => id.render_error(),
             PatternKind::Binding(id) => format!("${}", id.render_error()),
             PatternKind::Char(c) => format!("{c:?}"),
+            PatternKind::String { content, is_binary } => format!(
+                "{}\"{}\"",
+                if *is_binary { "b" } else { "" },
+                content.escaped_no_quotes(),
+            ),
             PatternKind::Wildcard => String::from("_"),
             PatternKind::Shorthand => String::from(".."),
             PatternKind::Number { num, is_negative } => format!(
@@ -134,6 +140,7 @@ impl RenderError for PatternKind {
             ),
             PatternKind::Range {
                 from, to, inclusive,
+                is_string: _,
             } => format!(
                 "{}{}{}",
                 if let Some(p) = from { p.kind.render_error() } else { String::new() },
@@ -201,6 +208,7 @@ impl PatternKind {
             PatternKind::Identifier(_)
             | PatternKind::Binding(_)
             | PatternKind::Char(_)
+            | PatternKind::String { .. }
             | PatternKind::Wildcard
             | PatternKind::Shorthand
             | PatternKind::Number { .. }

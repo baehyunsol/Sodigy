@@ -344,6 +344,17 @@ Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
 
 ---
 
+Conditional Compilation & Compile Time Function Evaluation
+
+- `cond_comp(is_debug_mode(), print(x), x)`
+  - `cond_comp`의 cond는 무조건 comp time에 evaluate 돼야 하고, 선택된 branch만 남음.
+  - expression에만 사용가능
+- `comp_time(x.type).variants`
+  - type 관련된 친구들은 당연히 compile time에 전부 계산돼야지!
+  - module 같은 친구들도 마찬가지고
+
+---
+
 How about this...
 
 `match`에서 string pattern 쓸 때,
