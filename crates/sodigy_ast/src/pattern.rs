@@ -2,6 +2,8 @@ use crate::{
     DottedNames,
     IdentWithSpan,
     TypeDef,
+    error::AstError,
+    session::AstSession,
 };
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
@@ -9,12 +11,14 @@ use sodigy_span::SpanRange;
 mod fmt;
 mod parse;
 
-pub(crate) use parse::parse_pattern;
+pub(crate) use parse::parse_pattern_full;
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
     pub kind: PatternKind,
     pub ty: Option<TypeDef>,
+
+    // spans of `|` and `..` don't include lhs and rhs
     pub span: SpanRange,
 
     // binds the entire pattern to a name
@@ -132,6 +136,39 @@ impl Pattern {
 
     pub fn is_string(&self) -> bool {
         self.kind.is_string()
+    }
+
+    // if it has a type annot or a name binding,
+    // it pushes an error to session and returns Err
+    pub fn assert_no_type_and_no_binding(
+        &self,
+        session: &mut AstSession,
+    ) -> Result<(), ()> {
+        let mut has_error = false;
+
+        if let Some(ty) = &self.ty {
+            session.push_error(
+                AstError::type_anno_not_allowed(ty.0.span)
+            );
+
+            has_error = true;
+        }
+
+        if let Some(bind) = &self.bind {
+            session.push_error(
+                AstError::name_binding_not_allowed(*bind.span())
+            );
+
+            has_error = true;
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
     }
 }
 

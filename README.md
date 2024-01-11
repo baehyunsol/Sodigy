@@ -354,6 +354,14 @@ You can index lists and strings with a range. For example, `a[0..3]` takes the f
 
 It's very useful in some cases. For example, if you want a pattern that covers lower case alphabets, it's either `'a'..'{'` or `'a'..~'z'`. The second one looks much better, doesn't it?
 
+### `in`
+
+TODO: write doc
+
+### `as`
+
+TODO: write doc
+
 ### `?`
 
 Sodigy uses `?` to handle errors. It's like `Maybe` monad of Haskell. It's kinda similar to `?`s in Rust, but not the same.

@@ -49,6 +49,14 @@ impl IdentWithSpan {
     pub fn span(&self) -> &SpanRange {
         &self.1
     }
+
+    pub fn set_id(&mut self, id: InternedString) {
+        self.0 = id;
+    }
+
+    pub fn set_span(&mut self, span: SpanRange) {
+        self.1 = span;
+    }
 }
 
 pub type DottedNames = Vec<IdentWithSpan>;

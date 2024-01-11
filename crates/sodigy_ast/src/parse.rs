@@ -20,7 +20,7 @@ use crate::{
         PostfixOp,
         PrefixOp,
     },
-    pattern::parse_pattern,
+    pattern::parse_pattern_full,
     ScopeBlock,
     session::AstSession,
     stmt::{
@@ -39,7 +39,6 @@ use crate::{
     TypeDef,
     utils::{format_string_into_expr, try_into_char, IntoCharErr},
     value::ValueKind,
-    warn::AstWarning,
 };
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::try_intern_short_string;
@@ -642,10 +641,6 @@ pub fn parse_expr(
                             break;
                         }
 
-                        if let Some(ErrorContext::ParsingTypeInPattern) = error_context {
-                            session.push_warning(AstWarning::ambiguous_type_in_pattern(punct, punct_span));
-                        }
-
                         match parse_expr(tokens, session, bp, true, error_context, punct_span) {
                             Ok(rhs) => {
                                 lhs = Expr {
@@ -728,17 +723,6 @@ pub fn parse_expr(
                             // parse this op later
                             tokens.backward().unwrap();
                             break;
-                        }
-
-                        if let Some(ErrorContext::ParsingTypeInPattern) = error_context {
-                            match punct {
-                                Punct::DotDot
-                                | Punct::InclusiveRange
-                                | Punct::Or => {
-                                    session.push_warning(AstWarning::ambiguous_type_in_pattern(punct, punct_span));
-                                },
-                                _ => { /* nop */ },
-                            }
                         }
 
                         let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, punct_span) {
@@ -891,6 +875,35 @@ pub fn parse_expr(
                         },
                     }
                 }
+            },
+            Some(Token {
+                kind: TokenKind::Keyword(kw @ (Keyword::As | Keyword::In)),
+                span,
+            }) => {
+                let op = (*kw).try_into().unwrap();
+                let span = *span;
+                let (l_bp, r_bp) = infix_binding_power(op);
+
+                if l_bp < min_bp {
+                    // parse this op later
+                    tokens.backward().unwrap();
+                    break;
+                }
+
+                let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, span) {
+                    expr
+                } else {
+                    Expr {
+                        kind: ExprKind::Error,
+                        span,  // nobody cares about this span
+                    }
+                };
+
+                lhs = Expr {
+                    kind: ExprKind::InfixOp(op, Box::new(lhs), Box::new(rhs)),
+                    span,
+                };
+                continue;
             },
             _ => {
                 tokens.backward().unwrap();
@@ -1326,7 +1339,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
             }
         }
 
-        let pattern = parse_pattern(tokens, session)?;
+        let pattern = parse_pattern_full(tokens, session)?;
         let mut guard = None;
         let rarrow_span;
 
@@ -1455,7 +1468,7 @@ fn parse_branch_arm(
             if tokens.is_curr_token(TokenKind::Keyword(Keyword::Pattern)) {
                 head_span = head_span.merge(tokens.step().unwrap().span);
 
-                let pat = parse_pattern(tokens, session)?;
+                let pat = parse_pattern_full(tokens, session)?;
 
                 if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                     session.push_error(
@@ -2201,7 +2214,7 @@ fn parse_let_statement(
         }) => {
             match *k {
                 Keyword::Pattern => {
-                    let pattern = parse_pattern(tokens, session)?;
+                    let pattern = parse_pattern_full(tokens, session)?;
                     let assign_span = tokens.peek_span();
 
                     if let Err(mut e) = tokens.consume(TokenKind::assign()) {

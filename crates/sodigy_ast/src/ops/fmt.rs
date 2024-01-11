@@ -22,6 +22,8 @@ impl fmt::Display for InfixOp {
             InfixOp::Xor => String::from("^"),
             InfixOp::ShiftRight => String::from(">>"),
             InfixOp::ShiftLeft => String::from("<<"),
+            InfixOp::As => String::from("as"),
+            InfixOp::In => String::from("in"),
             InfixOp::Index => unreachable!(),  // `a [] 0` doesn't make sense...
             InfixOp::Concat => String::from("<>"),
             InfixOp::Append => String::from("<+"),

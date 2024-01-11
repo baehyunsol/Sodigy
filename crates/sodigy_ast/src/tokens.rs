@@ -82,6 +82,7 @@ impl<'t> Tokens<'t> {
                         | Keyword::Else
                         | Keyword::As
                         | Keyword::From
+                        | Keyword::In
                         | Keyword::Pattern
                         | Keyword::Enum
                         | Keyword::Struct

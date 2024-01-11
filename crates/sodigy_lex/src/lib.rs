@@ -21,7 +21,7 @@ pub use token::{Token, TokenKind};
 /// It uses a special value that is never used in valid UTF-8 strings.
 pub const FSTRING_START_MARKER: u8 = 251;
 
-pub enum LexState {
+enum LexState {
     Init,
     String {
         marker: u8,

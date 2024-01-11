@@ -32,126 +32,118 @@ use sodigy_span::SpanRange;
 // CHAR
 // DOTDOT
 
-// TODO: tell the users about operator precedence in patterns
-// for now, there's no precedence at all: it just reads from left to right
-pub(crate) fn parse_pattern(
+// Precedence
+//  1. `..`, `..~`
+//  2. `@`
+//  3. `|`
+//  4. `:`
+
+// There's a function for each level of precedence.
+// `parse_pattern_full` parses an entire pattern, including `@`s, `|`s and `:`s.
+// `parse_pattern_no_annotation` parses everything but type annotations.
+// `parse_pattern_with_binding` parses a pattern with `@`s.
+// `parse_pattern_value` parses a pattern without `@`s, `|`s and `:`s.
+
+// A type annotation after `:` is an expression, and `..` and `|` are valid operators. But that doesn't make any problem
+// because the operator precedence separates patterns and expressions.
+
+// `:` level precedence
+pub fn parse_pattern_full(
     tokens: &mut Tokens,
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
-    let mut pat = parse_pattern_value(tokens, session)?;
+    let mut lhs = parse_pattern_no_annotation(tokens, session)?;
 
-    match tokens.step() {
+    match tokens.peek() {
         Some(Token {
-            kind: TokenKind::Punct(punct),
+            kind: TokenKind::Punct(Punct::Colon),
             span,
         }) => {
             let punct_span = *span;
+            tokens.step().unwrap();
 
-            match punct {
-                Punct::At => match pat.try_into_binding() {
-                    Some(id) => {
-                        let mut rhs = parse_pattern(tokens, session)?;
+            let ty = parse_type_def(
+                tokens,
+                session,
+                Some(ErrorContext::ParsingTypeInPattern),
+                punct_span,
+            )?;
+            lhs.set_ty(ty);
 
-                        if let Some(binding) = &rhs.bind {
-                            session.push_warning(AstWarning::multiple_bindings_on_one_pattern(id, *binding));
-                        }
-
-                        rhs.set_bind(id);
-                        Ok(rhs)
-                    },
-                    None => {
-                        session.push_error(AstError::expected_binding_got_pattern(pat));
-                        return Err(());
-                    },
-                },
-                Punct::Colon => {
-                    let ty = parse_type_def(
-                        tokens,
-                        session,
-                        Some(ErrorContext::ParsingTypeInPattern),
-                        punct_span,
-                    )?;
-                    pat.set_ty(ty);
-
-                    Ok(pat)
-                },
-                p @ (Punct::DotDot
-                | Punct::InclusiveRange) => {
-                    let p = *p;
-
-                    if tokens.is_curr_token_pattern() {
-                        let rhs = parse_pattern(tokens, session)?;
-                        let span = pat.span.merge(rhs.span);
-
-                        let is_string = pat.is_string() || rhs.is_string();
-
-                        Ok(Pattern {
-                            kind: PatternKind::Range {
-                                from: Some(Box::new(pat)),
-                                to: Some(Box::new(rhs)),
-                                inclusive: matches!(p, Punct::InclusiveRange),
-                                is_string,
-                            },
-                            span,
-                            bind: None,
-                            ty: None,
-                        })
-                    }
-
-                    else {
-                        let span = pat.span.merge(punct_span);
-                        let is_string = pat.is_string();
-
-                        Ok(Pattern {
-                            kind: PatternKind::Range {
-                                from: Some(Box::new(pat)),
-                                to: None,
-                                inclusive: matches!(p, Punct::InclusiveRange),
-                                is_string,
-                            },
-                            span,
-                            bind: None,
-                            ty: None,
-                        })
-                    }
-                },
-                Punct::Or => {
-                    let rhs = parse_pattern(tokens, session)?;
-                    let span = pat.span.merge(rhs.span);
-
-                    Ok(Pattern {
-                        kind: PatternKind::Or(
-                            Box::new(pat),
-                            Box::new(rhs),
-                        ),
-                        span,
-                        bind: None,
-                        ty: None,
-                    })
-                },
-                _ => {
-                    tokens.backward().unwrap();
-
-                    Ok(pat)
-                },
-            }
+            Ok(lhs)
         },
-        other => {
-            if other.is_some() {
-                tokens.backward().unwrap();
-            }
-
-            Ok(pat)
-        },
+        _ => Ok(lhs),
     }
 }
 
-// a pattern without operators (`@`, `|`, `..`, )
+// `|` level precedence
+fn parse_pattern_no_annotation(
+    tokens: &mut Tokens,
+    session: &mut AstSession,
+) -> Result<Pattern, ()> {
+    let lhs = parse_pattern_with_binding(tokens, session)?;
+
+    match tokens.peek() {
+        Some(Token {
+            kind: TokenKind::Punct(Punct::Or),
+            span,
+        }) => {
+            let or_span = *span;
+            tokens.step().unwrap();
+
+            let rhs = parse_pattern_with_binding(tokens, session)?;
+
+            Ok(Pattern {
+                kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
+                span: or_span,
+                bind: None,
+                ty: None,
+            })
+        },
+        _ => Ok(lhs),
+    }
+}
+
+// `@` level precedence
+fn parse_pattern_with_binding(
+    tokens: &mut Tokens,
+    session: &mut AstSession,
+) -> Result<Pattern, ()> {
+    match parse_pattern_value(tokens, session) {
+        ref p @ Ok(Pattern {
+            kind: PatternKind::Binding(binding),
+            span,
+            ..
+        }) => match tokens.peek() {
+            Some(Token {
+                kind: TokenKind::Punct(Punct::At),
+                ..
+            }) => {
+                let binding = IdentWithSpan::new(binding, span);
+
+                tokens.step().unwrap();
+
+                let mut rhs = parse_pattern_value(tokens, session)?;
+
+                if let Some(old_binding) = &rhs.bind {
+                    session.push_warning(AstWarning::multiple_bindings_on_one_pattern(binding, *old_binding));
+                }
+
+                rhs.set_bind(binding);
+                Ok(rhs)
+            },
+            _ => p.clone(),
+        },
+        res => res,
+    }
+}
+
+// `..` level precedence
 fn parse_pattern_value(
     tokens: &mut Tokens,
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
-    let result = match tokens.step() {
+    let mut lhs = match tokens.step() {
         Some(t @ Token {
             kind: TokenKind::Punct(punct),
             span,
@@ -160,11 +152,15 @@ fn parse_pattern_value(
 
             match *punct {
                 Punct::Dollar => match tokens.expect_ident() {
-                    Ok(id) => Pattern {
-                        kind: PatternKind::Binding(id.id()),
-                        span: punct_span.merge(*id.span()),
-                        bind: Some(id),
-                        ty: None,
+                    Ok(mut id) => {
+                        id.set_span(punct_span.merge(*id.span()));
+
+                        Pattern {
+                            kind: PatternKind::Binding(id.id()),
+                            span: *id.span(),
+                            bind: Some(id),
+                            ty: None,
+                        }
                     },
                     Err(mut e) => {
                         session.push_error(e.set_err_context(
@@ -177,18 +173,18 @@ fn parse_pattern_value(
                 | Punct::InclusiveRange) => {  // prefixed dotdot operator
                     let is_inclusive = p == Punct::InclusiveRange;
 
-                    // there are cases where `parse_pattern` fails but it's not an error
+                    // there are cases where `parse_pattern_value` fails but it's not an error
                     // in those cases, `tokens` and `session` have to be restored
                     tokens.take_snapshot();
                     session.take_snapshot();
 
-                    match parse_pattern(tokens, session) {
+                    match parse_pattern_value(tokens, session) {
                         Ok(rhs) => {
                             tokens.pop_snapshot().unwrap();
                             session.pop_snapshot().unwrap();
-
-                            let span = punct_span.merge(rhs.span);
                             let is_string = rhs.is_string();
+
+                            rhs.assert_no_type_and_no_binding(session)?;
 
                             Pattern {
                                 kind: PatternKind::Range {
@@ -197,13 +193,13 @@ fn parse_pattern_value(
                                     inclusive: is_inclusive,
                                     is_string,
                                 },
-                                span,
+                                span: punct_span,
                                 bind: None,
                                 ty: None,
                             }
                         },
                         Err(_) if !is_inclusive => {
-                            // revert the last `parse_pattern` call
+                            // revert the last `parse_pattern_value` call
                             tokens.restore_to_last_snapshot();
                             session.restore_to_last_snapshot();
 
@@ -393,7 +389,7 @@ fn parse_pattern_value(
                                                 return Err(());
                                             }
 
-                                            let pattern = parse_pattern(&mut group_tokens, session)?;
+                                            let pattern = parse_pattern_full(&mut group_tokens, session)?;
 
                                             pat_fields.push(PatField {
                                                 name: id,
@@ -566,7 +562,70 @@ fn parse_pattern_value(
         },
     };
 
-    Ok(result)
+    // check if the next token is `..`
+    // if so, continue parsing
+    match tokens.peek() {
+        Some(Token {
+            kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::InclusiveRange)),
+            span,
+        }) => {
+            let range_span = *span;
+            let is_inclusive = matches!(p, Punct::InclusiveRange);
+
+            tokens.step().unwrap();
+
+            // there are cases where `parse_pattern_value` fails but it's not an error
+            // in those cases, `tokens` and `session` have to be restored
+            tokens.take_snapshot();
+            session.take_snapshot();
+
+            match parse_pattern_value(tokens, session) {
+                Ok(rhs) => {
+                    tokens.pop_snapshot().unwrap();
+                    session.pop_snapshot().unwrap();
+                    let is_string = rhs.is_string() || lhs.is_string();
+
+                    lhs.assert_no_type_and_no_binding(session)?;
+                    rhs.assert_no_type_and_no_binding(session)?;
+
+                    lhs = Pattern {
+                        kind: PatternKind::Range {
+                            from: Some(Box::new(lhs)),
+                            to: Some(Box::new(rhs)),
+                            inclusive: is_inclusive,
+                            is_string,
+                        },
+                        span: range_span,
+                        bind: None,
+                        ty: None,
+                    }
+                },
+                Err(_) => {
+                    // revert the last `parse_pattern_value` call
+                    tokens.restore_to_last_snapshot();
+                    session.restore_to_last_snapshot();
+                    let is_string = lhs.is_string();
+
+                    lhs.assert_no_type_and_no_binding(session)?;
+
+                    lhs = Pattern {
+                        kind: PatternKind::Range {
+                            from: Some(Box::new(lhs)),
+                            to: None,
+                            inclusive: is_inclusive,
+                            is_string,
+                        },
+                        span: range_span,
+                        bind: None,
+                        ty: None,
+                    }
+                },
+            }
+        },
+        _ => {},
+    }
+
+    Ok(lhs)
 }
 
 type TrailingComma = bool;
@@ -585,7 +644,7 @@ fn parse_comma_separated_patterns(
         }
 
         patterns.push(
-            parse_pattern(tokens, session)?
+            parse_pattern_full(tokens, session)?
         );
 
         has_trailing_comma = false;
@@ -608,6 +667,7 @@ fn parse_comma_separated_patterns(
                 ).set_err_context(
                     ErrorContext::ParsingPattern
                 ).to_owned());
+
                 return Err(());
             }
         }

@@ -74,25 +74,6 @@ in order to resolve `import * from x;`, one has to collect all the names in `x`.
 
 ---
 
-IRs later
-
-Mid-IR: every function (including imported ones) is converted to Uid. No more identifiers. All the operators are also lowered to func calls, which use Uids. Everything has a type.
-
-Low-IR: everything is either list or integer. For example, a rational number is a list of length 2 (2 integers). A struct is a list whose elements are its fields. Field access operator is just a list indexing operator.
-
----
-
-Compile time evaluation
-
-1. a sodigy function `comptime(v)` guarantees that `v` is evaluated at compile time
-2. a decorator `@comptime` guarantees that the function it decorates is called at compile time
-3. an annotated block `comptime { .. }` guarantees that the code inside the block is evaluated at compile time
-  - ugly
-
-seems like the second one is the least ugly one
-
----
-
 more feature rich f-strings
 
 - integer
@@ -104,60 +85,6 @@ more feature rich f-strings
 - stretch, align, fill
   - make the output string length s, align the string left/right/center, and fill the empty space with c
 - rational numbers
-
----
-
-Python operator
-
-- `**`
-  - power
-  - has no problem with syntax
-  - but we already have `a.pow(b)`
-- `//`
-  - integer division
-  - but we distinguish `3 / 4` and `3.0 / 4.0`. how about for `a: Int` and `b: Int` -> `a / b` vs `a.into(Ratio) / b.into(Ratio)`
-    - very verbose
-    - how about `a as Ratio / b as Ratio`
-- `in`
-  - `a in b` is way more straighforward than `b.contains(a)`
-- `as` (in Rust)
-  - it's already a keyword!
-  - `a as Ratio` is more straightforward than `a.into(Ratio)`
-
-`in`, `as`, `**`는 추가하고 `//`는 추가하지 말자
-
-- `2 ** 3.0`
-  - 당연히 exp가 Int일 때랑 Ratio일 때랑 구현이 달라야 함. 당연히 Int일 때가 더 효율적이겠지. 근데 `2 ** 3.0` 보고 compiler가 최적화 때려도 됨? 그럼 `2 ** a == 2 ** 3.0`이 `False`가 될 수도 있음 (`a == 3.0`일 때)...
-  - 그렇다고 구현을 다르게 해버리면 `2 ** 3.0 == 2 ** 3`이 `False`가 됨
-
----
-
-bitwise operations
-
-- `&`
-  - already exists
-- `|`
-  - already exists
-- `^`
-  - already exists
-- `~`
-  - impossible in inf-width int
-- `<<`
-  - already exists
-- `>>`
-  - already exists
-- count_ones
-- ilog2
-- trailing_ones
-- trailing_zeros
-- leading_ones
-  - impossible in inf-width int
-- leading_zeros
-  - impossible in inf-width int
-
-how do they deal with negative numbers? for now, it doesn't use 2s complement... what's binary representation of `-1`? infinite 1s?
-
-how about `first_n_bits(n: Int)`, `last_n_bits(n: Int)`
 
 ---
 
@@ -267,26 +194,6 @@ list implementation
 
 ---
 
-decorators (impl)
-
-the current implementation is too messy. `FuncDeco`, `ArgDeco`, `EnumDeco`... an enum for every kind of deco? no...
-
-I'm too obsessed with the idea that HIR has to handle decorators.
-
-Implementing decorators in Sodigy? `@method(Int)`, `@public`, and much more... have to be built-in.
-
-If i'm to implement them in Rust, do I have to hard-code all the symbols in the compiler?
-
-1. use universal decorator type: `Hir::Decorator`
-  - `{ DottedNames, Option<Vec<Hir::Expr>> }`
-  - every `Ast::Decorator` is lowered to `Hir::Decorator`
-2. Some obvious decorators are handled in Hir level
-  - eg) `@public`, `@private`, `@test.eq`...
-  - Hir doesn't do error handling at all! for ex, Hir cannot handle `@test.eqq(3)` because there's a typo. then it just lowers the decorator to `Hir::Decorator`, all the error handlings are done later
-  - if `ast::Expr` to `hir::Expr` lowering fails, then HIR can handle that!
-
----
-
 decorators (spec)
 
 - test-related
@@ -355,16 +262,6 @@ Conditional Compilation & Compile Time Function Evaluation
 
 ---
 
-How about this...
-
-`match`에서 string pattern 쓸 때,
-
-`"ab"..`나 `.."ab"`로 `starts_with`, `ends_with` 나타내는 거임! `"ab".."cd"`로 동시에 쓰는 것도 가능
-
-how about `"ab"..$a.."cd"`? 이거 괜찮은데?? 점점 `p"(%d, %d)"`스러워지긴 하지만, 새로운 문법을 추가하는 건 아니니까 그나마 나은 듯?
-
----
-
 Type Classes
 
 
@@ -378,3 +275,9 @@ https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
 Syntax/Semantic 생각해보기!
 
 `Add for (Int, Int)` 이런 식으로 추가하잖아? custom compiler error도 던질 수 있게 하자! `Add for (List(Any), List(Any))` 하면 무슨 compiler error 던질 지를 Sodigy로도 정할 수 있게 하기!
+
+---
+
+Rust does not allow `if Point { x, y } == p { .. }` -> curly braces in conditions of if branches. They force us to use parenthesis around `Point { .. }`.
+
+1. See how they implement such checks

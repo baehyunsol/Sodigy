@@ -42,10 +42,11 @@ impl Endec for Keyword {
             Keyword::Import => { buf.push(4); },
             Keyword::As => { buf.push(5); },
             Keyword::From => { buf.push(6); },
-            Keyword::If => { buf.push(7); },
-            Keyword::Else => { buf.push(8); },
-            Keyword::Pattern => { buf.push(9); },
-            Keyword::Match => { buf.push(10); },
+            Keyword::In => { buf.push(7); },
+            Keyword::If => { buf.push(8); },
+            Keyword::Else => { buf.push(9); },
+            Keyword::Pattern => { buf.push(10); },
+            Keyword::Match => { buf.push(11); },
         }
     }
 
@@ -62,11 +63,12 @@ impl Endec for Keyword {
                     4 => Ok(Keyword::Import),
                     5 => Ok(Keyword::As),
                     6 => Ok(Keyword::From),
-                    7 => Ok(Keyword::If),
-                    8 => Ok(Keyword::Else),
-                    9 => Ok(Keyword::Pattern),
-                    10 => Ok(Keyword::Match),
-                    11.. => Err(EndecError::invalid_enum_variant(*n)),
+                    7 => Ok(Keyword::In),
+                    8 => Ok(Keyword::If),
+                    9 => Ok(Keyword::Else),
+                    10 => Ok(Keyword::Pattern),
+                    11 => Ok(Keyword::Match),
+                    12.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

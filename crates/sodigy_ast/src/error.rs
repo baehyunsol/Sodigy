@@ -201,6 +201,22 @@ impl AstError {
         }
     }
 
+    pub fn name_binding_not_allowed(binding_span: SpanRange) -> Self {
+        AstError {
+            kind: AstErrorKind::NameBindingNotAllowed,
+            spans: smallvec![binding_span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
+    pub fn type_anno_not_allowed(ty_span: SpanRange) -> Self {
+        AstError {
+            kind: AstErrorKind::TypeAnnoNotAllowed,
+            spans: smallvec![ty_span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn invalid_utf8(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
@@ -256,6 +272,8 @@ pub enum AstErrorKind {
         ctxt: AttributeIn,
         multiple_attributes: bool,
     },
+    NameBindingNotAllowed,
+    TypeAnnoNotAllowed,
     InvalidUtf8,
 }
 
@@ -292,6 +310,8 @@ impl SodigyErrorKind for AstErrorKind {
 
                 format!("{a}stranded attribute{s} in a{ctxt}")
             },
+            AstErrorKind::NameBindingNotAllowed => String::from("name binding not allowed in this place"),
+            AstErrorKind::TypeAnnoNotAllowed => String::from("type annotation not allowed in this place"),
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
         }
     }
@@ -331,7 +351,9 @@ impl SodigyErrorKind for AstErrorKind {
             },
             AstErrorKind::NoGenericsAllowed => String::from("Generic parameters are only allowed in top-level statements."),
             AstErrorKind::MultipleShorthandsInOnePattern
-            | AstErrorKind::InvalidUtf8 => String::new(),
+            | AstErrorKind::InvalidUtf8
+            | AstErrorKind::NameBindingNotAllowed
+            | AstErrorKind::TypeAnnoNotAllowed => String::new(),
         }
     }
 
@@ -351,7 +373,9 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::MultipleShorthandsInOnePattern => 11,
             AstErrorKind::NoGenericsAllowed => 12,
             AstErrorKind::StrandedAttribute { .. } => 13,
-            AstErrorKind::InvalidUtf8 => 14,
+            AstErrorKind::NameBindingNotAllowed => 14,
+            AstErrorKind::TypeAnnoNotAllowed => 15,
+            AstErrorKind::InvalidUtf8 => 16,
         }
     }
 }

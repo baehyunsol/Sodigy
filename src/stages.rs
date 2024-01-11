@@ -90,7 +90,11 @@ pub fn parse_file(
             }
         },
         PathOrRawInput::RawInput(raw_input) => match file_session.register_tmp_file(raw_input) {
-            Ok(f) => f,
+            Ok(f) => {
+                file_session.set_name_alias(f, "raw_input".to_string());
+
+                f
+            },
             Err(e) => {
                 compiler_output.push_error(e.into());
                 return (None, compiler_output);
