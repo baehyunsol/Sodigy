@@ -281,3 +281,30 @@ Syntax/Semantic 생각해보기!
 Rust does not allow `if Point { x, y } == p { .. }` -> curly braces in conditions of if branches. They force us to use parenthesis around `Point { .. }`.
 
 1. See how they implement such checks
+
+---
+
+Generics with restrictions
+
+`let add<T: Add(T, U, T), U: Add(T, U, T)>(a: T, b: U): T = a + b;`
+
+- we need some kinda restrictions inside `<>`. What if the type parameters have `>` or `<` within it?
+- how about `let add {T: Add(T, U, T), U: Add(T, U, T)}(a: T, b: U): T = a + b;`?
+  1. 대부분 언어에서 `<>` 쓰기 때문에 헷갈릴 수도 있음!
+- 아니면, 저런 조건 하나도 쓰지 말고 걍 컴파일러가 알아서 찾으라고 하기
+  1. `let add<T, U>(a: T, b: U): T = a + b;`라고만 하면 나중에 얘가 type solving 하면서 `Add(T, U, T)`를 알아서 찾을 거 아녀. 그때 에러를 날리든가 말든가 하는 거지
+  2. 이러면 깔끔한 에러를 날릴 수가 있나?? 나중에 가서 누가 `T = String`, `U = Bool`로 instantiate 하려고 하면 `Add(String, Bool, String)`을 찾을 수 없다고 에러 날릴텐데 그럼 안 헷갈리나?
+    - 최소한 `+`의 span을 기억해뒀다가, 그거 밑줄 정도는 쳐 줘야함
+
+---
+
+Generic function의 type checking은 언제 하는 거임??
+
+- `let id<T>(x: T): T = x;`
+- `let always_error<T>(x: T) = id(x) + (3 + "asdf");`
+- `let sometimes_error<T>(x: T) = id(x) + 3;`
+
+만약에 아주 다양한 type을 이용해서 저 함수들을 initialize 한다고 치자...
+
+1. `always_error`는 매번 새로운 type error를 던지나? 그냥 `always_error` 본문만 읽고 type error 한번만 던지면 안되나?
+2. trait system을 사용하면 `sometimes_error`는 에러가 한번만 나거나 0번 나거나 둘 중에 하나임. `sometimes_error(True)`하고 `sometimes_error("")`하고 함수 호출에서 에러가 나지 함수 정의에서는 에러가 나지 않음. (정의에서 에러가 났으면 호출에선 에러가 안 났을 거고)

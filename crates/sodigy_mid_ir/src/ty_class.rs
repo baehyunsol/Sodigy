@@ -41,6 +41,7 @@ impl TypeClassQuery {
         // _. (Any, List(Any))
         // _. (Any, Any)
         // in which order?
+        // it gets even more complicated when type classes are parametrized, ex) `add_1<T: Add(T, Int, T)>(ns: List(T)): T`
         match self.trait_with_2_args.get(&ty_class) {
             Some(table) => match table.get(ty1) {
                 Some(table) => table.get(ty2),

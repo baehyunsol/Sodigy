@@ -3,8 +3,8 @@ use sodigy_uid::Uid;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum Type {
-    Solid(Uid),
-    Param(Uid, Vec<Type>),
+    Solid(Uid),              // Int
+    Param(Uid, Vec<Type>),   // Result(Int, Error)
     Generic(/* TODO: how do we represent one? */),
 
     // `[]: List(Placeholder)`
@@ -13,6 +13,14 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn is_known(&self) -> bool {
+        match self {
+            Type::Solid(_) => true,
+            Type::Param(_, args) => args.iter().all(|ty| ty.is_known()),
+            _ => false,
+        }
+    }
+
     pub fn is_list_of(&self) -> Option<&Self> {
         match self {
             // List(T) -> T

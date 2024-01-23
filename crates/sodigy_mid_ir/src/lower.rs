@@ -13,6 +13,15 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::HashMap;
 
+// TODO
+// 일단 HIR -> MIR lowering 할 때는 type 건들지 마셈. 그럼 지금 하는 type check도 다 없애야 하나...
+// 쨌든 여기서는 type 관련해서 확실한 것들만 건드리고 나머지는 전부 placeholder랑 generic으로 채워버리셈!
+// 일단 lowering을 다하고 나서 infer를 하든 check를 하든 하는게 더 편하지 않을까...
+// ㅇㅇ 일단 type 하나도 건드리지 말고 하자 -> 어차피 type annotation은 나중에도 확인할 수 있는 거 아님?
+// -> 어차피 type 확인 안해도 lowering 자체는 문제없는 거 아님??
+// -> 근데 type 확인을 하나도 안하면 얘가 Err을 반환하는 경우가 있나? 무조건 성공하는 거 아님?? ㅋㅋㅋ
+// -> type 확인 안해도 확실한 것들은 채워야 함, 예를 들어서 `1`을 `Int`라고 하거나 func arg의 type annot를 읽어오거나...
+
 pub fn lower_hir_expr(
     e: &hir::Expr,
     session: &mut MirSession,
@@ -119,6 +128,7 @@ pub fn lower_hir_expr(
             // otherwise, it's ExprKind::DynCall
             todo!()
         },
+        // `[1, 2, 3]` is lowered to `list_init(1, 2, 3)`
         hir::ExprKind::List(elements) => {
             let mut result = Vec::with_capacity(elements.len());
             let elem_ty_anno = match type_annotation {
@@ -188,6 +198,66 @@ pub fn lower_hir_expr(
                     args: result,
                 },
                 ty,
+                span: e.span,
+            }
+        },
+        // `"{a} + {b} = {a + b}"` is lowered to `concat_all(a.to_string(), " + ", b.to_string(), " = ", (a + b).to_string())`
+        hir::ExprKind::Format(elements) => {
+            let mut result = Vec::with_capacity(elements.len());
+
+            for element in elements.iter() {
+                if let Ok(e) = lower_hir_expr(
+                    element,
+                    session,
+                    preludes,
+                    global_defs,
+                    &elem_ty_anno,
+                    None,  // ty_anno_span
+                    type_classes,
+                ) {
+                    if e.is_string() {
+                        result.push(e);
+                    }
+
+                    else {
+                        let f = if e.ty.is_known() {
+                            // try uid of ToString(e.ty)
+                            // if such thing doesn't exist, raise an error
+                            todo!()
+                        } else {
+                            // generic version of ToString(T)
+                            // `T` will be infered later
+                            todo!()
+                        };
+
+                        result.push(
+                            Expr {
+                                kind: ExprKind::Call {
+                                    f,
+                                    args: vec![e.clone()],
+                                },
+                                ty: Type::Solid(uids::STRING_DEF),
+                                span: e.span,
+                            }
+                        );
+                    }
+                }
+
+                else {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+
+            Expr {
+                kind: ExprKind::Call {
+                    f: todo!(),  // ConcatAll(List(Any))
+                    args: result,
+                },
+                ty: Type::Solid(uids::STRING_DEF),
                 span: e.span,
             }
         },
