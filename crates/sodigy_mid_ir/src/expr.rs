@@ -77,6 +77,11 @@ impl Expr {
 
         self
     }
+
+    // it returns false if the type is not infered yet
+    pub fn is_obviously_string(&self) -> bool {
+        todo!()
+    }
 }
 
 #[derive(Clone)]

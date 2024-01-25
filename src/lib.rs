@@ -97,33 +97,6 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
     compiler_output
 }
 
-// TODO: tmp code for running hir
-use sodigy_high_ir::HirSession;
-use sodigy_interpreter::{eval_hir, HirEvalCtxt};
-
-pub fn run_hir(hir_session: &HirSession) {
-    let main = sodigy_intern::intern_string(b"main".to_vec());
-
-    if let Some(main_func) = hir_session.func_defs.get(&main) {
-        let main_func = main_func.clone();
-
-        let mut eval_ctxt = HirEvalCtxt::from_session(&hir_session);
-
-        match eval_hir(&main_func.return_val, &mut eval_ctxt) {
-            Ok(v) => {
-                println!("result: {v}");
-            },
-            Err(e) => {
-                println!("result: eval_hir failed: {e:?}");
-            },
-        }
-    }
-
-    else {
-        println!("result: no main function");
-    }
-}
-
 pub const SAVE_IRS_AT: &str = "__sdg_cache";
 pub const COMPILER_HELP_MESSAGE: &str =
 "Usage: sodigy [OPTIONS] INPUT

@@ -10,6 +10,7 @@ pub enum Type {
     // `[]: List(Placeholder)`
     // `None: Option(Placeholder)`
     Placeholder,
+    HasToBeInfered,
 }
 
 impl Type {

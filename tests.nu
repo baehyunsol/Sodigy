@@ -8,8 +8,8 @@ cargo clean
 let crates = [
     "ast", "clap", "endec",
     "error", "files", "high_ir",
-    "intern", "interpreter",
-    "keyword", "lex", "mid_ir",
+    "intern", "keyword",
+    "lex", "mid_ir",
     "number", "parse", "prelude",
     "span", "test", "uid",
 ]

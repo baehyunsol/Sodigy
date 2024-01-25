@@ -1,43 +1,21 @@
 use crate::{
-    def::Def,
-    error::MirError,
     expr::{Expr, ExprKind},
     prelude::{PreludeData, uids},
     session::MirSession,
-    ty::{Type, is_subtype_of},
-    ty_class::TypeClassQuery,
+    ty::Type,
 };
 use sodigy_high_ir as hir;
 use sodigy_intern::InternedString;
-use sodigy_span::SpanRange;
-use sodigy_uid::Uid;
 use std::collections::HashMap;
 
-// TODO
-// 일단 HIR -> MIR lowering 할 때는 type 건들지 마셈. 그럼 지금 하는 type check도 다 없애야 하나...
-// 쨌든 여기서는 type 관련해서 확실한 것들만 건드리고 나머지는 전부 placeholder랑 generic으로 채워버리셈!
-// 일단 lowering을 다하고 나서 infer를 하든 check를 하든 하는게 더 편하지 않을까...
-// ㅇㅇ 일단 type 하나도 건드리지 말고 하자 -> 어차피 type annotation은 나중에도 확인할 수 있는 거 아님?
-// -> 어차피 type 확인 안해도 lowering 자체는 문제없는 거 아님??
-// -> 근데 type 확인을 하나도 안하면 얘가 Err을 반환하는 경우가 있나? 무조건 성공하는 거 아님?? ㅋㅋㅋ
-// -> type 확인 안해도 확실한 것들은 채워야 함, 예를 들어서 `1`을 `Int`라고 하거나 func arg의 type annot를 읽어오거나...
-
-pub fn lower_hir_expr(
+// it lowers hir to mir, but doesn't do anything regarding types unless the type is obvious
+// all the type errors are caught later
+pub fn lower_hir_expr_without_types(
     e: &hir::Expr,
     session: &mut MirSession,
     preludes: &HashMap<InternedString, PreludeData>,
-    global_defs: &HashMap<Uid, Def>,
-
-    // it's lowered by the caller
-    type_annotation: &Option<Type>,
-
-    // it helps making error messages
-    type_annot_span: Option<SpanRange>,
-    type_classes: &TypeClassQuery,
-) -> Result<Expr, ()> {
-    let mut has_error = false;
-
-    let res = match &e.kind {
+) -> Expr {
+    match &e.kind {
         hir::ExprKind::Identifier(origin) => {
             let id = origin.id();
             let origin = *origin.origin();
@@ -52,20 +30,11 @@ pub fn lower_hir_expr(
                         span: e.span,
                     }
                 },
-                hir::NameOrigin::Global { origin: Some(uid) } => Expr {
-                    kind: ExprKind::Global(uid),
-                    ty: global_defs.get(&uid).unwrap().ty.clone(),
-                    span: e.span,
-                },
-                hir::NameOrigin::Global { origin: None } => {
-                    // search this name in some table,
-                    // then figure out def and uid of this name
-                    todo!()
-                },
                 _ => todo!(),
             }
         },
         hir::ExprKind::Integer(n) => Expr::new_int(*n).set_span(e.span).to_owned(),
+
         // `1.75` is lowered to `Ratio.init(4, 7)`
         hir::ExprKind::Ratio(n) => {
             let (denom, numer) = n.get_denom_and_numer();
@@ -91,165 +60,88 @@ pub fn lower_hir_expr(
         hir::ExprKind::Call {
             func, args,
         } => {
-            let func = lower_hir_expr(
+            let func = lower_hir_expr_without_types(
                 func.as_ref(),
                 session,
                 preludes,
-                global_defs,
-
-                // you cannot annotate type here
-                &None,
-                None,
-
-                type_classes,
             );
-            let mut mir_args = Vec::with_capacity(args.len());
-
-            for arg in args.iter() {
-                if let Ok(mir_arg) = lower_hir_expr(
+            let mir_args = args.iter().map(
+                |arg| lower_hir_expr_without_types(
                     arg,
                     session,
                     preludes,
-                    global_defs,
-
-                    // you cannot annotate type here
-                    &None,
-                    None,
-    
-                    type_classes,
-                ) {
-                    mir_args.push(mir_arg);
-                } else {
-                    has_error = true;
-                }
-            }
-
-            // TODO: if func is Ok(Expr { kind: ExprKind::Global(id) }), instantiate ExprKind::Call
-            // otherwise, it's ExprKind::DynCall
-            todo!()
-        },
-        // `[1, 2, 3]` is lowered to `list_init(1, 2, 3)`
-        hir::ExprKind::List(elements) => {
-            let mut result = Vec::with_capacity(elements.len());
-            let elem_ty_anno = match type_annotation {
-                Some(ty) if let Some(elem_ty) = ty.is_list_of() => {
-                    Some(elem_ty.clone())
-                },
-
-                // it's a type error, but we don't care about that now
-                // it'll be caught later
-                _ => None,
-            };
-
-            for element in elements.iter() {
-                if let Ok(e) = lower_hir_expr(
-                    element,
-                    session,
-                    preludes,
-                    global_defs,
-                    &elem_ty_anno,
-                    None,  // ty_anno_span
-                    type_classes,
-                ) {
-                    result.push(e);
-                }
-
-                else {
-                    has_error = true;
-                }
-            }
-
-            let ty = if has_error {
-                return Err(());
-            }
-
-            else if result.is_empty() {
-                match type_annotation {
-                    Some(ty) if ty.is_list_of().is_some() => ty.clone(),
-                    _ => Type::Param(
-                        uids::LIST_DEF,
-                        vec![Type::Placeholder],
-                    ),
-                }
-            }
-
-            else {
-                let list_ty = &result[0].ty;
-
-                for elem in result[1..].iter() {
-                    if !is_subtype_of(
-                        list_ty,
-                        &elem.ty,
-                    ) {
-                        // TODO: raise type error
-                        todo!();
-                    }
-                }
-
-                Type::Param(
-                    uids::LIST_DEF,
-                    vec![list_ty.clone()],
                 )
-            };
+            ).collect::<Vec<Expr>>();
 
-            Expr {
-                kind: ExprKind::Call {
-                    f: uids::LIST_INIT,
-                    args: result,
+            match &func.kind {
+                ExprKind::Global(uid) => Expr {
+                    kind: ExprKind::Call {
+                        f: *uid,
+                        args: mir_args,
+                    },
+                    ty: Type::HasToBeInfered,
+                    span: e.span,
                 },
-                ty,
-                span: e.span,
+                _ => Expr {
+                    kind: ExprKind::DynCall {
+                        f: Box::new(func),
+                        args: mir_args,
+                    },
+                    ty: Type::HasToBeInfered,
+                    span: e.span,
+                },
             }
         },
+
+        // `[1, 2, 3]` is lowered to `list_init(1, 2, 3)`
+        hir::ExprKind::List(elements) => Expr {
+            kind: ExprKind::Call {
+                f: uids::LIST_INIT,
+                args: elements.iter().map(
+                    |element| lower_hir_expr_without_types(
+                        element,
+                        session,
+                        preludes,
+                    )
+                ).collect(),
+            },
+            ty: Type::Param(
+                uids::LIST_DEF,
+                vec![Type::HasToBeInfered],
+            ),
+            span: e.span,
+        },
+
         // `"{a} + {b} = {a + b}"` is lowered to `concat_all(a.to_string(), " + ", b.to_string(), " = ", (a + b).to_string())`
         hir::ExprKind::Format(elements) => {
             let mut result = Vec::with_capacity(elements.len());
 
             for element in elements.iter() {
-                if let Ok(e) = lower_hir_expr(
+                let e = lower_hir_expr_without_types(
                     element,
                     session,
                     preludes,
-                    global_defs,
-                    &elem_ty_anno,
-                    None,  // ty_anno_span
-                    type_classes,
-                ) {
-                    if e.is_string() {
-                        result.push(e);
-                    }
+                );
 
-                    else {
-                        let f = if e.ty.is_known() {
-                            // try uid of ToString(e.ty)
-                            // if such thing doesn't exist, raise an error
-                            todo!()
-                        } else {
-                            // generic version of ToString(T)
-                            // `T` will be infered later
-                            todo!()
-                        };
-
-                        result.push(
-                            Expr {
-                                kind: ExprKind::Call {
-                                    f,
-                                    args: vec![e.clone()],
-                                },
-                                ty: Type::Solid(uids::STRING_DEF),
-                                span: e.span,
-                            }
-                        );
-                    }
+                if e.is_obviously_string() {
+                    result.push(e);
                 }
 
                 else {
-                    has_error = true;
-                }
-            }
+                    // generic version of ToString
+                    let f = todo!();
 
-            if has_error {
-                return Err(());
+                    result.push(
+                        Expr {
+                            kind: ExprKind::Call {
+                                f,
+                                args: vec![e],
+                            },
+                            ty: Type::Solid(uids::STRING_DEF),
+                            span: e.span,
+                        }
+                    );
+                }
             }
 
             Expr {
@@ -261,87 +153,6 @@ pub fn lower_hir_expr(
                 span: e.span,
             }
         },
-        hir::ExprKind::InfixOp(op, rhs, lhs) => {
-            let rhs = lower_hir_expr(
-                rhs.as_ref(),
-                session,
-                preludes,
-                global_defs,
-
-                // you cannot annotate type here
-                &None,
-                None,
-
-                type_classes,
-            );
-            let lhs = lower_hir_expr(
-                lhs.as_ref(),
-                session,
-                preludes,
-                global_defs,
-
-                // you cannot annotate type here
-                &None,
-                None,
-
-                type_classes,
-            );
-
-            let (rhs, lhs) = match (rhs, lhs) {
-                (Ok(rhs), Ok(lhs)) => (rhs, lhs),
-                _ => {
-                    return Err(());
-                },
-            };
-
-            let f = if let Some(f) = type_classes.query_2_args((*op).into(), &rhs.ty, &lhs.ty) {
-                f
-            } else {
-                // TODO: how about separate type for TyErrors?
-                session.push_error(MirError::type_class_not_implemented(
-                    (*op).into(),
-                    vec![rhs.ty.clone(), lhs.ty.clone()],
-                    e.span,
-                ));
-                return Err(());
-            };
-
-            Expr {
-                kind: ExprKind::Call {
-                    f: f.uid,
-                    args: vec![rhs, lhs],
-                },
-                ty: f.ty.clone(),
-                span: e.span,
-            }
-        },
         _ => todo!(),
-    };
-
-    // Do not check types when there's an error
-    if has_error {
-        Err(())
-    }
-
-    else {
-        if let Some(ty) = type_annotation {
-            if !is_subtype_of(
-                ty,
-                &res.ty
-            ) {
-                session.push_error(MirError::type_mismatch(
-                    // expected
-                    ty.clone(),
-                    type_annot_span,
-
-                    // got
-                    res.ty.clone(),
-                    res.span,
-                ));
-                return Err(());
-            }
-        }
-
-        Ok(res)
     }
 }
