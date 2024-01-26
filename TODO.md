@@ -70,7 +70,7 @@ both make sense
 
 impossible: due to cyclic imports
 
-in order to resolve `import * from x;`, one has to collect all the names in `x`. the collecting and name resolving is done at the same time. that means if there are more than two modules `import *`ing each other, the compiler cannot do anything
+in order to resolve `import * from x;`, one has to collect all the names in `x`. the collecting and name resolving are done at the same time. that means if there are more than two modules `import *`ing each other, the compiler cannot do anything
 
 ---
 
@@ -229,6 +229,52 @@ linear type system (check in MIR)
 
 ---
 
+clap 관련 참신한 아이디어
+
+지금은 `Vec<String>`으로 된 args를 concat한 다음에 바로 parser에 넣잖아? 근데 이걸 한 스텝 더 하는 거임!
+
+1. `Vec<String>`으로 된 args를 concat해서 span을 구함
+2. 방금 만든 string을 Sodigy Code로 바꾸는데 span은 보존함. 예를 들어서,
+  - `sodigy a.out --dump-hir true`를 `sodigy.input("a.out").dump_hir(true)`로 바꾸는 대신에 span은 cli input의 모양을 유지하는 거지! 그럼 에러메시지가 아주 예쁘게 나옴
+  - 저런 식으로 변환하는 거는 아주아주 쉬움
+    - flag인지 아닌지 구분하는 거는 trivial
+      - flag를 보고 이게 valid한지 아닌지 판단하는 코드는 남겨둬야함 ㅋㅋㅋ 그건 sodigy가 못함. 사실 sodigy가 할 수는 있는데 너무 비효율적!
+    - flag 뒤에 flag가 오면 앞의 flag의 input으로 걔의 default value를 주면 됨 (input을 안 받는 flag면 비워두면 되고)
+    - flag 뒤에 non-flag가 오면 앞 flag의 input으로 해석
+    - flag가 안 왔는데 input이 오면 걔는 input file.
+      - 만약 사용자가 `--dump-hir a.out`라고 쓰고, `--dump-hir true a.out`을 기대했다면? 그건 어쩔 수 없음... 사용자 잘못 ㅋㅋㅋ
+    - 이러면 좀 더 유연하게 value 해석 가능: `--dump-hir=true`, `--dump-hir true` 등등 전부 가능
+3. 2번에서 나온 Sodigy Code를 interpreter로 돌려버리는 거임...
+  - 여기서 또다른 아이디어 -> Python은 런타임 오류도 span 보여주잖아? Sodigy도 (optionally) 그게 되게 하면 여기서 더 예쁜 에러메시지를 뽑아낼 수 있을 듯?
+  - 이런 건 어떰? debug mode에서는 span을 싹 다 보존하고, release에서는 싹 다 날리는 거임!
+  - 사실 싹 다 보존한다고 쳐도 별로 안 비싼게, 오류가 날 수 있는 경우에만 보존을 하잖아? 근데 오류가 날 수 있는 경우가 그렇게 많지가 않음...
+  - 오류 날리는 함수에 옵션으로 span 보존할지 말지 줄 수 있게 할까?? Python스럽고 좋기는한데 purity를 해칠 가능성이 농후함...
+
+예시: `sodigy a.out --dump-hir true`를 아래처럼 해석
+
+```
+# op precedence가 저게 맞나?? ㅋㅋㅋ 기억이 안 나네..
+@method(SodigyCompiler)
+let input(self: SodigyCompiler, file: String): SodigyCompiler = self `input self.input <+ file;
+
+@method(SodigyCompiler)
+let dump_hir(self: SodigyCompiler, dump_hir: Bool): SodigyCompiler = if self.is_dump_hir_set {
+    todo  # throw a runtime error
+} else {
+    self `dump_hir dump_hir `is_dump_hir_set True
+};
+
+@method(SodigyCompiler)
+let check_validity(self: SodigyCompiler): SodigyCompiler = ...;  # TODO: throw an error when something's wrong
+
+@allow(Warnings.UnnecessaryTypeConversion)
+let output = SodigyCompiler.base().input("a.out").dump_hir("true" as Bool).check_validity();
+```
+
+부가적인 효과: Sodigy Compiler 안에 Sodigy 코드가 많이 들어가면 들어갈수록 좋음!
+
+---
+
 How other languages import modules
 
 - Python: `import A`
@@ -308,3 +354,26 @@ Generic function의 type checking은 언제 하는 거임??
 
 1. `always_error`는 매번 새로운 type error를 던지나? 그냥 `always_error` 본문만 읽고 type error 한번만 던지면 안되나?
 2. trait system을 사용하면 `sometimes_error`는 에러가 한번만 나거나 0번 나거나 둘 중에 하나임. `sometimes_error(True)`하고 `sometimes_error("")`하고 함수 호출에서 에러가 나지 함수 정의에서는 에러가 나지 않음. (정의에서 에러가 났으면 호출에선 에러가 안 났을 거고)
+
+---
+
+`as` operator
+
+- Rust에서는 infallible하게만 쓸 수 있음
+- zig에서는 예외 가능한 거랑 아닌 거랑 구분하지 않나?? 아닌가??
+
+내 생각이 -> `A as B` 했을 때 `B`가 나오는 거 하고 `Result(B, _)`가 나오는 거를 둘 다 쓰고 싶음!
+
+1. infallible한 정의만 있는 경우
+  - 전자는 그냥 `B`를 주면 되고, 후자도 그냥 `B`를 구한 다음에 거기에 `Ok()`를 씌우면 됨!
+2. fallible한 정의만 있는 경우
+  - 전자는 무조건 `.unwrap`을 호출하고, 후자는 그냥 fallible한 거 호출하면 됨
+3. 둘 다 있는 경우
+  - 전자 후자 각각 호출
+
+fallible한 거는 어떻게 나타냄? 이것도 infix operator로 나타내?
+
+1. `A !as B` -> 보기에 너무 이상함...
+2. `A try_as B` -> 새로운 keyword를 추가해야하는데 그 정도의 가치가 있는지 모르겠음...
+
+둘 다 굳이...
