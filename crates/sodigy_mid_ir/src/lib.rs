@@ -4,7 +4,6 @@
 mod def;
 mod error;
 mod expr;
-mod lower;
 mod prelude;
 mod session;
 mod ty;

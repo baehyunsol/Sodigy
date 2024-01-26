@@ -89,11 +89,15 @@ impl ScopeBlock {
 
 // for now, a type is a comp-time evaluable expression, whose type is `Type`.
 #[derive(Clone, Debug)]
-pub struct TypeDef(pub Expr);
+pub struct TypeDef(Expr);
 
 impl TypeDef {
     pub fn from_expr(e: Expr) -> Self {
         TypeDef(e)
+    }
+
+    pub fn as_expr(&self) -> &Expr {
+        &self.0
     }
 }
 

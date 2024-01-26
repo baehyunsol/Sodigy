@@ -1,8 +1,9 @@
+use super::{Expr, ExprKind};
 use crate::{
-    expr::{Expr, ExprKind},
     prelude::{PreludeData, uids},
     session::MirSession,
     ty::Type,
+    ty_class::TypeClass,
 };
 use sodigy_high_ir as hir;
 use sodigy_intern::InternedString;
@@ -29,6 +30,14 @@ pub fn lower_hir_expr_without_types(
                         ty: prelude_data.ty.clone(),
                         span: e.span,
                     }
+                },
+                hir::NameOrigin::Global { origin } => match origin {
+                    Some(uid) => Expr {
+                        kind: ExprKind::Global(uid),
+                        ty: Type::HasToBeInfered,
+                        span: e.span,
+                    },
+                    None => todo!(),
                 },
                 _ => todo!(),
             }
@@ -128,17 +137,15 @@ pub fn lower_hir_expr_without_types(
                 }
 
                 else {
-                    // generic version of ToString
-                    let f = todo!();
-
+                    let span = e.span;
                     result.push(
                         Expr {
                             kind: ExprKind::Call {
-                                f,
+                                f: TypeClass::ToString.generic_uid(),
                                 args: vec![e],
                             },
                             ty: Type::Solid(uids::STRING_DEF),
-                            span: e.span,
+                            span,
                         }
                     );
                 }
@@ -152,6 +159,49 @@ pub fn lower_hir_expr_without_types(
                 ty: Type::Solid(uids::STRING_DEF),
                 span: e.span,
             }
+        },
+        hir::ExprKind::PrefixOp(op, val) => Expr {
+            kind: ExprKind::Call {
+                f: TypeClass::from(*op).generic_uid(),
+                args: vec![lower_hir_expr_without_types(
+                    val,
+                    session,
+                    preludes,
+                )],
+            },
+            ty: Type::HasToBeInfered,
+            span: e.span,
+        },
+        hir::ExprKind::PostfixOp(op, val) => Expr {
+            kind: ExprKind::Call {
+                f: TypeClass::from(*op).generic_uid(),
+                args: vec![lower_hir_expr_without_types(
+                    val,
+                    session,
+                    preludes,
+                )],
+            },
+            ty: Type::HasToBeInfered,
+            span: e.span,
+        },
+        hir::ExprKind::InfixOp(op, lhs, rhs) => Expr {
+            kind: ExprKind::Call {
+                f: TypeClass::from(*op).generic_uid(),
+                args: vec![
+                    lower_hir_expr_without_types(
+                        lhs,
+                        session,
+                        preludes,
+                    ),
+                    lower_hir_expr_without_types(
+                        rhs,
+                        session,
+                        preludes,
+                    ),
+                ],
+            },
+            ty: Type::HasToBeInfered,
+            span: e.span,
         },
         _ => todo!(),
     }

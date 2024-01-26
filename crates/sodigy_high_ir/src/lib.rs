@@ -39,7 +39,7 @@ use expr::{
         LambdaCollectCtxt,
     },
 };
-pub use func::Func;
+pub use func::{Func, FuncKind};
 use func::lower_ast_func;
 pub use names::NameOrigin;
 use names::{IdentWithOrigin, NameBindingType, NameSpace};
@@ -254,10 +254,10 @@ pub fn lower_ast_ty(
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<Type, ()> {
-    try_warn_unnecessary_paren(&ty.0, session);
+    try_warn_unnecessary_paren(ty.as_expr(), session);
 
     Ok(Type(lower_ast_expr(
-        &ty.0,
+        ty.as_expr(),
         session,
         used_names,
         imports,
@@ -267,3 +267,9 @@ pub fn lower_ast_ty(
 
 #[derive(Clone)]
 pub struct Type(hir::Expr);
+
+impl Type {
+    pub fn as_expr(&self) -> &hir::Expr {
+        &self.0
+    }
+}

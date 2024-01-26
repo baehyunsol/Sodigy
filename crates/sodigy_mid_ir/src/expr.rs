@@ -9,6 +9,8 @@ use sodigy_intern::{
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+pub mod lower;
+
 #[derive(Clone)]
 pub struct Expr {
     pub(crate) kind: ExprKind,

@@ -1,4 +1,5 @@
 use super::{Expr, ExprKind, ValueKind};
+use crate::ops::InfixOp;
 use std::fmt;
 
 impl fmt::Display for Expr {
@@ -11,6 +12,22 @@ impl fmt::Display for ExprKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let s = match self {
             ExprKind::Value(v) => v.to_string(),
+            ExprKind::PrefixOp(op, val) => format!("{op}({val})"),
+            ExprKind::PostfixOp(op, val) => format!("({val}){op}"),
+            ExprKind::InfixOp(op, lhs, rhs) => if let InfixOp::Index = op {
+                format!("({lhs})[{rhs}]")
+            } else {
+                format!("({lhs}){op}({rhs})")
+            },
+            ExprKind::Path { pre, post } => format!("({pre}).{}", post.id()),
+            ExprKind::Call { func, args } => format!(
+                "({func})({})",
+                args.iter().map(
+                    |arg| arg.to_string()
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            ExprKind::Parenthesis(expr) => format!("({expr})"),
+            ExprKind::Error => String::from("<<COMPILE_ERROR>>"),
             _ => todo!(),
         };
 

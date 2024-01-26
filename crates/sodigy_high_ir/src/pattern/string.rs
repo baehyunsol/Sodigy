@@ -134,7 +134,7 @@ fn reject_name_binding_and_type_anno(
     session: &mut HirSession,
 ) -> Result<(), ()> {
     if let Some(ty) = &pattern.ty {
-        session.push_error(HirError::ty_anno_not_allowed_here(ty.0.span));
+        session.push_error(HirError::ty_anno_not_allowed_here(ty.as_expr().span));
         return Err(());
     }
 

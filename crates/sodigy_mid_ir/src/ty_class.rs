@@ -1,5 +1,9 @@
 use crate::ty::Type;
-use sodigy_ast::InfixOp;
+use sodigy_ast::{
+    InfixOp,
+    PostfixOp,
+    PrefixOp,
+};
 use sodigy_uid::Uid;
 use std::collections::HashMap;
 
@@ -68,6 +72,28 @@ pub enum TypeClass {
     Div,
     Rem,
     Custom( /* TODO: how do I represent one? */ ),
+}
+
+impl TypeClass {
+    // it returns the uid of the generic impl of this type class
+    // for example, `Add.generic_uid()` returns the uid of `Add(T, U, V)`
+    // it's a tmp placeholder for MIR exprs. it has to be replaced with the
+    // exact uid by the type infer engine
+    pub fn generic_uid(&self) -> Uid {
+        todo!()
+    }
+}
+
+impl From<PrefixOp> for TypeClass {
+    fn from(op: PrefixOp) -> Self {
+        todo!()
+    }
+}
+
+impl From<PostfixOp> for TypeClass {
+    fn from(op: PostfixOp) -> Self {
+        todo!()
+    }
 }
 
 impl From<InfixOp> for TypeClass {

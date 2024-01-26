@@ -1,5 +1,7 @@
 use crate::ty::Type;
 
+mod lower;
+
 // TODO: lower hir::Func to this type
 pub struct Def {
     pub(crate) ty: Type,
