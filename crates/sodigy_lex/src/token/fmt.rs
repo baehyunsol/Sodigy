@@ -33,8 +33,8 @@ impl fmt::Display for TokenKind {
             match self {
                 TokenKind::Comment { kind, content } => match kind {
                     CommentKind::Single => format!("# ...\n"),
-                    CommentKind::Multi => format!("##! ... !##"),
-                    CommentKind::Doc => format!("##>{}\n", content),
+                    CommentKind::Multi => format!("#! ... !#"),
+                    CommentKind::Doc => format!("#>{}\n", content),
                 },
                 TokenKind::String { kind, content, .. } => {
                     let result = format!("{content:?}").as_bytes().to_vec();

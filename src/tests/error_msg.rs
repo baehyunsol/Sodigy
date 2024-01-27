@@ -89,24 +89,25 @@ check_output!(stmt, err, stmt_test9, "let name_test: Int = {
     0
 };", "got character '🦫'");
 check_output!(stmt, err, stmt_test10, "let foo(
-    ##> Doc comment 1
+    #> Doc comment 1
     x: Int,
 
-    ##> Doc comment 2
+    #> Doc comment 2
     y: Int,
 
-    ##> Doc comment for nothing
+    #> Doc comment for nothing
 ) = x + y;", "stranded attribute");
 check_output!(stmt, err, stmt_test11, "let foo() = {
-    ##> Doc comment 1
+    #> Doc comment 1
     let x = 3;
 
-    ##> Doc comment 2
+    #> Doc comment 2
     let y = 4;
 
-    ##> Doc comment for nothing
+    #> Doc comment for nothing
     x + y
 };", "stranded attribute");
+check_output!(stmt, err, nested_comment, "#! 123 #! 456 !#", "unterminated block comment");
 check_output!(stmt, err, no_dependent_types1, "let foo(x: y, y: Int) = 0;", "dependent types");
 check_output!(stmt, err, no_dependent_types2, "let foo(x: Int, y: x) = 0;", "dependent types");
 check_output!(stmt, err, long_error_span, "
@@ -177,9 +178,9 @@ check_output!(expr, err, expr_test28, "(f \"\\{a} + \\{b} = \\{a + b}\")", "add 
 check_output!(expr, err, expr_test29, "[0, 1, 2, 3] `10 1", "field modifier without");
 check_output!(expr, err, expr_test30, "\\{x: Int, x: Int, x + x}", "`x` is bound multiple times");
 check_output!(expr, err, expr_test31, "{let x = 3; let x = 4; x + x}", "name `x` is bound multiple times");
-check_output!(expr, err, expr_test32, "   ##!##  # Unfinished Comment", "unterminated block comment");
+check_output!(expr, err, expr_test32, "   #!#  # Unfinished Comment", "unterminated block comment");
 check_output!(expr, err, expr_test33, "f(x[..4])", "like `0..`");
-check_output!(expr, err, expr_test34, "  {##!\n\n\n!##  }", "got nothing");
+check_output!(expr, err, expr_test34, "  {#!\n\n\n!#  }", "got nothing");
 check_output!(expr, err, expr_test35, "match x {0..~ => 0, 1..2 => 3}", "inclusive range with an open end");
 check_output!(expr, err, expr_test36, "Foo {}", "please provide fields");
 check_output!(expr, err, expr_test37, "{let x = 3; let y = 4; x + y;}", "remove this `;`");

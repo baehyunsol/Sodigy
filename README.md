@@ -456,25 +456,21 @@ You can shift negative counts. For example, `a << -5` is `a >> 5`.
 
 ## Comments
 
-TODO: use `#>` instead of `##>`.
-
-TODO: use `#!` and `!#` instead of `##!` and `!##`.
-
-`#` for a single line comment, `##>` for a doc-comment and `##!` \~ `!##` for a multiline comment.
+`#` for a single line comment, `#>` for a doc-comment and `#!` \~ `!#` for a multiline comment.
 
 ```
 # This is a comment
 let add_1_2: Int = 1 + 2;
 
-##!
+#!
 This is also a comment
-!##
+!#
 
-##> This function adds two numbers.
+#> This function adds two numbers.
 let add(x: Int, y: Int): Int = x + y;
 ```
 
-`##! ... !##`s can be nested, of course.
+`#! ... !#`s can be nested, of course.
 
 ## Macros
 

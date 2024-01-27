@@ -1,7 +1,7 @@
-##!
+#!
 This code is not the actual implementation of the std lib. These're just test cases.
 The std is implemented in a way more efficient way (though not implemented yet)
-!##
+!#
 
 let zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.is_empty() || b.is_empty() {
     []

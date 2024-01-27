@@ -512,7 +512,7 @@ fn is_human_readable(file: &Path) -> bool {
 fn incremental_compilation_broken(file: &Path, mut error: UniversalError) -> UniversalError {
     error.is_warning = true;
     error.append_message(&format!(
-        "Incremental compilation on `{file}` is not working due to this error.\nIf you haven't messed up with `__sdg_cache` directoy, this must be an internal compiler error. Please report this bug."
+        "Incremental compilation on `{file}` is not working due to this error.\nIf you haven't messed up with `__sdg_cache__` directoy, this must be an internal compiler error. Please report this bug."
     ));
 
     error

@@ -54,7 +54,7 @@ impl fmt::Display for TokenTreeKind {
                         ).collect::<Vec<String>>().concat(),
                     )
                 },
-                TokenTreeKind::DocComment(content) => format!("##>{content}\n"),
+                TokenTreeKind::DocComment(content) => format!("#>{content}\n"),
                 TokenTreeKind::Macro { name, args } => format!(
                     "@[{}]({})",
                     name.iter().map(
@@ -98,7 +98,7 @@ impl RenderError for TokenTreeKind {
                 },
             ),
             TokenTreeKind::FormattedString(_) => String::from("f\"...\""),
-            TokenTreeKind::DocComment(_) => String::from("##> ..."),
+            TokenTreeKind::DocComment(_) => String::from("#> ..."),
             TokenTreeKind::Macro { name, .. } => format!(
                 "@[{}](...)",
                 name.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(" "),

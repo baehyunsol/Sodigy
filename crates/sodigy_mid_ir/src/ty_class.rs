@@ -71,6 +71,16 @@ pub enum TypeClass {
     Mul,
     Div,
     Rem,
+    Eq,
+    Gt,
+    Lt,
+    Ne,
+    Ge,
+    Le,
+    Not,
+    Neg,
+    Range,
+    QuestionMark,  // TODO: any better name?
     Custom( /* TODO: how do I represent one? */ ),
 }
 
@@ -86,18 +96,37 @@ impl TypeClass {
 
 impl From<PrefixOp> for TypeClass {
     fn from(op: PrefixOp) -> Self {
-        todo!()
+        match op {
+            PrefixOp::Not => TypeClass::Not,
+            PrefixOp::Neg => TypeClass::Neg,
+        }
     }
 }
 
 impl From<PostfixOp> for TypeClass {
     fn from(op: PostfixOp) -> Self {
-        todo!()
+        match op {
+            PostfixOp::Range => TypeClass::Range,
+            PostfixOp::QuestionMark => TypeClass::QuestionMark,
+        }
     }
 }
 
 impl From<InfixOp> for TypeClass {
     fn from(op: InfixOp) -> Self {
-        todo!()
+        match op {
+            InfixOp::Add => TypeClass::Add,
+            InfixOp::Sub => TypeClass::Sub,
+            InfixOp::Mul => TypeClass::Mul,
+            InfixOp::Div => TypeClass::Div,
+            InfixOp::Rem => TypeClass::Rem,
+            InfixOp::Eq => TypeClass::Eq,
+            InfixOp::Gt => TypeClass::Gt,
+            InfixOp::Lt => TypeClass::Lt,
+            InfixOp::Ne => TypeClass::Ne,
+            InfixOp::Ge => TypeClass::Ge,
+            InfixOp::Le => TypeClass::Le,
+            _ => todo!(),
+        }
     }
 }

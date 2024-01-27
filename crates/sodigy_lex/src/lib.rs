@@ -276,8 +276,7 @@ pub fn lex(
                             },
                             CommentKind::Multi => {
                                 if c == b'#' {
-                                    if input.get(index + 1) == Some(&b'#')
-                                    && input.get(index + 2) == Some(&b'!') {
+                                    if input.get(index + 1) == Some(&b'!') {
                                         *nest += 1;
                                     }
                                 }
@@ -295,10 +294,10 @@ pub fn lex(
                                                 kind: CommentKind::Multi,
                                                 content: String::new(),
                                             },
-                                            span: curr_token_span_start.extend(span_start.offset(index as i32 + 2)),
+                                            span: curr_token_span_start.extend(span_start.offset(index as i32 + 1)),
                                         });
 
-                                        index += 2;
+                                        index += 1;
                                         tmp_buf.clear();
                                         curr_state = LexState::Init;
                                     }
@@ -765,14 +764,14 @@ pub fn lex(
 }
 
 fn check_comment_kind(buf: &[u8], index: &mut usize) -> CommentKind {
-    match (buf.get(*index + 1), buf.get(*index + 2)) {
-        (Some(b'#'), Some(b'!')) => {
-            *index += 2;
+    match buf.get(*index + 1) {
+        Some(b'!') => {
+            *index += 1;
 
             CommentKind::Multi
         },
-        (Some(b'#'), Some(b'>')) => {
-            *index += 2;
+        Some(b'>') => {
+            *index += 1;
 
             CommentKind::Doc
         },
@@ -781,7 +780,7 @@ fn check_comment_kind(buf: &[u8], index: &mut usize) -> CommentKind {
 }
 
 fn is_multiline_comment_end(buf: &[u8], index: usize) -> bool {
-    matches!((buf.get(index), buf.get(index + 1), buf.get(index + 2)), (Some(b'!'), Some(b'#'), Some(b'#')))
+    matches!((buf.get(index), buf.get(index + 1)), (Some(b'!'), Some(b'#')))
 }
 
 // like `String::from_utf8` of Rust std, but it also allows `FSTRING_START_MARKER`

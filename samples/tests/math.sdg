@@ -1,7 +1,7 @@
-##!
+#!
 This code is not the actual implementation of the std lib. These're just test cases.
 The std is implemented in a way more efficient way (though not implemented yet)
-!##
+!#
 
 let is_pn(n: Int): Bool = n == 2 || n == 3 || n == 5 || (
     n % 2 != 0 &&
@@ -16,8 +16,8 @@ let pn_test: Bool = {
     pns.all(is_pn) && npns.all(\{n, !is_pn(n)})
 };
 
-##> It returns the square root of `n`.
-##> If the result is not integer, it's truncated.
+#> It returns the square root of `n`.
+#> If the result is not integer, it's truncated.
 @test.after(\{ret, assert(
     ret * ret <= abs(n)
     && (ret + 1) * (ret + 1) > abs(n)

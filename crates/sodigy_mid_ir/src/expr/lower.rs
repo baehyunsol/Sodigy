@@ -37,6 +37,8 @@ pub fn lower_hir_expr_without_types(
                         ty: Type::HasToBeInfered,
                         span: e.span,
                     },
+
+                    // TODO: who is responsible for global name resolving?
                     None => todo!(),
                 },
                 _ => todo!(),

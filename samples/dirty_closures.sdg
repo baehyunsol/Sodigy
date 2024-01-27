@@ -1,4 +1,4 @@
-##!
+#!
 # Equivalent Python code
 
 ```
@@ -7,7 +7,7 @@ def dirty_closure(n):
     f2 = lambda x: (1 + f1(x - n)) if x > 0 else 0
     return f1(100)
 ```
-!##
+!#
 
 let dirty_closure(n: Int): Int = {
     let f1 = \{x, f2(x - 1)};
@@ -62,9 +62,9 @@ let yet_another_closure_test2_impl(x: Int): Int = {
 @test.eq(6)
 let yet_another_closure_test2: Int = yet_another_closure_test2_impl(4);
 
-##!
+#!
 let compile_error: Int = {let f = \{ f() }; f()};
-!##
+!#
 
 @test.eq(10946)
 let yet_another_fibonacci: Int = {

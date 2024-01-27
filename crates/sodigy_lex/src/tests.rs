@@ -18,8 +18,8 @@ impl Token {
             ),
             TokenKind::Comment { kind, .. } => match kind {
                 CommentKind::Single => sodigy_assert!(original_code.starts_with(b"#")),
-                CommentKind::Multi => sodigy_assert!(original_code.starts_with(b"##!")),
-                CommentKind::Doc => sodigy_assert!(original_code.starts_with(b"##>")),
+                CommentKind::Multi => sodigy_assert!(original_code.starts_with(b"#!")),
+                CommentKind::Doc => sodigy_assert!(original_code.starts_with(b"#>")),
             },
             TokenKind::String { kind, .. } => {
                 sodigy_assert_eq!(*original_code.first().unwrap(), *kind as u8);

@@ -4,16 +4,16 @@ use sodigy_ast::{self as ast, IdentWithSpan};
 
 #[derive(Clone)]
 pub struct StringPattern {
-    strings: Vec<IdentWithSpan>,
+    pub(crate) strings: Vec<IdentWithSpan>,
 
     // .."a"
-    open_prefix: bool,
+    pub(crate) open_prefix: bool,
 
     // "a"..
-    open_suffix: bool,
+    pub(crate) open_suffix: bool,
 
     // prefix `b`
-    is_binary: bool,
+    pub(crate) is_binary: bool,
 }
 
 impl StringPattern {

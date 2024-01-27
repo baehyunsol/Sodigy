@@ -3,7 +3,7 @@
 | ` `        |                             |                                      | No                | separate tokens                        |
 | `!`        |                             | expr,                                | `!=`              | prefix op,                             |
 | `"`        |                             | str lit,                             | No                | string, f-string                       |
-| `#`        |                             | commt                                | `##!`, `##>`      | comment                                |
+| `#`        |                             | commt                                | `#!`, `#>`        | comment                                |
 | `$`        |                             | ident                                |                   | name bindings in patterns              |
 | `%`        |                             | expr                                 |                   |                                        |
 | `&`        |                             | expr                                 |                   |                                        |

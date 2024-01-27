@@ -11,7 +11,7 @@ use sodigy_uid::Uid;
 
 pub mod lower;
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub struct Expr {
     pub(crate) kind: ExprKind,
     pub(crate) ty: Type,
@@ -86,10 +86,10 @@ impl Expr {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash)]
 pub enum ExprKind {
     Global(Uid),
-    LocalNameBinding( /* TODO */ ),
+    LocalNameBinding(LocalNameBinding),
 
     // TODO: other than `InternedNumeric`?
     Integer(InternedNumeric),
@@ -102,4 +102,17 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Branch( /* TODO */ ),
+}
+
+#[derive(Clone, Hash)]
+enum LocalNameBinding {
+    // It assumes that every expr belongs to exactly one `Def`.
+    // With that assumption, func args can be distinguished only
+    // using an integer. If exprs from a specific `Def` are mixed
+    // with other exprs from another `Def`, ... then what?
+    // TODO: how should i implement function inlining?
+    FuncArg(usize),
+    FuncGeneric(usize),
+
+    // TODO: scoped lets
 }

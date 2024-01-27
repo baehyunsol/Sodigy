@@ -1,16 +1,28 @@
+use crate::expr::{Expr, ExprKind};
 use crate::prelude::uids;
 use sodigy_uid::Uid;
 
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone, Hash)]
 pub enum Type {
     Solid(Uid),              // Int
     Param(Uid, Vec<Type>),   // Result(Int, Error)
-    Generic(/* TODO: how do we represent one? */),
+
+    // for now, using an integer index to identify `Generic` makes sense because
+    // every `Type` belongs to exactly one `Def`.
+    Generic(usize),
 
     // `[]: List(Placeholder)`
     // `None: Option(Placeholder)`
     Placeholder,
     HasToBeInfered,
+
+    // in Sodigy, Types are first class objects.
+    // that means the language doesn't distinguish types and exprs.
+    // but the compiler does so for the sake of efficiency
+    //
+    // this variant has to be lowered to Type::Solid or Type::Param
+    // before the type-checking pass
+    HasToBeConverted(Box<Expr>),
 }
 
 impl Type {
@@ -33,6 +45,27 @@ impl Type {
         }
     }
 }
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Type::Solid(uid1), Type::Solid(uid2)) => uid1 == uid2,
+            (Type::Param(uid1, args1), Type::Param(uid2, args2)) => uid1 == uid2 && args1 == args2,
+
+            // TODO: how do I compare 2 generics?
+            // for example, 2 `T`s in `let get<T>(v: List(T), i: Int): T` are the same.
+            // but if the `get` function is instantiated multiple times with different `T`s,
+            // `T`s from different instances are different, but how do we distinguish them?
+            // they both belong to the same function and has the same index..
+            (Type::Generic(..), Type::Generic(..)) => todo!(),
+
+            // there's no point in comparing `Type::HasToBeInfered`
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Type {}
 
 // https://doc.rust-lang.org/nomicon/subtyping.html
 // https://baehyunsol.github.io/CoqStudy/Chap15-4.html
@@ -66,5 +99,16 @@ pub fn is_subtype_of(
 
         // TODO: generics
         _ => false,
+    }
+}
+
+// All the type annotations are expressions in Hir
+// those expressions are first lowered to Mir::Expr, then to Mir::Type.
+// This function tries the conversion, and returns None if it fails.
+// It only collects the low-hanging fruits, like `Int` and `String`.
+pub fn try_convert_expr_to_ty(expr: &Expr) -> Option<Type> {
+    match &expr.kind {
+        ExprKind::Global(uid) => todo!(),
+        _ => todo!(),
     }
 }
