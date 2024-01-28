@@ -6,6 +6,7 @@ use crate::{
     session::AstSession,
 };
 use sodigy_intern::{InternedNumeric, InternedString};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
 mod fmt;

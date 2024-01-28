@@ -9,6 +9,7 @@ use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};

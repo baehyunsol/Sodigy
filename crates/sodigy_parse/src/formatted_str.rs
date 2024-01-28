@@ -1,6 +1,7 @@
 use crate::{ParseError, from_tokens, ParseSession, TokenTree};
 use crate::warn::ParseWarning;
 use sodigy_lex::{lex, FSTRING_START_MARKER, LexError, LexSession};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
 
 mod endec;
@@ -78,7 +79,7 @@ pub fn parse_str(
 
                         lex(&curr_buf, 0, fstring_start_span, lex_session)?;
 
-                        let tokens = lex_session.get_tokens().to_vec();
+                        let tokens = lex_session.get_results().to_vec();
 
                         // it has to `parse_session.flush_tokens` before calling `from_tokens`
                         // but it has to store the current `parse_session.tokens` at some location -> we cannot lose that!
@@ -96,7 +97,7 @@ pub fn parse_str(
                             parse_session.push_warning(warning.clone());
                         }
 
-                        let tokens = tmp_parse_session.get_tokens().to_vec();
+                        let tokens = tmp_parse_session.get_results().to_vec();
 
                         if tokens.is_empty() {
                             parse_session.push_error(ParseError::empty_fstring(

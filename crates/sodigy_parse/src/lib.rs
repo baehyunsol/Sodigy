@@ -3,6 +3,7 @@
 use sodigy_error::SodigyError;
 use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
+use sodigy_session::SodigySession;
 
 mod delim;
 mod error;
@@ -35,7 +36,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                 TokenKind::Comment { kind: CommentKind::Doc, content } => {
                     let content = session.intern_string(content.as_bytes().to_vec());
 
-                    session.push_token(TokenTree {
+                    session.push_result(TokenTree {
                         kind: TokenTreeKind::DocComment(content),
                         span: token.span,
                     });
@@ -58,7 +59,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
 
                     let content = session.intern_string(content.as_bytes().to_vec());
 
-                    session.push_token(TokenTree {
+                    session.push_result(TokenTree {
                         kind: TokenTreeKind::String {
                             kind: *kind,
                             content,
@@ -75,7 +76,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                         // field modifier
                         match tokens.get(index + 1) {
                             Some(Token { kind: TokenKind::Identifier(id), span: span2 }) => {
-                                session.push_token(TokenTree {
+                                session.push_result(TokenTree {
                                     kind: TokenTreeKind::Punct(Punct::FieldModifier(*id)),
                                     span: token.span.merge(*span2),
                                 });
@@ -92,7 +93,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                     else if *p1 == b'\\' {
                         match tokens.get(index + 1) {
                             Some(Token { kind: TokenKind::Grouper(g), .. }) => {
-                                group_stack.push(DelimStart::new_prefix(*g, session.tokens.len(), token.span, b'\\'));
+                                group_stack.push(DelimStart::new_prefix(*g, session.get_results().len(), token.span, b'\\'));
                                 index += 1;
                             },
                             _ => {
@@ -113,7 +114,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                             // for now, this is the only 3-chars punct
                                             Some(Token { kind: TokenKind::Punct(b'~'), span: span3 }) => {
                                                 let span = span.merge(*span3);
-                                                session.push_token(TokenTree {
+                                                session.push_result(TokenTree {
                                                     kind: TokenTreeKind::Punct(Punct::InclusiveRange),
                                                     span,
                                                 });
@@ -126,7 +127,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                                 return Err(());
                                             },
                                             _ => {
-                                                session.push_token(TokenTree {
+                                                session.push_result(TokenTree {
                                                     kind: TokenTreeKind::Punct(p),
                                                     span,
                                                 });
@@ -135,7 +136,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                             },
                                         },
                                         _ => {
-                                            session.push_token(TokenTree {
+                                            session.push_result(TokenTree {
                                                 kind: TokenTreeKind::Punct(p),
                                                 span,
                                             });
@@ -145,7 +146,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                     }
                                 },
                                 _ => {
-                                    session.push_token(TokenTree {
+                                    session.push_result(TokenTree {
                                         kind: TokenTreeKind::Punct((*p1).try_into().unwrap()),  // lexer assures that it doesn't fail
                                         span: token.span,
                                     });
@@ -156,7 +157,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                     has_macro = true;
                                 }
 
-                                session.push_token(TokenTree {
+                                session.push_result(TokenTree {
                                     kind: TokenTreeKind::Punct((*p1).try_into().unwrap()),  // lexer assures that it doesn't fail
                                     span: token.span,
                                 });
@@ -166,20 +167,20 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                 },
                 TokenKind::Grouper(g) => match g {
                     b'{' | b'[' | b'('  => {
-                        group_stack.push(DelimStart::new(*g, session.tokens.len(), token.span));
+                        group_stack.push(DelimStart::new(*g, session.get_results().len(), token.span));
                     },
                     b'}' | b']' | b')'  => {
                         match group_stack.pop() {
                             Some(ds) => if ds.kind == Delim::from(*g) {
                                 let span = ds.span.merge(token.span);
-                                let mut tokens = Vec::with_capacity(session.tokens.len() - ds.index);
+                                let mut tokens = Vec::with_capacity(session.get_results().len() - ds.index);
 
                                 // TODO: there must be a better/neater/prettier function
-                                while session.tokens.len() > ds.index {
-                                    tokens.push(session.tokens.pop().unwrap());
+                                while session.get_results().len() > ds.index {
+                                    tokens.push(session.pop_result().unwrap());
                                 }
 
-                                session.push_token(TokenTree {
+                                session.push_result(TokenTree {
                                     kind: TokenTreeKind::Group {
                                         tokens: tokens.into_iter().rev().collect(),
                                         delim: ds.kind,
@@ -204,7 +205,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                         Ok(numeric) => {
                             let interned_numeric = session.intern_numeric(numeric);
 
-                            session.push_token(TokenTree {
+                            session.push_result(TokenTree {
                                 kind: TokenTreeKind::Number(interned_numeric),
                                 span: token.span,
                             });
@@ -245,7 +246,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
 
                                         let content = session.intern_string(content.as_bytes().to_vec());
 
-                                        session.push_token(
+                                        session.push_result(
                                             TokenTree {
                                                 kind: TokenTreeKind::String {
                                                     kind: QuoteKind::Double,
@@ -265,7 +266,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                             session,
                                         )?;
 
-                                        session.push_token(TokenTree {
+                                        session.push_result(TokenTree {
                                             kind: TokenTreeKind::FormattedString(f_s),
                                             span: token.span.merge(span2),
                                         });
@@ -291,7 +292,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                     },
                                 };
 
-                                session.push_token(token);
+                                session.push_result(token);
                             },
                         }
                     }
@@ -299,13 +300,13 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                     else {
                         match id.try_into_keyword() {
                             Some(k) => {
-                                session.push_token(TokenTree {
+                                session.push_result(TokenTree {
                                     kind: TokenTreeKind::Keyword(k),
                                     span: token.span,
                                 });
                             },
                             None => {
-                                session.push_token(TokenTree {
+                                session.push_result(TokenTree {
                                     kind: TokenTreeKind::Identifier(*id),
                                     span: token.span,
                                 });

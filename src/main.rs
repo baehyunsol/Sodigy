@@ -4,6 +4,7 @@ use sodigy::run;
 use sodigy::result::CompilerOutput;
 use sodigy_clap::parse_cli_args;
 use sodigy_error::SodigyError;
+use sodigy_session::SodigySession;
 
 fn main() {
     // test purpose
@@ -12,11 +13,11 @@ fn main() {
     let clap_result = parse_cli_args();
     let mut compiler_output = CompilerOutput::new();
 
-    for warning in clap_result.warnings.iter() {
+    for warning in clap_result.get_warnings().iter() {
         compiler_output.push_warning(warning.to_universal());
     }
 
-    for error in clap_result.errors.iter() {
+    for error in clap_result.get_errors().iter() {
         compiler_output.push_error(error.to_universal());
     }
 
@@ -25,7 +26,7 @@ fn main() {
     }
 
     else {
-        let mut compiler_output = run(clap_result.result, Some(compiler_output));
+        let mut compiler_output = run(clap_result.get_results().clone(), Some(compiler_output));
         println!("{}", compiler_output.concat_results());
     }
 }

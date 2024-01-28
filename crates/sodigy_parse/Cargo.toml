@@ -13,6 +13,7 @@ sodigy_intern = { path = "../sodigy_intern" }
 sodigy_keyword = { path = "../sodigy_keyword" }
 sodigy_lex = { path = "../sodigy_lex" }
 sodigy_number = { path = "../sodigy_number" }
+sodigy_session = { path = "../sodigy_session" }
 sodigy_span = { path = "../sodigy_span" }
 
 [dev-dependencies]

@@ -1,5 +1,6 @@
 use crate::HirSession;
 use sodigy_ast::IdentWithSpan;
+use sodigy_session::SodigySession;
 
 // This function is quite expensive.
 // docs.map(remove_leading_whitespace).join("\n")

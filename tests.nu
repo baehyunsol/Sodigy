@@ -11,7 +11,7 @@ let crates = [
     "intern", "keyword",
     "lex", "mid_ir",
     "number", "parse", "prelude",
-    "span", "test", "uid",
+    "session", "span", "test", "uid",
 ]
 
 for $crate in $crates {

@@ -2,6 +2,7 @@ use super::*;
 use sodigy_error::SodigyError;
 use sodigy_files::{global_file_session, get_all_sdg, FileHash};
 use sodigy_lex::{lex, LexSession};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
 
 #[test]
@@ -54,7 +55,7 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
 
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
 
-    if let Err(()) = from_tokens(&lex_session.get_tokens(), &mut parse_session, &mut LexSession::new()) {
+    if let Err(()) = from_tokens(&lex_session.get_results(), &mut parse_session, &mut LexSession::new()) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
@@ -71,8 +72,8 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
 
     let token_round_trip_test = parse_session.dump_tokens();
 
-    lex_session.flush_tokens();
-    parse_session.flush_tokens();
+    lex_session.clear_results();
+    parse_session.clear_results();
 
     let g = unsafe { global_file_session() };
     let f = g.register_tmp_file(token_round_trip_test.as_bytes()).unwrap();
@@ -90,7 +91,7 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
         );
     }
 
-    if let Err(()) = from_tokens(&lex_session.get_tokens().to_vec(), &mut parse_session, lex_session) {
+    if let Err(()) = from_tokens(&lex_session.get_results().to_vec(), &mut parse_session, lex_session) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(

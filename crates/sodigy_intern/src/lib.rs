@@ -15,7 +15,7 @@ mod tests;
 pub use numeric::{InternedNumeric, try_intern_small_integer};
 pub use string::{InternedString, try_intern_short_string};
 
-pub use session::Session as InternSession;
+pub use session::LocalInternSession as InternSession;
 
 /// If you have a local intern_session, you should prefer using that.
 pub fn intern_string(s: Vec<u8>) -> InternedString {

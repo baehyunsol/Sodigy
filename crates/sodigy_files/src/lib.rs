@@ -11,7 +11,7 @@ pub use error::*;
 pub use funcs::*;
 pub use session::{
     FileHash,
-    Session as FileSession,
+    FileSession,
 };
 
 pub const DUMMY_FILE_HASH: FileHash = 0;

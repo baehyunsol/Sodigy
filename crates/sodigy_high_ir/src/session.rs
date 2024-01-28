@@ -3,9 +3,9 @@ use crate::func::Func;
 use crate::warn::HirWarning;
 use smallvec::{SmallVec, smallvec};
 use sodigy_ast::IdentWithSpan;
-use sodigy_intern::{InternedNumeric, InternedString, InternSession};
-use sodigy_number::SodigyNumber;
+use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
+use sodigy_session::{SessionOutput, SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
@@ -13,12 +13,12 @@ use std::collections::{HashMap, HashSet};
 mod endec;
 
 pub struct HirSession {
-    pub errors: Vec<HirError>,
-    pub warnings: Vec<HirWarning>,
+    errors: Vec<HirError>,
+    warnings: Vec<HirWarning>,
     interner: InternSession,
 
     // HashMap<name, def>
-    pub func_defs: HashMap<InternedString, Func>,
+    func_defs: HashMap<InternedString, Func>,
 
     // you can get tmp names using `.allocate_tmp_name` method
     // tmp_names from this vector is guaranteed to be unique
@@ -27,6 +27,7 @@ pub struct HirSession {
 
     // `_0`, `_1`, `_2`, ...
     field_exprs: Vec<InternedString>,
+    snapshots: Vec<SessionSnapshot>,
 }
 
 impl HirSession {
@@ -55,6 +56,7 @@ impl HirSession {
             tmp_names,
             field_exprs,
             func_defs: HashMap::new(),
+            snapshots: vec![],
         }
     }
 
@@ -132,38 +134,6 @@ impl HirSession {
         lines.join("\n\n")
     }
 
-    pub fn push_error(&mut self, error: HirError) {
-        self.errors.push(error);
-    }
-
-    pub fn get_errors(&self) -> &Vec<HirError> {
-        &self.errors
-    }
-
-    pub fn push_warning(&mut self, warning: HirWarning) {
-        self.warnings.push(warning);
-    }
-
-    pub fn get_warnings(&self) -> &Vec<HirWarning> {
-        &self.warnings
-    }
-
-    pub fn intern_numeric(&mut self, n: SodigyNumber) -> InternedNumeric {
-        self.interner.intern_numeric(n)
-    }
-
-    pub fn unintern_numeric(&mut self, s: InternedNumeric) -> Option<&SodigyNumber> {
-        self.interner.unintern_numeric(s)
-    }
-
-    pub fn intern_string(&mut self, s: Vec<u8>) -> InternedString {
-        self.interner.intern_string(s)
-    }
-
-    pub fn unintern_string(&mut self, s: InternedString) -> Option<&[u8]> {
-        self.interner.unintern_string(s)
-    }
-
     pub fn add_prefix(&mut self, s: InternedString, prefix: &str) -> InternedString {
         if let Some(s) = self.unintern_string(s) {
             let new_s = vec![
@@ -180,15 +150,61 @@ impl HirSession {
             unreachable!()
         }
     }
+}
 
-    // TODO: no more `err_if_has_err`
-    pub fn err_if_has_err(&self) -> Result<(), ()> {
-        if self.errors.is_empty() {
-            Ok(())
-        }
+impl SodigySession<HirError, HirWarning, HashMap<InternedString, Func>, Func> for HirSession {
+    fn get_errors(&self) -> &Vec<HirError> {
+        &self.errors
+    }
 
-        else {
-            Err(())
-        }
+    fn get_errors_mut(&mut self) -> &mut Vec<HirError> {
+        &mut self.errors
+    }
+
+    fn get_warnings(&self) -> &Vec<HirWarning> {
+        &self.warnings
+    }
+
+    fn get_warnings_mut(&mut self) -> &mut Vec<HirWarning> {
+        &mut self.warnings
+    }
+
+    fn get_results(&self) -> &HashMap<InternedString, Func> {
+        &self.func_defs
+    }
+
+    fn get_results_mut(&mut self) -> &mut HashMap<InternedString, Func> {
+        &mut self.func_defs
+    }
+
+    fn get_interner(&mut self) -> &mut InternSession {
+        &mut self.interner
+    }
+
+    fn get_interner_cloned(&self) -> InternSession {
+        self.interner.clone()
+    }
+
+    fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
+        &mut self.snapshots
+    }
+}
+
+// don't use this. just use session.get_results_mut().insert()
+impl SessionOutput<Func> for HashMap<InternedString, Func> {
+    fn pop(&mut self) -> Option<Func> {
+        unreachable!()
+    }
+
+    fn push(&mut self, v: Func) {
+        unreachable!()
+    }
+
+    fn clear(&mut self) {
+        self.clear();
+    }
+
+    fn len(&self) -> usize {
+        self.len()
     }
 }

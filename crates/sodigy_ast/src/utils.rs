@@ -1,6 +1,7 @@
 use crate::{error::AstError, parse_expr, AstSession, DottedNames, Expr, ExprKind, Tokens, ValueKind};
 use sodigy_error::ErrorContext;
 use sodigy_parse::FormattedStringElement;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
 pub(crate) fn format_string_into_expr(

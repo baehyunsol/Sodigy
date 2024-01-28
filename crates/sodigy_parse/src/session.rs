@@ -1,18 +1,19 @@
 use crate::{Delim, ParseError, Punct, TokenTree, TokenTreeKind};
 use crate::warn::ParseWarning;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
-use sodigy_intern::{InternedNumeric, InternedString, InternSession};
+use sodigy_intern::InternSession;
 use sodigy_lex::LexSession;
-use sodigy_number::SodigyNumber;
+use sodigy_session::{SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
 
 mod endec;
 
 pub struct ParseSession {
-    pub tokens: Vec<TokenTree>,
-    pub errors: Vec<ParseError>,
-    pub warnings: Vec<ParseWarning>,
-    pub interner: InternSession,
+    tokens: Vec<TokenTree>,
+    errors: Vec<ParseError>,
+    warnings: Vec<ParseWarning>,
+    interner: InternSession,
+    snapshots: Vec<SessionSnapshot>,
     pub has_unexpanded_macros: bool,
 }
 
@@ -22,61 +23,15 @@ impl ParseSession {
             tokens: vec![],
             errors: vec![],
             warnings: vec![],
-            interner: s.get_interner().clone(),
+            interner: s.get_interner_cloned(),
+            snapshots: vec![],
             has_unexpanded_macros: false,
         }
-    }
-
-    pub fn push_token(&mut self, token: TokenTree) {
-        self.tokens.push(token);
-    }
-
-    pub fn push_error(&mut self, error: ParseError) {
-        self.errors.push(error);
-    }
-
-    pub fn push_warning(&mut self, warning: ParseWarning) {
-        self.warnings.push(warning);
-    }
-
-    pub fn intern_string(&mut self, string: Vec<u8>) -> InternedString {
-        self.interner.intern_string(string)
-    }
-
-    pub fn intern_numeric(&mut self, numeric: SodigyNumber) -> InternedNumeric {
-        self.interner.intern_numeric(numeric)
-    }
-
-    pub fn get_tokens(&self) -> &Vec<TokenTree> {
-        &self.tokens
-    }
-
-    pub fn flush_tokens(&mut self) {
-        self.tokens.clear();
     }
 
     /// EXPENSIVE
     pub fn dump_tokens(&self) -> String {
         self.tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" ")
-    }
-
-    pub fn get_errors(&self) -> &Vec<ParseError> {
-        &self.errors
-    }
-
-    pub fn get_warnings(&self) -> &Vec<ParseWarning> {
-        &self.warnings
-    }
-
-    // TODO: no more `err_if_has_err`
-    pub fn err_if_has_err(&self) -> Result<(), ()> {
-        if self.errors.is_empty() {
-            Ok(())
-        }
-
-        else {
-            Err(())
-        }
     }
 
     // if it sees `@`, it's not sure whether that's a macro or not
@@ -199,6 +154,44 @@ impl ParseSession {
     ) -> Option<Vec<TokenTree>> {
         // TODO
         None
+    }
+}
+
+impl SodigySession<ParseError, ParseWarning, Vec<TokenTree>, TokenTree> for ParseSession {
+    fn get_errors(&self) -> &Vec<ParseError> {
+        &self.errors
+    }
+
+    fn get_errors_mut(&mut self) -> &mut Vec<ParseError> {
+        &mut self.errors
+    }
+
+    fn get_warnings(&self) -> &Vec<ParseWarning> {
+        &self.warnings
+    }
+
+    fn get_warnings_mut(&mut self) -> &mut Vec<ParseWarning> {
+        &mut self.warnings
+    }
+
+    fn get_results(&self) -> &Vec<TokenTree> {
+        &self.tokens
+    }
+
+    fn get_results_mut(&mut self) -> &mut Vec<TokenTree> {
+        &mut self.tokens
+    }
+
+    fn get_interner(&mut self) -> &mut InternSession {
+        &mut self.interner
+    }
+
+    fn get_interner_cloned(&self) -> InternSession {
+        self.interner.clone()
+    }
+
+    fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
+        &mut self.snapshots
     }
 }
 

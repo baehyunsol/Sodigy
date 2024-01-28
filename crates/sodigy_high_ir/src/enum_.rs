@@ -3,6 +3,7 @@ use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -55,7 +56,7 @@ pub fn lower_ast_enum(
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
-                    session.func_defs.insert(name.id(), f);
+                    session.get_results_mut().insert(name.id(), f);
                 } else {
                     has_error = true;
                 }
@@ -85,7 +86,7 @@ pub fn lower_ast_enum(
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
-                    session.func_defs.insert(name.id(), f);
+                    session.get_results_mut().insert(name.id(), f);
                 }
 
                 else {
@@ -111,7 +112,7 @@ pub fn lower_ast_enum(
         name_space,
     ) {
         f.kind = FuncKind::Enum { variants: variant_uids };
-        session.func_defs.insert(name.id(), f);
+        session.get_results_mut().insert(name.id(), f);
     }
 
     else {

@@ -21,6 +21,7 @@ use sodigy_files::{
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
 
 type Path = String;
@@ -31,9 +32,11 @@ pub enum PathOrRawInput<'a> {
     RawInput(&'a Vec<u8>),
 }
 
+const FILE_EXT_TOKENS: &str = "tokens";
+const FILE_EXT_HIGH_IR: &str = "hir";
+
 // TODO: this file has a lot of duplicate code blocks
 // TODO: nicer return type for all the stages
-// TODO: remove all the hard-coded strings: "tokens", "hir", ...
 // TODO: `parse_file` and `hir_from_tokens` are very similar...
 
 pub fn parse_file(
@@ -46,7 +49,7 @@ pub fn parse_file(
 
     let file_hash = match input {
         PathOrRawInput::Path(file) => {
-            if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, "tokens") {
+            if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, FILE_EXT_TOKENS) {
                 match s {
                     Ok(session) => {
                         // TODO: this pattern is used over and over...
@@ -122,7 +125,7 @@ pub fn parse_file(
     }
 
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
-    let tokens = lex_session.get_tokens();
+    let tokens = lex_session.get_results();
     let mut new_lex_session = LexSession::new();
 
     let res = from_tokens(tokens, &mut parse_session, &mut new_lex_session);
@@ -147,7 +150,7 @@ pub fn parse_file(
         match input {
             PathOrRawInput::Path(file) if compiler_option.save_ir => {
                 if compiler_option.save_ir {
-                    let tmp_path = match generate_path_for_ir(file, "tokens", true) {
+                    let tmp_path = match generate_path_for_ir(file, FILE_EXT_TOKENS, true) {
                         Ok(p) => p.to_string(),
                         Err(e) => {
                             compiler_output.push_error(e.into());
@@ -186,8 +189,8 @@ pub fn parse_file(
             }
         }
 
-        parse_session.errors.clear();
-        parse_session.warnings.clear();
+        parse_session.clear_errors();
+        parse_session.clear_warnings();
 
         (Some(parse_session), compiler_output)
     }
@@ -202,7 +205,7 @@ pub fn hir_from_tokens(
 
     let parse_session = match input {
         PathOrRawInput::Path(file) => {
-            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, "hir") {
+            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
                 match s {
                     Ok(session) => {
                         // TODO: this pattern is used over and over...
@@ -340,7 +343,7 @@ pub fn hir_from_tokens(
     }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
-    let mut tokens = parse_session.get_tokens().to_vec();
+    let mut tokens = parse_session.get_results().to_vec();
     let mut tokens = Tokens::from_vec(&mut tokens);
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
@@ -357,7 +360,7 @@ pub fn hir_from_tokens(
     }
 
     let mut hir_session = HirSession::new();
-    let res = lower_stmts(ast_session.get_stmts(), &mut hir_session);
+    let res = lower_stmts(ast_session.get_results(), &mut hir_session);
 
     for warning in hir_session.get_warnings() {
         compiler_output.push_warning(warning.to_universal());
@@ -374,7 +377,7 @@ pub fn hir_from_tokens(
     else {
         match input {
             PathOrRawInput::Path(file) if compiler_option.save_ir => {
-                let tmp_path = match generate_path_for_ir(file, "hir", true) {
+                let tmp_path = match generate_path_for_ir(file, FILE_EXT_HIGH_IR, true) {
                     Ok(p) => p.to_string(),
                     Err(e) => {
                         compiler_output.push_error(e.into());
@@ -412,8 +415,8 @@ pub fn hir_from_tokens(
             }
         }
 
-        hir_session.errors.clear();
-        hir_session.warnings.clear();
+        hir_session.clear_errors();
+        hir_session.clear_warnings();
 
         (Some(hir_session), compiler_output)
     }

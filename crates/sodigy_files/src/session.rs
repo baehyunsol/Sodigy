@@ -11,7 +11,7 @@ pub type Path = String;
 // and `register_file("a.sdg")` doesn't kill each other
 const TMP_FILE_HASH_KEY: u64 = 11;
 
-pub struct Session {
+pub struct FileSession {
     tmp_files: HashMap<FileHash, Vec<u8>>,  // used for tests
     files: HashMap<FileHash, Path>,
     tmp_files_rev: HashMap<Vec<u8>, FileHash>,
@@ -23,7 +23,7 @@ pub struct Session {
     name_aliases: HashMap<FileHash, String>,
 }
 
-impl Session {
+impl FileSession {
     /// Don't use this function! You should always use `global_file_session()`
     pub(crate) fn new() -> Self {
         // prevent hasher from initing DUMMY_FILE_HASH accidentally
@@ -33,7 +33,7 @@ impl Session {
             assert!(!IS_FILE_SESSION_INIT);
         }
 
-        Session {
+        FileSession {
             tmp_files: HashMap::new(),
             files: HashMap::new(),
             tmp_files_rev: HashMap::new(),

@@ -1,0 +1,230 @@
+let struct Node<T> = {
+    key: Int,
+    data: T,
+    left: Option(Node(T)),
+    right: Option(Node(T)),
+};
+
+@method(Node)
+let get<T>(self: Node(T), key: Int): Option(T) = {
+    if self.key < key {
+        match self.right {
+            Some($child) => child.get(key),
+            None => None,
+        }
+    }
+
+    else if self.key > key {
+        match self.left {
+            Some($child) => child.get(key),
+            None => None,
+        }
+    }
+
+    else {
+        Some(self.data)
+    }
+};
+
+@method(Node)
+let contains<T>(self: Node(T), key: Int): Bool = self.get(key).is_some();
+
+# It's O(n).
+@method(Node)
+let contains_data<T>(self: Node(T), data: T): Bool = {
+    self.data == data ||
+    match self.right {
+        Some($child) => child.contains_data(data),
+        None => False,
+    } ||
+    match self.left {
+        Some($child) => child.contains_data(data),
+        None => False,
+    }
+};
+
+#> It returns `None` if the `key` already exists.
+@method(Node)
+let insert<T>(self: Node(T), key: Int, data: T): Option(Node(T)) = {
+    if self.key < key {
+        match self.right {
+            Some($child) => match child.insert(key, data) {
+                Some($child) => Some(self `right child),
+                None => None,
+            },
+            None => Some(self `right Some(Node {
+                key: key,
+                data: data,
+                left: None,
+                right: None,
+            })),
+        }
+    }
+
+    else if self.key > key {
+        match self.left {
+            Some($child) => match child.insert(key, data) {
+                Some($child) => Some(self `left child),
+                None => None,
+            },
+            None => Some(self `left Some(Node {
+                key: key,
+                data: data,
+                left: None,
+                right: None,
+            })),
+        }
+    }
+
+    else {
+        None
+    }
+};
+
+#> It returns `None` if the `key` does not exist.
+@method(Node)
+let update<T>(self?: Node(T), key: Int, data: T): Option(Node(T)) = {
+    if self.key < key {
+        self.right?.update(key, data)
+    }
+
+    else if self.key > key {
+        self.left?.update(key, data)
+    }
+
+    else {
+        Some(self `data data)
+    }
+};
+
+#> insert + update
+@method(Node)
+let upsert<T>(self: Node(T), key: Int, data: T): Node(T) = {
+    if self.key < key {
+        match self.right {
+            Some($child) => self `right child.upsert(key, data),
+            None => self `right Some(Node {
+                key: key,
+                data: data,
+                left: None,
+                right: None,
+            }),
+        }
+    }
+
+    else if self.key > key {
+        match self.left {
+            Some($child) => self `left child.upsert(key, data),
+            None => self `left Some(Node {
+                key: key,
+                data: data,
+                left: None,
+                right: None,
+            }),
+        }
+    }
+
+    else {
+        self `data data
+    }
+};
+
+#> You cannot check whether `key` exists or not. It does
+#> nothing if the key doesn't exist. It returns `None` if
+#> `key` is deleted and there's no other node in the tree.
+@method(Node)
+let delete<T>(self: Node(T), key: Int): Option(Node(T)) = {
+    if self.key < key {
+        match self.right {
+            Some($child) => self `right child.delete(key),
+            None => Some(self),
+        }
+    }
+
+    else if self.key > key {
+        match self.left {
+            Some($child) => self `left child.delete(key),
+            None => Some(self),
+        }
+    }
+
+    # delete this node and replace it with one of its child node
+    else {
+        match self.right {
+            Some($child) => {
+                let replacement = child.get_leftmost();
+
+                Some(Node {
+                    key: replacement.key,
+                    data: replacement.data,
+                    left: self.left,
+                    right: child.remove_leftmost(),
+                })
+            },
+            None => match self.left {
+                Some($child) => {
+                    let replacement = child.get_rightmost();
+
+                    Some(Node {
+                        key: replacement.key,
+                        data: replacement.data,
+                        left: child.remove_rightmst(),
+                        right: self.right,
+                    })
+                },
+
+                # there's no need to replace anything
+                None => None,
+            },
+        }
+    }
+};
+
+@method(Node)
+let get_leftmost<T>(self: Node(T)): Node(T) = match self.left {
+    Some($child) => child.get_leftmost(),
+    None => self,
+};
+
+@method(Node)
+let get_rightmost<T>(self: Node(T)): Node(T) = match self.right {
+    Some($child) => child.get_rightmost(),
+    None => self,
+};
+
+@method(Node)
+let remove_leftmost<T>(self: Node(T)): Option(Node(T)) = {
+    # TODO...
+};
+
+@method(Node)
+let remove_rightmost<T>(self: Node(T)): Option(Node(T)) = {
+    # TODO...
+};
+
+@method(Node)
+let count<T>(self: Node(T)): Int = {
+    let count_right = match self.right {
+        Some($child) => child.count(),
+        None => 0,
+    };
+    let count_left = match self.left {
+        Some($child) => child.count(),
+        None => 0,
+    };
+
+    # children + self
+    count_left + count_right + 1
+};
+
+@method(Node)
+let is_valid(self: Node(T)): Bool = {
+    match self.right {
+        Some($child) => child.key > self.key && child.is_valid(),
+        None => True,
+    } &&
+    match self.left {
+        Some($child) => child.key < self.key && child.is_valid(),
+        None => True,
+    }
+};

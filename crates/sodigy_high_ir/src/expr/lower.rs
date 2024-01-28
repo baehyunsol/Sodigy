@@ -26,6 +26,7 @@ use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;

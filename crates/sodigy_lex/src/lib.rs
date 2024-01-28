@@ -6,11 +6,13 @@ mod num;
 mod tests;
 mod token;
 mod session;
+mod warn;
 
 pub use error::LexError;
 use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 
 use sodigy_error::{ErrorContext, SodigyError};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
 use sodigy_test::{sodigy_assert, TEST_MODE};
 
@@ -151,7 +153,7 @@ pub fn lex(
                                     }
                                 };
 
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind,
                                     span: span_start.offset(index as i32).into_range(),
                                 });
@@ -214,7 +216,7 @@ pub fn lex(
                                         },
                                     };
 
-                                    session.push_token(Token {
+                                    session.push_result(Token {
                                         kind: TokenKind::String {
                                             kind: (*marker).into(),
                                             content,
@@ -246,7 +248,7 @@ pub fn lex(
                                         },
                                     };
 
-                                    session.push_token(Token {
+                                    session.push_result(Token {
                                         kind: TokenKind::Comment {
                                             kind: comment_kind,
                                             content,
@@ -289,7 +291,7 @@ pub fn lex(
                                             session.push_error(LexError::invalid_utf8(curr_token_span_start.into_range()));
                                             return Err(());
                                         }
-                                        session.push_token(Token {
+                                        session.push_result(Token {
                                             kind: TokenKind::Comment {
                                                 kind: CommentKind::Multi,
                                                 content: String::new(),
@@ -331,7 +333,7 @@ pub fn lex(
                                 span: curr_token_span_start.extend(span_start.offset(index as i32)),
                             };
 
-                            session.push_token(token);
+                            session.push_result(token);
                             tmp_buf.clear();
                             curr_state = LexState::Init;
                             continue;
@@ -365,7 +367,7 @@ pub fn lex(
                                 return Err(());
                             },
                             _ => {
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -411,7 +413,7 @@ pub fn lex(
                                 return Err(());
                             },
                             _ => {
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -438,7 +440,7 @@ pub fn lex(
                                 tmp_buf.pop().unwrap();
                                 index -= 1;
 
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -447,7 +449,7 @@ pub fn lex(
                                 continue;
                             },
                             _ => {
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -481,7 +483,7 @@ pub fn lex(
                                 return Err(());
                             },
                             _ => {
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -531,7 +533,7 @@ pub fn lex(
                                 return Err(());
                             },
                             _ => {
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(tmp_buf.clone()),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -574,7 +576,7 @@ pub fn lex(
                                     },
                                 };
 
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -617,7 +619,7 @@ pub fn lex(
                                     },
                                 };
 
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -660,7 +662,7 @@ pub fn lex(
                                     },
                                 };
 
-                                session.push_token(Token {
+                                session.push_result(Token {
                                     kind: TokenKind::Number(result),
                                     span: curr_token_span_start.extend(span_start.offset(index as i32)),
                                 });
@@ -697,14 +699,14 @@ pub fn lex(
                             span: curr_token_span_start.extend(span_start.offset(index as i32)),
                         };
 
-                        session.push_token(token);
+                        session.push_result(token);
                     },
                     LexState::NumberInit
                     | LexState::NumberInitZero
                     | LexState::NumberDecimalPointInit
                     | LexState::NumberDecimalPoint
                     | LexState::NumberExp => {
-                        session.push_token(Token {
+                        session.push_result(Token {
                             kind: TokenKind::Number(tmp_buf.clone()),
                             span: curr_token_span_start.extend(span_start.offset(index as i32)),
                         });
@@ -733,7 +735,7 @@ pub fn lex(
                         }
 
                         else {
-                            session.push_token(Token {
+                            session.push_result(Token {
                                 kind: TokenKind::Number(tmp_buf.clone()),
                                 span: curr_token_span_start.extend(span_start.offset(index as i32)),
                             });
@@ -754,7 +756,7 @@ pub fn lex(
                     LexState::Init | LexState::Comment { .. } => {}
                 }
 
-                if TEST_MODE { session.get_tokens().iter().for_each(|token| token.assert_valid_span()); }
+                if TEST_MODE { session.get_results().iter().for_each(|token| token.assert_valid_span()); }
                 return Ok(());
             }
         }

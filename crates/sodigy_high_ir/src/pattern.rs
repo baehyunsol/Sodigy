@@ -2,6 +2,7 @@ use crate::{HirError, HirSession, HirWarning, Type};
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
 mod endec;

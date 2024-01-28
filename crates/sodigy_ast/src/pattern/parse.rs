@@ -10,6 +10,7 @@ use smallvec::SmallVec;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
 // operators

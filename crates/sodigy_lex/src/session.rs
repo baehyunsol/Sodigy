@@ -1,15 +1,18 @@
 use crate::error::LexError;
 use crate::token::{Token, TokenKind};
+use crate::warn::LexWarning;
 
-use sodigy_error::{ErrorContext, SodigyError};
-use sodigy_intern::{InternSession, InternedString};
+use sodigy_intern::InternSession;
+use sodigy_session::{SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
 
 #[derive(Clone)]
 pub struct LexSession {
     tokens: Vec<Token>,
     errors: Vec<LexError>,
+    warnings: Vec<LexWarning>,
     interner: InternSession,
+    snapshots: Vec<SessionSnapshot>,
 }
 
 impl LexSession {
@@ -17,33 +20,10 @@ impl LexSession {
         LexSession {
             tokens: vec![],
             errors: vec![],
+            warnings: vec![],
             interner: InternSession::new(),
+            snapshots: vec![],
         }
-    }
-
-    pub fn intern_string(&mut self, ident: Vec<u8>) -> InternedString {
-        self.interner.intern_string(ident)
-    }
-
-    pub fn push_token(&mut self, token: Token) {
-        self.tokens.push(token);
-    }
-
-    pub fn push_error(&mut self, mut error: LexError) {
-        error.try_set_err_context(Some(ErrorContext::Lexing));
-        self.errors.push(error);
-    }
-
-    pub fn get_tokens(&self) -> &Vec<Token> {
-        &self.tokens
-    }
-
-    pub fn get_interner(&self) -> &InternSession {
-        &self.interner
-    }
-
-    pub fn get_errors(&self) -> &Vec<LexError> {
-        &self.errors
     }
 
     pub fn flush_tokens(&mut self) {
@@ -67,5 +47,43 @@ impl LexSession {
                 });
             }
         }
+    }
+}
+
+impl SodigySession<LexError, LexWarning, Vec<Token>, Token> for LexSession {
+    fn get_errors(&self) -> &Vec<LexError> {
+        &self.errors
+    }
+
+    fn get_errors_mut(&mut self) -> &mut Vec<LexError> {
+        &mut self.errors
+    }
+
+    fn get_warnings(&self) -> &Vec<LexWarning> {
+        &self.warnings
+    }
+
+    fn get_warnings_mut(&mut self) -> &mut Vec<LexWarning> {
+        &mut self.warnings
+    }
+
+    fn get_results(&self) -> &Vec<Token> {
+        &self.tokens
+    }
+
+    fn get_results_mut(&mut self) -> &mut Vec<Token> {
+        &mut self.tokens
+    }
+
+    fn get_interner(&mut self) -> &mut InternSession {
+        &mut self.interner
+    }
+
+    fn get_interner_cloned(&self) -> InternSession {
+        self.interner.clone()
+    }
+
+    fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
+        &mut self.snapshots
     }
 }

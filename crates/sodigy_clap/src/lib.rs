@@ -354,6 +354,7 @@ pub fn parse_cli_args() -> ClapSession {
             result: comp_option,
             errors,
             warnings,
+            ..ClapSession::default()
         };
 
         res

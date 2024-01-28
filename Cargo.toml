@@ -21,6 +21,7 @@ members = [
     "crates/sodigy_mid_ir",
     "crates/sodigy_parse",
     "crates/sodigy_prelude",
+    "crates/sodigy_session",
     "crates/sodigy_span",
     "crates/sodigy_test",
     "crates/sodigy_uid",
@@ -41,6 +42,7 @@ sodigy_mid_ir = { path = "crates/sodigy_mid_ir" }
 sodigy_number = { path = "crates/sodigy_number" }
 sodigy_parse = { path = "crates/sodigy_parse" }
 sodigy_prelude = { path = "crates/sodigy_prelude" }
+sodigy_session = { path = "crates/sodigy_session" }
 sodigy_span = { path = "crates/sodigy_span" }
 sodigy_test = { path = "crates/sodigy_test" }
 sodigy_uid = { path = "crates/sodigy_uid" }

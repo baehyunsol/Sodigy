@@ -379,3 +379,29 @@ fallible한 거는 어떻게 나타냄? 이것도 infix operator로 나타내?
 둘 다 굳이...
 
 아니면 `A as Int`, `A as Option(Int)`로 해도 되지 않음??
+
+---
+
+Tuple의 type annotation을 `(Int, Int)`로 하지말고 `Tuple(Int, Int)`로 할까? 컴파일러 구현하는 거는 이게 훨씬 간단할 듯??
+
+---
+
+methods
+
+```
+@method(Node(T))
+let get<T>(self: Node(T), key: Int): T = { ... };
+```
+
+1. `get`의 첫번째 arg의 type은 `Node(T)`이어야 함. 첫번째 arg의 이름은 상관없지만 conventionally `self`라고 씀
+  - `@method(Node)`라고 쓰면 안됨! `@method(Node(T))`라고 써야 함! 그래야 `@method(Node(Int))`같은 표현도 가능하거든...
+  - `@method(Node)`라고만 쓰면 자동으로 `@method(Node(T))`라고 생각하게 할까??
+  - `@method(Node)`라고만 쓰면 `self`의 type을 가져오도록 할까?
+2. MIR이 `node.get(3)`을 발견하면 `node`의 type을 검사한 뒤, `get`이라는 field가 없으면 자동으로 `get(node, 3)`으로 desugar함.
+  - `get`이라는 field가 있으면? 그거는 `@method(Node(T))`를 처리하는 친구가 에러를 날릴 거임!
+  - 단순히 `get(node, 3)`으로 desugar하는게 아니고, 좀 더 복잡한 이름을 쓰는게 나을 수도? `[].get(3)`하고 `node.get(3)`하고 이름 충돌이 있으면 안되잖아. 근데 또 이거는 어차피 uid로 구분할 거니까 상관없을 거 같기도 하고...
+3. 사용자가 `get(node, 3)`이라고 쓰는 거는 안됨.
+4. `get<T>(self?: Node(T))`도 됨??
+  - 이게 돼야 `tree.sdg`가 작동함.
+  - 이게 되려면 `@method(Questioned(Node(T)))`가 안되게 만들어야 함!
+  - 저걸 금지시켜야 `node?.get()`을 했을 때 안 헷갈리지...

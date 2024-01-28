@@ -14,6 +14,7 @@ use crate::session::HirSession;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 

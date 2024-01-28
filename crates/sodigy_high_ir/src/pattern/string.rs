@@ -1,6 +1,7 @@
 use crate::HirSession;
 use crate::error::HirError;
 use sodigy_ast::{self as ast, IdentWithSpan};
+use sodigy_session::SodigySession;
 
 #[derive(Clone)]
 pub struct StringPattern {

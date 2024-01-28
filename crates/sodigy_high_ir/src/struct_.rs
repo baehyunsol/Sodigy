@@ -3,6 +3,7 @@ use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -40,7 +41,7 @@ pub fn lower_ast_struct(
         name_space,
     ) {
         f.kind = FuncKind::StructConstr;
-        session.func_defs.insert(name.id(), f);
+        session.get_results_mut().insert(name.id(), f);
 
         Ok(())
     } else {

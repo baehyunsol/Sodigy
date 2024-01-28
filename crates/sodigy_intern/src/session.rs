@@ -10,7 +10,7 @@ use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
 
 #[derive(Clone)]
-pub struct Session {
+pub struct LocalInternSession {
     pub(crate) local_string_table: HashMap<Vec<u8>, InternedString>,
     pub(crate) local_string_table_rev: HashMap<InternedString, Vec<u8>>,
 
@@ -18,7 +18,7 @@ pub struct Session {
     pub(crate) local_numeric_table_rev: HashMap<InternedNumeric, SodigyNumber>,
 }
 
-impl Session {
+impl LocalInternSession {
     pub fn new() -> Self {
         let keywords = keywords();
 
@@ -30,7 +30,7 @@ impl Session {
             local_string_table_rev.insert((index as u32).into(), keyword.to_utf8());
         }
 
-        Session {
+        LocalInternSession {
             local_string_table,
             local_string_table_rev,
             local_numeric_table: HashMap::new(),

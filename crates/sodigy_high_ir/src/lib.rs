@@ -3,6 +3,7 @@
 use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan, LetKind, StmtKind};
 use sodigy_intern::InternedString;
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -177,10 +178,10 @@ pub fn lower_stmts(
 
                         // TODO: `try_convert_closures_to_lambdas` on these
                         for func in lambda_context.collected_lambdas.into_iter() {
-                            session.func_defs.insert(func.name.id(), func);
+                            session.get_results_mut().insert(func.name.id(), func);
                         }
 
-                        session.func_defs.insert(f.name.id(), f);
+                        session.get_results_mut().insert(f.name.id(), f);
                     },
                     LetKind::Enum {
                         name,

@@ -45,6 +45,7 @@ use sodigy_intern::try_intern_short_string;
 use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
@@ -67,7 +68,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             vec![],  // Attributes
                         ) {
                             Ok(l) => {
-                                session.push_stmt(Stmt {
+                                session.push_result(Stmt {
                                     kind: StmtKind::Let(l),
                                     span: keyword_span,
                                 });
@@ -97,7 +98,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                             continue;
                         }
 
-                        session.push_stmt(Stmt {
+                        session.push_result(Stmt {
                             kind: StmtKind::Module(mod_name, Uid::new_module()),
                             span,
                         });
@@ -105,7 +106,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                     Keyword::Import => {
                         match parse_import(tokens, session, keyword_span) {
                             Ok(i) => {
-                                session.push_stmt(Stmt {
+                                session.push_result(Stmt {
                                     kind: StmtKind::Import(i),
                                     span: keyword_span,
                                 });
@@ -140,7 +141,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
 
                 match parse_decorator(at_span, tokens, session) {
                     Ok((deco, span)) => {
-                        session.push_stmt(Stmt {
+                        session.push_result(Stmt {
                             kind: StmtKind::Decorator(deco),
                             span,
                         });
@@ -157,7 +158,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
             }) => {
                 let doc_comment_span = *doc_comment_span;
 
-                session.push_stmt(Stmt {
+                session.push_result(Stmt {
                     kind: StmtKind::DocComment(*comment),
                     span: doc_comment_span,
                 });
