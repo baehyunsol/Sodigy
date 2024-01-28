@@ -132,7 +132,7 @@ impl SodigyError<ParseErrorKind> for ParseError {
     }
 
     fn index(&self) -> u32 {
-        8
+        9
     }
 }
 

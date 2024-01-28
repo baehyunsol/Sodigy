@@ -1,4 +1,5 @@
-use sodigy_error::UniversalError;
+use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
+use sodigy_session::{SessionOutput, SodigySession};
 use std::collections::HashSet;
 
 #[derive(Default)]
@@ -24,6 +25,24 @@ impl CompilerOutput {
             show_overall_result: true,
             error_hashes: HashSet::new(),
             warning_hashes: HashSet::new(),
+        }
+    }
+
+    pub fn collect_errors_and_warnings_from_session<S, E, W, O1, O2, Ek, Wk>(&mut self, session: &S)
+    where
+        S: SodigySession<E, W, O1, O2>,
+        E: SodigyError<Ek>,
+        W: SodigyError<Wk>,
+        O1: SessionOutput<O2>,
+        Ek: SodigyErrorKind,
+        Wk: SodigyErrorKind,
+    {
+        for error in session.get_errors().iter() {
+            self.push_error(error.to_universal());
+        }
+
+        for warning in session.get_warnings().iter() {
+            self.push_warning(warning.to_universal());
         }
     }
 

@@ -2,7 +2,9 @@
 
 Purely functional Rust-like programming language.
 
-It's still under development. Only parser and lexer are (partially) complete.
+It's still under development.
+
+In order to build the compiler, read [this](Build.md).
 
 ## Goal of Sodigy
 
@@ -64,7 +66,7 @@ let add(x: Int, y: Int) = {
 You can destruct patterns with `let pattern`.
 
 ```
-let ($x, $y) = (0, 1);
+let pattern ($x, $y) = (0, 1);
 ```
 
 is equivalent to
@@ -78,7 +80,7 @@ In patterns, name bindings are prefixed with `$`. You can also destruct more com
 
 ```
 let get_age(s: Student): Int = {
-    let Student { age: $age, .. } = s;
+    let pattern Student { age: $age, .. } = s;
 
     age
 };
@@ -143,13 +145,13 @@ Since `id` is not generic, `x` must have a single, concrete type. If `x` has typ
 
 ### Lambda Functions
 
-The syntax of lambda functions is very simple: parameters and the body is inside a curly brace, and the curly brace follows a backslash (`\`).
+The syntax of lambda functions is very simple: parameters and the body are inside a curly brace, and the curly brace follows a backslash (`\`).
 
 ```
 \{x: Int, y, x + y}
 ```
 
-Above is an anonymous function that takes two integers and returns the sum of the integers.
+Above is an anonymous function that takes two integers and returns the sum of the integers. The last element inside the curly brace is the body of the lambda, and the others are its arguments.
 
 Lambda functions can also capture its environment (closures).
 
@@ -199,7 +201,7 @@ let bytes = {
 
 ### Character
 
-A `Char` in Sodigy represents a UTF-8 code point. It's a very thin wrapper over an integer.
+A `Char` in Sodigy represents a code point. It's a very thin wrapper over an integer.
 
 ```
 @test.true
@@ -224,7 +226,8 @@ It'd be very familiar if you know Rust/Haskell/Elixir, or any other functional l
 It's like `if let` of the Rust language, but the keyword is different.
 
 ```
-let x = if pattern Some($x) = foo() { x } else { 0 };
+let foo: Option(Int) = Some(3);
+let x = if pattern Some($x) = foo { x } else { 0 };
 ```
 
 ### `match` expressions
@@ -233,10 +236,10 @@ The syntax resembles that of Rust, except that it requires `$` before a name bin
 
 ```
 match foo() {
-    Option.Some([$a, $b, $c, ..]) => $a + $b + 1,  # more than 2 elements
+    Option.Some([$a, $b, $c, ..]) => $a + $b + 1,  # at least 3 elements
     Option.Some([$a, $b]) => $a + $b,  # exactly 2 elements
     Option.Some([]) => 0,
-    Option.Some(_) => -1,  # matches any
+    Option.Some(_) => -1,  # matches any list
     Option.None => -2,
 }
 ```
@@ -290,11 +293,11 @@ There's no named tuple in Sodigy. All the fields in structs must have a name.
 
 ### Tuple
 
-TODO: write document
+Tuples are like that in C++/Rust and Python. You can pack values with different types in a tuple.
 
 ```
 # it's how a type annotation of a tuple looks like
-let a: (Int, Int, String) = (3, 4, "a");
+let a: Tuple(Int, Int, String) = (3, 4, "a");
 
 # it's how you access an element in a tuple
 @test.eq(3)
@@ -309,14 +312,15 @@ let b = a._0;
 
 ### `` ` ``
 
-You can make an infix-operator using `` ` ``. An operator is `` ` `` followed by an identifier without whitespace. The operator modifies a value of a field. The identifier is the name of the field that you want to modify. See how `` `age `` works below.
+You can make an infix-operator using a backtick (`` ` ``). An operator is `` ` `` followed by an identifier without whitespace. The operator modifies a value of a field. The identifier is the name of the field that you want to modify. See how `` `age `` works below.
 
 ```
-struct Person {
+let struct Person = {
     age: Int,
     name: String,
-}
+};
 
+# it modifies the `age` field of `p` and returns the modified version
 let set_age(p: Person, new_age: Int): Person = p `age new_age;
 
 @test.eq(Person("Bae", 23))
@@ -344,9 +348,36 @@ TODO: docs for append operator
 
 ### `..`
 
-`..` makes an exclusive range. For example, `1..4` is a range from 1 to 3, and `'a'..'c'` is `'a'` and `'b'`. An extra argument can set the step of the range. For example, `1..10..2` is `1`, `3`, `5`, `7`, and `9`. Negative steps are also possible.
+`..` makes an exclusive range. For example, `1..4` is a range: 1, 2, and 3, and `'a'..'c'` is `'a'` and `'b'`. An extra argument can set the step of the range. For example, `1..10..2` is `1`, `3`, `5`, `7`, and `9`. Negative steps are also possible.
 
 You can index lists and strings with a range. For example, `a[0..3]` takes the first 3 elements of `a`. Or, `a[-3..]` takes the last 3 elements.
+
+`..` operators are also used in patterns, but they mean a bit different in that case. See the examples below.
+
+```
+if pattern 0..3 = x {
+  "x is 0, 1, or 2!"
+} else {
+  f"x is \{x}"
+}
+```
+
+For numbers and characters, `..` in patterns are just range operators, like that in expressions. But you can also use `..` in string patterns. See below.
+
+```
+if pattern "ab".."cd" = x {
+  "`x` starts with \"ab\" and ends with \"cd\"!"
+} else {
+  x
+}
+```
+
+`"ab".."cd"` means a string that starts with `"ab"` and ends with `"bc"`. It's not a range operator, but a concat operator. You can also chain multiple strings, like below.
+
+```
+@test.true
+let multiple_strings = if pattern "ab".."cd".."ef" = "aabbccddeeff" { True } else { False };
+```
 
 ### `..~`
 
@@ -356,11 +387,13 @@ It's very useful in some cases. For example, if you want a pattern that covers l
 
 ### `in`
 
-TODO: write doc
+`in` checks membership. It's like `.contains` in Rust, or `in` operator in Python.
 
 ### `as`
 
-TODO: write doc
+`as` operator casts types.
+
+TODO: semantics of `as` in fallible and infallible cases. ex) `"3" as Int` and `"x" as Int`
 
 ### `?`
 
@@ -436,7 +469,7 @@ Sodigy has `&&` and `||`: 'logical and' and 'logical or'. Only `Bool` type imple
 
 ### Bitwise operators
 
-Sodigy has `^`, `&` and `|`. `>>` and `<<` are WIP. Sodigy's bitwise operation is a bit different from other languages. Integers in Sodigy has an arbitrary length, like in Python. That means binary representation of `7` in Sodigy has three `1`s and infinite number of leading `0`s. Due to this, there's no `~` in Sodigy. `~` on any positive number will result in infinite (not sure whether that's positive or not).
+Sodigy has `^`, `&` and `|`. `>>` and `<<` are WIP. Sodigy's bitwise operation is a bit different from other languages. Integers in Sodigy have arbitrary lengths, like in Python. That means binary representation of `7` in Sodigy has three `1`s and infinite number of leading `0`s. Due to this, there's no `~` in Sodigy. `~` on any positive number will result in infinite (not sure whether that's positive or not).
 
 That also makes bitwise operations on negative numbers very complicated. There's no 2's complement or 1's complement in Sodigy. It internally uses a sign bit, but we cannot apply bitwise operations on that. So it raises a runtime error when you try to do bitwise operations on negative numbers. This might change in the future.
 
@@ -478,7 +511,9 @@ let add(x: Int, y: Int): Int = x + y;
 
 ## Macros
 
-TODO
+`@[macro1](x, y, z)`.
+
+TODO: no specs for macros yet
 
 ## For Rust programmers
 

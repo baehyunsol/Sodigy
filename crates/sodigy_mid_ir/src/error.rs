@@ -77,7 +77,7 @@ impl SodigyError<MirErrorKind> for MirError {
     }
 
     fn index(&self) -> u32 {
-        7
+        8
     }
 }
 

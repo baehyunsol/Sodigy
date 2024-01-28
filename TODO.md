@@ -45,7 +45,7 @@ std macros
     - `let max3(x, y, z) = if x > y { if y > z || x > z { x } else { z } } else if y > z { y } else { z }`
 - `@[min](a, b)`
   - see `max`
-- `@[map](x: y, z: w, 0: 1)`
+- `@[table](x: y, z: w, 0: 1)`
   - like that of Python
 - `@[set](x, y, z)`
   - like that of Python
@@ -405,3 +405,11 @@ let get<T>(self: Node(T), key: Int): T = { ... };
   - 이게 돼야 `tree.sdg`가 작동함.
   - 이게 되려면 `@method(Questioned(Node(T)))`가 안되게 만들어야 함!
   - 저걸 금지시켜야 `node?.get()`을 했을 때 안 헷갈리지...
+
+---
+
+240128
+
+error가 있는 session을 intermediate representation으로 저장하고 (예시: tokens), 나중에 걔를 불러와서 다시 돌리면 render_spans에서 죽음: 아마 span에 있는 파일 정보가 등록이 안돼서 그런 듯??
+
+지금 `samples/tests/tree.sdg`하면 error가 2개가 나야하는데 하나만 남...

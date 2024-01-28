@@ -22,9 +22,9 @@ Like other compilers, Sodigy compiler goes through multiple steps to compile.
   - It's not that different from AST, except that most names are resolved in this stage. Only names within the same file are resolved. Functions and constants that are used by multiple files are resolved and analysed at MIR stage.
   - HIR is the basic building block for incremental compilation. 99% of HIR can be built from a single file (except custom macros), and that makes it easy to reuse HIRs built at previous compilations.
   - `hir_stage` generates HIR from `TokenTree`s.
-6. Mid level Intermediate Representation (Not yet)
+6. Mid level Intermediate Representation (WIP)
   - In this stage, all the names are fully resolved.
-  - Now that it can find the origin of all the values, it checks and infers types. This stage is where most of the analysis are done.
+  - Now that it can find the origin of all the values, it checks and infers types. This stage is where most of the analysis and optimizations are done.
 7. Low level Intermediate Representation (Not yet)
 8. Output (Not yet)
   - C code vs LLVM IR vs Cranelift vs Machine Code
@@ -39,7 +39,7 @@ In order to make the life of programmers easier, the compiler tries to emit as m
 
 ## Sodigy-first
 
-If you're implementing a Sodigy function, it has to be written in Sodigy. For example, a sqrt function can be implemented either in C (and all the other backends) or Sodigy. It has to be in Sodigy. Everything has to be in Sodigy except very primitive functions.
+If you're implementing a Sodigy function, it has to be written in Sodigy. Writing a function in C (and all the other backends) might give you a better performance, but I don't want more dependencies to manage. Everything has to be in Sodigy except very primitive functions.
 
 That's one of the reason Sodigy uses rational numbers instead of floating point numbers.
 

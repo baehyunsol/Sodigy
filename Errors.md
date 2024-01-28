@@ -1,4 +1,4 @@
-Most error messages and warning messages are from Rust.
+Error messages in Rust... for inspiration :)
 
 - Warnings
   - ``` `sdg_ast` (lib) generated 16 warnings (run `cargo fix --lib -p sdg_ast` to apply 10 suggestions) ```

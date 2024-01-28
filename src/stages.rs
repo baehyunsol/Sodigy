@@ -2,7 +2,7 @@ use crate::{CompilerOutput, SAVE_IRS_AT};
 use sodigy_ast::{parse_stmts, AstSession, Tokens};
 use sodigy_clap::{CompilerOption, IrStage};
 use sodigy_endec::{Endec, EndecError, EndecErrorContext, EndecErrorKind};
-use sodigy_error::{SodigyError, UniversalError};
+use sodigy_error::UniversalError;
 use sodigy_files::{
     create_dir,
     exists,
@@ -52,14 +52,7 @@ pub fn parse_file(
             if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, FILE_EXT_TOKENS) {
                 match s {
                     Ok(session) => {
-                        // TODO: this pattern is used over and over...
-                        for error in session.get_errors() {
-                            compiler_output.push_error(error.to_universal());
-                        }
-
-                        for warning in session.get_warnings() {
-                            compiler_output.push_warning(warning.to_universal());
-                        }
+                        compiler_output.collect_errors_and_warnings_from_session(&session);
 
                         // TODO: this if statement is duplicate
                         if compiler_option.dump_tokens {
@@ -117,9 +110,7 @@ pub fn parse_file(
     let mut lex_session = LexSession::new();
 
     if let Err(()) = lex(code, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
-        for error in lex_session.get_errors() {
-            compiler_output.push_error(error.to_universal());
-        }
+        compiler_output.collect_errors_and_warnings_from_session(&lex_session);
 
         return (None, compiler_output);
     }
@@ -130,19 +121,10 @@ pub fn parse_file(
 
     let res = from_tokens(tokens, &mut parse_session, &mut new_lex_session);
 
-    for warning in parse_session.get_warnings() {
-        compiler_output.push_warning(warning.to_universal());
-    }
+    compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
+    compiler_output.collect_errors_and_warnings_from_session(&parse_session);
 
-    if let Err(()) = res {
-        for error in parse_session.get_errors() {
-            compiler_output.push_error(error.to_universal());
-        }
-
-        for error in new_lex_session.get_errors() {
-            compiler_output.push_error(error.to_universal());
-        }
-
+    if res.is_err() {
         (None, compiler_output)
     }
 
@@ -208,14 +190,7 @@ pub fn hir_from_tokens(
             if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
                 match s {
                     Ok(session) => {
-                        // TODO: this pattern is used over and over...
-                        for error in session.get_errors() {
-                            compiler_output.push_error(error.to_universal());
-                        }
-
-                        for warning in session.get_warnings() {
-                            compiler_output.push_warning(warning.to_universal());
-                        }
+                        compiler_output.collect_errors_and_warnings_from_session(&session);
 
                         // TODO: this if statement is duplicate
                         if compiler_option.dump_hir {
@@ -245,19 +220,10 @@ pub fn hir_from_tokens(
                 // This file contains ParseSession
                 Some(IrStage::Tokens) => match ParseSession::load_from_file(file, None) {
                     Ok(parse_session) => {
-                        let mut has_error = false;
-
-                        for error in parse_session.get_errors() {
-                            compiler_output.push_error(error.to_universal());
-                            has_error = true;
-                        }
-
-                        for warning in parse_session.get_warnings() {
-                            compiler_output.push_warning(warning.to_universal());
-                        }
+                        compiler_output.collect_errors_and_warnings_from_session(&parse_session);
 
                         // We don't allow an erroneous session to continue compilation
-                        if has_error {
+                        if parse_session.has_error() {
                             return (None, compiler_output);
                         }
 
@@ -278,14 +244,7 @@ pub fn hir_from_tokens(
                 },
                 Some(IrStage::HighIr) => match HirSession::load_from_file(file, None) {  // HirSession is already here!
                     Ok(hir_session) => {
-                        for error in hir_session.get_errors() {
-                            compiler_output.push_error(error.to_universal());
-                        }
-
-                        for warning in hir_session.get_warnings() {
-                            compiler_output.push_warning(warning.to_universal());
-                        }
-
+                        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
                         return (Some(hir_session), compiler_output);
                     },
                     Err(e) => {
@@ -347,30 +306,18 @@ pub fn hir_from_tokens(
     let mut tokens = Tokens::from_vec(&mut tokens);
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
-    for warning in ast_session.get_warnings() {
-        compiler_output.push_warning(warning.to_universal());
-    }
+    compiler_output.collect_errors_and_warnings_from_session(&ast_session);
 
-    if let Err(()) = res {
-        for error in ast_session.get_errors() {
-            compiler_output.push_error(error.to_universal());
-        }
-
+    if res.is_err() {
         return (None, compiler_output);
     }
 
     let mut hir_session = HirSession::new();
     let res = lower_stmts(ast_session.get_results(), &mut hir_session);
 
-    for warning in hir_session.get_warnings() {
-        compiler_output.push_warning(warning.to_universal());
-    }
+    compiler_output.collect_errors_and_warnings_from_session(&hir_session);
 
-    if let Err(()) = res {
-        for error in hir_session.get_errors() {
-            compiler_output.push_error(error.to_universal());
-        }
-
+    if res.is_err() {
         (None, compiler_output)
     }
 

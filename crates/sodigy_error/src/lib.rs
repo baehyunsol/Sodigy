@@ -107,10 +107,11 @@ pub trait SodigyError<K: SodigyErrorKind> {
     // This function is VERY VERY EXPENSIVE.
     fn render_error(&self, render_title: bool) -> String {
         let mut intern_session = InternSession::new();
+        let is_warning = self.is_warning();
         let title = if render_title {
             format!("{}\n", render_error_title(
                 self.get_error_info().context.render_error(),
-                self.is_warning(),
+                is_warning,
             ))
         } else {
             String::new()
@@ -118,7 +119,12 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
         let kind = self.err_kind();
 
-        let msg = kind.msg(&mut intern_session);
+        let msg = format!(
+            "{}{:04}: {}",
+            if is_warning { "W" } else { "E" },
+            self.index() * 100 + self.err_kind().index(),
+            kind.msg(&mut intern_session),
+        );
         let help = match kind.help(&mut intern_session) {
             s if s.is_empty() => String::new(),
             s => format!("\nHelp: {s}"),
