@@ -3,6 +3,9 @@ use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl Endec for SpanRange {
     fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+        // EndecSession will update the FileSession when decoding
+        session.register_file_hash(self.file);
+
         self.file.encode(buf, session);
         self.start.encode(buf, session);
         self.end.encode(buf, session);

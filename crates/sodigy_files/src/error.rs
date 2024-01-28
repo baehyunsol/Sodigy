@@ -67,6 +67,14 @@ impl FileError {
         }
     }
 
+    pub fn hash_changed(path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::HashChanged,
+            given_path: Some(path.to_string()),
+            context: FileErrorContext::None,
+        }
+    }
+
     pub fn cannot_create_file(there_exists_a_dir: bool, path: &str) -> Self {
         FileError {
             kind: FileErrorKind::CannotCreateFile { there_exists_a_dir },
@@ -122,6 +130,9 @@ impl FileError {
             FileErrorKind::HashCollision => format!(
                 "hash collision: `{path}`"
             ),
+            FileErrorKind::HashChanged => format!(
+                "broken hash value of `{path}`"
+            ),
             FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
                 let (has_to_create, there_exists) = if *there_exists_a_dir {
                     ("file", "directory")
@@ -160,11 +171,18 @@ pub enum FileErrorKind {
     OsStrErr(OsString),
     Unknown(String),
 
-    // Sodigy specific errors
+    // Sodigy specific errors from here
     InvalidFileHash(FileHash),
     MetadataNotSupported,
     ModifiedWhileCompilation,
     HashCollision,
+
+    // only returned by `FileSession::try_register_hash_and_file`
+    //
+    // Some objects deal with hash values of paths.
+    // if the hash values of the same path changes (mostly when the compiler is updated),
+    // this error is thrown
+    HashChanged,
 
     // Its name is misleading... but I can't think of any better one
     // it's raised when
@@ -200,8 +218,9 @@ impl FileErrorKind {
             FileErrorKind::MetadataNotSupported => 3,
             FileErrorKind::ModifiedWhileCompilation => 4,
             FileErrorKind::HashCollision => 5,
+            FileErrorKind::HashChanged => 6,
             FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
-                ((*there_exists_a_dir as u64) << 4) | 6
+                ((*there_exists_a_dir as u64) << 4) | 7
             },
         }
     }

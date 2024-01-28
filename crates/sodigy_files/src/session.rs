@@ -7,12 +7,8 @@ use std::hash::Hasher;
 pub type FileHash = u64;
 pub type Path = String;
 
-// I want to make sure that `register_tmp_file("a.sdg")`
-// and `register_file("a.sdg")` doesn't kill each other
-const TMP_FILE_HASH_KEY: u64 = 11;
-
 pub struct FileSession {
-    tmp_files: HashMap<FileHash, Vec<u8>>,  // used for tests
+    tmp_files: HashMap<FileHash, Vec<u8>>,  // raw inputs
     files: HashMap<FileHash, Path>,
     tmp_files_rev: HashMap<Vec<u8>, FileHash>,
     files_rev: HashMap<Path, FileHash>,
@@ -63,10 +59,18 @@ impl FileSession {
     }
 
     /// It returns Err when there's a hash collision
-    fn hash(&mut self, s: &[u8], key: u64) -> Result<FileHash, FileError> {
+    fn hash(&mut self, s: &[u8], is_tmp_file: bool) -> Result<FileHash, FileError> {
         let mut hasher = hash_map::DefaultHasher::new();
         hasher.write(s);
-        let hash = hasher.finish() ^ key;
+        let mut hash = hasher.finish();
+
+        if is_tmp_file {
+            hash |= 1 << 63;
+        }
+
+        else {
+            hash &= !(1 << 63);
+        }
 
         if self.hashes.contains(&hash) {
             return Err(FileError::hash_collision(
@@ -79,6 +83,25 @@ impl FileSession {
         Ok(hash)
     }
 
+    pub fn get_file_name_from_hash(&self, hash: FileHash) -> Option<Path> {
+        if let Some(name) = self.name_aliases.get(&hash) {
+            Some(name.to_string())
+        }
+
+        else if let Some(path) = self.files.get(&hash) {
+            Some(path.to_string())
+        }
+
+        else if self.tmp_files.contains_key(&hash) {
+            Some(format!("tmp_{:x}", hash & 0xfffffff))
+        }
+
+        else {
+            println!("{hash}, {:?}, {:?}", self.files, self.tmp_files);
+            None
+        }
+    }
+
     /// It returns Err when there's a hash collision.
     pub fn register_tmp_file(&mut self, content: &[u8]) -> Result<FileHash, FileError> {
         let lock = unsafe { LOCK.lock().unwrap() };
@@ -87,7 +110,7 @@ impl FileSession {
             return Ok(*f);
         }
 
-        let hash = self.hash(content, TMP_FILE_HASH_KEY)?;
+        let hash = self.hash(content, true)?;
 
         self.tmp_files.insert(
             hash,
@@ -104,6 +127,18 @@ impl FileSession {
         Ok(hash)
     }
 
+    pub fn try_register_hash_and_file(&mut self, hash: FileHash, path: &Path) -> Result<(), FileError> {
+        let hashed = self.register_file(path)?;
+
+        if hash != hashed {
+            Err(FileError::hash_changed(path))
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
     /// It returns Err when there's a hash collision.
     pub fn register_file(&mut self, path: &Path) -> Result<FileHash, FileError> {
         let lock = unsafe { LOCK.lock().unwrap() };
@@ -112,7 +147,7 @@ impl FileSession {
             return Ok(*f);
         }
 
-        let hash = self.hash(path.as_bytes(), 0)?;
+        let hash = self.hash(path.as_bytes(), false)?;
 
         self.files.insert(
             hash,

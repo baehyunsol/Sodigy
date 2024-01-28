@@ -1,4 +1,9 @@
 use crate::{Endec, EndecError};
+use sodigy_files::{
+    DUMMY_FILE_HASH,
+    exists,
+    global_file_session,
+};
 use sodigy_intern::{
     InternedNumeric,
     InternedString,
@@ -9,6 +14,9 @@ use sodigy_intern::{
 use sodigy_number::SodigyNumber;
 use std::collections::HashMap;
 
+type FileHash = u64;
+type Path = String;
+
 pub struct EndecSession {
     str_map: HashMap<InternedString, EncodedInternal>,
     str_map_rev: HashMap<EncodedInternal, InternedString>,
@@ -17,6 +25,8 @@ pub struct EndecSession {
     num_map: HashMap<InternedNumeric, EncodedInternal>,
     num_map_rev: HashMap<EncodedInternal, InternedNumeric>,
     num_table: HashMap<EncodedInternal, SodigyNumber>,
+
+    file_hashes: HashMap<FileHash, Path>,
 }
 
 impl EndecSession {
@@ -28,6 +38,7 @@ impl EndecSession {
             num_map: HashMap::new(),
             num_map_rev: HashMap::new(),
             num_table: HashMap::new(),
+            file_hashes: HashMap::new(),
         }
     }
 
@@ -47,9 +58,10 @@ impl EndecSession {
         // is not outdated
         file_metadata.encode(&mut result, &mut dummy_session);
 
-        // `str_map` and `str_map_rev` are unnecessary for decoding
+        // the other tables are unnecessary for decoding
         self.str_table.encode(&mut result, &mut dummy_session);
         self.num_table.encode(&mut result, &mut dummy_session);
+        self.file_hashes.encode(&mut result, &mut dummy_session);
 
         result
     }
@@ -92,6 +104,21 @@ impl EndecSession {
             num_map_rev.insert(*enc, interned_numeric);
         }
 
+        let file_hashes = HashMap::<FileHash, Path>::decode(buf, index, &mut dummy_session)?;
+        let file_session = unsafe { global_file_session() };
+
+        for (hash, path) in file_hashes.iter() {
+            // if it exists, we're quite sure that the file is not modified
+            // cuz the compiler checks whether the file is modified or not
+            //
+            // we do this existence check because the file might have been moved (that affects the relative path)
+            if !exists(path) {
+                return Err(EndecError::corrupted_file_hash(*hash, path.to_string()));
+            }
+
+            file_session.try_register_hash_and_file(*hash, path)?;
+        }
+
         Ok(EndecSession {
             str_table,
             str_map,
@@ -99,7 +126,15 @@ impl EndecSession {
             num_table,
             num_map,
             num_map_rev,
+            file_hashes,
         })
+    }
+
+    pub fn register_file_hash(&mut self, file: FileHash) {
+        if !self.file_hashes.contains_key(&file) && file != DUMMY_FILE_HASH {
+            let file_session = unsafe { global_file_session() };
+            self.file_hashes.insert(file, file_session.get_file_name_from_hash(file).unwrap());
+        }
     }
 
     pub fn encode_intern_str(&mut self, s: InternedString) -> EncodedInternal {

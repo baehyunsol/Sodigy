@@ -916,8 +916,6 @@ pub fn parse_expr(
         }
     }
 
-    session.err_if_has_err()?;
-
     Ok(lhs)
 }
 

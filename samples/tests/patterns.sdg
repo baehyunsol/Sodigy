@@ -60,7 +60,7 @@ let unwrap_or_0(n: Option(Int)): Int = match n {
     Option.None => 0,
 };
 
-let name_bindings(x: Int, y: Int, z: Int): (Int, Int) = match (x, y, z) {
+let name_bindings(x: Int, y: Int, z: Int): Tuple(Int, Int) = match (x, y, z) {
     (3, $res @ ..) => res,
     ($res @ ..) => (res._0, res._1),
     _ => (2, 3),

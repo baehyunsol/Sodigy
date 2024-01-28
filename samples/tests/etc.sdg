@@ -133,7 +133,7 @@ let my_map_test: List(MyOption(Int)) = {
 };
 
 @test.eq(())
-let EMPTY_TUPLE: () = ();
+let EMPTY_TUPLE: Tuple() = ();
 
 @test.eq([])
 let EMPTY_LIST: List(Int) = [];

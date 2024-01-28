@@ -13,7 +13,7 @@ let zip_with<T, U, V>(a: List(T), b: List(U), f: Func(T, U, V)): List(V) = if a.
     )
 };
 
-let zip<T, U>(a: List(T), b: List(U)): List((T, U)) = zip_with(
+let zip<T, U>(a: List(T), b: List(U)): List(Tuple(T, U)) = zip_with(
     a, b,
     \{x, y, (x, y)}
 );
@@ -151,7 +151,7 @@ let dedup<T>(ls: List(T)): List(T) = match ls.len() {
     ([5, 6, 7, 8, 9, 10], ),
     [(0, 5), (1, 6), (2, 7), (3, 8), (4, 9), (5, 10)]
 )
-let enumerate<T>(ls: List(T)): List((Int, T)) = if ls.is_empty() {
+let enumerate<T>(ls: List(T)): List(Tuple(Int, T)) = if ls.is_empty() {
     []
 } else if ls.len() == 1 {
     [(0, ls[0])]
