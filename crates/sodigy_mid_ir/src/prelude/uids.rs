@@ -13,3 +13,6 @@ pub const BYTE_DEF: Uid = Uid::dummy(108).mark_prelude();
 
 // `Func` type
 pub const FUNC_DEF: Uid = Uid::dummy(109).mark_prelude();
+pub const BOOL_DEF: Uid = Uid::dummy(110).mark_prelude();
+pub const BOOL_VARIANT_TRUE: Uid = Uid::dummy(111).mark_prelude();
+pub const BOOL_VARIANT_FALSE: Uid = Uid::dummy(112).mark_prelude();

@@ -225,6 +225,12 @@ check_output!(expr, err, fstring2, "\"\\{1 + 3}\"", "add `f`");
 check_output!(expr, err, fstring3, "\'\\{1 + 3}\'", "use double quote");
 check_output!(expr, err, fstring4, "b\"\\{1 + 3}\"", "format-string with a prefix `b`");
 
+check_output!(expr, err, two_elses, "if 0 == 0 { 0 } else { 1 } else { 2 }", "got `else`");
+check_output!(expr, err, branch_without_cond, "if 0 == 0 { 0 } else if { 1 } else { 2 }", "missing a condition");
+
+// TODO
+// check_output!(expr, err, logical_and_to_ifs, "if True || 3 { 0 } else { 1 }", "TODO: emit a nice type error");
+
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
 check_output!(stmt, warn, stmt_warn_test2, "let foo<T>(x: Int, y: Int): Int = x + y;", "unused generic: `T`");

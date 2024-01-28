@@ -1,123 +1,127 @@
-let struct Node<T> = {
-    key: Int,
-    data: T,
-    left: Option(Node(T)),
-    right: Option(Node(T)),
+let struct Node<K, V> = {
+    hash: Int,
+    key: K,
+    value: V,
+    left: Option(Node(K, V)),
+    right: Option(Node(K, V)),
 };
 
-@method(Node)
-let get<T>(self: Node(T), key: Int): Option(T) = {
-    if self.key < key {
+@method(Node(K, V))
+let get<K, V>(self: Node(K, V), key: K): Option(V) = {
+    let hash = key.hash();
+
+    if self.key == key {
+        Some(self.value)
+    }
+
+    else if self.hash < hash {
         match self.right {
             Some($child) => child.get(key),
             None => None,
         }
     }
 
-    else if self.key > key {
+    else {
         match self.left {
             Some($child) => child.get(key),
             None => None,
         }
     }
-
-    else {
-        Some(self.data)
-    }
 };
 
-@method(Node)
-let contains<T>(self: Node(T), key: Int): Bool = self.get(key).is_some();
+@method(Node(K, V))
+let contains<K, V>(self: Node(K, V), key: K): Bool = self.get(key).is_some();
 
 # It's O(n).
-@method(Node)
-let contains_data<T>(self: Node(T), data: T): Bool = {
-    self.data == data ||
+@method(Node(K, V))
+let contains_value<K, V>(self: Node(K, V), value: V): Bool = {
+    self.value == value ||
     match self.right {
-        Some($child) => child.contains_data(data),
+        Some($child) => child.contains_value(value),
         None => False,
     } ||
     match self.left {
-        Some($child) => child.contains_data(data),
+        Some($child) => child.contains_value(value),
         None => False,
     }
 };
 
 #> It returns `None` if the `key` already exists.
-@method(Node)
-let insert<T>(self: Node(T), key: Int, data: T): Option(Node(T)) = {
-    if self.key < key {
+@method(Node(K, V))
+let insert<K, V>(self: Node(K, V), key: K, value: V): Option(Node(K, V)) = {
+    let hash = key.hash();
+
+    if self.key == key {
+        None
+    }
+
+    else if self.hash < hash {
         match self.right {
-            Some($child) => match child.insert(key, data) {
+            Some($child) => match child.insert(key, value) {
                 Some($child) => Some(self `right child),
                 None => None,
             },
             None => Some(self `right Some(Node {
+                hash: hash,
                 key: key,
-                data: data,
+                value: value,
                 left: None,
                 right: None,
             })),
         }
     }
 
-    else if self.key > key {
+    else {
         match self.left {
-            Some($child) => match child.insert(key, data) {
+            Some($child) => match child.insert(key, value) {
                 Some($child) => Some(self `left child),
                 None => None,
             },
             None => Some(self `left Some(Node {
+                hash: hash,
                 key: key,
-                data: data,
+                value: value,
                 left: None,
                 right: None,
             })),
         }
     }
-
-    else {
-        None
-    }
 };
 
 #> It returns `None` if the `key` does not exist.
-@method(Node)
-let update<T>(self?: Node(T), key: Int, data: T): Option(Node(T)) = {
-    if self.key < key {
-        self.right?.update(key, data)
+@method(Node(K, V))
+let update<K, V>(self?: Node(K, V), key: K, value: V): Option(Node(K, V)) = {
+    let hash = key.hash();
+
+    if self.key == key {
+        Some(self `value value)
     }
 
-    else if self.key > key {
-        self.left?.update(key, data)
+    else if self.key < key {
+        self.right?.update(key, value)
     }
 
     else {
-        Some(self `data data)
+        self.left?.update(key, value)
     }
 };
 
 #> insert + update
-@method(Node)
-let upsert<T>(self: Node(T), key: Int, data: T): Node(T) = {
-    if self.key < key {
-        match self.right {
-            Some($child) => self `right child.upsert(key, data),
-            None => self `right Some(Node {
-                key: key,
-                data: data,
-                left: None,
-                right: None,
-            }),
-        }
+@method(Node(K, V))
+let upsert<K, V>(self: Node(K, V), key: K, value: V): Node(K, V) = {
+    let hash = key.hash();
+
+    if self.key == key {
+        self `value value
     }
 
-    else if self.key > key {
-        match self.left {
-            Some($child) => self `left child.upsert(key, data),
-            None => self `left Some(Node {
+    else if self.hash < hash {
+        match self.right {
+            Some($child) => self `right child.upsert(key, value),
+            None => self `right Some(Node {
+                hash: hash,
                 key: key,
-                data: data,
+                value: value,
                 left: None,
                 right: None,
             }),
@@ -125,38 +129,36 @@ let upsert<T>(self: Node(T), key: Int, data: T): Node(T) = {
     }
 
     else {
-        self `data data
+        match self.left {
+            Some($child) => self `left child.upsert(key, value),
+            None => self `left Some(Node {
+                hash: hash,
+                key: key,
+                value: value,
+                left: None,
+                right: None,
+            }),
+        }
     }
 };
 
 #> You cannot check whether `key` exists or not. It does
 #> nothing if the key doesn't exist. It returns `None` if
 #> `key` is deleted and there's no other node in the tree.
-@method(Node)
-let delete<T>(self: Node(T), key: Int): Option(Node(T)) = {
-    if self.key < key {
-        match self.right {
-            Some($child) => self `right child.delete(key),
-            None => Some(self),
-        }
-    }
-
-    else if self.key > key {
-        match self.left {
-            Some($child) => self `left child.delete(key),
-            None => Some(self),
-        }
-    }
+@method(Node(K, V))
+let delete<K, V>(self: Node(K, V), key: K): Option(Node(K, V)) = {
+    let hash = K.hash();
 
     # delete this node and replace it with one of its child node
-    else {
+    if self.key == key {
         match self.right {
             Some($child) => {
                 let replacement = child.get_leftmost();
 
                 Some(Node {
+                    hash: replacement.hash,
                     key: replacement.key,
-                    data: replacement.data,
+                    value: replacement.value,
                     left: self.left,
                     right: child.remove_leftmost(),
                 })
@@ -166,8 +168,9 @@ let delete<T>(self: Node(T), key: Int): Option(Node(T)) = {
                     let replacement = child.get_rightmost();
 
                     Some(Node {
+                        hash: replacement.hash,
                         key: replacement.key,
-                        data: replacement.data,
+                        value: replacement.value,
                         left: child.remove_rightmst(),
                         right: self.right,
                     })
@@ -178,38 +181,78 @@ let delete<T>(self: Node(T), key: Int): Option(Node(T)) = {
             },
         }
     }
+
+    else if self.hash < hash {
+        match self.right {
+            Some($child) => self `right child.delete(key),
+            None => Some(self),
+        }
+    }
+
+    else {
+        match self.left {
+            Some($child) => self `left child.delete(key),
+            None => Some(self),
+        }
+    }
 };
 
-@method(Node)
-let get_leftmost<T>(self: Node(T)): Node(T) = match self.left {
+@method(Node(K, V))
+let get_leftmost<K, V>(self: Node(K, V)): Node(K, V) = match self.left {
     Some($child) => child.get_leftmost(),
     None => self,
 };
 
-@method(Node)
-let get_rightmost<T>(self: Node(T)): Node(T) = match self.right {
+@method(Node(K, V))
+let get_rightmost<K, V>(self: Node(K, V)): Node(K, V) = match self.right {
     Some($child) => child.get_rightmost(),
     None => self,
 };
 
-@method(Node)
-let remove_leftmost<T>(self: Node(T)): Option(Node(T)) = {
+@method(Node(K, V))
+let remove_leftmost<K, V>(self: Node(K, V)): Option(Node(K, V)) = {
     # TODO...
 };
 
-@method(Node)
-let remove_rightmost<T>(self: Node(T)): Option(Node(T)) = {
+@method(Node(K, V))
+let remove_rightmost<K, V>(self: Node(K, V)): Option(Node(K, V)) = {
     # TODO...
 };
 
-@method(Node)
-let count<T>(self: Node(T)): Int = {
-    let count_right = match self.right {
-        Some($child) => child.count(),
+@method(Node(K, V))
+let flatten<V, U>(self: Node(K, V), f: Func(K, V, U)): List(U) = {
+    match self.left {
+        Some($child) => child.flatten(f),
+        None => [],
+    } <> [f(self.key, self.value)] <> match self.right {
+        Some($child) => child.flatten(f),
+        None => [],
+    }
+};
+
+@method(Node(K, V))
+let map<V, U>(self: Node(K, V), f: Func(V, U)): Node(U) = Node {
+    hash: self.hash,
+    key: self.key,
+    value: f(self.value),
+    left: self.left.map(\{child, child.map(f)}),
+    right: self.right.map(\{child, child.map(f)}),
+};
+
+@method(Node(K, V))
+let merge<K, V>(self: Node(K, V), other: Option(Node(K, V))): Node(K, V) = match other {
+    Some($tree) => self.upsert(tree.key, tree.value).merge(other.left).merge(other.right),
+    None => self,
+};
+
+@method(Node(K, V))
+let length<K, V>(self: Node(K, V)): Int = {
+    let length_right = match self.right {
+        Some($child) => child.length(),
         None => 0,
     };
-    let count_left = match self.left {
-        Some($child) => child.count(),
+    let length_left = match self.left {
+        Some($child) => child.length(),
         None => 0,
     };
 
@@ -217,14 +260,14 @@ let count<T>(self: Node(T)): Int = {
     count_left + count_right + 1
 };
 
-@method(Node)
-let is_valid(self: Node(T)): Bool = {
+@method(Node(K, V))
+let is_valid(self: Node(K, V)): Bool = {
     match self.right {
-        Some($child) => child.key > self.key && child.is_valid(),
+        Some($child) => child.hash > self.hash && child.is_valid(),
         None => True,
     } &&
     match self.left {
-        Some($child) => child.key < self.key && child.is_valid(),
+        Some($child) => child.hash <= self.hash && child.is_valid(),
         None => True,
     }
 };

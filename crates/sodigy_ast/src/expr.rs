@@ -20,6 +20,17 @@ impl Expr {
             _ => { /* nop */ },
         }
     }
+
+    pub fn starts_with_curly_brace(&self) -> bool {
+        match &self.kind {
+            ExprKind::Value(ValueKind::Scope { .. }) => true,
+            ExprKind::PostfixOp(_, expr)
+            | ExprKind::Path { pre: expr, .. }
+            | ExprKind::Call { func: expr, .. }
+            | ExprKind::StructInit { struct_: expr, .. } => expr.starts_with_curly_brace(),
+            _ => false,
+        }
+    }
 }
 
 /****************************************

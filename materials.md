@@ -1,0 +1,3 @@
+- https://github.com/zesterer/tao
+- https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/
+- https://downloads.haskell.org/ghc/latest/docs/users_guide/using-optimisation.html

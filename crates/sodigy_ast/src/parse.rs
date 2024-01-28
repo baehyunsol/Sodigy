@@ -292,9 +292,12 @@ pub fn parse_expr(
             let mut else_span = None;
 
             loop {
-                branch_arms.push(parse_branch_arm(tokens, session, span, else_span)?);
+                let branch_arm = parse_branch_arm(tokens, session, span, else_span)?;
+                let has_cond = branch_arm.cond.is_some();
 
-                if !tokens.is_curr_token(TokenKind::Keyword(Keyword::Else)) {
+                branch_arms.push(branch_arm);
+
+                if !tokens.is_curr_token(TokenKind::Keyword(Keyword::Else)) || !has_cond {
                     break;
                 }
 
@@ -1510,7 +1513,11 @@ fn parse_branch_arm(
                         span: head_span,
                     })
                 },
-                Err(e) => {
+                Err(mut e) => {
+                    if cond.starts_with_curly_brace() {
+                        e.set_message("It seems like you're missing a condition of a branch.".to_string());
+                    }
+
                     session.push_error(e);
                     return Err(());
                 },

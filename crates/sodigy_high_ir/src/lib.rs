@@ -30,6 +30,8 @@ use error::HirError;
 pub use expr::{
     Branch, BranchArm,
     Expr, ExprKind,
+    StructInit,
+    StructInitField,
 };
 use expr::{
     lower_ast_expr,

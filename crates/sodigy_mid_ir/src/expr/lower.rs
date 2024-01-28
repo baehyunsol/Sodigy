@@ -1,12 +1,14 @@
-use super::{Expr, ExprKind};
+use super::{BranchArm, Expr, ExprKind};
 use crate::{
     prelude::{PreludeData, uids},
     session::MirSession,
     ty::Type,
     ty_class::TypeClass,
 };
+use sodigy_ast::InfixOp;
 use sodigy_high_ir as hir;
 use sodigy_intern::InternedString;
+use sodigy_span::SpanRange;
 use std::collections::HashMap;
 
 // it lowers hir to mir, but doesn't do anything regarding types unless the type is obvious
@@ -162,6 +164,15 @@ pub fn lower_hir_expr_without_types(
                 span: e.span,
             }
         },
+        hir::ExprKind::Branch(hir::Branch { arms }) => Expr {
+            kind: ExprKind::Branch(lower_hir_branch_arms_without_types(
+                arms,
+                session,
+                preludes,
+            )),
+            ty: Type::HasToBeInfered,
+            span: e.span,
+        },
         hir::ExprKind::PrefixOp(op, val) => Expr {
             kind: ExprKind::Call {
                 f: TypeClass::from(*op).generic_uid(),
@@ -186,25 +197,133 @@ pub fn lower_hir_expr_without_types(
             ty: Type::HasToBeInfered,
             span: e.span,
         },
-        hir::ExprKind::InfixOp(op, lhs, rhs) => Expr {
-            kind: ExprKind::Call {
-                f: TypeClass::from(*op).generic_uid(),
-                args: vec![
-                    lower_hir_expr_without_types(
-                        lhs,
-                        session,
-                        preludes,
-                    ),
-                    lower_hir_expr_without_types(
-                        rhs,
-                        session,
-                        preludes,
-                    ),
-                ],
+        hir::ExprKind::InfixOp(op, lhs, rhs) => match op {
+            // TODO: if there's a type error in `&&` or `||`,
+            // the compiler would generate a weird error message
+
+            // if lhs { rhs } else { False }
+            InfixOp::LogicalAnd => Expr {
+                kind: ExprKind::Branch(vec![
+                    BranchArm {
+                        cond: Some(lower_hir_expr_without_types(
+                            lhs,
+                            session,
+                            preludes,
+                        )),
+                        value: lower_hir_expr_without_types(
+                            rhs,
+                            session,
+                            preludes,
+                        ),
+                    },
+                    BranchArm {
+                        cond: None,
+                        value: Expr {
+                            kind: ExprKind::Global(uids::BOOL_VARIANT_FALSE),
+                            ty: Type::Solid(uids::BOOL_DEF),
+                            span: SpanRange::dummy(0x1cee3015),
+                        },
+                    },
+                ]),
+                ty: Type::Solid(uids::BOOL_DEF),
+                span: e.span,
             },
-            ty: Type::HasToBeInfered,
-            span: e.span,
+            // if lhs { True } else { rhs }
+            InfixOp::LogicalOr => Expr {
+                kind: ExprKind::Branch(vec![
+                    BranchArm {
+                        cond: Some(lower_hir_expr_without_types(
+                            lhs,
+                            session,
+                            preludes,
+                        )),
+                        value: Expr {
+                            kind: ExprKind::Global(uids::BOOL_VARIANT_TRUE),
+                            ty: Type::Solid(uids::BOOL_DEF),
+                            span: SpanRange::dummy(0x1cee3015),
+                        },
+                    },
+                    BranchArm {
+                        cond: None,
+                        value: lower_hir_expr_without_types(
+                            rhs,
+                            session,
+                            preludes,
+                        ),
+                    },
+                ]),
+                ty: Type::Solid(uids::BOOL_DEF),
+                span: e.span,
+            },
+            op => Expr {
+                kind: ExprKind::Call {
+                    f: TypeClass::from(*op).generic_uid(),
+                    args: vec![
+                        lower_hir_expr_without_types(
+                            lhs,
+                            session,
+                            preludes,
+                        ),
+                        lower_hir_expr_without_types(
+                            rhs,
+                            session,
+                            preludes,
+                        ),
+                    ],
+                },
+                ty: Type::HasToBeInfered,
+                span: e.span,
+            },
+        },
+        hir::ExprKind::StructInit(hir::StructInit {
+            struct_, fields,
+        }) => {
+            let struct_ = lower_hir_expr_without_types(
+                struct_,
+                session,
+                preludes,
+            );
+
+            let fields = fields.iter().map(
+                |hir::StructInitField { name, value }| (
+                    *name,
+                    lower_hir_expr_without_types(
+                        value,
+                        session,
+                        preludes,
+                    ),
+                )
+            ).collect::<Vec<_>>();
+
+            // TODO: it has to return `Expr::Call { uid_of_struct, fields }`,
+            // but it doesn't know the uid of `struct_`...
+            // also, `fields` are named args, but `Expr::Call` expects unnamed args.
+            // it has to figure out the order of the names
+            todo!()
         },
         _ => todo!(),
     }
+}
+
+fn lower_hir_branch_arms_without_types(
+    arms: &Vec<hir::BranchArm>,
+    session: &mut MirSession,
+    preludes: &HashMap<InternedString, PreludeData>,
+) -> Vec<BranchArm> {
+    arms.iter().map(
+        |arm| BranchArm {
+            cond: arm.cond.as_ref().map(
+                |cond| lower_hir_expr_without_types(
+                    cond,
+                    session,
+                    preludes,
+                )
+            ),
+            value: lower_hir_expr_without_types(
+                &arm.value,
+                session,
+                preludes,
+            ),
+        }
+    ).collect()
 }

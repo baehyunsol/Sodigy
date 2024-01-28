@@ -101,7 +101,7 @@ pub enum ExprKind {
         f: Box<Expr>,
         args: Vec<Expr>,
     },
-    Branch( /* TODO */ ),
+    Branch(Vec<BranchArm>),
 }
 
 #[derive(Clone, Hash)]
@@ -115,4 +115,10 @@ enum LocalNameBinding {
     FuncGeneric(usize),
 
     // TODO: scoped lets
+}
+
+#[derive(Clone, Hash)]
+struct BranchArm {
+    pub(crate) cond: Option<Expr>,
+    pub(crate) value: Expr,
 }

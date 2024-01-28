@@ -430,6 +430,10 @@ The compiler first checks whether it can convert a `Result(Int, T)` into an `Opt
 - When a function has multiple `?`-ed arguments, the order of evaluation is undefined. It has to be specified, but I have to do more investigation.
 - `?`-ed expression is not a special syntax. `?` is just a normal postfix operator. You can even make a list of `?`-ed integers, like `[Some(3)?, None?, Some(5)?]`. `Ok(3)?` and `Some(3)?` have different types, though.
 
+### Logical operators
+
+Sodigy has `&&` and `||`: 'logical and' and 'logical or'. Only `Bool` type implements `&&` and `||`, and you cannot implement your own versions for the other types.
+
 ### Bitwise operators
 
 Sodigy has `^`, `&` and `|`. `>>` and `<<` are WIP. Sodigy's bitwise operation is a bit different from other languages. Integers in Sodigy has an arbitrary length, like in Python. That means binary representation of `7` in Sodigy has three `1`s and infinite number of leading `0`s. Due to this, there's no `~` in Sodigy. `~` on any positive number will result in infinite (not sure whether that's positive or not).
