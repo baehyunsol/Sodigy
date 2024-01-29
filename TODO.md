@@ -275,17 +275,6 @@ let output = SodigyCompiler.base().input("a.out").dump_hir("true" as Bool).check
 
 ---
 
-How other languages import modules
-
-- Python: `import A`
-  - There must be `A.py` somewhere. There are predefined rules to find `A.py`.
-- Rust: `use A`
-  - `Cargo.toml` tells you what `A` is.
-- Go: `import "A"`
-  - `go.mod` and `go get A` tells you what and where `A` is.
-
----
-
 Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
 
 - 둘다 적당히 크면 LSB 날리고
@@ -412,3 +401,21 @@ HIR collects `Func`... how is it passed to MIR?
 3. consume HIR sessions from multiple files one by one: lower all the hir funcs to mir funcs
   - once the funcs are lowered, it first infers and checks type
   - the first infer can be imperfect. it runs a few more times until everything makes sense
+
+---
+
+multiple input files...
+
+생각해보면... C는 Input file 사실상 하나만 가능, Python은 input file 무조건 하나만 가능, Rust도 input file 사실상 하나만 가능!
+
+얘도 그냥 input file 하나만 가능하게 해버리자! 그대신 `import`나 `module`이 들어있으면 동일 dir 혹은 하위 dir을 자동으로 뒤지는 거임! 어느 dir을 뒤질지는 컴파일러가 알아서 결정함, user는 컴파일러한테 알려줄 필요없음
+
+예를 들어서, `A.sdg` 안에 `module B;`이 들어있으면, `./A/B.sdg`가 존재해야함! (`./B.sdg`는 안됨?)
+
+`import`하는 거는 3가지 방식, `import A.B;`가 있다고 치면...
+
+- 현재 파일에 `module A;`가 선언되어 있는지를 가장 먼저 확인
+- 컴파일러 옵션으로 외부 라이브러리를 줄 수 있게 하자, 어떤 식으로 줄지는 미정
+- Go에서는 같은 dir에 `go.mod`가 있어야하지? 그것처럼 동일한 dir에 특정 파일이 있으면 걔가 dependency 알려줄 수도 있음!
+
+위에 3가지를 저 순서대로 해보자!
