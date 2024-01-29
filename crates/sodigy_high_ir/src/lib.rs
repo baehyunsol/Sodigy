@@ -42,7 +42,7 @@ use expr::{
         LambdaCollectCtxt,
     },
 };
-pub use func::{Func, FuncKind};
+pub use func::{Arg, Func, FuncKind};
 use func::lower_ast_func;
 pub use names::NameOrigin;
 use names::{IdentWithOrigin, NameBindingType, NameSpace};

@@ -150,6 +150,7 @@ pub fn lower_patterns_to_name_bindings(
 }
 
 // TODO: `(p1, p2, p3 | p4)` -> `(p1, p2, p3) | (p1, p2, p4)`
+// TODO: does it make sense? that would explode exponentially
 pub fn lower_ast_pattern(
     pattern: &ast::Pattern,
     session: &mut HirSession,

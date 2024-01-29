@@ -259,7 +259,7 @@ let input(self: SodigyCompiler, file: String): SodigyCompiler = self `input self
 
 @method(SodigyCompiler)
 let dump_hir(self: SodigyCompiler, dump_hir: Bool): SodigyCompiler = if self.is_dump_hir_set {
-    todo  # throw a runtime error
+  panic("flag `--dump-hir` is used multiple times")
 } else {
     self `dump_hir dump_hir `is_dump_hir_set True
 };
@@ -401,3 +401,14 @@ let get<T>(self: Node(T), key: Int): T = { ... };
   - 이게 돼야 `tree.sdg`가 작동함.
   - 이게 되려면 `@method(Questioned(Node(T)))`가 안되게 만들어야 함!
   - 저걸 금지시켜야 `node?.get()`을 했을 때 안 헷갈리지...
+
+---
+
+HIR collects `Func`... how is it passed to MIR?
+
+1. a function in MIR must be able to have access to all the other functions
+2. everything name must be resolvable
+  - for example, `c.d` with `import a.b.c;` is converted to `a.b.c.d`, and there must be information of `a`, `a.b`, `a.b.c` and `a.b.c.d`
+3. consume HIR sessions from multiple files one by one: lower all the hir funcs to mir funcs
+  - once the funcs are lowered, it first infers and checks type
+  - the first infer can be imperfect. it runs a few more times until everything makes sense

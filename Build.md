@@ -38,6 +38,6 @@ If something goes wrong with Rust, and you're on an unusual platform (like haiku
 - [rand](https://github.com/rust-random/rand)
   - It's used to generate uids, and I can't think of any alternative. If this crate doesn't work on your platform, you should write a function that returns a random 128 bit integer on your platform.
 
-## tests
+## Tests
 
 In order to run tests, you need [nushell](https://www.nushell.sh/). `nu tests.nu` in `sodigy/` will run the tests.
