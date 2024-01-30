@@ -3,7 +3,7 @@ use crate::stmt::Stmt;
 use crate::warn::AstWarning;
 use sodigy_intern::InternSession;
 use sodigy_parse::ParseSession;
-use sodigy_session::{SessionSnapshot, SodigySession};
+use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
 
 pub struct AstSession {
     errors: Vec<AstError>,
@@ -11,6 +11,7 @@ pub struct AstSession {
     stmts: Vec<Stmt>,
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
+    dependencies: Vec<SessionDependency>,
 }
 
 impl AstSession {
@@ -21,6 +22,7 @@ impl AstSession {
             stmts: vec![],
             interner: session.get_interner_cloned(),
             snapshots: vec![],
+            dependencies: session.get_dependencies().clone(),
         }
     }
 }
@@ -60,5 +62,13 @@ impl SodigySession<AstError, AstWarning, Vec<Stmt>, Stmt> for AstSession {
 
     fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
         &mut self.snapshots
+    }
+
+    fn get_dependencies(&self) -> &Vec<SessionDependency> {
+        &self.dependencies
+    }
+
+    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
+        &mut self.dependencies
     }
 }

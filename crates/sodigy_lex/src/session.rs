@@ -3,7 +3,7 @@ use crate::token::{Token, TokenKind};
 use crate::warn::LexWarning;
 
 use sodigy_intern::InternSession;
-use sodigy_session::{SessionSnapshot, SodigySession};
+use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
 
 #[derive(Clone)]
@@ -13,6 +13,7 @@ pub struct LexSession {
     warnings: Vec<LexWarning>,
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
+    dependencies: Vec<SessionDependency>,
 }
 
 impl LexSession {
@@ -23,6 +24,7 @@ impl LexSession {
             warnings: vec![],
             interner: InternSession::new(),
             snapshots: vec![],
+            dependencies: vec![],
         }
     }
 
@@ -85,5 +87,13 @@ impl SodigySession<LexError, LexWarning, Vec<Token>, Token> for LexSession {
 
     fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
         &mut self.snapshots
+    }
+
+    fn get_dependencies(&self) -> &Vec<SessionDependency> {
+        &self.dependencies
+    }
+
+    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
+        &mut self.dependencies
     }
 }

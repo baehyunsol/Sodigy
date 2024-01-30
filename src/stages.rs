@@ -19,10 +19,12 @@ use sodigy_files::{
     WriteMode,
 };
 use sodigy_high_ir::{lower_stmts, HirSession};
+use sodigy_intern::InternedString;
 use sodigy_lex::{lex, LexSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
+use std::collections::HashMap;
 
 type Path = String;
 
@@ -50,6 +52,7 @@ pub fn parse_file(
         PathOrRawInput::Path(file) => {
             if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, FILE_EXT_TOKENS) {
                 match s {
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
                     Ok(session) => {
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
@@ -118,7 +121,24 @@ pub fn parse_file(
     let tokens = lex_session.get_results();
     let mut new_lex_session = LexSession::new();
 
-    let res = from_tokens(tokens, &mut parse_session, &mut new_lex_session);
+    let mut res = from_tokens(tokens, &mut parse_session, &mut new_lex_session);
+
+    if !parse_session.unexpanded_macros.is_empty() {
+        let mut macro_definitions = HashMap::with_capacity(parse_session.unexpanded_macros.len());
+
+        for macro_ in parse_session.unexpanded_macros.iter() {
+            match try_get_macro_definition(*macro_) {
+                Ok(m) => {
+                    macro_definitions.insert(*macro_, m);
+                },
+                Err(e) => {
+                    compiler_output.push_error(e);
+                },
+            }
+        }
+
+        res = parse_session.expand_macros(&macro_definitions);
+    }
 
     compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
     compiler_output.collect_errors_and_warnings_from_session(&parse_session);
@@ -188,6 +208,7 @@ pub fn hir_from_tokens(
         PathOrRawInput::Path(file) => {
             if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
                 match s {
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
                     Ok(session) => {
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
@@ -295,9 +316,12 @@ pub fn hir_from_tokens(
         },
     };
 
-    if parse_session.has_unexpanded_macros {
-        // TODO: what do I do here?
-        todo!();
+    // It's an internal compiler error
+    // macros are either
+    // 1. all expanded at the parse stage
+    // 2. make parse_session invalid so that the control flow can never reach here
+    if !parse_session.unexpanded_macros.is_empty() {
+        unreachable!();
     }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
@@ -437,6 +461,20 @@ pub fn try_construct_session_from_saved_ir<T: Endec>(file: &Path, ext: &str) -> 
     else {
         None
     }
+}
+
+// it has to get the definitions from another file
+// for `a.sdg` to use a macro named `foo`, two things are needed
+// 1. a file that tells `a.sdg` where `foo` is defined
+// 2. actual definition of `foo`
+// 2 is an independent sodigy file. the compiler compiles the file and runs the macro
+// using its interpreter. the compiler has to check whether 2 and `a.sdg` are depending
+// on each other. otherwise, the compilation would stuck
+// 1 is not a sodigy file. Since macros are applied before the name resolution,
+// one cannot 'import' macros. there must be some kinda meta file for dependencies,
+// like `Cargo.toml` for Rust and `go.mod` for Go.
+fn try_get_macro_definition(name: InternedString) -> Result<(), UniversalError> {
+    todo!()
 }
 
 fn is_human_readable(file: &Path) -> bool {

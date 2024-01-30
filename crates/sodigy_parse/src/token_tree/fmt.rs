@@ -56,10 +56,7 @@ impl fmt::Display for TokenTreeKind {
                 },
                 TokenTreeKind::DocComment(content) => format!("#>{content}\n"),
                 TokenTreeKind::Macro { name, args } => format!(
-                    "@[{}]({})",
-                    name.iter().map(
-                        |n| n.to_string()
-                    ).collect::<Vec<String>>().join(" "),
+                    "@[{name}]({})",
                     args.iter().map(
                         |a| a.to_string()
                     ).collect::<Vec<String>>().join(" "),
@@ -99,10 +96,7 @@ impl RenderError for TokenTreeKind {
             ),
             TokenTreeKind::FormattedString(_) => String::from("f\"...\""),
             TokenTreeKind::DocComment(_) => String::from("#> ..."),
-            TokenTreeKind::Macro { name, .. } => format!(
-                "@[{}](...)",
-                name.iter().map(|n| n.to_string()).collect::<Vec<String>>().join(" "),
-            ),
+            TokenTreeKind::Macro { name, .. } => format!("@[{name}](...)"),
         }
     }
 }

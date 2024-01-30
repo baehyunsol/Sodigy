@@ -40,4 +40,4 @@ If something goes wrong with Rust, and you're on an unusual platform (like haiku
 
 ## Tests
 
-In order to run tests, you need [nushell](https://www.nushell.sh/). `nu tests.nu` in `sodigy/` will run the tests.
+In order to run tests, you need [nushell](https://www.nushell.sh/). If you already have Cargo, `cargo install nu` will install nushell. `nu tests.nu` in `sodigy/` will run the tests.

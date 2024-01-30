@@ -52,7 +52,11 @@ std macros
 - `@[generate](iterate 3..10; filter x % 2 == 0; map x * x;)`
   - list comprehension
 
-how does one import a macro? the compiler knows the imported names at the hir level, while the macros are needed at TokenTree level. there must be some other syntax for importing macros. for now, the only way I can think of is using another file for metadata, like `Cargo.toml` or `go.mod`
+the compiler tries to find the definitions of the macros at...
+
+1. compiler-builtin macros
+2. `sodigy.toml` file
+  - one cannot `import` macros because macros are expanded before the name resolution
 
 name issues with `@[map]`: how does it know the name of std.hash_map? what if the preluded name is overloaded?
 - how about protecting absolute paths? so that the full name of `Map` never changes, ex: `Sodigy.prelude.Map`, in this case, a new definition of `Sodigy` would be rejected by the compiler
@@ -64,13 +68,7 @@ can macros nested?
 
 both make sense
 
----
-
-`import * from x;`
-
-impossible: due to cyclic imports
-
-in order to resolve `import * from x;`, one has to collect all the names in `x`. the collecting and name resolving are done at the same time. that means if there are more than two modules `import *`ing each other, the compiler cannot do anything
+read comments in the code -> at try_get_macro_definition
 
 ---
 
@@ -401,25 +399,3 @@ HIR collects `Func`... how is it passed to MIR?
 3. consume HIR sessions from multiple files one by one: lower all the hir funcs to mir funcs
   - once the funcs are lowered, it first infers and checks type
   - the first infer can be imperfect. it runs a few more times until everything makes sense
-
----
-
-multiple input files...
-
-생각해보면... C는 Input file 사실상 하나만 가능, Python은 input file 무조건 하나만 가능, Rust도 input file 사실상 하나만 가능!
-
-얘도 그냥 input file 하나만 가능하게 해버리자! 그대신 `import`나 `module`이 들어있으면 동일 dir 혹은 하위 dir을 자동으로 뒤지는 거임! 어느 dir을 뒤질지는 컴파일러가 알아서 결정함, user는 컴파일러한테 알려줄 필요없음
-
-예를 들어서, `A.sdg` 안에 `module B;`이 들어있으면, `./A/B.sdg`가 존재해야함! (`./B.sdg`는 안됨?)
-
-`import`하는 거는 3가지 방식, `import A.B;`가 있다고 치면...
-
-- 현재 파일에 `module A;`가 선언되어 있는지를 가장 먼저 확인
-- 컴파일러 옵션으로 외부 라이브러리를 줄 수 있게 하자, 어떤 식으로 줄지는 미정
-- Go에서는 같은 dir에 `go.mod`가 있어야하지? 그것처럼 동일한 dir에 특정 파일이 있으면 걔가 dependency 알려줄 수도 있음!
-
-위에 3가지를 저 순서대로 해보자!
-
-`A.sdg`가 의존하는 파일이 여러개더라도 컴파일러한테는 하나만 줘야함!
-
-만약에 여러 sodigy file을 각각 hir로 바꾸고 싶으면? 컴파일러를 개별적으로 호출해야함?? ㅇㅇ

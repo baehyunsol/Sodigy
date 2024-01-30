@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use sodigy_files::last_modified;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 
@@ -126,6 +127,25 @@ pub trait SodigySession<E, W, Outputs: SessionOutput<Output>, Output> {
             self.get_results_mut().pop().unwrap();
         }
     }
+
+    fn get_dependencies(&self) -> &Vec<SessionDependency>;
+    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency>;
+
+    fn check_all_dependency_up_to_date(&self) -> bool {
+        for SessionDependency { path, last_modified_at } in self.get_dependencies().iter() {
+            if let Ok(last_modified_at_) = last_modified(path) {
+                if *last_modified_at != last_modified_at_ {
+                    return false;
+                }
+            }
+
+            else {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 pub trait SessionOutput<T> {
@@ -161,4 +181,10 @@ pub struct SessionSnapshot {
     errors: usize,
     warnings: usize,
     results: usize,
+}
+
+#[derive(Clone)]
+pub struct SessionDependency {
+    path: String,
+    last_modified_at: u64,  // hash of st_mtime
 }

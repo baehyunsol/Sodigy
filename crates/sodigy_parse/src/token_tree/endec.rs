@@ -95,7 +95,7 @@ impl Endec for TokenTreeKind {
                     6 => Ok(TokenTreeKind::FormattedString(Vec::<FormattedStringElement>::decode(buf, index, session)?)),
                     7 => Ok(TokenTreeKind::DocComment(InternedString::decode(buf, index, session)?)),
                     8 => Ok(TokenTreeKind::Macro {
-                        name: Vec::<TokenTree>::decode(buf, index, session)?,
+                        name: InternedString::decode(buf, index, session)?,
                         args: Vec::<TokenTree>::decode(buf, index, session)?,
                     }),
                     9.. => Err(EndecError::invalid_enum_variant(*n)),

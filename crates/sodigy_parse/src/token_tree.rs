@@ -88,8 +88,10 @@ pub enum TokenTreeKind {
 
     // it has to be expanded before the compiler goes to the AST stage
     // `@[name](args)`
+    //
+    // span of this token_tree points to its name
     Macro {
-        name: Vec<TokenTree>,
+        name: InternedString,
         args: Vec<TokenTree>,
     },
 }

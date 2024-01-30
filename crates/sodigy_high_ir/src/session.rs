@@ -5,7 +5,7 @@ use smallvec::{SmallVec, smallvec};
 use sodigy_ast::IdentWithSpan;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
-use sodigy_session::{SessionOutput, SessionSnapshot, SodigySession};
+use sodigy_session::{SessionDependency, SessionOutput, SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
 use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
@@ -28,6 +28,7 @@ pub struct HirSession {
     // `_0`, `_1`, `_2`, ...
     field_exprs: Vec<InternedString>,
     snapshots: Vec<SessionSnapshot>,
+    dependencies: Vec<SessionDependency>,
 }
 
 impl HirSession {
@@ -57,6 +58,7 @@ impl HirSession {
             field_exprs,
             func_defs: HashMap::new(),
             snapshots: vec![],
+            dependencies: vec![],
         }
     }
 
@@ -187,6 +189,14 @@ impl SodigySession<HirError, HirWarning, HashMap<InternedString, Func>, Func> fo
 
     fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
         &mut self.snapshots
+    }
+
+    fn get_dependencies(&self) -> &Vec<SessionDependency> {
+        &self.dependencies
+    }
+
+    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
+        &mut self.dependencies
     }
 }
 

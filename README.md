@@ -527,14 +527,22 @@ let add(x: Int, y: Int): Int = x + y;
 
 ## Macros
 
-`@[macro1](x, y, z)`.
+`@[MACRO_NAME](x, y, z)`.
 
-TODO: no specs for macros yet
+There are no specs for macros, only rough sketches for them.
 
-## For Rust programmers
+1. `MACRO_NAME` is a single identifier that identifies the macro. The list of macros are at `sodigy.toml`. It tells you where to find the definitions of the macros.
+2. Macros are implemented in Sodigy. It's like how procedural macros work in Rust. A macro is a sodigy function that takes `List(Token)` and returns `Result(List(Token), CompileError)`.
+3. The compiler uses its interpreter to run macros. That means macros make the compilation VERY SLOW.
 
-TODO
+## Modules and Imports
 
-## For Python programmers
+There are two keywords in Sodigy for modules: `module` and `import`.
 
-TODO
+When the compiler sees `module foo;`, it looks for `foo.sdg` in (TODO: where?)
+
+When the compiler sees `import foo.bar.baz;` it first searches `module`s defined in the same code file. If it cannot find `module foo` in the current code, it then looks for `sodigy.toml` in the current directory (where the current code file is at).
+
+TODO: how does `sodigy.toml` work?
+
+You cannot `import *;` like many other languages. Sodigy cannot detect/prevent cyclic imports.

@@ -48,7 +48,11 @@ impl Endec for ParseErrorKind {
                 kind.encode(buf, session);
                 expected.encode(buf, session);
             },
-            ParseErrorKind::NumericExpOverflow => { buf.push(9); },
+            ParseErrorKind::UnexpectedEof(expected) => {
+                buf.push(9);
+                expected.encode(buf, session);
+            },
+            ParseErrorKind::NumericExpOverflow => { buf.push(10); },
             ParseErrorKind::TODO(s) => {
                 buf.push(10);
                 s.encode(buf, session);
@@ -76,9 +80,12 @@ impl Endec for ParseErrorKind {
                         TokenTreeKind::decode(buf, index, session)?,
                         ExpectedToken::<TokenTreeKind>::decode(buf, index, session)?,
                     )),
-                    9 => Ok(ParseErrorKind::NumericExpOverflow),
-                    10 => Ok(ParseErrorKind::TODO(String::decode(buf, index, session)?)),
-                    11.. => Err(EndecError::invalid_enum_variant(*n)),
+                    9 => Ok(ParseErrorKind::UnexpectedEof(
+                        ExpectedToken::<TokenTreeKind>::decode(buf, index, session)?,
+                    )),
+                    10 => Ok(ParseErrorKind::NumericExpOverflow),
+                    11 => Ok(ParseErrorKind::TODO(String::decode(buf, index, session)?)),
+                    12.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

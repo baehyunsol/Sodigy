@@ -228,6 +228,10 @@ check_output!(expr, err, fstring4, "b\"\\{1 + 3}\"", "format-string with a prefi
 check_output!(expr, err, two_elses, "if 0 == 0 { 0 } else { 1 } else { 2 }", "got `else`");
 check_output!(expr, err, branch_without_cond, "if 0 == 0 { 0 } else if { 1 } else { 2 }", "missing a condition");
 
+check_output!(expr, err, errors_with_macros1, "@[]()", "expected an identifier, got nothing");
+check_output!(expr, err, errors_with_macros2, "@[]", "expected `(");
+check_output!(expr, err, errors_with_macros3, "@[abc]", "expected `(");
+
 // TODO
 // check_output!(expr, err, logical_and_to_ifs, "if True || 3 { 0 } else { 1 }", "TODO: emit a nice type error");
 

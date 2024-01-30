@@ -101,6 +101,14 @@ impl ParseError {
         }
     }
 
+    pub fn unexpected_eof(expected_token: ExpectedToken<TokenTreeKind>, span: SpanRange) -> Self {
+        ParseError {
+            kind: ParseErrorKind::UnexpectedEof(expected_token),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn todo(msg: &str, span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::TODO(msg.to_string()),
@@ -147,6 +155,7 @@ pub enum ParseErrorKind {
     LonelyBacktick,
     LonelyBackslash,
     UnexpectedToken(TokenTreeKind, ExpectedToken<TokenTreeKind>),
+    UnexpectedEof(ExpectedToken<TokenTreeKind>),
 
     // when an exp of a numeric literal is too big
     // e.g. `1.2e10000000000000000000000000`
@@ -182,6 +191,7 @@ impl SodigyErrorKind for ParseErrorKind {
                 "format-string without a prefix `f`"
             }.to_string(),
             ParseErrorKind::UnexpectedToken(token, expected) => format!("expected {expected}, got `{}`", token.render_error()),
+            ParseErrorKind::UnexpectedEof(expected) => format!("expected {expected}, got nothing"),
             ParseErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -206,6 +216,7 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             | ParseErrorKind::MismatchDelim(_)
             | ParseErrorKind::LonelyBackslash
             | ParseErrorKind::UnexpectedToken(_, _)
+            | ParseErrorKind::UnexpectedEof(_)
             | ParseErrorKind::TODO(_) => String::new(),
         }
     }
@@ -222,6 +233,7 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::LonelyBackslash => 7,
             ParseErrorKind::NumericExpOverflow => 8,
             ParseErrorKind::UnexpectedToken(_, _) => 9,
+            ParseErrorKind::UnexpectedEof(_) => 10,
             ParseErrorKind::TODO(_) => 63,
         }
     }

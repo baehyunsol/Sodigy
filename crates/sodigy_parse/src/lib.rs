@@ -325,7 +325,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                     session.err_if_has_err()?;
 
                     if has_macro {
-                        session.expand_macros()?;
+                        session.replace_macro_tokens()?;
                     }
 
                     return Ok(());
@@ -338,7 +338,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
 }
 
 // it only checks whether the current tokens are `@[`.
-// if the current tokens are `@[` but not a valid macro, `session.expand_macro` would throw an error.
+// if the current tokens are `@[` but not a valid macro, `session.try_expand_macro` would throw an error.
 fn is_macro(tokens: &[Token], mut index: usize) -> bool {
     if let Some(
         Token {

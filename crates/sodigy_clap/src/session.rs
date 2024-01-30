@@ -2,7 +2,12 @@ use crate::CompilerOption;
 use crate::error::ClapError;
 use crate::warn::ClapWarning;
 use sodigy_intern::InternSession;
-use sodigy_session::{SessionOutput, SessionSnapshot, SodigySession};
+use sodigy_session::{
+    SessionDependency,
+    SessionOutput,
+    SessionSnapshot,
+    SodigySession,
+};
 
 pub struct ClapSession {
     pub(crate) errors: Vec<ClapError>,
@@ -10,6 +15,7 @@ pub struct ClapSession {
     pub(crate) result: CompilerOption,
     pub(crate) interner: InternSession,
     pub(crate) snapshots: Vec<SessionSnapshot>,
+    pub(crate) dependencies: Vec<SessionDependency>,
 }
 
 impl ClapSession {
@@ -36,6 +42,7 @@ impl Default for ClapSession {
             result: CompilerOption::default(),
             interner: InternSession::new(),
             snapshots: vec![],
+            dependencies: vec![],
         }
     }
 }
@@ -75,6 +82,14 @@ impl SodigySession<ClapError, ClapWarning, CompilerOption, CompilerOption> for C
 
     fn get_snapshots_mut(&mut self) -> &mut Vec<SessionSnapshot> {
         &mut self.snapshots
+    }
+
+    fn get_dependencies(&self) -> &Vec<SessionDependency> {
+        &self.dependencies
+    }
+
+    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
+        &mut self.dependencies
     }
 }
 
