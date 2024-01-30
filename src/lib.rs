@@ -56,45 +56,41 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
         }
     }
 
-    let mut inputs = options.input_files.iter().map(
-        |file| PathOrRawInput::Path(file)
-    ).collect::<Vec<_>>();
+    let input = if let Some(path) = &options.input_file {
+        PathOrRawInput::Path(path)
+    } else if let Some(raw_input) = &options.raw_input {
+        PathOrRawInput::RawInput(raw_input)
+    } else {
+        // sodigy_clap guarantees it
+        unreachable!()
+    };
 
-    if let Some(raw_input) = &options.raw_input {
-        inputs.push(PathOrRawInput::RawInput(raw_input));
-    }
+    let (result, mut compiler_output_) = match options.output_format {
+        IrStage::Tokens => {
+            let (r, o) = parse_file(
+                input,
+                Some(compiler_output),
+                &options,
+            );
 
-    for input in inputs {
-        let (result, mut errors_and_warnings_) = match options.output_format {
-            IrStage::Tokens => {
-                let (r, o) = parse_file(
-                    input,
-                    Some(compiler_output),
-                    &options,
-                );
+            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
+        },
+        IrStage::HighIr => {
+            let (r, o) = hir_from_tokens(input, Some(compiler_output), &options);
 
-                (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
-            },
-            IrStage::HighIr => {
-                let (r, o) = hir_from_tokens(input, Some(compiler_output), &options);
+            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
+        },
+    };
 
-                (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
-            },
-        };
-
-        // TODO: what if there are multiple inputs?
-        if let Some(r) = result {
-            if let Some(output_path) = &options.output_path {
-                if let Err(e) = r.save_to_file(output_path, None) {
-                    errors_and_warnings_.push_error(e.into());
-                }
+    if let Some(r) = result {
+        if let Some(output_path) = &options.output_path {
+            if let Err(e) = r.save_to_file(output_path, None) {
+                compiler_output_.push_error(e.into());
             }
         }
-
-        compiler_output = errors_and_warnings_;
     }
 
-    compiler_output
+    compiler_output_
 }
 
 pub const SAVE_IRS_AT: &str = "__sdg_cache__";

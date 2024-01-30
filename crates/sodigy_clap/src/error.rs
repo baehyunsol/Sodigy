@@ -97,6 +97,14 @@ impl ClapError {
         }
     }
 
+    pub fn multiple_input_files(span1: SpanRange, span2: SpanRange) -> Self {
+        ClapError {
+            kind: ClapErrorKind::MultipleInputFiles,
+            spans: smallvec![span1, span2],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
+
     pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
         ClapError {
             kind: ClapErrorKind::SameFlagMultipleTimes(flag),
@@ -175,6 +183,7 @@ pub enum ClapErrorKind {
     NoArgsAtAll,
     NoArg(TokenKind),
     NoInputFiles,
+    MultipleInputFiles,
     SameFlagMultipleTimes(Flag),
     UnnecessaryFlag(Flag),
     IntegerRangeError {
@@ -203,6 +212,7 @@ impl SodigyErrorKind for ClapErrorKind {
                 concat_commas(&kind.all_possible_values(), "or", "`", "`"),
             ),
             ClapErrorKind::NoInputFiles => String::from("no input files"),
+            ClapErrorKind::MultipleInputFiles => String::from("multiple input files"),
             ClapErrorKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
             ClapErrorKind::UnnecessaryFlag(flag) => format!("unnecessary flag: `{}`", flag.render_error()),
             ClapErrorKind::IntegerRangeError { start, end, given } => format!(
@@ -236,6 +246,7 @@ impl SodigyErrorKind for ClapErrorKind {
             | ClapErrorKind::InvalidArgument(_, _)
             | ClapErrorKind::NoArg(_)
             | ClapErrorKind::NoInputFiles
+            | ClapErrorKind::MultipleInputFiles
             | ClapErrorKind::SameFlagMultipleTimes(_)
             | ClapErrorKind::IntegerRangeError { .. } => String::new(),
         }
@@ -250,10 +261,11 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::NoArgsAtAll => 3,
             ClapErrorKind::NoArg(_) => 4,
             ClapErrorKind::NoInputFiles => 5,
-            ClapErrorKind::SameFlagMultipleTimes(_) => 6,
-            ClapErrorKind::UnnecessaryFlag(_) => 7,
-            ClapErrorKind::IntegerRangeError { .. } => 8,
-            ClapErrorKind::AssignOperator { .. } => 9,
+            ClapErrorKind::MultipleInputFiles => 6,
+            ClapErrorKind::SameFlagMultipleTimes(_) => 7,
+            ClapErrorKind::UnnecessaryFlag(_) => 8,
+            ClapErrorKind::IntegerRangeError { .. } => 9,
+            ClapErrorKind::AssignOperator { .. } => 10,
         }
     }
 }

@@ -5,7 +5,7 @@
 //!
 //! [clap]: https://crates.io/crates/clap
 
-use sodigy_span::SpanPoint;
+use sodigy_span::{SpanPoint, SpanRange};
 
 mod error;
 mod flag;
@@ -61,7 +61,7 @@ pub fn parse_cli_args() -> ClapSession {
                 value: TokenValue::Path(path),
                 ..
             } => ClapSession::with_result(CompilerOption {
-                input_files: vec![path.to_string()],
+                input_file: Some(path.to_string()),
                 ..CompilerOption::default()
             }),
 
@@ -74,7 +74,7 @@ pub fn parse_cli_args() -> ClapSession {
         let mut index = 0;
         let mut errors = vec![];
         let mut warnings = vec![];
-        let mut input_files = vec![];
+        let mut input_file: Option<(Path, SpanRange)> = None;
         let mut output_path = None;
         let mut output_format = None;
         let mut show_warnings = None;
@@ -84,7 +84,7 @@ pub fn parse_cli_args() -> ClapSession {
         let mut dump_hir = None;
         let mut dump_hir_to = None;
         let mut verbosity = None;
-        let mut raw_input = None;
+        let mut raw_input: Option<(Vec<u8>, SpanRange)> = None;
 
         // these are later used for warnings/errors
         let mut dump_tokens_span = None;
@@ -100,7 +100,14 @@ pub fn parse_cli_args() -> ClapSession {
         while index < tokens.len() {
             match &tokens[index].kind {
                 TokenKind::Path => {
-                    input_files.push(tokens[index].value.unwrap_path());
+                    if input_file.is_some() {
+                        errors.push(ClapError::multiple_input_files(
+                            input_file.as_ref().unwrap().1,  // span
+                            tokens[index].span,
+                        ));
+                    }
+
+                    input_file = Some((tokens[index].value.unwrap_path(), tokens[index].span));
                 },
                 TokenKind::Flag => {
                     match tokens[index].value.unwrap_flag() {
@@ -207,7 +214,10 @@ pub fn parse_cli_args() -> ClapSession {
                             }
 
                             else {
-                                raw_input = Some(tokens[index + 1].value.unwrap_raw_input().into_bytes());
+                                raw_input = Some((
+                                    tokens[index + 1].value.unwrap_raw_input().into_bytes(),
+                                    tokens[index].span,
+                                ));
                             }
                         },
                         Flag::Help => {
@@ -249,8 +259,18 @@ pub fn parse_cli_args() -> ClapSession {
             index += 1;
         }
 
-        if input_files.is_empty() && raw_input.is_none() {
-            errors.push(ClapError::no_input_files());
+        match (input_file.is_none(), raw_input.is_none()) {
+            (true, true) => {
+                errors.push(ClapError::no_input_files());
+            },
+            (false, false) => {
+                errors.push(ClapError::multiple_input_files(
+                    input_file.as_ref().unwrap().1,
+                    raw_input.as_ref().unwrap().1,
+                ));
+            },
+            (true, false)
+            | (false, true) => {},
         }
 
         if let Some(span) = help_flag {
@@ -335,9 +355,21 @@ pub fn parse_cli_args() -> ClapSession {
             warnings.clear();
         }
 
+        let input_file = if let Some((path, _)) = input_file {
+            Some(path)
+        } else {
+            None
+        };
+
+        let raw_input = if let Some((bytes, _)) = raw_input {
+            Some(bytes)
+        } else {
+            None
+        };
+
         let comp_option = CompilerOption {
             do_not_compile_and_do_this: None,
-            input_files,
+            input_file,
             output_format,
             output_path: Some(output_path),
             show_warnings: show_warnings.unwrap_or(true),
@@ -365,23 +397,21 @@ pub fn parse_cli_args() -> ClapSession {
 const MIN_VERBOSITY: u8 = 0;
 const MAX_VERBOSITY: u8 = 2;
 
+type Path = String;
+
 #[derive(Clone)]
 pub struct CompilerOption {
     pub do_not_compile_and_do_this: Option<SpecialOutput>,
+    pub input_file: Option<Path>,
 
-    // TODO: glob patterns (it works in GCC)
-    // ex) `c*.sdg`
-    // is it the shell or the compiler that handles the glob patterns?
-    pub input_files: Vec<String>,
-
-    pub output_path: Option<String>,
+    pub output_path: Option<Path>,
     pub output_format: IrStage,
     pub show_warnings: bool,
     pub save_ir: bool,
     pub dump_tokens: bool,
-    pub dump_tokens_to: Option<String>,
+    pub dump_tokens_to: Option<Path>,
     pub dump_hir: bool,
-    pub dump_hir_to: Option<String>,
+    pub dump_hir_to: Option<Path>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
@@ -414,7 +444,7 @@ impl CompilerOption {
     pub fn test_runner(code: &[u8]) -> Self {
         CompilerOption {
             do_not_compile_and_do_this: None,
-            input_files: vec![],
+            input_file: None,
             output_path: None,
             save_ir: false,
             raw_input: Some(code.to_vec()),
@@ -427,7 +457,7 @@ impl Default for CompilerOption {
     fn default() -> Self {
         CompilerOption {
             do_not_compile_and_do_this: None,
-            input_files: vec![],
+            input_file: None,
             output_path: Some(String::from("./a.out")),
 
             // TODO: it has to be IrStage::Binary, but that's not implemented yet

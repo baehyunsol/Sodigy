@@ -37,7 +37,6 @@ const FILE_EXT_HIGH_IR: &str = "hir";
 
 // TODO: this file has a lot of duplicate code blocks
 // TODO: nicer return type for all the stages
-// TODO: `parse_file` and `hir_from_tokens` are very similar...
 
 pub fn parse_file(
     input: PathOrRawInput,

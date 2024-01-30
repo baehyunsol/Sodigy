@@ -27,7 +27,7 @@ fn runner(path: &str) {
     };
 
     let opt1 = CompilerOption {
-        input_files: vec![path.to_string()],
+        input_file: Some(path.to_string()),
         output_format: IrStage::HighIr,
         dump_hir_to: Some(dump_hir_to_1.clone()),
         ..base_comp_opt.clone()
@@ -37,7 +37,7 @@ fn runner(path: &str) {
     let input2 = generate_path_for_ir(&path.to_string(), "tokens", false).unwrap();
 
     let opt2 = CompilerOption {
-        input_files: vec![input2],
+        input_file: Some(input2),
         output_format: IrStage::HighIr,
         dump_hir_to: Some(dump_hir_to_2.clone()),
         ..base_comp_opt.clone()

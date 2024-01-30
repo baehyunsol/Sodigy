@@ -4,6 +4,11 @@ def main [--depgraph] {
 
     cargo clean
 
+    # by compiling the entire crate before each crate,
+    # 1. it can catch errors (if exists) earlier
+    # 2. it doesn't hurt the entire test time thanks to the incremental compilation
+    cargo build
+
     let crates = [
         "ast", "clap", "endec",
         "error", "files", "high_ir",
