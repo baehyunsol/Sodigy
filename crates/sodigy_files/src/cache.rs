@@ -1,6 +1,11 @@
 use crate::{DUMMY_FILE_HASH, last_modified, read_bytes, FileHash};
 use crate::error::FileError;
-use sodigy_test::sodigy_assert_eq;
+use sodigy_test::{
+    sodigy_assert_eq,
+    sodigy_log,
+    LOG_NORMAL,
+    LOG_VERBOSE,
+};
 use std::collections::HashMap;
 
 // `FileCache` is not synchronized at all!
@@ -51,10 +56,13 @@ impl FileCache {
 
         for i in 0..FILE_CACHE_SIZE {
             if self.data[i].0 == hash {
+                sodigy_log!(LOG_VERBOSE, format!("FileCache::get: cache hit! {i}"));
                 self.count[i] = (self.count[i] + 1).min(128);
                 return self.data.get(i).map(|(_, data)| data as &[u8]);
             }
         }
+
+        sodigy_log!(LOG_VERBOSE, format!("FileCache::get: cache miss! hash {hash}"));
 
         None
     }
@@ -94,6 +102,8 @@ impl FileCache {
                                 return Err(FileError::metadata_not_supported(path));
                             },
                         }
+
+                        sodigy_log!(LOG_NORMAL, format!("FileCache::insert: removing entry {} in the file cache", self.cursor));
 
                         self.total_size -= self.data[self.cursor].1.len();
                         self.total_size += f.len();

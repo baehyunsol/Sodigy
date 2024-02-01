@@ -14,6 +14,9 @@ use sodigy_uid::Uid;
 #[derive(Clone, Debug)]
 pub struct Let {
     pub kind: LetKind,
+
+    // if it's scoped-let, the attributes are here
+    // if it's top-level-let, the attributes are in session.stmts
     pub attributes: Vec<Attribute>,
 }
 

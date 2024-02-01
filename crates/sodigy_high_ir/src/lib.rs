@@ -2,9 +2,11 @@
 
 use crate as hir;
 use sodigy_ast::{self as ast, IdentWithSpan, LetKind, StmtKind};
+use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
+use sodigy_test::{sodigy_log, LOG_NORMAL};
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
@@ -16,6 +18,7 @@ mod error;
 pub mod expr;
 mod fmt;
 mod func;
+mod module;
 mod names;
 mod pattern;
 mod session;
@@ -23,7 +26,11 @@ mod struct_;
 mod walker;
 mod warn;
 
-pub use attr::{Attribute, Decorator};
+pub use attr::{
+    lower_ast_attributes,
+    Attribute,
+    Decorator,
+};
 use doc_comment::concat_doc_comments;
 use enum_::lower_ast_enum;
 use error::HirError;
@@ -45,6 +52,7 @@ use expr::{
 pub use func::{Arg, Func, FuncKind};
 use func::lower_ast_func;
 pub use names::NameOrigin;
+pub use module::Module;
 use names::{IdentWithOrigin, NameBindingType, NameSpace};
 pub use session::HirSession;
 use struct_::lower_ast_struct;
@@ -54,6 +62,8 @@ pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
     session: &mut HirSession
 ) -> Result<(), ()> {
+    sodigy_log!(LOG_NORMAL, format!("lower_stmts: enter, it has {} stmts", stmts.len()));
+
     let mut ast_attributes = vec![];
 
     // only for warnings
@@ -87,6 +97,28 @@ pub fn lower_stmts(
 
                     imports.insert(from.id(), (*from.span(), to.to_vec()));
                 }
+            },
+            StmtKind::Module(name, uid) => {
+                // `module A;` implies `import A;`
+                if let Some((collision, _)) = names.insert(name.id(), (*name, Some(*uid))) {
+                    let mut error = HirError::name_collision(*name, collision);
+
+                    // TODO: it only makes sense if `import foo;` comes before `module foo;`
+                    if imports.contains_key(&name.id()) {
+                        error.set_message(
+                            format!(
+                                "`module {};` implies `import {};`. You don't have to import `{}` again.",
+                                name.id(),
+                                name.id(),
+                                name.id(),
+                            )
+                        );
+                    }
+
+                    session.push_error(error);
+                }
+
+                imports.insert(name.id(), (*name.span(), vec![*name]));
             },
             stmt_kind => {
                 let id = if let Some(id) = stmt_kind.get_id() {
@@ -123,7 +155,6 @@ pub fn lower_stmts(
         let span = stmt.span;
 
         match &stmt.kind {
-            // TODO: collect attributes in AST level: AST::Let has `.attributes`
             StmtKind::DocComment(c) => {
                 ast_attributes.push(ast::Attribute::DocComment(IdentWithSpan::new(*c, span)));
             },
@@ -232,8 +263,28 @@ pub fn lower_stmts(
 
                 ast_attributes.clear();
             },
-            _ => {
-                // TODO
+            StmtKind::Module(name, uid) => {
+                let attributes = if let Ok(attributes) = lower_ast_attributes(
+                    &ast_attributes,
+                    session,
+                    &mut used_names,
+                    &imports,
+                    &mut name_space,
+                ) {
+                    ast_attributes.clear();
+                    attributes
+                } else {
+                    continue
+                };
+
+                session.modules.push(Module {
+                    name: *name,
+                    uid: *uid,
+                    attributes,
+                });
+            },
+            StmtKind::Import(_) => {
+                // already handled
             },
         }
     }

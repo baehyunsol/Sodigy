@@ -1,6 +1,7 @@
 use crate::{DUMMY_FILE_HASH, IS_FILE_SESSION_INIT, LOCK};
 use crate::cache::FileCache;
 use crate::error::FileError;
+use sodigy_test::{sodigy_log, LOG_NORMAL};
 use std::collections::{hash_map, HashMap, HashSet};
 use std::hash::Hasher;
 
@@ -22,6 +23,8 @@ pub struct FileSession {
 impl FileSession {
     /// Don't use this function! You should always use `global_file_session()`
     pub(crate) fn new() -> Self {
+        sodigy_log!(LOG_NORMAL, String::from("FileSession::new: enter"));
+
         // prevent hasher from initing DUMMY_FILE_HASH accidentally
         let hashes = [DUMMY_FILE_HASH].into_iter().collect();
 
@@ -104,6 +107,8 @@ impl FileSession {
 
     /// It returns Err when there's a hash collision.
     pub fn register_tmp_file(&mut self, content: &[u8]) -> Result<FileHash, FileError> {
+        sodigy_log!(LOG_NORMAL, format!("FileSession::register_tmp_file: {}", content.len()));
+
         let lock = unsafe { LOCK.lock().unwrap() };
 
         if let Some(f) = self.tmp_files_rev.get(content) {
@@ -141,6 +146,7 @@ impl FileSession {
 
     /// It returns Err when there's a hash collision.
     pub fn register_file(&mut self, path: &Path) -> Result<FileHash, FileError> {
+        sodigy_log!(LOG_NORMAL, format!("FileSession::register_file: {path}"));
         let lock = unsafe { LOCK.lock().unwrap() };
 
         if let Some(f) = self.files_rev.get(path) {
@@ -165,6 +171,8 @@ impl FileSession {
     }
 
     pub fn get_file_content(&mut self, hash: FileHash) -> Result<&[u8], FileError> {
+        sodigy_log!(LOG_NORMAL, format!("FileSession::get_file_content: {hash}"));
+
         match self.get_fs_file_content(hash) {
             // it's just `Ok(v)`
             // the compiler thinks `v` and `self.get_fs_file_content` violates the borrow rules,

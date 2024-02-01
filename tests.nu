@@ -22,6 +22,10 @@ def main [--depgraph] {
         cd $"./crates/sodigy_($crate)"
         cargo test
         cargo test --release
+
+        # TODO: make sure the names of the log files follow this pattern
+        # TODO: it should be at `clean.nu`
+        rm -f sodigy_compiler_logs*
         cd ../..
     }
 

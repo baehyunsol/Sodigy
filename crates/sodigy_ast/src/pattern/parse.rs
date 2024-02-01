@@ -12,6 +12,7 @@ use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
+use sodigy_test::{sodigy_log, LOG_VERBOSE};
 
 // operators
 // PAT `:` TY
@@ -53,6 +54,8 @@ pub fn parse_pattern_full(
     tokens: &mut Tokens,
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
+    sodigy_log!(LOG_VERBOSE, format!("parse_pattern_full: enter, curr token is `{:?}`", tokens.peek()));
+
     let mut lhs = parse_pattern_no_annotation(tokens, session)?;
 
     match tokens.peek() {

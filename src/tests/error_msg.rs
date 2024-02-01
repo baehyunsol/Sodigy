@@ -136,6 +136,12 @@ ErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorError
 
 // TODO: more name collisions
 check_output!(stmt, err, name_collision1, "let foo = 3; module foo;", "`foo` is bound multiple times");
+check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is bound multiple times");
+check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
+check_output!(stmt, err, name_collision4, "import a.foo; import b.foo;", "`foo` is bound multiple times");
+
+// TODO: struct is not implemented yet
+// check_output!(stmt, err, name_collision5, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
 
 // non-utf8 inputs
 check_output!(non_utf8, non_utf8_comment, make_non_utf8("# U\nlet main = 123;"), "invalid utf-8");

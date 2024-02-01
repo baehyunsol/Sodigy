@@ -12,8 +12,11 @@ use crate::stages::{PathOrRawInput, hir_from_tokens, parse_file};
 use crate::utils::{clean_irs, try_make_intermediate_paths};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
+use sodigy_test::{sodigy_log, LOG_NORMAL};
 
 pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> CompilerOutput {
+    sodigy_log!(LOG_NORMAL, format!("run: enter, input file is `{:?}`", options.input_file));
+
     let mut compiler_output = prev_output.unwrap_or_default();
 
     if let Some(sp) = options.do_not_compile_and_do_this {
@@ -121,7 +124,7 @@ Options:
                                     representations in the directory.
     --ignore-saved-ir [true|false]  Disable incremental compilation (default: false)
                                     It still saves intermediate representations when this flag is set.
-                                    You have to set `--save-ir` to not save irs.
+                                    You have to set `--save-ir false` to not save irs.
                                     TODO: not implemented yet
     --dump-tokens [true|false]      Dump tokens to stdout (default: false)
     --dump-tokens-to PATH           If `dump-tokens` is set, the tokens are dumped to <PATH>

@@ -1,5 +1,6 @@
 use crate::error::HirError;
 use crate::func::Func;
+use crate::module::Module;
 use crate::warn::HirWarning;
 use smallvec::{SmallVec, smallvec};
 use sodigy_ast::IdentWithSpan;
@@ -27,6 +28,10 @@ pub struct HirSession {
 
     // `_0`, `_1`, `_2`, ...
     field_exprs: Vec<InternedString>,
+
+    // modules defined in this file
+    pub(crate) modules: Vec<Module>,
+
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
 }
@@ -54,9 +59,10 @@ impl HirSession {
             errors: vec![],
             warnings: vec![],
             interner,
+            func_defs: HashMap::new(),
             tmp_names,
             field_exprs,
-            func_defs: HashMap::new(),
+            modules: vec![],
             snapshots: vec![],
             dependencies: vec![],
         }

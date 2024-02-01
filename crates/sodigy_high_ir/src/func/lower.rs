@@ -11,6 +11,7 @@ use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
+use sodigy_test::{sodigy_log, LOG_VERBOSE};
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
@@ -27,6 +28,8 @@ pub fn lower_ast_func(
     attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
 ) -> Result<Func, ()> {
+    sodigy_log!(LOG_VERBOSE, format!("lower_ast_func: {}", name.id()));
+
     let mut hir_args = None;
     let mut has_error = false;
 

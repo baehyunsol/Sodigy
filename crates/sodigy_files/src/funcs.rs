@@ -1,6 +1,8 @@
 // #![allow(dead_code)]
 use crate::error::FileError;
+use sodigy_test::{sodigy_log, LOG_NORMAL};
 use std::collections::hash_map;
+use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::hash::{Hash, Hasher};
 use std::io::{Read, Write};
@@ -22,6 +24,21 @@ pub enum WriteMode {
     AlwaysCreate,
 }
 
+impl fmt::Display for WriteMode {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "{}",
+            match self {
+                WriteMode::AlwaysAppend => "always_append",
+                WriteMode::AppendOrCreate => "append_or_create",
+                WriteMode::CreateOrTruncate => "create_or_truncate",
+                WriteMode::AlwaysCreate => "always_create",
+            }
+        )
+    }
+}
+
 impl From<WriteMode> for OpenOptions {
     fn from(m: WriteMode) -> OpenOptions {
         let mut result = OpenOptions::new();
@@ -38,10 +55,12 @@ impl From<WriteMode> for OpenOptions {
 }
 
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("read_bytes: {path}"));
     fs::read(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn read_string(path: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("read_string: {path}"));
     let mut s = String::new();
 
     match File::open(path) {
@@ -54,6 +73,7 @@ pub fn read_string(path: &str) -> Result<String, FileError> {
 }
 
 pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("write_bytes: {path}, {}, {write_mode}", bytes.len()));
     let option: OpenOptions = write_mode.into();
 
     match option.open(path) {
@@ -66,11 +86,13 @@ pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<()
 }
 
 pub fn write_string(path: &str, s: &str, write_mode: WriteMode) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("write_string: {path}, {}, {write_mode}", s.len()));
     write_bytes(path, s.as_bytes(), write_mode)
 }
 
 /// `a/b/c.d` -> `c`
 pub fn file_name(path: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("file_name: {path}"));
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.file_stem() {
@@ -84,6 +106,7 @@ pub fn file_name(path: &str) -> Result<String, FileError> {
 
 /// `a/b/c.d` -> `d`
 pub fn extension(path: &str) -> Result<Option<String>, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("extension: {path}"));
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.extension() {
@@ -97,6 +120,7 @@ pub fn extension(path: &str) -> Result<Option<String>, FileError> {
 
 /// `a/b/c.d` -> `c.d`
 pub fn basename(path: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("basename: {path}"));
     let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
 
     match path_buf.file_name() {
@@ -110,6 +134,7 @@ pub fn basename(path: &str) -> Result<String, FileError> {
 
 /// `a/b/`, `c.d` -> `a/b/c.d`
 pub fn join(path: &str, child: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("join: `{path}`, `{child}`"));
     let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
     let child = PathBuf::from_str(child).unwrap();  // Infallible
 
@@ -123,6 +148,7 @@ pub fn join(path: &str, child: &str) -> Result<String, FileError> {
 
 /// `a/b/c.d, e` -> `a/b/c.e`
 pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("set_ext: `{path}`, `{ext}`"));
     let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
 
     if path_buf.set_extension(ext) {
@@ -138,15 +164,18 @@ pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
 
 /// It returns `false` if `path` doesn't exist
 pub fn is_dir(path: &str) -> bool {
+    sodigy_log!(LOG_NORMAL, format!("is_dir: {path}"));
     PathBuf::from_str(path).map(|path| path.is_dir()).unwrap_or(false)
 }
 
 pub fn exists(path: &str) -> bool {
+    sodigy_log!(LOG_NORMAL, format!("exists: {path}"));
     PathBuf::from_str(path).map(|path| path.exists()).unwrap_or(false)
 }
 
 /// `a/b/c.d` -> `a/b/`
 pub fn parent(path: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("parent: {path}"));
     let std_path = Path::new(path);
 
     std_path.parent().map(
@@ -160,15 +189,19 @@ pub fn parent(path: &str) -> Result<String, FileError> {
 }
 
 pub fn create_dir(path: &str) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("create_dir: {path}"));
     fs::create_dir(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn create_dir_all(path: &str) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("create_dir_all: {path}"));
     fs::create_dir_all(path).map_err(|e| FileError::from_std(e, path))
 }
 
 // it only returns the hash value of the modified time
 pub fn last_modified(path: &str) -> Result<u64, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("last_modified: {path}"));
+
     match fs::metadata(path) {
         Ok(m) => match m.modified() {
             Ok(m) => {
@@ -185,6 +218,8 @@ pub fn last_modified(path: &str) -> Result<u64, FileError> {
 }
 
 pub fn read_dir(path: &str) -> Result<Vec<String>, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("read_dir: {path}"));
+
     match fs::read_dir(path) {
         Err(e) => Err(FileError::from_std(e, path)),
         Ok(entries) => {
@@ -210,18 +245,22 @@ pub fn read_dir(path: &str) -> Result<Vec<String>, FileError> {
 }
 
 pub fn remove_file(path: &str) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("remove_file: {path}"));
     fs::remove_file(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn remove_dir(path: &str) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("remove_dir: {path}"));
     fs::remove_dir(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn remove_dir_all(path: &str) -> Result<(), FileError> {
+    sodigy_log!(LOG_NORMAL, format!("remove_dir_all: {path}"));
     fs::remove_dir_all(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn get_all_sdg(path: &str, recurs: bool, ext: &str) -> Result<Vec<String>, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("get_all_sdg: {path}, {recurs}, {ext}"));
     let mut result = vec![];
 
     get_all_sdg_worker(path, recurs, ext, &mut result)?;
