@@ -11,18 +11,32 @@ pub const LOG_VERBOSE: u16 = 2;
 const LOG_THRESHOLD: u16 = 3;
 pub const LOG_FILE_PATH: &str = "./sodigy_compiler_logs.txt";
 
+fn exists(path: &str) -> bool {
+    PathBuf::from_str(LOG_FILE_PATH).map(|path| path.exists()).unwrap()
+}
+
 // I really want to import sodigy_files, but that introduces a cycle...
 pub fn sodigy_log(level: u16, mut msg: String) {
     if msg.chars().last() != Some('\n') {
         msg = format!("{msg}\n");
     }
 
-    // TODO: if multiple threads call `sodigy_log` at once, `path.exists()` does not work
     if level < LOG_THRESHOLD {
+        // ugly hack: if mutiple threads call `exists(LOG_FILE_PATH)` at the same time,
+        // many of them would get `false`. in order to prevent creating the file multiple
+        // times, it runs a meaningless loop
+        if !exists(LOG_FILE_PATH) {
+            let iter_count = rand::random::<usize>() & 31 | 32;
+
+            for _ in 0..iter_count {
+                if exists(LOG_FILE_PATH) {
+                    break;
+                }
+            }
+        }
+
         // if the log file doesn't exist, it creates the file
-        if !PathBuf::from_str(LOG_FILE_PATH).map(
-            |path| path.exists()
-        ).unwrap() {
+        if !exists(LOG_FILE_PATH) {
             // there's no way we can handle errors in this crate
             let oo = OpenOptions::new().write(true).create_new(true).to_owned();
             let mut f = oo.open(LOG_FILE_PATH).unwrap();

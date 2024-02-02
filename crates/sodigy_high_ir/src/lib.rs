@@ -138,6 +138,17 @@ pub fn lower_stmts(
         }
     }
 
+    let mut imported_names_set = HashSet::new();
+
+    // for `import x.y.z;`, the name `x` is an imported name: the session will
+    // search for this name later
+    for (_, names) in imports.values() {
+        if !imported_names_set.contains(&names[0].id()) {
+            imported_names_set.insert(names[0].id());
+            session.imported_names.push(names[0]);
+        }
+    }
+
     for (id, _) in names.values() {
         if preludes.contains(&id.id()) {
             session.push_warning(HirWarning::redef_prelude(*id));

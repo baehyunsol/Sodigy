@@ -29,6 +29,9 @@ pub struct HirSession {
     // `_0`, `_1`, `_2`, ...
     field_exprs: Vec<InternedString>,
 
+    // spans are used when there's an error
+    pub(crate) imported_names: Vec<IdentWithSpan>,
+
     // modules defined in this file
     pub(crate) modules: Vec<Module>,
 
@@ -62,6 +65,7 @@ impl HirSession {
             func_defs: HashMap::new(),
             tmp_names,
             field_exprs,
+            imported_names: vec![],
             modules: vec![],
             snapshots: vec![],
             dependencies: vec![],

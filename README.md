@@ -539,10 +539,19 @@ There are no specs for macros, only rough sketches for them.
 
 There are two keywords in Sodigy for modules: `module` and `import`.
 
-When the compiler sees `module foo;`, it looks for `foo.sdg` in (TODO: where?)
+`module foo;` defines a module named `foo`. The code must be at `./foo.sdg` or `./foo/lib.sdg`. `module foo;` implies `import foo;`. Your code can use names in `foo` with dots. For example, if `bar` is defined in `module foo`, it can be accessed with `foo.bar`.
 
-When the compiler sees `import foo.bar.baz;` it first searches `module`s defined in the same code file. If it cannot find `module foo` in the current code, it then looks for `sodigy.toml` in the current directory (where the current code file is at).
+TODO: we need better specifications for `module`s and `import`s. for now, there seems to be no reason for `module` to exist!
 
-TODO: how does `sodigy.toml` work?
+The `import` keyword imports external modules. There are 4 ways you can link external Sodigy files. Let's say you did `import foo;`
+
+1. You can tell the compiler where `foo.sdg` is. TODO: it's not implemented yet
+2. Local files. For `import foo;`, the compiler first looks for `./foo.sdg` and `./foo/lib.sdg`. If either of them exists, the compiler links the file.
+3. You can specify the path of the `.sdg` file in `sodigy.toml`. The `sodigy.toml` file must be at `.`.
+4. Standard Library. TODO: not implemented yet
+
+The compiler tries in that order.
+
+TODO: I want the compiler to warn unused dependencies. For ex, if there's `foo = { path = "../foo.sdg" }` in `sodgiy.toml` but no one imports `foo`, the compiler should warn that!
 
 You cannot `import *;` like many other languages. Sodigy cannot detect/prevent cyclic imports.

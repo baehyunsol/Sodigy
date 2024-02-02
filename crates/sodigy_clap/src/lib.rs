@@ -5,6 +5,7 @@
 //!
 //! [clap]: https://crates.io/crates/clap
 
+use sodigy_files::{exists, join};
 use sodigy_span::{SpanPoint, SpanRange};
 
 mod error;
@@ -288,7 +289,7 @@ pub fn parse_cli_args() -> ClapSession {
         let (output_format, output_path) = match (output_format, output_path) {
             (None, None) => (  // default values
                 IrStage::HighIr,  // TODO: Always set this to the latest stage possible
-                "a.out".to_string(),
+                default_output_path(),
             ),
             (Some(f), None) => {
                 let p = format!("a.{}", f.extension());
@@ -458,7 +459,7 @@ impl Default for CompilerOption {
         CompilerOption {
             do_not_compile_and_do_this: None,
             input_file: None,
-            output_path: Some(String::from("./a.out")),
+            output_path: Some(default_output_path()),
 
             // TODO: it has to be IrStage::Binary, but that's not implemented yet
             output_format: IrStage::HighIr,
@@ -479,4 +480,22 @@ pub enum SpecialOutput {
     HelpMessage,
     VersionInfo,
     CleanIrs,
+}
+
+// default is `a.out`
+// if `a.out` exists, it tries `b.out`, and goes on and on...
+fn default_output_path() -> String {
+    let mut prefix = String::new();
+
+    loop {
+        for c in 0..26 {
+            let p = join(".", &format!("{prefix}{}.out", (c + b'a') as char)).unwrap();
+
+            if !exists(&p) {
+                return p;
+            }
+        }
+
+        prefix = format!("_{prefix}");
+    }
 }

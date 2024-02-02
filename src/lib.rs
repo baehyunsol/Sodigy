@@ -96,6 +96,7 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
     compiler_output_
 }
 
+pub const DEPENDENCIES_AT: &str = "sodigy.toml";
 pub const SAVE_IRS_AT: &str = "__sdg_cache__";
 pub const COMPILER_HELP_MESSAGE: &str =
 "Usage: sodigy [OPTIONS] INPUT

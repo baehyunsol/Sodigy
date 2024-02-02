@@ -2,6 +2,7 @@ pub mod error;
 
 use super::error::ExpectedChars;
 use error::ParseNumberError;
+use sodigy_test::{sodigy_log, LOG_VERBOSE};
 
 pub fn bin_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
     if n.is_empty() {
@@ -60,6 +61,8 @@ pub fn oct_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
 }
 
 pub fn hex_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
+    sodigy_log!(LOG_VERBOSE, format!("hex_to_dec: enter {n:?}"));
+
     if n.is_empty() {
         return Err(ParseNumberError::UnfinishedNumLiteral(ExpectedChars::Specific(b"0123456789aAbBcCdDeEfF_".to_vec())));
     }
@@ -71,6 +74,15 @@ pub fn hex_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
         let result_len = result.len();
 
         result[result_len - 1] += to_n(*c);
+
+        if result[result_len - 1] >= b'0' + 16 {
+            for n in result.iter_mut() {
+                *n -= b'0';
+            }
+
+            shift_carry(&mut result);
+            result[0] += b'0';
+        }
     }
 
     // carry carries
@@ -87,8 +99,7 @@ pub fn hex_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
     Ok(result)
 }
 
-fn mul_n<const N: u8>(n: &mut Vec<u8>) {
-    n.iter_mut().for_each(|n| { *n = (*n - b'0') * N; });
+fn shift_carry(n: &mut Vec<u8>) {
     let n_len = n.len();
 
     for i in 1..n_len {
@@ -96,6 +107,13 @@ fn mul_n<const N: u8>(n: &mut Vec<u8>) {
         n[n_len - i] %= 10;
         n[n_len - i] += b'0';
     }
+}
+
+fn mul_n<const N: u8>(n: &mut Vec<u8>) {
+    sodigy_log!(LOG_VERBOSE, format!("mul_n: N is `{N}`, n is `{n:?}`"));
+
+    n.iter_mut().for_each(|n| { *n = (*n - b'0') * N; });
+    shift_carry(n);
 
     n[0] += b'0';
 

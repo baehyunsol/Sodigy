@@ -1,7 +1,7 @@
 use crate::run;
 use crate::stages::generate_path_for_ir;
 use sodigy_clap::{CompilerOption, IrStage};
-use sodigy_files::{read_bytes, remove_dir_all};
+use sodigy_files::{join, read_bytes, remove_dir_all};
 
 // 1. code -> tokens -> hir
 // 2. tokens (from saved ir) -> hir
@@ -10,9 +10,9 @@ use sodigy_files::{read_bytes, remove_dir_all};
 
 fn runner(path: &str) {
     // let's avoid name collisions with `rand::random`
-    let tmp_dir_name = format!("./__tmp_{:x}", rand::random::<u64>());
-    let dump_hir_to_1 = format!("{tmp_dir_name}/hir1.hir");
-    let dump_hir_to_2 = format!("{tmp_dir_name}/hir2.hir");
+    let tmp_dir_name = join(".", &format!("__tmp_{:x}", rand::random::<u64>())).unwrap();
+    let dump_hir_to_1 = join(&tmp_dir_name, "hir1.hir").unwrap();
+    let dump_hir_to_2 = join(&tmp_dir_name, "hir2.hir").unwrap();
 
     // We don't have to set `--ignore-saved-ir` in this case
     // -> input file changes each time!

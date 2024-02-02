@@ -1,4 +1,4 @@
-rm -f a.out
+rm -f *.out
 rm -f *.hir
 rm -f *.tokens
 rm -f __*.tmp
