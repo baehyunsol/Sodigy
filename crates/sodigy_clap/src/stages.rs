@@ -2,7 +2,7 @@ mod fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IrStage {
-    Tokens, HighIr,
+    Tokens, HighIr, MidIr,
 }
 
 impl IrStage {
@@ -10,6 +10,7 @@ impl IrStage {
         match self {
             IrStage::Tokens => "tokens",
             IrStage::HighIr => "hir",
+            IrStage::MidIr => "mir",
         }.to_string()
     }
 
@@ -22,6 +23,10 @@ impl IrStage {
 
         else if path.ends_with(".hir") {
             Some(IrStage::HighIr)
+        }
+
+        else if path.ends_with(".mir") {
+            Some(IrStage::MidIr)
         }
 
         else {

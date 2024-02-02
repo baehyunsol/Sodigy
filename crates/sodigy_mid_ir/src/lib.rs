@@ -8,3 +8,6 @@ mod prelude;
 mod session;
 mod ty;
 mod ty_class;
+mod warn;
+
+pub use session::MirSession;

@@ -14,6 +14,8 @@ impl RenderError for Flag {
             Flag::DumpTokensTo => "dump-tokens-to",
             Flag::DumpHir => "dump-hir",
             Flag::DumpHirTo => "dump-hir-to",
+            Flag::DumpMir => "dump-mir",
+            Flag::DumpMirTo => "dump-mir-to",
             Flag::Clean => "clean",
             Flag::Verbose => "verbose",
             Flag::RawInput => "raw-input",

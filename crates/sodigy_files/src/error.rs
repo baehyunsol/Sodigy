@@ -233,4 +233,5 @@ pub enum FileErrorContext {
     CleaningIr,
     DumpingTokensToFile,
     DumpingHirToFile,
+    DumpingMirToFile,
 }

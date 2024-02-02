@@ -2,6 +2,8 @@ use crate::expr::{Expr, ExprKind};
 use crate::prelude::uids;
 use sodigy_uid::Uid;
 
+mod endec;
+
 #[derive(Clone, Hash)]
 pub enum Type {
     Solid(Uid),              // Int

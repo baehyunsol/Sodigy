@@ -78,6 +78,8 @@ fn very_long_file() {
             dump_tokens_to: None,
             dump_hir: false,
             dump_hir_to: None,
+            dump_mir: false,
+            dump_mir_to: None,
             verbosity: 0,
             raw_input: None,
         },

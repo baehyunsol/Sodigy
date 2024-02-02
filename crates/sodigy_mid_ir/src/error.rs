@@ -11,6 +11,8 @@ use sodigy_error::{
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
+mod endec;
+
 pub struct MirError {
     kind: MirErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
@@ -20,7 +22,7 @@ pub struct MirError {
 impl MirError {
     pub fn type_class_not_implemented(
         type_class: TypeClass,
-        types: Vec<Type>,
+        types: Vec<Type>,  // TODO: use this arg
         span: SpanRange,
     ) -> Self {
         MirError {

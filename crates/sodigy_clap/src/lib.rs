@@ -84,6 +84,8 @@ pub fn parse_cli_args() -> ClapSession {
         let mut dump_tokens_to = None;
         let mut dump_hir = None;
         let mut dump_hir_to = None;
+        let mut dump_mir = None;
+        let mut dump_mir_to = None;
         let mut verbosity = None;
         let mut raw_input: Option<(Vec<u8>, SpanRange)> = None;
 
@@ -92,6 +94,8 @@ pub fn parse_cli_args() -> ClapSession {
         let mut dump_tokens_to_span = None;
         let mut dump_hir_span = None;
         let mut dump_hir_to_span = None;
+        let mut dump_mir_span = None;
+        let mut dump_mir_to_span = None;
 
         let mut help_flag = None;
         let mut version_flag = None;
@@ -192,6 +196,28 @@ pub fn parse_cli_args() -> ClapSession {
                                 dump_hir_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
+                        Flag::DumpMir => {
+                            dump_mir_span = Some(tokens[index].span.merge(tokens[index + 1].span));
+
+                            if dump_mir.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpMir, tokens[index].span));
+                            }
+
+                            else {
+                                dump_mir = Some(tokens[index + 1].value.unwrap_bool());
+                            }
+                        },
+                        Flag::DumpMirTo => {
+                            dump_mir_to_span = Some(tokens[index].span.merge(tokens[index + 1].span));
+
+                            if dump_mir_to.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpMirTo, tokens[index].span));
+                            }
+
+                            else {
+                                dump_mir_to = Some(tokens[index + 1].value.unwrap_path());
+                            }
+                        },
                         Flag::Verbose => {
                             if verbosity.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::Verbose, tokens[index].span));
@@ -288,10 +314,12 @@ pub fn parse_cli_args() -> ClapSession {
 
         let (output_format, output_path) = match (output_format, output_path) {
             (None, None) => (  // default values
-                IrStage::HighIr,  // TODO: Always set this to the latest stage possible
+                IrStage::MidIr,
                 default_output_path(),
             ),
             (Some(f), None) => {
+                // TODO: now that I use `default_output_path()` instead of `a.out`,
+                // it should also go like `a.mir`, `b.mir`, ...
                 let p = format!("a.{}", f.extension());
 
                 (f, p)
@@ -300,8 +328,8 @@ pub fn parse_cli_args() -> ClapSession {
                 let f = if let Some(f) = IrStage::try_infer_from_ext(&p) {
                     f
                 } else {
-                    // it has to be the last stage among the implemented
-                    IrStage::HighIr
+                    // always use the last stage possible
+                    IrStage::MidIr
                 };
 
                 (f, p)
@@ -351,6 +379,23 @@ pub fn parse_cli_args() -> ClapSession {
             ));
         }
 
+        // `--dump-mir` is false by default
+        if dump_mir_to.is_some() && (dump_mir.is_none() || dump_mir == Some(false)) {
+            let mut spans = vec![
+                dump_mir_to_span.unwrap(),
+            ];
+
+            if let Some(span) = dump_mir_span {
+                spans.push(span);
+            }
+
+            warnings.push(ClapWarning::path_is_set_flag_is_not_set(
+                Flag::DumpMirTo,  // is set
+                Flag::DumpMir,    // is not set
+                spans,
+            ));
+        }
+
         // it not only mutes compiler warnings, but also clap warnings
         if show_warnings == Some(false) {
             warnings.clear();
@@ -379,6 +424,8 @@ pub fn parse_cli_args() -> ClapSession {
             dump_tokens_to,
             dump_hir: dump_hir.unwrap_or(false),
             dump_hir_to,
+            dump_mir: dump_mir.unwrap_or(false),
+            dump_mir_to,
             verbosity: verbosity.unwrap_or(1),
             raw_input,
         };
@@ -413,6 +460,8 @@ pub struct CompilerOption {
     pub dump_tokens_to: Option<Path>,
     pub dump_hir: bool,
     pub dump_hir_to: Option<Path>,
+    pub dump_mir: bool,
+    pub dump_mir_to: Option<Path>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
@@ -460,15 +509,15 @@ impl Default for CompilerOption {
             do_not_compile_and_do_this: None,
             input_file: None,
             output_path: Some(default_output_path()),
-
-            // TODO: it has to be IrStage::Binary, but that's not implemented yet
-            output_format: IrStage::HighIr,
+            output_format: IrStage::MidIr,
             show_warnings: true,
             save_ir: true,
             dump_tokens: false,
             dump_tokens_to: None,
             dump_hir: false,
             dump_hir_to: None,
+            dump_mir: false,
+            dump_mir_to: None,
             verbosity: 1,
             raw_input: None,
         }

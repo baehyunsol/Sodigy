@@ -1,5 +1,10 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
-use sodigy_ast::{parse_stmts, AstSession, Tokens};
+use sodigy_ast::{
+    parse_stmts,
+    AstSession,
+    IdentWithSpan,
+    Tokens,
+};
 use sodigy_clap::{CompilerOption, IrStage};
 use sodigy_endec::{Endec, EndecError, EndecErrorContext, EndecErrorKind};
 use sodigy_error::UniversalError;
@@ -22,6 +27,7 @@ use sodigy_files::{
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_intern::InternedString;
 use sodigy_lex::{lex, LexSession};
+use sodigy_mid_ir::MirSession;
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
@@ -284,6 +290,11 @@ pub fn hir_from_tokens(
                         return (None, compiler_output);
                     },
                 },
+                Some(IrStage::MidIr) => {
+                    todo!()
+                    // raise an error saying that,
+                    // 'cannot downgrade an Mir to an Hir'
+                },
 
                 // Let's assume it's a code file
                 None => match parse_file(
@@ -396,159 +407,176 @@ pub fn hir_from_tokens(
     }
 }
 
-// pub fn mir_from_hir(
-//     input: PathOrRawInput,
-//     prev_output: Option<CompilerOutput>,
-//     compiler_option: &CompilerOption,
-// ) -> (Option<HirSession>, CompilerOutput) {
-//     sodigy_log!(LOG_NORMAL, format!("mir_from_hir: enter, input is `{input:?}`"));
+pub fn mir_from_hir(
+    input: PathOrRawInput,
+    prev_output: Option<CompilerOutput>,
+    compiler_option: &CompilerOption,
+) -> (Option<MirSession>, CompilerOutput) {
+    sodigy_log!(LOG_NORMAL, format!("mir_from_hir: enter, input is `{input:?}`"));
 
-//     let mut compiler_output = prev_output.unwrap_or_default();
+    let mut compiler_output = prev_output.unwrap_or_default();
 
-//     let hir_session = match input {
-//         PathOrRawInput::Path(file) => {
-//             // if MirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
-//             if let Some(s) = try_construct_session_from_saved_ir::<MirSession>(file, FILE_EXT_MID_IR) {
-//                 match s {
-//                     Ok(session) if !session.check_all_dependency_up_to_date() => {},
-//                     Ok(session) => {
-//                         compiler_output.collect_errors_and_warnings_from_session(&session);
+    let hir_session = match input {
+        PathOrRawInput::Path(file) => {
+            // if MirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
+            if let Some(s) = try_construct_session_from_saved_ir::<MirSession>(file, FILE_EXT_MID_IR) {
+                match s {
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
+                    Ok(session) => {
+                        compiler_output.collect_errors_and_warnings_from_session(&session);
 
-//                         if compiler_option.dump_mir {
-//                             let res = session.dump_mir();
+                        if compiler_option.dump_mir {
+                            let res = session.dump_mir();
 
-//                             if let Some(path) = &compiler_option.dump_hir_to {
-//                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-//                                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
-//                                 }
-//                             }
+                            if let Some(path) = &compiler_option.dump_hir_to {
+                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
+                                }
+                            }
 
-//                             else {
-//                                 compiler_output.dump_to_stdout(res);
-//                             }
-//                         }
+                            else {
+                                compiler_output.dump_to_stdout(res);
+                            }
+                        }
 
-//                         return (Some(session), compiler_output);
-//                     },
-//                     Err(e) => {
-//                         compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-//                     },
-//                 }
-//             }
+                        return (Some(session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+                    },
+                }
+            }
 
-//             match IrStage::try_infer_from_ext(file) {
-//                 Some(IrStage::MidIr) => match MirSession::load_from_file(file, None) {  // MirSession is already here!
-//                     Ok(mir_session) => {
-//                         compiler_output.collect_errors_and_warnings_from_session(&mir_session);
-//                         return (Some(mir_session), compiler_output);
-//                     },
-//                     Err(e) => {
-//                         compiler_output.push_error(e.into());
+            match IrStage::try_infer_from_ext(file) {
+                Some(IrStage::MidIr) => match MirSession::load_from_file(file, None) {  // MirSession is already here!
+                    Ok(mir_session) => {
+                        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
+                        return (Some(mir_session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
 
-//                         if is_human_readable(file) {
-//                             compiler_output.push_error(
-//                                 EndecError::human_readable_file("--dump-hir", file)
-//                                     .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
-//                             );
-//                         }
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-hir", file)
+                                    .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
+                            );
+                        }
 
-//                         return (None, compiler_output);
-//                     },
-//                 },
+                        return (None, compiler_output);
+                    },
+                },
 
-//                 _ => match hir_from_tokens(
-//                     PathOrRawInput::Path(file),
-//                     None,
-//                     compiler_option,
-//                 ) {
-//                     (Some(hir_session), output) => {
-//                         compiler_output.merge(output);
+                _ => match hir_from_tokens(
+                    PathOrRawInput::Path(file),
+                    None,
+                    compiler_option,
+                ) {
+                    (Some(hir_session), output) => {
+                        compiler_output.merge(output);
 
-//                         hir_session
-//                     },
-//                     (None, output) => {
-//                         return (None, output);
-//                     },
-//                 },
-//             }
-//         },
-//         _ => {
-//             let (hir_session, compiler_output_) = hir_from_tokens(
-//                 input,
-//                 Some(compiler_output),
-//                 compiler_option,
-//             );
+                        hir_session
+                    },
+                    (None, output) => {
+                        return (None, output);
+                    },
+                },
+            }
+        },
+        _ => {
+            let (hir_session, compiler_output_) = hir_from_tokens(
+                input,
+                Some(compiler_output),
+                compiler_option,
+            );
 
-//             compiler_output = compiler_output_;
+            compiler_output = compiler_output_;
 
-//             match hir_session {
-//                 Some(hir_session) => hir_session,
-//                 None => {
-//                     return (None, compiler_output);
-//                 },
-//             }
-//         },
-//     };
+            match hir_session {
+                Some(hir_session) => hir_session,
+                None => {
+                    return (None, compiler_output);
+                },
+            }
+        },
+    };
 
-//     let mut mir_session = MirSession::new();
-//     mir_session.merge_hir(&hir_session);
+    let mut has_error = false;
+    let mut mir_session = MirSession::new();
 
-//     for name in hir_session.imported_names.iter() {}
+    if let Err(()) = mir_session.merge_hir(&hir_session) {
+        has_error = true;
+    }
 
-//     let has_error = mir_session.has_error();
-//     compiler_output.collect_errors_and_warnings_from_session(&mir_session);
+    for name in hir_session.imported_names.iter() {
+        match try_resolve_dependency(*name) {
+            Ok(path) => {
+                todo!()
+                // 0. register the path to mir.dependencies
+                // 1. register the path to `paths_to_construct_hir_from`
+                // 2. consume `paths_to_construct_hir_from`
+                // 3. merge all the hir_sessions to mir_session
+            },
+            Err(e) => {
+                has_error = true;
+                compiler_output.push_error(e);
+            },
+        }
+    }
 
-//     if has_error {
-//         return (None, compiler_output);
-//     }
+    compiler_output.collect_errors_and_warnings_from_session(&mir_session);
 
-//     else {
-//         match input {
-//             PathOrRawInput::Path(file) if compiler_option.save_ir => {
-//                 let tmp_path = match generate_path_for_ir(file, FILE_EXT_MID_IR, true) {
-//                     Ok(p) => p.to_string(),
-//                     Err(e) => {
-//                         compiler_output.push_error(e.into());
-//                         return (None, compiler_output);
-//                     },
-//                 };
+    if has_error {
+        return (None, compiler_output);
+    }
 
-//                 let file_metadata = match last_modified(file) {
-//                     Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-//                     Err(e) => {
-//                         compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+    else {
+        match input {
+            PathOrRawInput::Path(file) if compiler_option.save_ir => {
+                let tmp_path = match generate_path_for_ir(file, FILE_EXT_MID_IR, true) {
+                    Ok(p) => p.to_string(),
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+                        return (None, compiler_output);
+                    },
+                };
 
-//                         0
-//                     },
-//                 };
+                let file_metadata = match last_modified(file) {
+                    Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
 
-//                 if let Err(mut e) = mir_session.save_to_file(&tmp_path, Some(file_metadata)) {
-//                     compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
-//                 }
-//             },
-//             _ => {},
-//         }
+                        0
+                    },
+                };
 
-//         if compiler_option.dump_mir {
-//             let res = hir_session.dump_mir();
+                if let Err(mut e) = mir_session.save_to_file(&tmp_path, Some(file_metadata)) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
+                }
+            },
+            _ => {},
+        }
 
-//             if let Some(path) = &compiler_option.dump_mir_to {
-//                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-//                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
-//                 }
-//             }
+        if compiler_option.dump_mir {
+            let res = mir_session.dump_mir();
 
-//             else {
-//                 compiler_output.dump_to_stdout(res);
-//             }
-//         }
+            if let Some(path) = &compiler_option.dump_mir_to {
+                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
+                }
+            }
 
-//         mir_session.clear_errors();
-//         mir_session.clear_warnings();
+            else {
+                compiler_output.dump_to_stdout(res);
+            }
+        }
 
-//         (Some(mir_session), compiler_output)
-//     }
-// }
+        mir_session.clear_errors();
+        mir_session.clear_warnings();
+
+        (Some(mir_session), compiler_output)
+    }
+}
 
 // for ex, `hir` (auto generated by compiler, not manually by the user) for `./foo.sdg` is at `./__sdg_cache__/foo.hir`
 pub fn generate_path_for_ir(
@@ -629,6 +657,11 @@ fn try_get_macro_definition(name: InternedString) -> Result<(), UniversalError> 
 
     // what then?
 
+    todo!()
+}
+
+fn try_resolve_dependency(dependency: IdentWithSpan) -> Result<Path, UniversalError> {
+    // see README: it tells you where to look for the dependencies
     todo!()
 }
 

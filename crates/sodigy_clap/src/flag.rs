@@ -14,12 +14,14 @@ pub enum Flag {
     DumpTokensTo,
     DumpHir,
     DumpHirTo,
+    DumpMir,
+    DumpMirTo,
     Clean,
     Verbose,
     RawInput,
 }
 
-pub const FLAGS: [Flag; 13] = [
+pub const FLAGS: [Flag; 15] = [
     Flag::Output,
     Flag::To,
     Flag::Help,
@@ -30,6 +32,8 @@ pub const FLAGS: [Flag; 13] = [
     Flag::DumpTokensTo,
     Flag::DumpHir,
     Flag::DumpHirTo,
+    Flag::DumpMir,
+    Flag::DumpMirTo,
     Flag::Clean,
     Flag::Verbose,
     Flag::RawInput,
@@ -41,12 +45,14 @@ impl Flag {
         match self {
             Flag::Output
             | Flag::DumpTokensTo
-            | Flag::DumpHirTo => TokenKind::Path,
+            | Flag::DumpHirTo
+            | Flag::DumpMirTo => TokenKind::Path,
             Flag::To => TokenKind::Stage,
             Flag::ShowWarnings
             | Flag::SaveIr
             | Flag::DumpTokens
-            | Flag::DumpHir => TokenKind::Bool,
+            | Flag::DumpHir
+            | Flag::DumpMir => TokenKind::Bool,
             Flag::Verbose => TokenKind::Int,
             Flag::RawInput => TokenKind::RawInput,
             Flag::Help
@@ -67,6 +73,8 @@ impl Flag {
             | Flag::DumpTokensTo
             | Flag::DumpHir
             | Flag::DumpHirTo
+            | Flag::DumpMir
+            | Flag::DumpMirTo
             | Flag::Clean
             | Flag::Verbose
             | Flag::RawInput => None,
@@ -85,6 +93,8 @@ impl Flag {
             Flag::DumpTokensTo => b"--dump-tokens-to",
             Flag::DumpHir => b"--dump-hir",
             Flag::DumpHirTo => b"--dump-hir-to",
+            Flag::DumpMir => b"--dump-mir",
+            Flag::DumpMirTo => b"--dump-mir-to",
             Flag::Clean => b"--clean",
             Flag::Verbose => b"--verbose",
             Flag::RawInput => b"--raw-input",

@@ -81,6 +81,7 @@ impl RenderError for FileErrorContext {
             FileErrorContext::CleaningIr => "cleaning intermediate representations",
             FileErrorContext::DumpingTokensToFile => "dumping tokens to file",
             FileErrorContext::DumpingHirToFile => "dumping hir to file",
+            FileErrorContext::DumpingMirToFile => "dumping mir to file",
         }.to_string()
     }
 }

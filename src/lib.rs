@@ -8,7 +8,12 @@ pub mod utils;
 mod tests;
 
 use crate::result::CompilerOutput;
-use crate::stages::{PathOrRawInput, hir_from_tokens, parse_file};
+use crate::stages::{
+    PathOrRawInput,
+    hir_from_tokens,
+    mir_from_hir,
+    parse_file,
+};
 use crate::utils::{clean_irs, try_make_intermediate_paths};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
@@ -80,6 +85,11 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
         },
         IrStage::HighIr => {
             let (r, o) = hir_from_tokens(input, Some(compiler_output), &options);
+
+            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
+        },
+        IrStage::MidIr => {
+            let (r, o) = mir_from_hir(input, Some(compiler_output), &options);
 
             (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
         },

@@ -9,6 +9,7 @@ use sodigy_intern::{
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+mod endec;
 pub mod lower;
 
 #[derive(Clone, Hash)]

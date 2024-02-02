@@ -3,6 +3,7 @@ use crate::ty::Type;
 use sodigy_ast::IdentWithSpan;
 use sodigy_uid::Uid;
 
+mod endec;
 mod lower;
 
 pub struct Def {
@@ -15,6 +16,6 @@ pub struct Def {
 }
 
 pub struct Arg {
-    name: IdentWithSpan,  // TODO: do we need this?
+    name: IdentWithSpan,
     ty: Type,
 }

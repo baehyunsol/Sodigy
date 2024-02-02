@@ -6,6 +6,7 @@ impl RenderError for IrStage {
         match self {
             IrStage::Tokens => "tokens",
             IrStage::HighIr => "high-ir",
+            IrStage::MidIr => "mid-ir",
         }.to_string()
     }
 }

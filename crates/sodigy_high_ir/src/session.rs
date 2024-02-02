@@ -30,7 +30,7 @@ pub struct HirSession {
     field_exprs: Vec<InternedString>,
 
     // spans are used when there's an error
-    pub(crate) imported_names: Vec<IdentWithSpan>,
+    pub imported_names: Vec<IdentWithSpan>,
 
     // modules defined in this file
     pub(crate) modules: Vec<Module>,
