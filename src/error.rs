@@ -6,8 +6,8 @@ pub fn dependency_not_found(dependency: IdentWithSpan) -> UniversalError {
         ErrorContext::Unknown,
         Some(*dependency.span()),
         false,
-        todo!(),
-        todo!(),
+        format!("module not found: `{}`", dependency.id()),
+        String::new(),
     )
 }
 
@@ -21,7 +21,7 @@ pub fn conflicting_dependencies(
         ErrorContext::Unknown,
         Some(*dependency.span()),
         false,
-        todo!(),
-        todo!(),
+        format!("conflict in module `{}`", dependency.id()),
+        format!("Both `{path1}` and `{path2}` are valid candidates of module `{}`.", dependency.id()),
     )
 }

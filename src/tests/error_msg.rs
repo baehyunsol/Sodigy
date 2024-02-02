@@ -140,6 +140,8 @@ check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is b
 check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision4, "import a.foo; import b.foo;", "`foo` is bound multiple times");
 
+check_output!(stmt, err, no_module, "import invalid_module_name;", "module not found");
+
 // TODO: struct is not implemented yet
 // check_output!(stmt, err, name_collision5, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
 
