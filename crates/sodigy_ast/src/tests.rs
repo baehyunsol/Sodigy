@@ -10,6 +10,7 @@ use sodigy_parse::{from_tokens, ParseSession};
 fn ast_test() {
     let g = unsafe { global_file_session() };
 
+    // TODO: use join function
     for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
         let mut lex_session = LexSession::new();
         let f = g.register_file(&path.to_string()).unwrap();

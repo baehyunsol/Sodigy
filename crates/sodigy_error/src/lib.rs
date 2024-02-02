@@ -109,7 +109,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let mut intern_session = InternSession::new();
         let is_warning = self.is_warning();
         let title = if render_title {
-            format!("{}\n", render_error_title(
+            format!("{}", render_error_title(
                 self.get_error_info().context.render_error(),
                 is_warning,
             ))

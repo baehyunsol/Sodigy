@@ -7,6 +7,7 @@
 
 use sodigy_files::{exists, join};
 use sodigy_span::{SpanPoint, SpanRange};
+use std::collections::HashMap;
 
 mod error;
 mod flag;
@@ -426,6 +427,7 @@ pub fn parse_cli_args() -> ClapSession {
             dump_hir_to,
             dump_mir: dump_mir.unwrap_or(false),
             dump_mir_to,
+            dependencies: HashMap::new(),
             verbosity: verbosity.unwrap_or(1),
             raw_input,
         };
@@ -462,6 +464,11 @@ pub struct CompilerOption {
     pub dump_hir_to: Option<Path>,
     pub dump_mir: bool,
     pub dump_mir_to: Option<Path>,
+
+    // for now, users can't provide this because
+    // command line flags can take only one argument
+    // HashMap<"foo", "./foo.sdg">
+    pub dependencies: HashMap<String, Path>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
@@ -518,6 +525,7 @@ impl Default for CompilerOption {
             dump_hir_to: None,
             dump_mir: false,
             dump_mir_to: None,
+            dependencies: HashMap::new(),
             verbosity: 1,
             raw_input: None,
         }

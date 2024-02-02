@@ -9,6 +9,7 @@ use sodigy_files::{
     write_string,
     WriteMode,
 };
+use std::collections::HashMap;
 
 fn random_string(len: usize) -> String {
     (0..len).map(
@@ -20,7 +21,7 @@ fn random_string(len: usize) -> String {
 fn very_long_file() {
     return;  // TODO: let's not do this for now
 
-    let iter_count = 8192;
+    let iter_count = 65536;
     let tmp_file_name = join(".", &format!("__tmp_{:x}.sdg", rand::random::<u64>())).unwrap();
 
     write_string(&tmp_file_name, "# very long file test\n", WriteMode::AlwaysCreate).unwrap();
@@ -80,6 +81,7 @@ fn very_long_file() {
             dump_hir_to: None,
             dump_mir: false,
             dump_mir_to: None,
+            dependencies: HashMap::new(),
             verbosity: 0,
             raw_input: None,
         },

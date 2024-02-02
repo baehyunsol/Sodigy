@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+mod error;
 pub mod result;
 pub mod stages;
 pub mod utils;

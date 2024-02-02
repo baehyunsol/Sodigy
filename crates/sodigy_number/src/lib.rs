@@ -1,5 +1,8 @@
 #![deny(unused_imports)]
 
+// TODO: the entire crate is too ugly
+// i have to rewrite the crate from scratch someday
+
 use hmath::BigInt;
 use sodigy_test::sodigy_assert;
 
@@ -82,7 +85,7 @@ impl SodigyNumber {
         }
     }
 
-    pub fn get_denom_and_numer(&self) -> (SodigyNumber, SodigyNumber) {
+    pub fn get_denom_and_numer(&self) -> (SodigyNumber, SodigyNumber) {  // (denom, numer)
         match self {
             SodigyNumber::Big(n) => n.get_denom_and_numer(),
             SodigyNumber::SmallInt(n) => (
@@ -232,6 +235,8 @@ impl SodigyNumber {
     }
 }
 
+// returns (x, y) where
+// y / x = numer * 2^twos * 5^fives / denom
 fn get_denom_and_numer_fallback(denom: u128, numer: u128, twos: i64, fives: i64) -> (SodigyNumber, SodigyNumber) {
     todo!()
 }

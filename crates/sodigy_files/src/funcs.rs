@@ -147,8 +147,8 @@ pub fn join(path: &str, child: &str) -> Result<String, FileError> {
 }
 
 /// `a/b/c.d, e` -> `a/b/c.e`
-pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
-    sodigy_log!(LOG_NORMAL, format!("set_ext: `{path}`, `{ext}`"));
+pub fn set_extension(path: &str, ext: &str) -> Result<String, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("set_extension: `{path}`, `{ext}`"));
     let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
 
     if path_buf.set_extension(ext) {
@@ -166,6 +166,12 @@ pub fn set_ext(path: &str, ext: &str) -> Result<String, FileError> {
 pub fn is_dir(path: &str) -> bool {
     sodigy_log!(LOG_NORMAL, format!("is_dir: {path}"));
     PathBuf::from_str(path).map(|path| path.is_dir()).unwrap_or(false)
+}
+
+/// It returns `false` if `path` doesn't exist
+pub fn is_file(path: &str) -> bool {
+    sodigy_log!(LOG_NORMAL, format!("is_file: {path}"));
+    PathBuf::from_str(path).map(|path| path.is_file()).unwrap_or(false)
 }
 
 pub fn exists(path: &str) -> bool {

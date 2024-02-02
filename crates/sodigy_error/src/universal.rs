@@ -1,7 +1,9 @@
-use crate::{RenderError, render_error_title};
+use crate::{ErrorContext, RenderError, render_error_title};
 use sodigy_endec::EndecError;
 use sodigy_files::FileError;
-use sodigy_span::SpanRange;
+use sodigy_span::{ColorScheme, SpanRange, render_spans};
+use std::collections::hash_map;
+use std::hash::Hasher;
 
 /// Any error type that implements SodigyError can be converted to this type.
 /// The compiler uses this type to manage all the errors and warnings.
@@ -20,6 +22,51 @@ pub struct UniversalError {
 }
 
 impl UniversalError {
+    pub fn new(
+        context: ErrorContext,
+        span: Option<SpanRange>,
+        is_warning: bool,
+
+        // those of SodigyErrorKind
+        msg: String,
+        help: String,
+    ) -> Self {
+        let message = format!(
+            "{msg}{}{}",
+            if help.is_empty() {
+                String::new()
+            } else {
+                format!("\n{help}")
+            },
+            if let Some(span) = span {
+                format!(
+                    "\n{}",
+                    render_spans(
+                        &[span],
+                        if is_warning {
+                            ColorScheme::warning()
+                        } else {
+                            ColorScheme::error()
+                        },
+                    ),
+                )
+            } else {
+                String::new()
+            },
+        );
+
+        let mut hasher = hash_map::DefaultHasher::new();
+        hasher.write(message.as_bytes());
+
+        UniversalError {
+            hash: hasher.finish(),
+            message,
+            context: context.render_error(),
+            is_warning,
+            first_span: span.unwrap_or_else(|| SpanRange::dummy(0x81f82572)),
+        }
+    }
+
     pub fn rendered(&self) -> String {
         let title = render_error_title(
             self.context.clone(),

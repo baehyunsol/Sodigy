@@ -74,6 +74,7 @@ macro_rules! run_test {
     }
 }
 
+// TODO: use join function
 // make sure that all the `.sdg` files have no compile-errors
 run_test!(stage_dump_test1, "./samples/easy.sdg");
 run_test!(stage_dump_test2, "./samples/empty.sdg");

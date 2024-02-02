@@ -553,5 +553,6 @@ The `import` keyword imports external modules. There are 4 ways you can link ext
 The compiler tries in that order.
 
 TODO: I want the compiler to warn unused dependencies. For ex, if there's `foo = { path = "../foo.sdg" }` in `sodgiy.toml` but no one imports `foo`, the compiler should warn that!
+TODO: how about a sodigy file instead of a toml file?
 
 You cannot `import *;` like many other languages. Sodigy cannot detect/prevent cyclic imports.

@@ -1,4 +1,5 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
+use crate::error;
 use sodigy_ast::{
     parse_stmts,
     AstSession,
@@ -14,11 +15,13 @@ use sodigy_files::{
     file_name,
     global_file_session,
     is_dir,
+    is_file,
     join,
     last_modified,
     parent,
     read_bytes,
     read_string,
+    set_extension,
     write_string,
     FileError,
     FileErrorContext,
@@ -509,7 +512,7 @@ pub fn mir_from_hir(
     }
 
     for name in hir_session.imported_names.iter() {
-        match try_resolve_dependency(*name) {
+        match try_resolve_dependency(compiler_option, *name) {
             Ok(path) => {
                 todo!()
                 // 0. register the path to mir.dependencies
@@ -607,9 +610,7 @@ pub fn generate_path_for_ir(
 
     let save_ir_to = join(
         &base_path,
-
-        // TODO: how about using `set_ext`?
-        &format!("{file_name}.{ext}"),
+        &set_extension(&file_name, ext)?,
     )?;
 
     Ok(save_ir_to)
@@ -660,9 +661,53 @@ fn try_get_macro_definition(name: InternedString) -> Result<(), UniversalError> 
     todo!()
 }
 
-fn try_resolve_dependency(dependency: IdentWithSpan) -> Result<Path, UniversalError> {
+fn try_resolve_dependency(compiler_option: &CompilerOption, dependency: IdentWithSpan) -> Result<Path, UniversalError> {
     // see README: it tells you where to look for the dependencies
-    todo!()
+    let dep_name = dependency.id().to_string();
+
+    // 1. check if CompilerOption knows where the file is
+    // TODO: users cannot provide this option
+    if let Some(path) = compiler_option.dependencies.get(&dep_name) {
+        return Ok(path.to_string());
+    }
+
+    // 2. check `./foo.sdg` and `./foo/lib.sdg`
+    let candidate1 = join(".", &set_extension(&dep_name, "sdg")?)?;
+    let candidate2 = join(
+        ".",
+        &join(
+            &dep_name,
+            &set_extension("lib", "sdg")?,
+        )?,
+    )?;
+
+    // `is_file` returns false if the path does not exist
+    match (is_file(&candidate1), is_file(&candidate2)) {
+        (true, true) => {
+            return Err(error::conflicting_dependencies(
+                dependency,
+                candidate1,
+                candidate2,
+            ))
+        },
+        (true, false) => {
+            return Ok(candidate1);
+        },
+        (false, true) => {
+            return Ok(candidate2);
+        },
+        (false, false) => {
+            // continue
+        },
+    }
+
+    // 3. dependency file
+    // TODO: not implemented yet
+
+    // 4. std lib
+    // TODO
+
+    Err(error::dependency_not_found(dependency))
 }
 
 fn is_human_readable(file: &Path) -> bool {
