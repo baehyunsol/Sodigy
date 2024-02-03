@@ -54,13 +54,24 @@ impl From<WriteMode> for OpenOptions {
     }
 }
 
+const FILE_SIZE_LIMIT: u64 = 64 * 1024 * 1024;
+
+fn reject_too_big_file(path: &str) -> Result<(), FileError> {
+    match file_size(path) {
+        Ok(n) if n > FILE_SIZE_LIMIT => Err(FileError::file_too_big(path)),
+        _ => Ok(()),
+    }
+}
+
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
     sodigy_log!(LOG_NORMAL, format!("read_bytes: {path}"));
+    reject_too_big_file(path)?;
     fs::read(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn read_string(path: &str) -> Result<String, FileError> {
     sodigy_log!(LOG_NORMAL, format!("read_string: {path}"));
+    reject_too_big_file(path)?;
     let mut s = String::new();
 
     match File::open(path) {
@@ -219,6 +230,15 @@ pub fn last_modified(path: &str) -> Result<u64, FileError> {
             },
             Err(e) => Err(FileError::from_std(e, path)),
         },
+        Err(e) => Err(FileError::from_std(e, path)),
+    }
+}
+
+pub fn file_size(path: &str) -> Result<u64, FileError> {
+    sodigy_log!(LOG_NORMAL, format!("last_modified: {path}"));
+
+    match fs::metadata(path) {
+        Ok(m) => Ok(m.len()),
         Err(e) => Err(FileError::from_std(e, path)),
     }
 }

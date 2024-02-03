@@ -388,3 +388,9 @@ let get<T>(self: Node(T), key: Int): T = { ... };
   - 이게 돼야 `tree.sdg`가 작동함.
   - 이게 되려면 `@method(Questioned(Node(T)))`가 안되게 만들어야 함!
   - 저걸 금지시켜야 `node?.get()`을 했을 때 안 헷갈리지...
+
+---
+
+TODO: the compiler should return non-0 when compilation fails
+
+see what rustc returns when it fails compilation

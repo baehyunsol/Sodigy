@@ -30,12 +30,12 @@ use sodigy_files::{
 use sodigy_high_ir::{lower_stmts, HirSession};
 use sodigy_intern::InternedString;
 use sodigy_lex::{lex, LexSession};
-use sodigy_mid_ir::MirSession;
+use sodigy_mid_ir::{MirError, MirSession};
 use sodigy_parse::{from_tokens, ParseSession};
-use sodigy_session::SodigySession;
+use sodigy_session::{SessionDependency, SodigySession};
 use sodigy_span::SpanPoint;
 use sodigy_test::{sodigy_log, LOG_NORMAL};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 type Path = String;
 
@@ -136,9 +136,19 @@ pub fn parse_file(
 
     if !parse_session.unexpanded_macros.is_empty() {
         let mut macro_definitions = HashMap::with_capacity(parse_session.unexpanded_macros.len());
+        let base_path = match &input {
+            PathOrRawInput::Path(p) => match parent(p) {
+                Ok(p) => p,
+                Err(e) => {
+                    compiler_output.push_error(e.into());
+                    return (None, compiler_output);
+                },
+            },
+            PathOrRawInput::RawInput(_) => String::from("."),
+        };
 
         for macro_ in parse_session.unexpanded_macros.iter() {
-            match try_get_macro_definition(*macro_) {
+            match try_get_macro_definition(&base_path, *macro_) {
                 Ok(m) => {
                     macro_definitions.insert(*macro_, m);
                 },
@@ -504,27 +514,76 @@ pub fn mir_from_hir(
         },
     };
 
+    let base_path = match &input {
+        PathOrRawInput::Path(p) => match parent(p) {
+            Ok(p) => p,
+            Err(e) => {
+                compiler_output.push_error(e.into());
+                return (None, compiler_output);
+            },
+        },
+        PathOrRawInput::RawInput(_) => String::from("."),
+    };
+
     let mut has_error = false;
     let mut mir_session = MirSession::new();
+    let mut construct_hirs_of_these = vec![];
+    let mut paths_read_so_far = HashSet::new();
 
-    if let Err(()) = mir_session.merge_hir(&hir_session) {
-        has_error = true;
+    if let PathOrRawInput::Path(p) = input {
+        paths_read_so_far.insert(p.to_string());
     }
 
-    for name in hir_session.imported_names.iter() {
-        match try_resolve_dependency(compiler_option, *name) {
-            Ok(path) => {
-                todo!()
-                // 0. register the path to mir.dependencies
-                // 1. register the path to `paths_to_construct_hir_from`
-                // 2. consume `paths_to_construct_hir_from`
-                // 3. merge all the hir_sessions to mir_session
-            },
-            Err(e) => {
-                has_error = true;
-                compiler_output.push_error(e);
-            },
+    let mut hir_sessions = vec![hir_session];
+
+    while let Some(hir_session) = hir_sessions.pop() {
+        if let Err(()) = mir_session.merge_hir(&hir_session) {
+            has_error = true;
         }
+
+        for name in hir_session.imported_names.iter() {
+            match try_resolve_dependency(&base_path, compiler_option, *name) {
+                Ok(path) => {
+                    if paths_read_so_far.contains(&path) {
+                        continue;
+                    }
+
+                    if !is_file(&path) {
+                        has_error = true;
+                        mir_session.push_error(MirError::file_not_found(*name, path.clone()));
+                        continue;
+                    }
+
+                    let last_modified_at = match last_modified(&path) {
+                        Ok(m) => m,
+                        Err(e) => {
+                            has_error = true;
+                            let mut e = UniversalError::from(e);
+                            e.push_span(*name.span());
+                            compiler_output.push_error(e);
+
+                            continue;
+                        },
+                    };
+
+                    mir_session.add_dependency(SessionDependency {
+                        path: path.clone(),
+                        last_modified_at,
+                    });
+
+                    construct_hirs_of_these.push(path.clone());
+                    paths_read_so_far.insert(path.clone());
+                },
+                Err(e) => {
+                    has_error = true;
+                    compiler_output.push_error(e);
+                },
+            }
+        }
+
+        // TODO
+        // 1. construct hirs of files in `construct_hirs_of_these`
+        // 2. i want it to run in parallel...
     }
 
     compiler_output.collect_errors_and_warnings_from_session(&mir_session);
@@ -652,16 +711,19 @@ pub fn try_construct_session_from_saved_ir<T: Endec>(file: &Path, ext: &str) -> 
     }
 }
 
-fn try_get_macro_definition(name: InternedString) -> Result<(), UniversalError> {
+// TODO: what if it's compiling a raw input?
+fn try_get_macro_definition(base_path: &Path, name: InternedString) -> Result<(), UniversalError> {
     // reads the contents of `./sodigy.toml`
-    let dependencies = read_string(&join(".", DEPENDENCIES_AT)?)?;
+    let dependencies = read_string(&join(base_path, DEPENDENCIES_AT)?)?;
 
     // what then?
 
     todo!()
 }
 
-fn try_resolve_dependency(compiler_option: &CompilerOption, dependency: IdentWithSpan) -> Result<Path, UniversalError> {
+// Even though it returns Ok(path), you have to check whether `path` exists
+// TODO: it should behave differently when compiling raw inputs
+fn try_resolve_dependency(base_path: &Path, compiler_option: &CompilerOption, dependency: IdentWithSpan) -> Result<Path, UniversalError> {
     // see README: it tells you where to look for the dependencies
     let dep_name = dependency.id().to_string();
 
@@ -672,9 +734,9 @@ fn try_resolve_dependency(compiler_option: &CompilerOption, dependency: IdentWit
     }
 
     // 2. check `./foo.sdg` and `./foo/lib.sdg`
-    let candidate1 = join(".", &set_extension(&dep_name, "sdg")?)?;
+    let candidate1 = join(base_path, &set_extension(&dep_name, "sdg")?)?;
     let candidate2 = join(
-        ".",
+        base_path,
         &join(
             &dep_name,
             &set_extension("lib", "sdg")?,

@@ -5,7 +5,7 @@
 //!
 //! [clap]: https://crates.io/crates/clap
 
-use sodigy_files::{exists, join};
+use sodigy_files::{exists, join, parent};
 use sodigy_span::{SpanPoint, SpanRange};
 use std::collections::HashMap;
 
@@ -316,7 +316,7 @@ pub fn parse_cli_args() -> ClapSession {
         let (output_format, output_path) = match (output_format, output_path) {
             (None, None) => (  // default values
                 IrStage::MidIr,
-                default_output_path(),
+                default_output_path(input_file.as_ref().map(|(p, _)| p).unwrap_or(&String::from("."))),
             ),
             (Some(f), None) => {
                 // TODO: now that I use `default_output_path()` instead of `a.out`,
@@ -515,7 +515,7 @@ impl Default for CompilerOption {
         CompilerOption {
             do_not_compile_and_do_this: None,
             input_file: None,
-            output_path: Some(default_output_path()),
+            output_path: Some(default_output_path(&".".to_string())),
             output_format: IrStage::MidIr,
             show_warnings: true,
             save_ir: true,
@@ -539,14 +539,16 @@ pub enum SpecialOutput {
     CleanIrs,
 }
 
+// TODO: are `unwrap`s in this function okay?
 // default is `a.out`
 // if `a.out` exists, it tries `b.out`, and goes on and on...
-fn default_output_path() -> String {
+fn default_output_path(input_file: &Path) -> String {
     let mut prefix = String::new();
+    let basepath = parent(input_file).unwrap_or_else(|_| String::from("."));
 
     loop {
         for c in 0..26 {
-            let p = join(".", &format!("{prefix}{}.out", (c + b'a') as char)).unwrap();
+            let p = join(&basepath, &format!("{prefix}{}.out", (c + b'a') as char)).unwrap();
 
             if !exists(&p) {
                 return p;

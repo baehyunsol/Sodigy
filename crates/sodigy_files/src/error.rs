@@ -83,6 +83,14 @@ impl FileError {
         }
     }
 
+    pub fn file_too_big(path: &str) -> Self {
+        FileError {
+            kind: FileErrorKind::FileTooBig,
+            given_path: Some(path.to_string()),
+            context: FileErrorContext::None,
+        }
+    }
+
     pub fn unknown(msg: String, path: Option<String>) -> Self {
         FileError {
             kind: FileErrorKind::Unknown(msg),
@@ -144,6 +152,9 @@ impl FileError {
                     "cannot create {has_to_create}: `{path}`\nIt has to create a {has_to_create} named `{path}`, but there exists a {there_exists} with the same name.",
                 )
             },
+            FileErrorKind::FileTooBig => format!(
+                "file too big: `{path}`\nSince Sodigy compiler is very unstable, it rejects files that are too big."
+            ),
         }
     }
 
@@ -189,6 +200,9 @@ pub enum FileErrorKind {
     // 1. it has to make a file named X, but there exists a dir named X
     // 2. vice versa
     CannotCreateFile { there_exists_a_dir: bool },
+
+    // Since Sodigy is very unstable, it doesn't allow reading files that are too big
+    FileTooBig,
 }
 
 impl FileErrorKind {
@@ -222,6 +236,7 @@ impl FileErrorKind {
             FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
                 ((*there_exists_a_dir as u64) << 4) | 7
             },
+            FileErrorKind::FileTooBig => 8,
         }
     }
 }

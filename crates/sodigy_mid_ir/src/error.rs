@@ -3,12 +3,13 @@ use crate::{
     ty_class::TypeClass,
 };
 use smallvec::{SmallVec, smallvec};
+use sodigy_ast::IdentWithSpan;
 use sodigy_error::{
     ExtraErrInfo,
     SodigyError,
     SodigyErrorKind,
 };
-use sodigy_intern::InternSession;
+use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
 mod endec;
@@ -20,6 +21,17 @@ pub struct MirError {
 }
 
 impl MirError {
+    pub fn file_not_found(module: IdentWithSpan, path: String) -> Self {
+        MirError {
+            kind: MirErrorKind::FileNotFound {
+                module_name: module.id(),
+                path,
+            },
+            spans: smallvec![*module.span()],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn type_class_not_implemented(
         type_class: TypeClass,
         types: Vec<Type>,  // TODO: use this arg
@@ -84,6 +96,10 @@ impl SodigyError<MirErrorKind> for MirError {
 }
 
 pub enum MirErrorKind {
+    FileNotFound {
+        module_name: InternedString,
+        path: String,
+    },
     TypeClassNotImplemented(TypeClass),
     TypeMisMatch {
         expected: Type,

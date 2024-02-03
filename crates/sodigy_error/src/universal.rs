@@ -96,6 +96,10 @@ impl UniversalError {
     pub fn append_message(&mut self, m: &str) {
         self.message = format!("{}\n{m}", self.message);
     }
+
+    pub fn push_span(&mut self, span: SpanRange) {
+        self.spans.push(span);
+    }
 }
 
 // TODO: `From<FileError> for UniversalError` and `From<EndecError> for UniversalError` look the same

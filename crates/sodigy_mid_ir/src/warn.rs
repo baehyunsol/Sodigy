@@ -3,6 +3,8 @@ use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
+mod endec;
+
 pub struct MirWarning {
     kind: MirWarningKind,
     spans: SmallVec<[SpanRange; 1]>,

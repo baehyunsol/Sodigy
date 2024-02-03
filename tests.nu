@@ -8,6 +8,7 @@ def main [--depgraph] {
     # 1. it can catch errors (if exists) earlier
     # 2. it doesn't hurt the entire test time thanks to the incremental compilation
     cargo build
+    cargo build --release
 
     let crates = [
         "ast", "clap", "endec",
@@ -38,6 +39,9 @@ def main [--depgraph] {
     }
 
     nu clean.nu
+
+    ln -f ./target/release/sodigy ./sodigy
+    chmod +x ./sodigy
 
     let end = date now | date to-record
     let end_sec = $end.second + $end.minute * 60 + $end.hour * 3600 + $end.day * 86400

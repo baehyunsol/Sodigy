@@ -10,4 +10,5 @@ mod ty;
 mod ty_class;
 mod warn;
 
+pub use error::MirError;
 pub use session::MirSession;

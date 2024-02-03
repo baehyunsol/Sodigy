@@ -1,8 +1,0 @@
-import dirty_closures;
-import easy;
-import empty;
-import prelude;
-import prelude.Type;
-import prelude.Bool;
-
-let tt = Type.abc;

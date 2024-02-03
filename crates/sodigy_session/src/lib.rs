@@ -131,6 +131,10 @@ pub trait SodigySession<E, W, Outputs: SessionOutput<Output>, Output> {
     fn get_dependencies(&self) -> &Vec<SessionDependency>;
     fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency>;
 
+    fn add_dependency(&mut self, dependency: SessionDependency) {
+        self.get_dependencies_mut().push(dependency);
+    }
+
     fn check_all_dependency_up_to_date(&self) -> bool {
         for SessionDependency { path, last_modified_at } in self.get_dependencies().iter() {
             if let Ok(last_modified_at_) = last_modified(path) {
@@ -185,6 +189,6 @@ pub struct SessionSnapshot {
 
 #[derive(Clone)]
 pub struct SessionDependency {
-    path: String,
-    last_modified_at: u64,  // hash of st_mtime
+    pub path: String,
+    pub last_modified_at: u64,  // hash of st_mtime
 }
