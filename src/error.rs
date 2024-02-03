@@ -4,8 +4,9 @@ use sodigy_error::{ErrorContext, UniversalError};
 pub fn dependency_not_found(dependency: IdentWithSpan) -> UniversalError {
     UniversalError::new(
         ErrorContext::Unknown,
-        Some(*dependency.span()),
         false,
+        true,
+        Some(*dependency.span()),
         format!("module not found: `{}`", dependency.id()),
         String::new(),
     )
@@ -19,8 +20,9 @@ pub fn conflicting_dependencies(
 ) -> UniversalError {
     UniversalError::new(
         ErrorContext::Unknown,
-        Some(*dependency.span()),
         false,
+        true,
+        Some(*dependency.span()),
         format!("conflict in module `{}`", dependency.id()),
         format!("Both `{path1}` and `{path2}` are valid candidates of module `{}`.", dependency.id()),
     )

@@ -27,7 +27,7 @@ fn ast_test() {
 
         if let Err(()) = parse_stmts(&mut tokens, &mut ast_session) {
             for error in ast_session.get_errors() {
-                println!("{}\n\n", error.render_error(true));
+                println!("{}\n\n", error.to_universal().rendered());
             }
         }
     }

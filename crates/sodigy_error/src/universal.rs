@@ -1,4 +1,5 @@
-use crate::{ErrorContext, RenderError, render_error_title};
+use crate::{ErrorContext, RenderError, render_error_title, show_file_names};
+use smallvec::{SmallVec, smallvec};
 use sodigy_endec::EndecError;
 use sodigy_files::FileError;
 use sodigy_span::{ColorScheme, SpanRange, render_spans};
@@ -14,8 +15,8 @@ pub struct UniversalError {
     pub(crate) message: String,
     pub is_warning: bool,
 
-    /// It's used to sort the errors by span.
-    pub(crate) first_span: SpanRange,
+    pub(crate) spans: SmallVec<[SpanRange; 1]>,
+    pub show_span: bool,
 
     /// It's used to remove duplicate errors.
     pub(crate) hash: u64,
@@ -24,46 +25,39 @@ pub struct UniversalError {
 impl UniversalError {
     pub fn new(
         context: ErrorContext,
-        span: Option<SpanRange>,
         is_warning: bool,
+        show_span: bool,
+        span: Option<SpanRange>,
 
         // those of SodigyErrorKind
         msg: String,
         help: String,
     ) -> Self {
         let message = format!(
-            "{msg}{}{}",
+            "{msg}{}",
             if help.is_empty() {
                 String::new()
             } else {
                 format!("\n{help}")
-            },
-            if let Some(span) = span {
-                format!(
-                    "\n{}",
-                    render_spans(
-                        &[span],
-                        if is_warning {
-                            ColorScheme::warning()
-                        } else {
-                            ColorScheme::error()
-                        },
-                    ),
-                )
-            } else {
-                String::new()
             },
         );
 
         let mut hasher = hash_map::DefaultHasher::new();
         hasher.write(message.as_bytes());
 
+        let spans = if let Some(span) = span {
+            smallvec![span]
+        } else {
+            smallvec![]
+        };
+
         UniversalError {
             hash: hasher.finish(),
             message,
             context: context.render_error(),
             is_warning,
-            first_span: span.unwrap_or_else(|| SpanRange::dummy(0x81f82572)),
+            show_span,
+            spans,
         }
     }
 
@@ -73,11 +67,26 @@ impl UniversalError {
             self.is_warning,
         );
 
-        format!("{title}\n{}", self.message)
+        let spans = self.spans.iter().filter(|span| !span.is_dummy()).map(|span| *span).collect::<Vec<_>>();
+
+        let color_scheme = if self.is_warning {
+            ColorScheme::warning()
+        } else {
+            ColorScheme::error()
+        };
+
+        let span = match self.show_span {
+            true if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
+            true => render_spans(&spans, color_scheme),
+            false if spans.is_empty() => String::new(),
+            false => show_file_names(&spans),
+        };
+
+        format!("{title}\n{}\n{span}", self.message)
     }
 
     pub fn first_span(&self) -> SpanRange {
-        self.first_span
+        self.spans.get(0).map(|span| *span).unwrap_or_else(|| SpanRange::dummy(0x5be88343))
     }
 
     pub fn hash(&self) -> u64 {
@@ -96,7 +105,8 @@ impl From<FileError> for UniversalError {
             context: e.context.render_error(),
             message: e.render_error(),
             is_warning: false,
-            first_span: SpanRange::dummy(0x608e7df7),
+            show_span: false,
+            spans: smallvec![],
             hash: e.hash_u64(),
         }
     }
@@ -108,7 +118,8 @@ impl From<EndecError> for UniversalError {
             context: e.context.render_error(),
             message: e.render_error(),
             is_warning: false,
-            first_span: SpanRange::dummy(0x20060f7a),
+            show_span: false,
+            spans: smallvec![],
             hash: e.hash_u64(),
         }
     }

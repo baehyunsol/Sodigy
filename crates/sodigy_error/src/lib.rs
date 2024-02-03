@@ -3,7 +3,7 @@
 use colored::Colorize;
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
-use sodigy_span::{ColorScheme, SpanRange, render_spans};
+use sodigy_span::{ColorScheme, SpanRange};
 use std::collections::{HashSet, hash_map};
 use std::hash::Hasher;
 
@@ -80,7 +80,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn to_universal(&self) -> UniversalError {
         let context = self.get_error_info().context.render_error();
-        let message = self.render_error(false);
+        let message = self.render_error();
         let hash = {
             let mut hasher = hash_map::DefaultHasher::new();
 
@@ -99,23 +99,19 @@ pub trait SodigyError<K: SodigyErrorKind> {
             context,
             message,
             is_warning: self.is_warning(),
-            first_span: self.get_first_span().unwrap_or_else(|| SpanRange::dummy(0xcbc28514)),
+            show_span: self.get_error_info().show_span,
+            spans: self.get_spans().into(),
             hash,
         }
     }
 
-    // This function is VERY VERY EXPENSIVE.
-    fn render_error(&self, render_title: bool) -> String {
+    // It only renders `msg`, `help` and `extra_msg`.
+    // It doesn't render the title and the spans.
+    // In order to see the full error message, you have to 
+    // convert this to a UniversalError then call `.rendered()`.
+    fn render_error(&self) -> String {
         let mut intern_session = InternSession::new();
         let is_warning = self.is_warning();
-        let title = if render_title {
-            format!("{}", render_error_title(
-                self.get_error_info().context.render_error(),
-                is_warning,
-            ))
-        } else {
-            String::new()
-        };
 
         let kind = self.err_kind();
 
@@ -133,23 +129,9 @@ pub trait SodigyError<K: SodigyErrorKind> {
             s if s.is_empty() => String::new(),
             s => format!("\nNote: {s}"),
         };
-        let spans = self.get_spans().iter().filter(
-            |s| !s.is_dummy()
-        ).map(
-            |s| *s
-        ).collect::<Vec<SpanRange>>();
-
-        let color_scheme = self.color_scheme();
-
-        let span = match &self.get_error_info().show_span {
-            true if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
-            true => render_spans(&spans, color_scheme),
-            false if spans.is_empty() => String::new(),
-            false => show_file_names(&spans),
-        };
 
         format!(
-            "{title}\n{msg}{help}{extra_msg}\n{span}",
+            "{msg}{help}{extra_msg}",
         )
     }
 }

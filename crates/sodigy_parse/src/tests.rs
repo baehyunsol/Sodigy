@@ -46,7 +46,7 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
-                |e| e.render_error(true)
+                |e| e.to_universal().rendered()
             ).collect::<Vec<String>>().join("\n\n"),
         );
     }
@@ -59,10 +59,10 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
-                |e| e.render_error(true)
+                |e| e.to_universal().rendered()
             ).chain(
                 parse_session.get_errors().iter().map(
-                    |e| e.render_error(true)
+                    |e| e.to_universal().rendered()
                 )
             ).collect::<Vec<String>>().join("\n\n"),
         );
@@ -82,10 +82,10 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
-                |e| e.render_error(true)
+                |e| e.to_universal().rendered()
             ).chain(
                 parse_session.get_errors().iter().map(
-                    |e| e.render_error(true)
+                    |e| e.to_universal().rendered()
                 )
             ).collect::<Vec<String>>().join("\n\n"),
         );
@@ -95,10 +95,10 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(
-                |e| e.render_error(true)
+                |e| e.to_universal().rendered()
             ).chain(
                 parse_session.get_errors().iter().map(
-                    |e| e.render_error(true)
+                    |e| e.to_universal().rendered()
                 )
             ).collect::<Vec<String>>().join("\n\n"),
         );

@@ -84,7 +84,7 @@ impl AstError {
         if !extra.has_message() {
             match expected_token {
                 ExpectedToken::AnyStatement => {
-                    extra.set_message(String::from("Sodigy is not a script language. If you want to execute something, please use `main`."));
+                    extra.set_message(String::from("Sodigy is not a script language. If you want to execute something, try `let main = ...;`."));
                 },
                 _ => {},
             }
