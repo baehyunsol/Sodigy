@@ -29,4 +29,6 @@ fn main() {
         let mut compiler_output = run(clap_result.get_results().clone(), Some(compiler_output));
         println!("{}", compiler_output.concat_results());
     }
+
+    // TODO: return 1 if there's an error
 }

@@ -1,0 +1,2 @@
+let foo(x, y, z) = 3;
+let bar(x, y, z) = 4;

@@ -50,6 +50,7 @@ impl TokenKind {
             TokenKind::Stage => vec![
                 "tokens".to_string(),
                 "hir".to_string(),
+                "mir".to_string(),
             ],
             TokenKind::Bool => vec![
                 "true".to_string(),
@@ -83,6 +84,7 @@ impl TokenValue {
             TokenKind::Stage => match buf {
                 "tokens" => Some(TokenValue::Stage(IrStage::Tokens)),
                 "hir" => Some(TokenValue::Stage(IrStage::HighIr)),
+                "mir" => Some(TokenValue::Stage(IrStage::MidIr)),
                 _ => None,
             },
             TokenKind::Bool => match buf {

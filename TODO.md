@@ -391,6 +391,50 @@ let get<T>(self: Node(T), key: Int): T = { ... };
 
 ---
 
-TODO: the compiler should return non-0 when compilation fails
+Haskell-ish way IO
 
-see what rustc returns when it fails compilation
+```
+@method(World)
+let exists(self: World, path: String): IO(Bool) = ...;
+
+@method(IO(T))
+let map<T, U>(self: IO(T), f: Func(T, U)): IO(U) = ...;
+
+let main(env: World): World = env.exists("./data.txt").map(
+  \{e, if e {
+    env.remove_file("./data.txt")
+  } else {
+    env.print("file not found!")
+  }}
+).unwrap();
+```
+
+---
+
+bug
+
+1. when an error is found while constructing HIR Session
+  - nothing is saved and the compilation stops
+  - it has to save the error somewhere, so that the compiler can throw the same error next time
+2. When there's a warning
+  - it saves the session but doesn't save the warnings
+  - the warnings go to CompilerOutput, but CompilerOutput is not saved anywhere
+
+How about saving both Session and CompilerOutput?
+
+-> 아니 저렇게 하더라도 manually incremental compile을 하면 어차피 문제가 생기는 거 아님??
+  -> 생각해보니까 manual incremental compilation에는 문제들이 많음...
+  -> `.hir`에서 컴파일을 멈추면 HirSession에 Span들이 완전 들어있는 상태로 멈추지? 나중에
+     `.hir`만 갖고 다시 컴파일을 재개하면 저 Span들이 주인을 잃음... `.sdg` 파일이 없잖아...
+
+1. 자동으로 진행되는 incremental compilation (`__sdg_cache__`)은 당연히 모든 에러랑 경고 던져줘야함
+  - clean 상태에서 compile하는 거랑 동일해야함
+2. manual incremental compilation (`./sodigy a.sdg --to hir`)을
+  - 아예 금지하든가 (무조건 binary까지 뽑아냄, `--to` 없음)
+  - manual incremental compilation에서는 경고 메시지 안 뜨게 하든가
+    - 이것도 rust스럽게 생각하면 이상하지만 c스럽게 생각하면 말이 되긴 함!
+  - `.hir` 파일 옆에 무조건 `.sdg`가 있어야된다고 하든가
+    - 이건 incremental compilation의 의미가 좀 퇴색되는데??
+  - `--to hir`을 해도 `__sdg_cache__` 안에만 파일을 쓰게 할까?
+
+일단 gcc도 `.s`만 뽑거나 `.o`만 뽑는게 되니까 얘가 어떤 식으로 작동하는지 봅시다

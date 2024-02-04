@@ -125,10 +125,10 @@ Examples:
 Options:
     -h, --help                      Display this message
     -v, --version
-    -t, --to [tokens|hir]           Specify the type of the output
+    -t, --to [tokens|hir|mir]       Specify the type of the output
                                     It tries to infer the output type from the extension of the output.
                                     If the the extension and `-t` doesn't match, `-t` has higher priority.
-                                    If there's no other information the default value is hir.
+                                    If there's no other information the default value is mir.
     -o, --output PATH               Write output to <PATH>
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
@@ -144,6 +144,9 @@ Options:
     --dump-hir [true|false]         Dump HIR to stdout (default: false)
     --dump-hir-to PATH              If `dump-hir` is set, the HIR is dumped to <PATH>
                                     instead of stdout. If `dump-hir` is not set, it doesn't do anything.
+    --dump-mir [true|false]         Dump MIR to stdout (default: false)
+    --dump-mir-to PATH              If `dump-mir` is set, the MIR is dumped to <PATH>
+                                    instead of stdout. If `dump-mir` is not set, it doesn't do anything.
     --raw-input RAW-INPUT           Compile raw input instead of files.
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.

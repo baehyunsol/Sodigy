@@ -78,3 +78,4 @@ macro_rules! run_test {
 // make sure that all the `.sdg` files have no compile-errors
 run_test!(stage_dump_test1, "./samples/easy.sdg");
 run_test!(stage_dump_test2, "./samples/empty.sdg");
+run_test!(stage_dump_test3, "./samples/unused_names.sdg");
