@@ -438,3 +438,16 @@ How about saving both Session and CompilerOutput?
   - `--to hir`을 해도 `__sdg_cache__` 안에만 파일을 쓰게 할까?
 
 일단 gcc도 `.s`만 뽑거나 `.o`만 뽑는게 되니까 얘가 어떤 식으로 작동하는지 봅시다
+
+---
+
+위에랑 비슷한 건데, 코드에 매크로가 있으면 ParseSession에만 기록되고 HirSession에는 기록 안되지? Hir에도 기록돼야함...
+
+---
+
+`r"010\d{8}"` -> regular expressions both in expressions and patterns
+
+1. 있으면 좋음
+2. 스펙 만드는 거는 쉬움
+3. 구현은 무지 빡셈, 내가 from scratch로 regex 짜는 거는 너무 빡세고 있는 거 갖다 쓰면 덩치가 너무 커짐...
+4. 없어도 큰 불편은 없음... 아직...

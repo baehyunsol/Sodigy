@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-smallvec = "1.11.2"
+smallvec = "1.13.1"
 sodigy_files = { path = "../sodigy_files" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_keyword = { path = "../sodigy_keyword" }

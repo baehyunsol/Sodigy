@@ -12,6 +12,7 @@ pub use log::{
     LOG_VERBOSE,
 };
 
+// TODO: rust std has `debug_assert` and `debug_assert_eq` -> test them, if they do well, the entire `sodigy_test` can be removed
 // TODO: How does `$(..),*` syntax work?
 
 // choose empty branches when you want to disable asserts in the code

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 colored = "2.1.0"
-smallvec = "1.11.2"
+smallvec = "1.13.1"
 sodigy_endec = { path = "../sodigy_endec" }
 sodigy_files = { path = "../sodigy_files" }
 sodigy_intern = { path = "../sodigy_intern" }

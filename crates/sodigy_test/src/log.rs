@@ -1,4 +1,5 @@
 // TODO: use `env_logger` instead
+// -> I just found that rustc uses `tracing` instead of `env_logger`
 
 use std::fs::OpenOptions;
 use std::io::Write;
