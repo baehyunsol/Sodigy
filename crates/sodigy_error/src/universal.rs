@@ -6,8 +6,11 @@ use sodigy_span::{ColorScheme, SpanRange, render_spans};
 use std::collections::hash_map;
 use std::hash::Hasher;
 
+mod endec;
+
 /// Any error type that implements SodigyError can be converted to this type.
 /// The compiler uses this type to manage all the errors and warnings.
+#[derive(Clone)]
 pub struct UniversalError {
     pub(crate) context: String,
 

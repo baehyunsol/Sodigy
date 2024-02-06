@@ -358,7 +358,7 @@ pub fn hir_from_tokens(
         return (None, compiler_output);
     }
 
-    let mut hir_session = HirSession::new();
+    let mut hir_session = HirSession::from_ast_session(&ast_session);
     let res = lower_stmts(ast_session.get_results(), &mut hir_session);
 
     compiler_output.collect_errors_and_warnings_from_session(&hir_session);
@@ -519,7 +519,7 @@ pub fn mir_from_hir(
     };
 
     let mut has_error = false;
-    let mut mir_session = MirSession::new();
+    let mut mir_session = MirSession::from_hir_session(&hir_session);
     let mut construct_hirs_of_these = vec![];
     let mut paths_read_so_far = HashSet::new();
 

@@ -1,12 +1,13 @@
 #![deny(unused_imports)]
 
+use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
 use sodigy_files::last_modified;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 
 mod endec;
 
-pub trait SodigySession<E, W, Outputs: SessionOutput<Output>, Output> {
+pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<WK>, WK: SodigyErrorKind, Outputs: SessionOutput<Output>, Output> {
     fn get_errors(&self) -> &Vec<E>;
     fn get_errors_mut(&mut self) -> &mut Vec<E>;
 
@@ -53,6 +54,20 @@ pub trait SodigySession<E, W, Outputs: SessionOutput<Output>, Output> {
 
     fn clear_warnings(&mut self) {
         self.get_warnings_mut().clear();
+    }
+
+    // sessions also store errors and warnings from previous sessions
+    fn get_previous_errors(&self) -> &Vec<UniversalError>;
+
+    // it concats `.get_errors()`, `.get_warnings()` and `.get_previous_errors()`
+    fn get_all_errors_and_warnings(&self) -> Vec<UniversalError> {
+        self.get_errors().iter().map(
+            |err| err.to_universal()
+        ).chain(self.get_warnings().iter().map(
+            |warn| warn.to_universal()
+        )).chain(self.get_previous_errors().iter().map(
+            |err| err.clone()
+        )).collect()
     }
 
     fn get_results(&self) -> &Outputs;

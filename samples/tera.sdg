@@ -1,0 +1,54 @@
+# TODO: top-level doc comment
+#> [tera](https://github.com/Keats/tera) engine purely written in Sodigy
+
+let struct Session = {
+    code: String,
+    index: Int,
+    state: ParseState,
+    tmp_buffer: String,
+};
+
+let enum ParseState = {
+    Init,
+    GotBrace,
+    InsidePattern,
+    InsideStatement,
+    InsideComment,
+};
+
+@method(Session)
+let consume(self: Session): Session = {
+    let curr_char = self.code[self.index];
+    let self_with_next_index = self `index self.index + 1;
+
+    if self.code.len() >= self.index {
+        self `state ParseState.Complete
+    }
+
+    else {
+        match self.state {
+            ParseState.Init => if curr_char == '{' {
+                self_with_next_index
+                    `state ParseState.GotBrace
+            } else {
+                self_with_next_index 
+                    `tmp_buffer self.tmp_buffer.push(curr_char)
+            },
+            ParseState.GotBrace => if curr_char == '{' {
+                self_with_next_index.consume_tmp_buffer()
+                    `state ParseState.InsidePattern
+            } else if curr_char == '%' {
+                self_with_next_index.consume_tmp_buffer()
+                    `state ParseState.InsideStatement
+            } else if curr_char == '#' {
+                self_with_next_index.consume_tmp_buffer()
+                    `state ParseState.InsideComment
+            } else {
+                self_with_next_index
+                    `tmp_buffer self.tmp_buffer.push('{').push(curr_char)
+                    `state ParseState.Init
+            },
+            _ => _# TODO
+        }
+    }
+};

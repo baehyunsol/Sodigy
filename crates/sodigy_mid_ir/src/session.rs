@@ -1,6 +1,7 @@
 use crate::def::Def;
-use crate::error::MirError;
-use crate::warn::MirWarning;
+use crate::error::{MirError, MirErrorKind};
+use crate::warn::{MirWarning, MirWarningKind};
+use sodigy_error::UniversalError;
 use sodigy_high_ir::HirSession;
 use sodigy_intern::InternSession;
 use sodigy_session::{
@@ -21,17 +22,19 @@ pub struct MirSession {
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
+    previous_errors: Vec<UniversalError>,
 }
 
 impl MirSession {
-    pub fn new() -> Self {
+    pub fn from_hir_session(session: &HirSession) -> Self {
         MirSession {
             errors: vec![],
             warnings: vec![],
             func_defs: HashMap::new(),
-            interner: InternSession::new(),
+            interner: session.get_interner_cloned(),
             snapshots: vec![],
-            dependencies: vec![],
+            dependencies: session.get_dependencies().clone(),
+            previous_errors: session.get_all_errors_and_warnings(),
         }
     }
 
@@ -48,7 +51,7 @@ impl MirSession {
     }
 }
 
-impl SodigySession<MirError, MirWarning, HashMap<Uid, Def>, Def> for MirSession {
+impl SodigySession<MirError, MirErrorKind, MirWarning, MirWarningKind, HashMap<Uid, Def>, Def> for MirSession {
     fn get_errors(&self) -> &Vec<MirError> {
         &self.errors
     }
@@ -63,6 +66,10 @@ impl SodigySession<MirError, MirWarning, HashMap<Uid, Def>, Def> for MirSession 
 
     fn get_warnings_mut(&mut self) -> &mut Vec<MirWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &HashMap<Uid, Def> {

@@ -1,6 +1,7 @@
-use crate::error::AstError;
+use crate::error::{AstError, AstErrorKind};
 use crate::stmt::Stmt;
-use crate::warn::AstWarning;
+use crate::warn::{AstWarning, AstWarningKind};
+use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_parse::ParseSession;
 use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
@@ -12,6 +13,7 @@ pub struct AstSession {
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
+    previous_errors: Vec<UniversalError>,
 }
 
 impl AstSession {
@@ -23,11 +25,12 @@ impl AstSession {
             interner: session.get_interner_cloned(),
             snapshots: vec![],
             dependencies: session.get_dependencies().clone(),
+            previous_errors: session.get_all_errors_and_warnings(),
         }
     }
 }
 
-impl SodigySession<AstError, AstWarning, Vec<Stmt>, Stmt> for AstSession {
+impl SodigySession<AstError, AstErrorKind, AstWarning, AstWarningKind, Vec<Stmt>, Stmt> for AstSession {
     fn get_errors(&self) -> &Vec<AstError> {
         &self.errors
     }
@@ -42,6 +45,10 @@ impl SodigySession<AstError, AstWarning, Vec<Stmt>, Stmt> for AstSession {
 
     fn get_warnings_mut(&mut self) -> &mut Vec<AstWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<Stmt> {

@@ -1,9 +1,9 @@
-use crate::error::HirError;
+use crate::error::{HirError, HirErrorKind};
 use crate::func::Func;
 use crate::module::Module;
-use crate::warn::HirWarning;
-use smallvec::{SmallVec, smallvec};
-use sodigy_ast::IdentWithSpan;
+use crate::warn::{HirWarning, HirWarningKind};
+use sodigy_ast::{AstSession, IdentWithSpan};
+use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
 use sodigy_session::{SessionDependency, SessionOutput, SessionSnapshot, SodigySession};
@@ -23,7 +23,7 @@ pub struct HirSession {
     // you can get tmp names using `.allocate_tmp_name` method
     // tmp_names from this vector is guaranteed to be unique
     // (name: InternedString, used: bool)
-    tmp_names: SmallVec<[(InternedString, bool); 4]>,
+    tmp_names: Vec<(InternedString, bool)>,
 
     // `_0`, `_1`, `_2`, ...
     field_exprs: Vec<InternedString>,
@@ -36,12 +36,15 @@ pub struct HirSession {
 
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
+
+    // errors and warnings from `AstSession`
+    previous_errors: Vec<UniversalError>,
 }
 
 impl HirSession {
-    pub fn new() -> Self {
-        let mut interner = InternSession::new();
-        let mut tmp_names = smallvec![];
+    pub fn from_ast_session(session: &AstSession) -> Self {
+        let mut tmp_names = vec![];
+        let mut interner = session.get_interner_cloned();
 
         for i in 0..4 {
             tmp_names.push((
@@ -51,11 +54,32 @@ impl HirSession {
             ));
         }
 
-        let field_exprs = (0..8).map(
-            |i| interner.intern_string(
-                format!("_{i}").as_bytes().to_vec()
-            )
-        ).collect();
+        HirSession {
+            errors: vec![],
+            warnings: vec![],
+            interner,
+            func_defs: HashMap::new(),
+            tmp_names,
+            field_exprs: vec![],
+            imported_names: vec![],
+            modules: vec![],
+            snapshots: vec![],
+            dependencies: session.get_dependencies().clone(),
+            previous_errors: session.get_all_errors_and_warnings(),
+        }
+    }
+
+    pub(crate) fn new() -> Self {
+        let mut interner = InternSession::new();
+        let mut tmp_names = vec![];
+
+        for i in 0..4 {
+            tmp_names.push((
+                // prefixed `@` guarantees that the users cannot use that name
+                interner.intern_string(format!("@HirSessionTmpName{i}").as_bytes().to_vec()),
+                false,
+            ));
+        }
 
         HirSession {
             errors: vec![],
@@ -63,11 +87,12 @@ impl HirSession {
             interner,
             func_defs: HashMap::new(),
             tmp_names,
-            field_exprs,
+            field_exprs: vec![],
             imported_names: vec![],
             modules: vec![],
             snapshots: vec![],
             dependencies: vec![],
+            previous_errors: vec![],
         }
     }
 
@@ -163,7 +188,7 @@ impl HirSession {
     }
 }
 
-impl SodigySession<HirError, HirWarning, HashMap<InternedString, Func>, Func> for HirSession {
+impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<InternedString, Func>, Func> for HirSession {
     fn get_errors(&self) -> &Vec<HirError> {
         &self.errors
     }
@@ -178,6 +203,10 @@ impl SodigySession<HirError, HirWarning, HashMap<InternedString, Func>, Func> fo
 
     fn get_warnings_mut(&mut self) -> &mut Vec<HirWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &HashMap<InternedString, Func> {

@@ -3,6 +3,7 @@ use crate::def::Def;
 use crate::error::MirError;
 use crate::warn::MirWarning;
 use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{SessionDependency, SessionSnapshot};
 use sodigy_uid::Uid;
@@ -15,6 +16,7 @@ impl Endec for MirSession {
         self.func_defs.encode(buf, session);
         self.snapshots.encode(buf, session);
         self.dependencies.encode(buf, session);
+        self.previous_errors.encode(buf, session);
     }
 
     fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -25,6 +27,7 @@ impl Endec for MirSession {
             interner: InternSession::new(),
             snapshots: Vec::<SessionSnapshot>::decode(buf, index, session)?,
             dependencies: Vec::<SessionDependency>::decode(buf, index, session)?,
+            previous_errors: Vec::<UniversalError>::decode(buf, index, session)?,
         })
     }
 }

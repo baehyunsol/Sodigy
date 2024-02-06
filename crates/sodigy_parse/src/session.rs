@@ -1,6 +1,7 @@
-use crate::{Delim, ParseError, Punct, TokenTree, TokenTreeKind};
-use crate::warn::ParseWarning;
-use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
+use crate::{Delim, Punct, TokenTree, TokenTreeKind};
+use crate::error::{ParseError, ParseErrorKind};
+use crate::warn::{ParseWarning, ParseWarningKind};
+use sodigy_error::{ErrorContext, ExpectedToken, SodigyError, UniversalError};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
@@ -17,6 +18,9 @@ pub struct ParseSession {
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
 
+    // errors from `LexSession`
+    previous_errors: Vec<UniversalError>,
+
     // names of unexpanded macros
     // parse_session will look for the definitions of these macros later
     pub unexpanded_macros: HashSet<InternedString>,
@@ -32,6 +36,7 @@ impl ParseSession {
             snapshots: vec![],
             unexpanded_macros: HashSet::new(),
             dependencies: s.get_dependencies().clone(),
+            previous_errors: s.get_all_errors_and_warnings(),
         }
     }
 
@@ -196,7 +201,7 @@ fn try_unwrap_macro_name(tokens: &[TokenTree], parent_span: SpanRange) -> Result
     }
 }
 
-impl SodigySession<ParseError, ParseWarning, Vec<TokenTree>, TokenTree> for ParseSession {
+impl SodigySession<ParseError, ParseErrorKind, ParseWarning, ParseWarningKind, Vec<TokenTree>, TokenTree> for ParseSession {
     fn get_errors(&self) -> &Vec<ParseError> {
         &self.errors
     }
@@ -211,6 +216,10 @@ impl SodigySession<ParseError, ParseWarning, Vec<TokenTree>, TokenTree> for Pars
 
     fn get_warnings_mut(&mut self) -> &mut Vec<ParseWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<TokenTree> {

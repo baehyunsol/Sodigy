@@ -1,6 +1,7 @@
 use crate::CompilerOption;
-use crate::error::ClapError;
-use crate::warn::ClapWarning;
+use crate::error::{ClapError, ClapErrorKind};
+use crate::warn::{ClapWarning, ClapWarningKind};
+use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{
     SessionDependency,
@@ -16,6 +17,9 @@ pub struct ClapSession {
     pub(crate) interner: InternSession,
     pub(crate) snapshots: Vec<SessionSnapshot>,
     pub(crate) dependencies: Vec<SessionDependency>,
+
+    // must be empty because it doesn't have a previous session
+    pub(crate) previous_errors: Vec<UniversalError>,
 }
 
 impl ClapSession {
@@ -43,11 +47,12 @@ impl Default for ClapSession {
             interner: InternSession::new(),
             snapshots: vec![],
             dependencies: vec![],
+            previous_errors: vec![],
         }
     }
 }
 
-impl SodigySession<ClapError, ClapWarning, CompilerOption, CompilerOption> for ClapSession {
+impl SodigySession<ClapError, ClapErrorKind, ClapWarning, ClapWarningKind, CompilerOption, CompilerOption> for ClapSession {
     fn get_errors(&self) -> &Vec<ClapError> {
         &self.errors
     }
@@ -62,6 +67,10 @@ impl SodigySession<ClapError, ClapWarning, CompilerOption, CompilerOption> for C
 
     fn get_warnings_mut(&mut self) -> &mut Vec<ClapWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &CompilerOption {

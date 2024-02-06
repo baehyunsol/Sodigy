@@ -438,9 +438,17 @@ How about saving both Session and CompilerOutput?
 
 일단 gcc도 `.s`만 뽑거나 `.o`만 뽑는게 되니까 얘가 어떤 식으로 작동하는지 봅시다
 
----
-
 위에랑 비슷한 건데, 코드에 매크로가 있으면 ParseSession에만 기록되고 HirSession에는 기록 안되지? Hir에도 기록돼야함...
+
+1. 모든 session은 `from_previous_session`을 통해서만 init 돼야함
+2. `from_previous_session`은 errors, warnings, dependencies를 전부 가지고 와야 함
+3. compiler input은 `.sdg` 파일만 돼야 함?
+4. 그럼 `--to hir` 옵션은 없애?
+  - 이건 말이 안됨... incremental compilation을 없애자고?
+5. 현재 기준으로 `--to tokens`랑 `--to hir`은 왜 분리돼 있는 거임?
+  - mir하고 hir은 분리되는게 당연히 맞지만 쟤네는 분리 안해도 되는 거 아님??
+
+일단 previous_output 저장하는 거는 다 구현했고 lib/stages.rs만 전부 고치면 됨!
 
 ---
 

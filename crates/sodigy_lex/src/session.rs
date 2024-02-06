@@ -1,7 +1,8 @@
-use crate::error::LexError;
+use crate::error::{LexError, LexErrorKind};
 use crate::token::{Token, TokenKind};
-use crate::warn::LexWarning;
+use crate::warn::{LexWarning, LexWarningKind};
 
+use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
@@ -14,6 +15,9 @@ pub struct LexSession {
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
     dependencies: Vec<SessionDependency>,
+
+    // must be empty because it doesn't have a previous session
+    previous_errors: Vec<UniversalError>,
 }
 
 impl LexSession {
@@ -25,6 +29,7 @@ impl LexSession {
             interner: InternSession::new(),
             snapshots: vec![],
             dependencies: vec![],
+            previous_errors: vec![],
         }
     }
 
@@ -47,12 +52,12 @@ impl LexSession {
                     kind: TokenKind::Whitespace,
                     span: SpanRange::dummy(0x114835f6),
                 });
-            }
+            },
         }
     }
 }
 
-impl SodigySession<LexError, LexWarning, Vec<Token>, Token> for LexSession {
+impl SodigySession<LexError, LexErrorKind, LexWarning, LexWarningKind, Vec<Token>, Token> for LexSession {
     fn get_errors(&self) -> &Vec<LexError> {
         &self.errors
     }
@@ -67,6 +72,10 @@ impl SodigySession<LexError, LexWarning, Vec<Token>, Token> for LexSession {
 
     fn get_warnings_mut(&mut self) -> &mut Vec<LexWarning> {
         &mut self.warnings
+    }
+
+    fn get_previous_errors(&self) -> &Vec<UniversalError> {
+        &self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<Token> {

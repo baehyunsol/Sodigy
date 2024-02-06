@@ -30,7 +30,7 @@ impl CompilerOutput {
 
     pub fn collect_errors_and_warnings_from_session<S, E, W, O1, O2, Ek, Wk>(&mut self, session: &S)
     where
-        S: SodigySession<E, W, O1, O2>,
+        S: SodigySession<E, Ek, W, Wk, O1, O2>,
         E: SodigyError<Ek>,
         W: SodigyError<Wk>,
         O1: SessionOutput<O2>,
