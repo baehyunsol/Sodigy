@@ -2,7 +2,6 @@ use sodigy_ast::{ArgDef, IdentWithSpan};
 use sodigy_error::substr_edit_distance;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
-use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
@@ -104,7 +103,7 @@ impl NameSpace {
         // TODO: what do I do here?
         // we don't have to clear the vectors twice
 
-        sodigy_assert!(self.locals.is_empty());
+        debug_assert!(self.locals.is_empty());
     }
 
     pub fn iter_func_args(&self) -> Vec<(IdentWithSpan, NameOrigin)> {
@@ -161,7 +160,7 @@ impl NameSpace {
         for (name, (_, uid)) in globals.iter() {
             let is_none = self.globals.insert(*name, *uid);
 
-            sodigy_assert!(is_none.is_none());
+            debug_assert!(is_none.is_none());
         }
     }
 

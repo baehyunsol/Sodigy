@@ -12,21 +12,7 @@ pub use log::{
     LOG_VERBOSE,
 };
 
-// TODO: rust std has `debug_assert` and `debug_assert_eq` -> test them, if they do well, the entire `sodigy_test` can be removed
 // TODO: How does `$(..),*` syntax work?
-
-// choose empty branches when you want to disable asserts in the code
-#[macro_export]
-macro_rules! sodigy_assert {
-    ($($x: expr),* $(,)?) => { assert!($($x),*); };
-    ($($_x: expr),* $(,)?) => { (); };
-}
-
-#[macro_export]
-macro_rules! sodigy_assert_eq {
-    ($($x: expr),* $(,)?) => { assert_eq!($($x),*); };
-    ($($_x: expr),* $(,)?) => { (); };
-}
 
 // `sodigy_log!` is for debugging the compiler. it can be disabled easily
 // `sodigy_log_ice!` is for users to report internal compiler errors. it cannot be disabled

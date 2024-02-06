@@ -1,7 +1,6 @@
 use crate::{DUMMY_FILE_HASH, last_modified, read_bytes, FileHash};
 use crate::error::FileError;
 use sodigy_test::{
-    sodigy_assert_eq,
     sodigy_log,
     LOG_NORMAL,
     LOG_VERBOSE,
@@ -47,7 +46,7 @@ impl FileCache {
     // TODO: lifetime of `self` and `[u8]` are different,
     // but the compiler doesn't know that -> this causes VERY VERY SERIOUS problems VERY VERY OFTEN
     pub fn get(&mut self, hash: FileHash) -> Option<&[u8]> {
-        sodigy_assert_eq!(
+        debug_assert_eq!(
             self.data.iter().map(
                 |(_, file)| file.len()
             ).sum::<usize>(),

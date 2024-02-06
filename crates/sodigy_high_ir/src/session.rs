@@ -8,7 +8,6 @@ use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
 use sodigy_session::{SessionDependency, SessionOutput, SessionSnapshot, SodigySession};
 use sodigy_span::SpanRange;
-use sodigy_test::sodigy_assert;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -93,7 +92,7 @@ impl HirSession {
     pub fn free_tmp_name(&mut self, name: InternedString) {
         for (name_, used) in self.tmp_names.iter_mut() {
             if *name_ == name {
-                sodigy_assert!(*used);
+                debug_assert!(*used);
                 *used = false;
                 return;
             }

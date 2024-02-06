@@ -13,7 +13,6 @@ use super::{
 };
 use crate::func::Arg;
 use sodigy_ast::InfixOp;
-use sodigy_test::sodigy_assert;
 use std::fmt;
 
 impl fmt::Display for Expr {
@@ -63,7 +62,7 @@ impl fmt::Display for ExprKind {
                 elems.iter().map(
                     |elem| match &elem.kind {
                         ExprKind::String { content, is_binary } => {
-                            sodigy_assert!(!*is_binary);
+                            debug_assert!(!*is_binary);
                             content.escaped_no_quotes()
                         },
                         _ => format!("\\{{{elem}}}"),

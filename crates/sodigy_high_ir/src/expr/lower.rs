@@ -28,7 +28,6 @@ use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
-use sodigy_test::sodigy_assert;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
@@ -845,7 +844,7 @@ pub fn lower_ast_expr(
                 }
 
                 else {
-                    sodigy_assert!(pattern_bind.is_none());
+                    debug_assert!(pattern_bind.is_none());
 
                     if let Ok(value) = lower_ast_expr(
                         value,

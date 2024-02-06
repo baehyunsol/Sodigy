@@ -1,5 +1,4 @@
 use super::{BigNumber, SodigyNumber};
-use sodigy_test::sodigy_assert_eq;
 use std::fmt;
 
 impl fmt::Display for SodigyNumber {
@@ -47,7 +46,7 @@ impl fmt::Display for BigNumber {
             }
 
             while exp < 0 {
-                sodigy_assert_eq!(digits.last(), Some(&b'0'));
+                debug_assert_eq!(digits.last(), Some(&b'0'));
 
                 exp += 1;
                 digits.pop().unwrap();

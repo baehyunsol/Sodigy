@@ -1,7 +1,6 @@
 #![deny(unused_imports)]
 
 use sodigy_files::{DUMMY_FILE_HASH, FileHash, global_file_session};
-use sodigy_test::{sodigy_assert, sodigy_assert_eq};
 use std::collections::hash_map;
 use std::hash::Hasher;
 
@@ -48,7 +47,7 @@ impl SpanPoint {
     }
 
     pub fn extend(self, end: SpanPoint) -> SpanRange {
-        sodigy_assert_eq!(self.file, end.file);
+        debug_assert_eq!(self.file, end.file);
 
         SpanRange {
             file: self.file,
@@ -141,7 +140,7 @@ impl SpanRange {
 
     #[must_use = "method returns a new span and does not mutate the original value"]
     pub fn merge(&self, other: SpanRange) -> Self {
-        sodigy_assert!(self.end <= other.start);
+        debug_assert!(self.end <= other.start);
 
         SpanRange {
             file: self.file,

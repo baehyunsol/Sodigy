@@ -1,6 +1,5 @@
 use crate::{intern_numeric, unintern_numeric};
 use crate::prelude::{DATA_BIT_WIDTH, IS_INTEGER, IS_SMALL_INTEGER};
-use sodigy_test::sodigy_assert;
 
 mod fmt;
 
@@ -38,10 +37,10 @@ impl InternedNumeric {
             let n = unintern_numeric(*self);
             let (denom, numer) = n.get_denom_and_numer();
 
-            sodigy_assert!(denom.is_integer());
-            sodigy_assert!(numer.is_integer());
-            sodigy_assert!(intern_numeric(denom.clone()).is_integer());
-            sodigy_assert!(intern_numeric(numer.clone()).is_integer());
+            debug_assert!(denom.is_integer());
+            debug_assert!(numer.is_integer());
+            debug_assert!(intern_numeric(denom.clone()).is_integer());
+            debug_assert!(intern_numeric(numer.clone()).is_integer());
 
             (
                 intern_numeric(denom),

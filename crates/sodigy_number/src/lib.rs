@@ -4,7 +4,6 @@
 // i have to rewrite the crate from scratch someday
 
 use hmath::BigInt;
-use sodigy_test::sodigy_assert;
 
 mod error;
 mod fmt;
@@ -160,7 +159,7 @@ impl SodigyNumber {
 
     // unfortunate that `SodigyNumber` is unsigned
     pub fn minus_one(n: Self, is_negative: bool) -> (Self, /* is_negative */ bool) {
-        sodigy_assert!(n.is_integer());
+        debug_assert!(n.is_integer());
 
         match n {
             SodigyNumber::SmallInt(n) => if is_negative {
@@ -434,7 +433,7 @@ impl BigNumber {
 }
 
 fn log10(n: u64) -> u64 {
-    sodigy_assert!(n != 0);
+    debug_assert!(n != 0);
 
     if n >= 10_000 {
         4 + log10(n / 10_000)

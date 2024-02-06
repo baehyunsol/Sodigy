@@ -4,7 +4,6 @@ use crate::{
     unintern_numeric,
 };
 use sodigy_keyword::{Keyword, keywords};
-use sodigy_test::sodigy_assert;
 
 const KEYWORD_LEN: usize = keywords().len();
 
@@ -99,7 +98,7 @@ impl InternedNumeric {
     }
 
     pub fn is_zero(&self) -> bool {
-        sodigy_assert!(
+        debug_assert!(
             self.0 != (0 | IS_INTEGER | IS_SMALL_INTEGER)
             || unintern_numeric(*self).is_zero()
         );

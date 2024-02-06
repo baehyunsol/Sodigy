@@ -14,7 +14,7 @@ use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 use sodigy_error::{ErrorContext, SodigyError};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
-use sodigy_test::{sodigy_assert, sodigy_log, LOG_NORMAL, TEST_MODE};
+use sodigy_test::{sodigy_log, LOG_NORMAL, TEST_MODE};
 
 pub use session::LexSession;
 pub use token::{Token, TokenKind};
@@ -105,7 +105,7 @@ pub fn lex(
 
                 match &mut curr_state {
                     LexState::Init => {
-                        sodigy_assert!(tmp_buf.is_empty());
+                        debug_assert!(tmp_buf.is_empty());
 
                         match c {
                             b'"' | b'\'' => {
