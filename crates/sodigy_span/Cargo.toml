@@ -9,4 +9,3 @@ edition = "2021"
 colored = "2.1.0"
 sodigy_files = { path = "../sodigy_files" }
 sodigy_endec = { path = "../sodigy_endec" }
-sodigy_test = { path = "../sodigy_test" }

@@ -47,19 +47,15 @@ use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
-use sodigy_test::{sodigy_log, LOG_NORMAL, LOG_VERBOSE};
 use sodigy_uid::Uid;
 
 pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), ()> {
-    sodigy_log!(LOG_NORMAL, format!("parse_stmts: enter, curr token is `{:?}`", tokens.peek()));
-
     loop {
         match tokens.step() {
             Some(Token {
                 kind: TokenKind::Keyword(k),
                 span: keyword_span,
             }) => {
-                sodigy_log!(LOG_VERBOSE, format!("parse_stmts: got keyword `{k}`"));
                 let keyword = *k;
                 let keyword_span = *keyword_span;
 
@@ -141,7 +137,6 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                 kind: TokenKind::Punct(Punct::At),
                 span: at_span,
             }) => {
-                sodigy_log!(LOG_VERBOSE, format!("parse_stmts: got punct `@`"));
                 let at_span = *at_span;
 
                 match parse_decorator(at_span, tokens, session) {
@@ -169,7 +164,6 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                 });
             },
             Some(unexpected_token) => {
-                sodigy_log!(LOG_VERBOSE, format!("parse_stmts: unexpected token `{unexpected_token}`"));
                 session.push_error(AstError::unexpected_token(
                     unexpected_token.clone(),
                     ExpectedToken::stmt(),
@@ -244,8 +238,6 @@ pub fn parse_expr(
     // when `tokens` is empty, it uses this span for the error message
     parent_span: SpanRange,
 ) -> Result<Expr, ()> {
-    sodigy_log!(LOG_VERBOSE, format!("parse_expr: enter, curr token is `{:?}`", tokens.peek()));
-
     let mut lhs = match tokens.step() {
         Some(Token {
             kind: TokenKind::Punct(p),

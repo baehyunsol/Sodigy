@@ -18,11 +18,8 @@ use crate::stages::{
 use crate::utils::{clean_irs, try_make_intermediate_paths};
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
-use sodigy_test::{sodigy_log, LOG_NORMAL};
 
 pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> CompilerOutput {
-    sodigy_log!(LOG_NORMAL, format!("run: enter, input file is `{:?}`", options.input_file));
-
     let mut compiler_output = prev_output.unwrap_or_default();
 
     if let Some(sp) = options.do_not_compile_and_do_this {

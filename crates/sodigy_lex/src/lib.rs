@@ -14,7 +14,6 @@ use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 use sodigy_error::{ErrorContext, SodigyError};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
-use sodigy_test::{sodigy_log, LOG_NORMAL, TEST_MODE};
 
 pub use session::LexSession;
 pub use token::{Token, TokenKind};
@@ -82,18 +81,6 @@ pub fn lex(
     span_start: SpanPoint,  // span of `input[0]`
     session: &mut LexSession,
 ) -> Result<(), ()> {
-    sodigy_log!(
-        LOG_NORMAL,
-        format!(
-            "lex: enter, first few chars are `{:?}`",
-            if input.len() < 8 {
-                input
-            } else {
-                &input[..8]
-            },
-        ),
-    );
-
     let mut curr_state = LexState::Init;
     let mut tmp_buf = Vec::with_capacity(256);
     let mut curr_token_span_start = span_start;
@@ -768,7 +755,8 @@ pub fn lex(
                     LexState::Init | LexState::Comment { .. } => {}
                 }
 
-                if TEST_MODE { session.get_results().iter().for_each(|token| token.assert_valid_span()); }
+                // `.assert_valid_span` panics when the condition is not met
+                debug_assert!(session.get_results().iter().for_each(|token| token.assert_valid_span()) == ());
                 return Ok(());
             }
         }

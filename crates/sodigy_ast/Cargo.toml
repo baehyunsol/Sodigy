@@ -15,7 +15,6 @@ sodigy_intern = { path = "../sodigy_intern" }
 sodigy_parse = { path = "../sodigy_parse" }
 sodigy_session = { path = "../sodigy_session" }
 sodigy_span = { path = "../sodigy_span" }
-sodigy_test = { path = "../sodigy_test" }
 sodigy_uid = { path = "../sodigy_uid" }
 
 [dev-dependencies]

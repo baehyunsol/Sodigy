@@ -2,7 +2,6 @@ pub mod error;
 
 use super::error::ExpectedChars;
 use error::ParseNumberError;
-use sodigy_test::{sodigy_log, LOG_VERBOSE};
 
 pub fn bin_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
     if n.is_empty() {
@@ -61,8 +60,6 @@ pub fn oct_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
 }
 
 pub fn hex_to_dec(n: &[u8]) -> Result<Vec<u8>, ParseNumberError> {
-    sodigy_log!(LOG_VERBOSE, format!("hex_to_dec: enter {n:?}"));
-
     if n.is_empty() {
         return Err(ParseNumberError::UnfinishedNumLiteral(ExpectedChars::Specific(b"0123456789aAbBcCdDeEfF_".to_vec())));
     }
@@ -110,8 +107,6 @@ fn shift_carry(n: &mut Vec<u8>) {
 }
 
 fn mul_n<const N: u8>(n: &mut Vec<u8>) {
-    sodigy_log!(LOG_VERBOSE, format!("mul_n: N is `{N}`, n is `{n:?}`"));
-
     n.iter_mut().for_each(|n| { *n = (*n - b'0') * N; });
     shift_carry(n);
 

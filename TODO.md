@@ -450,3 +450,7 @@ How about saving both Session and CompilerOutput?
 2. 스펙 만드는 거는 쉬움
 3. 구현은 무지 빡셈, 내가 from scratch로 regex 짜는 거는 너무 빡세고 있는 거 갖다 쓰면 덩치가 너무 커짐...
 4. 없어도 큰 불편은 없음... 아직...
+
+---
+
+use [tracing](https://docs.rs/tracing/latest/tracing/)

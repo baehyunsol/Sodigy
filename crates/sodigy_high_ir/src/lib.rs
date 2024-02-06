@@ -6,7 +6,6 @@ use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
-use sodigy_test::{sodigy_log, LOG_NORMAL};
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
@@ -62,8 +61,6 @@ pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
     session: &mut HirSession
 ) -> Result<(), ()> {
-    sodigy_log!(LOG_NORMAL, format!("lower_stmts: enter, it has {} stmts", stmts.len()));
-
     let mut ast_attributes = vec![];
 
     // only for warnings

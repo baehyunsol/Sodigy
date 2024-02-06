@@ -34,7 +34,6 @@ use sodigy_mid_ir::{MirError, MirSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_session::{SessionDependency, SodigySession};
 use sodigy_span::SpanPoint;
-use sodigy_test::{sodigy_log, LOG_NORMAL};
 use std::collections::{HashMap, HashSet};
 
 type Path = String;
@@ -54,8 +53,6 @@ pub fn parse_file(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<ParseSession>, CompilerOutput) {
-    sodigy_log!(LOG_NORMAL, format!("parse_file: enter, input is `{input:?}`"));
-
     let mut compiler_output = prev_output.unwrap_or_default();
     let file_session = unsafe { global_file_session() };
 
@@ -223,8 +220,6 @@ pub fn hir_from_tokens(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<HirSession>, CompilerOutput) {
-    sodigy_log!(LOG_NORMAL, format!("hir_from_tokens: enter, input is `{input:?}`"));
-
     let mut compiler_output = prev_output.unwrap_or_default();
 
     let parse_session = match input {
@@ -425,8 +420,6 @@ pub fn mir_from_hir(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<MirSession>, CompilerOutput) {
-    sodigy_log!(LOG_NORMAL, format!("mir_from_hir: enter, input is `{input:?}`"));
-
     let mut compiler_output = prev_output.unwrap_or_default();
 
     let hir_session = match input {
@@ -646,7 +639,6 @@ pub fn generate_path_for_ir(
     ext: &str,
     create_path_if_not_exist: bool,
 ) -> Result<Path, FileError> {
-    sodigy_log!(LOG_NORMAL, format!("generate_path_for_ir: `{original_file}`, `{ext}`, {create_path_if_not_exist}"));
     let file_name = file_name(original_file)?;
 
     let base_path = join(

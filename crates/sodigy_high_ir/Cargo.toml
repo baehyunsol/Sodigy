@@ -15,5 +15,4 @@ sodigy_number = { path = "../sodigy_number" }
 sodigy_prelude = { path = "../sodigy_prelude" }
 sodigy_session = { path = "../sodigy_session" }
 sodigy_span = { path = "../sodigy_span" }
-sodigy_test = { path = "../sodigy_test" }
 sodigy_uid = { path = "../sodigy_uid" }

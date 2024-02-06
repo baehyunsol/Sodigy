@@ -8,12 +8,10 @@ use sodigy_files::{
     parent,
     read_dir,
     remove_dir_all,
-    remove_file,
     FileError,
     FileErrorContext,
 };
 use sodigy_error::UniversalError;
-use sodigy_test::LOG_FILE_PATH;
 
 pub fn clean_irs(path: &str, compiler_output: &mut CompilerOutput) {
     if let Ok(contents) = read_dir(path) {
@@ -33,12 +31,6 @@ pub fn clean_irs(path: &str, compiler_output: &mut CompilerOutput) {
                     },
                 }
             }
-        }
-    }
-
-    if exists(LOG_FILE_PATH) {
-        if let Err(e) = remove_file(LOG_FILE_PATH) {
-            compiler_output.push_error(e.into());
         }
     }
 }

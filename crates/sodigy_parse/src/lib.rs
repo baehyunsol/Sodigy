@@ -4,7 +4,6 @@ use sodigy_error::SodigyError;
 use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
 use sodigy_session::SodigySession;
-use sodigy_test::{sodigy_log, LOG_NORMAL};
 
 mod delim;
 mod error;
@@ -27,8 +26,6 @@ pub use token_tree::{TokenTree, TokenTreeKind};
 pub use warn::ParseWarning;
 
 pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &mut LexSession) -> Result<(), ()> {
-    sodigy_log!(LOG_NORMAL, format!("from_tokens: enter, curr token is `{:?}`", tokens.get(0)));
-
     let mut index = 0;
     let mut group_stack = vec![];
     let mut has_macro = false;

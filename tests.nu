@@ -16,7 +16,7 @@ def main [--depgraph] {
         "intern", "keyword",
         "lex", "mid_ir",
         "number", "parse", "prelude",
-        "session", "span", "test", "uid",
+        "session", "span", "uid",
     ]
 
     for $crate in $crates {
