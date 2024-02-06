@@ -26,8 +26,6 @@ impl fmt::Display for InfixOp {
             InfixOp::In => String::from("in"),
             InfixOp::Index => unreachable!(),  // `a [] 0` doesn't make sense...
             InfixOp::Concat => String::from("<>"),
-            InfixOp::Append => String::from("<+"),
-            InfixOp::Prepend => String::from("+>"),
             InfixOp::Range => String::from(".."),
             InfixOp::InclusiveRange => String::from("..~"),
             InfixOp::FieldModifier(id) => format!("`{id}"),

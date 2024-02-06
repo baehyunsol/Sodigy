@@ -75,12 +75,10 @@ impl Endec for InfixOp {
             InfixOp::In => { buf.push(19); },
             InfixOp::Index => { buf.push(20); },
             InfixOp::Concat => { buf.push(21); },
-            InfixOp::Append => { buf.push(22); },
-            InfixOp::Prepend => { buf.push(23); },
-            InfixOp::Range => { buf.push(24); },
-            InfixOp::InclusiveRange => { buf.push(25); },
+            InfixOp::Range => { buf.push(22); },
+            InfixOp::InclusiveRange => { buf.push(23); },
             InfixOp::FieldModifier(id) => {
-                buf.push(26);
+                buf.push(24);
                 id.encode(buf, session);
             },
         }
@@ -114,12 +112,10 @@ impl Endec for InfixOp {
                     19 => Ok(InfixOp::In),
                     20 => Ok(InfixOp::Index),
                     21 => Ok(InfixOp::Concat),
-                    22 => Ok(InfixOp::Append),
-                    23 => Ok(InfixOp::Prepend),
-                    24 => Ok(InfixOp::Range),
-                    25 => Ok(InfixOp::InclusiveRange),
-                    26 => Ok(InfixOp::FieldModifier(InternedString::decode(buf, index, session)?)),
-                    27.. => Err(EndecError::invalid_enum_variant(*n)),
+                    22 => Ok(InfixOp::Range),
+                    23 => Ok(InfixOp::InclusiveRange),
+                    24 => Ok(InfixOp::FieldModifier(InternedString::decode(buf, index, session)?)),
+                    25.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

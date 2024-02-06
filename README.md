@@ -341,27 +341,6 @@ let concat_test: List(Int) = [1, 2, 3] <> [4, 5, 6];
 let hello_world = "Hello, " <> "World!";
 ```
 
-### `+>`
-
-`+>` prepends an element to a list. But very unfortunately, it's not right-associative. Sodigy doesn't implement any kind of right-associativity.
-
-```
-@test.eq([0, 1, 2, 3])
-let prepend_test = 0 +> [1, 2, 3];
-```
-
-### `<+`
-
-`<+` appends an element to a list.
-
-```
-@test.eq([1, 2, 3, 4])
-let append_test = [1] <+ 2 <+ 3 <+ 4;
-
-@test.eq("Hello")
-let append_test2 = "H" <+ 'e' <+ 'l' <+ 'l' <+ 'o';
-```
-
 ### `..`
 
 `..` makes an exclusive range. For example, `1..4` is a range: 1, 2, and 3, and `'a'..'c'` is `'a'` and `'b'`. An extra argument can set the step of the range. For example, `1..10..2` is `1`, `3`, `5`, `7`, and `9`. Negative steps are also possible.

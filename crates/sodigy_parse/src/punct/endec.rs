@@ -38,10 +38,8 @@ impl Endec for Punct {
             Punct::QuestionMark => { buf.push(30); },
             Punct::InclusiveRange => { buf.push(31); },
             Punct::RArrow => { buf.push(32); },
-            Punct::Append => { buf.push(33); },
-            Punct::Prepend => { buf.push(34); },
             Punct::FieldModifier(id) => {
-                buf.push(35);
+                buf.push(33);
                 id.encode(buf, session);
             },
         }
@@ -86,10 +84,8 @@ impl Endec for Punct {
                     30 => Ok(Punct::QuestionMark),
                     31 => Ok(Punct::InclusiveRange),
                     32 => Ok(Punct::RArrow),
-                    33 => Ok(Punct::Append),
-                    34 => Ok(Punct::Prepend),
-                    35 => Ok(Punct::FieldModifier(InternedString::decode(buf, index, session)?)),
-                    36.. => Err(EndecError::invalid_enum_variant(*n)),
+                    33 => Ok(Punct::FieldModifier(InternedString::decode(buf, index, session)?)),
+                    34.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

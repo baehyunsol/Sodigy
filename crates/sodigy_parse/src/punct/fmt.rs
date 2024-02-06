@@ -40,8 +40,6 @@ impl fmt::Display for Punct {
                 QuestionMark => "?".to_string(),
                 InclusiveRange => "..~".to_string(),
                 RArrow => "=>".to_string(),
-                Append => "<+".to_string(),
-                Prepend => "+>".to_string(),
                 FieldModifier(id) => format!("`{id}"),
             },
         )

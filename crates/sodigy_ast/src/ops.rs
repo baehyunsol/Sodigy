@@ -70,12 +70,6 @@ pub enum InfixOp {
     /// `<>`
     Concat,
 
-    /// `<+`
-    Append,
-
-    /// `+>`
-    Prepend,
-
     /// `..`
     Range,
 
@@ -110,8 +104,6 @@ impl TryFrom<Punct> for InfixOp {
             Punct::Xor => Ok(InfixOp::Xor),
             Punct::GtGt => Ok(InfixOp::ShiftRight),
             Punct::LtLt => Ok(InfixOp::ShiftLeft),
-            Punct::Append => Ok(InfixOp::Append),
-            Punct::Prepend => Ok(InfixOp::Prepend),
             Punct::DotDot => Ok(InfixOp::Range),
             Punct::InclusiveRange => Ok(InfixOp::InclusiveRange),
             Punct::FieldModifier(id) => Ok(InfixOp::FieldModifier(id)),
@@ -182,7 +174,6 @@ pub fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::BitwiseAnd => (BITWISE_AND, BITWISE_AND + 1),
         InfixOp::Xor => (XOR, XOR + 1),
         InfixOp::BitwiseOr => (BITWISE_OR, BITWISE_OR + 1),
-        InfixOp::Append | InfixOp::Prepend => (APPEND, APPEND + 1),
         InfixOp::FieldModifier(_) => (MODIFY, MODIFY + 1),
         InfixOp::LogicalAnd => (LOGICAL_AND, LOGICAL_AND + 1),
         InfixOp::LogicalOr => (LOGICAL_OR, LOGICAL_OR + 1),
@@ -218,7 +209,6 @@ const SHIFT: u32 = 21;
 const BITWISE_AND: u32 = 19;
 const XOR: u32 = 17;
 const BITWISE_OR: u32 = 15;
-const APPEND: u32 = 13;
 const CONCAT: u32 = 11; const RANGE: u32 = 11;
 const COMP: u32 = 9;
 const COMP_EQ: u32 = 7;

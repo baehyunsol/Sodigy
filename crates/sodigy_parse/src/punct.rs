@@ -43,12 +43,6 @@ pub enum Punct {
     /// `=>`
     RArrow,
 
-    /// `<+`
-    Append,
-
-    /// `+>`
-    Prepend,
-
     /// ``` `field_name ```
     FieldModifier(InternedString),
 }
@@ -67,8 +61,6 @@ impl Punct {
             (b'|', b'|') => Some(Punct::OrOr),
             (b'.', b'.') => Some(Punct::DotDot),
             (b'=', b'>') => Some(Punct::RArrow),
-            (b'<', b'+') => Some(Punct::Append),
-            (b'+', b'>') => Some(Punct::Prepend),
             _ => None,
         }
     }

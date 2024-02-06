@@ -188,7 +188,6 @@ list implementation
   - `x[n..]`: O(1) -> start += n
   - `x.len()`: O(1) -> end - start
   - `x.modify(n, v)`: O(n) -> price for immutability
-  - `a +> x`, `x <+ a`: O(n) -> it's fine
 
 ---
 
@@ -253,7 +252,7 @@ clap 관련 참신한 아이디어
 ```
 # op precedence가 저게 맞나?? ㅋㅋㅋ 기억이 안 나네..
 @method(SodigyCompiler)
-let input(self: SodigyCompiler, file: String): SodigyCompiler = self `input self.input <+ file;
+let input(self: SodigyCompiler, file: String): SodigyCompiler = self `input self.input.push(file);
 
 @method(SodigyCompiler)
 let dump_hir(self: SodigyCompiler, dump_hir: Bool): SodigyCompiler = if self.is_dump_hir_set {
