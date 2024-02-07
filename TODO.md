@@ -410,45 +410,16 @@ let main(env: World): World = env.exists("./data.txt").map(
 
 ---
 
-bug
+정리
 
-1. when an error is found while constructing HIR Session
-  - nothing is saved and the compilation stops
-  - it has to save the error somewhere, so that the compiler can throw the same error next time
-2. When there's a warning
-  - it saves the session but doesn't save the warnings
-  - the warnings go to CompilerOutput, but CompilerOutput is not saved anywhere
-
-How about saving both Session and CompilerOutput?
-
--> 아니 저렇게 하더라도 manually incremental compile을 하면 어차피 문제가 생기는 거 아님??
-  -> 생각해보니까 manual incremental compilation에는 문제들이 많음...
-  -> `.hir`에서 컴파일을 멈추면 HirSession에 Span들이 완전 들어있는 상태로 멈추지? 나중에
-     `.hir`만 갖고 다시 컴파일을 재개하면 저 Span들이 주인을 잃음... `.sdg` 파일이 없잖아...
-
-1. 자동으로 진행되는 incremental compilation (`__sdg_cache__`)은 당연히 모든 에러랑 경고 던져줘야함
-  - clean 상태에서 compile하는 거랑 동일해야함
-2. manual incremental compilation (`./sodigy a.sdg --to hir`)을
-  - 아예 금지하든가 (무조건 binary까지 뽑아냄, `--to` 없음)
-  - manual incremental compilation에서는 경고 메시지 안 뜨게 하든가
-    - 이것도 rust스럽게 생각하면 이상하지만 c스럽게 생각하면 말이 되긴 함!
-  - `.hir` 파일 옆에 무조건 `.sdg`가 있어야된다고 하든가
-    - 이건 incremental compilation의 의미가 좀 퇴색되는데??
-  - `--to hir`을 해도 `__sdg_cache__` 안에만 파일을 쓰게 할까?
-
-일단 gcc도 `.s`만 뽑거나 `.o`만 뽑는게 되니까 얘가 어떤 식으로 작동하는지 봅시다
-
-위에랑 비슷한 건데, 코드에 매크로가 있으면 ParseSession에만 기록되고 HirSession에는 기록 안되지? Hir에도 기록돼야함...
-
-1. 모든 session은 `from_previous_session`을 통해서만 init 돼야함
-2. `from_previous_session`은 errors, warnings, dependencies를 전부 가지고 와야 함
-3. compiler input은 `.sdg` 파일만 돼야 함?
-4. 그럼 `--to hir` 옵션은 없애?
-  - 이건 말이 안됨... incremental compilation을 없애자고?
-5. 현재 기준으로 `--to tokens`랑 `--to hir`은 왜 분리돼 있는 거임?
-  - mir하고 hir은 분리되는게 당연히 맞지만 쟤네는 분리 안해도 되는 거 아님??
-
-일단 previous_output 저장하는 거는 다 구현했고 lib/stages.rs만 전부 고치면 됨!
+1. `--to`를 줄 수는 있지만 `--to hir`은 `.hir`을 `__sdg_cache__`에다가 저장하지, 사용자가 볼 수 있는 곳에 저장하지는 않음
+  - 즉, `--to`가 있으면 `-o`을 못 줌
+  - 그럼 이름을 바꿔야할 듯... compile하다가 중간에 멈춘다는 의미가 들어가게 이름을 바꾸자!
+2. `--save-ir`은 말그대로 intermediate representation의 저장여부임. 즉, hir을 뽑아낸다고 했을 때, `--save-ir`은 tokens를 저장할지 결정하는 거고, mir을 뽑아낼 때는 tokens와 hir을 저장할지 결정하는 거임!
+3. stages에 있는 함수들은 session만 반환함. 굳이 compiler_output을 따로 보낼 필요가 없음!
+4. `--to tokens`가 존재할 필요없고 `--to hir`만 있으면 된다..?? 그런 것 같긴 하지만 좀 더 생각해봐야함...
+5. input file은 무조건 `.sdg`만 됨. 중간부터 시작하는 거는 없음!
+  - 더이상 확장자로 어쩌고저쩌고 할 필요 전혀없음!!
 
 ---
 
@@ -462,3 +433,13 @@ How about saving both Session and CompilerOutput?
 ---
 
 use [tracing](https://docs.rs/tracing/latest/tracing/)
+
+---
+
+dump hir -> html로 dump해버릴까? 지금 dump하는 거랑 똑같이 하는데 각 코드 부분에 마우스 올리면 기존 span 보여주는 거임...
+
+아니면 How about... dump_hir을 하면 아주아주 verbose한 json을 dump하는 거임! 걔를 갖고 html을 만들든 뭘 만들든 내 맘인 거고!
+
+개인적으로 test할 용도로 json -> html은 구현해두자. 일단은 rust로 구현하고 아주 나중에 sodigy로 구현하는 거지!
+
+dump는 stdout이 아니고 무조건 file에 하도록 하자! 이제 더이상 `--dump-hir`하고 `--dump-hir-to`가 따로 있을 필요가 없음! `--dump-hir-to`가 있으면 that implies `--dump-hir`. 그대신 `--dump-hir-to STDOUT`도 되게 하자.
