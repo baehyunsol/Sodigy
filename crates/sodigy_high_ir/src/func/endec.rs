@@ -1,7 +1,13 @@
 use super::{Arg, Func, FuncKind};
 use crate::{Attribute, Type, expr::Expr};
 use sodigy_ast::{GenericDef, IdentWithSpan};
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
 use sodigy_uid::Uid;
 
 impl Endec for Func {
@@ -85,5 +91,11 @@ impl Endec for FuncKind {
             },
             None => Err(EndecError::eof()),
         }
+    }
+}
+
+impl DumpJson for Func {
+    fn dump_json(&self) -> JsonObj {
+        todo!()
     }
 }

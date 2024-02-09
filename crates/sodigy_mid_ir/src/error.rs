@@ -86,7 +86,7 @@ impl SodigyError<MirErrorKind> for MirError {
         &self.spans
     }
 
-    fn err_kind(&self) -> &MirErrorKind {
+    fn error_kind(&self) -> &MirErrorKind {
         &self.kind
     }
 

@@ -1,7 +1,14 @@
 use super::Module;
 use crate::attr::Attribute;
 use sodigy_ast::IdentWithSpan;
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+    json_key_value_table,
+};
 use sodigy_uid::Uid;
 
 impl Endec for Module {
@@ -17,5 +24,15 @@ impl Endec for Module {
             uid: Uid::decode(buf, index, session)?,
             attributes: Vec::<Attribute>::decode(buf, index, session)?,
         })
+    }
+}
+
+impl DumpJson for Module {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("name", self.name.dump_json()),
+            ("uid", self.uid.dump_json()),
+            ("attributes", self.attributes.dump_json()),
+        ])
     }
 }

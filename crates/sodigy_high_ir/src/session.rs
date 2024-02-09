@@ -160,7 +160,7 @@ impl HirSession {
     // Expensive
     pub fn dump_hir(&self) -> String {
         let mut lines = Vec::with_capacity(self.func_defs.len());
-        let mut func_defs = self.func_defs.values().map(|f| f.clone()).collect::<Vec<_>>();
+        let mut func_defs = self.func_defs.values().collect::<Vec<_>>();
         func_defs.sort_by_key(|f| *f.name.span());
 
         for f in func_defs.iter() {

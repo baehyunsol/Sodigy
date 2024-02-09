@@ -142,7 +142,7 @@ impl SodigyError<HirErrorKind> for HirError {
         &self.spans
     }
 
-    fn err_kind(&self) -> &HirErrorKind {
+    fn error_kind(&self) -> &HirErrorKind {
         &self.kind
     }
 

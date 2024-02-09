@@ -75,7 +75,7 @@ impl SodigyError<HirWarningKind> for HirWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &HirWarningKind {
+    fn error_kind(&self) -> &HirWarningKind {
         &self.kind
     }
 

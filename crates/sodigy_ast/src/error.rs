@@ -243,7 +243,7 @@ impl SodigyError<AstErrorKind> for AstError {
         &self.spans
     }
 
-    fn err_kind(&self) -> &AstErrorKind {
+    fn error_kind(&self) -> &AstErrorKind {
         &self.kind
     }
 

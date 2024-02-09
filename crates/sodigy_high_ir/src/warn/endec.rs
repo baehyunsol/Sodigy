@@ -2,8 +2,14 @@ use super::{HirWarning, HirWarningKind};
 use crate::names::NameBindingType;
 use crate::pattern::{NumberLike, RangeType};
 use smallvec::SmallVec;
-use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_error::ExtraErrInfo;
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
+use sodigy_error::{ExtraErrInfo, SodigyError};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
@@ -76,5 +82,11 @@ impl Endec for HirWarningKind {
             },
             None => Err(EndecError::eof()),
         }
+    }
+}
+
+impl DumpJson for HirWarning {
+    fn dump_json(&self) -> JsonObj {
+        self.dump_json_impl()
     }
 }

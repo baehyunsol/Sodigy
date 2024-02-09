@@ -4,7 +4,15 @@ use crate::func::Func;
 use crate::module::Module;
 use crate::warn::HirWarning;
 use sodigy_ast::IdentWithSpan;
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+    json_key_value_table,
+};
+use sodigy_error::UniversalError;
 use sodigy_intern::InternedString;
 use sodigy_session::SessionDependency;
 use std::collections::HashMap;
@@ -17,6 +25,7 @@ impl Endec for HirSession {
         self.imported_names.encode(buf, session);
         self.modules.encode(buf, session);
         self.dependencies.encode(buf, session);
+        self.previous_errors.encode(buf, session);
 
         // There's no point in encoding the other fields
     }
@@ -30,7 +39,28 @@ impl Endec for HirSession {
             imported_names: Vec::<IdentWithSpan>::decode(buf, index, session)?,
             modules: Vec::<Module>::decode(buf, index, session)?,
             dependencies: Vec::<SessionDependency>::decode(buf, index, session)?,
+            previous_errors: Vec::<UniversalError>::decode(buf, index, session)?,
             ..HirSession::new()
         })
+    }
+}
+
+impl DumpJson for HirSession {
+    fn dump_json(&self) -> JsonObj {
+        let errors = self.errors.dump_json();
+        let warnings = self.warnings.dump_json();
+        let func_defs = self.func_defs.values().collect::<Vec<_>>().dump_json();
+        let imported_names = self.imported_names.dump_json();
+        let modules = self.modules.dump_json();
+        let previous_errors = self.previous_errors.dump_json();
+
+        json_key_value_table(vec![
+            ("errors", errors),
+            ("warnings", warnings),
+            ("definitions", func_defs),
+            ("imported_names", imported_names),
+            ("modules", modules),
+            ("errors_from_previous_session", previous_errors),
+        ])
     }
 }

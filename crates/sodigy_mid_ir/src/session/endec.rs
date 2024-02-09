@@ -2,7 +2,13 @@ use super::MirSession;
 use crate::def::Def;
 use crate::error::MirError;
 use crate::warn::MirWarning;
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{SessionDependency, SessionSnapshot};
@@ -29,5 +35,11 @@ impl Endec for MirSession {
             dependencies: Vec::<SessionDependency>::decode(buf, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buf, index, session)?,
         })
+    }
+}
+
+impl DumpJson for MirSession {
+    fn dump_json(&self) -> JsonObj {
+        todo!()
     }
 }

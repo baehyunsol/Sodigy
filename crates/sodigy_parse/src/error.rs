@@ -127,7 +127,7 @@ impl SodigyError<ParseErrorKind> for ParseError {
         &self.spans
     }
 
-    fn err_kind(&self) -> &ParseErrorKind {
+    fn error_kind(&self) -> &ParseErrorKind {
         &self.kind
     }
 

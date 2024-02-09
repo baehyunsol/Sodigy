@@ -10,29 +10,23 @@ pub enum Flag {
     Version,
     ShowWarnings,
     SaveIr,
-    DumpTokens,
     DumpTokensTo,
-    DumpHir,
     DumpHirTo,
-    DumpMir,
     DumpMirTo,
     Clean,
     Verbose,
     RawInput,
 }
 
-pub const FLAGS: [Flag; 15] = [
+pub const FLAGS: [Flag; 12] = [
     Flag::Output,
     Flag::To,
     Flag::Help,
     Flag::Version,
     Flag::ShowWarnings,
     Flag::SaveIr,
-    Flag::DumpTokens,
     Flag::DumpTokensTo,
-    Flag::DumpHir,
     Flag::DumpHirTo,
-    Flag::DumpMir,
     Flag::DumpMirTo,
     Flag::Clean,
     Flag::Verbose,
@@ -49,10 +43,7 @@ impl Flag {
             | Flag::DumpMirTo => TokenKind::Path,
             Flag::To => TokenKind::Stage,
             Flag::ShowWarnings
-            | Flag::SaveIr
-            | Flag::DumpTokens
-            | Flag::DumpHir
-            | Flag::DumpMir => TokenKind::Bool,
+            | Flag::SaveIr => TokenKind::Bool,
             Flag::Verbose => TokenKind::Int,
             Flag::RawInput => TokenKind::RawInput,
             Flag::Help
@@ -69,11 +60,8 @@ impl Flag {
             Flag::Version => Some(b"-v"),
             Flag::ShowWarnings
             | Flag::SaveIr
-            | Flag::DumpTokens
             | Flag::DumpTokensTo
-            | Flag::DumpHir
             | Flag::DumpHirTo
-            | Flag::DumpMir
             | Flag::DumpMirTo
             | Flag::Clean
             | Flag::Verbose
@@ -89,11 +77,8 @@ impl Flag {
             Flag::Version => b"--version",
             Flag::ShowWarnings => b"--show-warnings",
             Flag::SaveIr => b"--save-ir",
-            Flag::DumpTokens => b"--dump-tokens",
             Flag::DumpTokensTo => b"--dump-tokens-to",
-            Flag::DumpHir => b"--dump-hir",
             Flag::DumpHirTo => b"--dump-hir-to",
-            Flag::DumpMir => b"--dump-mir",
             Flag::DumpMirTo => b"--dump-mir-to",
             Flag::Clean => b"--clean",
             Flag::Verbose => b"--verbose",

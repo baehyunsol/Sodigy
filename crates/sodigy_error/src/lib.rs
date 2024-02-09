@@ -1,6 +1,11 @@
 #![deny(unused_imports)]
 
 use colored::Colorize;
+use sodigy_endec::{
+    DumpJson,
+    JsonObj,
+    json_key_value_table,
+};
 use sodigy_files::global_file_session;
 use sodigy_intern::InternSession;
 use sodigy_span::{ColorScheme, SpanRange};
@@ -30,7 +35,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn get_spans(&self) -> &[SpanRange];
 
-    fn err_kind(&self) -> &K;
+    fn error_kind(&self) -> &K;
 
     /// Errors at different passes have different indices.
     /// For example, lex error, parse error and ast error have different ones.
@@ -89,7 +94,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
             }
 
             hasher.write(&[self.is_warning() as u8]);
-            hasher.write(&self.err_kind().index().to_be_bytes());
+            hasher.write(&self.error_kind().index().to_be_bytes());
             hasher.write(&self.index().to_be_bytes());
 
             hasher.finish()
@@ -113,12 +118,12 @@ pub trait SodigyError<K: SodigyErrorKind> {
         let mut intern_session = InternSession::new();
         let is_warning = self.is_warning();
 
-        let kind = self.err_kind();
+        let kind = self.error_kind();
 
         let msg = format!(
             "{}{:04}: {}",
             if is_warning { "W" } else { "E" },
-            self.index() * 100 + self.err_kind().index(),
+            self.index() * 100 + self.error_kind().index(),
             kind.msg(&mut intern_session),
         );
         let help = match kind.help(&mut intern_session) {
@@ -134,6 +139,21 @@ pub trait SodigyError<K: SodigyErrorKind> {
             "{msg}{help}{extra_msg}",
         )
     }
+
+    // due to Rust's trait coherence rules,
+    // it cannot do something like `impl<T: SodigyError> DumpJson for T`
+    // we needa boilerplate
+    fn dump_json_impl(&self) -> JsonObj {
+        let kind = self.error_kind().dump_json_impl();
+        let spans = self.get_spans().to_vec().dump_json();
+        let extra = self.get_error_info().dump_json();
+
+        json_key_value_table(vec![
+            ("kind", kind),
+            ("spans", spans),
+            ("extra_information", extra),
+        ])
+    }
 }
 
 pub trait SodigyErrorKind {
@@ -147,6 +167,18 @@ pub trait SodigyErrorKind {
 
     /// identifier of this errkind
     fn index(&self) -> u32;
+
+    // due to Rust's trait coherence rules,
+    // it cannot do something like `impl<T: SodigyErrorKind> DumpJson for T`
+    // we needa boilerplate
+    fn dump_json_impl(&self) -> JsonObj {
+        let mut dummy_session = InternSession::new();
+
+        json_key_value_table(vec![
+            ("message", self.msg(&mut dummy_session).dump_json()),
+            ("help_message", self.help(&mut dummy_session).dump_json()),
+        ])
+    }
 }
 
 pub fn concat_commas(list: &[String], term: &str, prefix: &str, suffix: &str) -> String {

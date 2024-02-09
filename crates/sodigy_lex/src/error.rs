@@ -110,7 +110,7 @@ impl SodigyError<LexErrorKind> for LexError {
         &self.spans
     }
 
-    fn err_kind(&self) -> &LexErrorKind {
+    fn error_kind(&self) -> &LexErrorKind {
         &self.kind
     }
 

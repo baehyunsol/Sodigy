@@ -64,7 +64,7 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &ClapWarningKind {
+    fn error_kind(&self) -> &ClapWarningKind {
         &self.kind
     }
 

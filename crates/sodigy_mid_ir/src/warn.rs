@@ -28,7 +28,7 @@ impl SodigyError<MirWarningKind> for MirWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &MirWarningKind {
+    fn error_kind(&self) -> &MirWarningKind {
         &self.kind
     }
 

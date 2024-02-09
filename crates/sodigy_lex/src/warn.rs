@@ -27,7 +27,7 @@ impl SodigyError<LexWarningKind> for LexWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &LexWarningKind {
+    fn error_kind(&self) -> &LexWarningKind {
         &self.kind
     }
 

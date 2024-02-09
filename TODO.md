@@ -303,6 +303,7 @@ https://smallcultfollowing.com/babysteps/blog/2016/10/24/supporting-blanket-impl
 https://smallcultfollowing.com/babysteps/blog/2022/04/17/coherence-and-crate-level-where-clauses/
 https://aturon.github.io/tech/2017/02/06/specialization-and-coherence/
 https://github.com/purescript/documentation/blob/master/language/Type-Classes.md
+https://github.com/Ixrec/rust-orphan-rules
 
 Syntax/Semantic 생각해보기!
 

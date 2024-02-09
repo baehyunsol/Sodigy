@@ -7,7 +7,7 @@ use sodigy_ast::{
     Tokens,
 };
 use sodigy_clap::{CompilerOption, IrStage};
-use sodigy_endec::{Endec, EndecError, EndecErrorContext, EndecErrorKind};
+use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorContext, EndecErrorKind};
 use sodigy_error::UniversalError;
 use sodigy_files::{
     create_dir,
@@ -65,10 +65,10 @@ pub fn parse_file(
                     Ok(session) => {
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
-                        if compiler_option.dump_tokens {
-                            let res = session.dump_tokens();
+                        if let Some(path) = &compiler_option.dump_tokens_to {
+                            let res = session.dump_json().to_string();
 
-                            if let Some(path) = &compiler_option.dump_tokens_to {
+                            if path != "STDOUT" {
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
                                 }
@@ -194,10 +194,10 @@ pub fn parse_file(
             _ => {},
         }
 
-        if compiler_option.dump_tokens {
-            let res = parse_session.dump_tokens();
+        if let Some(path) = &compiler_option.dump_tokens_to {
+            let res = parse_session.dump_json().to_string();
 
-            if let Some(path) = &compiler_option.dump_tokens_to {
+            if path != "STDOUT" {
                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
                 }
@@ -231,10 +231,10 @@ pub fn hir_from_tokens(
                     Ok(session) => {
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
-                        if compiler_option.dump_hir {
-                            let res = session.dump_hir();
+                        if let Some(path) = &compiler_option.dump_hir_to {
+                            let res = session.dump_json().to_string();
 
-                            if let Some(path) = &compiler_option.dump_hir_to {
+                            if path != "STDOUT" {
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
                                 }
@@ -394,10 +394,10 @@ pub fn hir_from_tokens(
             _ => {},
         }
 
-        if compiler_option.dump_hir {
-            let res = hir_session.dump_hir();
+        if let Some(path) = &compiler_option.dump_hir_to {
+            let res = hir_session.dump_json().to_string();
 
-            if let Some(path) = &compiler_option.dump_hir_to {
+            if path != "STDOUT" {
                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
                 }
@@ -431,10 +431,10 @@ pub fn mir_from_hir(
                     Ok(session) => {
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
-                        if compiler_option.dump_mir {
-                            let res = session.dump_mir();
+                        if let Some(path) = &compiler_option.dump_mir_to {
+                            let res = session.dump_json().to_string();
 
-                            if let Some(path) = &compiler_option.dump_hir_to {
+                            if path != "STDOUT" {  // TODO: use a constant
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
                                 }
@@ -612,10 +612,10 @@ pub fn mir_from_hir(
             _ => {},
         }
 
-        if compiler_option.dump_mir {
-            let res = mir_session.dump_mir();
+        if let Some(path) = &compiler_option.dump_mir_to {
+            let res = mir_session.dump_json().to_string();
 
-            if let Some(path) = &compiler_option.dump_mir_to {
+            if path != "STDOUT" {
                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
                     compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
                 }

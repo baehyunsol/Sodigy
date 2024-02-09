@@ -1,6 +1,13 @@
 use super::UniversalError;
 use smallvec::SmallVec;
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+    json_key_value_table,
+};
 use sodigy_span::SpanRange;
 
 impl Endec for UniversalError {
@@ -22,5 +29,16 @@ impl Endec for UniversalError {
             show_span: bool::decode(buf, index, session)?,
             hash: u64::decode(buf, index, session)?,
         })
+    }
+}
+
+impl DumpJson for UniversalError {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("context", self.context.dump_json()),
+            ("message", self.message.dump_json()),
+            ("is_warning", self.is_warning.dump_json()),
+            ("spans", self.spans.dump_json()),
+        ])
     }
 }

@@ -47,7 +47,7 @@ impl SodigyError<ParseWarningKind> for ParseWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &ParseWarningKind {
+    fn error_kind(&self) -> &ParseWarningKind {
         &self.kind
     }
 

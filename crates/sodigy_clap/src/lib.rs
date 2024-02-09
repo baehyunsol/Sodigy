@@ -81,22 +81,11 @@ pub fn parse_cli_args() -> ClapSession {
         let mut output_format = None;
         let mut show_warnings = None;
         let mut save_ir = None;
-        let mut dump_tokens = None;
         let mut dump_tokens_to = None;
-        let mut dump_hir = None;
         let mut dump_hir_to = None;
-        let mut dump_mir = None;
         let mut dump_mir_to = None;
         let mut verbosity = None;
         let mut raw_input: Option<(Vec<u8>, SpanRange)> = None;
-
-        // these are later used for warnings/errors
-        let mut dump_tokens_span = None;
-        let mut dump_tokens_to_span = None;
-        let mut dump_hir_span = None;
-        let mut dump_hir_to_span = None;
-        let mut dump_mir_span = None;
-        let mut dump_mir_to_span = None;
 
         let mut help_flag = None;
         let mut version_flag = None;
@@ -153,20 +142,7 @@ pub fn parse_cli_args() -> ClapSession {
                                 save_ir = Some(tokens[index + 1].value.unwrap_bool());
                             }
                         },
-                        Flag::DumpTokens => {
-                            dump_tokens_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
-                            if dump_tokens.is_some() {
-                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpTokens, tokens[index].span));
-                            }
-
-                            else {
-                                dump_tokens = Some(tokens[index + 1].value.unwrap_bool());
-                            }
-                        },
                         Flag::DumpTokensTo => {
-                            dump_tokens_to_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
                             if dump_tokens_to.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::DumpTokensTo, tokens[index].span));
                             }
@@ -175,20 +151,7 @@ pub fn parse_cli_args() -> ClapSession {
                                 dump_tokens_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
-                        Flag::DumpHir => {
-                            dump_hir_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
-                            if dump_hir.is_some() {
-                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpHir, tokens[index].span));
-                            }
-
-                            else {
-                                dump_hir = Some(tokens[index + 1].value.unwrap_bool());
-                            }
-                        },
                         Flag::DumpHirTo => {
-                            dump_hir_to_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
                             if dump_hir_to.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::DumpHirTo, tokens[index].span));
                             }
@@ -197,20 +160,7 @@ pub fn parse_cli_args() -> ClapSession {
                                 dump_hir_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
-                        Flag::DumpMir => {
-                            dump_mir_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
-                            if dump_mir.is_some() {
-                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpMir, tokens[index].span));
-                            }
-
-                            else {
-                                dump_mir = Some(tokens[index + 1].value.unwrap_bool());
-                            }
-                        },
                         Flag::DumpMirTo => {
-                            dump_mir_to_span = Some(tokens[index].span.merge(tokens[index + 1].span));
-
                             if dump_mir_to.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::DumpMirTo, tokens[index].span));
                             }
@@ -346,57 +296,6 @@ pub fn parse_cli_args() -> ClapSession {
             },
         };
 
-        // `--dump-tokens` is false by default
-        if dump_tokens_to.is_some() && (dump_tokens.is_none() || dump_tokens == Some(false)) {
-            let mut spans = vec![
-                dump_tokens_to_span.unwrap(),
-            ];
-
-            if let Some(span) = dump_tokens_span {
-                spans.push(span);
-            }
-
-            warnings.push(ClapWarning::path_is_set_flag_is_not_set(
-                Flag::DumpTokensTo,  // is set
-                Flag::DumpTokens,    // is not set
-                spans,
-            ));
-        }
-
-        // `--dump-hir` is false by default
-        if dump_hir_to.is_some() && (dump_hir.is_none() || dump_hir == Some(false)) {
-            let mut spans = vec![
-                dump_hir_to_span.unwrap(),
-            ];
-
-            if let Some(span) = dump_hir_span {
-                spans.push(span);
-            }
-
-            warnings.push(ClapWarning::path_is_set_flag_is_not_set(
-                Flag::DumpHirTo,  // is set
-                Flag::DumpHir,    // is not set
-                spans,
-            ));
-        }
-
-        // `--dump-mir` is false by default
-        if dump_mir_to.is_some() && (dump_mir.is_none() || dump_mir == Some(false)) {
-            let mut spans = vec![
-                dump_mir_to_span.unwrap(),
-            ];
-
-            if let Some(span) = dump_mir_span {
-                spans.push(span);
-            }
-
-            warnings.push(ClapWarning::path_is_set_flag_is_not_set(
-                Flag::DumpMirTo,  // is set
-                Flag::DumpMir,    // is not set
-                spans,
-            ));
-        }
-
         // it not only mutes compiler warnings, but also clap warnings
         if show_warnings == Some(false) {
             warnings.clear();
@@ -421,11 +320,8 @@ pub fn parse_cli_args() -> ClapSession {
             output_path: Some(output_path),
             show_warnings: show_warnings.unwrap_or(true),
             save_ir: save_ir.unwrap_or(true),
-            dump_tokens: dump_tokens.unwrap_or(false),
             dump_tokens_to,
-            dump_hir: dump_hir.unwrap_or(false),
             dump_hir_to,
-            dump_mir: dump_mir.unwrap_or(false),
             dump_mir_to,
             dependencies: HashMap::new(),
             verbosity: verbosity.unwrap_or(1),
@@ -458,11 +354,8 @@ pub struct CompilerOption {
     pub output_format: IrStage,
     pub show_warnings: bool,
     pub save_ir: bool,
-    pub dump_tokens: bool,
     pub dump_tokens_to: Option<Path>,
-    pub dump_hir: bool,
     pub dump_hir_to: Option<Path>,
-    pub dump_mir: bool,
     pub dump_mir_to: Option<Path>,
 
     // for now, users can't provide this because
@@ -519,11 +412,8 @@ impl Default for CompilerOption {
             output_format: IrStage::MidIr,
             show_warnings: true,
             save_ir: true,
-            dump_tokens: false,
             dump_tokens_to: None,
-            dump_hir: false,
             dump_hir_to: None,
-            dump_mir: false,
             dump_mir_to: None,
             dependencies: HashMap::new(),
             verbosity: 1,

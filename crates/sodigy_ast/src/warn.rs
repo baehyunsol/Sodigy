@@ -37,7 +37,7 @@ impl SodigyError<AstWarningKind> for AstWarning {
         &self.spans
     }
 
-    fn err_kind(&self) -> &AstWarningKind {
+    fn error_kind(&self) -> &AstWarningKind {
         &self.kind
     }
 

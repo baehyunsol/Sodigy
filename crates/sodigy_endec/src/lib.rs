@@ -3,12 +3,14 @@ use sodigy_files::{FileError, WriteMode, read_bytes, remove_file, write_bytes};
 
 mod error;
 mod impls;
+mod json;
 mod session;
 
 #[cfg(test)]
 mod tests;
 
 pub use error::{EndecError, EndecErrorContext, EndecErrorKind};
+pub use json::{DumpJson, JsonObj, json_key_value_table};
 pub use session::EndecSession;
 
 pub trait Endec {

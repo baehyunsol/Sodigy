@@ -21,7 +21,13 @@ use sodigy_ast::{
     PostfixOp,
     PrefixOp,
 };
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -277,5 +283,11 @@ impl Endec for StructInitField {
             name: IdentWithSpan::decode(buf, index, session)?,
             value: Expr::decode(buf, index, session)?,
         })
+    }
+}
+
+impl DumpJson for Expr {
+    fn dump_json(&self) -> JsonObj {
+        todo!()
     }
 }

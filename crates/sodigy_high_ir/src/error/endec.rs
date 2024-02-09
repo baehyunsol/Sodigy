@@ -1,7 +1,13 @@
 use super::{HirError, HirErrorKind};
 use smallvec::SmallVec;
-use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_error::ExtraErrInfo;
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
+use sodigy_error::{ExtraErrInfo, SodigyError};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
@@ -83,5 +89,11 @@ impl Endec for HirErrorKind {
             },
             None => Err(EndecError::eof()),
         }
+    }
+}
+
+impl DumpJson for HirError {
+    fn dump_json(&self) -> JsonObj {
+        self.dump_json_impl()
     }
 }
