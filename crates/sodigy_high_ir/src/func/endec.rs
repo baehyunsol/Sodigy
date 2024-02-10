@@ -7,6 +7,7 @@ use sodigy_endec::{
     EndecError,
     EndecSession,
     JsonObj,
+    json_key_value_table,
 };
 use sodigy_uid::Uid;
 
@@ -96,6 +97,10 @@ impl Endec for FuncKind {
 
 impl DumpJson for Func {
     fn dump_json(&self) -> JsonObj {
-        todo!()
+        json_key_value_table(vec![
+            ("name", self.name.dump_json()),
+            ("uid", self.uid.dump_json()),
+            // TODO: more fields
+        ])
     }
 }

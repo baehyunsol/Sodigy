@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use log::info;
 use sodigy_error::SodigyError;
 use sodigy_lex::{CommentKind, LexSession, QuoteKind, Token, TokenKind};
 use sodigy_number::SodigyNumber;
@@ -26,6 +27,11 @@ pub use token_tree::{TokenTree, TokenTreeKind};
 pub use warn::ParseWarning;
 
 pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &mut LexSession) -> Result<(), ()> {
+    info!(
+        "sodigy_parse::from_tokens(), first few tokens are: {:?}",
+        &tokens[..4.min(tokens.len())],
+    );
+
     let mut index = 0;
     let mut group_stack = vec![];
     let mut has_macro = false;

@@ -2,6 +2,7 @@ def main [--depgraph] {
     let start = date now | date to-record
     let start_sec = $start.second + $start.minute * 60 + $start.hour * 3600 + $start.day * 86400
 
+    $env.RUST_LOG = "trace"
     cargo clean
 
     # by compiling the entire crate before each crate,
@@ -42,6 +43,10 @@ def main [--depgraph] {
 
     ln -f ./target/release/sodigy ./sodigy
     chmod +x ./sodigy
+
+    # TODO: run `./sodigy --test XXX.sdg` here
+
+    $env.RUST_LOG = "off"
 
     let end = date now | date to-record
     let end_sec = $end.second + $end.minute * 60 + $end.hour * 3600 + $end.day * 86400

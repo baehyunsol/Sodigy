@@ -40,6 +40,7 @@ use crate::{
     utils::{format_string_into_expr, try_into_char, IntoCharErr},
     value::ValueKind,
 };
+use log::{debug, info};
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::try_intern_short_string;
 use sodigy_keyword::Keyword;
@@ -50,6 +51,11 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
 pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), ()> {
+    info!(
+        "sodigy_ast::parse_stmts(), first few tokens are: {:?}",
+        tokens.first_few_tokens(),
+    );
+
     loop {
         match tokens.step() {
             Some(Token {
@@ -238,6 +244,11 @@ pub fn parse_expr(
     // when `tokens` is empty, it uses this span for the error message
     parent_span: SpanRange,
 ) -> Result<Expr, ()> {
+    debug!(
+        "sodigy_ast::parse_expr(), first few tokens are: {:?}, min_bp: {min_bp}, error_context: {error_context:?}",
+        tokens.first_few_tokens(),
+    );
+
     let mut lhs = match tokens.step() {
         Some(Token {
             kind: TokenKind::Punct(p),

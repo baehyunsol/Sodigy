@@ -1,5 +1,6 @@
 use super::ParseSession;
 use crate::{ParseError, ParseWarning, TokenTree};
+use log::info;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -43,6 +44,7 @@ impl Endec for ParseSession {
 
 impl DumpJson for ParseSession {
     fn dump_json(&self) -> JsonObj {
+        info!("ParseSession::dump_json()");
         todo!()
     }
 }

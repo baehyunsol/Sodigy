@@ -1,5 +1,6 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
+use log::info;
 use sodigy_ast::{
     parse_stmts,
     AstSession,
@@ -53,6 +54,8 @@ pub fn parse_file(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<ParseSession>, CompilerOutput) {
+    info!("sodigy::parse_file() with input: {input:?}");
+
     let mut compiler_output = prev_output.unwrap_or_default();
     let file_session = unsafe { global_file_session() };
 
@@ -220,6 +223,8 @@ pub fn hir_from_tokens(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<HirSession>, CompilerOutput) {
+    info!("sodigy::hir_from_tokens() with input: {input:?}");
+
     let mut compiler_output = prev_output.unwrap_or_default();
 
     let parse_session = match input {
@@ -227,8 +232,11 @@ pub fn hir_from_tokens(
             // if HirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
             if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
                 match s {
-                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {
+                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                    },
                     Ok(session) => {
+                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
                         if let Some(path) = &compiler_option.dump_hir_to {
@@ -420,6 +428,8 @@ pub fn mir_from_hir(
     prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<MirSession>, CompilerOutput) {
+    info!("sodigy::mir_from_hir() with input: {input:?}");
+
     let mut compiler_output = prev_output.unwrap_or_default();
 
     let hir_session = match input {

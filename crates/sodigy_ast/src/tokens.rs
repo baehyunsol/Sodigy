@@ -318,6 +318,10 @@ impl<'t> Tokens<'t> {
             _ => None,
         }
     }
+
+    pub fn first_few_tokens(&self) -> &[Token] {
+        &self.data[..4.min(self.data.len())]
+    }
 }
 
 // for optimization, it assumes that `Tokens.data` doesn't change.

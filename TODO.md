@@ -430,17 +430,3 @@ let main(env: World): World = env.exists("./data.txt").map(
 2. 스펙 만드는 거는 쉬움
 3. 구현은 무지 빡셈, 내가 from scratch로 regex 짜는 거는 너무 빡세고 있는 거 갖다 쓰면 덩치가 너무 커짐...
 4. 없어도 큰 불편은 없음... 아직...
-
----
-
-use [tracing](https://docs.rs/tracing/latest/tracing/)
-
----
-
-dump hir -> html로 dump해버릴까? 지금 dump하는 거랑 똑같이 하는데 각 코드 부분에 마우스 올리면 기존 span 보여주는 거임...
-
-아니면 How about... dump_hir을 하면 아주아주 verbose한 json을 dump하는 거임! 걔를 갖고 html을 만들든 뭘 만들든 내 맘인 거고!
-
-개인적으로 test할 용도로 json -> html은 구현해두자. 일단은 rust로 구현하고 아주 나중에 sodigy로 구현하는 거지!
-
-dump는 stdout이 아니고 무조건 file에 하도록 하자! 이제 더이상 `--dump-hir`하고 `--dump-hir-to`가 따로 있을 필요가 없음! `--dump-hir-to`가 있으면 that implies `--dump-hir`. 그대신 `--dump-hir-to STDOUT`도 되게 하자.

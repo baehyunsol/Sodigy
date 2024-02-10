@@ -3,6 +3,7 @@ use crate::error::HirError;
 use crate::func::Func;
 use crate::module::Module;
 use crate::warn::HirWarning;
+use log::info;
 use sodigy_ast::IdentWithSpan;
 use sodigy_endec::{
     DumpJson,
@@ -47,9 +48,11 @@ impl Endec for HirSession {
 
 impl DumpJson for HirSession {
     fn dump_json(&self) -> JsonObj {
+        info!("HirSession::dump_json()");
+
         let errors = self.errors.dump_json();
         let warnings = self.warnings.dump_json();
-        let func_defs = self.func_defs.values().collect::<Vec<_>>().dump_json();
+        let func_defs = self.func_defs.values().map(|f| f.dump_json()).collect::<Vec<_>>().dump_json();
         let imported_names = self.imported_names.dump_json();
         let modules = self.modules.dump_json();
         let previous_errors = self.previous_errors.dump_json();

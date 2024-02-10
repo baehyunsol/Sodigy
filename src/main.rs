@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use log::{debug, info};
 use sodigy::run;
 use sodigy::result::CompilerOutput;
 use sodigy_clap::parse_cli_args;
@@ -7,8 +8,12 @@ use sodigy_error::SodigyError;
 use sodigy_session::SodigySession;
 
 fn main() {
-    // test purpose
-    std::env::set_var("RUST_BACKTRACE", "FULL");
+    env_logger::init();
+    info!("env_logger successfully initialized");
+
+    // hack: `RUST_BACKTRACE` is set according to `RUST_LOG`
+    info!("std::env::set_var{:?}: RUST_BACKTRACE = 1", std::env::set_var("RUST_BACKTRACE", "1"));
+    debug!("std::env::set_var{:?}: RUST_BACKTRACE = FULL", std::env::set_var("RUST_BACKTRACE", "FULL"));
 
     let clap_result = parse_cli_args();
     let mut compiler_output = CompilerOutput::new();

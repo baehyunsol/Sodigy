@@ -2,6 +2,7 @@ use super::MirSession;
 use crate::def::Def;
 use crate::error::MirError;
 use crate::warn::MirWarning;
+use log::info;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -40,6 +41,7 @@ impl Endec for MirSession {
 
 impl DumpJson for MirSession {
     fn dump_json(&self) -> JsonObj {
+        info!("MirSession::dump_json()");
         todo!()
     }
 }

@@ -16,10 +16,13 @@ use crate::stages::{
     parse_file,
 };
 use crate::utils::clean_irs;
+use log::info;
 use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
 use sodigy_endec::Endec;
 
 pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> CompilerOutput {
+    info!("sodigy::run()");
+
     let mut compiler_output = prev_output.unwrap_or_default();
 
     if let Some(sp) = options.do_not_compile_and_do_this {
@@ -33,8 +36,12 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
                 compiler_output.show_overall_result = false;
             },
             SpecialOutput::CleanIrs => {
-                clean_irs(".", &mut compiler_output);
-                compiler_output.dump_to_stdout(format!("cleaning done..."));
+                let mut count = 0;
+                clean_irs(".", &mut compiler_output, &mut count);
+                compiler_output.dump_to_stdout(format!(
+                    "cleaning done: removed {count} dir{}",
+                    if count > 1 { "s" } else { "" },
+                ));
             },
         }
 

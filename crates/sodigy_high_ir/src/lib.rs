@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 
 use crate as hir;
+use log::info;
 use sodigy_ast::{self as ast, IdentWithSpan, LetKind, StmtKind};
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
@@ -61,6 +62,8 @@ pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
     session: &mut HirSession
 ) -> Result<(), ()> {
+    info!("sodigy_high_ir::lower_stmts()");
+
     let mut ast_attributes = vec![];
 
     // only for warnings

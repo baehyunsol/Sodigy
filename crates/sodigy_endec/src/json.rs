@@ -1,6 +1,7 @@
 use smallvec::SmallVec;
 use std::fmt;
 
+#[derive(Clone)]
 pub enum JsonObj {
     Array(Vec<JsonObj>),
     Bool(bool),
@@ -13,9 +14,9 @@ pub trait DumpJson {
     fn dump_json(&self) -> JsonObj;
 }
 
-impl<T: DumpJson> DumpJson for &T {
+impl DumpJson for JsonObj {
     fn dump_json(&self) -> JsonObj {
-        self.dump_json()
+        self.clone()
     }
 }
 
@@ -69,7 +70,29 @@ pub fn json_key_value_table(items: Vec<(&str, JsonObj)>) -> JsonObj {
 }
 
 impl fmt::Display for JsonObj {
+    /// It emits an evaluable json object. The result is not prettified, so you might
+    /// need another tool that prettifies json.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        todo!()
+        match self {
+            JsonObj::Array(objects) => write!(
+                fmt, "[{}]",
+                objects.iter().map(|obj| obj.to_string()).collect::<Vec<_>>().join(",")
+            ),
+            JsonObj::Bool(b) => write!(
+                fmt, "{b}",
+            ),
+            JsonObj::Int(i) => write!(
+                fmt, "{i}",
+            ),
+            JsonObj::Table(objects) => write!(
+                fmt, "{{{}}}",
+                objects.iter().map(
+                    |(k, v)| format!("{k:?}: {v}")
+                ).collect::<Vec<_>>().join(","),
+            ),
+            JsonObj::String(s) => write!(
+                fmt, "{s:?}",
+            ),
+        }
     }
 }

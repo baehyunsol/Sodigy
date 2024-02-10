@@ -11,6 +11,7 @@ mod warn;
 pub use error::LexError;
 use num::{bin_to_dec, oct_to_dec, hex_to_dec};
 
+use log::info;
 use sodigy_error::{ErrorContext, SodigyError};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
@@ -81,6 +82,11 @@ pub fn lex(
     span_start: SpanPoint,  // span of `input[0]`
     session: &mut LexSession,
 ) -> Result<(), ()> {
+    info!(
+        "sodigy_lex::lex(), first few chars are: {:?}",
+        &input[index..(index + 8).min(input.len())],
+    );
+
     let mut curr_state = LexState::Init;
     let mut tmp_buf = Vec::with_capacity(256);
     let mut curr_token_span_start = span_start;
