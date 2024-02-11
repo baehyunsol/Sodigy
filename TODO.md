@@ -411,19 +411,6 @@ let main(env: World): World = env.exists("./data.txt").map(
 
 ---
 
-정리
-
-1. `--to`를 줄 수는 있지만 `--to hir`은 `.hir`을 `__sdg_cache__`에다가 저장하지, 사용자가 볼 수 있는 곳에 저장하지는 않음
-  - 즉, `--to`가 있으면 `-o`을 못 줌
-  - 그럼 이름을 바꿔야할 듯... compile하다가 중간에 멈춘다는 의미가 들어가게 이름을 바꾸자!
-2. `--save-ir`은 말그대로 intermediate representation의 저장여부임. 즉, hir을 뽑아낸다고 했을 때, `--save-ir`은 tokens를 저장할지 결정하는 거고, mir을 뽑아낼 때는 tokens와 hir을 저장할지 결정하는 거임!
-3. stages에 있는 함수들은 session만 반환함. 굳이 compiler_output을 따로 보낼 필요가 없음!
-4. `--to tokens`가 존재할 필요없고 `--to hir`만 있으면 된다..?? 그런 것 같긴 하지만 좀 더 생각해봐야함...
-5. input file은 무조건 `.sdg`만 됨. 중간부터 시작하는 거는 없음!
-  - 더이상 확장자로 어쩌고저쩌고 할 필요 전혀없음!!
-
----
-
 `r"010\d{8}"` -> regular expressions both in expressions and patterns
 
 1. 있으면 좋음

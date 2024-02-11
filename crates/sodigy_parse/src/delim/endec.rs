@@ -2,16 +2,16 @@ use crate::Delim;
 use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl Endec for Delim {
-    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            Delim::Brace => { buf.push(0); },
-            Delim::Bracket => { buf.push(1); },
-            Delim::Paren => { buf.push(2); },
+            Delim::Brace => { buffer.push(0); },
+            Delim::Bracket => { buffer.push(1); },
+            Delim::Paren => { buffer.push(2); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 

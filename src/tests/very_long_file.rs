@@ -1,7 +1,7 @@
 use crate::run;
 use sodigy_clap::{
     CompilerOption,
-    IrStage,
+    CompilerOutputFormat,
 };
 use sodigy_files::{
     join,
@@ -67,23 +67,18 @@ fn very_long_file() {
 
     write_string(&tmp_file_name, "];", WriteMode::AlwaysAppend).unwrap();
 
-    run(
-        CompilerOption {
-            do_not_compile_and_do_this: None,
-            input_file: Some(tmp_file_name.clone()),
-            output_path: None,
-            output_format: IrStage::HighIr,
-            show_warnings: true,
-            save_ir: true,
-            dump_tokens_to: None,
-            dump_hir_to: None,
-            dump_mir_to: None,
-            dependencies: HashMap::new(),
-            verbosity: 0,
-            raw_input: None,
-        },
-        None,
-    );
+    run(CompilerOption {
+        do_not_compile_and_do_this: None,
+        input_file: Some(tmp_file_name.clone()),
+        output: CompilerOutputFormat::MidIr,
+        show_warnings: true,
+        save_ir: true,
+        dump_hir_to: None,
+        dump_mir_to: None,
+        dependencies: HashMap::new(),
+        verbosity: 0,
+        raw_input: None,
+    });
 
     remove_file(&tmp_file_name).unwrap();
 }

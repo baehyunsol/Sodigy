@@ -37,12 +37,14 @@ impl CompilerOutput {
         Ek: SodigyErrorKind,
         Wk: SodigyErrorKind,
     {
-        for error in session.get_errors().iter() {
-            self.push_error(error.to_universal());
-        }
+        for error in session.get_all_errors_and_warnings() {
+            if error.is_warning {
+                self.push_warning(error);
+            }
 
-        for warning in session.get_warnings().iter() {
-            self.push_warning(warning.to_universal());
+            else {
+                self.push_error(error);
+            }
         }
     }
 

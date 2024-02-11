@@ -73,6 +73,10 @@ impl SodigySession<ClapError, ClapErrorKind, ClapWarning, ClapWarningKind, Compi
         &self.previous_errors
     }
 
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
+    }
+
     fn get_results(&self) -> &CompilerOption {
         &self.result
     }
@@ -108,7 +112,7 @@ impl SessionOutput<CompilerOption> for CompilerOption {
         unreachable!()
     }
 
-    fn push(&mut self, v: CompilerOption) {
+    fn push(&mut self, _: CompilerOption) {
         unreachable!()
     }
 

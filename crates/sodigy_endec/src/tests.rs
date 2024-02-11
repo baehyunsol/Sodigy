@@ -28,14 +28,14 @@ macro_rules! vec_int_roundtrip {
                 let mut buffer = vec![];
 
                 sample.encode(&mut buffer, &mut sess);
-                let buf_c = buffer.clone();
+                let buffer_c = buffer.clone();
                 let t = Vec::<$t>::decode(&buffer, &mut 0, &mut sess).unwrap();
 
                 let mut buffer = vec![];
                 t.encode(&mut buffer, &mut sess);
 
                 assert_eq!(sample, t);
-                assert_eq!(buffer, buf_c);
+                assert_eq!(buffer, buffer_c);
             }
         }
     }

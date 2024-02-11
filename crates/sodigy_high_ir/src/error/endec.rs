@@ -12,69 +12,69 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
 impl Endec for HirError {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.kind.encode(buf, session);
-        self.spans.encode(buf, session);
-        self.extra.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.kind.encode(buffer, session);
+        self.spans.encode(buffer, session);
+        self.extra.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(HirError {
-            kind: HirErrorKind::decode(buf, index, session)?,
-            spans: SmallVec::<[SpanRange; 1]>::decode(buf, index, session)?,
-            extra: ExtraErrInfo::decode(buf, index, session)?,
+            kind: HirErrorKind::decode(buffer, index, session)?,
+            spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
+            extra: ExtraErrInfo::decode(buffer, index, session)?,
         })
     }
 }
 
 impl Endec for HirErrorKind {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
             HirErrorKind::NameCollision(name) => {
-                buf.push(0);
-                name.encode(buf, session);
+                buffer.push(0);
+                name.encode(buffer, session);
             },
             HirErrorKind::NoDependentTypes(ty) => {
-                buf.push(1);
-                ty.encode(buf, session);
+                buffer.push(1);
+                ty.encode(buffer, session);
             },
             HirErrorKind::UndefinedName { name, suggestions } => {
-                buf.push(2);
-                name.encode(buf, session);
-                suggestions.encode(buf, session);
+                buffer.push(2);
+                name.encode(buffer, session);
+                suggestions.encode(buffer, session);
             },
             HirErrorKind::UndefinedDeco(deco) => {
-                buf.push(3);
-                deco.encode(buf, session);
+                buffer.push(3);
+                deco.encode(buffer, session);
             },
-            HirErrorKind::RefutablePatternInLet => { buf.push(4); },
-            HirErrorKind::OpenInclusiveRange => { buf.push(5); },
-            HirErrorKind::UnmatchablePattern => { buf.push(6); },
-            HirErrorKind::MultipleShorthands => { buf.push(7); },
-            HirErrorKind::InclusiveStringPattern => { buf.push(8); },
-            HirErrorKind::NameBindingNotAllowedHere => { buf.push(9); },
-            HirErrorKind::TyAnnoNotAllowedHere => { buf.push(10); },
-            HirErrorKind::TyError => { buf.push(11); },
+            HirErrorKind::RefutablePatternInLet => { buffer.push(4); },
+            HirErrorKind::OpenInclusiveRange => { buffer.push(5); },
+            HirErrorKind::UnmatchablePattern => { buffer.push(6); },
+            HirErrorKind::MultipleShorthands => { buffer.push(7); },
+            HirErrorKind::InclusiveStringPattern => { buffer.push(8); },
+            HirErrorKind::NameBindingNotAllowedHere => { buffer.push(9); },
+            HirErrorKind::TyAnnoNotAllowedHere => { buffer.push(10); },
+            HirErrorKind::TyError => { buffer.push(11); },
             HirErrorKind::TODO(s) => {
-                buf.push(12);
-                s.encode(buf, session);
+                buffer.push(12);
+                s.encode(buffer, session);
             },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(HirErrorKind::NameCollision(InternedString::decode(buf, index, session)?)),
-                    1 => Ok(HirErrorKind::NoDependentTypes(InternedString::decode(buf, index, session)?)),
+                    0 => Ok(HirErrorKind::NameCollision(InternedString::decode(buffer, index, session)?)),
+                    1 => Ok(HirErrorKind::NoDependentTypes(InternedString::decode(buffer, index, session)?)),
                     2 => Ok(HirErrorKind::UndefinedName {
-                        name: InternedString::decode(buf, index, session)?,
-                        suggestions: Vec::<InternedString>::decode(buf, index, session)?,
+                        name: InternedString::decode(buffer, index, session)?,
+                        suggestions: Vec::<InternedString>::decode(buffer, index, session)?,
                     }),
-                    3 => Ok(HirErrorKind::UndefinedDeco(InternedString::decode(buf, index, session)?)),
+                    3 => Ok(HirErrorKind::UndefinedDeco(InternedString::decode(buffer, index, session)?)),
                     4 => Ok(HirErrorKind::RefutablePatternInLet),
                     5 => Ok(HirErrorKind::OpenInclusiveRange),
                     6 => Ok(HirErrorKind::UnmatchablePattern),
@@ -83,7 +83,7 @@ impl Endec for HirErrorKind {
                     9 => Ok(HirErrorKind::NameBindingNotAllowedHere),
                     10 => Ok(HirErrorKind::TyAnnoNotAllowedHere),
                     11 => Ok(HirErrorKind::TyError),
-                    12 => Ok(HirErrorKind::TODO(String::decode(buf, index, session)?)),
+                    12 => Ok(HirErrorKind::TODO(String::decode(buffer, index, session)?)),
                     13.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },

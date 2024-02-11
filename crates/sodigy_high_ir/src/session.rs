@@ -6,7 +6,12 @@ use sodigy_ast::{AstSession, IdentWithSpan};
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
-use sodigy_session::{SessionDependency, SessionOutput, SessionSnapshot, SodigySession};
+use sodigy_session::{
+    SessionDependency,
+    SessionOutput,
+    SessionSnapshot,
+    SodigySession,
+};
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
@@ -207,6 +212,10 @@ impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<I
 
     fn get_previous_errors(&self) -> &Vec<UniversalError> {
         &self.previous_errors
+    }
+
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
     }
 
     fn get_results(&self) -> &HashMap<InternedString, Func> {

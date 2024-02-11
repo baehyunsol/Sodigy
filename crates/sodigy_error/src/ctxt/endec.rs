@@ -2,34 +2,34 @@ use super::ErrorContext;
 use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl Endec for ErrorContext {
-    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            ErrorContext::Unknown => { buf.push(0); },
-            ErrorContext::ParsingCommandLine => { buf.push(1); },
-            ErrorContext::ExpandingMacro => { buf.push(2); },
-            ErrorContext::Lexing => { buf.push(3); },
-            ErrorContext::LexingNumericLiteral => { buf.push(4); },
-            ErrorContext::ParsingLetStatement => { buf.push(5); },
-            ErrorContext::ParsingImportStatement => { buf.push(6); },
-            ErrorContext::ParsingFuncName => { buf.push(7); },
-            ErrorContext::ParsingFuncRetType => { buf.push(8); },
-            ErrorContext::ParsingFuncBody => { buf.push(9); },
-            ErrorContext::ParsingFuncArgs => { buf.push(10); },
-            ErrorContext::ParsingEnumBody => { buf.push(11); },
-            ErrorContext::ParsingStructBody => { buf.push(12); },
-            ErrorContext::ParsingStructInit => { buf.push(13); },
-            ErrorContext::ParsingMatchBody => { buf.push(14); },
-            ErrorContext::ParsingBranchCondition => { buf.push(15); },
-            ErrorContext::ParsingLambdaBody => { buf.push(16); },
-            ErrorContext::ParsingScopeBlock => { buf.push(17); },
-            ErrorContext::ParsingFormattedString => { buf.push(18); },
-            ErrorContext::ParsingPattern => { buf.push(19); },
-            ErrorContext::ParsingTypeInPattern => { buf.push(20); },
+            ErrorContext::Unknown => { buffer.push(0); },
+            ErrorContext::ParsingCommandLine => { buffer.push(1); },
+            ErrorContext::ExpandingMacro => { buffer.push(2); },
+            ErrorContext::Lexing => { buffer.push(3); },
+            ErrorContext::LexingNumericLiteral => { buffer.push(4); },
+            ErrorContext::ParsingLetStatement => { buffer.push(5); },
+            ErrorContext::ParsingImportStatement => { buffer.push(6); },
+            ErrorContext::ParsingFuncName => { buffer.push(7); },
+            ErrorContext::ParsingFuncRetType => { buffer.push(8); },
+            ErrorContext::ParsingFuncBody => { buffer.push(9); },
+            ErrorContext::ParsingFuncArgs => { buffer.push(10); },
+            ErrorContext::ParsingEnumBody => { buffer.push(11); },
+            ErrorContext::ParsingStructBody => { buffer.push(12); },
+            ErrorContext::ParsingStructInit => { buffer.push(13); },
+            ErrorContext::ParsingMatchBody => { buffer.push(14); },
+            ErrorContext::ParsingBranchCondition => { buffer.push(15); },
+            ErrorContext::ParsingLambdaBody => { buffer.push(16); },
+            ErrorContext::ParsingScopeBlock => { buffer.push(17); },
+            ErrorContext::ParsingFormattedString => { buffer.push(18); },
+            ErrorContext::ParsingPattern => { buffer.push(19); },
+            ErrorContext::ParsingTypeInPattern => { buffer.push(20); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 

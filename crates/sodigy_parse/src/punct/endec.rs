@@ -3,50 +3,50 @@ use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_intern::InternedString;
 
 impl Endec for Punct {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            Punct::At => { buf.push(0); },
-            Punct::Add => { buf.push(1); },
-            Punct::Sub => { buf.push(2); },
-            Punct::Mul => { buf.push(3); },
-            Punct::Div => { buf.push(4); },
-            Punct::Rem => { buf.push(5); },
-            Punct::Not => { buf.push(6); },
-            Punct::Concat => { buf.push(7); },
-            Punct::Assign => { buf.push(8); },
-            Punct::Eq => { buf.push(9); },
-            Punct::Gt => { buf.push(10); },
-            Punct::Lt => { buf.push(11); },
-            Punct::Ne => { buf.push(12); },
-            Punct::Ge => { buf.push(13); },
-            Punct::Le => { buf.push(14); },
-            Punct::GtGt => { buf.push(15);}
-            Punct::LtLt => { buf.push(16);}
-            Punct::And => { buf.push(17); },
-            Punct::AndAnd => { buf.push(18); },
-            Punct::Or => { buf.push(19); },
-            Punct::OrOr => { buf.push(20); },
-            Punct::Xor => { buf.push(21); },
-            Punct::Comma => { buf.push(22); },
-            Punct::Dot => { buf.push(23); },
-            Punct::Colon => { buf.push(24); },
-            Punct::SemiColon => { buf.push(25); },
-            Punct::DotDot => { buf.push(26); },
-            Punct::Backslash => { buf.push(27); },
-            Punct::Dollar => { buf.push(28); },
-            Punct::Backtick => { buf.push(29); },
-            Punct::QuestionMark => { buf.push(30); },
-            Punct::InclusiveRange => { buf.push(31); },
-            Punct::RArrow => { buf.push(32); },
+            Punct::At => { buffer.push(0); },
+            Punct::Add => { buffer.push(1); },
+            Punct::Sub => { buffer.push(2); },
+            Punct::Mul => { buffer.push(3); },
+            Punct::Div => { buffer.push(4); },
+            Punct::Rem => { buffer.push(5); },
+            Punct::Not => { buffer.push(6); },
+            Punct::Concat => { buffer.push(7); },
+            Punct::Assign => { buffer.push(8); },
+            Punct::Eq => { buffer.push(9); },
+            Punct::Gt => { buffer.push(10); },
+            Punct::Lt => { buffer.push(11); },
+            Punct::Ne => { buffer.push(12); },
+            Punct::Ge => { buffer.push(13); },
+            Punct::Le => { buffer.push(14); },
+            Punct::GtGt => { buffer.push(15);}
+            Punct::LtLt => { buffer.push(16);}
+            Punct::And => { buffer.push(17); },
+            Punct::AndAnd => { buffer.push(18); },
+            Punct::Or => { buffer.push(19); },
+            Punct::OrOr => { buffer.push(20); },
+            Punct::Xor => { buffer.push(21); },
+            Punct::Comma => { buffer.push(22); },
+            Punct::Dot => { buffer.push(23); },
+            Punct::Colon => { buffer.push(24); },
+            Punct::SemiColon => { buffer.push(25); },
+            Punct::DotDot => { buffer.push(26); },
+            Punct::Backslash => { buffer.push(27); },
+            Punct::Dollar => { buffer.push(28); },
+            Punct::Backtick => { buffer.push(29); },
+            Punct::QuestionMark => { buffer.push(30); },
+            Punct::InclusiveRange => { buffer.push(31); },
+            Punct::RArrow => { buffer.push(32); },
             Punct::FieldModifier(id) => {
-                buf.push(33);
-                id.encode(buf, session);
+                buffer.push(33);
+                id.encode(buffer, session);
             },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 
@@ -84,7 +84,7 @@ impl Endec for Punct {
                     30 => Ok(Punct::QuestionMark),
                     31 => Ok(Punct::InclusiveRange),
                     32 => Ok(Punct::RArrow),
-                    33 => Ok(Punct::FieldModifier(InternedString::decode(buf, index, session)?)),
+                    33 => Ok(Punct::FieldModifier(InternedString::decode(buffer, index, session)?)),
                     34.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },

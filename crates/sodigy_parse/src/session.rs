@@ -4,7 +4,11 @@ use crate::warn::{ParseWarning, ParseWarningKind};
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError, UniversalError};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lex::LexSession;
-use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
+use sodigy_session::{
+    SessionDependency,
+    SessionSnapshot,
+    SodigySession,
+};
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
@@ -220,6 +224,10 @@ impl SodigySession<ParseError, ParseErrorKind, ParseWarning, ParseWarningKind, V
 
     fn get_previous_errors(&self) -> &Vec<UniversalError> {
         &self.previous_errors
+    }
+
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<TokenTree> {

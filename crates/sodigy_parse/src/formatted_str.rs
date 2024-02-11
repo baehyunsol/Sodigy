@@ -25,7 +25,7 @@ pub fn parse_str(
     parse_session: &mut ParseSession,
 ) -> Result<Vec<FormattedStringElement>, ()> {
     let mut curr_state = ParseState::Literal;
-    let mut curr_buf = vec![];
+    let mut curr_buffer = vec![];
     let mut result = vec![];
     let mut fstring_start_index = 0;
     let mut has_error = false;
@@ -35,7 +35,7 @@ pub fn parse_str(
         match &mut curr_state {
             ParseState::Literal => {
                 if *c == FSTRING_START_MARKER {
-                    match String::from_utf8(curr_buf) {
+                    match String::from_utf8(curr_buffer) {
                         Ok(s) => {
                             result.push(FormattedStringElement::Literal(s));
                         },
@@ -48,18 +48,18 @@ pub fn parse_str(
                         },
                     }
 
-                    curr_buf = vec![];
+                    curr_buffer = vec![];
                     curr_state = ParseState::Value(1);
                     fstring_start_index = i + 2 + encountered_braces_so_far;
                     encountered_braces_so_far += 1;
                 }
 
                 else {
-                    curr_buf.push(*c);
+                    curr_buffer.push(*c);
                 }
             },
             ParseState::Value(n) => {
-                curr_buf.push(*c);
+                curr_buffer.push(*c);
 
                 if *c == b'{' {
                     *n += 1;
@@ -70,14 +70,14 @@ pub fn parse_str(
 
                     if *n == 0 {
                         // pop last '}'
-                        curr_buf.pop().unwrap();
+                        curr_buffer.pop().unwrap();
 
                         lex_session.flush_tokens();
                         let fstring_start_span = span_start.offset(
                             fstring_start_index as i32
                         );
 
-                        lex(&curr_buf, 0, fstring_start_span, lex_session)?;
+                        lex(&curr_buffer, 0, fstring_start_span, lex_session)?;
 
                         let tokens = lex_session.get_results().to_vec();
 
@@ -110,7 +110,7 @@ pub fn parse_str(
                         result.push(FormattedStringElement::Value(tokens));
 
                         curr_state = ParseState::Literal;
-                        curr_buf.clear();
+                        curr_buffer.clear();
                     }
                 }
             }
@@ -123,7 +123,7 @@ pub fn parse_str(
                 parse_session.push_warning(ParseWarning::nothing_to_eval_in_fstring(span_start.offset(-1).into_range()));
             }
 
-            match String::from_utf8(curr_buf) {
+            match String::from_utf8(curr_buffer) {
                 Ok(s) => {
                     result.push(FormattedStringElement::Literal(s));
                 },

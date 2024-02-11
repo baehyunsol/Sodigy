@@ -14,67 +14,67 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
 impl Endec for HirWarning {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.kind.encode(buf, session);
-        self.spans.encode(buf, session);
-        self.extra.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.kind.encode(buffer, session);
+        self.spans.encode(buffer, session);
+        self.extra.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(HirWarning {
-            kind: HirWarningKind::decode(buf, index, session)?,
-            spans: SmallVec::<[SpanRange; 1]>::decode(buf, index, session)?,
-            extra: ExtraErrInfo::decode(buf, index, session)?,
+            kind: HirWarningKind::decode(buffer, index, session)?,
+            spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
+            extra: ExtraErrInfo::decode(buffer, index, session)?,
         })
     }
 }
 
 impl Endec for HirWarningKind {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
             HirWarningKind::RedefPrelude(s) => {
-                buf.push(0);
-                s.encode(buf, session);
+                buffer.push(0);
+                s.encode(buffer, session);
             },
             HirWarningKind::UnusedName(name, nbt) => {
-                buf.push(1);
-                name.encode(buf, session);
-                nbt.encode(buf, session);
+                buffer.push(1);
+                name.encode(buffer, session);
+                nbt.encode(buffer, session);
             },
             HirWarningKind::UnnecessaryParen { is_brace } => {
-                buf.push(2);
-                is_brace.encode(buf, session);
+                buffer.push(2);
+                is_brace.encode(buffer, session);
             },
             HirWarningKind::PointRange {
                 from, to, ty,
             } => {
-                buf.push(3);
-                from.encode(buf, session);
-                to.encode(buf, session);
-                ty.encode(buf, session);
+                buffer.push(3);
+                from.encode(buffer, session);
+                to.encode(buffer, session);
+                ty.encode(buffer, session);
             },
-            HirWarningKind::NameBindingOnWildcard => { buf.push(4); },
+            HirWarningKind::NameBindingOnWildcard => { buffer.push(4); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(HirWarningKind::RedefPrelude(InternedString::decode(buf, index, session)?)),
+                    0 => Ok(HirWarningKind::RedefPrelude(InternedString::decode(buffer, index, session)?)),
                     1 => Ok(HirWarningKind::UnusedName(
-                        InternedString::decode(buf, index, session)?,
-                        NameBindingType::decode(buf, index, session)?,
+                        InternedString::decode(buffer, index, session)?,
+                        NameBindingType::decode(buffer, index, session)?,
                     )),
                     2 => Ok(HirWarningKind::UnnecessaryParen {
-                        is_brace: bool::decode(buf, index, session)?,
+                        is_brace: bool::decode(buffer, index, session)?,
                     }),
                     3 => Ok(HirWarningKind::PointRange {
-                        from: NumberLike::decode(buf, index, session)?,
-                        to: NumberLike::decode(buf, index, session)?,
-                        ty: RangeType::decode(buf, index, session)?,
+                        from: NumberLike::decode(buffer, index, session)?,
+                        to: NumberLike::decode(buffer, index, session)?,
+                        ty: RangeType::decode(buffer, index, session)?,
                     }),
                     4 => Ok(HirWarningKind::NameBindingOnWildcard),
                     5.. => Err(EndecError::invalid_enum_variant(*n)),

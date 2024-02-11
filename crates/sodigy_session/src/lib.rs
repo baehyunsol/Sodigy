@@ -58,6 +58,17 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
 
     // sessions also store errors and warnings from previous sessions
     fn get_previous_errors(&self) -> &Vec<UniversalError>;
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError>;
+
+    fn merge_errors_and_warnings<S: SodigySession<E_, EK_, W_, WK_, Outputs_, Output_>, E_, EK_, W_, WK_, Outputs_, Output_>(&mut self, previous_session: &S)
+        where E_: SodigyError<EK_>, EK_: SodigyErrorKind, W_: SodigyError<WK_>, WK_: SodigyErrorKind, Outputs_: SessionOutput<Output_>
+    {
+        let self_errors = self.get_previous_errors_mut();
+
+        for error in previous_session.get_all_errors_and_warnings().into_iter() {
+            self_errors.push(error);
+        }
+    }
 
     // it concats `.get_errors()`, `.get_warnings()` and `.get_previous_errors()`
     fn get_all_errors_and_warnings(&self) -> Vec<UniversalError> {

@@ -5,12 +5,11 @@ mod fmt;
 #[derive(Clone, Copy, Debug)]
 pub enum Flag {
     Output,
-    To,
+    StopAt,
     Help,
     Version,
     ShowWarnings,
     SaveIr,
-    DumpTokensTo,
     DumpHirTo,
     DumpMirTo,
     Clean,
@@ -18,14 +17,13 @@ pub enum Flag {
     RawInput,
 }
 
-pub const FLAGS: [Flag; 12] = [
+pub const FLAGS: [Flag; 11] = [
     Flag::Output,
-    Flag::To,
+    Flag::StopAt,
     Flag::Help,
     Flag::Version,
     Flag::ShowWarnings,
     Flag::SaveIr,
-    Flag::DumpTokensTo,
     Flag::DumpHirTo,
     Flag::DumpMirTo,
     Flag::Clean,
@@ -38,10 +36,9 @@ impl Flag {
     pub fn param_type(&self) -> TokenKind {
         match self {
             Flag::Output
-            | Flag::DumpTokensTo
             | Flag::DumpHirTo
             | Flag::DumpMirTo => TokenKind::Path,
-            Flag::To => TokenKind::Stage,
+            Flag::StopAt => TokenKind::Stage,
             Flag::ShowWarnings
             | Flag::SaveIr => TokenKind::Bool,
             Flag::Verbose => TokenKind::Int,
@@ -55,12 +52,11 @@ impl Flag {
     pub fn short(&self) -> Option<&[u8]> {
         match self {
             Flag::Output => Some(b"-o"),
-            Flag::To => Some(b"-t"),
             Flag::Help => Some(b"-h"),
             Flag::Version => Some(b"-v"),
-            Flag::ShowWarnings
+            Flag::StopAt
+            | Flag::ShowWarnings
             | Flag::SaveIr
-            | Flag::DumpTokensTo
             | Flag::DumpHirTo
             | Flag::DumpMirTo
             | Flag::Clean
@@ -72,12 +68,11 @@ impl Flag {
     pub fn long(&self) -> &[u8] {
         match self {
             Flag::Output => b"--output",
-            Flag::To => b"--to",
+            Flag::StopAt => b"--stop-at",
             Flag::Help => b"--help",
             Flag::Version => b"--version",
             Flag::ShowWarnings => b"--show-warnings",
             Flag::SaveIr => b"--save-ir",
-            Flag::DumpTokensTo => b"--dump-tokens-to",
             Flag::DumpHirTo => b"--dump-hir-to",
             Flag::DumpMirTo => b"--dump-mir-to",
             Flag::Clean => b"--clean",

@@ -26,7 +26,7 @@ macro_rules! check_output {
                 $suffix,
             ].concat();
             let code_str = String::from_utf8_lossy(&code).to_string();
-            let mut res = run(CompilerOption::test_runner(&code), None);
+            let mut res = run(CompilerOption::test_runner(&code));
 
             let output = res.$error_or_warning();
             let msg_normalized = String::from_utf8_lossy(&normalize($msg)).to_string();

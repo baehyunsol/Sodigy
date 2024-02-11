@@ -383,7 +383,7 @@ fn single_file(content: &[u8], spans: &Vec<(usize, usize)>) -> Vec<Line> {
 }
 
 fn remove_consecutive_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> {
-    let mut buf = Vec::with_capacity(lines.len());
+    let mut buffer = Vec::with_capacity(lines.len());
     let mut consec = vec![];
 
     for line in lines.into_iter() {
@@ -401,11 +401,11 @@ fn remove_consecutive_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> 
                         ].concat();
                     }
 
-                    buf.extend(consec);
+                    buffer.extend(consec);
                     consec = vec![];
                 }
 
-                buf.push(line);
+                buffer.push(line);
             },
         }
     }
@@ -419,32 +419,32 @@ fn remove_consecutive_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> 
             ].concat();
         }
 
-        buf.extend(consec);
+        buffer.extend(consec);
     }
 
-    buf
+    buffer
 }
 
 fn push_underlines(lines: Vec<RenderedLine>) -> Vec<RenderedLine> {
-    let mut buf = Vec::with_capacity(lines.len() * 2);
+    let mut buffer = Vec::with_capacity(lines.len() * 2);
 
     for line in lines.into_iter() {
         match line {
             RenderedLine::Normal(ref ln) => {
                 let underlines = ln.get_underlines();
-                buf.push(line);
+                buffer.push(line);
 
                 if let Some(underlines) = underlines {
-                    buf.push(underlines);
+                    buffer.push(underlines);
                 }
             },
             _ => {
-                buf.push(line);
+                buffer.push(line);
             },
         }
     }
 
-    buf
+    buffer
 }
 
 fn alert_non_ascii_chars(non_ascii_chars: &[u32]) -> String {

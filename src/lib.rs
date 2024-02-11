@@ -11,21 +11,21 @@ mod tests;
 use crate::result::CompilerOutput;
 use crate::stages::{
     PathOrRawInput,
-    hir_from_tokens,
-    mir_from_hir,
-    parse_file,
+    construct_binary,
+    construct_hir,
+    construct_mir,
 };
-use crate::utils::clean_irs;
+pub use crate::utils::clean_irs;
 use log::info;
-use sodigy_clap::{CompilerOption, IrStage, SpecialOutput};
-use sodigy_endec::Endec;
+use sodigy_clap::{CompilerOption, CompilerOutputFormat, SpecialOutput};
+use sodigy_files::{write_bytes, WriteMode};
 
-pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> CompilerOutput {
+pub fn run(options: CompilerOption) -> CompilerOutput {
     info!("sodigy::run()");
 
-    let mut compiler_output = prev_output.unwrap_or_default();
-
     if let Some(sp) = options.do_not_compile_and_do_this {
+        let mut compiler_output = CompilerOutput::new();
+
         match sp {
             SpecialOutput::HelpMessage => {
                 compiler_output.dump_to_stdout(format!("{COMPILER_HELP_MESSAGE}"));
@@ -57,37 +57,40 @@ pub fn run(options: CompilerOption, prev_output: Option<CompilerOutput>) -> Comp
         unreachable!()
     };
 
-    let (result, mut compiler_output_) = match options.output_format {
-        IrStage::Tokens => {
-            let (r, o) = parse_file(
-                input,
-                Some(compiler_output),
-                &options,
-            );
+    match &options.output {
+        CompilerOutputFormat::HighIr => {
+            let (session, mut output) = construct_hir(input, &options);
 
-            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
-        },
-        IrStage::HighIr => {
-            let (r, o) = hir_from_tokens(input, Some(compiler_output), &options);
-
-            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
-        },
-        IrStage::MidIr => {
-            let (r, o) = mir_from_hir(input, Some(compiler_output), &options);
-
-            (r.map(|r| Box::new(r) as Box<dyn Endec>), o)
-        },
-    };
-
-    if let Some(r) = result {
-        if let Some(output_path) = &options.output_path {
-            if let Err(e) = r.save_to_file(output_path, None) {
-                compiler_output_.push_error(e.into());
+            if let Some(session) = session {
+                output.collect_errors_and_warnings_from_session(&session);
             }
-        }
-    }
 
-    compiler_output_
+            output
+        },
+        CompilerOutputFormat::MidIr => {
+            let (session, mut output) = construct_mir(input, &options);
+
+            if let Some(session) = session {
+                output.collect_errors_and_warnings_from_session(&session);
+            }
+
+            output
+        },
+        CompilerOutputFormat::Path(_)
+        | CompilerOutputFormat::None => {
+            let (result, mut output) = construct_binary(input, &options);
+
+            if let Some(path) = options.output.try_unwrap_path() {
+                if let Some(binary) = result {
+                    if let Err(e) = write_bytes(path, &binary, WriteMode::CreateOrTruncate) {
+                        output.push_error(e.into());
+                    }
+                }
+            }
+
+            output
+        },
+    }
 }
 
 pub const DEPENDENCIES_AT: &str = "sodigy.toml";
@@ -108,11 +111,10 @@ Examples:
 Options:
     -h, --help                      Display this message
     -v, --version
-    -t, --to [tokens|hir|mir]       Specify the type of the output
-                                    It tries to infer the output type from the extension of the output.
-                                    If the the extension and `-t` doesn't match, `-t` has higher priority.
-                                    If there's no other information the default value is mir.
     -o, --output PATH               Write output to <PATH>
+    --stop-at [hir|mir]             Stop compilation at [hir|mir] stage and don't write output
+                                    If `--output` and `--stop-at` are both set, this flag is ignored.
+                                    The intermediate representations of [hir|mir] is saved at `__sdg_cache__`.
     --show-warnings [true|false]    Show warnings messages (default: true)
     --save-ir [true|false]          Save intermediate representations (default: true)
                                     The compiler makes `__sdg_cache__` directory, and save the intermediate

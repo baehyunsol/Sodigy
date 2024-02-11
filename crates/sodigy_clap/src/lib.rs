@@ -5,7 +5,6 @@
 //!
 //! [clap]: https://crates.io/crates/clap
 
-use sodigy_files::{exists, join, parent};
 use sodigy_span::{SpanPoint, SpanRange};
 use std::collections::HashMap;
 
@@ -78,10 +77,9 @@ pub fn parse_cli_args() -> ClapSession {
         let mut warnings = vec![];
         let mut input_file: Option<(Path, SpanRange)> = None;
         let mut output_path = None;
-        let mut output_format = None;
+        let mut stop_at = None;
         let mut show_warnings = None;
         let mut save_ir = None;
-        let mut dump_tokens_to = None;
         let mut dump_hir_to = None;
         let mut dump_mir_to = None;
         let mut verbosity = None;
@@ -90,6 +88,7 @@ pub fn parse_cli_args() -> ClapSession {
         let mut help_flag = None;
         let mut version_flag = None;
         let mut clean_flag = None;
+        let mut stop_at_flag = None;
 
         // `into_tokens` guarantees that every flag has a valid argument
         while index < tokens.len() {
@@ -115,13 +114,14 @@ pub fn parse_cli_args() -> ClapSession {
                                 output_path = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
-                        Flag::To => {
-                            if output_format.is_some() {
-                                errors.push(ClapError::same_flag_multiple_times(Flag::To, tokens[index].span));
+                        Flag::StopAt => {
+                            if stop_at.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::StopAt, tokens[index].span));
                             }
 
                             else {
-                                output_format = Some(tokens[index + 1].value.unwrap_stage());
+                                stop_at = Some(tokens[index + 1].value.unwrap_stage());
+                                stop_at_flag = Some(tokens[index].span.merge(tokens[index + 1].span));
                             }
                         },
                         Flag::ShowWarnings => {
@@ -140,15 +140,6 @@ pub fn parse_cli_args() -> ClapSession {
 
                             else {
                                 save_ir = Some(tokens[index + 1].value.unwrap_bool());
-                            }
-                        },
-                        Flag::DumpTokensTo => {
-                            if dump_tokens_to.is_some() {
-                                errors.push(ClapError::same_flag_multiple_times(Flag::DumpTokensTo, tokens[index].span));
-                            }
-
-                            else {
-                                dump_tokens_to = Some(tokens[index + 1].value.unwrap_path());
                             }
                         },
                         Flag::DumpHirTo => {
@@ -263,37 +254,24 @@ pub fn parse_cli_args() -> ClapSession {
             errors.push(ClapError::unnecessary_flag(Flag::Clean, span));
         }
 
-        let (output_format, output_path) = match (output_format, output_path) {
-            (None, None) => (  // default values
-                IrStage::MidIr,
-                default_output_path(input_file.as_ref().map(|(p, _)| p).unwrap_or(&String::from("."))),
-            ),
-            (Some(f), None) => {
-                // TODO: now that I use `default_output_path()` instead of `a.out`,
-                // it should also go like `a.mir`, `b.mir`, ...
-                let p = format!("a.{}", f.extension());
+        let output = match (output_path, stop_at) {
+            (Some(path), Some(_)) => {
+                warnings.push(ClapWarning::ignored_flag(Flag::StopAt, stop_at_flag.unwrap(), Flag::Output));
 
-                (f, p)
+                CompilerOutputFormat::Path(path)
             },
-            (None, Some(p)) => {
-                let f = if let Some(f) = IrStage::try_infer_from_ext(&p) {
-                    f
-                } else {
-                    // always use the last stage possible
-                    IrStage::MidIr
-                };
+            (Some(path), None) => CompilerOutputFormat::Path(path),
+            (None, Some(stop_at)) => if save_ir == Some(false) {
+                warnings.push(ClapWarning::ignored_flag(Flag::StopAt, stop_at_flag.unwrap(), Flag::SaveIr));
 
-                (f, p)
-            },
-            (Some(f), Some(p)) => {
-                if let Some(f_i) = IrStage::try_infer_from_ext(&p) {
-                    if f != f_i {
-                        warnings.push(ClapWarning::ext_mismatch(f_i, f));
-                    }
+                CompilerOutputFormat::None
+            } else {
+                match stop_at {
+                    IrStage::HighIr => CompilerOutputFormat::HighIr,
+                    IrStage::MidIr => CompilerOutputFormat::MidIr,
                 }
-
-                (f, p)
             },
+            (None, None) => CompilerOutputFormat::None,
         };
 
         // it not only mutes compiler warnings, but also clap warnings
@@ -316,11 +294,9 @@ pub fn parse_cli_args() -> ClapSession {
         let comp_option = CompilerOption {
             do_not_compile_and_do_this: None,
             input_file,
-            output_format,
-            output_path: Some(output_path),
+            output,
             show_warnings: show_warnings.unwrap_or(true),
             save_ir: save_ir.unwrap_or(true),
-            dump_tokens_to,
             dump_hir_to,
             dump_mir_to,
             dependencies: HashMap::new(),
@@ -350,11 +326,9 @@ pub struct CompilerOption {
     pub do_not_compile_and_do_this: Option<SpecialOutput>,
     pub input_file: Option<Path>,
 
-    pub output_path: Option<Path>,
-    pub output_format: IrStage,
+    pub output: CompilerOutputFormat,
     pub show_warnings: bool,
     pub save_ir: bool,
-    pub dump_tokens_to: Option<Path>,
     pub dump_hir_to: Option<Path>,
     pub dump_mir_to: Option<Path>,
 
@@ -395,7 +369,7 @@ impl CompilerOption {
         CompilerOption {
             do_not_compile_and_do_this: None,
             input_file: None,
-            output_path: None,
+            output: CompilerOutputFormat::None,
             save_ir: false,
             raw_input: Some(code.to_vec()),
             ..Self::default()
@@ -408,11 +382,9 @@ impl Default for CompilerOption {
         CompilerOption {
             do_not_compile_and_do_this: None,
             input_file: None,
-            output_path: Some(default_output_path(&".".to_string())),
-            output_format: IrStage::MidIr,
+            output: CompilerOutputFormat::None,
             show_warnings: true,
             save_ir: true,
-            dump_tokens_to: None,
             dump_hir_to: None,
             dump_mir_to: None,
             dependencies: HashMap::new(),
@@ -429,22 +401,22 @@ pub enum SpecialOutput {
     CleanIrs,
 }
 
-// TODO: are `unwrap`s in this function okay?
-// default is `a.out`
-// if `a.out` exists, it tries `b.out`, and goes on and on...
-fn default_output_path(input_file: &Path) -> String {
-    let mut prefix = String::new();
-    let basepath = parent(input_file).unwrap_or_else(|_| String::from("."));
+#[derive(Clone)]
+pub enum CompilerOutputFormat {
+    None,
+    Path(Path),
+    HighIr,
+    MidIr,
+}
 
-    loop {
-        for c in 0..26 {
-            let p = join(&basepath, &format!("{prefix}{}.out", (c + b'a') as char)).unwrap();
-
-            if !exists(&p) {
-                return p;
-            }
+impl CompilerOutputFormat {
+    pub fn try_unwrap_path(&self) -> Option<&Path> {
+        if let CompilerOutputFormat::Path(p) = self {
+            Some(p)
         }
 
-        prefix = format!("_{prefix}");
+        else {
+            None
+        }
     }
 }

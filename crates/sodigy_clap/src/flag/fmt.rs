@@ -5,12 +5,11 @@ impl RenderError for Flag {
     fn render_error(&self) -> String {
         match self {
             Flag::Output => "output",
-            Flag::To => "to",
+            Flag::StopAt => "stop-at",
             Flag::Help => "help",
             Flag::Version => "version",
             Flag::ShowWarnings => "show-warnings",
             Flag::SaveIr => "save-ir",
-            Flag::DumpTokensTo => "dump-tokens-to",
             Flag::DumpHirTo => "dump-hir-to",
             Flag::DumpMirTo => "dump-mir-to",
             Flag::Clean => "clean",

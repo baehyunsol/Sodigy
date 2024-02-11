@@ -98,9 +98,9 @@ pub fn write_string(path: &str, s: &str, write_mode: WriteMode) -> Result<(), Fi
 
 /// `a/b/c.d` -> `c`
 pub fn file_name(path: &str) -> Result<String, FileError> {
-    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
+    let path_buffer = PathBuf::from_str(path).unwrap();  // it's infallible
 
-    match path_buf.file_stem() {
+    match path_buffer.file_stem() {
         None => Ok(String::new()),
         Some(s) => match s.to_str() {
             Some(ext) => Ok(ext.to_string()),
@@ -111,9 +111,9 @@ pub fn file_name(path: &str) -> Result<String, FileError> {
 
 /// `a/b/c.d` -> `d`
 pub fn extension(path: &str) -> Result<Option<String>, FileError> {
-    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
+    let path_buffer = PathBuf::from_str(path).unwrap();  // it's infallible
 
-    match path_buf.extension() {
+    match path_buffer.extension() {
         None => Ok(None),
         Some(s) => match s.to_str() {
             Some(ext) => Ok(Some(ext.to_string())),
@@ -124,9 +124,9 @@ pub fn extension(path: &str) -> Result<Option<String>, FileError> {
 
 /// `a/b/c.d` -> `c.d`
 pub fn basename(path: &str) -> Result<String, FileError> {
-    let path_buf = PathBuf::from_str(path).unwrap();  // it's infallible
+    let path_buffer = PathBuf::from_str(path).unwrap();  // it's infallible
 
-    match path_buf.file_name() {
+    match path_buffer.file_name() {
         None => Ok(String::new()),  // when the path terminates in `..`
         Some(s) => match s.to_str() {
             Some(ext) => Ok(ext.to_string()),
@@ -137,25 +137,25 @@ pub fn basename(path: &str) -> Result<String, FileError> {
 
 /// `a/b/`, `c.d` -> `a/b/c.d`
 pub fn join(path: &str, child: &str) -> Result<String, FileError> {
-    let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
+    let mut path_buffer = PathBuf::from_str(path).unwrap();  // Infallible
     let child = PathBuf::from_str(child).unwrap();  // Infallible
 
-    path_buf.push(child);
+    path_buffer.push(child);
 
-    match path_buf.to_str() {
+    match path_buffer.to_str() {
         Some(result) => Ok(result.to_string()),
-        None => Err(FileError::os_str_err(path_buf.into_os_string())),
+        None => Err(FileError::os_str_err(path_buffer.into_os_string())),
     }
 }
 
 /// `a/b/c.d, e` -> `a/b/c.e`
 pub fn set_extension(path: &str, ext: &str) -> Result<String, FileError> {
-    let mut path_buf = PathBuf::from_str(path).unwrap();  // Infallible
+    let mut path_buffer = PathBuf::from_str(path).unwrap();  // Infallible
 
-    if path_buf.set_extension(ext) {
-        match path_buf.to_str() {
+    if path_buffer.set_extension(ext) {
+        match path_buffer.to_str() {
             Some(result) => Ok(result.to_string()),
-            None => Err(FileError::os_str_err(path_buf.into_os_string())),
+            None => Err(FileError::os_str_err(path_buffer.into_os_string())),
         }
     } else {
         // has no filename
@@ -268,18 +268,18 @@ pub fn get_all_sdg(path: &str, recurs: bool, ext: &str) -> Result<Vec<String>, F
     Ok(result)
 }
 
-fn get_all_sdg_worker(path: &str, recurs: bool, ext: &str, buf: &mut Vec<String>) -> Result<(), FileError> {
+fn get_all_sdg_worker(path: &str, recurs: bool, ext: &str, buffer: &mut Vec<String>) -> Result<(), FileError> {
     for file in read_dir(path)?.iter() {
         if is_dir(file) {
             if recurs {
-                get_all_sdg_worker(file, recurs, ext, buf)?;
+                get_all_sdg_worker(file, recurs, ext, buffer)?;
             }
         }
 
         else {
             match extension(file)? {
                 Some(this_ext) if this_ext.to_lowercase() == ext => {
-                    buf.push(file.to_string());
+                    buffer.push(file.to_string());
                 },
                 _ => {},
             }

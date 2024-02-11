@@ -46,3 +46,7 @@ That's one of the reason Sodigy uses rational numbers instead of floating point 
 ## ETC
 
 Don't make references if `size_of::<T>` is less than or equal to 128 bits.
+
+## Logs
+
+`env_logger` and `log` are for compiler developers, not for the users of the language.

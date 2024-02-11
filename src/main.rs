@@ -31,7 +31,9 @@ fn main() {
     }
 
     else {
-        let mut compiler_output = run(clap_result.get_results().clone(), Some(compiler_output));
+        let compiler_output_ = run(clap_result.get_results().clone());
+        compiler_output.merge(compiler_output_);
+
         println!("{}", compiler_output.concat_results());
     }
 

@@ -171,7 +171,7 @@ impl SpanRange {
             let g = global_file_session();
 
             match g.get_file_content(self.file) {
-                Ok(buf) => buf[self.start..self.end].to_vec(),
+                Ok(buffer) => buffer[self.start..self.end].to_vec(),
                 Err(e) => panic!("{e:?}"),
             }
         }

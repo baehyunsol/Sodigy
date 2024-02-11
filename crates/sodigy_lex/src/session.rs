@@ -4,7 +4,11 @@ use crate::warn::{LexWarning, LexWarningKind};
 
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
-use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
+use sodigy_session::{
+    SessionDependency,
+    SessionSnapshot,
+    SodigySession,
+};
 use sodigy_span::SpanRange;
 
 #[derive(Clone)]
@@ -76,6 +80,10 @@ impl SodigySession<LexError, LexErrorKind, LexWarning, LexWarningKind, Vec<Token
 
     fn get_previous_errors(&self) -> &Vec<UniversalError> {
         &self.previous_errors
+    }
+
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<Token> {

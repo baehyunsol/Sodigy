@@ -19,28 +19,28 @@ use sodigy_session::SessionDependency;
 use std::collections::HashMap;
 
 impl Endec for HirSession {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.errors.encode(buf, session);
-        self.warnings.encode(buf, session);
-        self.func_defs.encode(buf, session);
-        self.imported_names.encode(buf, session);
-        self.modules.encode(buf, session);
-        self.dependencies.encode(buf, session);
-        self.previous_errors.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.errors.encode(buffer, session);
+        self.warnings.encode(buffer, session);
+        self.func_defs.encode(buffer, session);
+        self.imported_names.encode(buffer, session);
+        self.modules.encode(buffer, session);
+        self.dependencies.encode(buffer, session);
+        self.previous_errors.encode(buffer, session);
 
         // There's no point in encoding the other fields
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         // There's no point in decoding the other fields
         Ok(HirSession {
-            errors: Vec::<HirError>::decode(buf, index, session)?,
-            warnings: Vec::<HirWarning>::decode(buf, index, session)?,
-            func_defs: HashMap::<InternedString, Func>::decode(buf, index, session)?,
-            imported_names: Vec::<IdentWithSpan>::decode(buf, index, session)?,
-            modules: Vec::<Module>::decode(buf, index, session)?,
-            dependencies: Vec::<SessionDependency>::decode(buf, index, session)?,
-            previous_errors: Vec::<UniversalError>::decode(buf, index, session)?,
+            errors: Vec::<HirError>::decode(buffer, index, session)?,
+            warnings: Vec::<HirWarning>::decode(buffer, index, session)?,
+            func_defs: HashMap::<InternedString, Func>::decode(buffer, index, session)?,
+            imported_names: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
+            modules: Vec::<Module>::decode(buffer, index, session)?,
+            dependencies: Vec::<SessionDependency>::decode(buffer, index, session)?,
+            previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
             ..HirSession::new()
         })
     }

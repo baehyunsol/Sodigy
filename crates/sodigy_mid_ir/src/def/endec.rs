@@ -6,35 +6,35 @@ use sodigy_endec::{Endec, EndecError, EndecSession};
 use sodigy_uid::Uid;
 
 impl Endec for Def {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.name.encode(buf, session);
-        self.args.encode(buf, session);
-        self.return_ty.encode(buf, session);
-        self.return_val.encode(buf, session);
-        self.uid.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.name.encode(buffer, session);
+        self.args.encode(buffer, session);
+        self.return_ty.encode(buffer, session);
+        self.return_val.encode(buffer, session);
+        self.uid.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Def {
-            name: IdentWithSpan::decode(buf, index, session)?,
-            args: Option::<Vec<Arg>>::decode(buf, index, session)?,
-            return_ty: Type::decode(buf, index, session)?,
-            return_val: Expr::decode(buf, index, session)?,
-            uid: Uid::decode(buf, index, session)?,
+            name: IdentWithSpan::decode(buffer, index, session)?,
+            args: Option::<Vec<Arg>>::decode(buffer, index, session)?,
+            return_ty: Type::decode(buffer, index, session)?,
+            return_val: Expr::decode(buffer, index, session)?,
+            uid: Uid::decode(buffer, index, session)?,
         })
     }
 }
 
 impl Endec for Arg {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.name.encode(buf, session);
-        self.ty.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.name.encode(buffer, session);
+        self.ty.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(Arg {
-            name: IdentWithSpan::decode(buf, index, session)?,
-            ty: Type::decode(buf, index, session)?,
+            name: IdentWithSpan::decode(buffer, index, session)?,
+            ty: Type::decode(buffer, index, session)?,
         })
     }
 }

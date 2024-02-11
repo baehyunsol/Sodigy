@@ -72,6 +72,10 @@ impl SodigySession<MirError, MirErrorKind, MirWarning, MirWarningKind, HashMap<U
         &self.previous_errors
     }
 
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
+    }
+
     fn get_results(&self) -> &HashMap<Uid, Def> {
         &self.func_defs
     }

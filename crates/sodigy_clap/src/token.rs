@@ -77,22 +77,21 @@ pub enum TokenValue {
 }
 
 impl TokenValue {
-    pub fn try_parse(kind: &TokenKind, buf: &str) -> Option<Self> {
+    pub fn try_parse(kind: &TokenKind, buffer: &str) -> Option<Self> {
         match kind {
-            TokenKind::Path => Some(TokenValue::Path(buf.to_string())),
-            TokenKind::RawInput => Some(TokenValue::RawInput(buf.to_string())),
-            TokenKind::Stage => match buf {
-                "tokens" => Some(TokenValue::Stage(IrStage::Tokens)),
+            TokenKind::Path => Some(TokenValue::Path(buffer.to_string())),
+            TokenKind::RawInput => Some(TokenValue::RawInput(buffer.to_string())),
+            TokenKind::Stage => match buffer {
                 "hir" => Some(TokenValue::Stage(IrStage::HighIr)),
                 "mir" => Some(TokenValue::Stage(IrStage::MidIr)),
                 _ => None,
             },
-            TokenKind::Bool => match buf {
+            TokenKind::Bool => match buffer {
                 "true" => Some(TokenValue::Bool(true)),
                 "false" => Some(TokenValue::Bool(false)),
                 _ => None,
             },
-            TokenKind::Int => match buf.parse::<u64>() {
+            TokenKind::Int => match buffer.parse::<u64>() {
                 Ok(n) => Some(TokenValue::Int(n)),
                 _ => None,
             },

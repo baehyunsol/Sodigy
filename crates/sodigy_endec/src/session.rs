@@ -69,11 +69,11 @@ impl EndecSession {
     // when loading encoded data from a file,
     // first construct `Self` from decoding the file, then
     // start loading the actual data
-    pub fn decode_session(buf: &[u8], index: &mut usize, file_metadata: Option<u64>) -> Result<Self, EndecError> {
+    pub fn decode_session(buffer: &[u8], index: &mut usize, file_metadata: Option<u64>) -> Result<Self, EndecError> {
         let mut dummy_session = EndecSession::new();
         let mut intern_session = InternSession::new();
 
-        let decoded_file_metadata = Option::<u64>::decode(buf, index, &mut dummy_session)?;
+        let decoded_file_metadata = Option::<u64>::decode(buffer, index, &mut dummy_session)?;
 
         match (file_metadata, decoded_file_metadata) {
             (Some(n), Some(m)) if n != m => {
@@ -82,7 +82,7 @@ impl EndecSession {
             _ => {},
         }
 
-        let str_table = HashMap::<EncodedInternal, Vec<u8>>::decode(buf, index, &mut dummy_session)?;
+        let str_table = HashMap::<EncodedInternal, Vec<u8>>::decode(buffer, index, &mut dummy_session)?;
         let mut str_map = HashMap::with_capacity(str_table.len());
         let mut str_map_rev = HashMap::with_capacity(str_table.len());
 
@@ -93,7 +93,7 @@ impl EndecSession {
             str_map_rev.insert(*enc, interned_string);
         }
 
-        let num_table = HashMap::<EncodedInternal, SodigyNumber>::decode(buf, index, &mut dummy_session)?;
+        let num_table = HashMap::<EncodedInternal, SodigyNumber>::decode(buffer, index, &mut dummy_session)?;
         let mut num_map = HashMap::with_capacity(num_table.len());
         let mut num_map_rev = HashMap::with_capacity(num_table.len());
 
@@ -104,7 +104,7 @@ impl EndecSession {
             num_map_rev.insert(*enc, interned_numeric);
         }
 
-        let file_hashes = HashMap::<FileHash, Path>::decode(buf, index, &mut dummy_session)?;
+        let file_hashes = HashMap::<FileHash, Path>::decode(buffer, index, &mut dummy_session)?;
         let file_session = unsafe { global_file_session() };
 
         for (hash, path) in file_hashes.iter() {
@@ -180,12 +180,12 @@ impl EndecSession {
 pub struct EncodedInternal(u32);
 
 impl Endec for EncodedInternal {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.0.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.0.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(EncodedInternal(u32::decode(buf, index, session)?))
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(EncodedInternal(u32::decode(buffer, index, session)?))
     }
 }
 

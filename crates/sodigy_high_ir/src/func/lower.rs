@@ -42,7 +42,7 @@ pub fn lower_ast_func(
     }
 
     if let Some(args) = args {
-        let mut args_buf = Vec::with_capacity(args.len());
+        let mut args_buffer = Vec::with_capacity(args.len());
 
         for arg in args.iter() {
             if let Err([name1, name2]) = name_space.push_arg(arg) {
@@ -88,7 +88,7 @@ pub fn lower_ast_func(
                 vec![]
             };
 
-            args_buf.push(Arg {
+            args_buffer.push(Arg {
                 name: *name,
                 ty,
                 has_question_mark: *has_question_mark,
@@ -96,7 +96,7 @@ pub fn lower_ast_func(
             });
         }
 
-        hir_args = Some(args_buf);
+        hir_args = Some(args_buffer);
     }
 
     if let Err([name1, name2]) = name_space.find_arg_generic_name_collision() {

@@ -9,6 +9,7 @@ use sodigy_endec::{
     EndecError,
     EndecSession,
     JsonObj,
+    json_key_value_table,
 };
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
@@ -17,24 +18,24 @@ use sodigy_uid::Uid;
 use std::collections::HashMap;
 
 impl Endec for MirSession {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.errors.encode(buf, session);
-        self.warnings.encode(buf, session);
-        self.func_defs.encode(buf, session);
-        self.snapshots.encode(buf, session);
-        self.dependencies.encode(buf, session);
-        self.previous_errors.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.errors.encode(buffer, session);
+        self.warnings.encode(buffer, session);
+        self.func_defs.encode(buffer, session);
+        self.snapshots.encode(buffer, session);
+        self.dependencies.encode(buffer, session);
+        self.previous_errors.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(MirSession {
-            errors: Vec::<MirError>::decode(buf, index, session)?,
-            warnings: Vec::<MirWarning>::decode(buf, index, session)?,
-            func_defs: HashMap::<Uid, Def>::decode(buf, index, session)?,
+            errors: Vec::<MirError>::decode(buffer, index, session)?,
+            warnings: Vec::<MirWarning>::decode(buffer, index, session)?,
+            func_defs: HashMap::<Uid, Def>::decode(buffer, index, session)?,
             interner: InternSession::new(),
-            snapshots: Vec::<SessionSnapshot>::decode(buf, index, session)?,
-            dependencies: Vec::<SessionDependency>::decode(buf, index, session)?,
-            previous_errors: Vec::<UniversalError>::decode(buf, index, session)?,
+            snapshots: Vec::<SessionSnapshot>::decode(buffer, index, session)?,
+            dependencies: Vec::<SessionDependency>::decode(buffer, index, session)?,
+            previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
         })
     }
 }
@@ -42,6 +43,16 @@ impl Endec for MirSession {
 impl DumpJson for MirSession {
     fn dump_json(&self) -> JsonObj {
         info!("MirSession::dump_json()");
-        todo!()
+
+        let errors = self.errors.dump_json();
+        let warnings = self.warnings.dump_json();
+
+        // TODO: dump func_defs
+        // it must have a consistent order -> multiple compilation on the same file dumps the same json files
+
+        json_key_value_table(vec![
+            ("errors", errors),
+            ("warnings", warnings),
+        ])
     }
 }

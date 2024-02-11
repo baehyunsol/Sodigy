@@ -2,29 +2,29 @@ use super::ExpectedToken;
 use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl<T: Endec> Endec for ExpectedToken<T> {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            ExpectedToken::AnyIdentifier => { buf.push(0); },
-            ExpectedToken::AnyExpression => { buf.push(1); },
-            ExpectedToken::AnyStatement => { buf.push(2); },
-            ExpectedToken::AnyDocComment => { buf.push(3); },
-            ExpectedToken::AnyPattern => { buf.push(4); },
-            ExpectedToken::AnyType => { buf.push(5); },
-            ExpectedToken::AnyNumber => { buf.push(6); },
-            ExpectedToken::IdentOrBrace => { buf.push(7); },
-            ExpectedToken::Nothing => { buf.push(8); },
-            ExpectedToken::PostExpr => { buf.push(9); },
-            ExpectedToken::FuncArgs => { buf.push(10); },
+            ExpectedToken::AnyIdentifier => { buffer.push(0); },
+            ExpectedToken::AnyExpression => { buffer.push(1); },
+            ExpectedToken::AnyStatement => { buffer.push(2); },
+            ExpectedToken::AnyDocComment => { buffer.push(3); },
+            ExpectedToken::AnyPattern => { buffer.push(4); },
+            ExpectedToken::AnyType => { buffer.push(5); },
+            ExpectedToken::AnyNumber => { buffer.push(6); },
+            ExpectedToken::IdentOrBrace => { buffer.push(7); },
+            ExpectedToken::Nothing => { buffer.push(8); },
+            ExpectedToken::PostExpr => { buffer.push(9); },
+            ExpectedToken::FuncArgs => { buffer.push(10); },
             ExpectedToken::Specific(tokens) => {
-                buf.push(11);
-                tokens.encode(buf, session);
+                buffer.push(11);
+                tokens.encode(buffer, session);
             },
-            ExpectedToken::LetStatement => { buf.push(12); },
+            ExpectedToken::LetStatement => { buffer.push(12); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 
@@ -40,7 +40,7 @@ impl<T: Endec> Endec for ExpectedToken<T> {
                     8 => Ok(ExpectedToken::Nothing),
                     9 => Ok(ExpectedToken::PostExpr),
                     10 => Ok(ExpectedToken::FuncArgs),
-                    11 => Ok(ExpectedToken::Specific(Vec::<T>::decode(buf, index, session)?)),
+                    11 => Ok(ExpectedToken::Specific(Vec::<T>::decode(buffer, index, session)?)),
                     12 => Ok(ExpectedToken::LetStatement),
                     13.. => Err(EndecError::invalid_enum_variant(*n)),
                 }

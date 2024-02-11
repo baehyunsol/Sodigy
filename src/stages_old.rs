@@ -7,8 +7,8 @@ use sodigy_ast::{
     IdentWithSpan,
     Tokens,
 };
-use sodigy_clap::CompilerOption;
-use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
+use sodigy_clap::{CompilerOption, IrStage};
+use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorContext, EndecErrorKind};
 use sodigy_error::UniversalError;
 use sodigy_files::{
     create_dir,
@@ -20,6 +20,7 @@ use sodigy_files::{
     join,
     last_modified,
     parent,
+    read_bytes,
     read_string,
     set_extension,
     write_string,
@@ -44,41 +45,34 @@ pub enum PathOrRawInput<'a> {
     RawInput(&'a Vec<u8>),
 }
 
-// If `construct_XXX` returns `(Some(session), output)`, the `output` only contains errors that
-// have nothing to do with sessions: eg) file errors
-// otherwise, the `output` contains all the errors that it got during the compilation
-
-// `construct_XXX().0.is_some()` doesn't mean that the compilation was successful.
-// sometimes failed compilations return `Some(session)`.
-
 const FILE_EXT_HIGH_IR: &str = "hir";
 const FILE_EXT_MID_IR: &str = "mir";
 
-pub fn construct_hir(
+pub fn parse_file(
     input: PathOrRawInput,
+    prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
-) -> (Option<HirSession>, CompilerOutput) {
-    info!("sodigy::construct_hir() with input: {input:?}");
-    let mut compiler_output = CompilerOutput::new();
+) -> (Option<ParseSession>, CompilerOutput) {
+    info!("sodigy::parse_file() with input: {input:?}");
+
+    let mut compiler_output = prev_output.unwrap_or_default();
     let file_session = unsafe { global_file_session() };
 
     let file_hash = match input {
         PathOrRawInput::Path(file) => {
-            // if HirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
-            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
+            // if ParseSession is saved as a file and it's up to date, it just constructs the session from the file and returns
+            if let Some(s) = try_construct_session_from_saved_ir::<ParseSession>(file, FILE_EXT_TOKENS) {
                 match s {
-                    Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
-                    },
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
                     Ok(session) => {
-                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                        compiler_output.collect_errors_and_warnings_from_session(&session);
 
-                        if let Some(path) = &compiler_option.dump_hir_to {
+                        if let Some(path) = &compiler_option.dump_tokens_to {
                             let res = session.dump_json().to_string();
 
                             if path != "STDOUT" {
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
                                 }
                             }
 
@@ -94,8 +88,6 @@ pub fn construct_hir(
                     },
                 }
             }
-
-            // it doesn't check whether there's cached MIR or not
 
             match file_session.register_file(file) {
                 Ok(f) => f,
@@ -147,8 +139,6 @@ pub fn construct_hir(
             PathOrRawInput::Path(p) => match parent(p) {
                 Ok(p) => p,
                 Err(e) => {
-                    compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
-                    compiler_output.collect_errors_and_warnings_from_session(&parse_session);
                     compiler_output.push_error(e.into());
                     return (None, compiler_output);
                 },
@@ -170,89 +160,284 @@ pub fn construct_hir(
         res = parse_session.expand_macros(&macro_definitions);
     }
 
+    compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
+    compiler_output.collect_errors_and_warnings_from_session(&parse_session);
+
     if res.is_err() {
-        compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
-        compiler_output.collect_errors_and_warnings_from_session(&parse_session);
-        return (None, compiler_output);
+        (None, compiler_output)
+    }
+
+    else {
+        match input {
+            PathOrRawInput::Path(file) if compiler_option.save_ir => {
+                if compiler_option.save_ir {
+                    let tmp_path = match generate_path_for_ir(file, FILE_EXT_TOKENS, true) {
+                        Ok(p) => p.to_string(),
+                        Err(e) => {
+                            compiler_output.push_error(e.into());
+                            return (None, compiler_output);
+                        },
+                    };
+
+                    let file_metadata = match last_modified(file) {
+                        Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
+                        Err(e) => {
+                            compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+
+                            0
+                        },
+                    };
+
+                    if let Err(mut e) = parse_session.save_to_file(&tmp_path, Some(file_metadata)) {
+                        compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
+                    }
+                }
+            },
+            _ => {},
+        }
+
+        if let Some(path) = &compiler_option.dump_tokens_to {
+            let res = parse_session.dump_json().to_string();
+
+            if path != "STDOUT" {
+                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingTokensToFile).to_owned().into());
+                }
+            }
+
+            else {
+                compiler_output.dump_to_stdout(res);
+            }
+        }
+
+        parse_session.clear_errors();
+        parse_session.clear_warnings();
+
+        (Some(parse_session), compiler_output)
+    }
+}
+
+pub fn hir_from_tokens(
+    input: PathOrRawInput,
+    prev_output: Option<CompilerOutput>,
+    compiler_option: &CompilerOption,
+) -> (Option<HirSession>, CompilerOutput) {
+    info!("sodigy::hir_from_tokens() with input: {input:?}");
+
+    let mut compiler_output = prev_output.unwrap_or_default();
+
+    let parse_session = match input {
+        PathOrRawInput::Path(file) => {
+            // if HirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
+            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
+                match s {
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {
+                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                    },
+                    Ok(session) => {
+                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                        compiler_output.collect_errors_and_warnings_from_session(&session);
+
+                        if let Some(path) = &compiler_option.dump_hir_to {
+                            let res = session.dump_json().to_string();
+
+                            if path != "STDOUT" {
+                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                                }
+                            }
+
+                            else {
+                                compiler_output.dump_to_stdout(res);
+                            }
+                        }
+
+                        return (Some(session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+                    },
+                }
+            }
+
+            match IrStage::try_infer_from_ext(file) {
+
+                // This file contains ParseSession
+                Some(IrStage::Tokens) => match ParseSession::load_from_file(file, None) {
+                    Ok(parse_session) => {
+                        compiler_output.collect_errors_and_warnings_from_session(&parse_session);
+
+                        // We don't allow an erroneous session to continue compilation
+                        if parse_session.has_error() {
+                            return (None, compiler_output);
+                        }
+
+                        parse_session
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-tokens", file)
+                                    .set_context(EndecErrorContext::ConstructingTokensFromIr).to_owned().into()
+                            );
+                        }
+
+                        return (None, compiler_output);
+                    },
+                },
+                Some(IrStage::HighIr) => match HirSession::load_from_file(file, None) {  // HirSession is already here!
+                    Ok(hir_session) => {
+                        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
+                        return (Some(hir_session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-hir", file)
+                                    .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
+                            );
+                        }
+
+                        return (None, compiler_output);
+                    },
+                },
+                Some(IrStage::MidIr) => {
+                    todo!()
+                    // raise an error saying that,
+                    // 'cannot downgrade an Mir to an Hir'
+                },
+
+                // Let's assume it's a code file
+                None => match parse_file(
+                    PathOrRawInput::Path(file),
+                    None,
+                    compiler_option,
+                ) {
+                    (Some(parse_session), output) => {
+                        compiler_output.merge(output);
+
+                        parse_session
+                    },
+                    (None, output) => {
+                        return (None, output);
+                    },
+                },
+            }
+        },
+        _ => {
+            let (parse_session, compiler_output_) = parse_file(
+                input,
+                Some(compiler_output),
+                compiler_option,
+            );
+
+            compiler_output = compiler_output_;
+
+            match parse_session {
+                Some(parse_session) => parse_session,
+                None => {
+                    return (None, compiler_output);
+                },
+            }
+        },
+    };
+
+    // It's an internal compiler error
+    // macros are either
+    // 1. all expanded at the parse stage
+    // 2. make parse_session invalid so that the control flow can never reach here
+    if !parse_session.unexpanded_macros.is_empty() {
+        unreachable!();
     }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
-    ast_session.merge_errors_and_warnings(&new_lex_session);
     let mut tokens = parse_session.get_results().to_vec();
     let mut tokens = Tokens::from_vec(&mut tokens);
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
+    compiler_output.collect_errors_and_warnings_from_session(&ast_session);
+
     if res.is_err() {
-        compiler_output.collect_errors_and_warnings_from_session(&ast_session);
         return (None, compiler_output);
     }
 
     let mut hir_session = HirSession::from_ast_session(&ast_session);
-    let _ = lower_stmts(ast_session.get_results(), &mut hir_session);
+    let res = lower_stmts(ast_session.get_results(), &mut hir_session);
 
-    match input {
-        // it saves ir of failed compilations
-        // so that it can fail faster if the user tries to compile the same file again
-        PathOrRawInput::Path(file) if compiler_option.save_ir => {
-            let tmp_path = match generate_path_for_ir(file, FILE_EXT_HIGH_IR, true) {
-                Ok(p) => p.to_string(),
-                Err(e) => {
-                    compiler_output.push_error(e.into());
-                    return (Some(hir_session), compiler_output);
-                },
-            };
+    compiler_output.collect_errors_and_warnings_from_session(&hir_session);
 
-            let file_metadata = match last_modified(file) {
-                Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-                Err(e) => {
-                    compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-
-                    0
-                },
-            };
-
-            if let Err(mut e) = hir_session.save_to_file(&tmp_path, Some(file_metadata)) {
-                compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
-            }
-        },
-        _ => {},
+    if res.is_err() {
+        (None, compiler_output)
     }
 
-    if let Some(path) = &compiler_option.dump_hir_to {
-        let res = hir_session.dump_json().to_string();
+    else {
+        match input {
+            PathOrRawInput::Path(file) if compiler_option.save_ir => {
+                let tmp_path = match generate_path_for_ir(file, FILE_EXT_HIGH_IR, true) {
+                    Ok(p) => p.to_string(),
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+                        return (None, compiler_output);
+                    },
+                };
 
-        if path != "STDOUT" {
-            if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                let file_metadata = match last_modified(file) {
+                    Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
+                    Err(e) => {
+                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
+
+                        0
+                    },
+                };
+
+                if let Err(mut e) = hir_session.save_to_file(&tmp_path, Some(file_metadata)) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
+                }
+            },
+            _ => {},
+        }
+
+        if let Some(path) = &compiler_option.dump_hir_to {
+            let res = hir_session.dump_json().to_string();
+
+            if path != "STDOUT" {
+                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                }
+            }
+
+            else {
+                compiler_output.dump_to_stdout(res);
             }
         }
 
-        else {
-            compiler_output.dump_to_stdout(res);
-        }
-    }
+        hir_session.clear_errors();
+        hir_session.clear_warnings();
 
-    (Some(hir_session), compiler_output)
+        (Some(hir_session), compiler_output)
+    }
 }
 
-pub fn construct_mir(
+pub fn mir_from_hir(
     input: PathOrRawInput,
+    prev_output: Option<CompilerOutput>,
     compiler_option: &CompilerOption,
 ) -> (Option<MirSession>, CompilerOutput) {
-    info!("sodigy::construct_mir() with input: {input:?}");
+    info!("sodigy::mir_from_hir() with input: {input:?}");
 
-    let mut compiler_output = CompilerOutput::new();
+    let mut compiler_output = prev_output.unwrap_or_default();
 
     let hir_session = match input {
         PathOrRawInput::Path(file) => {
             // if MirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
             if let Some(s) = try_construct_session_from_saved_ir::<MirSession>(file, FILE_EXT_MID_IR) {
                 match s {
-                    Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
-                    },
+                    Ok(session) if !session.check_all_dependency_up_to_date() => {},
                     Ok(session) => {
-                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
                         compiler_output.collect_errors_and_warnings_from_session(&session);
 
                         if let Some(path) = &compiler_option.dump_mir_to {
@@ -277,46 +462,64 @@ pub fn construct_mir(
                 }
             }
 
-            match construct_hir(
-                input,
-                compiler_option,
-            ) {
-                (Some(hir_session), output) => {
-                    compiler_output.merge(output);
-                    hir_session
+            match IrStage::try_infer_from_ext(file) {
+                Some(IrStage::MidIr) => match MirSession::load_from_file(file, None) {  // MirSession is already here!
+                    Ok(mir_session) => {
+                        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
+                        return (Some(mir_session), compiler_output);
+                    },
+                    Err(e) => {
+                        compiler_output.push_error(e.into());
+
+                        if is_human_readable(file) {
+                            compiler_output.push_error(
+                                EndecError::human_readable_file("--dump-hir", file)
+                                    .set_context(EndecErrorContext::ConstructingHirFromIr).to_owned().into()
+                            );
+                        }
+
+                        return (None, compiler_output);
+                    },
                 },
-                (None, output) => {
-                    return (None, output);
+
+                _ => match hir_from_tokens(
+                    PathOrRawInput::Path(file),
+                    None,
+                    compiler_option,
+                ) {
+                    (Some(hir_session), output) => {
+                        compiler_output.merge(output);
+
+                        hir_session
+                    },
+                    (None, output) => {
+                        return (None, output);
+                    },
                 },
             }
         },
         _ => {
-            match construct_hir(
+            let (hir_session, compiler_output_) = hir_from_tokens(
                 input,
+                Some(compiler_output),
                 compiler_option,
-            ) {
-                (Some(hir_session), output) => {
-                    compiler_output.merge(output);
-                    hir_session
-                },
-                (None, output) => {
-                    return (None, output);
+            );
+
+            compiler_output = compiler_output_;
+
+            match hir_session {
+                Some(hir_session) => hir_session,
+                None => {
+                    return (None, compiler_output);
                 },
             }
         },
     };
 
-    if hir_session.has_error() {
-        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-        return (None, compiler_output);
-    }
-
-    // where to look for other files
     let base_path = match &input {
         PathOrRawInput::Path(p) => match parent(p) {
             Ok(p) => p,
             Err(e) => {
-                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
                 compiler_output.push_error(e.into());
                 return (None, compiler_output);
             },
@@ -385,9 +588,10 @@ pub fn construct_mir(
         // 2. i want it to run in parallel...
     }
 
+    compiler_output.collect_errors_and_warnings_from_session(&mir_session);
+
     if has_error {
-        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
-        (None, compiler_output)
+        return (None, compiler_output);
     }
 
     else {
@@ -396,7 +600,6 @@ pub fn construct_mir(
                 let tmp_path = match generate_path_for_ir(file, FILE_EXT_MID_IR, true) {
                     Ok(p) => p.to_string(),
                     Err(e) => {
-                        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
                         compiler_output.push_error(e.into());
                         return (None, compiler_output);
                     },
@@ -432,25 +635,11 @@ pub fn construct_mir(
             }
         }
 
+        mir_session.clear_errors();
+        mir_session.clear_warnings();
+
         (Some(mir_session), compiler_output)
     }
-}
-
-pub fn construct_binary(
-    input: PathOrRawInput,
-    compiler_option: &CompilerOption,
-) -> (Option<Vec<u8>>, CompilerOutput) {
-    info!("sodigy::construct_binary() with input: {input:?}");
-    // TODO: binary stage is not implemented yet -> it only collects
-    // errors and warnings until mir stage
-
-    let (session, mut output) = construct_mir(input, compiler_option);
-
-    if let Some(session) = session {
-        output.collect_errors_and_warnings_from_session(&session);
-    }
-
-    (Some(vec![]), output)
 }
 
 // for ex, `hir` (auto generated by compiler, not manually by the user) for `./foo.sdg` is at `./__sdg_cache__/foo.hir`
@@ -582,6 +771,25 @@ fn try_resolve_dependency(base_path: &Path, compiler_option: &CompilerOption, de
     // TODO
 
     Err(error::dependency_not_found(dependency))
+}
+
+fn is_human_readable(file: &Path) -> bool {
+    if let Ok(buffer) = read_bytes(file) {
+        if let Ok(s) = String::from_utf8(buffer) {
+            for c in s.chars() {
+                let c = c as u32;
+
+                // non-readable characters
+                if c < 9 || 12 < c && c < 32 {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    false
 }
 
 fn incremental_compilation_broken(file: &Path, mut error: UniversalError) -> UniversalError {

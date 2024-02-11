@@ -5,31 +5,31 @@ use sodigy_error::ExtraErrInfo;
 use sodigy_span::SpanRange;
 
 impl Endec for ParseWarning {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.kind.encode(buf, session);
-        self.spans.encode(buf, session);
-        self.extra.encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.kind.encode(buffer, session);
+        self.spans.encode(buffer, session);
+        self.extra.encode(buffer, session);
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok(ParseWarning {
-            kind: ParseWarningKind::decode(buf, index, session)?,
-            spans: SmallVec::<[SpanRange; 1]>::decode(buf, index, session)?,
-            extra: ExtraErrInfo::decode(buf, index, session)?,
+            kind: ParseWarningKind::decode(buffer, index, session)?,
+            spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
+            extra: ExtraErrInfo::decode(buffer, index, session)?,
         })
     }
 }
 
 impl Endec for ParseWarningKind {
-    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            ParseWarningKind::NothingToEvalInFString => { buf.push(0); },
-            ParseWarningKind::UnmatchedCurlyBrace => { buf.push(1); },
+            ParseWarningKind::NothingToEvalInFString => { buffer.push(0); },
+            ParseWarningKind::UnmatchedCurlyBrace => { buffer.push(1); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 

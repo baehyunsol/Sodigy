@@ -4,7 +4,11 @@ use crate::warn::{AstWarning, AstWarningKind};
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_parse::ParseSession;
-use sodigy_session::{SessionDependency, SessionSnapshot, SodigySession};
+use sodigy_session::{
+    SessionDependency,
+    SessionSnapshot,
+    SodigySession,
+};
 
 pub struct AstSession {
     errors: Vec<AstError>,
@@ -49,6 +53,10 @@ impl SodigySession<AstError, AstErrorKind, AstWarning, AstWarningKind, Vec<Stmt>
 
     fn get_previous_errors(&self) -> &Vec<UniversalError> {
         &self.previous_errors
+    }
+
+    fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_errors
     }
 
     fn get_results(&self) -> &Vec<Stmt> {

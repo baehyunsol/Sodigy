@@ -1,4 +1,3 @@
-use crate::stages::IrStage;
 use crate::flag::Flag;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
@@ -17,15 +16,8 @@ pub struct ClapWarning {
     extra: ExtraErrInfo,
 }
 
+// TODO: remove unused warnings
 impl ClapWarning {
-    pub fn ext_mismatch(ext: IrStage, format: IrStage) -> Self {
-        ClapWarning {
-            kind: ClapWarningKind::ExtMismatch { ext, format },
-            spans: smallvec![],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
-        }
-    }
-
     pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
         ClapWarning {
             kind: ClapWarningKind::SameFlagMultipleTimes(flag),
@@ -42,6 +34,18 @@ impl ClapWarning {
         ClapWarning {
             kind: ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set },
             spans: spans.into(),
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
+
+    pub fn ignored_flag(
+        flag: Flag,
+        span: SpanRange,
+        ignored_because_of: Flag,
+    ) -> Self {
+        ClapWarning {
+            kind: ClapWarningKind::IgnoredFlag { flag, ignored_because_of },
+            spans: smallvec![span],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
@@ -79,44 +83,40 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
 }
 
 pub enum ClapWarningKind {
-    ExtMismatch {
-        ext: IrStage,
-        format: IrStage,
-    },
     SameFlagMultipleTimes(Flag),
     PathIsSetFlagIsNotSet {
         is_set: Flag,
         is_not_set: Flag,
+    },
+    IgnoredFlag {
+        flag: Flag,
+        ignored_because_of: Flag,
     },
 }
 
 impl SodigyErrorKind for ClapWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            ClapWarningKind::ExtMismatch { .. } => String::from("mismatch between the extension of path and `--to` option"),
             ClapWarningKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
             ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set } => format!("`{}` is set, but `{}` is not set", is_set.render_error(), is_not_set.render_error()),
+            ClapWarningKind::IgnoredFlag { flag, .. } => format!("ignored flag `{}`", flag.render_error()),
         }
     }
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
-            ClapWarningKind::ExtMismatch { ext, format } => format!(
-                "The extension is `{}`, but the given format is `{}`.",
-                ext.render_error(),
-                format.render_error(),
-            ),
             ClapWarningKind::SameFlagMultipleTimes(_) => String::new(),
             ClapWarningKind::PathIsSetFlagIsNotSet { is_set, .. } => format!("`{}` doesn't do anything.", is_set.render_error()),
+            ClapWarningKind::IgnoredFlag { flag, ignored_because_of } => format!("`{}` is ignored because of `{}`", flag.render_error(), ignored_because_of.render_error()),
         }
     }
 
     // we don't need this, but I want it to look more complete
     fn index(&self) -> u32 {
         match self {
-            ClapWarningKind::ExtMismatch { .. } => 0,
-            ClapWarningKind::SameFlagMultipleTimes(_) => 1,
-            ClapWarningKind::PathIsSetFlagIsNotSet { .. } => 2,
+            ClapWarningKind::SameFlagMultipleTimes(_) => 0,
+            ClapWarningKind::PathIsSetFlagIsNotSet { .. } => 1,
+            ClapWarningKind::IgnoredFlag { .. } => 2,
         }
     }
 }

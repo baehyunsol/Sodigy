@@ -2,15 +2,15 @@ use crate::QuoteKind;
 use sodigy_endec::{Endec, EndecError, EndecSession};
 
 impl Endec for QuoteKind {
-    fn encode(&self, buf: &mut Vec<u8>, _: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            QuoteKind::Double => { buf.push(0); },
-            QuoteKind::Single => { buf.push(1); },
+            QuoteKind::Double => { buffer.push(0); },
+            QuoteKind::Single => { buffer.push(1); },
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
-        match buf.get(*index) {
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
             Some(n) => {
                 *index += 1;
 

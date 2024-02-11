@@ -3,22 +3,22 @@ use smallvec::SmallVec;
 use std::collections::{HashMap, HashSet};
 
 impl <T: Endec + std::hash::Hash + std::cmp::Eq, U: Endec> Endec for HashMap<T, U> {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.len().encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.len().encode(buffer, session);
 
         for (k, v) in self.iter() {
-            k.encode(buf, session);
-            v.encode(buf, session);
+            k.encode(buffer, session);
+            v.encode(buffer, session);
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, index, session)?;
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let len = usize::decode(buffer, index, session)?;
         let mut result = HashMap::with_capacity(len);
 
         for _ in 0..len {
-            let k = T::decode(buf, index, session)?;
-            let v = U::decode(buf, index, session)?;
+            let k = T::decode(buffer, index, session)?;
+            let v = U::decode(buffer, index, session)?;
             result.insert(k, v);
         }
 
@@ -27,20 +27,20 @@ impl <T: Endec + std::hash::Hash + std::cmp::Eq, U: Endec> Endec for HashMap<T, 
 }
 
 impl <T: Endec + std::hash::Hash + std::cmp::Eq> Endec for HashSet<T> {
-    fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-        self.len().encode(buf, session);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.len().encode(buffer, session);
 
         for e in self.iter() {
-            e.encode(buf, session);
+            e.encode(buffer, session);
         }
     }
 
-    fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        let len = usize::decode(buf, index, session)?;
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        let len = usize::decode(buffer, index, session)?;
         let mut result = HashSet::with_capacity(len);
 
         for _ in 0..len {
-            result.insert(T::decode(buf, index, session)?);
+            result.insert(T::decode(buffer, index, session)?);
         }
 
         Ok(result)
@@ -53,20 +53,20 @@ macro_rules! vec_like {
     };
     ($name: ident, $t: ty, $tt: ty) => {
         impl <T: Endec> Endec for $t {
-            fn encode(&self, buf: &mut Vec<u8>, session: &mut EndecSession) {
-                self.len().encode(buf, session);
+            fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+                self.len().encode(buffer, session);
         
                 for v in self.iter() {
-                    v.encode(buf, session);
+                    v.encode(buffer, session);
                 }
             }
         
-            fn decode(buf: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-                let len = usize::decode(buf, index, session)?;
+            fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+                let len = usize::decode(buffer, index, session)?;
                 let mut result = $name::<$tt>::with_capacity(len);
         
                 for _ in 0..len {
-                    result.push(T::decode(buf, index, session)?);
+                    result.push(T::decode(buffer, index, session)?);
                 }
         
                 Ok(result)
