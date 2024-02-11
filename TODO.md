@@ -250,7 +250,6 @@ clap 관련 참신한 아이디어
 예시: `sodigy a.out --dump-hir true`를 아래처럼 해석
 
 ```
-# op precedence가 저게 맞나?? ㅋㅋㅋ 기억이 안 나네..
 @method(SodigyCompiler)
 let input(self: SodigyCompiler, file: String): SodigyCompiler = self `input self.input.push(file);
 

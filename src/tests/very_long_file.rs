@@ -67,7 +67,7 @@ fn very_long_file() {
 
     write_string(&tmp_file_name, "];", WriteMode::AlwaysAppend).unwrap();
 
-    run(CompilerOption {
+    let res = run(CompilerOption {
         do_not_compile_and_do_this: None,
         input_file: Some(tmp_file_name.clone()),
         output: CompilerOutputFormat::MidIr,
@@ -79,6 +79,8 @@ fn very_long_file() {
         verbosity: 0,
         raw_input: None,
     });
+
+    assert!(!res.has_error());
 
     remove_file(&tmp_file_name).unwrap();
 }

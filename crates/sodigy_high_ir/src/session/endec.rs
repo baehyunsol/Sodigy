@@ -52,7 +52,12 @@ impl DumpJson for HirSession {
 
         let errors = self.errors.dump_json();
         let warnings = self.warnings.dump_json();
-        let func_defs = self.func_defs.values().map(|f| f.dump_json()).collect::<Vec<_>>().dump_json();
+
+        // it has to make sure that `dump_json` of the same code returns the same result
+        let mut func_defs = self.func_defs.values().collect::<Vec<_>>();
+        func_defs.sort_by_key(|f| f.name.span());
+        let func_defs = func_defs.iter().map(|f| f.dump_json()).collect::<Vec<_>>().dump_json();
+
         let imported_names = self.imported_names.dump_json();
         let modules = self.modules.dump_json();
         let previous_errors = self.previous_errors.dump_json();

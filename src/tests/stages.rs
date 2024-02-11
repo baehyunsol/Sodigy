@@ -1,10 +1,12 @@
 use crate::{CompilerOutput, clean_irs, run};
+use json::JsonValue;
 use sodigy_clap::{CompilerOption, CompilerOutputFormat};
 use sodigy_files::{
     create_dir,
     join,
     parent,
     read_bytes,
+    read_string,
     remove_dir_all,
 };
 use std::sync::Mutex;
@@ -116,9 +118,9 @@ fn test_runner1(path: &str) {
         panic!("{}", res.concat_results());
     }
 
-    assert_same_output(&bin_outputs, /* is_json */ false);
-    assert_same_output(&hir_outputs, /* is_json */ true);
-    assert_same_output(&mir_outputs, /* is_json */ true);
+    assert_same_output(&bin_outputs);
+    assert_same_json(&hir_outputs);
+    assert_same_json(&mir_outputs);
 
     remove_dir_all(&tmp_result_dir).unwrap();
     drop(lock);
@@ -131,7 +133,7 @@ fn test_runner1(path: &str) {
 // 3. make sure both return the same errors (must check the error message)
 fn test_runner2(path: &str) {}
 
-fn assert_same_output(outputs: &Vec<Path>, is_json: bool) {
+fn assert_same_output(outputs: &Vec<Path>) {
     let bytes = outputs.iter().map(
         |path| read_bytes(path).unwrap()
     ).collect::<Vec<_>>();
@@ -140,16 +142,60 @@ fn assert_same_output(outputs: &Vec<Path>, is_json: bool) {
     for (index, byte) in bytes.iter().enumerate() {
         if byte != &bytes[0] {
             panic!(
-                "assertion_failures: contents of `{}` and `{}` are different{}",
+                "assertion_failures: contents of `{}` and `{}` are different",
                 &outputs[0],
                 &outputs[index],
-                if is_json {
-                    String::new()  // TODO: dump the content of json
-                } else {
-                    String::new()
-                },
             );
         }
+    }
+}
+
+fn assert_same_json(files: &Vec<Path>) {
+    let jsons = files.iter().map(
+        |file| {
+            let mut json = json::parse(&read_string(file).unwrap()).unwrap();
+            remove_uids(&mut json);
+
+            json
+        }
+    ).collect::<Vec<_>>();
+
+    for (index, json) in jsons.iter().enumerate() {
+        if json != &jsons[0] {
+            panic!(
+                "assertion_failures: contents of `{}` and `{}` are different\n------\n{}\n------\n{}",
+                &files[0],
+                &files[index],
+                json.pretty(4),
+                jsons[0].pretty(4),
+            );
+        }
+    }
+}
+
+fn remove_uids(json: &mut JsonValue) {
+    match json {
+        JsonValue::Null
+        | JsonValue::Short(_)
+        | JsonValue::String(_)
+        | JsonValue::Number(_)
+        | JsonValue::Boolean(_) => {},
+        JsonValue::Object(obj) => {
+            for (k, v) in obj.iter_mut() {
+                if k == "uid" {
+                    *v = JsonValue::Null;
+                }
+
+                else {
+                    remove_uids(v);
+                }
+            }
+        },
+        JsonValue::Array(arr) => {
+            for element in arr.iter_mut() {
+                remove_uids(element);
+            }
+        },
     }
 }
 
@@ -182,3 +228,4 @@ stage_test!(steps, stage_test3, "./samples/unused_names.sdg");
 
 // make sure that these files have compile errors
 stage_test!(errors, errors_test1, "./samples/errors/parse_err1.sdg");
+stage_test!(errors, errors_test2, "./samples/errors/name_err1.sdg");

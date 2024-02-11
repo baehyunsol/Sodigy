@@ -32,8 +32,8 @@ log = "0.4.8"
 
 sodigy_ast = { path = "crates/sodigy_ast" }
 sodigy_clap = { path = "crates/sodigy_clap" }
-sodigy_error = { path = "crates/sodigy_error" }
 sodigy_endec = { path = "crates/sodigy_endec" }
+sodigy_error = { path = "crates/sodigy_error" }
 sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }
 sodigy_intern = { path = "crates/sodigy_intern" }
@@ -48,4 +48,5 @@ sodigy_span = { path = "crates/sodigy_span" }
 sodigy_uid = { path = "crates/sodigy_uid" }
 
 [dev-dependencies]
+json = "0.12.4"
 rand = "0.8.5"

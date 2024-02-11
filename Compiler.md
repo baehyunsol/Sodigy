@@ -50,3 +50,22 @@ Don't make references if `size_of::<T>` is less than or equal to 128 bits.
 ## Logs
 
 `env_logger` and `log` are for compiler developers, not for the users of the language.
+
+## Dependencies
+
+It has to use as less dependencies as possible.
+
+TODO: are these compatible with MIT license?
+
+| name           | version    | license     |
+|----------------|------------|-------------|
+| colored        | 2.1.0      | MPL 2.0     |
+| env_logger     | 0.11.1     | MIT         |
+| hmath          | 0.1.17     | MIT         |
+| json           | 0.12.4     | MIT         |
+| lazy_static    | 1.4.0      | MIT         |
+| log            | 0.4.8      | MIT         |
+| rand           | 0.8.5      | MIT         |
+| smallvec       | 1.13.1     | MIT         |
+
+Don't bump the version of `log`. It uses the version that `env_logger` uses, not the latest version.
