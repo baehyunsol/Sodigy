@@ -12,6 +12,7 @@ use sodigy_files::{
 };
 use std::sync::Mutex;
 
+// `clean_irs` must not be interleaved
 static mut LOCK: Mutex<()> = Mutex::new(());
 
 type Path = String;
@@ -269,7 +270,7 @@ stage_test!(steps, stage_test1, "./samples/empty.sdg");
 stage_test!(steps, stage_test2, "./samples/easy.sdg");
 stage_test!(steps, stage_test3, "./samples/unused_names.sdg");
 
-// make sure that these files have compile errors
 stage_test!(errors, errors_test1, "./samples/errors/parse_err1.sdg");
 stage_test!(errors, errors_test2, "./samples/errors/name_err1.sdg");
 stage_test!(errors, errors_test3, "./samples/errors/expr_err1.sdg");
+stage_test!(errors, warnings_test1, "./samples/unused_names.sdg");

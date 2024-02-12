@@ -1,3 +1,4 @@
+use log::error;
 use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
 use sodigy_session::{SessionOutput, SodigySession};
 use std::collections::HashSet;
@@ -10,7 +11,9 @@ pub struct CompilerOutput {
     // any other stuff to print
     stdout: Vec<String>,
 
+    // shows "had _ error and _ warning in total"
     pub show_overall_result: bool,
+
     error_hashes: HashSet<u64>,
     warning_hashes: HashSet<u64>,
 }
@@ -22,7 +25,7 @@ impl CompilerOutput {
             warnings: vec![],
             stdout: vec![],
 
-            show_overall_result: true,
+            show_overall_result: false,
             error_hashes: HashSet::new(),
             warning_hashes: HashSet::new(),
         }
@@ -50,8 +53,7 @@ impl CompilerOutput {
 
     pub fn push_error(&mut self, mut error: UniversalError) {
         if error.is_warning {
-            // TODO: write log file
-            println!("FIXME: There's an internal compiler error!");
+            error!("push_error(e) where `e` is not an error");
 
             error.is_warning = false;
         }
@@ -64,8 +66,7 @@ impl CompilerOutput {
 
     pub fn push_warning(&mut self, mut warning: UniversalError) {
         if !warning.is_warning {
-            // TODO: write log file
-            println!("FIXME: There's an internal compiler error!");
+            error!("push_warning(e) where `e` is not a warning");
 
             warning.is_warning = true;
         }
@@ -99,12 +100,18 @@ impl CompilerOutput {
         for dump in other.stdout.into_iter() {
             self.stdout.push(dump);
         }
+
+        if self.show_overall_result || other.show_overall_result {
+            self.show_overall_result = true;
+        }
     }
 
     pub fn has_error(&self) -> bool {
         !self.errors.is_empty()
     }
 
+    /// It requires `&mut self` because it has to
+    /// sort errors.
     pub fn concat_errors(&mut self) -> String {
         self.errors.sort_by_key(|w| w.first_span());
 
@@ -113,6 +120,8 @@ impl CompilerOutput {
         ).collect::<Vec<String>>().join("\n\n")
     }
 
+    /// It requires `&mut self` because it has to
+    /// sort warnings.
     pub fn concat_warnings(&mut self) -> String {
         self.warnings.sort_by_key(|w| w.first_span());
 
@@ -121,6 +130,8 @@ impl CompilerOutput {
         ).collect::<Vec<String>>().join("\n\n")
     }
 
+    /// It requires `&mut self` because it has to
+    /// sort errors and warnings.
     pub fn concat_results(&mut self) -> String {
         let mut result = vec![];
         let warnings = self.concat_warnings();

@@ -57,7 +57,7 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
         unreachable!()
     };
 
-    match &options.output {
+    let mut output = match &options.output {
         CompilerOutputFormat::HighIr => {
             let (session, mut output) = construct_hir(input, &options);
 
@@ -90,7 +90,11 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
             output
         },
-    }
+    };
+
+    output.show_overall_result = true;
+
+    output
 }
 
 pub const DEPENDENCIES_AT: &str = "sodigy.toml";

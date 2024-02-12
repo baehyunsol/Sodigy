@@ -99,8 +99,22 @@ impl DumpJson for Func {
     fn dump_json(&self) -> JsonObj {
         json_key_value_table(vec![
             ("name", self.name.dump_json()),
+            ("arguments", self.args.dump_json()),
+            ("return_value", self.return_val.dump_json()),
+            ("return_type_annotation", self.return_ty.dump_json()),
             ("uid", self.uid.dump_json()),
             // TODO: more fields
+        ])
+    }
+}
+
+impl DumpJson for Arg {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("name", self.name.dump_json()),
+            ("type_annotation", self.ty.dump_json()),
+            ("has_question_mark", self.has_question_mark.dump_json()),
+            // TODO: attributes
         ])
     }
 }

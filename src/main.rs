@@ -19,10 +19,12 @@ fn main() {
     let mut compiler_output = CompilerOutput::new();
 
     for warning in clap_result.get_warnings().iter() {
+        compiler_output.show_overall_result = true;
         compiler_output.push_warning(warning.to_universal());
     }
 
     for error in clap_result.get_errors().iter() {
+        compiler_output.show_overall_result = true;
         compiler_output.push_error(error.to_universal());
     }
 

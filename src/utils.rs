@@ -9,8 +9,11 @@ use sodigy_files::{
     FileErrorContext,
 };
 
+// TODO: it does too many unnecessary searches
 pub fn clean_irs(path: &str, compiler_output: &mut CompilerOutput, count: &mut usize) {
     info!("sodigy::clean_irs() path: {path:?}");
+
+    compiler_output.show_overall_result = true;
 
     if let Ok(contents) = read_dir(path) {
         for content in contents.iter() {

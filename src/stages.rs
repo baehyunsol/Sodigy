@@ -7,9 +7,13 @@ use sodigy_ast::{
     IdentWithSpan,
     Tokens,
 };
-use sodigy_clap::CompilerOption;
+use sodigy_clap::{CompilerOption, Flag};
 use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
-use sodigy_error::UniversalError;
+use sodigy_error::{
+    ErrorContext,
+    RenderError,
+    UniversalError,
+};
 use sodigy_files::{
     create_dir,
     exists,
@@ -72,9 +76,10 @@ pub fn construct_hir(
                     },
                     Ok(session) => {
                         info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                        warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_HIGH_IR);
 
                         if let Some(path) = &compiler_option.dump_hir_to {
-                            let res = session.dump_json().to_string();
+                            let res = session.dump_json().pretty(4);
 
                             if path != "STDOUT" {
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -219,7 +224,7 @@ pub fn construct_hir(
     }
 
     if let Some(path) = &compiler_option.dump_hir_to {
-        let res = hir_session.dump_json().to_string();
+        let res = hir_session.dump_json().pretty(4);
 
         if path != "STDOUT" {
             if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -254,9 +259,10 @@ pub fn construct_mir(
                     Ok(session) => {
                         info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
                         compiler_output.collect_errors_and_warnings_from_session(&session);
+                        warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_MID_IR);
 
                         if let Some(path) = &compiler_option.dump_mir_to {
-                            let res = session.dump_json().to_string();
+                            let res = session.dump_json().pretty(4);
 
                             if path != "STDOUT" {  // TODO: use a constant
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -419,7 +425,7 @@ pub fn construct_mir(
         }
 
         if let Some(path) = &compiler_option.dump_mir_to {
-            let res = mir_session.dump_json().to_string();
+            let res = mir_session.dump_json().pretty(4);
 
             if path != "STDOUT" {
                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -591,4 +597,35 @@ fn incremental_compilation_broken(file: &Path, mut error: UniversalError) -> Uni
     ));
 
     error
+}
+
+fn warn_ignored_dumps(output: &mut CompilerOutput, options: &CompilerOption, cached_ext: &str) {
+    if cached_ext == FILE_EXT_HIGH_IR {
+        // nothing is ignored
+    }
+
+    else if cached_ext == FILE_EXT_MID_IR {
+        if let Some(path) = &options.dump_hir_to {
+            output.push_warning(ignored_dump_warning(path, Flag::DumpHirTo, cached_ext));
+        }
+    }
+
+    else {
+        // no other stages yet
+        unreachable!();
+    }
+}
+
+fn ignored_dump_warning(path: &Path, flag: Flag, cached_ext: &str) -> UniversalError {
+    UniversalError::new(
+        ErrorContext::Unknown,
+        true,   // is_warning
+        false,  // show_span
+        None,   // span
+        format!(
+            "`{}` ignored due to incremental compilation",
+            flag.render_error(),
+        ),
+        format!("Since it's reading cached data of `{cached_ext}`, it writes nothing to `{path}`.\nIf you want to dump something, run `sodigy --clean` and try again."),
+    )
 }

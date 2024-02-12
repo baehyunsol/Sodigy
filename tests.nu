@@ -40,8 +40,8 @@ def main [--depgraph] {
     }
 
     nu clean.nu
+    nu link_bin.nu
 
-    ln -f ./target/release/sodigy ./sodigy
     chmod +x ./sodigy
 
     # TODO: run `./sodigy --test XXX.sdg` here

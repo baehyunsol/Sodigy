@@ -1,6 +1,12 @@
 // modules that cannot depend on `sodigy_endec`
 
-use crate::{Endec, EndecError, EndecSession};
+use crate::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+};
 use crate::session::EncodedInternal;
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_keyword::Keyword;
@@ -124,5 +130,17 @@ impl Endec for BigNumber {
             exp: i64::decode(buffer, index, session)?,
             is_integer: bool::decode(buffer, index, session)?,
         })
+    }
+}
+
+impl DumpJson for InternedString {
+    fn dump_json(&self) -> JsonObj {
+        self.to_string().dump_json()
+    }
+}
+
+impl DumpJson for InternedNumeric {
+    fn dump_json(&self) -> JsonObj {
+        self.to_string().dump_json()
     }
 }

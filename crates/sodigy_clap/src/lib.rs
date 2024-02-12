@@ -17,7 +17,7 @@ mod token;
 mod warn;
 
 pub use error::ClapError;
-use flag::Flag;
+pub use flag::Flag;
 use parse::{into_file, into_tokens};
 pub use session::ClapSession;
 pub use stages::IrStage;

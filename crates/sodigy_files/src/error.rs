@@ -17,7 +17,11 @@ impl FileError {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
             io::ErrorKind::PermissionDenied => FileErrorKind::PermissionDenied,
             io::ErrorKind::AlreadyExists => FileErrorKind::AlreadyExists,
-            _ => FileErrorKind::Unknown(format!("{e:?}")),
+
+            // https://github.com/rust-lang/rust/issues/86442
+            // io::ErrorKind::IsADirectory => todo!(),
+
+            _ => FileErrorKind::Unknown(format!("error: {e:?}, path: {given_path:?}")),
         };
 
         FileError {

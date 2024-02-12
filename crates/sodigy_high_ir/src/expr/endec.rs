@@ -27,6 +27,7 @@ use sodigy_endec::{
     EndecError,
     EndecSession,
     JsonObj,
+    json_key_value_table,
 };
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
@@ -288,6 +289,39 @@ impl Endec for StructInitField {
 
 impl DumpJson for Expr {
     fn dump_json(&self) -> JsonObj {
-        todo!()
+        let mut kind = self.kind.dump_json();
+        kind.push_pair("span", self.span.dump_json()).unwrap();
+
+        kind
+    }
+}
+
+impl DumpJson for ExprKind {
+    fn dump_json(&self) -> JsonObj {
+        match self {
+            ExprKind::Identifier(id) => json_key_value_table(vec![("identifier", id.dump_json())]),
+            ExprKind::Integer(n) => json_key_value_table(vec![("integer", n.dump_json())]),
+            ExprKind::Ratio(n) => json_key_value_table(vec![("ratio", n.dump_json())]),
+            ExprKind::Char(c) => json_key_value_table(vec![("char", (*c as u8).dump_json())]),
+            ExprKind::String { content, is_binary } => json_key_value_table(vec![
+                ("content", content.dump_json()),
+                ("is_binary", is_binary.dump_json()),
+            ]),
+            ExprKind::Call { func, args } => json_key_value_table(vec![
+                ("call", func.as_ref().dump_json()),
+                ("arguments", args.dump_json()),
+            ]),
+            e @ (ExprKind::List(elements)
+            | ExprKind::Tuple(elements)) => {
+                let name = if matches!(e, ExprKind::List(_)) {
+                    "list"
+                } else {
+                    "tuple"
+                };
+
+                json_key_value_table(vec![(name, elements.dump_json())])
+            },
+            _ => todo!(),
+        }
     }
 }

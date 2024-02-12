@@ -1,5 +1,12 @@
 use super::{IdentWithOrigin, NameBindingType, NameOrigin};
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+    json_key_value_table,
+};
 use sodigy_intern::InternedString;
 use sodigy_uid::Uid;
 
@@ -101,5 +108,21 @@ impl Endec for NameBindingType {
             },
             None => Err(EndecError::eof()),
         }
+    }
+}
+
+impl DumpJson for IdentWithOrigin {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("identifier", self.0.dump_json()),
+            ("origin", self.1.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for NameOrigin {
+    fn dump_json(&self) -> JsonObj {
+        // TODO
+        JsonObj::Null
     }
 }

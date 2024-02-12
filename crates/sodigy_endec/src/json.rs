@@ -8,6 +8,23 @@ pub enum JsonObj {
     Int(i64),
     Table(Vec<(String, JsonObj)>),
     String(String),
+    Null,
+}
+
+impl JsonObj {
+    pub fn push_pair(&mut self, key: &str, value: JsonObj) -> Result<(), ()> {
+        match self {
+            JsonObj::Table(v) => {
+                v.push((key.to_string(), value));
+                Ok(())
+            },
+            _ => Err(()),
+        }
+    }
+
+    pub fn pretty(&self, indent: u16) -> String {
+        json::parse(&self.to_string()).unwrap().pretty(indent)
+    }
 }
 
 pub trait DumpJson {
@@ -29,6 +46,15 @@ impl DumpJson for String {
 impl DumpJson for bool {
     fn dump_json(&self) -> JsonObj {
         JsonObj::Bool(*self)
+    }
+}
+
+impl<T: DumpJson> DumpJson for Option<T> {
+    fn dump_json(&self) -> JsonObj {
+        match self {
+            Some(v) => v.dump_json(),
+            None => JsonObj::Null,
+        }
     }
 }
 
@@ -87,12 +113,13 @@ impl fmt::Display for JsonObj {
             JsonObj::Table(objects) => write!(
                 fmt, "{{{}}}",
                 objects.iter().map(
-                    |(k, v)| format!("{k:?}: {v}")
+                    |(k, v)| format!("{k:?}:{v}")
                 ).collect::<Vec<_>>().join(","),
             ),
             JsonObj::String(s) => write!(
                 fmt, "{s:?}",
             ),
+            JsonObj::Null => write!(fmt, "null"),
         }
     }
 }

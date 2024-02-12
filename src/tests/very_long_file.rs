@@ -19,10 +19,9 @@ fn random_string(len: usize) -> String {
 
 #[test]
 fn very_long_file() {
-    return;  // TODO: let's not do this for now
-
-    let iter_count = 65536;
+    let iter_count = 4096;
     let tmp_file_name = join(".", &format!("__tmp_{:x}.sdg", rand::random::<u64>())).unwrap();
+    let dummy_output_file = join(".", &format!("__tmp_{:x}.out", rand::random::<u64>())).unwrap();
 
     write_string(&tmp_file_name, "# very long file test\n", WriteMode::AlwaysCreate).unwrap();
     write_string(&tmp_file_name, "let numbers = [\n", WriteMode::AlwaysAppend).unwrap();
@@ -67,10 +66,10 @@ fn very_long_file() {
 
     write_string(&tmp_file_name, "];", WriteMode::AlwaysAppend).unwrap();
 
-    let res = run(CompilerOption {
+    let mut res = run(CompilerOption {
         do_not_compile_and_do_this: None,
         input_file: Some(tmp_file_name.clone()),
-        output: CompilerOutputFormat::MidIr,
+        output: CompilerOutputFormat::Path(dummy_output_file.clone()),
         show_warnings: true,
         save_ir: true,
         dump_hir_to: None,
@@ -80,7 +79,10 @@ fn very_long_file() {
         raw_input: None,
     });
 
-    assert!(!res.has_error());
+    if res.has_error() {
+        panic!("{}", res.concat_results());
+    }
 
     remove_file(&tmp_file_name).unwrap();
+    remove_file(&dummy_output_file).unwrap();
 }
