@@ -98,16 +98,6 @@ pub const SAVE_IRS_AT: &str = "__sdg_cache__";
 pub const COMPILER_HELP_MESSAGE: &str =
 "Usage: sodigy [OPTIONS] INPUT
 
-Examples:
-    sodigy a.sdg --to tokens -o a.tokens
-        It reads `a.sdg` and converts the code into tokens. But it doesn't make an AST.
-        It just saves the tokens to `a.tokens`. You can later resume the compilation
-        from this stage.
-
-    sodigy a.tokens --to hir -o a.hir
-        In the previous example, we paused the compilation before building an AST.
-        This option resumes the compilation and generates an HIR.
-
 Options:
     -h, --help                      Display this message
     -v, --version
@@ -123,12 +113,12 @@ Options:
                                     It still saves intermediate representations when this flag is set.
                                     You have to set `--save-ir false` to not save irs.
                                     TODO: not implemented yet
-    --dump-tokens-to PATH           Dumps tokens to <PATH> as a json file. If PATH is `STDOUT`, it dumps the
-                                    result to stdout.
     --dump-hir-to PATH              Dumps the hir session to <PATH> as a json file. If PATH is `STDOUT`, it dumps the
-                                    result to stdout.
+                                    result to stdout. If it's compiled from cached data, `--dump-hir-to` may not work.
+                                    If it does not work, try `./sodigy --clean` and compile again.
     --dump-mir-to PATH              Dumps the mir session to <PATH> as a json file. If PATH is `STDOUT`, it dumps the
-                                    result to stdout.
+                                    result to stdout. If it's compiled from cached data, `--dump-mir-to` may not work.
+                                    If it does not work, try `./sodigy --clean` and compile again.
     --raw-input RAW-INPUT           Compile raw input instead of files.
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.

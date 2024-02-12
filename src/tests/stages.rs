@@ -8,6 +8,7 @@ use sodigy_files::{
     read_bytes,
     read_string,
     remove_dir_all,
+    remove_file,
 };
 use std::sync::Mutex;
 
@@ -15,6 +16,8 @@ static mut LOCK: Mutex<()> = Mutex::new(());
 
 type Path = String;
 
+// If this test panics, it leaves tmp files. You MUST run `nu clean.nu` to remove the tmp files.
+//
 // 1. compile the file directly from code to the end
 // 2. compile the file using intermediate result from 1
 // 3. compile the file from code to hir, then from hir to the end
@@ -63,6 +66,7 @@ fn test_runner1(path: &str) {
         panic!("{}", res.concat_results());
     }
 
+    // compilation from cached data doesn't dump anything
     let compile_option2 = CompilerOption {
         output: CompilerOutputFormat::Path(bin_outputs[1].clone()),
         ..base_option.clone()
@@ -126,19 +130,56 @@ fn test_runner1(path: &str) {
     drop(lock);
 }
 
-// TODO: another test
-// a file that has a parse error
-// 1. compile the file directly to mir
-// 2. compile the file from code to hir, then to mir
+// If this test panics, it leaves tmp files. You MUST run `nu clean.nu` to remove the tmp files.
+//
+// 1. compile the file directly from code to the end
+// 2. compile the file using intermediate result from 1
 // 3. make sure both return the same errors (must check the error message)
-fn test_runner2(path: &str) {}
+fn test_runner2(path: &str) {
+    let lock = unsafe { LOCK.lock().unwrap() };
+
+    let mut dummy_compiler_output = CompilerOutput::new();
+    let tmp_file_name = join(".", &format!("__tmp_{:x}", rand::random::<u128>())).unwrap();
+    let dir_to_clean = parent(path).unwrap();
+
+    clean_irs(&dir_to_clean, &mut dummy_compiler_output, &mut 0);
+
+    let compile_option = CompilerOption {
+        input_file: Some(path.to_string()),
+        do_not_compile_and_do_this: None,
+        show_warnings: true,
+        output: CompilerOutputFormat::Path(tmp_file_name.clone()),
+        save_ir: true,
+        dump_hir_to: None,
+        dump_mir_to: None,
+        ..CompilerOption::default()
+    };
+
+    // 1. end to end compile (clean)
+    let mut res = run(compile_option.clone());
+    let err1 = res.concat_results();
+
+    // 2. end to end compile (cached)
+    let mut res = run(compile_option);
+    let err2 = res.concat_results();
+
+    // there's no point in checking how many dirs it removes
+    // because failed compilation might not leave irs
+    clean_irs(&dir_to_clean, &mut dummy_compiler_output, &mut 0);
+
+    if err1 != err2 {
+        panic!("Inconsistent Errors:\n\n{err1}\n\n{err2}");
+    }
+
+    remove_file(&tmp_file_name).unwrap();
+    drop(lock);
+}
 
 fn assert_same_output(outputs: &Vec<Path>) {
     let bytes = outputs.iter().map(
         |path| read_bytes(path).unwrap()
     ).collect::<Vec<_>>();
 
-    // TODO: do not compare uids -> uids change over compilations
     for (index, byte) in bytes.iter().enumerate() {
         if byte != &bytes[0] {
             panic!(
@@ -154,6 +195,8 @@ fn assert_same_json(files: &Vec<Path>) {
     let jsons = files.iter().map(
         |file| {
             let mut json = json::parse(&read_string(file).unwrap()).unwrap();
+
+            // uids change over compilations
             remove_uids(&mut json);
 
             json
@@ -229,3 +272,4 @@ stage_test!(steps, stage_test3, "./samples/unused_names.sdg");
 // make sure that these files have compile errors
 stage_test!(errors, errors_test1, "./samples/errors/parse_err1.sdg");
 stage_test!(errors, errors_test2, "./samples/errors/name_err1.sdg");
+stage_test!(errors, errors_test3, "./samples/errors/expr_err1.sdg");
