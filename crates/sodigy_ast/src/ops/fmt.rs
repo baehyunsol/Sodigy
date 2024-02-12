@@ -24,7 +24,7 @@ impl fmt::Display for InfixOp {
             InfixOp::ShiftLeft => String::from("<<"),
             InfixOp::As => String::from("as"),
             InfixOp::In => String::from("in"),
-            InfixOp::Index => unreachable!(),  // `a [] 0` doesn't make sense...
+            InfixOp::Index => String::from("[]"),
             InfixOp::Concat => String::from("<>"),
             InfixOp::Range => String::from(".."),
             InfixOp::InclusiveRange => String::from("..~"),

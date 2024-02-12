@@ -311,17 +311,31 @@ impl DumpJson for ExprKind {
                 ("call", func.as_ref().dump_json()),
                 ("arguments", args.dump_json()),
             ]),
+            ExprKind::InfixOp(op, lhs, rhs) => json_key_value_table(vec![
+                ("infix_operator", op.to_string().dump_json()),
+                ("arguments", vec![lhs.dump_json(), rhs.dump_json()].dump_json()),
+            ]),
+            ExprKind::PrefixOp(op, val) => json_key_value_table(vec![
+                ("prefix_operator", op.to_string().dump_json()),
+                ("arguments", vec![val.dump_json()].dump_json()),
+            ]),
+            ExprKind::PostfixOp(op, val) => json_key_value_table(vec![
+                ("postfix_operator", op.to_string().dump_json()),
+                ("arguments", vec![val.dump_json()].dump_json()),
+            ]),
             e @ (ExprKind::List(elements)
-            | ExprKind::Tuple(elements)) => {
-                let name = if matches!(e, ExprKind::List(_)) {
-                    "list"
-                } else {
-                    "tuple"
+            | ExprKind::Tuple(elements)
+            | ExprKind::Format(elements)) => {
+                let name = match e {
+                    ExprKind::List(_) => "list",
+                    ExprKind::Tuple(_) => "tuple",
+                    ExprKind::Format(_) => "formatted_string",
+                    _ => unreachable!(),
                 };
 
                 json_key_value_table(vec![(name, elements.dump_json())])
             },
-            _ => todo!(),
+            e => json_key_value_table(vec![("todo", format!("TODO: dump_json for `{e}` is not implemented yet!").dump_json())]),
         }
     }
 }

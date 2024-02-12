@@ -10,6 +10,7 @@ def main [--depgraph] {
     # 2. it doesn't hurt the entire test time thanks to the incremental compilation
     cargo build
     cargo build --release
+    cargo test nothing  # find compilation errors in test codes
 
     let crates = [
         "ast", "clap", "endec",
