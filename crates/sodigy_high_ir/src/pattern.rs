@@ -1,7 +1,6 @@
 use crate::{HirError, HirSession, HirWarning, Type};
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
-use sodigy_number::SodigyNumber;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
@@ -75,7 +74,7 @@ impl RangeType {
         session: &mut HirSession,
     ) -> Result<Self, ()> {
         match &p.kind {
-            ast::PatternKind::Number { num, .. } => if num.is_integer() {
+            ast::PatternKind::Number(num) => if num.is_integer() {
                 Ok(RangeType::Integer)
             } else {
                 Ok(RangeType::Ratio)
@@ -94,16 +93,10 @@ pub enum NumberLike {
     OpenEnd {
         is_negative: bool,
     },
-    Exact {
-        num: InternedNumeric,
-        is_negative: bool,
-    },
+    Exact(InternedNumeric),
 
     // case of `x` in `..x` when `x` is not an integer
-    MinusEpsilon {
-        num: InternedNumeric,
-        is_negative: bool,
-    },
+    MinusEpsilon(InternedNumeric),
 }
 
 impl NumberLike {
@@ -113,22 +106,16 @@ impl NumberLike {
         inclusive: bool,
     ) -> Result<Self, ()> {
         match &p.kind {
-            ast::PatternKind::Number { num, is_negative } => if inclusive {
-                Ok(NumberLike::Exact { num: *num, is_negative: *is_negative })
+            ast::PatternKind::Number(num) => if inclusive {
+                Ok(NumberLike::Exact(*num))
             } else {
                 if num.is_integer() {
-                    let num = session.unintern_numeric(*num);
-                    let (new_num, is_negative) = SodigyNumber::minus_one(num.unwrap().clone(), *is_negative);
+                    let num = session.unintern_numeric(*num).unwrap();
+                    let new_num = num.minus_one();
 
-                    Ok(NumberLike::Exact {
-                        num: session.intern_numeric(new_num),
-                        is_negative,
-                    })
+                    Ok(NumberLike::Exact(session.intern_numeric(new_num)))
                 } else {
-                    Ok(NumberLike::MinusEpsilon {
-                        num: *num,
-                        is_negative: *is_negative,
-                    })
+                    Ok(NumberLike::MinusEpsilon(*num))
                 }
             },
             ast::PatternKind::Char(c) => {
@@ -143,10 +130,7 @@ impl NumberLike {
                     c -= 1;
                 }
 
-                Ok(NumberLike::Exact {
-                    num: session.intern_numeric(c.into()),
-                    is_negative: false,
-                })
+                Ok(NumberLike::Exact(session.intern_numeric(c.into())))
             },
             _ => {
                 session.push_error(HirError::ty_error(vec![p.span]));
@@ -156,17 +140,12 @@ impl NumberLike {
     }
 
     pub fn zero() -> Self {
-        NumberLike::Exact {
-            num: InternedNumeric::zero(),
-            is_negative: false,
-        }
+        NumberLike::Exact(InternedNumeric::zero())
     }
 
     pub fn try_into_u32(&self, session: &mut InternSession) -> Option<u32> {
         match self {
-            NumberLike::Exact {
-                num, is_negative: false,
-            } => match session.unintern_numeric(*num) {
+            NumberLike::Exact(num) => match session.unintern_numeric(*num) {
                 Some(n) => match u32::try_from(n) {
                     Ok(n) => Some(n),
                     _ => None,
@@ -189,50 +168,34 @@ impl NumberLike {
             },
             (
                 NumberLike::OpenEnd { is_negative },
-                _
+                _,
             ) => !*is_negative,
             (
                 _,
                 NumberLike::OpenEnd { is_negative },
             ) => *is_negative,
             (
-                NumberLike::Exact { num: num1, is_negative: neg1 },
-                NumberLike::Exact { num: num2, is_negative: neg2 },
+                NumberLike::Exact(num1),
+                NumberLike::Exact(num2),
             ) | (
-                NumberLike::MinusEpsilon { num: num1, is_negative: neg1 },
-                NumberLike::MinusEpsilon { num: num2, is_negative: neg2 },
-            ) | (
-                NumberLike::Exact { num: num1, is_negative: neg1 },
-                NumberLike::MinusEpsilon { num: num2, is_negative: neg2 },
-            ) | (
-                NumberLike::MinusEpsilon { num: num1, is_negative: neg1 },
-                NumberLike::Exact { num: num2, is_negative: neg2 },
-            ) => if *neg1 != *neg2 {
-                *neg2
-            }
-
-            // we have to do our best to avoid calling `num1.gt(num2)`
-            else if *num1 == *num2 {
-                let is_exact1 = matches!(self, NumberLike::Exact { .. });
-                let is_exact2 = matches!(other, NumberLike::Exact { .. });
-
-                if is_exact1 == is_exact2 {
-                    true
-                }
-
-                // is_exact1      is_exact2      neg1      neg2      gt
-                //    true          false        true      true     false
-                //    true          false        false     false    true
-                //    false         true         true      true     true
-                //    false         true         false     false    false
-                // gt = is_exact1 ^ neg1
-                else {
-                    is_exact1 ^ *neg1
-                }
-            }
-
-            else {
-                num1.gt(num2) ^ *neg1
+                NumberLike::MinusEpsilon(num1),
+                NumberLike::MinusEpsilon(num2),
+            ) => num1.gt(num2),
+            (
+                NumberLike::Exact(num1),
+                NumberLike::MinusEpsilon(num2),
+            ) => if num1 == num2 {
+                true
+            } else {
+                num1.gt(num2)
+            },
+            (
+                NumberLike::MinusEpsilon(num1),
+                NumberLike::Exact(num2),
+            ) => if num1 == num2 {
+                false
+            } else {
+                num1.gt(num2)
             },
         }
     }

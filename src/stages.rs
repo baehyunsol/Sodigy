@@ -158,7 +158,10 @@ pub fn construct_hir(
                     return (None, compiler_output);
                 },
             },
-            PathOrRawInput::RawInput(_) => String::from("."),
+            PathOrRawInput::RawInput(_) => {
+                // raise an error here, saying 'you cannot use macros in raw inputs'
+                todo!()
+            },
         };
 
         for macro_ in parse_session.unexpanded_macros.iter() {
@@ -529,9 +532,9 @@ pub fn try_construct_session_from_saved_ir<T: Endec>(file: &Path, ext: &str) -> 
     }
 }
 
-// TODO: what if it's compiling a raw input?
+// it doesn't look for the config file if it's compiling a raw input
 fn try_get_macro_definition(base_path: &Path, name: InternedString) -> Result<(), UniversalError> {
-    // reads the contents of `./sodigy.toml`
+    // reads the contents of `./sodigy.json`
     let dependencies = read_string(&join(base_path, DEPENDENCIES_AT)?)?;
 
     // what then?

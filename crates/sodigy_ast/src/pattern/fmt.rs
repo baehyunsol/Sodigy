@@ -134,10 +134,7 @@ impl RenderError for PatternKind {
             ),
             PatternKind::Wildcard => String::from("_"),
             PatternKind::Shorthand => String::from(".."),
-            PatternKind::Number { num, is_negative } => format!(
-                "{}{num}",
-                if *is_negative { "-" } else { "" },
-            ),
+            PatternKind::Number(num) => num.to_string(),
             PatternKind::Range {
                 from, to, inclusive,
                 is_string: _,

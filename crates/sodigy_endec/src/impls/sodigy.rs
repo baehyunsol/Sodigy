@@ -8,9 +8,10 @@ use crate::{
     JsonObj,
 };
 use crate::session::EncodedInternal;
+use hmath::{BigInt, Ratio};
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_keyword::Keyword;
-use sodigy_number::{BigNumber, SodigyNumber};
+use sodigy_number::SodigyNumber;
 
 impl Endec for InternedString {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
@@ -85,17 +86,22 @@ impl Endec for Keyword {
 impl Endec for SodigyNumber {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            SodigyNumber::Big(n) => {
+            SodigyNumber::BigInt(n) => {
                 buffer.push(0);
                 n.encode(buffer, session);
             },
-            SodigyNumber::SmallInt(n) => {
+            SodigyNumber::BigRatio(n) => {
                 buffer.push(1);
                 n.encode(buffer, session);
             },
-            SodigyNumber::SmallRatio(n) => {
+            SodigyNumber::SmallInt(n) => {
                 buffer.push(2);
                 n.encode(buffer, session);
+            },
+            SodigyNumber::SmallRatio { denom, numer } => {
+                buffer.push(3);
+                denom.encode(buffer, session);
+                numer.encode(buffer, session);
             },
         }
     }
@@ -106,10 +112,14 @@ impl Endec for SodigyNumber {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(SodigyNumber::Big(Box::new(BigNumber::decode(buffer, index, session)?))),
-                    1 => Ok(SodigyNumber::SmallInt(u64::decode(buffer, index, session)?)),
-                    2 => Ok(SodigyNumber::SmallRatio(u64::decode(buffer, index, session)?)),
-                    3.. => Err(EndecError::invalid_enum_variant(*n)),
+                    0 => Ok(SodigyNumber::BigInt(Box::new(BigInt::decode(buffer, index, session)?))),
+                    1 => Ok(SodigyNumber::BigRatio(Box::new(Ratio::decode(buffer, index, session)?))),
+                    2 => Ok(SodigyNumber::SmallInt(i64::decode(buffer, index, session)?)),
+                    3 => Ok(SodigyNumber::SmallRatio {
+                        denom: u32::decode(buffer, index, session)?,
+                        numer: i32::decode(buffer, index, session)?,
+                    }),
+                    4.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
@@ -117,19 +127,23 @@ impl Endec for SodigyNumber {
     }
 }
 
-impl Endec for BigNumber {
+impl Endec for BigInt {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
-        self.digits.encode(buffer, session);
-        self.exp.encode(buffer, session);
-        self.is_integer.encode(buffer, session);
+        todo!()
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(BigNumber {
-            digits: Vec::<u8>::decode(buffer, index, session)?,
-            exp: i64::decode(buffer, index, session)?,
-            is_integer: bool::decode(buffer, index, session)?,
-        })
+        todo!()
+    }
+}
+
+impl Endec for Ratio {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        todo!()
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        todo!()
     }
 }
 

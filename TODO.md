@@ -416,3 +416,15 @@ let main(env: World): World = env.exists("./data.txt").map(
 2. 스펙 만드는 거는 쉬움
 3. 구현은 무지 빡셈, 내가 from scratch로 regex 짜는 거는 너무 빡세고 있는 거 갖다 쓰면 덩치가 너무 커짐...
 4. 없어도 큰 불편은 없음... 아직...
+
+---
+
+Sodigy Config file: `./sodigy.json`
+
+1. parse the file using `sodigy_parse`
+2. transform the `Vec<TokenTree>` from 1
+  - It's straightforward because most syntaxes are similar
+  - Plus, all the spans are preserved
+  - Plus, it can throw Sodigy-ish errors
+3. Continue compiling the code using `Vec<TokenTree>` from 2
+4. Use Sodigy interpreter to read the config file

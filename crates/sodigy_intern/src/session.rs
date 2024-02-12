@@ -120,7 +120,7 @@ impl LocalInternSession {
             Some(n) => unsafe { std::mem::transmute::<Option<&SodigyNumber>, Option<&'static SodigyNumber>>(Some(n)) },
             None => unsafe {
                 if let Some(n) = numeric.try_unwrap_small_integer() {
-                    let n = SodigyNumber::SmallInt(n as u64);
+                    let n = SodigyNumber::SmallInt(n as i64);
 
                     self.local_numeric_table.insert(n.clone(), numeric);
                     self.local_numeric_table_rev.insert(numeric, n.clone());

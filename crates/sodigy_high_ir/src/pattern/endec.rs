@@ -89,15 +89,13 @@ impl Endec for NumberLike {
                 buffer.push(0);
                 is_negative.encode(buffer, session);
             },
-            NumberLike::Exact { num, is_negative } => {
+            NumberLike::Exact(num) => {
                 buffer.push(1);
                 num.encode(buffer, session);
-                is_negative.encode(buffer, session);
             },
-            NumberLike::MinusEpsilon { num, is_negative } => {
+            NumberLike::MinusEpsilon(num) => {
                 buffer.push(2);
                 num.encode(buffer, session);
-                is_negative.encode(buffer, session);
             },
         }
     }
@@ -109,14 +107,8 @@ impl Endec for NumberLike {
 
                 match *n {
                     0 => Ok(NumberLike::OpenEnd { is_negative: bool::decode(buffer, index, session)? }),
-                    1 => Ok(NumberLike::Exact {
-                        num: InternedNumeric::decode(buffer, index, session)?,
-                        is_negative: bool::decode(buffer, index, session)?,
-                    }),
-                    2 => Ok(NumberLike::MinusEpsilon {
-                        num: InternedNumeric::decode(buffer, index, session)?,
-                        is_negative: bool::decode(buffer, index, session)?,
-                    }),
+                    1 => Ok(NumberLike::Exact(InternedNumeric::decode(buffer, index, session)?)),
+                    2 => Ok(NumberLike::MinusEpsilon(InternedNumeric::decode(buffer, index, session)?)),
                     3.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },

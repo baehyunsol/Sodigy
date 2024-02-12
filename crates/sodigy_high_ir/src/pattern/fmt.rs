@@ -55,10 +55,7 @@ impl RenderError for NumberLike {
     fn render_error(&self) -> String {
         match self {
             NumberLike::OpenEnd { .. } => todo!(),  // Do we even need this branch?
-            NumberLike::Exact { num, is_negative } => format!(
-                "{}{num}",
-                if *is_negative { "-" } else { "" },
-            ),
+            NumberLike::Exact(num) => num.to_string(),
             NumberLike::MinusEpsilon { .. } => todo!(),  // Do we even need this branch?
         }
     }

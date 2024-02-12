@@ -221,10 +221,7 @@ fn parse_pattern_value(
                 },
                 Punct::Sub => match tokens.expect_number() {
                     Ok((n, span)) => Pattern {
-                        kind: PatternKind::Number {
-                            num: n,
-                            is_negative: true,
-                        },
+                        kind: PatternKind::Number(n.neg()),
                         span: punct_span.merge(span),
                         bind: None,
                         ty: None,
@@ -487,10 +484,7 @@ fn parse_pattern_value(
             kind: TokenKind::Number(n),
             span,
         }) => Pattern {
-            kind: PatternKind::Number {
-                num: *n,
-                is_negative: false,
-            },
+            kind: PatternKind::Number(*n),
             span: *span,
             bind: None,
             ty: None,

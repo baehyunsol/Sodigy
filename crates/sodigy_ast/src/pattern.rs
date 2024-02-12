@@ -176,13 +176,7 @@ impl Pattern {
 #[derive(Clone, Debug)]
 pub enum PatternKind {
     Identifier(InternedString),
-    Number {
-        num: InternedNumeric,
-
-        // all the numbers in expr are positive: `-` is an operator
-        // but in patterns, we need this field because there's no `-` operator
-        is_negative: bool,
-    },
+    Number(InternedNumeric),
     Char(char),
     String {
         content: InternedString,

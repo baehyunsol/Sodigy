@@ -24,6 +24,11 @@ impl InternedNumeric {
         }
     }
 
+    // quite slowish: it has to unintern numerics
+    pub fn neg(&self) -> Self {
+        intern_numeric(unintern_numeric(*self).neg())
+    }
+
     // quite slowish: it has to unintern and intern numerics
     pub fn get_denom_and_numer(&self) -> (InternedNumeric, InternedNumeric) {
         if let Some(n) = self.try_unwrap_small_integer() {

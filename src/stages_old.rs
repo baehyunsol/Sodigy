@@ -1,3 +1,5 @@
+// TODO: remove file when `stages.rs` works perfectly.
+
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
 use log::info;

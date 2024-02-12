@@ -1,4 +1,5 @@
 use crate::token_tree::{TokenTree, TokenTreeKind};
+use hmath::ConversionError;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     ExpectedToken,
@@ -8,7 +9,6 @@ use sodigy_error::{
     SodigyErrorKind,
 };
 use sodigy_intern::InternSession;
-use sodigy_number::NumericParseError;
 use sodigy_span::SpanRange;
 
 mod endec;
@@ -69,7 +69,7 @@ impl ParseError {
         }
     }
 
-    pub fn numeric_parse_error(e: NumericParseError, span: SpanRange) -> Self {
+    pub fn numeric_parse_error(e: ConversionError, span: SpanRange) -> Self {
         ParseError {
             kind: e.into(),
             spans: smallvec![span],
@@ -155,10 +155,10 @@ pub enum ParseErrorKind {
     NumericExpOverflow,
 }
 
-impl From<NumericParseError> for ParseErrorKind {
-    fn from(e: NumericParseError) -> ParseErrorKind {
+impl From<ConversionError> for ParseErrorKind {
+    fn from(e: ConversionError) -> ParseErrorKind {
         match e {
-            NumericParseError::ExpOverflow => ParseErrorKind::NumericExpOverflow,
+            _ => todo!(),
         }
     }
 }

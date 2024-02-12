@@ -38,7 +38,7 @@ pub fn intern_numeric_u32(n: u32) -> InternedNumeric {
     }
 
     else {
-        intern_numeric(SodigyNumber::SmallInt(n as u64))
+        intern_numeric(SodigyNumber::SmallInt(n as i64))
     }
 }
 
@@ -59,7 +59,7 @@ pub fn unintern_string(s: InternedString) -> Vec<u8> {
 /// If you have a local intern_session, you should prefer using that.
 pub fn unintern_numeric(n: InternedNumeric) -> SodigyNumber {
     if let Some(n) = n.try_unwrap_small_integer() {
-        SodigyNumber::SmallInt(n as u64)
+        SodigyNumber::SmallInt(n as i64)
     }
 
     else {

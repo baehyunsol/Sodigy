@@ -371,8 +371,8 @@ fn check_same_type_or_error(
 ) -> Result<(), ()> {
     match (&p1.kind, &p2.kind) {
         (
-            ast::PatternKind::Number { num: n1, .. },
-            ast::PatternKind::Number { num: n2, .. },
+            ast::PatternKind::Number(n1),
+            ast::PatternKind::Number(n2),
         ) if n1.is_integer() == n2.is_integer() => Ok(()),  // valid types
         (
             ast::PatternKind::Char(_),
