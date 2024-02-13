@@ -269,6 +269,7 @@ macro_rules! stage_test {
 stage_test!(steps, stage_test1, "./samples/empty.sdg");
 stage_test!(steps, stage_test2, "./samples/easy.sdg");
 stage_test!(steps, stage_test3, "./samples/unused_names.sdg");
+stage_test!(steps, stage_test4, "./samples/tests/main.sdg");
 
 stage_test!(errors, errors_test1, "./samples/errors/parse_err1.sdg");
 stage_test!(errors, errors_test2, "./samples/errors/name_err1.sdg");

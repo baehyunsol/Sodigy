@@ -52,7 +52,6 @@ impl Endec for ParseErrorKind {
                 buffer.push(9);
                 expected.encode(buffer, session);
             },
-            ParseErrorKind::NumericExpOverflow => { buffer.push(10); },
         }
     }
 
@@ -79,8 +78,7 @@ impl Endec for ParseErrorKind {
                     9 => Ok(ParseErrorKind::UnexpectedEof(
                         ExpectedToken::<TokenTreeKind>::decode(buffer, index, session)?,
                     )),
-                    10 => Ok(ParseErrorKind::NumericExpOverflow),
-                    11.. => Err(EndecError::invalid_enum_variant(*n)),
+                    10.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

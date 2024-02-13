@@ -134,7 +134,6 @@ ErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorErrorError
 \"
 ", "expected a statement, got `\"...\"`");
 
-// TODO: more name collisions
 check_output!(stmt, err, name_collision1, "let foo = 3; module foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
@@ -257,7 +256,7 @@ check_output!(expr, warn, expr_warn_test2, "match x { $x @ $y @ 0 => 1, _ => 2, 
 check_output!(expr, warn, expr_warn_test3, "f\"1234\"", "nothing to evaluate");
 check_output!(expr, warn, expr_warn_test4, "{{5}}", "unnecessary parenthesis");
 check_output!(expr, warn, expr_warn_test5, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
-check_output!(expr, warn, expr_warn_test6, "match x { 0.1..~0.1 => 0, _ => x }", "`1e-1..~1e-1` is just `1e-1`");
+check_output!(expr, warn, expr_warn_test6, "match x { 0.1..~0.1 => 0, _ => x }", "`0.1..~0.1` is just `0.1`");
 check_output!(expr, warn, expr_warn_test7, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");
 check_output!(expr, warn, expr_warn_test8, "{let pattern ($x, $y) = (0, 1); x}", "unused local name binding");
 check_output!(expr, warn, expr_warn_test9, "

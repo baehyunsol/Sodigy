@@ -1,5 +1,4 @@
 use crate::token_tree::{TokenTree, TokenTreeKind};
-use hmath::ConversionError;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     ExpectedToken,
@@ -64,14 +63,6 @@ impl ParseError {
     pub fn lonely_backslash(span: SpanRange) -> Self {
         ParseError {
             kind: ParseErrorKind::LonelyBackslash,
-            spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
-        }
-    }
-
-    pub fn numeric_parse_error(e: ConversionError, span: SpanRange) -> Self {
-        ParseError {
-            kind: e.into(),
             spans: smallvec![span],
             extra: ExtraErrInfo::none(),
         }
@@ -148,19 +139,6 @@ pub enum ParseErrorKind {
     LonelyBackslash,
     UnexpectedToken(TokenTreeKind, ExpectedToken<TokenTreeKind>),
     UnexpectedEof(ExpectedToken<TokenTreeKind>),
-
-    // when an exp of a numeric literal is too big
-    // e.g. `1.2e10000000000000000000000000`
-    // exp should be a valid i64
-    NumericExpOverflow,
-}
-
-impl From<ConversionError> for ParseErrorKind {
-    fn from(e: ConversionError) -> ParseErrorKind {
-        match e {
-            _ => todo!(),
-        }
-    }
 }
 
 impl SodigyErrorKind for ParseErrorKind {
@@ -170,7 +148,6 @@ impl SodigyErrorKind for ParseErrorKind {
             ParseErrorKind::MismatchDelim(d) => format!("unexpected character `{}`", *d as char),
             ParseErrorKind::EmptyFString => "empty format-string".to_string(),
             ParseErrorKind::ThreeDots => "invalid literal: `...`".to_string(),
-            ParseErrorKind::NumericExpOverflow => "too large numeric literal".to_string(),
             ParseErrorKind::LonelyBacktick => "field modifier without a field name".to_string(),
             ParseErrorKind::LonelyBackslash => "unexpected character `\\`".to_string(),
             ParseErrorKind::FStringSingleQuote => "format-string with single quotes".to_string(),
@@ -188,8 +165,6 @@ impl SodigyErrorKind for ParseErrorKind {
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
-            ParseErrorKind::NumericExpOverflow => "Though Sodigy allows infinite-size integers, \
-it uses 64-bit integer for its exponent. That means `123e100000` is okay, but `123e9223372036854775808` is not.".to_string(),
             ParseErrorKind::EmptyFString => "Remove the curly braces or fill it with a value.".to_string(),
             ParseErrorKind::ThreeDots => "If you are to make a range of decimal-pointed numbers, use parenthesis. \
 For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
@@ -220,9 +195,8 @@ For example, use `(3.)..4.` instead of `3...4.`.".to_string(),
             ParseErrorKind::ThreeDots => 5,
             ParseErrorKind::LonelyBacktick => 6,
             ParseErrorKind::LonelyBackslash => 7,
-            ParseErrorKind::NumericExpOverflow => 8,
-            ParseErrorKind::UnexpectedToken(_, _) => 9,
-            ParseErrorKind::UnexpectedEof(_) => 10,
+            ParseErrorKind::UnexpectedToken(_, _) => 8,
+            ParseErrorKind::UnexpectedEof(_) => 9,
         }
     }
 }

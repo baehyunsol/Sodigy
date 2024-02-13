@@ -129,21 +129,37 @@ impl Endec for SodigyNumber {
 
 impl Endec for BigInt {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
-        todo!()
+        let (raw, sign) = self.clone().into_raw();
+
+        raw.encode(buffer, session);
+        sign.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        todo!()
+        Ok(BigInt::from_raw(
+            Vec::<u32>::decode(buffer, index, session)?,
+            bool::decode(buffer, index, session)?,
+        ))
     }
 }
 
 impl Endec for Ratio {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
-        todo!()
+        let (denom, denom_neg, numer, numer_neg) = self.clone().into_raw();
+
+        denom.encode(buffer, session);
+        denom_neg.encode(buffer, session);
+        numer.encode(buffer, session);
+        numer_neg.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        todo!()
+        Ok(Ratio::from_raw(
+            Vec::<u32>::decode(buffer, index, session)?,
+            bool::decode(buffer, index, session)?,
+            Vec::<u32>::decode(buffer, index, session)?,
+            bool::decode(buffer, index, session)?,
+        ))
     }
 }
 

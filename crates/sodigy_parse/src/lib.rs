@@ -207,22 +207,12 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                     _ => unreachable!(),
                 },
                 TokenKind::Number(lit) => {
-                    match SodigyNumber::from_string(lit) {
-                        Ok(numeric) => {
-                            let interned_numeric = session.intern_numeric(numeric);
+                    let interned_numeric = session.intern_numeric(SodigyNumber::from_string(lit));
 
-                            session.push_result(TokenTree {
-                                kind: TokenTreeKind::Number(interned_numeric),
-                                span: token.span,
-                            });
-                        },
-                        Err(e) => {
-                            session.push_error(ParseError::numeric_parse_error(e, token.span));
-
-                            // let's parse further to find more errors!
-                            // return Err(());
-                        }
-                    }
+                    session.push_result(TokenTree {
+                        kind: TokenTreeKind::Number(interned_numeric),
+                        span: token.span,
+                    });
                 },
                 TokenKind::Identifier(id) => {
                     let short_string = id.try_unwrap_short_string();

@@ -1,6 +1,6 @@
 #![deny(unused_imports)]
 
-use hmath::{ConversionError, BigInt, Ratio};
+use hmath::{BigInt, Ratio};
 
 mod fmt;
 
@@ -31,19 +31,19 @@ impl SodigyNumber {
     }
 
     // `s` is guaranteed to be a valid, decimal number. `s` may contain `e` or a decimal separator.
-    pub fn from_string(s: &[u8]) -> Result<Self, ConversionError> {
+    pub fn from_string(s: &[u8]) -> Self {
         let s = String::from_utf8(s.to_vec()).unwrap();
 
         if let Ok(n) = s.parse::<i64>() {
-            Ok(SodigyNumber::SmallInt(n))
+            SodigyNumber::SmallInt(n)
         }
 
         else if let Ok(n) = BigInt::from_string(&s) {
-            Ok(SodigyNumber::BigInt(Box::new(n)))
+            SodigyNumber::BigInt(Box::new(n))
         }
 
         else {
-            let n = Ratio::from_string(&s)?;
+            let n = Ratio::from_string(&s).unwrap();
 
             // As far as i know, this is the only way to check the size
             // of denom and numer without cloning it
@@ -55,37 +55,37 @@ impl SodigyNumber {
                     let numer_i64 = -(numer[0] as i64);
 
                     if let Ok(numer) = i32::try_from(numer_i64) {
-                        Ok(SodigyNumber::SmallRatio {
+                        SodigyNumber::SmallRatio {
                             denom: denom[0],
                             numer,
-                        })
+                        }
                     }
 
                     else {
-                        Ok(SodigyNumber::BigRatio(
+                        SodigyNumber::BigRatio(
                             Box::new(Ratio::from_raw(denom, denom_neg, numer, numer_neg))
-                        ))
+                        )
                     }
                 }
 
                 else if let Ok(numer) = i32::try_from(numer[0]) {
-                    Ok(SodigyNumber::SmallRatio {
+                    SodigyNumber::SmallRatio {
                         denom: denom[0],
                         numer,
-                    })
+                    }
                 }
 
                 else {
-                    Ok(SodigyNumber::BigRatio(
+                    SodigyNumber::BigRatio(
                         Box::new(Ratio::from_raw(denom, denom_neg, numer, numer_neg))
-                    ))
+                    )
                 }
             }
 
             else {
-                Ok(SodigyNumber::BigRatio(
+                SodigyNumber::BigRatio(
                     Box::new(Ratio::from_raw(denom, denom_neg, numer, numer_neg))
-                ))
+                )
             }
         }
     }
@@ -164,11 +164,43 @@ impl SodigyNumber {
     }
 
     pub fn gt(&self, other: &Self) -> bool {
-        todo!()
+        match (self, other) {
+            (SodigyNumber::BigInt(m), SodigyNumber::BigInt(n)) => m.gt(n),
+            (SodigyNumber::BigRatio(m), SodigyNumber::BigRatio(n)) => m.gt(n),
+            (SodigyNumber::SmallInt(m), SodigyNumber::SmallInt(n)) => *m > *n,
+            (
+                SodigyNumber::SmallRatio { denom: denom1, numer: numer1 },
+                SodigyNumber::SmallRatio { denom: denom2, numer: numer2 },
+            ) => {
+                // n1 / d1 > n2 / d2 -> n1 * d2 > n2 * d1
+
+                *numer1 as i64 * *denom2 as i64 > *numer2 as i64 * *denom1 as i64
+            },
+            _ => todo!(),
+        }
     }
 
     pub fn neg(&self) -> Self {
-        todo!()
+        match self {
+            SodigyNumber::BigInt(n) => SodigyNumber::BigInt(Box::new(n.neg())),
+            SodigyNumber::BigRatio(n) => SodigyNumber::BigRatio(Box::new(n.neg())),
+            SodigyNumber::SmallInt(n) => match n.checked_neg() {
+                Some(n) => SodigyNumber::SmallInt(n),
+                None => SodigyNumber::BigInt(Box::new(
+                    BigInt::from(*n).neg()
+                )),
+            },
+            SodigyNumber::SmallRatio { denom, numer } => match numer.checked_neg() {
+                Some(numer) => SodigyNumber::SmallRatio {
+                    denom: *denom,
+                    numer,
+                },
+                None => SodigyNumber::BigRatio(Box::new(Ratio::from_denom_and_numer(
+                    BigInt::from(*denom),
+                    BigInt::from(*numer).neg(),
+                )))
+            }
+        }
     }
 }
 

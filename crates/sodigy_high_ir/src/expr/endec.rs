@@ -335,7 +335,19 @@ impl DumpJson for ExprKind {
 
                 json_key_value_table(vec![(name, elements.dump_json())])
             },
+            ExprKind::Branch(Branch { arms }) => json_key_value_table(vec![
+                ("arms", arms.dump_json()),
+            ]),
             e => json_key_value_table(vec![("todo", format!("TODO: dump_json for `{e}` is not implemented yet!").dump_json())]),
         }
+    }
+}
+
+impl DumpJson for BranchArm {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("condition", self.cond.dump_json()),
+            ("value", self.value.dump_json()),
+        ])
     }
 }
