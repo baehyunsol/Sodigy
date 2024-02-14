@@ -8,6 +8,7 @@ mod endec;
 mod error;
 mod expr;
 mod fmt;
+mod json;
 mod let_;
 mod ops;
 mod parse;

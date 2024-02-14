@@ -419,16 +419,4 @@ let main(env: World): World = env.exists("./data.txt").map(
 
 ---
 
-Sodigy Config file: `./sodigy.json`
-
-1. parse the file using `sodigy_parse`
-2. transform the `Vec<TokenTree>` from 1
-  - It's straightforward because most syntaxes are similar
-  - Plus, all the spans are preserved
-  - Plus, it can throw Sodigy-ish errors
-3. Continue compiling the code using `Vec<TokenTree>` from 2
-4. Use Sodigy interpreter to read the config file
-
----
-
 `./sodigy`, which is compiled in release mode still emits logs if `RUST_LOG` is set. that means there're still overhead in the release mode...

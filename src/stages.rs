@@ -149,6 +149,7 @@ pub fn construct_hir(
     if !parse_session.unexpanded_macros.is_empty() {
         let mut macro_definitions = HashMap::with_capacity(parse_session.unexpanded_macros.len());
         let base_path = match &input {
+            // TODO: if it's reading a json file, it has to reject all kinds of macros
             PathOrRawInput::Path(p) => match parent(p) {
                 Ok(p) => p,
                 Err(e) => {
@@ -189,6 +190,8 @@ pub fn construct_hir(
         compiler_output.collect_errors_and_warnings_from_session(&parse_session);
         return (None, compiler_output);
     }
+
+    // TODO: if it's reading a json file, the conversion func must be called at here
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
     ast_session.merge_errors_and_warnings(&new_lex_session);
@@ -544,6 +547,10 @@ fn try_get_macro_definition(base_path: &Path, name: InternedString) -> Result<()
     let dependencies = read_string(&join(base_path, DEPENDENCIES_AT)?)?;
 
     // what then?
+
+    // TODO: more idea on config files
+    // 1. now that the compiler can interpret config files,
+    // 2. interpret config files and store them at a global cache
 
     todo!()
 }

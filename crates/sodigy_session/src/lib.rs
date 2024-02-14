@@ -22,6 +22,8 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
 
     fn has_error(&self) -> bool {
         !self.get_errors().is_empty()
+
+        // TODO: how about `previous_errors`?
     }
 
     fn clear_errors(&mut self) {
