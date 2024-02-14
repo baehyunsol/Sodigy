@@ -428,3 +428,7 @@ Sodigy Config file: `./sodigy.json`
   - Plus, it can throw Sodigy-ish errors
 3. Continue compiling the code using `Vec<TokenTree>` from 2
 4. Use Sodigy interpreter to read the config file
+
+---
+
+`./sodigy`, which is compiled in release mode still emits logs if `RUST_LOG` is set. that means there're still overhead in the release mode...

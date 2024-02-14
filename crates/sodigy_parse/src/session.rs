@@ -10,7 +10,7 @@ use sodigy_session::{
     SodigySession,
 };
 use sodigy_span::SpanRange;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 mod endec;
 
@@ -27,7 +27,8 @@ pub struct ParseSession {
 
     // names of unexpanded macros
     // parse_session will look for the definitions of these macros later
-    pub unexpanded_macros: HashSet<InternedString>,
+    // its span points to its name and the square brackets
+    pub unexpanded_macros: HashMap<InternedString, SpanRange>,
 }
 
 impl ParseSession {
@@ -38,7 +39,7 @@ impl ParseSession {
             warnings: vec![],
             interner: s.get_interner_cloned(),
             snapshots: vec![],
-            unexpanded_macros: HashSet::new(),
+            unexpanded_macros: HashMap::new(),
             dependencies: s.get_dependencies().clone(),
             previous_errors: s.get_all_errors_and_warnings(),
         }
@@ -122,7 +123,7 @@ impl ParseSession {
                                         },
                                         span,
                                     });
-                                    self.unexpanded_macros.insert(name);
+                                    self.unexpanded_macros.insert(name, parent_span);
                                 }
                             },
                             Err(e) => {

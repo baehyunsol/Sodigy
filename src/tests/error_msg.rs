@@ -242,6 +242,8 @@ check_output!(expr, err, errors_with_macros3, "@[abc]", "expected `(");
 // TODO
 // check_output!(expr, err, logical_and_to_ifs, "if True || 3 { 0 } else { 1 }", "TODO: emit a nice type error");
 
+check_output!(expr, err, no_macro_in_raw_input, "@[abc]()", "macros not allowed");
+
 // warnings for stmts
 check_output!(stmt, warn, stmt_warn_test1, "let foo(x: Int, y: Int, z: Int): Int = x + y;", "unused function argument: `z`");
 check_output!(stmt, warn, stmt_warn_test2, "let foo<T>(x: Int, y: Int): Int = x + y;", "unused generic: `T`");

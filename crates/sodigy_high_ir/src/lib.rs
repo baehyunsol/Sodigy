@@ -300,7 +300,6 @@ pub fn lower_stmts(
         }
     }
 
-    // TODO: order of items in `imports` is not consistent -> it generates different hir dump
     for (name, (span, _)) in imports.iter() {
         if !used_names.contains(&IdentWithOrigin::new(*name, NameOrigin::Global { origin: None })) {
             session.push_warning(HirWarning::unused_name(
@@ -309,6 +308,12 @@ pub fn lower_stmts(
             ));
         }
     }
+
+    // order of the elements of `imports.iter()` is not consistent -> it has to be sorted
+    session.sort_errors_and_warnings();
+
+    // another issue with order here: it also has to be sorted
+    session.imported_names.sort_by_key(|idws| *idws.span());
 
     session.err_if_has_err()
 }

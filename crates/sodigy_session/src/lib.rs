@@ -4,6 +4,7 @@ use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
 use sodigy_files::last_modified;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
+use sodigy_span::SpanRange;
 
 mod endec;
 
@@ -54,6 +55,12 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
 
     fn clear_warnings(&mut self) {
         self.get_warnings_mut().clear();
+    }
+
+    // make sure to sort errors and warnings before dumping to json
+    fn sort_errors_and_warnings(&mut self) {
+        self.get_errors_mut().sort_by_key(|error| error.get_first_span().unwrap_or_else(|| SpanRange::dummy(0xb044289b)));
+        self.get_warnings_mut().sort_by_key(|warning| warning.get_first_span().unwrap_or_else(|| SpanRange::dummy(0x73c3d8aa)));
     }
 
     // sessions also store errors and warnings from previous sessions

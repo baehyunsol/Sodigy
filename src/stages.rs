@@ -37,7 +37,7 @@ use sodigy_lex::{lex, LexSession};
 use sodigy_mid_ir::{MirError, MirSession};
 use sodigy_parse::{from_tokens, ParseSession};
 use sodigy_session::{SessionDependency, SodigySession};
-use sodigy_span::SpanPoint;
+use sodigy_span::{SpanPoint, SpanRange};
 use std::collections::{HashMap, HashSet};
 
 type Path = String;
@@ -159,12 +159,18 @@ pub fn construct_hir(
                 },
             },
             PathOrRawInput::RawInput(_) => {
-                // raise an error here, saying 'you cannot use macros in raw inputs'
-                todo!()
+                compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
+                compiler_output.collect_errors_and_warnings_from_session(&parse_session);
+
+                for macro_span in parse_session.unexpanded_macros.values() {
+                    compiler_output.push_error(no_macro_in_raw_input(*macro_span));
+                }
+
+                return (None, compiler_output);
             },
         };
 
-        for macro_ in parse_session.unexpanded_macros.iter() {
+        for macro_ in parse_session.unexpanded_macros.keys() {
             match try_get_macro_definition(&base_path, *macro_) {
                 Ok(m) => {
                     macro_definitions.insert(*macro_, m);
@@ -630,5 +636,16 @@ fn ignored_dump_warning(path: &Path, flag: Flag, cached_ext: &str) -> UniversalE
             flag.render_error(),
         ),
         format!("Since it's reading cached data of `{cached_ext}`, it writes nothing to `{path}`.\nIf you want to dump something, run `sodigy --clean` and try again."),
+    )
+}
+
+fn no_macro_in_raw_input(span: SpanRange) -> UniversalError {
+    UniversalError::new(
+        ErrorContext::Unknown,
+        false,  // is_warning
+        true,   // show_span
+        Some(span),  // span
+        String::from("macros not allowed in raw input"),
+        String::new(),
     )
 }

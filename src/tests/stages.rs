@@ -1,8 +1,9 @@
-use crate::{CompilerOutput, clean_irs, run};
+use crate::{CompilerOutput, SAVE_IRS_AT, clean_irs, run};
 use json::JsonValue;
 use sodigy_clap::{CompilerOption, CompilerOutputFormat};
 use sodigy_files::{
     create_dir,
+    exists,
     join,
     parent,
     read_bytes,
@@ -176,6 +177,37 @@ fn test_runner2(path: &str) {
     drop(lock);
 }
 
+// when `--output` is None, `--stop-at` is None, and `--save-ir` is true,
+// it check if it saves ir and creates no output files
+fn test_runner3(path: &str) {
+    let lock = unsafe { LOCK.lock().unwrap() };
+
+    let mut dummy_compiler_output = CompilerOutput::new();
+    let dir_to_clean = parent(path).unwrap();
+    clean_irs(&dir_to_clean, &mut dummy_compiler_output, &mut 0);
+
+    assert!(!exists(&join(&dir_to_clean, SAVE_IRS_AT).unwrap()));
+
+    let compile_option = CompilerOption {
+        input_file: Some(path.to_string()),
+        do_not_compile_and_do_this: None,
+        show_warnings: true,
+        output: CompilerOutputFormat::None,
+        save_ir: true,
+        dump_hir_to: None,
+        dump_mir_to: None,
+        ..CompilerOption::default()
+    };
+
+    run(compile_option);
+    assert!(exists(&join(&dir_to_clean, SAVE_IRS_AT).unwrap()));
+
+    let mut clean_count = 0;
+    clean_irs(&dir_to_clean, &mut dummy_compiler_output, &mut clean_count);
+
+    assert_eq!(clean_count, 1);
+}
+
 fn assert_same_output(outputs: &Vec<Path>) {
     let bytes = outputs.iter().map(
         |path| read_bytes(path).unwrap()
@@ -243,18 +275,17 @@ fn remove_uids(json: &mut JsonValue) {
     }
 }
 
-// TODO: another test
-// set `--output` to None, `--stop-at` to None, and `--save-ir` to true
-// check if it saves ir and creates no output files
-
 macro_rules! stage_test {
+    // sodigy files that successfully compile
     (steps, $test_name: ident, $path: expr) => {
         #[test]
         fn $test_name() {
             test_runner1($path);
+            test_runner3($path);
         }
     };
 
+    // sodigy files that leave errors or warnings
     (errors, $test_name: ident, $path: expr) => {
         #[test]
         fn $test_name() {
@@ -265,7 +296,6 @@ macro_rules! stage_test {
 
 // TODO: use `join` functions
 
-// make sure that these files have no compile errors
 stage_test!(steps, stage_test1, "./samples/empty.sdg");
 stage_test!(steps, stage_test2, "./samples/easy.sdg");
 stage_test!(steps, stage_test3, "./samples/unused_names.sdg");

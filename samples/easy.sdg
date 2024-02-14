@@ -23,3 +23,6 @@ let ackermann_test = [
 ];
 
 #let table = @[table]("1": 2, "3": 4);
+
+let fibonacci(n: Int): Int = if n < 2 { 0 } else { fibonacci(n - 1) + fibonacci(n - 2) };
+let factorial(n: Int): Int = if n < 2 { 1 } else { factorial(n - 1) * n };
