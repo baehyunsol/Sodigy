@@ -2,6 +2,7 @@ use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
 use log::info;
 use sodigy_ast::{
+    parse_config_file,
     parse_stmts,
     AstSession,
     IdentWithSpan,
@@ -12,6 +13,7 @@ use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
 use sodigy_error::{
     ErrorContext,
     RenderError,
+    SodigyError,
     UniversalError,
 };
 use sodigy_files::{
@@ -149,8 +151,7 @@ pub fn construct_hir(
     if !parse_session.unexpanded_macros.is_empty() {
         let mut macro_definitions = HashMap::with_capacity(parse_session.unexpanded_macros.len());
         let base_path = match &input {
-            // TODO: if it's reading a json file, it has to reject all kinds of macros
-            PathOrRawInput::Path(p) => match parent(p) {
+            PathOrRawInput::Path(p) if !compiler_option.parse_config_file => match parent(p) {
                 Ok(p) => p,
                 Err(e) => {
                     compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
@@ -159,7 +160,7 @@ pub fn construct_hir(
                     return (None, compiler_output);
                 },
             },
-            PathOrRawInput::RawInput(_) => {
+            _ => {
                 compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
                 compiler_output.collect_errors_and_warnings_from_session(&parse_session);
 
@@ -191,7 +192,23 @@ pub fn construct_hir(
         return (None, compiler_output);
     }
 
-    // TODO: if it's reading a json file, the conversion func must be called at here
+    if compiler_option.parse_config_file {
+        match parse_config_file(parse_session.get_results()) {
+            Ok(new_tokens) => {
+                *parse_session.get_results_mut() = new_tokens;
+            },
+            Err(errors) => {
+                compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
+                compiler_output.collect_errors_and_warnings_from_session(&parse_session);
+
+                for error in errors.into_iter() {
+                    compiler_output.push_error(error.to_universal());
+                }
+
+                return (None, compiler_output);
+            },
+        }
+    }
 
     let mut ast_session = AstSession::from_parse_session(&parse_session);
     ast_session.merge_errors_and_warnings(&new_lex_session);

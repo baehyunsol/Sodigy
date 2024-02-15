@@ -1167,7 +1167,7 @@ fn parse_scope_block(
         let curr_token = tokens.peek().unwrap();
         let mut e = AstError::unexpected_token(
             curr_token.clone(),
-            ExpectedToken::Nothing,
+            ExpectedToken::nothing(),
         );
 
         if curr_token.kind == TokenKind::semi_colon() {

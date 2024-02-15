@@ -73,27 +73,21 @@ impl RenderError for TokenTreeKind {
             | TokenTreeKind::Keyword(_)
             | TokenTreeKind::Number(_)
             | TokenTreeKind::Punct(_) => self.to_string(),
-            TokenTreeKind::Group { delim, prefix, .. } => format!(
-                "{}",
-                TokenTreeKind::Group {
-                    delim: *delim,
-                    prefix: *prefix,
-                    tokens: vec![
-                        TokenTree::new_ident(
-                            try_intern_short_string(b"...").unwrap(),
-                            SpanRange::dummy(0x368421a5),
-                        ),
-                    ],
-                }
-            ),
-            TokenTreeKind::String { kind, is_binary, .. } => format!(
-                "{}",
-                TokenTreeKind::String {
-                    kind: *kind,
-                    is_binary: *is_binary,
-                    content: try_intern_short_string(b"...").unwrap(),
-                },
-            ),
+            TokenTreeKind::Group { delim, prefix, .. } => TokenTreeKind::Group {
+                delim: *delim,
+                prefix: *prefix,
+                tokens: vec![
+                    TokenTree::new_ident(
+                        try_intern_short_string(b"...").unwrap(),
+                        SpanRange::dummy(0x368421a5),
+                    ),
+                ],
+            }.to_string(),
+            TokenTreeKind::String { kind, is_binary, .. } => TokenTreeKind::String {
+                kind: *kind,
+                is_binary: *is_binary,
+                content: try_intern_short_string(b"...").unwrap(),
+            }.to_string(),
             TokenTreeKind::FormattedString(_) => String::from("f\"...\""),
             TokenTreeKind::DocComment(_) => String::from("#> ..."),
             TokenTreeKind::Macro { name, .. } => format!("@[{name}](...)"),

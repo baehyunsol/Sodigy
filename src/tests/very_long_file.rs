@@ -77,6 +77,7 @@ fn very_long_file() {
         dependencies: HashMap::new(),
         verbosity: 0,
         raw_input: None,
+        parse_config_file: false,
     });
 
     if res.has_error() {

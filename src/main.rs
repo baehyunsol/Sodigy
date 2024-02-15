@@ -16,6 +16,7 @@ fn main() {
     debug!("std::env::set_var{:?}: RUST_BACKTRACE = FULL", std::env::set_var("RUST_BACKTRACE", "FULL"));
 
     let clap_result = parse_cli_args();
+    let mut has_error = false;
     let mut compiler_output = CompilerOutput::new();
 
     for warning in clap_result.get_warnings().iter() {
@@ -30,6 +31,7 @@ fn main() {
 
     if clap_result.has_error() {
         println!("{}", compiler_output.concat_results());
+        has_error = true;
     }
 
     else {
@@ -37,7 +39,13 @@ fn main() {
         compiler_output.merge(compiler_output_);
 
         println!("{}", compiler_output.concat_results());
+
+        if compiler_output.has_error() {
+            has_error = true;
+        }
     }
 
-    // TODO: return 1 if there's an error
+    if has_error {
+        std::process::exit(1);
+    }
 }

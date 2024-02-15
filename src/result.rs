@@ -151,7 +151,7 @@ impl CompilerOutput {
 
         if self.show_overall_result {
             let overall = format!(
-                "had {} error{} and {} warning{} in total",
+                "Complete: had {} error{} and {} warning{} in total",
                 self.errors.len(),
                 if self.errors.len() < 2 { "" } else { "s" },
                 self.warnings.len(),

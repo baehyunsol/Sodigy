@@ -302,6 +302,7 @@ pub fn parse_cli_args() -> ClapSession {
             dependencies: HashMap::new(),
             verbosity: verbosity.unwrap_or(1),
             raw_input,
+            parse_config_file: false,
         };
 
         let res = ClapSession {
@@ -343,6 +344,9 @@ pub struct CompilerOption {
     // It has to be `Vec<u8>` because the test code has to run
     // invalid utf-8 strings.
     pub raw_input: Option<Vec<u8>>,
+
+    // users cannot set this flag manually
+    pub parse_config_file: bool,
 }
 
 impl CompilerOption {
@@ -390,6 +394,7 @@ impl Default for CompilerOption {
             dependencies: HashMap::new(),
             verbosity: 1,
             raw_input: None,
+            parse_config_file: false,
         }
     }
 }
