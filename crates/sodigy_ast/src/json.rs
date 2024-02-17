@@ -29,10 +29,15 @@
 
 use crate::{Token, TokenKind};
 use crate::error::AstError;
-use sodigy_error::ExpectedToken;
-use sodigy_intern::try_intern_short_string;
+use crate::parse::parse_expr;
+use crate::session::AstSession;
+use crate::tokens::Tokens;
+use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
+use sodigy_intern::{intern_string, try_intern_short_string};
+use sodigy_keyword::Keyword;
 use sodigy_lex::QuoteKind;
 use sodigy_parse::{Delim, Punct};
+use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 
 enum ParseState {
@@ -42,7 +47,7 @@ enum ParseState {
     ExpectTopLevelComma,
 }
 
-pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError>> {
+pub fn parse_config_file(tokens: &Vec<Token>, ast_session: &mut AstSession) -> Result<Vec<Token>, ()> {
     match tokens.get(0) {
         Some(Token {
             kind: TokenKind::Group {
@@ -52,17 +57,20 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
             },
             span,
         }) => {
-            let mut result = vec![
-                // TODO
-                // Keyword("let"),
-                // Ident("config"),
-                // Punct("="),
-                // Ident("SodigyConfig"),
-                // Punct("."),
-                // Ident("base"),
-                // Group { delim: Paren, tokens: [] },
-            ];
-            let mut errors = vec![];
+            let mut result: Vec<Token> = vec![
+                TokenKind::Keyword(Keyword::Let),
+                TokenKind::Identifier(intern_string(b"config".to_vec())),
+                TokenKind::Punct(Punct::Assign),
+                TokenKind::Identifier(intern_string(b"SodigyConfig".to_vec())),
+                TokenKind::Punct(Punct::Dot),
+                TokenKind::Identifier(intern_string(b"base".to_vec())),
+                TokenKind::Group { delim: Delim::Paren, prefix: b'\0', tokens: vec![] },
+            ].into_iter().map(
+                |token_kind| Token {
+                    kind: token_kind,
+                    span: SpanRange::dummy(0xc1cc089d),
+                }
+            ).collect();
             let mut curr_parse_state = ParseState::ExpectTopLevelKey;
             let mut last_token_span = *span;
 
@@ -84,7 +92,7 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                             curr_parse_state = ParseState::ExpectTopLevelColon;
                         },
                         _ => {
-                            errors.push(AstError::unexpected_token(
+                            ast_session.push_error(AstError::unexpected_token(
                                 token.clone(),
                                 ExpectedToken::specific(TokenKind::String {
                                     kind: QuoteKind::Double,
@@ -92,7 +100,7 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                                     is_binary: false,
                                 }),
                             ));
-                            break;
+                            return Err(());
                         },
                     },
                     ParseState::ExpectTopLevelColon => match &token.kind {
@@ -100,11 +108,11 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                             curr_parse_state = ParseState::ExpectTopLevelValue;
                         },
                         _ => {
-                            errors.push(AstError::unexpected_token(
+                            ast_session.push_error(AstError::unexpected_token(
                                 token.clone(),
                                 ExpectedToken::specific(TokenKind::Punct(Punct::Colon)),
                             ));
-                            break;
+                            return Err(());
                         },
                     },
                     ParseState::ExpectTopLevelValue => match &token.kind {
@@ -112,7 +120,7 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                             delim: Delim::Brace,
                             prefix: b'\0',
                             tokens: inner_tokens,
-                        } => match parse_top_level_value(inner_tokens) {
+                        } => match parse_top_level_value(inner_tokens, ast_session) {
                             Ok(tokens) => {
                                 result.push(Token {
                                     kind: TokenKind::Group {
@@ -125,16 +133,12 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
 
                                 curr_parse_state = ParseState::ExpectTopLevelComma;
                             },
-                            Err(errors_res) => {
-                                for error in errors_res.into_iter() {
-                                    errors.push(error);
-                                }
-
-                                break;
+                            Err(_) => {
+                                return Err(());
                             },
                         },
                         _ => {
-                            errors.push(AstError::unexpected_token(
+                            ast_session.push_error(AstError::unexpected_token(
                                 token.clone(),
                                 ExpectedToken::specific(TokenKind::Group {
                                     delim: Delim::Brace,
@@ -142,19 +146,19 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                                     tokens: vec![],
                                 }),
                             ));
-                            break;
+                            return Err(());
                         },
                     },
                     ParseState::ExpectTopLevelComma => match &token.kind {
                         TokenKind::Punct(Punct::Comma) => {
-                            curr_parse_state = ParseState::ExpectTopLevelValue;
+                            curr_parse_state = ParseState::ExpectTopLevelKey;
                         },
                         _ => {
-                            errors.push(AstError::unexpected_token(
+                            ast_session.push_error(AstError::unexpected_token(
                                 token.clone(),
                                 ExpectedToken::specific(TokenKind::Punct(Punct::Comma)),
                             ));
-                            break;
+                            return Err(());
                         },
                     },
                 }
@@ -162,13 +166,13 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
 
             match curr_parse_state {
                 ParseState::ExpectTopLevelColon => {
-                    errors.push(AstError::unexpected_end(
+                    ast_session.push_error(AstError::unexpected_end(
                         last_token_span,
                         ExpectedToken::specific(TokenKind::Punct(Punct::Colon)),
                     ));
                 },
                 ParseState::ExpectTopLevelValue => {
-                    errors.push(AstError::unexpected_end(
+                    ast_session.push_error(AstError::unexpected_end(
                         last_token_span,
                         ExpectedToken::specific(TokenKind::Group {
                             delim: Delim::Brace,
@@ -183,72 +187,144 @@ pub fn parse_config_file(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError
                 },
             }
 
-            // result.push(Punct(";"));
+            result.push(Token {
+                kind: TokenKind::Punct(Punct::SemiColon),
+                span: SpanRange::dummy(0x7e024c88),
+            });
 
             if tokens.len() > 1 {
-                errors.push(AstError::unexpected_token(
+                ast_session.push_error(AstError::unexpected_token(
                     tokens[1].clone(),
                     ExpectedToken::nothing(),
                 ));
             }
 
-            if errors.is_empty() {
+            // it assumes that the session doesn't have any error initially
+            if !ast_session.has_error() {
                 Ok(result)
             }
 
             else {
-                Err(errors)
+                Err(())
             }
         },
-        Some(token) => Err(vec![
-            AstError::unexpected_token(
+        Some(token) => {
+            ast_session.push_error(AstError::unexpected_token(
                 token.clone(),
                 ExpectedToken::specific(TokenKind::Group {
                     delim: Delim::Brace,
                     prefix: b'\0',
                     tokens: vec![],
                 }),
-            ),
-        ]),
-        None => Err(vec![
-            AstError::unexpected_end(
+            ));
+
+            Err(())
+        },
+        None => {
+            ast_session.push_error(AstError::unexpected_end(
                 SpanRange::dummy(0x3107cc6a),  // TODO: I want it to point to the config file
                 ExpectedToken::Specific(vec![TokenKind::Group {
                     delim: Delim::Brace,
                     prefix: b'\0',
                     tokens: vec![],
                 }]),
-            ),
-        ]),
-    }
-}
+            ));
 
-enum InnerParseState {
-    ExpectKey,
-    ExpectColon,
+            Err(())
+        }
+    }
 }
 
 // `"foo": "path/to/foo", "bar": "path/to/bar"` -> `("foo", "path/to/foo"), ("bar", "path/to/bar")`
-// TODO: how about just using `parse_expr`?
-fn parse_top_level_value(tokens: &Vec<Token>) -> Result<Vec<Token>, Vec<AstError>> {
-    if tokens.is_empty() {
-        return Ok(vec![]);
-    }
+fn parse_top_level_value(tokens: &Vec<Token>, session: &mut AstSession) -> Result<Vec<Token>, ()> {
+    let mut tokens_ = tokens.to_vec();
+    let mut tokens_iter = Tokens::from_vec(&mut tokens_);
+    let mut result = vec![];
 
-    let mut curr_parse_state = InnerParseState::ExpectKey;
-    let mut curr_key = Token::new_punct();
+    loop {
+        if tokens_iter.is_finished() {
+            return Ok(result);
+        }
 
-    for token in tokens.iter() {
-        match curr_parse_state {
-            InnerParseState::ExpectKey => {
-                curr_key = token.clone();
-                curr_parse_state = InnerParseState::ExpectColon;
+        let curr_span = tokens_iter.peek_span().unwrap();
+
+        let key_start_index = tokens_iter.get_cursor();
+
+        // key
+        parse_expr(
+            &mut tokens_iter,
+            session,
+            0,
+            false,
+            Some(ErrorContext::ParsingConfigFile),
+            curr_span,
+        )?;
+
+        let key_end_index = tokens_iter.get_cursor();
+
+        if let Err(mut e) = tokens_iter.consume(TokenKind::Punct(Punct::Colon)) {
+            e.set_error_context(ErrorContext::ParsingConfigFile);
+            session.push_error(e);
+
+            return Err(());
+        }
+
+        let value_start_index = tokens_iter.get_cursor();
+
+        // value
+        parse_expr(
+            &mut tokens_iter,
+            session,
+            0,
+            false,
+            Some(ErrorContext::ParsingConfigFile),
+            curr_span,
+        )?;
+
+        let value_end_index = tokens_iter.get_cursor();
+
+        // `"foo", "path/to/foo"` inside parenthesis
+        let mut inner_tokens = vec![];
+
+        for token in tokens[key_start_index..key_end_index].iter() {
+            inner_tokens.push(token.clone());
+        }
+
+        inner_tokens.push(Token {
+            kind: TokenKind::Punct(Punct::Comma),
+            span: SpanRange::dummy(0x166f9b46),
+        });
+
+        for token in tokens[value_start_index..value_end_index].iter() {
+            inner_tokens.push(token.clone());
+        }
+
+        result.push(Token {
+            kind: TokenKind::Group {
+                delim: Delim::Paren,
+                prefix: b'\0',
+                tokens: inner_tokens,
             },
-            InnerParseState::ExpectColon => match &token.kind {},
-            InnerParseState::ExpectValue => {},
-            InnerParseState::ExpectComma => match &token.kind {},
+            span: SpanRange::dummy(0x8a96dbee),
+        });
+
+        match tokens_iter.step() {
+            Some(Token {
+                kind: TokenKind::Punct(Punct::Comma),
+                ..
+            }) => {
+                continue;
+            },
+            Some(token) => {
+                session.push_error(AstError::unexpected_token(
+                    token.clone(),
+                    ExpectedToken::specific(TokenKind::Punct(Punct::Comma)),
+                ));
+                return Err(());
+            },
+            None => {
+                return Ok(result);
+            },
         }
     }
-
-    match curr_parse_state {}
 }

@@ -105,7 +105,7 @@ pub fn file_name(path: &str) -> Result<String, FileError> {
         None => Ok(String::new()),
         Some(s) => match s.to_str() {
             Some(ext) => Ok(ext.to_string()),
-            None => Err(FileError::os_str_err(s.to_os_string())),
+            None => Err(FileError::os_str_error(s.to_os_string())),
         }
     }
 }
@@ -118,7 +118,7 @@ pub fn extension(path: &str) -> Result<Option<String>, FileError> {
         None => Ok(None),
         Some(s) => match s.to_str() {
             Some(ext) => Ok(Some(ext.to_string())),
-            None => Err(FileError::os_str_err(s.to_os_string())),
+            None => Err(FileError::os_str_error(s.to_os_string())),
         }
     }
 }
@@ -131,7 +131,7 @@ pub fn basename(path: &str) -> Result<String, FileError> {
         None => Ok(String::new()),  // when the path terminates in `..`
         Some(s) => match s.to_str() {
             Some(ext) => Ok(ext.to_string()),
-            None => Err(FileError::os_str_err(s.to_os_string())),
+            None => Err(FileError::os_str_error(s.to_os_string())),
         }
     }
 }
@@ -145,7 +145,7 @@ pub fn join(path: &str, child: &str) -> Result<String, FileError> {
 
     match path_buffer.to_str() {
         Some(result) => Ok(result.to_string()),
-        None => Err(FileError::os_str_err(path_buffer.into_os_string())),
+        None => Err(FileError::os_str_error(path_buffer.into_os_string())),
     }
 }
 
@@ -156,7 +156,7 @@ pub fn set_extension(path: &str, ext: &str) -> Result<String, FileError> {
     if path_buffer.set_extension(ext) {
         match path_buffer.to_str() {
             Some(result) => Ok(result.to_string()),
-            None => Err(FileError::os_str_err(path_buffer.into_os_string())),
+            None => Err(FileError::os_str_error(path_buffer.into_os_string())),
         }
     } else {
         // has no filename

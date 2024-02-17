@@ -13,6 +13,7 @@ impl fmt::Display for ErrorContext {
         let s = match self {
             ErrorContext::Unknown => "",
             ErrorContext::ParsingCommandLine => "parsing command line arguments",
+            ErrorContext::ParsingConfigFile => "parsing a configuration file",
             ErrorContext::ExpandingMacro => "expanding a macro",
             ErrorContext::Lexing => "lexing",
             ErrorContext::LexingNumericLiteral => "lexing a numeric literal",

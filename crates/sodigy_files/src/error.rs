@@ -103,7 +103,7 @@ impl FileError {
         }
     }
 
-    pub(crate) fn os_str_err(os_str: OsString) -> Self {
+    pub(crate) fn os_str_error(os_str: OsString) -> Self {
         FileError {
             kind: FileErrorKind::OsStrErr(os_str),
             given_path: None,

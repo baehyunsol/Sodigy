@@ -7,6 +7,9 @@ use sodigy_clap::parse_cli_args;
 use sodigy_error::SodigyError;
 use sodigy_session::SodigySession;
 
+const EXIT_SUCCESS: i32 = 0;
+const EXIT_FAILURE: i32 = 1;
+
 fn main() {
     env_logger::init();
     info!("env_logger successfully initialized");
@@ -46,6 +49,10 @@ fn main() {
     }
 
     if has_error {
-        std::process::exit(1);
+        std::process::exit(EXIT_FAILURE);
+    }
+
+    else {
+        std::process::exit(EXIT_SUCCESS);
     }
 }

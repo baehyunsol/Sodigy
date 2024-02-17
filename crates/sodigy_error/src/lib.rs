@@ -56,8 +56,8 @@ pub trait SodigyError<K: SodigyErrorKind> {
         }
     }
 
-    fn set_err_context(&mut self, context: ErrorContext) -> &mut Self {
-        self.get_mut_error_info().set_err_context(context);
+    fn set_error_context(&mut self, context: ErrorContext) -> &mut Self {
+        self.get_mut_error_info().set_error_context(context);
 
         self
     }
@@ -65,12 +65,12 @@ pub trait SodigyError<K: SodigyErrorKind> {
     // sets the error context when,\
     // 1. it's not set previously
     // 2. the given context is not none
-    fn try_set_err_context(&mut self, context: Option<ErrorContext>) -> &mut Self {
+    fn try_set_error_context(&mut self, context: Option<ErrorContext>) -> &mut Self {
         let ctx = self.get_mut_error_info();
 
         if ctx.context == ErrorContext::Unknown {
-            if let Some(err_ctx) = context {
-                ctx.context = err_ctx;
+            if let Some(error_ctx) = context {
+                ctx.context = error_ctx;
             }
         }
 

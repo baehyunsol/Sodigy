@@ -318,7 +318,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                     return Err(());
                 },
                 _ => {
-                    session.err_if_has_err()?;
+                    session.err_if_has_error()?;
 
                     if has_macro {
                         session.replace_macro_tokens()?;

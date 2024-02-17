@@ -27,6 +27,7 @@ impl<'t> Tokens<'t> {
         }
     }
 
+    /// if self.data.is_empty, self.span_end() returns this span
     pub fn set_span_end(&mut self, span_end: SpanRange) {
         self.span_end_ = Some(span_end);
     }
@@ -43,12 +44,16 @@ impl<'t> Tokens<'t> {
         self.data.get(self.cursor).map(|t| t.span)
     }
 
+    pub fn get_cursor(&self) -> usize {
+        self.cursor
+    }
+
     pub fn step(&mut self) -> Option<&Token> {
         self.cursor += 1;
         self.data.get(self.cursor - 1)
     }
 
-    // returns Err if it cannot go backward
+    /// It returns Err if it cannot go backward
     pub fn backward(&mut self) -> Result<(), ()> {
         if self.cursor == 0 {
             Err(())
@@ -60,6 +65,7 @@ impl<'t> Tokens<'t> {
         }
     }
 
+    /// It's the last span of the last token.
     pub fn span_end(&self) -> Option<SpanRange> {
         match self.data.last().map(|t| t.span.last_char()) {
             Some(s) => Some(s),

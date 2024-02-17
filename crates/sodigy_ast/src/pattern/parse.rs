@@ -164,7 +164,7 @@ fn parse_pattern_value(
                         }
                     },
                     Err(mut e) => {
-                        session.push_error(e.set_err_context(
+                        session.push_error(e.set_error_context(
                             ErrorContext::ParsingPattern
                         ).to_owned());
                         return Err(());
@@ -227,7 +227,7 @@ fn parse_pattern_value(
                         ty: None,
                     },
                     Err(mut e) => {
-                        session.push_error(e.set_err_context(
+                        session.push_error(e.set_error_context(
                             ErrorContext::ParsingPattern
                         ).to_owned());
                         return Err(());
@@ -237,7 +237,7 @@ fn parse_pattern_value(
                     session.push_error(AstError::unexpected_token(
                         t.clone(),
                         ExpectedToken::pattern(),
-                    ).set_err_context(
+                    ).set_error_context(
                         ErrorContext::ParsingPattern
                     ).to_owned());
                     return Err(());
@@ -293,7 +293,7 @@ fn parse_pattern_value(
                     session.push_error(AstError::unexpected_token(
                         t.clone(),
                         ExpectedToken::pattern(),
-                    ).set_err_context(
+                    ).set_error_context(
                         ErrorContext::ParsingPattern
                     ).to_owned());
                     return Err(());
@@ -319,7 +319,7 @@ fn parse_pattern_value(
                         id
                     },
                     Err(mut e) => {
-                        session.push_error(e.set_err_context(
+                        session.push_error(e.set_error_context(
                             ErrorContext::ParsingPattern
                         ).to_owned());
                         return Err(());
@@ -381,7 +381,7 @@ fn parse_pattern_value(
                                     match group_tokens.expect_ident() {
                                         Ok(id) => {
                                             if let Err(mut e) = group_tokens.consume(TokenKind::colon()) {
-                                                session.push_error(e.set_err_context(
+                                                session.push_error(e.set_error_context(
                                                     ErrorContext::ParsingPattern
                                                 ).to_owned());
                                                 return Err(());
@@ -399,7 +399,7 @@ fn parse_pattern_value(
                                             ..
                                         }) => {},
                                         Err(mut e) => {
-                                            session.push_error(e.set_err_context(
+                                            session.push_error(e.set_error_context(
                                                 ErrorContext::ParsingPattern
                                             ).to_owned());
                                             return Err(());
@@ -418,7 +418,7 @@ fn parse_pattern_value(
                                         break;
                                     },
                                     Err(mut e) => {
-                                        session.push_error(e.set_err_context(
+                                        session.push_error(e.set_error_context(
                                             ErrorContext::ParsingPattern
                                         ).to_owned());
                                         return Err(());
@@ -513,7 +513,7 @@ fn parse_pattern_value(
                         },
                         Err(e) => {
                             session.push_error(
-                                e.into_ast_error(*span).set_err_context(
+                                e.into_ast_error(*span).set_error_context(
                                     ErrorContext::ParsingPattern
                                 ).to_owned()
                             );
@@ -524,7 +524,7 @@ fn parse_pattern_value(
 
                 else {
                     session.push_error(
-                        IntoCharErr::TooLong.into_ast_error(*span).set_err_context(
+                        IntoCharErr::TooLong.into_ast_error(*span).set_error_context(
                             ErrorContext::ParsingPattern
                         ).to_owned()
                     );
@@ -659,7 +659,7 @@ fn parse_comma_separated_patterns(
                 session.push_error(AstError::unexpected_token(
                     tokens.peek().unwrap().clone().clone(),
                     ExpectedToken::nothing(),
-                ).set_err_context(
+                ).set_error_context(
                     ErrorContext::ParsingPattern
                 ).to_owned());
 

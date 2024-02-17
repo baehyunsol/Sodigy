@@ -5,12 +5,9 @@ def main [--depgraph] {
     $env.RUST_LOG = "trace"
     cargo clean
 
-    # by compiling the entire crate before each crate,
-    # 1. it can catch errors (if exists) earlier
-    # 2. it doesn't hurt the entire test time thanks to the incremental compilation
-    cargo build
-    cargo build --release
-    cargo test nothing  # find compilation errors in test codes
+    cargo doc
+    cargo test
+    cargo test --release
 
     let crates = [
         "ast", "clap", "endec",
@@ -25,16 +22,8 @@ def main [--depgraph] {
         cd $"./crates/sodigy_($crate)"
         cargo test
         cargo test --release
-
-        # TODO: make sure the names of the log files follow this pattern
-        # TODO: it should be at `clean.nu`
-        rm -f sodigy_compiler_logs*
         cd ../..
     }
-
-    cargo doc
-    cargo test
-    cargo test --release
 
     if $depgraph {
         cargo depgraph | dot -Tpng | save -f dep_graph.png

@@ -315,7 +315,7 @@ pub fn lower_stmts(
     // another issue with order here: it also has to be sorted
     session.imported_names.sort_by_key(|idws| *idws.span());
 
-    session.err_if_has_err()
+    session.err_if_has_error()
 }
 
 pub fn lower_ast_ty(

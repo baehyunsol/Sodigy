@@ -13,7 +13,6 @@ use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
 use sodigy_error::{
     ErrorContext,
     RenderError,
-    SodigyError,
     UniversalError,
 };
 use sodigy_files::{
@@ -192,26 +191,22 @@ pub fn construct_hir(
         return (None, compiler_output);
     }
 
+    let mut ast_session = AstSession::from_parse_session(&parse_session);
+    ast_session.merge_errors_and_warnings(&new_lex_session);
+
     if compiler_option.parse_config_file {
-        match parse_config_file(parse_session.get_results()) {
+        match parse_config_file(parse_session.get_results(), &mut ast_session) {
             Ok(new_tokens) => {
                 *parse_session.get_results_mut() = new_tokens;
             },
             Err(errors) => {
-                compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
-                compiler_output.collect_errors_and_warnings_from_session(&parse_session);
-
-                for error in errors.into_iter() {
-                    compiler_output.push_error(error.to_universal());
-                }
+                compiler_output.collect_errors_and_warnings_from_session(&ast_session);
 
                 return (None, compiler_output);
             },
         }
     }
 
-    let mut ast_session = AstSession::from_parse_session(&parse_session);
-    ast_session.merge_errors_and_warnings(&new_lex_session);
     let mut tokens = parse_session.get_results().to_vec();
     let mut tokens = Tokens::from_vec(&mut tokens);
     let res = parse_stmts(&mut tokens, &mut ast_session);

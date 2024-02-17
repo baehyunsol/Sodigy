@@ -137,14 +137,14 @@ pub fn lex(
                             _ => {
                                 let kind = TokenKind::try_lex_punct(c).map_err(
                                     |_| {
-                                        let err_span = span_start.offset(index as i32).into_range();
+                                        let error_span = span_start.offset(index as i32).into_range();
 
                                         match try_get_char(input, index) {
                                             Some(c) => {
-                                                LexError::unexpected_char(c, err_span)
+                                                LexError::unexpected_char(c, error_span)
                                             },
                                             None => {
-                                                LexError::invalid_utf8(err_span)
+                                                LexError::invalid_utf8(error_span)
                                             },
                                         }
                                     }
@@ -365,7 +365,7 @@ pub fn lex(
                                         curr_token_span_start.extend(span_start.offset(index as i32)),
                                     ).set_expected_chars(
                                         b"0123456789_.eE".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -411,7 +411,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"bBoOxXeE.".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -481,7 +481,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789_eE".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -511,7 +511,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789-".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -531,7 +531,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -561,7 +561,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"01_".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -604,7 +604,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"01234567_".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -647,7 +647,7 @@ pub fn lex(
                                         span_start.offset(index as i32).into_range(),
                                     ).set_expected_chars(
                                         b"0123456789aAbBcCdDeEfF_.".to_vec()
-                                    ).set_err_context(
+                                    ).set_error_context(
                                         ErrorContext::LexingNumericLiteral
                                     ).to_owned()
                                 );
@@ -732,7 +732,7 @@ pub fn lex(
                                     curr_token_span_start.extend(span_start.offset(index as i32))
                                 ).set_expected_chars(
                                     expected
-                                ).set_err_context(
+                                ).set_error_context(
                                     ErrorContext::LexingNumericLiteral
                                 ).to_owned()
                             );
@@ -752,7 +752,7 @@ pub fn lex(
                                 curr_token_span_start.extend(span_start.offset(index as i32))
                             ).set_expected_chars(
                                 b"0123456789".to_vec()
-                            ).set_err_context(
+                            ).set_error_context(
                                 ErrorContext::LexingNumericLiteral
                             ).to_owned()
                         );

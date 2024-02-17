@@ -30,7 +30,7 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_errors_mut().clear();
     }
 
-    fn err_if_has_err(&self) -> Result<(), ()> {
+    fn err_if_has_error(&self) -> Result<(), ()> {
         if self.has_error() {
             Err(())
         }

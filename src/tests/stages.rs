@@ -206,6 +206,7 @@ fn test_runner3(path: &str) {
     clean_irs(&dir_to_clean, &mut dummy_compiler_output, &mut clean_count);
 
     assert_eq!(clean_count, 1);
+    drop(lock);
 }
 
 fn assert_same_output(outputs: &Vec<Path>) {

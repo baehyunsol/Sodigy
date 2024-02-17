@@ -420,3 +420,27 @@ let main(env: World): World = env.exists("./data.txt").map(
 ---
 
 `./sodigy`, which is compiled in release mode still emits logs if `RUST_LOG` is set. that means there're still overhead in the release mode...
+
+---
+
+The final stages of the compiler
+
+1. LLVM IR (or cranelift)
+  - The runtime of Sodigy is too big to implement in LLVM IR
+  - I have to study LLVM anyway
+2. C
+  - the most reasonable choice for now
+  - I need an extra C compiler
+    1. depend on a C compiler that is written in Rust
+      - https://github.com/onehr/crust
+      - https://github.com/jyn514/saltwater
+      - https://github.com/ClementTsang/rustcc
+      - All the above are half-broken
+    2. use MakeFile
+      - does it work on Windows?
+      - does it have to?
+    3. embed a very small c compiler in this project
+      - https://github.com/TinyCC/tinycc
+      - https://github.com/drh/lcc
+        - its license is too restrictive
+3. Binary

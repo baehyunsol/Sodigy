@@ -182,7 +182,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
         }
     }
 
-    session.err_if_has_err()
+    session.err_if_has_error()
 }
 
 type TrailingComma = bool;
@@ -285,7 +285,7 @@ pub fn parse_expr(
                         ExpectedToken::expr(),
                     ).set_message(
                         message
-                    ).try_set_err_context(
+                    ).try_set_error_context(
                         error_context,
                     ).to_owned());
 
@@ -353,7 +353,7 @@ pub fn parse_expr(
                 },
                 Err(mut e) => {
                     session.push_error(
-                        e.set_err_context(
+                        e.set_error_context(
                             ErrorContext::ParsingMatchBody,
                         ).to_owned()
                     );
@@ -374,7 +374,7 @@ pub fn parse_expr(
                 session.push_error(AstError::unexpected_token(
                     Token::new_keyword(*k, *span),
                     ExpectedToken::expr(),
-                ).try_set_err_context(
+                ).try_set_error_context(
                     error_context,
                 ).to_owned());
                 return Err(());
@@ -428,7 +428,7 @@ pub fn parse_expr(
                         ExpectedToken::specific(TokenKind::Group { delim: Delim::Brace, tokens: vec![], prefix: b'\0' }),
                     ).set_message(
                         String::from("If you're to use a lambda function, use curly braces.")
-                    ).try_set_err_context(
+                    ).try_set_error_context(
                         error_context,
                     ).to_owned());
                     return Err(());
@@ -540,7 +540,7 @@ pub fn parse_expr(
                 },
                 QuoteKind::Single => if is_binary {
                     // There are no binary chars, because `Char`s in Sodigy are just integers
-                    session.push_error(AstError::binary_char(span).try_set_err_context(
+                    session.push_error(AstError::binary_char(span).try_set_error_context(
                         error_context,
                     ).to_owned());
                     return Err(());
@@ -554,7 +554,7 @@ pub fn parse_expr(
                         },
                         Err(e) => {
                             session.push_error(
-                                e.into_ast_error(span).try_set_err_context(
+                                e.into_ast_error(span).try_set_error_context(
                                     error_context,
                                 ).to_owned()
                             );
@@ -565,7 +565,7 @@ pub fn parse_expr(
 
                 else {
                     session.push_error(
-                        IntoCharErr::TooLong.into_ast_error(span).try_set_err_context(
+                        IntoCharErr::TooLong.into_ast_error(span).try_set_error_context(
                             error_context,
                         ).to_owned()
                     );
@@ -589,7 +589,7 @@ pub fn parse_expr(
                         *span,
                     ),
                     ExpectedToken::expr(),
-                ).try_set_err_context(
+                ).try_set_error_context(
                     error_context,
                 ).to_owned());
                 return Err(());
@@ -605,7 +605,7 @@ pub fn parse_expr(
                 |elem| format_string_into_expr(elem, span, session).ok()
             ).collect();
 
-            session.err_if_has_err()?;
+            session.err_if_has_error()?;
 
             Expr {
                 kind: ExprKind::Value(ValueKind::Format(
@@ -628,7 +628,7 @@ pub fn parse_expr(
                 session.push_error(AstError::unexpected_end(
                     tokens.span_end().unwrap_or(parent_span.last_char()),
                     ExpectedToken::expr(),
-                ).try_set_err_context(
+                ).try_set_error_context(
                     error_context,
                 ).to_owned());
                 return Err(());
@@ -708,7 +708,7 @@ pub fn parse_expr(
                     let rhs = match tokens.expect_ident() {
                         Ok(id) => id,
                         Err(mut e) => {
-                            e.try_set_err_context(error_context);
+                            e.try_set_error_context(error_context);
 
                             if matches!(e.kind, AstErrorKind::UnexpectedToken(..)) {
                                 e.set_message(String::from("A name of a field must be an identifier."));
@@ -774,7 +774,7 @@ pub fn parse_expr(
                         ExpectedToken::post(),
                     ).set_message(
                         String::from("Try remove `\\`.")
-                    ).try_set_err_context(
+                    ).try_set_error_context(
                         error_context,
                     ).to_owned());
                     return Err(());
@@ -809,7 +809,7 @@ pub fn parse_expr(
                                 session.push_error(AstError::unexpected_token(
                                     index_tokens.peek().unwrap().clone(),
                                     ExpectedToken::nothing(),
-                                ).try_set_err_context(
+                                ).try_set_error_context(
                                     error_context,
                                 ).to_owned());
                                 return Err(());
@@ -1340,7 +1340,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
         if tokens.is_finished() {
             if arms.is_empty() {
                 session.push_error(
-                    AstError::empty_match_body(span).set_err_context(
+                    AstError::empty_match_body(span).set_error_context(
                         ErrorContext::ParsingMatchBody
                     ).to_owned()
                 );
@@ -1379,7 +1379,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 rarrow_span = tokens.peek_span();
 
                 if let Err(mut e) = tokens.consume(TokenKind::r_arrow()) {
-                    session.push_error(e.set_err_context(
+                    session.push_error(e.set_error_context(
                         ErrorContext::ParsingMatchBody
                     ).to_owned());
                     return Err(());
@@ -1389,7 +1389,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 session.push_error(AstError::unexpected_token(
                     token.clone(),
                     ExpectedToken::guard_or_arrow(),
-                ).set_err_context(
+                ).set_error_context(
                     ErrorContext::ParsingMatchBody
                 ).to_owned());
 
@@ -1403,7 +1403,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                         session.push_error(AstError::unexpected_token(
                             token,
                             ExpectedToken::specific(TokenKind::r_arrow()),
-                        ).set_err_context(
+                        ).set_error_context(
                             ErrorContext::ParsingMatchBody
                         ).set_message(
                             String::from("Use `=>` instead of `->`.")
@@ -1418,7 +1418,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 session.push_error(AstError::unexpected_end(
                     span,
                     ExpectedToken::guard_or_arrow(),
-                ).set_err_context(
+                ).set_error_context(
                     ErrorContext::ParsingMatchBody
                 ).to_owned());
                 return Err(());
@@ -1447,7 +1447,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 return Ok(arms);
             },
             Err(mut e) => {
-                session.push_error(e.set_err_context(
+                session.push_error(e.set_error_context(
                     ErrorContext::ParsingMatchBody
                 ).to_owned());
                 return Err(());
@@ -1485,7 +1485,7 @@ fn parse_branch_arm(
 
                 if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                     session.push_error(
-                        e.set_err_context(
+                        e.set_error_context(
                             ErrorContext::ParsingBranchCondition
                         ).to_owned()
                     );
@@ -1681,7 +1681,7 @@ fn parse_import(tokens: &mut Tokens, session: &mut AstSession, keyword_span: Spa
 
                 if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
                     session.push_error(
-                        e.set_err_context(
+                        e.set_error_context(
                             ErrorContext::ParsingImportStatement
                         ).to_owned()
                     );
@@ -1770,7 +1770,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
         let field_name = match tokens.expect_ident() {
             Ok(id) => id,
             Err(mut e) => {
-                session.push_error(e.set_err_context(
+                session.push_error(e.set_error_context(
                     ErrorContext::ParsingStructBody
                 ).to_owned());
                 return Err(());
@@ -1780,7 +1780,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
         let colon_span = tokens.peek_span();
 
         if let Err(mut e) = tokens.consume(TokenKind::colon()) {
-            session.push_error(e.set_err_context(
+            session.push_error(e.set_error_context(
                 ErrorContext::ParsingStructBody
             ).to_owned());
             return Err(());
@@ -1807,7 +1807,7 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
                 return Ok(fields);
             },
             Err(mut e) => {
-                session.push_error(e.set_err_context(
+                session.push_error(e.set_error_context(
                     ErrorContext::ParsingStructBody
                 ).to_owned());
 
@@ -1860,7 +1860,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
         let variant_name = match tokens.expect_ident() {
             Ok(id) => id,
             Err(mut e) => {
-                session.push_error(e.set_err_context(
+                session.push_error(e.set_error_context(
                     ErrorContext::ParsingEnumBody
                 ).to_owned());
                 return Err(());
@@ -1895,7 +1895,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                                 return Ok(variants);
                             },
                             Err(mut e) => {
-                                session.push_error(e.set_err_context(
+                                session.push_error(e.set_error_context(
                                     ErrorContext::ParsingEnumBody
                                 ).to_owned());
 
@@ -1921,7 +1921,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                                 return Ok(variants);
                             },
                             Err(mut e) => {
-                                session.push_error(e.set_err_context(
+                                session.push_error(e.set_error_context(
                                     ErrorContext::ParsingEnumBody
                                 ).to_owned());
 
@@ -1934,7 +1934,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                         session.push_error(AstError::unexpected_token(
                             Token::new_group(Delim::Bracket, group_span),
                             ExpectedToken::paren_brace_or_comma(),
-                        ).set_err_context(
+                        ).set_error_context(
                             ErrorContext::ParsingEnumBody
                         ).to_owned());
                         return Err(());
@@ -1955,7 +1955,7 @@ fn parse_enum_body(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<
                 session.push_error(AstError::unexpected_token(
                     token.clone(),
                     ExpectedToken::comma_or_paren(),
-                ).set_err_context(
+                ).set_error_context(
                     ErrorContext::ParsingEnumBody
                 ).to_owned());
                 return Err(());
@@ -2100,7 +2100,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
             Ok(n) => n,
             Err(mut e) => {
                 if is_struct_init {
-                    session.push_error(e.set_err_context(
+                    session.push_error(e.set_error_context(
                         ErrorContext::ParsingStructInit
                     ).to_owned());
 
@@ -2118,7 +2118,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
         if let Err(mut e) = tokens.consume(TokenKind::colon()) {
             if is_struct_init {
                 session.push_error(
-                    e.set_err_context(
+                    e.set_error_context(
                         ErrorContext::ParsingStructInit
                     ).to_owned()
                 );
@@ -2165,7 +2165,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
             },
             Err(mut e) => {
                 session.push_error(
-                    e.set_err_context(
+                    e.set_error_context(
                         ErrorContext::ParsingStructInit
                     ).to_owned()
                 );
@@ -2175,7 +2175,7 @@ fn try_parse_struct_init(tokens: &mut Tokens, session: &mut AstSession) -> Optio
     }
 }
 
-fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context: Option<ErrorContext>) -> Result<DottedNames, ()> {
+fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, error_context: Option<ErrorContext>) -> Result<DottedNames, ()> {
     let mut result = vec![];
 
     match tokens.expect_ident() {
@@ -2184,8 +2184,8 @@ fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context
         },
         Err(mut e) => {
             session.push_error(
-                e.try_set_err_context(
-                    err_context
+                e.try_set_error_context(
+                    error_context
                 ).to_owned()
             );
             return Err(());
@@ -2201,8 +2201,8 @@ fn parse_dotted_names(tokens: &mut Tokens, session: &mut AstSession, err_context
             },
             Err(mut e) => {
                 session.push_error(
-                    e.try_set_err_context(
-                        err_context
+                    e.try_set_error_context(
+                        error_context
                     ).to_owned()
                 );
                 return Err(());
@@ -2235,7 +2235,7 @@ fn parse_let_statement(
                     let assign_span = tokens.peek_span();
 
                     if let Err(mut e) = tokens.consume(TokenKind::assign()) {
-                        session.push_error(e.set_err_context(
+                        session.push_error(e.set_error_context(
                             ErrorContext::ParsingLetStatement
                         ).to_owned());
                         return Err(());
@@ -2252,7 +2252,7 @@ fn parse_let_statement(
                         Ok(id) => id,
                         Err(mut e) => {
                             session.push_error(
-                                e.set_err_context(
+                                e.set_error_context(
                                     ErrorContext::ParsingLetStatement,
                                 ).to_owned()
                             );
@@ -2269,14 +2269,14 @@ fn parse_let_statement(
                     if !generics.is_empty() && !allows_generics {
                         session.push_error(AstError::no_generics_allowed(
                             tokens.get_previous_generic_span().unwrap()
-                        ).set_err_context(
+                        ).set_error_context(
                             ErrorContext::ParsingLetStatement
                         ).to_owned());
                     }
 
                     if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                         session.push_error(
-                            e.set_err_context(
+                            e.set_error_context(
                                 ErrorContext::ParsingLetStatement,
                             ).to_owned()
                         );
@@ -2312,7 +2312,7 @@ fn parse_let_statement(
                         },
                         Err(mut e) => {
                             session.push_error(
-                                e.set_err_context(
+                                e.set_error_context(
                                     ErrorContext::ParsingLetStatement,
                                 ).to_owned()
                             );
@@ -2349,7 +2349,7 @@ fn parse_let_statement(
             if !generics.is_empty() && !allows_generics {
                 session.push_error(AstError::no_generics_allowed(
                     tokens.get_previous_generic_span().unwrap()
-                ).set_err_context(
+                ).set_error_context(
                     ErrorContext::ParsingLetStatement
                 ).to_owned());
             }
@@ -2393,7 +2393,7 @@ fn parse_let_statement(
 
             if let Err(mut e) = tokens.consume(TokenKind::assign()) {
                 session.push_error(
-                    e.set_err_context(
+                    e.set_error_context(
                         ErrorContext::ParsingLetStatement,
                     ).to_owned()
                 );
@@ -2421,7 +2421,7 @@ fn parse_let_statement(
             let mut e = AstError::unexpected_token(
                 token.clone(),
                 ExpectedToken::let_statement(),
-            ).set_err_context(
+            ).set_error_context(
                 ErrorContext::ParsingLetStatement
             ).to_owned();
 
@@ -2439,7 +2439,7 @@ fn parse_let_statement(
             session.push_error(AstError::unexpected_end(
                 tokens.span_end().unwrap_or(SpanRange::dummy(0x05fc6577)),
                 ExpectedToken::let_statement(),
-            ).set_err_context(
+            ).set_error_context(
                 ErrorContext::ParsingLetStatement
             ).to_owned());
 
@@ -2448,7 +2448,7 @@ fn parse_let_statement(
     };
 
     if let Err(mut e) = tokens.consume(TokenKind::semi_colon()) {
-        e.set_err_context(ErrorContext::ParsingLetStatement);
+        e.set_error_context(ErrorContext::ParsingLetStatement);
 
         if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
             e.set_message("Use `;` before the keyword `let` to separate statements.".to_string());

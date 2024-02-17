@@ -4,6 +4,7 @@ mod endec;
 pub enum ErrorContext {
     Unknown,
     ParsingCommandLine,
+    ParsingConfigFile,
     ExpandingMacro,
     Lexing,
     LexingNumericLiteral,

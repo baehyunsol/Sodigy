@@ -32,7 +32,7 @@ impl ExtraErrInfo {
         !self.msg.is_empty()
     }
 
-    pub fn set_err_context(&mut self, context: ErrorContext) -> &mut Self {
+    pub fn set_error_context(&mut self, context: ErrorContext) -> &mut Self {
         self.context = context;
 
         self

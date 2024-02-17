@@ -144,7 +144,7 @@ impl ParseSession {
                                     prefix: b'\0',
                                     tokens: vec![],
                                 }])
-                            ).set_err_context(
+                            ).set_error_context(
                                 ErrorContext::ExpandingMacro
                             ).to_owned()
                         );
@@ -160,7 +160,7 @@ impl ParseSession {
         }
 
         self.tokens = new_tokens;
-        self.err_if_has_err()?;
+        self.err_if_has_error()?;
 
         Ok(())
     }
