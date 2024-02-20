@@ -36,7 +36,7 @@ pub fn lower_hir_expr_without_types(
                 hir::NameOrigin::Global { origin } => match origin {
                     Some(uid) => Expr {
                         kind: ExprKind::Global(uid),
-                        ty: Type::HasToBeInfered,
+                        ty: Type::Placeholder,
                         span: e.span,
                     },
 
@@ -92,7 +92,7 @@ pub fn lower_hir_expr_without_types(
                         f: *uid,
                         args: mir_args,
                     },
-                    ty: Type::HasToBeInfered,
+                    ty: Type::Placeholder,
                     span: e.span,
                 },
                 _ => Expr {
@@ -100,7 +100,7 @@ pub fn lower_hir_expr_without_types(
                         f: Box::new(func),
                         args: mir_args,
                     },
-                    ty: Type::HasToBeInfered,
+                    ty: Type::Placeholder,
                     span: e.span,
                 },
             }
@@ -120,9 +120,31 @@ pub fn lower_hir_expr_without_types(
             },
             ty: Type::Param(
                 uids::LIST_DEF,
-                vec![Type::HasToBeInfered],
+                vec![Type::Placeholder],
             ),
             span: e.span,
+        },
+        hir::ExprKind::Tuple(elements) => {
+            let elements = elements.iter().map(
+                |element| lower_hir_expr_without_types(
+                    element,
+                    session,
+                    preludes,
+                )
+            ).collect::<Vec<_>>();
+            let tys = elements.iter().map(|el| el.ty.clone()).collect();
+
+            Expr {
+                kind: ExprKind::Call {
+                    f: uids::TUPLE_INIT,
+                    args: elements,
+                },
+                ty: Type::Param(
+                    uids::TUPLE_DEF,
+                    tys,
+                ),
+                span: e.span,
+            }
         },
 
         // `"{a} + {b} = {a + b}"` is lowered to `concat_all(a.to_string(), " + ", b.to_string(), " = ", (a + b).to_string())`
@@ -170,7 +192,7 @@ pub fn lower_hir_expr_without_types(
                 session,
                 preludes,
             )),
-            ty: Type::HasToBeInfered,
+            ty: Type::Placeholder,
             span: e.span,
         },
         hir::ExprKind::PrefixOp(op, val) => Expr {
@@ -182,7 +204,7 @@ pub fn lower_hir_expr_without_types(
                     preludes,
                 )],
             },
-            ty: Type::HasToBeInfered,
+            ty: Type::Placeholder,
             span: e.span,
         },
         hir::ExprKind::PostfixOp(op, val) => Expr {
@@ -194,7 +216,7 @@ pub fn lower_hir_expr_without_types(
                     preludes,
                 )],
             },
-            ty: Type::HasToBeInfered,
+            ty: Type::Placeholder,
             span: e.span,
         },
         hir::ExprKind::InfixOp(op, lhs, rhs) => match op {
@@ -271,7 +293,7 @@ pub fn lower_hir_expr_without_types(
                         ),
                     ],
                 },
-                ty: Type::HasToBeInfered,
+                ty: Type::Placeholder,
                 span: e.span,
             },
         },

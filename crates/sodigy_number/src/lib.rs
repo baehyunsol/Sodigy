@@ -99,16 +99,6 @@ impl SodigyNumber {
         }
     }
 
-    /// returns `(digits, exp)` where `self = digits * 10^exp`.
-    /// same value might return different results (eg. (3, 1) and (30, 0)).
-    pub fn digits_and_exp(&self) -> (Vec<u8>, i64) {
-        match self {
-            // the original implementation is unsigned, so returning `(Vec<u8>, i64)`
-            // makes sense. but now that it's signed, we need some other return type...
-            _ => todo!(),
-        }
-    }
-
     pub fn get_denom_and_numer(&self) -> (SodigyNumber, SodigyNumber) {  // (denom, numer)
         match self {
             SodigyNumber::BigInt(n) => (
@@ -163,11 +153,60 @@ impl SodigyNumber {
         }
     }
 
+    // EXPENSIVE
     pub fn gt(&self, other: &Self) -> bool {
         match (self, other) {
             (SodigyNumber::BigInt(m), SodigyNumber::BigInt(n)) => m.gt(n),
+            (SodigyNumber::BigInt(m), SodigyNumber::BigRatio(n)) => Ratio::from(m.as_ref()).gt(n.as_ref()),
+            (SodigyNumber::BigInt(m), SodigyNumber::SmallInt(n)) => m.as_ref().gt(&BigInt::from(*n)),
+            (
+                SodigyNumber::BigInt(m),
+                SodigyNumber::SmallRatio { denom, numer },
+            ) => Ratio::from(m.as_ref()).gt(&Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            )),
+            (SodigyNumber::BigRatio(m), SodigyNumber::BigInt(n)) => m.as_ref().gt(&Ratio::from(n.as_ref())),
             (SodigyNumber::BigRatio(m), SodigyNumber::BigRatio(n)) => m.gt(n),
+            (SodigyNumber::BigRatio(m), SodigyNumber::SmallInt(n)) => m.as_ref().gt(&Ratio::from(*n)),
+            (
+                SodigyNumber::BigRatio(m),
+                SodigyNumber::SmallRatio { denom, numer },
+            ) => m.as_ref().gt(&Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            )),
+            (SodigyNumber::SmallInt(m), SodigyNumber::BigInt(n)) => BigInt::from(*m).gt(n.as_ref()),
+            (SodigyNumber::SmallInt(m), SodigyNumber::BigRatio(n)) => Ratio::from(*m).gt(n.as_ref()),
             (SodigyNumber::SmallInt(m), SodigyNumber::SmallInt(n)) => *m > *n,
+            (
+                SodigyNumber::SmallInt(m),
+                SodigyNumber::SmallRatio { denom, numer },
+            ) => Ratio::from(*m).gt(&Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            )),
+            (
+                SodigyNumber::SmallRatio { denom, numer },
+                SodigyNumber::BigInt(n),
+            ) => Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            ).gt(&Ratio::from(n.as_ref())),
+            (
+                SodigyNumber::SmallRatio { denom, numer },
+                SodigyNumber::BigRatio(n),
+            ) => Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            ).gt(&n.as_ref()),
+            (
+                SodigyNumber::SmallRatio { denom, numer },
+                SodigyNumber::SmallInt(n),
+            ) => Ratio::from_denom_and_numer(
+                BigInt::from(*denom),
+                BigInt::from(*numer),
+            ).gt(&Ratio::from(*n)),
             (
                 SodigyNumber::SmallRatio { denom: denom1, numer: numer1 },
                 SodigyNumber::SmallRatio { denom: denom2, numer: numer2 },
@@ -176,7 +215,6 @@ impl SodigyNumber {
 
                 *numer1 as i64 * *denom2 as i64 > *numer2 as i64 * *denom1 as i64
             },
-            _ => todo!(),
         }
     }
 

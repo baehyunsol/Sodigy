@@ -304,7 +304,7 @@ impl DumpJson for ExprKind {
             ExprKind::Ratio(n) => json_key_value_table(vec![("ratio", n.dump_json())]),
             ExprKind::Char(c) => json_key_value_table(vec![("char", (*c as u8).dump_json())]),
             ExprKind::String { content, is_binary } => json_key_value_table(vec![
-                ("content", content.dump_json()),
+                ("string", content.dump_json()),
                 ("is_binary", is_binary.dump_json()),
             ]),
             ExprKind::Call { func, args } => json_key_value_table(vec![
@@ -335,10 +335,35 @@ impl DumpJson for ExprKind {
 
                 json_key_value_table(vec![(name, elements.dump_json())])
             },
+            ExprKind::Scope(Scope {
+                original_patterns,
+                lets,
+                value,
+                uid,
+            }) => todo!(),
+            ExprKind::Match(Match {
+                arms,
+                value,
+                is_lowered_from_if_pattern: _,
+            }) => todo!(),
+            ExprKind::Lambda(Lambda {
+                args,
+                value,
+                captured_values,
+                return_ty,
+                uid,
+                lowered_from_scoped_let: _,
+            }) => todo!(),
             ExprKind::Branch(Branch { arms }) => json_key_value_table(vec![
                 ("arms", arms.dump_json()),
             ]),
-            e => json_key_value_table(vec![("todo", format!("TODO: dump_json for `{e}` is not implemented yet!").dump_json())]),
+            ExprKind::StructInit(StructInit {
+                struct_,
+                fields,
+            }) => todo!(),
+            ExprKind::Path {
+                head, tail,
+            } => todo!(),
         }
     }
 }

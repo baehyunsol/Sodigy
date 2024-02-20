@@ -12,6 +12,8 @@ use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+mod fmt;
+
 pub struct Stmt {
     pub kind: StmtKind,
     pub span: SpanRange,

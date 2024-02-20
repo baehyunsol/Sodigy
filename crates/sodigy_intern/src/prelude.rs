@@ -116,30 +116,6 @@ impl InternedNumeric {
         }
     }
 
-    pub fn try_unwrap_digits_and_exp_from_ratio(&self) -> Option<(Vec<u8>, i64)> {
-        if self.is_integer() {
-            None
-        }
-
-        else {
-            let n = unintern_numeric(*self);
-
-            Some(n.digits_and_exp())
-        }
-    }
-
-    pub fn try_unwrap_digits_and_exp_from_int(&self) -> Option<(Vec<u8>, i64)> {
-        if !self.is_integer() {
-            None
-        }
-
-        else {
-            let n = unintern_numeric(*self);
-
-            Some(n.digits_and_exp())
-        }
-    }
-
     pub fn zero() -> Self {
         InternedNumeric(0 | IS_INTEGER | IS_SMALL_INTEGER)
     }

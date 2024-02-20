@@ -11,6 +11,8 @@ use crate::{
 };
 use sodigy_uid::Uid;
 
+mod fmt;
+
 #[derive(Clone, Debug)]
 pub struct Let {
     pub kind: LetKind,

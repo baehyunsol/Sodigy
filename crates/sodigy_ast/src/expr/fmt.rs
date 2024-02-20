@@ -1,4 +1,5 @@
 use super::{Expr, ExprKind, ValueKind};
+use crate::{BranchArm, MatchArm, ScopeBlock, StructInitDef};
 use crate::ops::InfixOp;
 use std::fmt;
 
@@ -27,8 +28,56 @@ impl fmt::Display for ExprKind {
                 ).collect::<Vec<_>>().join(", "),
             ),
             ExprKind::Parenthesis(expr) => format!("({expr})"),
+            ExprKind::StructInit {
+                struct_, fields,
+            } => format!(
+                "{struct_} {{{}}}",
+                fields.iter().map(
+                    |StructInitDef { field, value }| format!("{}: {value}", field.id())
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            ExprKind::Branch(arms) => arms.iter().map(
+                |BranchArm {
+                    cond,
+                    pattern_bind,
+                    value,
+                    span: _,
+                }| format!(
+                    "{}{{{value}}}",
+                    if let Some(c) = cond {
+                        if let Some(p) = pattern_bind {
+                            format!("if pattern {p} = {c}")
+                        } else {
+                            format!("if {c}")
+                        }
+                    } else {
+                        String::new()
+                    },
+                )
+            ).collect::<Vec<_>>().join(" else "),
+            ExprKind::Match {
+                value,
+                arms,
+                is_lowered_from_if_pattern: _,
+            } => format!(
+                "match {value} {{{}}}",
+                arms.iter().map(
+                    |MatchArm {
+                        pattern,
+                        guard,
+                        value,
+                        uid: _,
+                    }| format!(
+                        "{pattern}{} => {value}",
+                        if let Some(g) = guard {
+                            format!(" if {g}")
+                        } else {
+                            String::new()
+                        },
+                    )
+                ).collect::<Vec<_>>().join(", "),
+            ),
             ExprKind::Error => String::from("<<COMPILE_ERROR>>"),
-            _ => todo!(),
         };
 
         write!(fmt, "{s}")
@@ -58,7 +107,48 @@ impl fmt::Display for ValueKind {
                     ).collect::<Vec<String>>().join(", "),
                 )
             },
-            _ => todo!(),
+            ValueKind::Format(elements) => format!(
+                "f\"{}\"",
+                elements.iter().map(
+                    |elem| format!("\\{{{elem}}}")
+                ).collect::<Vec<String>>().concat(),
+            ),
+            ValueKind::Scope { scope: ScopeBlock { lets, value }, .. } => {
+                let mut result = Vec::with_capacity(lets.len() + 1);
+
+                for l in lets.iter() {
+                    result.push(l.to_string());
+                }
+
+                result.push(value.to_string());
+
+                format!("{{{}}}", result.join("; "))
+            },
+            ValueKind::Lambda {
+                args,
+                value,
+                return_ty,
+                uid: _,
+                lowered_from_scoped_let: _,
+            } => {
+                let mut result = Vec::with_capacity(args.len() + 1);
+
+                for arg in args.iter() {
+                    result.push(arg.to_string());
+                }
+
+                result.push(value.to_string());
+
+                format!(
+                    "\\{{{}}}{}",
+                    result.join(", "),
+                    if let Some(ty) = return_ty {
+                        format!(": {ty}")
+                    } else {
+                        String::new()
+                    },
+                )
+            },
         };
 
         write!(fmt, "{s}")

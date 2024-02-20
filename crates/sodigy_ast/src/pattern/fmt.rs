@@ -1,4 +1,4 @@
-use super::{Pattern, PatternKind};
+use super::{PatField, Pattern, PatternKind};
 use sodigy_error::RenderError;
 use std::fmt;
 
@@ -40,6 +40,7 @@ impl fmt::Display for PatternKind {
             PatternKind::Identifier(_)
             | PatternKind::Binding(_)
             | PatternKind::Char(_)
+            | PatternKind::String { .. }
             | PatternKind::Wildcard
             | PatternKind::Shorthand
             | PatternKind::Number { .. } => self.render_error(),
@@ -89,6 +90,27 @@ impl fmt::Display for PatternKind {
             PatternKind::Path(names) => names.iter().map(
                 |name| name.id().to_string()
             ).collect::<Vec<String>>().join("."),
+            PatternKind::Struct {
+                struct_name,
+                fields,
+                has_shorthand,
+            } => {
+                let name = struct_name.iter().map(
+                    |name| name.id().to_string()
+                ).collect::<Vec<String>>().join(".");
+                let mut fields = fields.iter().map(
+                    |PatField {
+                        name,
+                        pattern,
+                    }| format!("{}: {pattern}", name.id())
+                ).collect::<Vec<_>>();
+
+                if *has_shorthand {
+                    fields.push(String::from(".."));
+                }
+
+                format!("{name}{{{}}}", fields.join(", "))
+            },
             PatternKind::Or(lhs, rhs) => format!(
                 "{} | {}",
                 if lhs.needs_paren() {
@@ -114,7 +136,6 @@ impl fmt::Display for PatternKind {
 
                 format!("{name}({patterns})")
             },
-            _ => todo!(),
         };
 
         write!(fmt, "{s}")

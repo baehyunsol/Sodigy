@@ -38,10 +38,6 @@ impl MirSession {
         }
     }
 
-    pub fn dump_mir(&self) -> String {
-        todo!()
-    }
-
     pub fn merge_hir(&mut self, hir: &HirSession) -> Result<(), ()> {
         // TODO
         // 1. iterate all the `FuncDef`s in hir,

@@ -30,7 +30,15 @@ pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_expr, parse_stmts};
 pub use pattern::{PatField, Pattern, PatternKind};
 pub use session::AstSession;
-pub use stmt::*;
+pub use stmt::{
+    Attribute,
+    Decorator,
+    FieldDef,
+    Stmt,
+    StmtKind,
+    VariantDef,
+    VariantKind,
+};
 pub use tokens::Tokens;
 pub use value::ValueKind;
 

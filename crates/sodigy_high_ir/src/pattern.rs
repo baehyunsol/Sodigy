@@ -10,7 +10,7 @@ mod lower;
 pub mod string;
 
 pub use lower::{lower_ast_pattern, lower_patterns_to_name_bindings};
-use string::StringPattern;
+pub use string::StringPattern;
 
 #[derive(Clone)]
 pub struct Pattern {
@@ -141,6 +141,10 @@ impl NumberLike {
 
     pub fn zero() -> Self {
         NumberLike::Exact(InternedNumeric::zero())
+    }
+
+    pub fn is_minus_epsilon(&self) -> bool {
+        matches!(self, NumberLike::MinusEpsilon(..))
     }
 
     pub fn try_into_u32(&self, session: &mut InternSession) -> Option<u32> {

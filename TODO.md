@@ -295,7 +295,6 @@ Conditional Compilation & Compile Time Function Evaluation
 
 Type Classes
 
-
 https://smallcultfollowing.com/babysteps//blog/2016/09/24/intersection-impls/
 https://smallcultfollowing.com/babysteps//blog/2016/09/29/distinguishing-reuse-from-override/
 https://smallcultfollowing.com/babysteps/blog/2016/10/24/supporting-blanket-impls-in-specialization/
@@ -410,6 +409,53 @@ let main(env: World): World = env.exists("./data.txt").map(
 
 ---
 
+Type-infer And Type-check
+
+- https://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
+
+Lower to Mir을 하면서 Type::HasToBeInfered를 만나면 걔네한테 전부 id를 붙이셈.
+
+예를 들어서 `let foo = 3;` 하면 `foo`에는 `HasToBeInfered(1234)`가 붙어있고, `3`에는 `Int`가 붙어있겠지.
+
+또, 저기서 `HasToBeInfered(1234) = Int`라는 equation이 나오지? 이 equation들을 전부 table에 저장
+-> 나중에 이 table로 모든 `HasToBeInfered`의 type을 알아낼 수 있으면 성공!
+
+더 많은 단계로도 가능
+
+```
+let foo: List(Int) = {
+  let v = [];
+
+  v
+};
+```
+
+`v`의 type이 `HasToBeInfered(1234)`로 찍히고, `HasToBeInfered(1234) = List(Placeholder)`가 추가되지? 또, 함수의 끝부분에서 `HasToBeInfered(1234) = List(Int)`가 추가됨 (`v`의 type과 `foo`의 type이 같아야 하니까). 이걸로 `v`를 풀 수 있음!
+
+근데 얘가 `Placeholder`랑 궁합이 별로임... 지금 내 생각은 `[]`에 `List(Placeholder)`를 주고, `None`에 `Option(Placeholder)`를 주는 방식이었잖아? 근데 컴파일 과정에서 모든 값의 type이 정해지도록 해야할 듯...
+
+지금의 계획
+
+1. lower_to_mir 하면서 만나는 모든 type에 일단은 `Placeholder`를 줌. 명백한 애들만 `Int`, `List(String)`처럼 solid type을 줌.
+2. expr들을 쭉 순회하면서 `Placeholder`를 `TypeVariable(u64)`로 치환, equation들을 계속 뽑아내면서 inference 시도
+  - type inference는 그때그때 조금씩 해야함. 나중에 한꺼번에 하면 equation 개수가 너무 많아질듯.
+    - 만약 `TypeVariable(3) = Int`라는 equation을 발견하면,
+    - solved_equation에 `TypeVariable(3) = Int`를 추가하고,
+    - equation에서 `TypeVariable(3)`을 찾아서 걔네를 전부 `Int`로 substitute하고,
+    - 이 과정에서 새로운게 풀릴테니 계속 반복
+    - 나중에 solved_equation들을 갖고 실제 Mir::Expr에 있는 type들도 풀어줘야함!
+  - type inference를 하다보면 type error도 잡을 수 있을 듯? 예를 들어서 `TypeVariable(3) = Int`하고 `TypeVariable(3) = String`이 동시에 있으면 빼도박도 못하게 오류잖아? 근데 저 equation만 보고 error message를 어떻게 만듦?
+  - `let foo = { let v = []; v.push(3) };`가 있다고 치면, `foo`의 type이 `TypeVariable(0)`이고 `v`의 type이 `TypeVariable(1)`이고 `TypeVariable(1) = List(Placeholder)`가 추가되고, ... `v.push`는 어떻게 처리함? 지금 구현으로는 `v`의 type을 모르면 아무것도 못하는데?? 일단 `List(Placeholder)`만 가지고 type class solver가 작동해야할 듯...
+    - `List(Placeholder)`가 아니고 `List(TypeVariable(2))`라고 해야하나??
+
+generic은 어떻게 해야할지 전혀 감도 못잡겠음.. 일단 https://rustc-dev-guide.rust-lang.org/generic_arguments.html 도 읽어보고 rustc 코드도 읽어보자!
+
+근데 생각해보면 아직은 type-inference단계잖아? `let foo = [1, 2, "abc", []]`가 있으면 `foo`의 type은 infer해야하지만 (annotation이 없으니까), rhs는 안 건드려도 되는 거 아님?? 즉, type annotation이 있어야 하지만 생략된 자리들만 채우면 되는 거 아님? 그게 type-inference잖아... 그 상태에서 type-check 부르면 type annotation이랑 실제 type이랑 같은지 전부 확인하는 거지 -> 모든 값들이 다 annotate 돼 있으니까 저 Check가 훨씬 쉬운 거 아님? scoped가 됐든 top-level이 됐든 `let foo(x: T1, y: T2): T3 = bar(x, y)`의 모양만 맞추면 됨!
+
+근데, 그럼 모든 Mir::Expr이 type field가 필요해? 소수의 expr만 type info가 필요하고 나머지는 그때그때 type check 하면 되는 거 아님? 굳이 항상 들고 있어야 해??
+
+---
+
 `r"010\d{8}"` -> regular expressions both in expressions and patterns
 
 1. 있으면 좋음
@@ -443,4 +489,14 @@ The final stages of the compiler
       - https://github.com/TinyCC/tinycc
       - https://github.com/drh/lcc
         - its license is too restrictive
-3. Binary
+3. How about Zig?
+4. Binary
+
+---
+
+Better Document
+
+let's get some inspirations from https://ziglang.org/documentation/0.11.0/
+
+- it has many erroneous code snippets
+  - since I have Sodigy syntax highlighter for html and error syntax highlighter (I can directly generate htmls from the dumped json), I can automatically add erroneous sodigy code snippets and their error messages

@@ -1,4 +1,10 @@
-use super::{NumberLike, Pattern, PatternKind};
+use super::{
+    NumberLike,
+    Pattern,
+    PatternKind,
+    StringPattern,
+    RangeType,
+};
 use sodigy_error::RenderError;
 use std::fmt;
 
@@ -34,6 +40,47 @@ impl fmt::Display for PatternKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let result = match self {
             PatternKind::Binding(name) => format!("${name}"),
+            PatternKind::String(StringPattern {
+                strings,
+                open_prefix,
+                open_suffix,
+                is_binary,
+            }) => {
+                let mut units = vec![];
+
+                if *open_prefix {
+                    units.push(String::new());
+                }
+
+                for s in strings.iter() {
+                    units.push(format!(
+                        "{}{:?}",
+                        if *is_binary { "b" } else { "" },
+                        s.id().to_string(),
+                    ));
+                }
+
+                if *open_suffix {
+                    units.push(String::new());
+                }
+
+                units.join("..")
+            },
+            PatternKind::Range {
+                ty,
+                from,
+                to,
+            } => {
+                let f = from.render(ty);
+                let t = to.render(ty);
+                let delim = if to.is_minus_epsilon() {
+                    "..~"
+                } else {
+                    ".."
+                };
+
+                format!("{f}{delim}{t}")
+            },
             PatternKind::TupleStruct { name, fields } => format!(
                 "{}({})",
                 name.iter().map(
@@ -41,10 +88,15 @@ impl fmt::Display for PatternKind {
                 ).collect::<Vec<_>>().join("."),
                 fields.iter().map(
                     |pat| pat.to_string()
-                ).collect::<Vec<_>>().join(", ")
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            PatternKind::Tuple(patterns) => format!(
+                "({})",
+                patterns.iter().map(
+                    |pattern| pattern.to_string()
+                ).collect::<Vec<_>>().join(", "),
             ),
             PatternKind::Wildcard => String::from("_"),
-            _ => todo!(),
         };
 
         write!(fmt, "{result}")
@@ -57,6 +109,20 @@ impl RenderError for NumberLike {
             NumberLike::OpenEnd { .. } => todo!(),  // Do we even need this branch?
             NumberLike::Exact(num) => num.to_string(),
             NumberLike::MinusEpsilon { .. } => todo!(),  // Do we even need this branch?
+        }
+    }
+}
+
+impl NumberLike {
+    pub fn render(&self, ty: &RangeType) -> String {
+        match self {
+            NumberLike::OpenEnd { .. } => String::new(),  // `..1`
+            NumberLike::Exact(n)
+            | NumberLike::MinusEpsilon(n) => match ty {
+                RangeType::Integer
+                | RangeType::Ratio => n.to_string(),
+                RangeType::Char => format!("{:?}", n.try_unwrap_small_integer().unwrap() as u8 as char),
+            },
         }
     }
 }

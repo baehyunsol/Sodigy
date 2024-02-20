@@ -13,10 +13,13 @@ pub enum Type {
     // every `Type` belongs to exactly one `Def`.
     Generic(usize),
 
-    // `[]: List(Placeholder)`
-    // `None: Option(Placeholder)`
+    // `lower_hir_expr_without_types` gives this type to most of expressions
     Placeholder,
-    HasToBeInfered,
+
+    // type variables for type inferences
+    // all the variables have to be infered before the type-checking stage
+    // otherwise, it's an error
+    Variable(u64),
 
     // in Sodigy, Types are first class objects.
     // that means the language doesn't distinguish types and exprs.

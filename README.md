@@ -396,7 +396,6 @@ Sodigy uses `?` to handle errors. It's like `Maybe` monad of Haskell. It's kinda
 
 ```
 # Don't forget to add `?` after `n`.
-# TODO: how about removing `?` in the function definition?
 let foo(n?: Int): Option(Int) = if n == 0 {
   None
 } else {
@@ -526,12 +525,11 @@ The `import` keyword imports external modules. There are 4 ways you can link ext
 
 1. You can tell the compiler where `foo.sdg` is. TODO: it's not implemented yet
 2. Local files. For `import foo;`, the compiler first looks for `./foo.sdg` and `./foo/lib.sdg`. If either of them exists, the compiler links the file.
-3. You can specify the path of the `.sdg` file in `sodigy.toml`. The `sodigy.toml` file must be at `.`.
+3. You can specify the path of the `.sdg` file in `sodigy.json`. The `sodigy.json` file must be at `.`.
 4. Standard Library. TODO: not implemented yet
 
 The compiler tries in that order.
 
-TODO: I want the compiler to warn unused dependencies. For ex, if there's `foo = { path = "../foo.sdg" }` in `sodgiy.toml` but no one imports `foo`, the compiler should warn that!
-TODO: how about a sodigy file instead of a toml file?
+TODO: I want the compiler to warn unused dependencies. For ex, if there's `foo = { path = "../foo.sdg" }` in `sodgiy.json` but no one imports `foo`, the compiler should warn that!
 
 You cannot `import *;` like many other languages. Sodigy cannot detect/prevent cyclic imports.

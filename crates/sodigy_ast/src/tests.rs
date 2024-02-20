@@ -1,6 +1,10 @@
-use super::*;
+use super;
 use sodigy_error::SodigyError;
-use sodigy_files::{get_all_sdg, global_file_session};
+use sodigy_files::{
+    get_all_sdg,
+    global_file_session,
+    join,
+};
 use sodigy_lex::{lex, LexSession};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
@@ -10,8 +14,7 @@ use sodigy_parse::{from_tokens, ParseSession};
 fn ast_test() {
     let g = unsafe { global_file_session() };
 
-    // TODO: use join function
-    for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
+    for path in get_all_sdg(&join("..", &join("..", "samples").unwrap()).unwrap(), true, "sdg").unwrap() {
         let mut lex_session = LexSession::new();
         let f = g.register_file(&path.to_string()).unwrap();
         let content = g.get_file_content(f).unwrap();

@@ -1,4 +1,10 @@
-use crate::{BranchArm, IdentWithSpan, MatchArm, ops::{InfixOp, PostfixOp, PrefixOp}, StructInitDef};
+use crate::{
+    BranchArm,
+    IdentWithSpan,
+    MatchArm,
+    StructInitDef,
+};
+use crate::ops::{InfixOp, PostfixOp, PrefixOp};
 use crate::value::ValueKind;
 use sodigy_span::SpanRange;
 

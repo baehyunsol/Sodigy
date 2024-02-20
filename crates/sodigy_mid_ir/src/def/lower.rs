@@ -27,7 +27,7 @@ pub fn lower_hir_func(
                         None => Type::HasToBeConverted(Box::new(lowered_ty)),
                     }
                 },
-                None => Type::HasToBeInfered,
+                None => Type::Placeholder,
             };
 
             let return_val = lower_hir_expr_without_types(
@@ -61,7 +61,7 @@ pub fn lower_hir_func(
 
                         Arg {
                             name: *name,
-                            ty: lowered_ty.unwrap_or_else(|| Type::HasToBeInfered),
+                            ty: lowered_ty.unwrap_or_else(|| Type::Placeholder),
                         }
                     }
                 ).collect()
