@@ -1,4 +1,4 @@
-use super;
+use super::*;
 use sodigy_error::SodigyError;
 use sodigy_files::{
     get_all_sdg,

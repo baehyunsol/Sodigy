@@ -340,7 +340,11 @@ impl DumpJson for ExprKind {
                 lets,
                 value,
                 uid,
-            }) => todo!(),
+            }) => json_key_value_table(vec![
+                ("kind", String::from("scoped_block").dump_json()),
+                ("lets", lets.dump_json()),
+                ("value", value.dump_json()),
+            ]),
             ExprKind::Match(Match {
                 arms,
                 value,
@@ -355,12 +359,17 @@ impl DumpJson for ExprKind {
                 lowered_from_scoped_let: _,
             }) => todo!(),
             ExprKind::Branch(Branch { arms }) => json_key_value_table(vec![
+                ("kind", String::from("branch").dump_json()),
                 ("arms", arms.dump_json()),
             ]),
             ExprKind::StructInit(StructInit {
                 struct_,
                 fields,
-            }) => todo!(),
+            }) => json_key_value_table(vec![
+                ("kind", String::from("struct_init").dump_json()),
+                ("struct", struct_.dump_json()),
+                ("fields", fields.dump_json()),
+            ]),
             ExprKind::Path {
                 head, tail,
             } => todo!(),
@@ -372,6 +381,25 @@ impl DumpJson for BranchArm {
     fn dump_json(&self) -> JsonObj {
         json_key_value_table(vec![
             ("condition", self.cond.dump_json()),
+            ("value", self.value.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for ScopedLet {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("name", self.name.id().dump_json()),
+            ("value", self.value.dump_json()),
+            ("type_annotation", self.ty.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for StructInitField {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("field_name", self.name.id().dump_json()),
             ("value", self.value.dump_json()),
         ])
     }

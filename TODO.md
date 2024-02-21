@@ -500,3 +500,10 @@ let's get some inspirations from https://ziglang.org/documentation/0.11.0/
 
 - it has many erroneous code snippets
   - since I have Sodigy syntax highlighter for html and error syntax highlighter (I can directly generate htmls from the dumped json), I can automatically add erroneous sodigy code snippets and their error messages
+
+---
+
+`어떤 obj의 N번째 field`라는 뜻의 Expr이 필요함 (Mir에 넣으면 좋을지 Hir에 넣으면 좋을지는 생각해봐야함)
+
+- `a.b`를 Mir로 lower하면 저게 무조건 필요함. Mir::Expr에서는 Path를 안 쓸 거거든
+- Hir에서 pattern을 Expr로 lower할 때도 저 의미가 필요, 근데 여기서는 뒤에서부터 세는 index도 있으면 더 좋음 (있어야 함)
