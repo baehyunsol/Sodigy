@@ -2,7 +2,7 @@ use crate::Type;
 use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
-use sodigy_ast::{DottedNames, IdentWithSpan, InfixOp, PostfixOp, PrefixOp};
+use sodigy_ast::{FieldKind, IdentWithSpan, InfixOp, PostfixOp, PrefixOp};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -47,10 +47,9 @@ pub enum ExprKind {
 
     StructInit(StructInit),
 
-    // `a.b.c` -> `Path { head: a, tail: [b, c] }`
-    Path {
-        head: Box<Expr>,
-        tail: DottedNames,
+    Field {
+        pre: Box<Expr>,
+        post: FieldKind,
     },
 
     PrefixOp(PrefixOp, Box<Expr>),

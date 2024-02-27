@@ -1,5 +1,11 @@
 use super::{Expr, ExprKind, ValueKind};
-use crate::{BranchArm, MatchArm, ScopeBlock, StructInitDef};
+use crate::{
+    BranchArm,
+    FieldKind,
+    MatchArm,
+    ScopeBlock,
+    StructInitDef,
+};
 use crate::ops::InfixOp;
 use std::fmt;
 
@@ -20,7 +26,9 @@ impl fmt::Display for ExprKind {
             } else {
                 format!("({lhs}){op}({rhs})")
             },
-            ExprKind::Path { pre, post } => format!("({pre}).{}", post.id()),
+            ExprKind::Field { pre, post } => format!(
+                "({pre}).{post}",
+            ),
             ExprKind::Call { func, args } => format!(
                 "({func})({})",
                 args.iter().map(
@@ -149,6 +157,22 @@ impl fmt::Display for ValueKind {
                     },
                 )
             },
+        };
+
+        write!(fmt, "{s}")
+    }
+}
+
+impl fmt::Display for FieldKind {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let s = match self {
+            FieldKind::Named(n) => n.id().to_string(),
+            FieldKind::Index(n) => if *n < 0 {
+                format!("_n{n}")
+            } else {
+                format!("_{n}")
+            },
+            FieldKind::Range(f, t) => format!("({f}, {t})"),
         };
 
         write!(fmt, "{s}")

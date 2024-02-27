@@ -491,6 +491,8 @@ The final stages of the compiler
         - its license is too restrictive
 3. How about Zig?
 4. Binary
+5. Transpiling Sodigy to Python/Javascript
+  - Very slow (even slower than naive Python/Javascript), but would be very useful
 
 ---
 
@@ -503,7 +505,19 @@ let's get some inspirations from https://ziglang.org/documentation/0.11.0/
 
 ---
 
-`어떤 obj의 N번째 field`라는 뜻의 Expr이 필요함 (Mir에 넣으면 좋을지 Hir에 넣으면 좋을지는 생각해봐야함)
+Name resolution
 
-- `a.b`를 Mir로 lower하면 저게 무조건 필요함. Mir::Expr에서는 Path를 안 쓸 거거든
-- Hir에서 pattern을 Expr로 lower할 때도 저 의미가 필요, 근데 여기서는 뒤에서부터 세는 index도 있으면 더 좋음 (있어야 함)
+어떤 expr에서 `a.b.c`가 나오면, 어디까지가 module name이고 어디부터가 field name인지 잘라야함. 자르면 앞부분은 전부 uid로 바꿔야함!
+
+sodigy_legacy처럼 복잡하게 할 필요없음, `a.b`에서 `a`의 type을 보고, `a`가 module이거나 enum이면 `a.b`를 통째로 uid로 바꾸면 되고, 그게 아니면 `N번째 Index`를 나타내는 MIR로 변환
+
+여기서 가장 큰 문제... root에 있는 이름들은 어떻게 함?
+
+1. Rust의 경우: `crate::foo`
+2. Python의 경우: 어느 파일을 기준으로 실행하냐에 따라 다름!
+
+둘이 작동방식이 완전히 다름: Rust는 누가 주인공인지를 정해놓고 모두 거기에 따름. Python은 누가 주인공인지 그때그때 정함 (보통 규모가 커지면 개발자는 마음속으로 정해놓겠지...)
+
+Rust랑 Python이랑 정면충돌하는 경우 누구를 따라야하나... 일단 Zen Of Sodigy를 보자 -> 이것만 봐서는 Python 따라야할 것 같음...
+
+즉, Sodigy에서 module/import가 어떤 식으로 동작하는지를 완전히 정하고 가야함!

@@ -8,7 +8,7 @@ In order to build the compiler, read [this](Build.md).
 
 ## Goal of Sodigy
 
-- Programmers can implement their idea as fast as possible.
+- Programmers can implement their idea as fast as possible, even when the idea is very complicated.
   - It doesn't mean the result *RUNS* fast, but the programmers can get the result fast. Of course the runtime performance is important, but build-test cycle is much more important.
 - The core of the language has to be as simple as possible.
   - Don't use built-in functions unless necessary. Write functions in Sodigy.

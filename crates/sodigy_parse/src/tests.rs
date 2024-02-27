@@ -1,8 +1,6 @@
 use super::*;
-use sodigy_error::SodigyError;
 use sodigy_files::{global_file_session, get_all_sdg, FileHash};
-use sodigy_lex::{lex, LexSession};
-use sodigy_session::SodigySession;
+use sodigy_lex::lex;
 use sodigy_span::SpanPoint;
 
 #[test]

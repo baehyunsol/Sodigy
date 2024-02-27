@@ -136,7 +136,6 @@ fn to_n(c: u8) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::ExpectedChars;
 
     #[test]
     fn xxx_to_dec() {

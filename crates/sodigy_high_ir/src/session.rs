@@ -131,6 +131,7 @@ impl HirSession {
         unreachable!()
     }
 
+    /// `0` -> `"_0"`
     pub fn get_tuple_field_expr(&mut self, index: usize) -> InternedString {
         if index < self.field_exprs.len() {
             self.field_exprs[index]

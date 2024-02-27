@@ -139,8 +139,8 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
                 mut_walker_expr(value, c, worker);
             }
         },
-        ExprKind::Path { head, .. } => {
-            mut_walker_expr(head, c, worker);
+        ExprKind::Field { pre, .. } => {
+            mut_walker_expr(pre, c, worker);
         },
         ExprKind::PrefixOp(_, value)
         | ExprKind::PostfixOp(_, value) => {

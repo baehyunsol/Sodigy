@@ -24,7 +24,7 @@ use crate::pattern::{DestructuredPattern, lower_patterns_to_name_bindings, lower
 use crate::session::HirSession;
 use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
-use sodigy_ast::{self as ast, IdentWithSpan, ValueKind};
+use sodigy_ast::{self as ast, FieldKind, IdentWithSpan, ValueKind};
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
@@ -53,25 +53,14 @@ pub fn lower_ast_expr(
                             kind: ExprKind::Identifier(IdentWithOrigin::new(
                                 names[0].id(), NameOrigin::Global { origin: None },
                             )),
+
+                            // it points to the `import` statement
                             span: *span,
                         }
                     }
 
                     else {
-                        Expr {
-                            kind: ExprKind::Path {
-                                head: Box::new(Expr {
-                                    kind: ExprKind::Identifier(IdentWithOrigin::new(
-                                        names[0].id(), NameOrigin::Global { origin: None },
-                                    )),
-                                    span: *names[0].span(),
-                                }),
-                                tail: names[1..].to_vec(),
-                            },
-
-                            // it points to the `import` statement
-                            span: *span,
-                        }
+                        fields_from_vec(names, *span)
                     }
                 }
 
@@ -572,11 +561,8 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
-        // it prettifies ast::Path
-        // `a.b.c` -> ast: `Path { pre: Path { pre: a, post: b }, post: c }`
-        // `a.b.c` -> hir: `Path { head: a, tail: [b, c] }`
-        ast::ExprKind::Path { pre, post } => {
-            let head = lower_ast_expr(
+        ast::ExprKind::Field { pre, post } => {
+            let pre = lower_ast_expr(
                 pre,
                 session,
                 used_names,
@@ -584,29 +570,12 @@ pub fn lower_ast_expr(
                 name_space,
             )?;
 
-            if let Expr {
-                kind: ExprKind::Path { head: i_head, tail: mut i_tail },
-                span: i_span,
-            } = head {
-                i_tail.push(*post);
-
-                Expr {
-                    kind: ExprKind::Path {
-                        head: i_head,
-                        tail: i_tail,
-                    },
-                    span: i_span,
-                }
-            }
-
-            else {
-                Expr {
-                    kind: ExprKind::Path {
-                        head: Box::new(head),
-                        tail: vec![*post],
-                    },
-                    span: e.span,
-                }
+            Expr {
+                kind: ExprKind::Field {
+                    pre: Box::new(pre),
+                    post: *post,
+                },
+                span: e.span,
             }
         },
         ast::ExprKind::Call { func, args } => {
@@ -997,5 +966,32 @@ pub fn try_warn_unnecessary_paren(
             session.push_warning(HirWarning::unnecessary_paren(expr));
         },
         _ => {},
+    }
+}
+
+fn fields_from_vec(names: &[IdentWithSpan], span: SpanRange) -> Expr {
+    debug_assert!(names.len() > 1);
+
+    if names.len() == 2 {
+        Expr {
+            kind: ExprKind::Field {
+                pre: Box::new(Expr {
+                    kind: ExprKind::Identifier(IdentWithOrigin::new(names[0].id(), NameOrigin::Global { origin: None /* dont know yet */ })),
+                    span: *names[0].span(),
+                }),
+                post: FieldKind::Named(names[1]),
+            },
+            span,
+        }
+    }
+
+    else {
+        Expr {
+            kind: ExprKind::Field {
+                pre: Box::new(fields_from_vec(&names[..(names.len() - 1)], span)),
+                post: FieldKind::Named(names[names.len() - 1]),
+            },
+            span,
+        }
     }
 }

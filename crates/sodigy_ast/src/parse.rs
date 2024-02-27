@@ -4,6 +4,7 @@ use crate::{
     DottedNames,
     error::{AstError, AstErrorKind, AttributeIn, NewExpectedTokens},
     expr::{Expr, ExprKind},
+    FieldKind,
     GenericDef,
     IdentWithSpan,
     let_::Let,
@@ -724,7 +725,7 @@ pub fn parse_expr(
                     };
 
                     lhs = Expr {
-                        kind: ExprKind::Path { pre: Box::new(lhs), post: rhs },
+                        kind: ExprKind::Field { pre: Box::new(lhs), post: FieldKind::Named(rhs) },
                         span: punct_span,
                     };
                     continue;

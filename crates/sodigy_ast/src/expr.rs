@@ -1,6 +1,6 @@
 use crate::{
     BranchArm,
-    IdentWithSpan,
+    FieldKind,
     MatchArm,
     StructInitDef,
 };
@@ -8,6 +8,7 @@ use crate::ops::{InfixOp, PostfixOp, PrefixOp};
 use crate::value::ValueKind;
 use sodigy_span::SpanRange;
 
+mod endec;
 mod fmt;
 
 #[derive(Clone, Debug)]
@@ -31,7 +32,7 @@ impl Expr {
         match &self.kind {
             ExprKind::Value(ValueKind::Scope { .. }) => true,
             ExprKind::PostfixOp(_, expr)
-            | ExprKind::Path { pre: expr, .. }
+            | ExprKind::Field { pre: expr, .. }
             | ExprKind::Call { func: expr, .. }
             | ExprKind::StructInit { struct_: expr, .. } => expr.starts_with_curly_brace(),
             _ => false,
@@ -43,7 +44,7 @@ impl Expr {
  *  spans of exprs                      *
  *  value: see `value.rs`               *
  *  pre/post/infix op: the operator     *
- *  path: `.`                           *
+ *  field: `.`                          *
  *  call: the parenthesis               *
  *  branch: the first `if` keyword      *
  *  match: `match` keyword              *
@@ -56,8 +57,11 @@ pub enum ExprKind {
     PostfixOp(PostfixOp, Box<Expr>),
     InfixOp(InfixOp, Box<Expr>, Box<Expr>),
 
-    // `a.b`: `Path { pre: a, post: b }`
-    Path { pre: Box<Expr>, post: IdentWithSpan },
+    // `a.b`: `Field { pre: a, post: b }`
+    Field {
+        pre: Box<Expr>,
+        post: FieldKind,
+    },
     Call { func: Box<Expr>, args: Vec<Expr> },
 
     // foo { bar: 3, baz: 4 }

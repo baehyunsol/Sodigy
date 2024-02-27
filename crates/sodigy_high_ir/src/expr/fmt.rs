@@ -175,12 +175,9 @@ impl fmt::Display for ExprKind {
                     fields_rendered.join(", ")
                 )
             },
-            ExprKind::Path { head, tail } => format!(
-                "{}{}",
-                wrap_complicated_exprs(&head.kind),
-                tail.iter().map(
-                    |id| format!(".{}", id.id())
-                ).collect::<Vec<String>>().concat(),
+            ExprKind::Field { pre, post } => format!(
+                "{}.{post}",
+                wrap_complicated_exprs(&pre.kind),
             ),
             ExprKind::PrefixOp(op, val) => format!("{op}{}", wrap_if_op(&val.kind)),
             ExprKind::PostfixOp(op, val) => format!("{}{op}", wrap_if_op(&val.kind)),
@@ -218,7 +215,7 @@ fn wrap_if_op(e: &ExprKind) -> String {
 fn wrap_unless_name(e: &ExprKind) -> String {
     match e {
         ExprKind::Identifier(_)
-        | ExprKind::Path { .. } => e.to_string(),
+        | ExprKind::Field { .. } => e.to_string(),
         _ => format!("({e})"),
     }
 }

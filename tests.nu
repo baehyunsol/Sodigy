@@ -43,5 +43,5 @@ def main [--depgraph] {
 
     let elt = $end_sec - $start_sec
 
-    echo $"took ($elt) seconds..."
+    echo $"Complete! It took ($elt) seconds..."
 }

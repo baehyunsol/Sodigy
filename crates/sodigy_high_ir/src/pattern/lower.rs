@@ -12,7 +12,7 @@ use crate::error::HirError;
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use crate::warn::HirWarning;
-use sodigy_ast::{self as ast, IdentWithSpan};
+use sodigy_ast::{self as ast, FieldKind, IdentWithSpan};
 use sodigy_intern::InternedString;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
@@ -22,11 +22,10 @@ use std::collections::{HashMap, HashSet};
 // -> `let tmp = f();`, `let x = tmp.bar;`, `let y = tmp.baz;`
 //
 // `let pattern ($x, $y, .., $z, _) = f();`
-// -> `let tmp = f();`, `let x = tmp._0;`, `let y = tmp._1;`, `let z = TODO`
-// -> TODO: notation for $z
+// -> `let tmp = f();`, `let x = tmp._0;`, `let y = tmp._1;`, `let z = index(tmp, -1)`
 //
 // `let pattern ($x, ($y, $z), .., $w) = f();`
-// -> `let tmp = f();`, `let x = tmp._0;`, `let tmp2 = tmp._1;`, `let y = tmp2._0;`, `let z = tmp2._1;`, `let w = TODO`
+// -> `let tmp = f();`, `let x = tmp._0;`, `let tmp2 = tmp._1;`, `let y = tmp2._0;`, `let z = tmp2._1;`, `let w = index(tmp, -1)`
 //
 // `let pattern Foo { $x, $z @ .. } = f();`
 // -> Invalid: No bindings for shorthand in this case
@@ -93,25 +92,27 @@ pub fn lower_patterns_to_name_bindings(
                         shorthand_index = Some(index);
 
                         // `let pattern (_, $x @ .., _) = (0, 1, 2, 3);`
-                        // -> `let x = (1, 2);`
+                        // -> `let x = (1, 2);` or `let x = tmp.range(1, -1)`
                         if let Some(bind) = &curr_pattern.bind {
-                            // TODO: handle this case
+                            name_bindings.push(DestructuredPattern::new(
+                                *bind,
+                                field_expr_with_name_and_index(tmp_name, FieldKind::Range(index as i64, index as i64 - patterns.len() as i64 + 1)),
+                                None,
+                                false,  // TODO: is this real?
+                            ));
                         }
                     }
 
                     continue;
                 }
 
-                let subpattern_expr = if let Some(shorthand_index) = shorthand_index {
+                let subpattern_expr = if let Some(_) = shorthand_index {
                     // `(_, _, .., $x, $y)`
                     // `$x` -> `tuple_field_index(tmp, -2)`
-                    todo!()
+                    field_expr_with_name_and_index(tmp_name, FieldKind::Index(index as i64 - patterns.len() as i64))
                 } else {
-                    // `0` -> `_0`
-                    let field_expr = session.get_tuple_field_expr(index);
-
-                    // `tmp` + `_0` -> `tmp._0`
-                    field_expr_with_name_and_index(tmp_name, field_expr)
+                    // `tmp` + 0 -> `tmp._0`
+                    field_expr_with_name_and_index(tmp_name, FieldKind::Index(index as i64))
                 };
 
                 if let Err(()) = lower_patterns_to_name_bindings(
@@ -404,15 +405,15 @@ fn check_same_type_or_error(
     }
 }
 
-// `name.field`
-fn field_expr_with_name_and_index(name: InternedString, field: InternedString) -> ast::Expr {
+/// `'name'` + `0` -> `name._0`
+fn field_expr_with_name_and_index(name: InternedString, index: FieldKind) -> ast::Expr {
     ast::Expr {
-        kind: ast::ExprKind::Path {
+        kind: ast::ExprKind::Field {
             pre: Box::new(ast::Expr {
                 kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
                 span: SpanRange::dummy(0x923a3852),
             }),
-            post: IdentWithSpan::new(field, SpanRange::dummy(0x0716df33)),
+            post: index,
         },
         span: SpanRange::dummy(0x9edc0524),
     }

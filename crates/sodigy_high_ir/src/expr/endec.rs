@@ -3,6 +3,7 @@ use super::{
     BranchArm,
     Expr,
     ExprKind,
+    FieldKind,
     Lambda,
     Match,
     MatchArm,
@@ -131,10 +132,10 @@ impl Endec for ExprKind {
                 struct_.encode(buffer, session);
                 fields.encode(buffer, session);
             },
-            ExprKind::Path { head, tail } => {
+            ExprKind::Field { pre, post } => {
                 buffer.push(14);
-                head.encode(buffer, session);
-                tail.encode(buffer, session);
+                pre.encode(buffer, session);
+                post.encode(buffer, session);
             },
             ExprKind::PrefixOp(op, val) => {
                 buffer.push(15);
@@ -200,9 +201,9 @@ impl Endec for ExprKind {
                         struct_: Box::new(Expr::decode(buffer, index, session)?),
                         fields: Vec::<StructInitField>::decode(buffer, index, session)?,
                     })),
-                    14 => Ok(ExprKind::Path {
-                        head: Box::new(Expr::decode(buffer, index, session)?),
-                        tail: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
+                    14 => Ok(ExprKind::Field {
+                        pre: Box::new(Expr::decode(buffer, index, session)?),
+                        post: FieldKind::decode(buffer, index, session)?,
                     }),
                     15 => Ok(ExprKind::PrefixOp(
                         PrefixOp::decode(buffer, index, session)?,
@@ -370,9 +371,13 @@ impl DumpJson for ExprKind {
                 ("struct", struct_.dump_json()),
                 ("fields", fields.dump_json()),
             ]),
-            ExprKind::Path {
-                head, tail,
-            } => todo!(),
+            ExprKind::Field {
+                pre, post,
+            } => json_key_value_table(vec![
+                ("kind", String::from("field_expr").dump_json()),
+                ("pre", pre.dump_json()),
+                ("post", post.dump_json()),
+            ]),
         }
     }
 }
