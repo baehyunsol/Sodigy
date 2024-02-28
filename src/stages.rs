@@ -1,5 +1,6 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
+use crate::multi;
 use log::info;
 use sodigy_ast::{
     parse_config_file,
@@ -13,6 +14,7 @@ use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
 use sodigy_error::{
     ErrorContext,
     RenderError,
+    SodigyError,
     UniversalError,
 };
 use sodigy_files::{
@@ -354,116 +356,111 @@ pub fn construct_mir(
         PathOrRawInput::RawInput(_) => String::from("."),
     };
 
+    // check out https://github.com/baehyunsol/Sodigy/blob/c38f4fab18525da89fa20e0bd2a1c3ab938f6bb5/src/stages.rs#L354 for the previous implementation
     let mut has_error = false;
-    let mut mir_session = MirSession::from_hir_session(&hir_session);
-    let mut construct_hirs_of_these = vec![];
+    let hir_workers = multi::init_channels(compiler_option.num_workers);
+
     let mut paths_read_so_far = HashSet::new();
+    let mut paths_to_read = vec![];
 
-    if let PathOrRawInput::Path(p) = input {
-        paths_read_so_far.insert(p.to_string());
-    }
+    // these will later be merged to MIR Session
+    let mut mir_errors = vec![];
+    let mut mir_session_dependencies = vec![];
 
-    let mut hir_sessions = vec![hir_session];
-
-    while let Some(hir_session) = hir_sessions.pop() {
-        if let Err(()) = mir_session.merge_hir(&hir_session) {
+    for name in hir_session.imported_names.iter() {
+        if matches!(&input, PathOrRawInput::RawInput(_)) {
+            // TODO: error: raw inputs cannot have dependencies
             has_error = true;
+            break;
         }
 
-        for name in hir_session.imported_names.iter() {
-            match try_resolve_dependency(&base_path, compiler_option, *name) {
-                Ok(path) => {
-                    if paths_read_so_far.contains(&path) {
-                        continue;
-                    }
+        match try_resolve_dependency(&base_path, compiler_option, *name) {
+            Ok(path) => {
+                if paths_read_so_far.contains(&path) {
+                    continue;
+                }
 
-                    if !is_file(&path) {
-                        has_error = true;
-                        mir_session.push_error(MirError::file_not_found(*name, path.clone()));
-                        continue;
-                    }
-
-                    let last_modified_at = match last_modified(&path) {
-                        Ok(m) => m,
-                        Err(e) => {
-                            has_error = true;
-                            let mut e = UniversalError::from(e);
-                            e.push_span(*name.span());
-                            compiler_output.push_error(e);
-
-                            continue;
-                        },
-                    };
-
-                    mir_session.add_dependency(SessionDependency {
-                        path: path.clone(),
-                        last_modified_at,
-                    });
-
-                    construct_hirs_of_these.push(path.clone());
-                    paths_read_so_far.insert(path.clone());
-                },
-                Err(e) => {
+                if !is_file(&path) {
                     has_error = true;
-                    compiler_output.push_error(e);
-                },
-            }
-        }
+                    mir_errors.push(MirError::file_not_found(*name, path.clone()));
+                    continue;
+                }
 
-        // TODO
-        // 1. construct hirs of files in `construct_hirs_of_these`
-        // 2. i want it to run in parallel...
+                let last_modified_at = match last_modified(&path) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        has_error = true;
+                        let mut e = UniversalError::from(e);
+                        e.push_span(*name.span());
+                        compiler_output.push_error(e);
+
+                        continue;
+                    },
+                };
+
+                mir_session_dependencies.push(SessionDependency {
+                    path: path.clone(),
+                    last_modified_at,
+                });
+
+                paths_to_read.push(path.clone());
+                paths_read_so_far.insert(path.clone());
+            },
+            Err(e) => {
+                has_error = true;
+                compiler_output.push_error(e);
+            },
+        }
     }
 
     if has_error {
-        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
-        (None, compiler_output)
-    }
+        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
 
-    else {
-        match input {
-            PathOrRawInput::Path(file) if compiler_option.save_ir => {
-                let tmp_path = match generate_path_for_ir(file, FILE_EXT_MID_IR, true) {
-                    Ok(p) => p.to_string(),
-                    Err(e) => {
-                        compiler_output.collect_errors_and_warnings_from_session(&mir_session);
-                        compiler_output.push_error(e.into());
-                        return (None, compiler_output);
-                    },
-                };
-
-                let file_metadata = match last_modified(file) {
-                    Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-                    Err(e) => {
-                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-
-                        0
-                    },
-                };
-
-                if let Err(mut e) = mir_session.save_to_file(&tmp_path, Some(file_metadata)) {
-                    compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
-                }
-            },
-            _ => {},
+        for error in mir_errors.into_iter() {
+            compiler_output.push_error(error.to_universal());
         }
 
-        if let Some(path) = &compiler_option.dump_mir_to {
-            let res = mir_session.dump_json().pretty(4);
+        return (None, compiler_output);
+    }
 
-            if path != "STDOUT" {
-                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
-                }
-            }
+    let mut num_of_hirs_to_build = paths_to_read.len();
 
-            else {
-                compiler_output.dump_to_stdout(res);
+    multi::distribute_messages(
+        paths_to_read.into_iter().map(
+            |path| multi::MessageFromMain::ConstructHirSession { path },
+        ).collect(),
+        &hir_workers,
+    );
+
+    while num_of_hirs_to_build > 0 {
+        for worker in hir_workers.iter() {
+            match worker.try_recv() {
+                Ok(msg) => match msg {
+                    multi::MessageToMain::HirComplete { name } => {
+                        // TODO: find more files to read
+                        // you can get that information from cache.get(name).imported_names
+
+                        // TODO: pop a job from a queue and give that to this worker
+                        // that makes it a simple load balancer!
+                    },
+                },
+                Err(e) => match e {
+                    std::sync::mpsc::TryRecvError::Empty => {},
+                    std::sync::mpsc::TryRecvError::Disconnected => {
+                        // TODO: err
+                    },
+                },
             }
         }
-
-        (Some(mir_session), compiler_output)
     }
+
+    // TODO: wait until the workers finish their jobs
+    // when the jobs are done, the global cache (which is not defined yet) will have all the HIR Sessions
+    // read the dependencies of the HIR Sessions in the cache and construct them
+    // When everything is done, you can continue to the MIR stage
+    // Don't forget to kill all the workers before going to the next stage
+
+    todo!()
 }
 
 pub fn construct_binary(

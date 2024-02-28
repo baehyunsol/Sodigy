@@ -78,6 +78,7 @@ fn very_long_file() {
         verbosity: 0,
         raw_input: None,
         parse_config_file: false,
+        num_workers: 1,
     });
 
     if res.has_error() {

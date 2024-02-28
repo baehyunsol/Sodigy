@@ -27,6 +27,8 @@ pub use warn::ClapWarning;
 // TODO: what if `--help`, `--version` or `--clean` expects more flags?
 // I want to set verbosity of `--clean`
 
+// TODO: I want it to warn users when useless `num-workers` is provided. For ex, parser cannot benefit from parallelism
+
 pub fn parse_cli_args() -> ClapSession {
     let (input, file) = into_file();
 
@@ -84,6 +86,7 @@ pub fn parse_cli_args() -> ClapSession {
         let mut dump_mir_to = None;
         let mut verbosity = None;
         let mut raw_input: Option<(Vec<u8>, SpanRange)> = None;
+        let mut num_workers = None;
 
         let mut help_flag = None;
         let mut version_flag = None;
@@ -187,6 +190,16 @@ pub fn parse_cli_args() -> ClapSession {
                                     tokens[index + 1].value.unwrap_raw_input().into_bytes(),
                                     tokens[index].span,
                                 ));
+                            }
+                        },
+                        Flag::NumWorkers => {
+                            if num_workers.is_some() {
+                                errors.push(ClapError::same_flag_multiple_times(Flag::NumWorkers, tokens[index].span));
+                            }
+
+                            else {
+                                // TODO: what if `as usize` fails?
+                                num_workers = Some(tokens[index + 1].value.unwrap_int() as usize);
                             }
                         },
                         Flag::Help => {
@@ -303,6 +316,7 @@ pub fn parse_cli_args() -> ClapSession {
             verbosity: verbosity.unwrap_or(1),
             raw_input,
             parse_config_file: false,
+            num_workers: num_workers.unwrap_or(calc_num_workers()),
         };
 
         let res = ClapSession {
@@ -347,6 +361,8 @@ pub struct CompilerOption {
 
     // users cannot set this flag manually
     pub parse_config_file: bool,
+
+    pub num_workers: usize,
 }
 
 impl CompilerOption {
@@ -381,6 +397,10 @@ impl CompilerOption {
     }
 }
 
+fn calc_num_workers() -> usize {
+    std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::new(1).unwrap()).get()
+}
+
 impl Default for CompilerOption {
     fn default() -> Self {
         CompilerOption {
@@ -395,6 +415,7 @@ impl Default for CompilerOption {
             verbosity: 1,
             raw_input: None,
             parse_config_file: false,
+            num_workers: calc_num_workers(),
         }
     }
 }

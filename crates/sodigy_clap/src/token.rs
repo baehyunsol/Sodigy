@@ -93,6 +93,8 @@ impl TokenValue {
             },
             TokenKind::Int => match buffer.parse::<u64>() {
                 Ok(n) => Some(TokenValue::Int(n)),
+
+                // TODO: I want to tell the users that it cannot parse integers greater than u64::MAX
                 _ => None,
             },
             TokenKind::None => Some(TokenValue::None),

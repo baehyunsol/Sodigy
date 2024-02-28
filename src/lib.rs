@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 
 mod error;
+mod multi;
 pub mod result;
 pub mod stages;
 pub mod utils;
@@ -126,6 +127,7 @@ Options:
     --raw-input RAW-INPUT           Compile raw input instead of files.
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.
+    -w, --num-workers INT           Number of parallel workers (default: the number of CPUs)
     --clean                         Remove all the `__sdg_cache__` directories in PWD and its sub directories.
                                     This doesn't remove dumped outputs.
 ";

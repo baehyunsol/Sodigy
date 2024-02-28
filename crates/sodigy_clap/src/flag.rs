@@ -15,9 +15,10 @@ pub enum Flag {
     Clean,
     Verbose,
     RawInput,
+    NumWorkers,
 }
 
-pub const FLAGS: [Flag; 11] = [
+pub const FLAGS: [Flag; 12] = [
     Flag::Output,
     Flag::StopAt,
     Flag::Help,
@@ -29,6 +30,7 @@ pub const FLAGS: [Flag; 11] = [
     Flag::Clean,
     Flag::Verbose,
     Flag::RawInput,
+    Flag::NumWorkers,
 ];
 
 impl Flag {
@@ -41,7 +43,8 @@ impl Flag {
             Flag::StopAt => TokenKind::Stage,
             Flag::ShowWarnings
             | Flag::SaveIr => TokenKind::Bool,
-            Flag::Verbose => TokenKind::Int,
+            Flag::Verbose
+            | Flag::NumWorkers => TokenKind::Int,
             Flag::RawInput => TokenKind::RawInput,
             Flag::Help
             | Flag::Version
@@ -54,6 +57,7 @@ impl Flag {
             Flag::Output => Some(b"-o"),
             Flag::Help => Some(b"-h"),
             Flag::Version => Some(b"-v"),
+            Flag::NumWorkers => Some(b"-w"),
             Flag::StopAt
             | Flag::ShowWarnings
             | Flag::SaveIr
@@ -78,6 +82,7 @@ impl Flag {
             Flag::Clean => b"--clean",
             Flag::Verbose => b"--verbose",
             Flag::RawInput => b"--raw-input",
+            Flag::NumWorkers => b"--num-workers",
         }
     }
 
