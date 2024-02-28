@@ -37,5 +37,6 @@ pub enum FuncKind {
     Lambda,
     Enum { variants: Vec<Uid> },
     EnumVariant { parent: Uid },
+    StructDef,
     StructConstr,
 }

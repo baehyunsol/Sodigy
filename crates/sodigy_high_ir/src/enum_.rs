@@ -13,6 +13,8 @@ let enum Option<T> = { Some(T), None };
 ->
 let Option<T>: Type = ...; let Some<T>(val: T): Option(T) = ...; let None<T>: Option<T> = ...;
 
+for `Option<T>`, `Option` and `Option(Int)` is valid, but `Option()` is not. See the documents for the generics.
+
 let enum MsgKind<T> = { Quit, Event { kind: T, id: Int } };
 ->
 let MsgKind<T>: Type = ...; let Quit<T>: MsgKind(T) = ...; let struct Event<T> = { kind: T, id: Int };

@@ -16,24 +16,11 @@ pub struct ClapWarning {
     extra: ExtraErrInfo,
 }
 
-// TODO: remove unused warnings
 impl ClapWarning {
     pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
         ClapWarning {
             kind: ClapWarningKind::SameFlagMultipleTimes(flag),
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
-        }
-    }
-
-    pub fn path_is_set_flag_is_not_set(
-        is_set: Flag,
-        is_not_set: Flag,
-        spans: Vec<SpanRange>,
-    ) -> Self {
-        ClapWarning {
-            kind: ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set },
-            spans: spans.into(),
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
@@ -84,10 +71,6 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
 
 pub enum ClapWarningKind {
     SameFlagMultipleTimes(Flag),
-    PathIsSetFlagIsNotSet {
-        is_set: Flag,
-        is_not_set: Flag,
-    },
     IgnoredFlag {
         flag: Flag,
         ignored_because_of: Flag,
@@ -98,7 +81,6 @@ impl SodigyErrorKind for ClapWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             ClapWarningKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
-            ClapWarningKind::PathIsSetFlagIsNotSet { is_set, is_not_set } => format!("`{}` is set, but `{}` is not set", is_set.render_error(), is_not_set.render_error()),
             ClapWarningKind::IgnoredFlag { flag, .. } => format!("ignored flag `{}`", flag.render_error()),
         }
     }
@@ -106,7 +88,6 @@ impl SodigyErrorKind for ClapWarningKind {
     fn help(&self, _: &mut InternSession) -> String {
         match self {
             ClapWarningKind::SameFlagMultipleTimes(_) => String::new(),
-            ClapWarningKind::PathIsSetFlagIsNotSet { is_set, .. } => format!("`{}` doesn't do anything.", is_set.render_error()),
             ClapWarningKind::IgnoredFlag { flag, ignored_because_of } => format!("`{}` is ignored because of `{}`", flag.render_error(), ignored_because_of.render_error()),
         }
     }
@@ -115,8 +96,7 @@ impl SodigyErrorKind for ClapWarningKind {
     fn index(&self) -> u32 {
         match self {
             ClapWarningKind::SameFlagMultipleTimes(_) => 0,
-            ClapWarningKind::PathIsSetFlagIsNotSet { .. } => 1,
-            ClapWarningKind::IgnoredFlag { .. } => 2,
+            ClapWarningKind::IgnoredFlag { .. } => 1,
         }
     }
 }

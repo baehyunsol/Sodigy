@@ -140,6 +140,7 @@ impl SodigyNumber {
             SodigyNumber::BigInt(n) => SodigyNumber::BigInt(Box::new(
                 n.sub_i32(1)
             )),
+            SodigyNumber::BigRatio(n) => SodigyNumber::BigRatio(Box::new(n.sub_i32(1))),
             SodigyNumber::SmallInt(n) => match n.checked_sub(1) {
                 Some(n) => SodigyNumber::SmallInt(n),
                 None => {
@@ -149,7 +150,20 @@ impl SodigyNumber {
                     SodigyNumber::BigInt(Box::new(n))
                 },
             },
-            _ => unreachable!(),
+            SodigyNumber::SmallRatio { denom, numer } => {
+                let new_numer = *numer as i64 - *denom as i64;
+
+                match i32::try_from(new_numer) {
+                    Ok(n) => SodigyNumber::SmallRatio {
+                        denom: *denom,
+                        numer: n,
+                    },
+                    Err(_) => SodigyNumber::BigRatio(Box::new(Ratio::from_denom_and_numer(
+                        BigInt::from(*denom),
+                        BigInt::from(new_numer),
+                    ))),
+                }
+            },
         }
     }
 

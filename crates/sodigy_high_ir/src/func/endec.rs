@@ -68,7 +68,8 @@ impl Endec for FuncKind {
                 buffer.push(3);
                 parent.encode(buffer, session);
             },
-            FuncKind::StructConstr => { buffer.push(4); },
+            FuncKind::StructDef => { buffer.push(4); },
+            FuncKind::StructConstr => { buffer.push(5); },
         }
     }
 
@@ -86,8 +87,9 @@ impl Endec for FuncKind {
                     3 => Ok(FuncKind::EnumVariant {
                         parent: Uid::decode(buffer, index, session)?,
                     }),
-                    4 => Ok(FuncKind::StructConstr),
-                    5.. => Err(EndecError::invalid_enum_variant(*n)),
+                    4 => Ok(FuncKind::StructDef),
+                    5 => Ok(FuncKind::StructConstr),
+                    6.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

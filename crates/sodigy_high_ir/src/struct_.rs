@@ -12,6 +12,9 @@ use std::collections::{HashMap, HashSet};
 let struct Message<T> = { data: T, id: Int };
 ->
 let __init_Message<T>(data: T, id: Int): Message(T) = ...;
+let Message<T>: Type = ...;
+
+`Message { data: "", id: 0 }` is lowered to `__init_Message`, and `Message(String)`, which is a type annotation is lowered to `Message<T>`.
 */
 pub fn lower_ast_struct(
     name: &IdentWithSpan,
@@ -24,13 +27,27 @@ pub fn lower_ast_struct(
     attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
 ) -> Result<(), ()> {
-    if let Ok(mut f) = lower_ast_func(
-        &IdentWithSpan::new(
-            session.add_prefix(name.id(), "@@__init_"),
-            *name.span(),
-        ),
+    let constructor_name = IdentWithSpan::new(
+        session.add_prefix(name.id(), "@@__init_"),
+        *name.span(),
+    );
+    let constructor = lower_ast_func(
+        &constructor_name,
         generics,
         Some(&fields_to_args(fields)),
+        todo!(),  // return_val
+        todo!(),  // return_ty
+        Uid::new_def(),
+        session,
+        used_names,
+        imports,
+        attributes,
+        name_space,
+    );
+    let struct_type = lower_ast_func(
+        name,
+        generics,
+        None,  // args
         todo!(),  // return_val
         todo!(),  // return_ty
         uid,
@@ -39,14 +56,18 @@ pub fn lower_ast_struct(
         imports,
         attributes,
         name_space,
-    ) {
-        f.kind = FuncKind::StructConstr;
-        session.get_results_mut().insert(name.id(), f);
+    );
 
-        Ok(())
-    } else {
-        Err(())
-    }
+    let mut constructor = constructor?;
+    constructor.kind = FuncKind::StructConstr;
+
+    let mut struct_type = struct_type?;
+    struct_type.kind = FuncKind::StructDef;
+
+    session.get_results_mut().insert(constructor_name.id(), constructor);
+    session.get_results_mut().insert(name.id(), struct_type);
+
+    Ok(())
 }
 
 fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {

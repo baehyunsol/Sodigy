@@ -6,7 +6,9 @@ impl fmt::Display for Attribute {
         write!(
             fmt, "{}",
             match self {
-                Attribute::DocComment(d) => todo!(),
+                Attribute::DocComment(d) => d.id().to_string().split("\n").map(
+                    |line| format!("#> {line}")
+                ).collect::<Vec<_>>().join("\n"),
                 Attribute::Decorator(d) => d.to_string(),
             },
         )
