@@ -358,10 +358,6 @@ pub fn construct_mir(
 
     // check out https://github.com/baehyunsol/Sodigy/blob/c38f4fab18525da89fa20e0bd2a1c3ab938f6bb5/src/stages.rs#L354 for the previous implementation
     let mut has_error = false;
-    let hir_workers = multi::init_channels(compiler_option.num_workers);
-
-    let mut paths_read_so_far = HashSet::new();
-    let mut paths_to_read = vec![];
 
     // these will later be merged to MIR Session
     let mut mir_errors = vec![];
@@ -376,7 +372,7 @@ pub fn construct_mir(
 
         match try_resolve_dependency(&base_path, compiler_option, *name) {
             Ok(path) => {
-                if paths_read_so_far.contains(&path) {
+                if global_hir_cache.is_already_read(&path) {
                     continue;
                 }
 
@@ -403,8 +399,7 @@ pub fn construct_mir(
                     last_modified_at,
                 });
 
-                paths_to_read.push(path.clone());
-                paths_read_so_far.insert(path.clone());
+                global_hir_cache.register(path);
             },
             Err(e) => {
                 has_error = true;
@@ -423,16 +418,9 @@ pub fn construct_mir(
         return (None, compiler_output);
     }
 
-    let mut num_of_hirs_to_build = paths_to_read.len();
+    let hir_workers = multi::init_channels(compiler_option.num_workers);
 
-    multi::distribute_messages(
-        paths_to_read.into_iter().map(
-            |path| multi::MessageFromMain::ConstructHirSession { path },
-        ).collect(),
-        &hir_workers,
-    );
-
-    while num_of_hirs_to_build > 0 {
+    loop {
         for worker in hir_workers.iter() {
             match worker.try_recv() {
                 Ok(msg) => match msg {
