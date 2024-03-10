@@ -519,14 +519,13 @@ There are two keywords in Sodigy for modules: `module` and `import`.
 
 `module foo;` defines a module named `foo`. The code must be at `./foo.sdg` or `./foo/lib.sdg`. `module foo;` implies `import foo;`. Your code can use names in `foo` with dots. For example, if `bar` is defined in `module foo`, it can be accessed with `foo.bar`.
 
-TODO: we need better specifications for `module`s and `import`s. for now, there seems to be no reason for `module` to exist!
-
 The `import` keyword imports external modules. There are 4 ways you can link external Sodigy files. Let's say you did `import foo;`
 
-1. You can tell the compiler where `foo.sdg` is. TODO: it's not implemented yet
-2. Local files. For `import foo;`, the compiler first looks for `./foo.sdg` and `./foo/lib.sdg`. If either of them exists, the compiler links the file.
-3. You can specify the path of the `.sdg` file in `sodigy.json`. The `sodigy.json` file must be at `.`.
-4. Standard Library. TODO: not implemented yet
+- You can tell the compiler where `foo.sdg` is. TODO: it's not implemented yet
+- Local files. For `import foo;`, the compiler first looks for `./foo.sdg` and `./foo/lib.sdg`. If either of them exists, the compiler links the file.
+  - `.` depends on where you called the compiler, not where the file is at. For example, `import foo;` in `./x/y/z.sdg` might point to `./foo.sdg`, not `./x/y/foo.sdg` if you invoked the compiler at `.`.
+- You can specify the path of the `.sdg` file in `sodigy.json`. The `sodigy.json` file must be at `.`.
+- Standard Library. TODO: not implemented yet
 
 The compiler tries in that order.
 

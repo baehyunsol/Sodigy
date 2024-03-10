@@ -1,14 +1,25 @@
+use crate::{
+    construct_hir,
+    PathOrRawInput,
+};
+use crate::global_hir_cache::get_global_hir_cache;
+use log::info;
+use sodigy_ast::IdentWithSpan;
+use sodigy_clap::CompilerOption;
 use std::sync::mpsc;
 use std::thread;
 
 type Path = String;
 
 pub enum MessageFromMain {
-    ConstructHirSession { path: Path },
+    ConstructHirSession { name: String, path: Path },
+    YouShouldAskForAJob,
+    KillImmd,
 }
 
 pub enum MessageToMain {
-    HirComplete { name: String },  // used as a key for the global cache
+    HirComplete { imported_names: Vec<IdentWithSpan> },
+    GiveMeAJob,
 }
 
 pub struct Channel {
@@ -30,16 +41,23 @@ impl Channel {
     }
 }
 
-pub fn init_channels(n: usize) -> Vec<Channel> {
-    (0..n).map(|_| init_channel()).collect()
+pub fn kill_all_workers(channels: &Vec<Channel>) {
+    for worker in channels.iter() {
+        // it doesn't have to unwrap
+        let _ = worker.send(MessageFromMain::KillImmd);
+    }
 }
 
-pub fn init_channel() -> Channel {
+pub fn init_hir_workers(n: usize, compiler_option: CompilerOption) -> Vec<Channel> {
+    (0..n).map(|i| init_hir_worker(i, compiler_option.clone())).collect()
+}
+
+pub fn init_hir_worker(index: usize, compiler_option: CompilerOption) -> Channel {
     let (tx_to_main, rx_to_main) = mpsc::channel();
     let (tx_from_main, rx_from_main) = mpsc::channel();
 
     thread::spawn(move || {
-        event_loop(tx_to_main, rx_from_main);
+        event_loop(tx_to_main, rx_from_main, index, compiler_option);
     });
 
     Channel {
@@ -58,13 +76,46 @@ pub fn distribute_messages(
     Ok(())
 }
 
-pub fn event_loop(tx_to_main: mpsc::Sender<MessageToMain>, rx_from_main: mpsc::Receiver<MessageFromMain>) {
+pub fn event_loop(
+    tx_to_main: mpsc::Sender<MessageToMain>,
+    rx_from_main: mpsc::Receiver<MessageFromMain>,
+    index: usize,
+    compiler_option: CompilerOption,
+) {
+    info!("worker [{index}] initialized!");
+    let global_hir_cache = unsafe { get_global_hir_cache() };
+
     for msg in rx_from_main {
         match msg {
-            MessageFromMain::ConstructHirSession { .. } => {
-                // 1. call `construct_hir`
-                // 2. save the result to the global cache (which is not defined yet)
-                todo!()
+            MessageFromMain::ConstructHirSession { name, path } => {
+                info!("worker [{index}] got message: ConstructHirSession({path:?})");
+
+                let result = construct_hir(
+                    PathOrRawInput::Path(&path),
+                    &compiler_option,
+                );
+
+                let imported_names = match &result {
+                    (Some(session), _) => session.imported_names.clone(),
+                    _ => vec![],
+                };
+
+                global_hir_cache.push_result(
+                    name,
+                    result,
+                );
+
+                tx_to_main.send(
+                    MessageToMain::HirComplete { imported_names },
+                ).unwrap();
+            },
+            MessageFromMain::YouShouldAskForAJob => {
+                tx_to_main.send(
+                    MessageToMain::GiveMeAJob,
+                ).unwrap();
+            },
+            MessageFromMain::KillImmd => {
+                return;
             },
         }
     }

@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 
 mod error;
+mod global_hir_cache;
 mod multi;
 pub mod result;
 pub mod stages;

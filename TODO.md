@@ -521,3 +521,12 @@ sodigy_legacy처럼 복잡하게 할 필요없음, `a.b`에서 `a`의 type을 �
 Rust랑 Python이랑 정면충돌하는 경우 누구를 따라야하나... 일단 Zen Of Sodigy를 보자 -> 이것만 봐서는 Python 따라야할 것 같음...
 
 즉, Sodigy에서 module/import가 어떤 식으로 동작하는지를 완전히 정하고 가야함!
+
+---
+
+쌈빡한 tests
+
+1. Dir 하나에 test 하나
+2. Dir에는 `.sdg` 파일들과 `.test` 파일들이 있음. 당연히 sub-있을 dir이 수도 있음. `.sdg` 파일들은 실제 상황과 동일하게 들어있음. `.test` 파일에는 실행 조건(컴파일러 옵션들, stdin)과, 결과의 조건 (stdout에는 뭐가 있(없)어야 함, stderr에는 뭐가 있(없)어야 함)
+  - `.test`를 돌리는 runner는 Sodigy로 짜야함!
+3. 지금 중구난방으로 돼 있는 tests 폴더 정리해야함! 샘플은 따로 빼고, `@test`는 (일단) 살려두고, ...
