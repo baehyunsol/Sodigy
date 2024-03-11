@@ -1,6 +1,5 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
-use crate::global_hir_cache::{init_global_hir_cache, GlobalHirCache};
 use crate::multi::{self, MessageFromMain, MessageToMain};
 use log::info;
 use sodigy_ast::{
@@ -10,7 +9,8 @@ use sodigy_ast::{
     IdentWithSpan,
     Tokens,
 };
-use sodigy_clap::{CompilerOption, Flag};
+use sodigy_clap::Flag;
+use sodigy_config::CompilerOption;
 use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
 use sodigy_error::{
     ErrorContext,
@@ -35,7 +35,12 @@ use sodigy_files::{
     FileErrorContext,
     WriteMode,
 };
-use sodigy_high_ir::{lower_stmts, HirSession};
+use sodigy_high_ir::{
+    init_global_hir_cache,
+    lower_stmts,
+    GlobalHirCache,
+    HirSession,
+};
 use sodigy_intern::InternedString;
 use sodigy_lex::{lex, LexSession};
 use sodigy_mid_ir::{MirError, MirSession};
@@ -77,10 +82,10 @@ pub fn construct_hir(
             if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
                 match s {
                     Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                        info!("found a session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
                     },
                     Ok(session) => {
-                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
+                        info!("found a session from previous compilation, and its dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
                         warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_HIGH_IR);
 
                         if let Some(path) = &compiler_option.dump_hir_to {
@@ -265,6 +270,7 @@ pub fn construct_hir(
         }
     }
 
+    info!("construct_hir() for {:?} successfully completed", input);
     (Some(hir_session), compiler_output)
 }
 
@@ -282,10 +288,10 @@ pub fn construct_mir(
             if let Some(s) = try_construct_session_from_saved_ir::<MirSession>(file, FILE_EXT_MID_IR) {
                 match s {
                     Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
+                        info!("found a session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
                     },
                     Ok(session) => {
-                        info!("found session from previous compilation, and the dependencies are up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
+                        info!("found a session from previous compilation, and its dependencies are up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
                         compiler_output.collect_errors_and_warnings_from_session(&session);
                         warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_MID_IR);
 
@@ -363,6 +369,10 @@ pub fn construct_mir(
     // it will later be merged to MIR Session
     let mut mir_session_dependencies = vec![];
     let global_hir_cache = unsafe { init_global_hir_cache() };
+
+    if let PathOrRawInput::Path(p) = &input {
+        global_hir_cache.push_path_of_root_file(p.to_string());
+    }
 
     if !hir_session.imported_names.is_empty() && matches!(&input, PathOrRawInput::RawInput(_)) {
         compiler_output.collect_errors_and_warnings_from_session(&hir_session);
@@ -509,9 +519,14 @@ pub fn construct_mir(
     if global_hir_cache.has_error() {
         compiler_output.collect_errors_and_warnings_from_session(&hir_session);
 
-        for error in global_hir_cache.collect_all_errors_and_warnings() {
-            // TODO: it collected errors and warnings, but why is it `push_error`?
-            compiler_output.push_error(error);
+        for ew in global_hir_cache.collect_all_errors_and_warnings() {
+            if ew.is_warning {
+                compiler_output.push_warning(ew);
+            }
+
+            else {
+                compiler_output.push_error(ew);
+            }
         }
 
         return (None, compiler_output);
@@ -519,7 +534,7 @@ pub fn construct_mir(
 
     // TODO
     // Now that all the HIR Sessions are complete,
-    // 1, collect names
+    // 1, collect names: see sodigy_collect_names
     // 2, construct the MIR session
     // 3, free global_hir_cache
 

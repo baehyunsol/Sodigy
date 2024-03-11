@@ -1,5 +1,5 @@
 use crate::run;
-use sodigy_clap::{
+use sodigy_config::{
     CompilerOption,
     CompilerOutputFormat,
 };

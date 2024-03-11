@@ -2,9 +2,9 @@
 
 use log::{debug, info};
 use sodigy::run;
-use sodigy::result::CompilerOutput;
 use sodigy_clap::parse_cli_args;
 use sodigy_error::SodigyError;
+use sodigy_output::CompilerOutput;
 use sodigy_session::SodigySession;
 
 const EXIT_SUCCESS: i32 = 0;

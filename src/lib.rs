@@ -1,16 +1,13 @@
 #![deny(unused_imports)]
 
 mod error;
-mod global_hir_cache;
 mod multi;
-pub mod result;
 pub mod stages;
 pub mod utils;
 
 #[cfg(test)]
 mod tests;
 
-use crate::result::CompilerOutput;
 use crate::stages::{
     PathOrRawInput,
     construct_binary,
@@ -19,8 +16,9 @@ use crate::stages::{
 };
 pub use crate::utils::clean_irs;
 use log::info;
-use sodigy_clap::{CompilerOption, CompilerOutputFormat, SpecialOutput};
+use sodigy_config::{CompilerOption, CompilerOutputFormat, SpecialOutput};
 use sodigy_files::{write_bytes, WriteMode};
+use sodigy_output::CompilerOutput;
 
 pub fn run(options: CompilerOption) -> CompilerOutput {
     info!("sodigy::run()");

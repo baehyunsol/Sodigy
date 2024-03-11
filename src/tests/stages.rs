@@ -1,6 +1,6 @@
 use crate::{CompilerOutput, SAVE_IRS_AT, clean_irs, run};
 use json::JsonValue;
-use sodigy_clap::{CompilerOption, CompilerOutputFormat};
+use sodigy_config::{CompilerOption, CompilerOutputFormat};
 use sodigy_files::{
     create_dir,
     exists,

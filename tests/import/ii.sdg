@@ -1,0 +1,5 @@
+import x.adder as aa;
+import y.multiplier as mm;
+
+@test.eq(37)  # TODO: run this test
+let ttt = aa(3, 4) + mm(5, 6);

@@ -1,7 +1,7 @@
-use crate::result::CompilerOutput;
+use crate::HirSession;
+use sodigy_output::CompilerOutput;
 use sodigy_error::UniversalError;
-use sodigy_high_ir::HirSession;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 type Path = String;
@@ -17,7 +17,12 @@ pub struct GlobalHirCache {
     // It's `foo`, not `./foo.sdg`. `import foo;` points to the same file regardless of the path of the file it's currently compiling.
     hir_sessions: HashMap<String, (Option<HirSession>, CompilerOutput)>,
     hir_sessions_to_read: HashMap<String, Path>,
+    paths_read_so_far: HashSet<Path>,
     has_error: bool,
+
+    // TODO: the names are not unique
+    // `foo.bar` (module `bar` inside module `foo`) and `goo.bar`
+    // has the same name `bar`. It has to use the full path to distinguish those
 }
 
 impl GlobalHirCache {
@@ -25,6 +30,7 @@ impl GlobalHirCache {
         GlobalHirCache {
             hir_sessions: HashMap::new(),
             hir_sessions_to_read: HashMap::new(),
+            paths_read_so_far: HashSet::new(),
             has_error: false,
         }
     }
@@ -43,14 +49,23 @@ impl GlobalHirCache {
         result
     }
 
-    // TODO: it has to reject when `path == base_path`
     pub fn push_job_queue(&mut self, name: String, path: Path) {
         let lock = unsafe { GLOBAL_HIR_CACHE_LOCK.lock().unwrap() };
 
-        if !self.hir_sessions.contains_key(&name) {
-            self.hir_sessions_to_read.insert(name, path);
+        if !self.hir_sessions.contains_key(&name) && !self.paths_read_so_far.contains(&path) {
+            self.hir_sessions_to_read.insert(name, path.clone());
+            self.paths_read_so_far.insert(path);
         }
 
+        drop(lock);
+    }
+
+    pub fn push_path_of_root_file(
+        &mut self,
+        path: Path,
+    ) {
+        let lock = unsafe { GLOBAL_HIR_CACHE_LOCK.lock().unwrap() };
+        self.paths_read_so_far.insert(path);
         drop(lock);
     }
 

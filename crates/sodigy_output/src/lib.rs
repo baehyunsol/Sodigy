@@ -1,3 +1,5 @@
+#![deny(unused_imports)]
+
 use log::error;
 use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
 use sodigy_session::{SessionOutput, SodigySession};

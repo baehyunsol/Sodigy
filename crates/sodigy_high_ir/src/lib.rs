@@ -18,6 +18,7 @@ mod error;
 pub mod expr;
 mod fmt;
 mod func;
+mod global_cache;
 mod module;
 mod names;
 mod pattern;
@@ -51,6 +52,11 @@ use expr::{
 };
 pub use func::{Arg, Func, FuncKind};
 use func::lower_ast_func;
+pub use global_cache::{
+    get_global_hir_cache,
+    init_global_hir_cache,
+    GlobalHirCache,
+};
 pub use names::NameOrigin;
 pub use module::Module;
 use names::{IdentWithOrigin, NameBindingType, NameSpace};

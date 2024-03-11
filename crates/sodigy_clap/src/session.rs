@@ -5,7 +5,6 @@ use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{
     SessionDependency,
-    SessionOutput,
     SessionSnapshot,
     SodigySession,
 };
@@ -103,24 +102,5 @@ impl SodigySession<ClapError, ClapErrorKind, ClapWarning, ClapWarningKind, Compi
 
     fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
         &mut self.dependencies
-    }
-}
-
-// don't call these. just use session.get_results_mut()
-impl SessionOutput<CompilerOption> for CompilerOption {
-    fn pop(&mut self) -> Option<CompilerOption> {
-        unreachable!()
-    }
-
-    fn push(&mut self, _: CompilerOption) {
-        unreachable!()
-    }
-
-    fn clear(&mut self) {
-        unreachable!()
-    }
-
-    fn len(&self) -> usize {
-        unreachable!()
     }
 }

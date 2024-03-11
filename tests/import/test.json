@@ -1,0 +1,12 @@
+[
+    {
+        "compile": {
+            "file": "./ii.sdg"
+        },
+        "stdout": {},
+        "stderr": {
+            "includes": ["unused import"],
+            "does not include": []
+        }
+    }
+]

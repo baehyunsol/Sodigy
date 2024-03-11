@@ -1,5 +1,5 @@
 use crate::run;
-use sodigy_clap::CompilerOption;
+use sodigy_config::CompilerOption;
 
 macro_rules! check_output {
     (stmt, err, $test_name: ident, $body: expr, $msg: expr) => {

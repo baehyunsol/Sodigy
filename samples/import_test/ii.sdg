@@ -1,8 +1,0 @@
-import x.adder as aa;
-import y.multiplier as mm;
-
-# TODO: why is it throwing warnings?
-# TODO: why is it not throwing warnings when cached? -> initial compilation and cached compilation must return the same result!
-
-@test.eq(47)
-let ttt = aa(3, 4) + mm(5, 6);

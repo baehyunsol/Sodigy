@@ -2,10 +2,10 @@ use crate::{
     construct_hir,
     PathOrRawInput,
 };
-use crate::global_hir_cache::get_global_hir_cache;
 use log::info;
 use sodigy_ast::IdentWithSpan;
-use sodigy_clap::CompilerOption;
+use sodigy_config::CompilerOption;
+use sodigy_high_ir::get_global_hir_cache;
 use std::sync::mpsc;
 use std::thread;
 

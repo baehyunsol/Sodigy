@@ -10,11 +10,12 @@ def main [--depgraph] {
     cargo test --release
 
     let crates = [
-        "ast", "clap", "endec",
+        "ast", "clap", "config",
+        "collect_names", "endec",
         "error", "files", "high_ir",
         "intern", "keyword",
-        "lex", "mid_ir",
-        "number", "parse", "prelude",
+        "lex", "mid_ir", "number",
+        "output", "parse", "prelude",
         "session", "span", "uid",
     ]
 

@@ -507,26 +507,10 @@ let's get some inspirations from https://ziglang.org/documentation/0.11.0/
 
 Name resolution
 
-어떤 expr에서 `a.b.c`가 나오면, 어디까지가 module name이고 어디부터가 field name인지 잘라야함. 자르면 앞부분은 전부 uid로 바꿔야함!
+let's say `foo.sdg` is the root
 
-sodigy_legacy처럼 복잡하게 할 필요없음, `a.b`에서 `a`의 type을 보고, `a`가 module이거나 enum이면 `a.b`를 통째로 uid로 바꾸면 되고, 그게 아니면 `N번째 Index`를 나타내는 MIR로 변환
-
-여기서 가장 큰 문제... root에 있는 이름들은 어떻게 함?
-
-1. Rust의 경우: `crate::foo`
-2. Python의 경우: 어느 파일을 기준으로 실행하냐에 따라 다름!
-
-둘이 작동방식이 완전히 다름: Rust는 누가 주인공인지를 정해놓고 모두 거기에 따름. Python은 누가 주인공인지 그때그때 정함 (보통 규모가 커지면 개발자는 마음속으로 정해놓겠지...)
-
-Rust랑 Python이랑 정면충돌하는 경우 누구를 따라야하나... 일단 Zen Of Sodigy를 보자 -> 이것만 봐서는 Python 따라야할 것 같음...
-
-즉, Sodigy에서 module/import가 어떤 식으로 동작하는지를 완전히 정하고 가야함!
+all the *public* names (including modules) are top-level names. for example, `module bar;` in `foo.sdg` and `let baz` in `foo.sdg` are top-level names. the full path of `bar` is just `bar`. full path of `module goo`, which is defined in `bar.sdg` is `bar.goo`.
 
 ---
 
-쌈빡한 tests
-
-1. Dir 하나에 test 하나
-2. Dir에는 `.sdg` 파일들과 `.test` 파일들이 있음. 당연히 sub-있을 dir이 수도 있음. `.sdg` 파일들은 실제 상황과 동일하게 들어있음. `.test` 파일에는 실행 조건(컴파일러 옵션들, stdin)과, 결과의 조건 (stdout에는 뭐가 있(없)어야 함, stderr에는 뭐가 있(없)어야 함)
-  - `.test`를 돌리는 runner는 Sodigy로 짜야함!
-3. 지금 중구난방으로 돼 있는 tests 폴더 정리해야함! 샘플은 따로 빼고, `@test`는 (일단) 살려두고, ...
+`--dump-hir-to`: what if it's compiling multiple files? does it dump hir of all the files?

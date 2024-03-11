@@ -1,5 +1,4 @@
 use crate::SAVE_IRS_AT;
-use crate::result::CompilerOutput;
 use log::info;
 use sodigy_files::{
     basename,
@@ -8,6 +7,7 @@ use sodigy_files::{
     remove_dir_all,
     FileErrorContext,
 };
+use sodigy_output::CompilerOutput;
 
 // TODO: it does too many unnecessary searches
 pub fn clean_irs(path: &str, compiler_output: &mut CompilerOutput, count: &mut usize) {

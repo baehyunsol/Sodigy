@@ -1,11 +1,8 @@
 [package]
-name = "sodigy_prelude"
+name = "sodigy_collect_names"
 version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-lazy_static = "1.4.0"
-sodigy_intern = { path = "../sodigy_intern" }
-sodigy_uid = { path = "../sodigy_uid" }
