@@ -93,6 +93,9 @@ pub fn event_loop(
                 let result = construct_hir(
                     PathOrRawInput::Path(&path),
                     &compiler_option,
+
+                    // workers never handle a root file
+                    false,  // is_root
                 );
 
                 let imported_names = match &result {

@@ -31,6 +31,7 @@ prelude_ref!(STRING, "String");
 prelude_ref!(BOOL, "Bool");
 prelude_ref!(FUNC, "Func");
 prelude_ref!(OPTION, "Option");
+prelude_ref!(ASSERT, "assert");
 
 lazy_static! {
     pub static ref PRELUDES: HashMap<InternedString, Uid> = {
@@ -44,6 +45,7 @@ lazy_static! {
             ("Bool", Uid::new_enum().mark_prelude()),
             ("Func", Uid::new_def().mark_prelude()),
             ("Option", Uid::new_enum().mark_prelude()),
+            ("assert", Uid::new_def().mark_prelude()),
         ];
         let mut result = HashMap::with_capacity(preludes.len());
 

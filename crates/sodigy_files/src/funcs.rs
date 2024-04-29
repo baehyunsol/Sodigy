@@ -1,5 +1,6 @@
 // #![allow(dead_code)]
 use crate::error::FileError;
+use log::info;
 use std::collections::hash_map;
 use std::fmt;
 use std::fs::{self, File, OpenOptions};
@@ -16,6 +17,7 @@ use std::str::FromStr;
 ///    CoT      Truncate                Create
 ///     AC        Dies                  Create
 /// ```
+#[derive(Debug)]
 pub enum WriteMode {
     AlwaysAppend,
     AppendOrCreate,
@@ -64,11 +66,15 @@ fn reject_too_big_file(path: &str) -> Result<(), FileError> {
 }
 
 pub fn read_bytes(path: &str) -> Result<Vec<u8>, FileError> {
+    info!("file::read_bytes: {path:?}");
+
     reject_too_big_file(path)?;
     fs::read(path).map_err(|e| FileError::from_std(e, path))
 }
 
 pub fn read_string(path: &str) -> Result<String, FileError> {
+    info!("file::read_string: {path:?}");
+
     reject_too_big_file(path)?;
     let mut s = String::new();
 
@@ -82,6 +88,7 @@ pub fn read_string(path: &str) -> Result<String, FileError> {
 }
 
 pub fn write_bytes(path: &str, bytes: &[u8], write_mode: WriteMode) -> Result<(), FileError> {
+    info!("file::write_bytes: {path:?}, {write_mode:?}");
     let option: OpenOptions = write_mode.into();
 
     match option.open(path) {

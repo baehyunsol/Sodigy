@@ -511,6 +511,20 @@ let's say `foo.sdg` is the root
 
 all the *public* names (including modules) are top-level names. for example, `module bar;` in `foo.sdg` and `let baz` in `foo.sdg` are top-level names. the full path of `bar` is just `bar`. full path of `module goo`, which is defined in `bar.sdg` is `bar.goo`.
 
----
+I have to rewrite the naming and addressing rules for modules.
 
-`--dump-hir-to`: what if it's compiling multiple files? does it dump hir of all the files?
+How would I represent the below tree using modules?
+
+```
+- main.sdg
+- foo.sdg
+- bar.sdg
+- foo/
+  - baz.sdg
+- bar/
+  - baz.sdg
+```
+
+이거 하는 김에 관련된 애들 다 정하자!
+
+naming rule, path rules... 누가 root file일 때 어떻게 동작하는지...

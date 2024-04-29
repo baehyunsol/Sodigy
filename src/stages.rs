@@ -1,7 +1,7 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
 use crate::multi::{self, MessageFromMain, MessageToMain};
-use log::info;
+use log::{debug, info};
 use sodigy_ast::{
     parse_config_file,
     parse_stmts,
@@ -71,6 +71,10 @@ const FILE_EXT_MID_IR: &str = "mir";
 pub fn construct_hir(
     input: PathOrRawInput,
     compiler_option: &CompilerOption,
+
+    // `construct_hir` is called for each file in a module
+    // the file that's fed to the compiler as a cli argument is the root
+    is_root: bool,
 ) -> (Option<HirSession>, CompilerOutput) {
     info!("sodigy::construct_hir() with input: {input:?}");
     let mut compiler_output = CompilerOutput::new();
@@ -90,6 +94,7 @@ pub fn construct_hir(
 
                         if let Some(path) = &compiler_option.dump_hir_to {
                             let res = session.dump_json().pretty(4);
+                            debug!("dump_hir_to: {path:?}");
 
                             if path != "STDOUT" {
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -257,16 +262,19 @@ pub fn construct_hir(
     }
 
     if let Some(path) = &compiler_option.dump_hir_to {
-        let res = hir_session.dump_json().pretty(4);
+        if is_root {
+            let res = hir_session.dump_json().pretty(4);
+            debug!("dump_hir_to: {path:?}");
 
-        if path != "STDOUT" {
-            if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+            if path != "STDOUT" {
+                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
+                }
             }
-        }
 
-        else {
-            compiler_output.dump_to_stdout(res);
+            else {
+                compiler_output.dump_to_stdout(res);
+            }
         }
     }
 
@@ -297,6 +305,7 @@ pub fn construct_mir(
 
                         if let Some(path) = &compiler_option.dump_mir_to {
                             let res = session.dump_json().pretty(4);
+                            debug!("dump_mir_to: {path:?}");
 
                             if path != "STDOUT" {  // TODO: use a constant
                                 if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
@@ -320,6 +329,9 @@ pub fn construct_mir(
             match construct_hir(
                 input,
                 compiler_option,
+
+                // mir is called only once, so it's always root
+                true,  // is_root
             ) {
                 (Some(hir_session), output) => {
                     compiler_output.merge(output);
@@ -334,6 +346,9 @@ pub fn construct_mir(
             match construct_hir(
                 input,
                 compiler_option,
+
+                // mir is called only once, so it's always root
+                true,  // is_root
             ) {
                 (Some(hir_session), output) => {
                     compiler_output.merge(output);

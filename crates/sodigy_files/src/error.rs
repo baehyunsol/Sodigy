@@ -17,9 +17,7 @@ impl FileError {
             io::ErrorKind::NotFound => FileErrorKind::FileNotFound,
             io::ErrorKind::PermissionDenied => FileErrorKind::PermissionDenied,
             io::ErrorKind::AlreadyExists => FileErrorKind::AlreadyExists,
-
-            // https://github.com/rust-lang/rust/issues/86442
-            // io::ErrorKind::IsADirectory => todo!(),
+            io::ErrorKind::IsADirectory => FileErrorKind::IsADirectory,
 
             _ => FileErrorKind::Unknown(format!("error: {e:?}, path: {given_path:?}")),
         };
@@ -124,6 +122,9 @@ impl FileError {
             FileErrorKind::AlreadyExists => format!(
                 "file already exists: `{path}`"
             ),
+            FileErrorKind::IsADirectory => format!(
+                "is a directory: `{path}`"
+            ),
             FileErrorKind::Unknown(msg) => format!(
                 "unknown file error: `{msg}`"
             ),
@@ -183,6 +184,7 @@ pub enum FileErrorKind {
     FileNotFound,
     PermissionDenied,
     AlreadyExists,
+    IsADirectory,
     OsStrErr(OsString),
     Unknown(String),
 
@@ -215,6 +217,7 @@ impl FileErrorKind {
             FileErrorKind::FileNotFound => 0,
             FileErrorKind::PermissionDenied => 1,
             FileErrorKind::AlreadyExists => 2,
+            FileErrorKind::IsADirectory => 3,
             FileErrorKind::OsStrErr(s) => {
                 let mut hasher = hash_map::DefaultHasher::new();
                 hasher.write(s.as_encoded_bytes());
@@ -233,14 +236,14 @@ impl FileErrorKind {
 
                 hasher.finish()
             },
-            FileErrorKind::MetadataNotSupported => 3,
-            FileErrorKind::ModifiedWhileCompilation => 4,
-            FileErrorKind::HashCollision => 5,
-            FileErrorKind::HashChanged => 6,
+            FileErrorKind::MetadataNotSupported => 4,
+            FileErrorKind::ModifiedWhileCompilation => 5,
+            FileErrorKind::HashCollision => 6,
+            FileErrorKind::HashChanged => 7,
             FileErrorKind::CannotCreateFile { there_exists_a_dir } => {
-                ((*there_exists_a_dir as u64) << 4) | 7
+                ((*there_exists_a_dir as u64) << 4) | 8
             },
-            FileErrorKind::FileTooBig => 8,
+            FileErrorKind::FileTooBig => 9,
         }
     }
 }

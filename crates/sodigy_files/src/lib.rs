@@ -1,4 +1,5 @@
 #![deny(unused_imports)]
+#![feature(io_error_more)]
 
 mod cache;
 mod error;

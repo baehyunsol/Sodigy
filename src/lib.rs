@@ -59,7 +59,7 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
     let mut output = match &options.output {
         CompilerOutputFormat::HighIr => {
-            let (session, mut output) = construct_hir(input, &options);
+            let (session, mut output) = construct_hir(input, &options, true /* is_root */);
 
             if let Some(session) = session {
                 output.collect_errors_and_warnings_from_session(&session);
@@ -119,7 +119,8 @@ Options:
                                     TODO: not implemented yet
     --dump-hir-to PATH              Dumps the hir session to <PATH> as a json file. If PATH is `STDOUT`, it dumps the
                                     result to stdout. If it's compiled from cached data, `--dump-hir-to` may not work.
-                                    If it does not work, try `./sodigy --clean` and compile again.
+                                    If it does not work, try `./sodigy --clean` and compile again. If you're compiling
+                                    multiple files, it only dumps the hir of the root file (one that's fed to the cli argument).
     --dump-mir-to PATH              Dumps the mir session to <PATH> as a json file. If PATH is `STDOUT`, it dumps the
                                     result to stdout. If it's compiled from cached data, `--dump-mir-to` may not work.
                                     If it does not work, try `./sodigy --clean` and compile again.
