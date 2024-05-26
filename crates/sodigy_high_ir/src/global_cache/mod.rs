@@ -11,7 +11,7 @@ static mut IS_GLOBAL_HIR_CACHE_INIT: bool = false;
 static mut GLOBAL_HIR_CACHE_LOCK: Mutex<()> = Mutex::new(());
 
 /// HirSessions are constructed in parallel.
-/// The parallel workers this cache to organize their jobs.
+/// The parallel workers use this cache to organize their jobs.
 pub struct GlobalHirCache {
     // keys are the names of the modules, not the paths.
     // It's `foo`, not `./foo.sdg`. `import foo;` points to the same file regardless of the path of the file it's currently compiling.
