@@ -1,7 +1,6 @@
 #![deny(unused_imports)]
 
 mod error;
-mod multi;
 pub mod stages;
 pub mod utils;
 

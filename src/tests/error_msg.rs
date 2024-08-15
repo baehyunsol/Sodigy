@@ -139,12 +139,9 @@ check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is b
 check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision4, "import a.foo; import b.foo;", "`foo` is bound multiple times");
 
-check_output!(stmt, err, no_module1, "import foo;", "dependencies not allowed in raw input");
-
-// TODO: I have to test this case anyway
+// TODO
+// check_output!(stmt, err, no_module1, "import foo;", "dependencies not allowed in raw input");
 // check_output!(stmt, err, no_module2, "import invalid_module_name;", "module not found");
-
-// TODO: struct is not implemented yet
 // check_output!(stmt, err, name_collision5, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
 
 // non-utf8 inputs

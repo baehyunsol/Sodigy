@@ -1,13 +1,12 @@
 use crate::{CompilerOutput, DEPENDENCIES_AT, SAVE_IRS_AT};
 use crate::error;
-use crate::multi::{self, MessageFromMain, MessageToMain};
 use log::{debug, info};
 use sodigy_ast::{
-    parse_config_file,
-    parse_stmts,
     AstSession,
     IdentWithSpan,
     Tokens,
+    parse_config_file,
+    parse_stmts,
 };
 use sodigy_clap::Flag;
 use sodigy_config::CompilerOption;
@@ -15,10 +14,12 @@ use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
 use sodigy_error::{
     ErrorContext,
     RenderError,
-    SodigyError,
     UniversalError,
 };
 use sodigy_files::{
+    FileError,
+    FileErrorContext,
+    WriteMode,
     create_dir,
     exists,
     file_name,
@@ -31,24 +32,17 @@ use sodigy_files::{
     read_string,
     set_extension,
     write_string,
-    FileError,
-    FileErrorContext,
-    WriteMode,
 };
 use sodigy_high_ir::{
-    init_global_hir_cache,
-    lower_stmts,
-    GlobalHirCache,
     HirSession,
+    lower_stmts,
 };
 use sodigy_intern::InternedString;
-use sodigy_lex::{lex, LexSession};
-use sodigy_mid_ir::{MirError, MirSession};
-use sodigy_parse::{from_tokens, ParseSession};
-use sodigy_session::{SessionDependency, SodigySession};
+use sodigy_lex::{LexSession, lex};
+use sodigy_parse::{ParseSession, from_tokens};
+use sodigy_session::SodigySession;
 use sodigy_span::{SpanPoint, SpanRange};
 use std::collections::HashMap;
-use std::sync::mpsc;
 
 type Path = String;
 
@@ -285,275 +279,14 @@ pub fn construct_hir(
 pub fn construct_mir(
     input: PathOrRawInput,
     compiler_option: &CompilerOption,
-) -> (Option<MirSession>, CompilerOutput) {
+) -> (
+    Option<HirSession>,  // TODO: it has to be `MirSession`, but that's not implemented yet
+    CompilerOutput,
+) {
     info!("sodigy::construct_mir() with input: {input:?}");
+    construct_hir(input, compiler_option, true)
 
-    let mut compiler_output = CompilerOutput::new();
-
-    let hir_session = match input {
-        PathOrRawInput::Path(file) => {
-            // if MirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
-            if let Some(s) = try_construct_session_from_saved_ir::<MirSession>(file, FILE_EXT_MID_IR) {
-                match s {
-                    Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found a session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
-                    },
-                    Ok(session) => {
-                        info!("found a session from previous compilation, and its dependencies are up to date: (file: {file}, ext: {FILE_EXT_MID_IR})");
-                        compiler_output.collect_errors_and_warnings_from_session(&session);
-                        warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_MID_IR);
-
-                        if let Some(path) = &compiler_option.dump_mir_to {
-                            let res = session.dump_json().pretty(4);
-                            debug!("dump_mir_to: {path:?}");
-
-                            if path != "STDOUT" {  // TODO: use a constant
-                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
-                                }
-                            }
-
-                            else {
-                                compiler_output.dump_to_stdout(res);
-                            }
-                        }
-
-                        return (Some(session), compiler_output);
-                    },
-                    Err(e) => {
-                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-                    },
-                }
-            }
-
-            match construct_hir(
-                input,
-                compiler_option,
-
-                // mir is called only once, so it's always root
-                true,  // is_root
-            ) {
-                (Some(hir_session), output) => {
-                    compiler_output.merge(output);
-                    hir_session
-                },
-                (None, output) => {
-                    return (None, output);
-                },
-            }
-        },
-        _ => {
-            match construct_hir(
-                input,
-                compiler_option,
-
-                // mir is called only once, so it's always root
-                true,  // is_root
-            ) {
-                (Some(hir_session), output) => {
-                    compiler_output.merge(output);
-                    hir_session
-                },
-                (None, output) => {
-                    return (None, output);
-                },
-            }
-        },
-    };
-
-    if hir_session.has_error() {
-        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-        return (None, compiler_output);
-    }
-
-    // where to look for other files
-    let base_path = match &input {
-        PathOrRawInput::Path(p) => match parent(p) {
-            Ok(p) => p,
-            Err(e) => {
-                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                compiler_output.push_error(e.into());
-                return (None, compiler_output);
-            },
-        },
-        PathOrRawInput::RawInput(_) => String::from("."),
-    };
-
-    // check out https://github.com/baehyunsol/Sodigy/blob/c38f4fab18525da89fa20e0bd2a1c3ab938f6bb5/src/stages.rs#L354 for the previous implementation
-
-    // it will later be merged to MIR Session
-    let mut mir_session_dependencies = vec![];
-    let global_hir_cache = unsafe { init_global_hir_cache() };
-
-    if let PathOrRawInput::Path(p) = &input {
-        global_hir_cache.push_path_of_root_file(p.to_string());
-    }
-
-    if !hir_session.imported_names.is_empty() && matches!(&input, PathOrRawInput::RawInput(_)) {
-        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-        compiler_output.push_error(no_dependency_in_raw_input(
-            *hir_session.imported_names[0].span()
-        ));
-        return (None, compiler_output);
-    }
-
-    if let Err(errors) = resolve_and_push_dependencies_from_hir_session(
-        &hir_session.imported_names,
-        &base_path,
-        compiler_option,
-        &mut mir_session_dependencies,
-        global_hir_cache,
-    ) {
-        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-
-        for error in errors.into_iter() {
-            compiler_output.push_error(error);
-        }
-
-        return (None, compiler_output);
-    }
-
-    let hir_workers = multi::init_hir_workers(
-        compiler_option.num_workers,
-        compiler_option.clone(),
-    );
-    let mut worker_index = 0;
-
-    while let Some((name, path)) = global_hir_cache.pop_job_queue() {
-        if let Err(_) = hir_workers[worker_index % hir_workers.len()].send(
-            MessageFromMain::ConstructHirSession { name, path }
-        ) {
-            multi::kill_all_workers(&hir_workers);
-            compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-            compiler_output.push_error(mpsc_broken());
-
-            return (None, compiler_output);
-        }
-
-        worker_index += 1;
-    }
-
-    if worker_index < hir_workers.len() {
-        for index in worker_index..hir_workers.len() {
-            if let Err(_) = hir_workers[index].send(MessageFromMain::YouShouldAskForAJob) {
-                multi::kill_all_workers(&hir_workers);
-                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                compiler_output.push_error(mpsc_broken());
-
-                return (None, compiler_output);
-            }
-        }
-    }
-
-    loop {
-        let mut idle_workers = 0;
-
-        for worker in hir_workers.iter() {
-            match worker.try_recv() {
-                Ok(msg) => match msg {
-                    MessageToMain::HirComplete { imported_names } => {
-                        if let Err(errors) = resolve_and_push_dependencies_from_hir_session(
-                            &imported_names,
-                            &base_path,
-                            compiler_option,
-                            &mut mir_session_dependencies,
-                            global_hir_cache,
-                        ) {
-                            compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-
-                            for error in errors.into_iter() {
-                                compiler_output.push_error(error);
-                            }
-
-                            return (None, compiler_output);
-                        }
-
-                        if let Some((name, path)) = global_hir_cache.pop_job_queue() {
-                            if let Err(_) = worker.send(MessageFromMain::ConstructHirSession { name, path }) {
-                                multi::kill_all_workers(&hir_workers);
-                                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                                compiler_output.push_error(mpsc_broken());
-
-                                return (None, compiler_output);
-                            }
-                        }
-
-                        else {
-                            if let Err(_) = worker.send(MessageFromMain::YouShouldAskForAJob) {
-                                multi::kill_all_workers(&hir_workers);
-                                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                                compiler_output.push_error(mpsc_broken());
-
-                                return (None, compiler_output);
-                            }
-                        }
-                    },
-                    MessageToMain::GiveMeAJob => {
-                        if let Some((name, path)) = global_hir_cache.pop_job_queue() {
-                            if let Err(_) = worker.send(MessageFromMain::ConstructHirSession { name, path }) {
-                                multi::kill_all_workers(&hir_workers);
-                                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                                compiler_output.push_error(mpsc_broken());
-
-                                return (None, compiler_output);
-                            }
-                        }
-
-                        else {
-                            idle_workers += 1;
-
-                            if let Err(_) = worker.send(MessageFromMain::YouShouldAskForAJob) {
-                                multi::kill_all_workers(&hir_workers);
-                                compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                                compiler_output.push_error(mpsc_broken());
-
-                                return (None, compiler_output);
-                            }
-                        }
-                    },
-                },
-                Err(e) => match e {
-                    mpsc::TryRecvError::Empty => {},
-                    mpsc::TryRecvError::Disconnected => {
-                        multi::kill_all_workers(&hir_workers);
-                        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-                        compiler_output.push_error(mpsc_broken());
-
-                        return (None, compiler_output);
-                    },
-                },
-            }
-        }
-
-        if idle_workers == hir_workers.len() {
-            multi::kill_all_workers(&hir_workers);
-            break;
-        }
-    }
-
-    if global_hir_cache.has_error() {
-        compiler_output.collect_errors_and_warnings_from_session(&hir_session);
-
-        for ew in global_hir_cache.collect_all_errors_and_warnings() {
-            if ew.is_warning {
-                compiler_output.push_warning(ew);
-            }
-
-            else {
-                compiler_output.push_error(ew);
-            }
-        }
-
-        return (None, compiler_output);
-    }
-
-    // TODO
-    // Now that all the HIR Sessions are complete,
-    // 1, collect names: see sodigy_collect_names
-    // 2, construct the MIR session
-    // 3, free global_hir_cache
-
-    todo!()
+    // TODO: construct mir from hir
 }
 
 pub fn construct_binary(
@@ -708,55 +441,6 @@ fn try_resolve_dependency(base_path: &Path, compiler_option: &CompilerOption, de
     Err(error::dependency_not_found(dependency))
 }
 
-fn resolve_and_push_dependencies_from_hir_session(
-    imported_names: &[IdentWithSpan],
-    base_path: &Path,
-    compiler_option: &CompilerOption,
-    mir_session_dependencies: &mut Vec<SessionDependency>,
-    global_hir_cache: &mut GlobalHirCache,
-) -> Result<(), Vec<UniversalError>> {
-    let mut errors = vec![];
-
-    for name in imported_names.iter() {
-        match try_resolve_dependency(base_path, compiler_option, *name) {
-            Ok(path) => {
-                if !is_file(&path) {
-                    errors.push(MirError::file_not_found(*name, path.clone()).to_universal());
-                    continue;
-                }
-
-                let last_modified_at = match last_modified(&path) {
-                    Ok(m) => m,
-                    Err(e) => {
-                        let mut e = UniversalError::from(e);
-                        e.push_span(*name.span());
-                        errors.push(e);
-                        continue;
-                    },
-                };
-
-                mir_session_dependencies.push(SessionDependency {
-                    path: path.clone(),
-                    last_modified_at,
-                });
-
-                global_hir_cache.push_job_queue(name.id().to_string(), path);
-            },
-            Err(e) => {
-                errors.push(e);
-            },
-        }
-    }
-
-    if errors.is_empty() {
-        Ok(())
-    }
-
-    else {
-        Err(errors)
-    }
-}
-
 fn incremental_compilation_broken(file: &Path, mut error: UniversalError) -> UniversalError {
     error.is_warning = true;
     error.append_message(&format!(
@@ -804,30 +488,6 @@ fn no_macro_in_raw_input(span: SpanRange) -> UniversalError {
         true,   // show_span
         Some(span),  // span
         String::from("macros not allowed in raw input"),
-        String::new(),
-    )
-}
-
-fn no_dependency_in_raw_input(span: SpanRange) -> UniversalError {
-    UniversalError::new(
-        ErrorContext::Unknown,
-        false,  // is_warning
-        true,   // show_span
-        Some(span),  // span
-        String::from("dependencies not allowed in raw input"),
-        String::new(),
-    )
-}
-
-fn mpsc_broken() -> UniversalError {
-    UniversalError::new(
-        ErrorContext::Unknown,
-        false,  // is_warning
-        false,  // show_span
-        None,   // span
-        String::from("broken mpsc channel"),
-
-        // for now, users cannot disable mpsc
         String::new(),
     )
 }

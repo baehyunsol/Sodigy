@@ -487,3 +487,4 @@ first few paths (lex, parse, .. , hir) are quite complete, but mir and later pat
 
 so how about, removing all the stages after hir and rewrite (or even re-design) those stages from scratch?
 -> and `global_cache` in hir. i don't like its design
+-> there are mir-related stuffs in sodigy_clap, sodigy_config, ... and many more places. I don't want to remove them. I'll re-implement mir someday and those in clap and config would look very similar. I don't want to re-invent the same thing from scratch

@@ -9,7 +9,6 @@ edition = "2021"
 members = [
     "crates/sodigy_ast",
     "crates/sodigy_clap",
-    "crates/sodigy_collect_names",
     "crates/sodigy_config",
     "crates/sodigy_error",
     "crates/sodigy_endec",
@@ -18,7 +17,6 @@ members = [
     "crates/sodigy_intern",
     "crates/sodigy_keyword",
     "crates/sodigy_lex",
-    "crates/sodigy_mid_ir",
     "crates/sodigy_number",
     "crates/sodigy_output",
     "crates/sodigy_parse",
@@ -35,7 +33,6 @@ log = "0.4.8"
 
 sodigy_ast = { path = "crates/sodigy_ast" }
 sodigy_clap = { path = "crates/sodigy_clap" }
-sodigy_collect_names = { path = "crates/sodigy_collect_names" }
 sodigy_config = { path = "crates/sodigy_config" }
 sodigy_endec = { path = "crates/sodigy_endec" }
 sodigy_error = { path = "crates/sodigy_error" }
@@ -44,7 +41,6 @@ sodigy_high_ir = { path = "crates/sodigy_high_ir" }
 sodigy_intern = { path = "crates/sodigy_intern" }
 sodigy_keyword = { path = "crates/sodigy_keyword" }
 sodigy_lex = { path = "crates/sodigy_lex" }
-sodigy_mid_ir = { path = "crates/sodigy_mid_ir" }
 sodigy_number = { path = "crates/sodigy_number" }
 sodigy_output = { path = "crates/sodigy_output" }
 sodigy_parse = { path = "crates/sodigy_parse" }

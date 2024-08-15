@@ -11,11 +11,10 @@ def main [--depgraph] {
 
     let crates = [
         "ast", "clap", "config",
-        "collect_names", "endec",
-        "error", "files", "high_ir",
-        "intern", "keyword",
-        "lex", "mid_ir", "number",
-        "output", "parse", "prelude",
+        "endec", "error", "files",
+        "high_ir", "intern", "keyword",
+        "lex", "number", "output",
+        "parse", "prelude",
         "session", "span", "uid",
     ]
 
@@ -30,7 +29,7 @@ def main [--depgraph] {
         cargo depgraph | dot -Tpng | save -f dep_graph.png
     }
 
-    nu clean.nu
+    nu clean.nu  # TODO: it has to run whether or not the tests fails
     nu link_bin.nu
 
     chmod +x ./sodigy
