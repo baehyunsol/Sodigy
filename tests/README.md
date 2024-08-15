@@ -1,4 +1,4 @@
-SodigyC Test Runner (TODO: not implemented yet) automatically runs tests in this directory. This is how it works.
+SodigyC Test Runner (TODO: not implemented yet) automatically runs tests in this directory. Below is how it works.
 
 The test runner searches for `test.json` inside this directory (and recursively). If it finds one, it runs a test according to the file.
 

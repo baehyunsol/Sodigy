@@ -66,7 +66,7 @@ use warn::HirWarning;
 
 pub fn lower_stmts(
     stmts: &Vec<ast::Stmt>,
-    session: &mut HirSession
+    session: &mut HirSession,
 ) -> Result<(), ()> {
     info!("sodigy_high_ir::lower_stmts()");
 

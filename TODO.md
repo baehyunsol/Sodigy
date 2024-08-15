@@ -1,29 +1,3 @@
-spec
-
-기존 Sodigy의 스펙 최대한 따라가기!!
-
-추가사항
-
-pattern guard -> rust와 동일, match 안에서만 사용 가능 (let에서는 사용 불가능)
-
----
-
-```
-@test.before(\{assert(x > 0 && y > 0)})
-let foo(x: Int, y: Int) = x + y;
-
-@test.after(\{ret, assert(ret >= 0)})
-let sqr(x: Int): Int = x * x;
-```
-
-`test.before` is called before the actual function is called.
-
-`assert` is an action (not a function) that works like rust's `assert!`.
-
-functor of `test.after` takes one input: the return value of the function its decorating
-
----
-
 Macros
 
 Like that of `[proc_macro]` in Rust. There's a sodigy function that takes `List(TokenTree)` and returns `List(TokenTree)`. Below is the compilation step.
@@ -61,7 +35,7 @@ the compiler tries to find the definitions of the macros at...
 name issues with `@[map]`: how does it know the name of std.hash_map? what if the preluded name is overloaded?
 - how about protecting absolute paths? so that the full name of `Map` never changes, ex: `Sodigy.prelude.Map`, in this case, a new definition of `Sodigy` would be rejected by the compiler
 
-can macros nested?
+can macros be nested?
 
 1. compiler expands macro over and over until no macro is found
 2. The one who implements `Func(List(TokenTree), Result(List(TokenTree), CompileError))` must tell the compiler whether the result has another macro or not
@@ -83,6 +57,7 @@ more feature rich f-strings
 - stretch, align, fill
   - make the output string length s, align the string left/right/center, and fill the empty space with c
 - rational numbers
+  - like `.2f` in Python
 
 ---
 
@@ -100,13 +75,7 @@ it contains...
   - who is calling this function
   - whom this function is calling
 
-more fancy stuffs...
-
-- example code is actually run in tests
-  1. sodigy's test runner reads doc-comments and tries to run codes in the document
-  2. special annotation includes a code snippet to the document
-
-2 looks much better
+adding an example code to the document:
 
 ```
 def adder(n: Int): Func(Int, Int) = \{x, x + n};
@@ -137,28 +106,6 @@ MIR에서 모든 함수/operator의 uid를 찾아서 걔를 직접 때려박잖�
   - 만약 foo의 type이 불완전하게 제공되었으면??
 3. 일치할 경우 `foo(a, b, c)`의 type을 알아낸 거임!
 4. 만약 누군가 `foo(a, b, c)`의 type을 infer하고 싶었으면 걔한테 알려주면 됨. 만약 `foo(a, b, c)`에 type annotation이 붙어있었으면 걔가 정확한지도 확인해야함
-
----
-
-REPL
-
-- `let x = 3 + 4` 할 필요없이 `3 + 4`만 하면 됨
-  - 일단 input을 받아서, `let`으로 시작하면 그대로 쓰고,
-  - `let`이 없으면 `let main = `을 붙이자
-- compile error는 다 보여줘야지, warning도 보여줘야 되나??
-
----
-
-default values for struct
-
-```
-let struct Person = {
-  age: Int = 32,
-  name: String = "Bae",
-};
-```
-
-... really?
 
 ---
 
@@ -456,15 +403,6 @@ generic은 어떻게 해야할지 전혀 감도 못잡겠음.. 일단 https://ru
 
 ---
 
-`r"010\d{8}"` -> regular expressions both in expressions and patterns
-
-1. 있으면 좋음
-2. 스펙 만드는 거는 쉬움
-3. 구현은 무지 빡셈, 내가 from scratch로 regex 짜는 거는 너무 빡세고 있는 거 갖다 쓰면 덩치가 너무 커짐...
-4. 없어도 큰 불편은 없음... 아직...
-
----
-
 `./sodigy`, which is compiled in release mode still emits logs if `RUST_LOG` is set. that means there're still overhead in the release mode...
 
 ---
@@ -525,6 +463,27 @@ How would I represent the below tree using modules?
   - baz.sdg
 ```
 
-이거 하는 김에 관련된 애들 다 정하자!
+it needs a better spec...
 
-naming rule, path rules... 누가 root file일 때 어떻게 동작하는지...
+---
+
+regular expressions
+
+1. libraries for regex
+  - necessary
+  - has to be impemented in Sodigy one day
+2. syntax sugars for regex
+  - string literals prefixed with `r`
+3. native support for regex in patterns
+  - would be convenient, but would make the compiler really complicated
+4. native support for regex in expressions
+  - no
+
+---
+
+I have abandoned this project for half-year, and I have forgotten too many details
+
+first few paths (lex, parse, .. , hir) are quite complete, but mir and later paths are just rough sketches
+
+so how about, removing all the stages after hir and rewrite (or even re-design) those stages from scratch?
+-> and `global_cache` in hir. i don't like its design

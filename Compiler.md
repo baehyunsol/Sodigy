@@ -1,6 +1,6 @@
 # Sodigy Compiler
 
-This is a document for the Sodigy Compiler. It's written in Rust, and there's no plan for bootstrapping. The compiler is largely incomplete. It doesn't generate machine code, and you can run very simple codes.
+This is a document for the Sodigy Compiler. It's written in Rust, and there's no plan for bootstrapping. The compiler is largely incomplete. It doesn't generate machine code, and you can only run very simple codes.
 
 ## Intermediate Representations
 
@@ -15,7 +15,7 @@ Like other compilers, Sodigy compiler goes through multiple steps to compile.
 3. `TokenTree`
   - It's like `TokenTree` in rustc. It's a slightly more advanced version of `Token`.
   - Now it knows whether an identifier is a keyword or not.
-  - It also groups tokens in this stage. It checks whether parenthesis are properly closed, and marks the start and end of parenthesis.
+  - It also groups tokens in this stage. It checks whether parentheses are properly closed, and marks the start and end of parentheses.
   - `parse_stage` generates `Vec<TokenTree>` from a file.
 4. Abstract Syntax Tree
 5. High level Intermediate Representation (WIP)

@@ -235,6 +235,7 @@ let x = if pattern Some($x) = foo { x } else { 0 };
 The syntax resembles that of Rust, except that it requires `$` before a name binding.
 
 ```
+# `foo` has type `Option(List(Int))`
 match foo() {
     Option.Some([$a, $b, $c, ..]) => $a + $b + 1,  # at least 3 elements
     Option.Some([$a, $b]) => $a + $b,  # exactly 2 elements
@@ -435,7 +436,7 @@ foo 3 >>= foo >>= foo
 
 `foo 3 >>= foo >>= foo` in Haskell and `foo(foo(foo(3)?)?)` in Sodigy are almost identical, except that the Sodigy version is a bit more generic. You'll see the details a few paragraphs later.
 
-One thing to notice about `?` is that the definition of `foo` tells that `n` is a `?`-able argument. In order to use `?` operators, you have to mark the function argument with a `?`. When an argument is `?`-able, it can `?`-ed types as an input.
+One thing to notice about `?` is that the definition of `foo` tells that `n` is a `?`-able argument. In order to use `?` operators, you have to mark the function argument with a `?`. When an argument is `?`-able, it can take `?`-ed types as an input.
 
 For example, `n` in `let foo(n?: Int)` can be `3`, `None?`, `Some(3)?`, `Ok(3)?`, `Err(e)?`, ... and many other `?`-able types. The compiler generates multiple versions of `foo`: one without `?` and ones with `?`. When you call `foo` without any question mark, the type checker will choose the version without `?`, and nothing special happens. When you call `foo` with a `?`, the special version is chosen. The special version looks like below.
 
