@@ -45,18 +45,9 @@ impl EndecSession {
     // when saving encoded data to a file,
     // first write `self.encode_session()` to the file, then
     // write the encoded data
-    pub fn encode_session(&self, file_metadata: Option<u64>) -> Vec<u8> {
+    pub fn encode_session(&self) -> Vec<u8> {
         let mut result = vec![];
         let mut dummy_session = EndecSession::new();
-
-        // if it's set, `decode_session` would check the metadata of the file,
-        // and would raise Err if the metadata does not match
-        //
-        // the compiler checks the metadata of files only when reading `saved_ir`s.
-        // it doesn't check the metadata when the input is given by the programmer.
-        // in those cases, the programmer is responsible to guarantee that the input
-        // is not outdated
-        file_metadata.encode(&mut result, &mut dummy_session);
 
         // the other tables are unnecessary for decoding
         self.str_table.encode(&mut result, &mut dummy_session);
@@ -69,18 +60,9 @@ impl EndecSession {
     // when loading encoded data from a file,
     // first construct `Self` from decoding the file, then
     // start loading the actual data
-    pub fn decode_session(buffer: &[u8], index: &mut usize, file_metadata: Option<u64>) -> Result<Self, EndecError> {
+    pub fn decode_session(buffer: &[u8], index: &mut usize) -> Result<Self, EndecError> {
         let mut dummy_session = EndecSession::new();
         let mut intern_session = InternSession::new();
-
-        let decoded_file_metadata = Option::<u64>::decode(buffer, index, &mut dummy_session)?;
-
-        match (file_metadata, decoded_file_metadata) {
-            (Some(n), Some(m)) if n != m => {
-                return Err(EndecError::file_is_modified());
-            },
-            _ => {},
-        }
 
         let str_table = HashMap::<EncodedInternal, Vec<u8>>::decode(buffer, index, &mut dummy_session)?;
         let mut str_map = HashMap::with_capacity(str_table.len());
@@ -108,9 +90,6 @@ impl EndecSession {
         let file_session = unsafe { global_file_session() };
 
         for (hash, path) in file_hashes.iter() {
-            // if it exists, we're quite sure that the file is not modified
-            // cuz the compiler checks whether the file is modified or not
-            //
             // we do this existence check because the file might have been moved (that affects the relative path)
             if !exists(path) {
                 return Err(EndecError::corrupted_file_hash(*hash, path.to_string()));

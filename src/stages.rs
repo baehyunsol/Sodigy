@@ -10,7 +10,7 @@ use sodigy_ast::{
 };
 use sodigy_clap::Flag;
 use sodigy_config::CompilerOption;
-use sodigy_endec::{DumpJson, Endec, EndecError, EndecErrorKind};
+use sodigy_endec::{DumpJson, Endec};
 use sodigy_error::{
     ErrorContext,
     RenderError,
@@ -27,7 +27,6 @@ use sodigy_files::{
     is_dir,
     is_file,
     join,
-    last_modified,
     parent,
     read_string,
     set_extension,
@@ -65,10 +64,6 @@ const FILE_EXT_MID_IR: &str = "mir";
 pub fn construct_hir(
     input: PathOrRawInput,
     compiler_option: &CompilerOption,
-
-    // `construct_hir` is called for each file in a module
-    // the file that's fed to the compiler as a cli argument is the root
-    is_root: bool,
 ) -> (Option<HirSession>, CompilerOutput) {
     info!("sodigy::construct_hir() with input: {input:?}");
     let mut compiler_output = CompilerOutput::new();
@@ -76,41 +71,6 @@ pub fn construct_hir(
 
     let file_hash = match input {
         PathOrRawInput::Path(file) => {
-            // if HirSession is saved as a file and it's up to date, it just constructs the session from the file and returns
-            if let Some(s) = try_construct_session_from_saved_ir::<HirSession>(file, FILE_EXT_HIGH_IR) {
-                match s {
-                    Ok(session) if !session.check_all_dependency_up_to_date() => {
-                        info!("found a session from previous compilation, but the dependencies are not up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
-                    },
-                    Ok(session) => {
-                        info!("found a session from previous compilation, and its dependencies are up to date: (file: {file}, ext: {FILE_EXT_HIGH_IR})");
-                        warn_ignored_dumps(&mut compiler_output, compiler_option, FILE_EXT_HIGH_IR);
-
-                        if let Some(path) = &compiler_option.dump_hir_to {
-                            let res = session.dump_json().pretty(4);
-                            debug!("dump_hir_to: {path:?}");
-
-                            if path != "STDOUT" {
-                                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
-                                }
-                            }
-
-                            else {
-                                compiler_output.dump_to_stdout(res);
-                            }
-                        }
-
-                        return (Some(session), compiler_output);
-                    },
-                    Err(e) => {
-                        compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-                    },
-                }
-            }
-
-            // it doesn't check whether there's cached MIR or not
-
             match file_session.register_file(file) {
                 Ok(f) => f,
                 Err(e) => {
@@ -227,6 +187,10 @@ pub fn construct_hir(
     let mut hir_session = HirSession::from_ast_session(&ast_session);
     let _ = lower_stmts(ast_session.get_results(), &mut hir_session);
 
+    // TODO
+    //      1. no more `save_ir` option
+    //      2. save hir only when the final output is set to hir (`-H` flag)
+    //      3. save the output to OUTPUT, not to a tmp path
     match input {
         // it saves ir of failed compilations
         // so that it can fail faster if the user tries to compile the same file again
@@ -239,36 +203,28 @@ pub fn construct_hir(
                 },
             };
 
-            let file_metadata = match last_modified(file) {
-                Ok(m) => m.max(1),  // let's avoid 0 -> see the Err(e) branch
-                Err(e) => {
-                    compiler_output.push_warning(incremental_compilation_broken(file, e.into()));
-
-                    0
-                },
-            };
-
-            if let Err(mut e) = hir_session.save_to_file(&tmp_path, Some(file_metadata)) {
+            if let Err(mut e) = hir_session.save_to_file(&tmp_path) {
                 compiler_output.push_error(e.set_context(FileErrorContext::SavingIr).to_owned().to_owned().into());
             }
         },
+
+        // TODO: it has to save the hir of raw input
+        //       there's no save_ir option anymore...
         _ => {},
     }
 
     if let Some(path) = &compiler_option.dump_hir_to {
-        if is_root {
-            let res = hir_session.dump_json().pretty(4);
-            debug!("dump_hir_to: {path:?}");
+        let res = hir_session.dump_json().pretty(4);
+        debug!("dump_hir_to: {path:?}");
 
-            if path != "STDOUT" {
-                if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
-                    compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
-                }
+        if path != "STDOUT" {
+            if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                compiler_output.push_error(e.set_context(FileErrorContext::DumpingHirToFile).to_owned().into());
             }
+        }
 
-            else {
-                compiler_output.dump_to_stdout(res);
-            }
+        else {
+            compiler_output.dump_to_stdout(res);
         }
     }
 
@@ -284,7 +240,7 @@ pub fn construct_mir(
     CompilerOutput,
 ) {
     info!("sodigy::construct_mir() with input: {input:?}");
-    construct_hir(input, compiler_option, true)
+    construct_hir(input, compiler_option)
 
     // TODO: construct mir from hir
 }
@@ -338,42 +294,6 @@ pub fn generate_path_for_ir(
     )?;
 
     Ok(save_ir_to)
-}
-
-/// None: cannot find saved_ir\
-/// Some(Err(e)): found saved_ir, but got an error while constructing the session from saved_ir\
-/// Some(Ok(s)): successfully reconstructed the session from saved_ir
-pub fn try_construct_session_from_saved_ir<T: Endec>(file: &Path, ext: &str) -> Option<Result<T, EndecError>> {
-    let path_for_ir = if let Ok(path) = generate_path_for_ir(file, ext, false) {
-        path
-    } else {
-        return None;
-    };
-
-    let file_metadata = match last_modified(file) {
-        Ok(m) => m,
-        Err(e) if e.is_file_not_found_error() => {
-            return None;
-        },
-        Err(e) => {
-            return Some(Err(e.into()));
-        },
-    };
-
-    if exists(&path_for_ir) {
-        match T::load_from_file(&path_for_ir, Some(file_metadata)) {
-            // ir is older than the code -> the session has to be constructed from scratch!
-            Err(EndecError {
-                kind: EndecErrorKind::FileIsModified,
-                ..
-            }) => None,
-            res => Some(res),
-        }
-    }
-
-    else {
-        None
-    }
 }
 
 // it doesn't look for the config file if it's compiling a raw input

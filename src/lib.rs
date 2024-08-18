@@ -58,7 +58,7 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
     let mut output = match &options.output {
         CompilerOutputFormat::HighIr => {
-            let (session, mut output) = construct_hir(input, &options, true /* is_root */);
+            let (session, mut output) = construct_hir(input, &options);
 
             if let Some(session) = session {
                 output.collect_errors_and_warnings_from_session(&session);

@@ -19,15 +19,13 @@ pub trait Endec {
     /// It moves the cursor (`ind`) after decoding. If the decoding fails, it may or may not move the cursor.
     fn decode(buffer: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> where Self: Sized;
 
-    // `path` and `file_metadata` point to different files
-    // `path` is an ir file, and `file_metadata` is of `.sdg` file.
-    fn save_to_file(&self, path: &str, file_metadata: Option<u64>) -> Result<(), FileError> {
+    fn save_to_file(&self, path: &str) -> Result<(), FileError> {
         let mut buffer = vec![];
         let mut endec_session = EndecSession::new();
 
         self.encode(&mut buffer, &mut endec_session);
 
-        let encoded_session = endec_session.encode_session(file_metadata);
+        let encoded_session = endec_session.encode_session();
 
         if let Err(e) = write_bytes(&path, &encoded_session, WriteMode::CreateOrTruncate) {
             return Err(e);
@@ -41,11 +39,11 @@ pub trait Endec {
         Ok(())
     }
 
-    fn load_from_file(path: &str, file_metadata: Option<u64>) -> Result<Self, EndecError> where Self: Sized {
+    fn load_from_file(path: &str) -> Result<Self, EndecError> where Self: Sized {
         match read_bytes(path) {
             Ok(b) => {
                 let mut index = 0;
-                let mut session = EndecSession::decode_session(&b, &mut index, file_metadata).map_err(
+                let mut session = EndecSession::decode_session(&b, &mut index).map_err(
                     |mut e| e.set_path(&path.to_string()).to_owned()
                 )?;
 

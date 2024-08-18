@@ -9,7 +9,7 @@ use sodigy_files::{
 };
 use sodigy_output::CompilerOutput;
 
-// TODO: it does too many unnecessary searches
+// TODO: no more `--clean`, so remove this func
 pub fn clean_irs(path: &str, compiler_output: &mut CompilerOutput, count: &mut usize) {
     info!("sodigy::clean_irs() path: {path:?}");
 
