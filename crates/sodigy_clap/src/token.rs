@@ -17,7 +17,7 @@ impl Token {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenKind {
     Flag,
     Path,

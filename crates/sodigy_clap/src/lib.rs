@@ -116,7 +116,9 @@ pub fn parse_cli_args() -> ClapSession {
                     input_file = Some((tokens[index].value.unwrap_path(), tokens[index].span));
                 },
                 TokenKind::Flag => {
-                    match tokens[index].value.unwrap_flag() {
+                    let curr_flag = tokens[index].value.unwrap_flag();
+
+                    match curr_flag {
                         Flag::Output => {
                             if output_path.is_some() {
                                 errors.push(ClapError::same_flag_multiple_times(Flag::Output, tokens[index].span));
@@ -240,7 +242,9 @@ pub fn parse_cli_args() -> ClapSession {
                         },
                     }
 
-                    index += 1;
+                    if curr_flag.param_type() != TokenKind::None {
+                        index += 1;
+                    }
                 },
 
                 // this branch must have been filtered by `into_tokens`

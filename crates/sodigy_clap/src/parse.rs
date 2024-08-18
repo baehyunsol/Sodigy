@@ -16,6 +16,7 @@ pub fn into_file() -> (Vec<u8>, FileHash) {
     ).collect::<Vec<String>>();
 
     // first argument is the path to the binary
+    // TODO: what if it isn't?
     let joined_args = (&args[1..]).join(" ");
     let file_session = unsafe { global_file_session() };
 
