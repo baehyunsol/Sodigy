@@ -4,85 +4,84 @@ mod fmt;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Flag {
-    Output,
-    StopAt,
     Help,
     Version,
+    Output,
+    Hir,
+    Mir,
+    Library,
     ShowWarnings,
-    SaveIr,
+    HideWarnings,
+    RawInput,
     DumpHirTo,
     DumpMirTo,
-    Clean,
     Verbose,
-    RawInput,
-    NumWorkers,
 }
 
 pub const FLAGS: [Flag; 12] = [
-    Flag::Output,
-    Flag::StopAt,
     Flag::Help,
     Flag::Version,
+    Flag::Output,
+    Flag::Hir,
+    Flag::Mir,
+    Flag::Library,
     Flag::ShowWarnings,
-    Flag::SaveIr,
+    Flag::HideWarnings,
+    Flag::RawInput,
     Flag::DumpHirTo,
     Flag::DumpMirTo,
-    Flag::Clean,
     Flag::Verbose,
-    Flag::RawInput,
-    Flag::NumWorkers,
 ];
 
 impl Flag {
-    /// what kind of param this flag takes
-    pub fn param_type(&self) -> TokenKind {
+    pub fn arg_kind(&self) -> ArgKind {
         match self {
-            Flag::Output
-            | Flag::DumpHirTo
-            | Flag::DumpMirTo => TokenKind::Path,
-            Flag::StopAt => TokenKind::Stage,
-            Flag::ShowWarnings
-            | Flag::SaveIr => TokenKind::Bool,
-            Flag::Verbose
-            | Flag::NumWorkers => TokenKind::Int,
-            Flag::RawInput => TokenKind::RawInput,
-            Flag::Help
-            | Flag::Version
-            | Flag::Clean => TokenKind::None,
+            Flag::Help => ArgKind::None,
+            Flag::Version => ArgKind::None,
+            Flag::Output => ArgKind::Path,
+            Flag::Hir => ArgKind::None,
+            Flag::Mir => ArgKind::None,
+            Flag::Library => ArgKind::Library,
+            Flag::ShowWarnings => ArgKind::None,
+            Flag::HideWarnings => ArgKind::None,
+            Flag::RawInput => ArgKind::String,
+            Flag::DumpHirTo => ArgKind::Path,
+            Flag::DumpMirTo => ArgKind::Path,
+            Flag::Verbose => ArgKind::Integer,
         }
     }
 
     pub fn short(&self) -> Option<&[u8]> {
         match self {
-            Flag::Output => Some(b"-o"),
             Flag::Help => Some(b"-h"),
             Flag::Version => Some(b"-v"),
-            Flag::NumWorkers => Some(b"-w"),
-            Flag::StopAt
-            | Flag::ShowWarnings
-            | Flag::SaveIr
-            | Flag::DumpHirTo
-            | Flag::DumpMirTo
-            | Flag::Clean
-            | Flag::Verbose
-            | Flag::RawInput => None,
+            Flag::Output => Some(b"-o"),
+            Flag::Hir => Some(b"-H"),
+            Flag::Mir => Some(b"-M"),
+            Flag::Library => Some(b"-L"),
+            Flag::ShowWarnings => None,
+            Flag::HideWarnings => None,
+            Flag::RawInput => None,
+            Flag::DumpHirTo => None,
+            Flag::DumpMirTo => None,
+            Flag::Verbose => None,
         }
     }
 
-    pub fn long(&self) -> &[u8] {
+    pub fn long(&self) -> Option<&[u8]> {
         match self {
-            Flag::Output => b"--output",
-            Flag::StopAt => b"--stop-at",
-            Flag::Help => b"--help",
-            Flag::Version => b"--version",
-            Flag::ShowWarnings => b"--show-warnings",
-            Flag::SaveIr => b"--save-ir",
-            Flag::DumpHirTo => b"--dump-hir-to",
-            Flag::DumpMirTo => b"--dump-mir-to",
-            Flag::Clean => b"--clean",
-            Flag::Verbose => b"--verbose",
-            Flag::RawInput => b"--raw-input",
-            Flag::NumWorkers => b"--num-workers",
+            Flag::Help => Some(b"--help"),
+            Flag::Version => Some(b"--version"),
+            Flag::Output => Some(b"--output"),
+            Flag::Hir => Some(b"--hir"),
+            Flag::Mir => Some(b"--mir"),
+            Flag::Library => None,
+            Flag::ShowWarnings => Some(b"--show-warnings"),
+            Flag::HideWarnings => Some(b"--hide-warnings"),
+            Flag::RawInput => Some(b"--raw-input"),
+            Flag::DumpHirTo => Some(b"--dump-hir-to"),
+            Flag::DumpMirTo => Some(b"--dump-mir-to"),
+            Flag::Verbose => Some(b"--verbose"),
         }
     }
 
@@ -94,8 +93,10 @@ impl Flag {
                 }
             }
 
-            if s == flag.long() {
-                return Some(*flag);
+            if let Some(long) = flag.long() {
+                if s == long {
+                    return Some(*flag);
+                }
             }
         }
 

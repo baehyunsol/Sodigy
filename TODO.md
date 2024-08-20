@@ -403,10 +403,6 @@ generic은 어떻게 해야할지 전혀 감도 못잡겠음.. 일단 https://ru
 
 ---
 
-`./sodigy`, which is compiled in release mode still emits logs if `RUST_LOG` is set. that means there're still overhead in the release mode...
-
----
-
 The final stages of the compiler
 
 1. LLVM IR (or cranelift)
@@ -419,11 +415,13 @@ The final stages of the compiler
       - https://github.com/onehr/crust
       - https://github.com/jyn514/saltwater
       - https://github.com/ClementTsang/rustcc
+      - https://github.com/PhilippRados/wrecc
       - All the above are half-broken
     2. use MakeFile
       - does it work on Windows?
       - does it have to?
     3. embed a very small c compiler in this project
+      - https://github.com/rui314/chibicc
       - https://github.com/TinyCC/tinycc
       - https://github.com/drh/lcc
         - its license is too restrictive
@@ -443,27 +441,66 @@ let's get some inspirations from https://ziglang.org/documentation/0.11.0/
 
 ---
 
-module and import systems
+sketch for package manager
 
-1. `module` implies `import`.
-  - in compiler's point of view, there's no difference in `module` and `import`. one can replace all `module`s with `import`s, and it would compile
-  - but the package manager would distinguish the two. it would add files to the project only when `module` is declared
-2. the compiler provides 2 different options
-  - 1: source -> hir (per file)
-  - 2: hirs -> mir (or just binary)
-  - there's no end to end pass for multiple files
-  - end to end pass for single file?
-3. hir includes what names to import and what modules it defines but it doesn't care where the modules are
-4. in order to handle hir, locations of all the modules have to be provided
-  - the compiler never tries to find it
-  - it would probably be done by a package manager
-  - rustc (and many other compilers) uses `-L` option to specify extra library search paths
-    - cargo does `rustc main.rs ... -L --extern lib_name=path/to/the/lib.rlib` to link the files
-5. the compiler doesn't care about incremental compilation
-  - but it guarantees that hir can be reused if the source file is not changed
-  - package manager will do the rest
+```
+/src
+  /main.sdg
+  /util.sdg
+  /runner.sdg
+  /util
+    /web.sdg
+    /app.sdg
+  /runner
+    /web.sdg
+    /app.sdg
+```
 
-in order to do that, the compiler's CLI has to be changed dramatically
+0. each file defines module correctly, and each file imports all the other files (except main)
+1. `sodigy -H ./src/main.sdg -o ./target/hirs/main.hir`
+  - the package manager also records the hash of `main.sdg`, so that it doesn't run the hir pass again if the source code hasn't changed
+2. the compiler tells you that `main` defines modules named `util` and `runner`
+  - there must be a cli option for this. compiler has to dump the list of the names after the hir pass
+3. `sodigy -H ./src/util.sdg -o ./target/hirs/util.hir` and `sodigy -H ./src/runner.sdg -o ./target/hirs/runner.hir` in parallel
+4. the compiler tells you that `util` defines modules named `web` and `app`, and `runner` defines modules named `web` and `app`
+  - it also tells you that the files import `module.util.web`, `module.util.app`, ... and the likes
+  - the compiler only cares about the first elements of each path: the compiler can never know whether `util` in `module.util.web` is a function or a module (but it's guaranteed that the first element is a module)
+5. iterate step 3 and 4 until all the source files have hir files
+6. `sodigy -M ./target/hirs/main.hir -o ./target/binary/main -L util=./target/hirs/util.hir runner=./target/hirs/runner.hir`
+  - TODO: how would I link `./target/hirs/util/web.hir` and the likes?
+    - 저걸 호출하는 시점에서는 module.util.web에서 어디까지가 module이고 어디부터가 function인지 알 수 있음 (다 돌면서 hir 만들면서 기록해뒀으니까)
+    - 그러면 `-L util.web=./target/hirs/util/web.hir` 이런 식으로 다 추가해줘도 괜찮을 듯?
+    - 파일 하나하나 추가하는게 좀 비효율적이긴 함. Rust를 예로 들면, 각 crate마다 해당 crate를 나타내는 파일을 하나만 쓰거나, 현재 crate의 모든 rlib이 들어있는 dir 하나만 넘기거나 그렇게 함...
+      - 추가 flag를 만들어서 `./target/hirs`까지만 넘기면 그 안에서 알아서 이름 보고 찾게 할까?
+      - std 생각하면 이게 맞음...
+  - 저러면 어떻게 도는데? 일단은 main.hir을 돌면서 foreign name을 찾을 거고,
+    - 각 foreign name에 대해서, `-L`로 준게 있는지 확인을 할 거고,
+    - `-L`에 hir이 있으면... then what?
+
+import rules for package manager
+
+1. `util/web.sdg` can import `runner/web.sdg` by `import module.runner.web;`
+  - is `module` proper keyword here?
+  - it has to prevent users from defining a module named `module`
+  - does it also have to prevent users from defining a module named `std`?
+2. `util/web.sdg` can import `util/app.sdg` by `import module.util.app;`
+  - we need something like `super` keyword in Rust
+3. `util.sdg` already imports `util/web.sdg` implicitly because it has `module web;` in it
+
+---
+
+naming convention
+
+If an identifier is less than or equal to 6 characters, do not use abbreviation.
+- Int, Char, String, Option, Result
+
+---
+
+function return type annotation에서 ':'대신 '->' 쓰면 에러 메시지에 정확하게 알려주기
+
+---
+
+new cli
 
 ```
 Usage: sodigy [OPTIONS] INPUT
@@ -473,24 +510,39 @@ Options:
     -v, --version
     -o, --output PATH               Write output to <PATH>
     -H, --hir                       Generate hir from <INPUT> and write the result to output path
+    -M, --mir                       Generate mir from <INPUT> and write the result to output path. The input must be
+                                    an hir file, which is generated by the `-H` option.
+    -L NAME=PATH                    Specify a path of hir of a library. The hir file is generated by the `-H` option.
+    --show-warnings                 Show warning messages (default: on)
+    --hide-warnings                 Hide warning messages (default: off)
+    --raw-input RAW-INPUT           Compile <RAW-INPUT> instead of reading <INPUT>
     --dump-hir-to PATH              Dump the hir session to <PATH> as a json file. If <PATH> is `STDOUT`, it dumps the
                                     result to stdout.
-    -L NAME=PATH                    Specify a path of hir of a library. The hir file is generated by the `-H` option.
-    --show-warnings [true|false]    Show warnings messages (default: true)
-    --raw-input RAW-INPUT           Instead of reading <INPUT>, read the content from the cli argument
+    --dump-mir-to PATH              Dump the mir session to <PATH> as a json file. If <PATH> is `STDOUT`, it dumps the
+                                    result to stdout.
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.
 ```
 
-the CLI is largely incomplete: design a simple package manager, that can compile a project consisting of multiple files/dirs. imagine how the package manager would compile it in parallel and design the cli of the compiler
-
-the package manager must use the compiler in cli, not as a library (the package manager will be written in Sodigy)
-
-1. `sodigy -H ./src/main.sdg`
-  - the path of the root file is configurable
-2. the compiler gives the list of modules and imports in `main.sdg`
-3. run multiple `sodigy -H path/of/modules` in parallel
-4. mir: is it per file or per project?
+0. not-implemented options
+  - 일단 옵션은 다 만들어두고 나중에 구현? 그게 나을 수도...
+  - `-O` for optimization
+1. it has to save span for error messages
+  - since there's no api that keeps the exact cli input, the compiler has to reconstruct the input
+  - current implementation of `into_file()` looks fine
+  - I have to rewrite `lex_cli`: it has to treat an equal sign as an individual token
+2. current parse rules are too restrictive: we need more flexible one
+  - a flag can take arbitrary number of arguments
+  - an equal sign has to be treated specially: there must be an internal representation for key-value pairs
+  - an argument that does not belong to any flag is an input file
+  - `--help` or `--version` mixed with other flags: what should we do?
+    - `cargo --help --version` and `cargo --version --help` both prints the help message
+    - `clang token.rs --help` does nothing and shows the help message
+    - `cargo run --help` shows a help message for the `run` subcommand
+    - let's make mine very smart
+      - clap is smart enough to figure out which `--help` the user is asking for
+      - if the user adds an extra argument to `--help`, it shows a proper error message
+  - are `--show-warnings true` and `--show-warnings=true` both valid?
 
 ---
 

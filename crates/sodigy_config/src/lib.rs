@@ -15,14 +15,8 @@ pub struct CompilerOption {
 
     pub output: CompilerOutputFormat,
     pub show_warnings: bool,
-    pub save_ir: bool,
     pub dump_hir_to: Option<Path>,
     pub dump_mir_to: Option<Path>,
-
-    // for now, users can't provide this because
-    // command line flags can take only one argument
-    // HashMap<"foo", "./foo.sdg">
-    pub dependencies: HashMap<String, Path>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
@@ -33,8 +27,6 @@ pub struct CompilerOption {
 
     // users cannot set this flag manually
     pub parse_config_file: bool,
-
-    pub num_workers: usize,
 }
 
 impl CompilerOption {
@@ -44,10 +36,6 @@ impl CompilerOption {
 
     pub fn version_info() -> Self {
         CompilerOption::do_this_and_quit(SpecialOutput::VersionInfo)
-    }
-
-    pub fn clean_irs() -> Self {
-        CompilerOption::do_this_and_quit(SpecialOutput::CleanIrs)
     }
 
     pub fn do_this_and_quit(s: SpecialOutput) -> Self {
@@ -67,10 +55,6 @@ impl CompilerOption {
             ..Self::default()
         }
     }
-}
-
-pub fn calc_num_workers() -> usize {
-    std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::new(1).unwrap()).get()
 }
 
 impl Default for CompilerOption {
@@ -96,7 +80,6 @@ impl Default for CompilerOption {
 pub enum SpecialOutput {
     HelpMessage,
     VersionInfo,
-    CleanIrs,
 }
 
 #[derive(Clone)]
