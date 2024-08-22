@@ -37,12 +37,13 @@ pub use warn::ClapWarning;
 
 type Path = String;
 
-// TODO: when the user types a wrong flag name,
-//       the compiler treats that as a file path and generates a very unkind error message
 pub fn parse_cli_args() -> ClapSession {
     let (input, file) = into_file();
 
-    let parsed_flags = match parse_cli(&input, SpanPoint::at_file(file, 0)) {
+    let parsed_flags = match parse_cli(
+        &input,
+        SpanPoint::at_file(file, 7),  // 7 for the string "sodigy "
+    ) {
         Ok(parsed_flags) => parsed_flags,
         Err(e) => {
             return ClapSession::with_errors(e);

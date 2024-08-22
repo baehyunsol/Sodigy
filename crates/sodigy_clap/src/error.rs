@@ -3,12 +3,13 @@ use crate::token::TokenKind;
 use hmath::BigInt;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
-    substr_edit_distance,
     ErrorContext,
     ExtraErrInfo,
     RenderError,
     SodigyError,
     SodigyErrorKind,
+    substr_edit_distance,
+    trim_long_string,
 };
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
@@ -200,12 +201,10 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::InvalidFlag(s) => format!("invalid flag: `{s}`"),
             ClapErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             ClapErrorKind::NoArgsAtAll => String::from("expected an input file, got nothing"),
-
-            // TODO: it has to trim long string
-            //       sodigy_error implements `first_few_chars` and `last_few_chars`, but they're for Vec<u8>
             ClapErrorKind::InvalidArgument(kind, arg) => format!(
-                "expected {}, got `{arg}`",
+                "expected {}, got `{}`",
                 kind.render_error(),
+                trim_long_string(arg.to_string(), 16, 16),
             ),
             ClapErrorKind::NoArg(kind) => format!(
                 "expected {}, got nothing",

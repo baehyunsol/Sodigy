@@ -190,6 +190,22 @@ pub fn concat_commas(list: &[String], term: &str, prefix: &str, suffix: &str) ->
     }
 }
 
+pub fn trim_long_string(s: String, prefix: usize, suffix: usize) -> String {
+    let char_len = s.chars().count();
+
+    if char_len > prefix + suffix + 3 {
+        format!(
+            "{}...{}",
+            s.chars().take(prefix).collect::<String>(),
+            s.chars().rev().take(suffix).collect::<String>().chars().rev().collect::<String>(),
+        )
+    }
+
+    else {
+        s
+    }
+}
+
 fn show_file_names(spans: &[SpanRange]) -> String {
     let file_session = unsafe { global_file_session() };
     let file_names = spans.iter().map(

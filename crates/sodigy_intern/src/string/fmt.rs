@@ -3,20 +3,6 @@ use crate::unintern_string;
 use std::fmt;
 
 impl InternedString {
-    pub fn render_error(&self) -> String {
-        let mut v = unintern_string(*self);
-
-        if v.len() > 64 {
-            v = vec![
-                first_few_chars(&v),
-                b"...".to_vec(),
-                last_few_chars(&v),
-            ].concat();
-        }
-
-        String::from_utf8_lossy(&v).to_string()
-    }
-
     pub fn escaped_no_quotes(&self) -> String {
         let s = format!("{self:?}").as_bytes().to_vec();
 

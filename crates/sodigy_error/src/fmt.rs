@@ -1,6 +1,12 @@
-use crate::{concat_commas, ErrorContext, ExpectedToken};
+use crate::{
+    ErrorContext,
+    ExpectedToken,
+    concat_commas,
+    trim_long_string,
+};
 use sodigy_endec::EndecErrorContext;
 use sodigy_files::FileErrorContext;
+use sodigy_intern::{InternedString, unintern_string};
 use std::fmt;
 
 /// All the error messages use this function to print objects
@@ -94,5 +100,12 @@ impl RenderError for EndecErrorContext {
             EndecErrorContext::ConstructingTokensFromIr => "constructing tokens from saved ir",
             EndecErrorContext::ConstructingHirFromIr => "constructing hir from saved ir",
         }.to_string()
+    }
+}
+
+impl RenderError for InternedString {
+    fn render_error(&self) -> String {
+        let v = unintern_string(*self);
+        trim_long_string(String::from_utf8_lossy(&v).to_string(), 8, 8)
     }
 }

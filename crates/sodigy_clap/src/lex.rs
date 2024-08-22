@@ -28,13 +28,13 @@ pub fn into_file() -> (Vec<u8>, FileHash) {
         }
     ).collect::<Vec<String>>();
 
-    // TODO: I want the spans in the error messages to show the path to the binary, or at least a string "sodigy"
-    // first argument is the path to the binary
     let joined_args = (&args[1..]).join(" ");
+    let readable_args = format!("sodigy {joined_args}");
     let file_session = unsafe { global_file_session() };
 
     let input: Vec<u8> = joined_args.into();
-    let res = file_session.register_tmp_file(&input).unwrap();
+    let readable_input: Vec<u8> = readable_args.into();
+    let res = file_session.register_tmp_file(&readable_input).unwrap();
     file_session.set_name_alias(res, "command_line_args".to_string());
 
     (input, res)
