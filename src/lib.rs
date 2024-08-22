@@ -12,12 +12,10 @@ use crate::stages::{
 };
 use log::info;
 use sodigy_config::{CompilerOption, CompilerOutputFormat, SpecialOutput};
+use sodigy_endec::Endec;
 use sodigy_output::CompilerOutput;
+use sodigy_session::SodigySession;
 
-// TODO: it has to save hir (and all the other irs)
-//       previously, there was an option named `save_ir`, which saves irs
-//       at `__sdg_cache__`, a temp dir. but now the irs have to be saved
-//       at the output_path, not a temp dir.
 pub fn run(options: CompilerOption) -> CompilerOutput {
     info!("sodigy::run()");
 
@@ -53,6 +51,18 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
             if let Some(session) = session {
                 output.collect_errors_and_warnings_from_session(&session);
+
+                if !session.has_error() {
+                    let save_hir_at = options.output_path.as_ref().map(
+                        |path| path.to_string()
+                    ).unwrap_or_else(
+                        || todo!()  // create path for hir
+                    );
+
+                    if let Err(e) = session.save_to_file(&save_hir_at) {
+                        todo!()  // push error to the output
+                    }
+                }
             }
 
             output
@@ -65,14 +75,15 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
                 output.collect_errors_and_warnings_from_session(&session);
             }
 
+            // TODO: if it's mir, save it
+            //       if it's binary... then what?
+
             output
         },
         CompilerOutputFormat::None => unreachable!(),  // TODO: what's this format for?
     };
 
     output.show_overall_result = true;
-
-    // TODO: save output to the path
 
     output
 }
