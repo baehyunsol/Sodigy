@@ -1,8 +1,8 @@
 use crate::flag::{Flag, FLAGS};
-use crate::token::{Token, TokenKind};
+use crate::token::TokenKind;
+use hmath::BigInt;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
-    concat_commas,
     substr_edit_distance,
     ErrorContext,
     ExtraErrInfo,
@@ -27,14 +27,23 @@ impl ClapError {
                 let mut closest_flag = vec![];
                 let mut closest_dist = usize::MAX;
 
-                // there's no point in searching short flags
                 for flag in FLAGS.iter() {
-                    let flag = flag.long();
-                    let dist = substr_edit_distance(&token, flag);
+                    if let Some(flag) = flag.long() {
+                        let dist = substr_edit_distance(&token, flag);
 
-                    if dist < closest_dist {
-                        closest_dist = dist;
-                        closest_flag = flag.to_vec();
+                        if dist < closest_dist {
+                            closest_dist = dist;
+                            closest_flag = flag.to_vec();
+                        }
+                    }
+
+                    if let Some(flag) = flag.short() {
+                        let dist = substr_edit_distance(&token, flag);
+
+                        if dist < closest_dist {
+                            closest_dist = dist;
+                            closest_flag = flag.to_vec();
+                        }
                     }
                 }
 
@@ -42,8 +51,8 @@ impl ClapError {
 
                 //  --xx -> --to  (no sense)
                 //  --tx -> --to  (makes sense)
-                //  --verrrion -> --verrrion (makes sense)
-                if (token.len() > 4 && closest_dist < 3) || (token.len() == 4 && closest_dist < 2) {
+                //  --verrrion -> --version (makes sense)
+                if (token.len() > 4 && closest_dist < 3) || closest_dist < 2 {
                     extra.set_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
                 }
 
@@ -65,9 +74,9 @@ impl ClapError {
         }
     }
 
-    pub fn invalid_argument(kind: TokenKind, argument: &str, span: SpanRange) -> Self {
+    pub fn invalid_argument(kind: TokenKind, argument: &[u8], span: SpanRange) -> Self {
         ClapError {
-            kind: ClapErrorKind::InvalidArgument(kind, argument.to_string()),
+            kind: ClapErrorKind::InvalidArgument(kind, String::from_utf8_lossy(argument).to_string()),
             spans: smallvec![span],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
@@ -89,9 +98,9 @@ impl ClapError {
         }
     }
 
-    pub fn no_input_files() -> Self {
+    pub fn no_input_file() -> Self {
         ClapError {
-            kind: ClapErrorKind::NoInputFiles,
+            kind: ClapErrorKind::NoInputFile,
             spans: smallvec![],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
         }
@@ -105,46 +114,36 @@ impl ClapError {
         }
     }
 
-    pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
+    pub fn same_flag_multiple_times(flag: Option<Flag>, spans: SmallVec<[SpanRange; 1]>) -> Self {
         ClapError {
             kind: ClapErrorKind::SameFlagMultipleTimes(flag),
-            spans: smallvec![span],
+            spans,
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
-    pub fn unnecessary_flag(flag: Flag, span: SpanRange) -> Self {
+    pub fn incompatible_flags(
+        flag1: Flag,
+        span1: SpanRange,
+        flag2: Flag,
+        span2: SpanRange,
+    ) -> Self {
         ClapError {
-            kind: ClapErrorKind::UnnecessaryFlag(flag),
-            spans: smallvec![span],
+            kind: ClapErrorKind::IncompatibleFlags(flag1, flag2),
+            spans: smallvec![span1, span2],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
     // `start` is inclusive, and `end` is exclusive
-    pub fn integer_range_error(start: u64, end: u64, given: u64, span: SpanRange) -> Self {
-        assert!(start < end && (given < start || end <= given));
+    pub fn integer_range_error(start: BigInt, end: BigInt, given: BigInt, span: SpanRange) -> Self {
+        debug_assert!(start < end && (given < start || end <= given));
 
         ClapError {
             kind: ClapErrorKind::IntegerRangeError {
                 start, end, given,
             },
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
-        }
-    }
-
-    pub fn assign_operator(
-        previous_token: Option<&Token>,
-        assign_operator: Token,
-        next_token: Option<&Token>,
-    ) -> Self {
-        ClapError {
-            kind: ClapErrorKind::AssignOperator {
-                previous_token: previous_token.map(|t| t.clone()),
-                next_token: next_token.map(|t| t.clone()),
-            },
-            spans: smallvec![assign_operator.span],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
@@ -182,18 +181,16 @@ pub enum ClapErrorKind {
     InvalidArgument(TokenKind, String),
     NoArgsAtAll,
     NoArg(TokenKind),
-    NoInputFiles,
+    NoInputFile,
     MultipleInputFiles,
-    SameFlagMultipleTimes(Flag),
-    UnnecessaryFlag(Flag),
+    IncompatibleFlags(Flag, Flag),
+
+    // `None` indicates a cli option that does not have a flag: input_path
+    SameFlagMultipleTimes(Option<Flag>),
     IntegerRangeError {
-        start: u64,  // inclusive
-        end: u64,    // exclusive
-        given: u64,
-    },
-    AssignOperator {
-        previous_token: Option<Token>,
-        next_token: Option<Token>,
+        start: BigInt,  // inclusive
+        end: BigInt,    // exclusive
+        given: BigInt,
     },
 }
 
@@ -203,22 +200,27 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::InvalidFlag(s) => format!("invalid flag: `{s}`"),
             ClapErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             ClapErrorKind::NoArgsAtAll => String::from("expected an input file, got nothing"),
+
+            // TODO: it has to trim long string
+            //       sodigy_error implements `first_few_chars` and `last_few_chars`, but they're for Vec<u8>
             ClapErrorKind::InvalidArgument(kind, arg) => format!(
                 "expected {}, got `{arg}`",
-                concat_commas(&kind.all_possible_values(), "or", "`", "`"),
+                kind.render_error(),
             ),
             ClapErrorKind::NoArg(kind) => format!(
                 "expected {}, got nothing",
-                concat_commas(&kind.all_possible_values(), "or", "`", "`"),
+                kind.render_error(),
             ),
-            ClapErrorKind::NoInputFiles => String::from("no input files"),
+            ClapErrorKind::NoInputFile => String::from("no input file"),
             ClapErrorKind::MultipleInputFiles => String::from("multiple input files"),
-            ClapErrorKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
-            ClapErrorKind::UnnecessaryFlag(flag) => format!("unnecessary flag: `{}`", flag.render_error()),
+            ClapErrorKind::SameFlagMultipleTimes(flag) => match flag {
+                Some(flag) => format!("`{}` given more than once", flag.render_error()),
+                None => "<INPUT> given more than once".to_string(),
+            },
+            ClapErrorKind::IncompatibleFlags(flag1, flag2) => format!("`{}` and `{}` are incompatible", flag1.render_error(), flag2.render_error()),
             ClapErrorKind::IntegerRangeError { start, end, given } => format!(
                 "expected an integer in range {start}..{end}, got {given}"
             ),
-            ClapErrorKind::AssignOperator { .. } => String::from("unnecessary assign operator"),
         }
     }
 
@@ -226,26 +228,30 @@ impl SodigyErrorKind for ClapErrorKind {
         match self {
             ClapErrorKind::InvalidFlag(_)
             | ClapErrorKind::NoArgsAtAll => String::from("Try `sodigy --help` to see available options."),
-            ClapErrorKind::UnnecessaryFlag(flag) => format!(
-                "`{}` doesn't take extra arguments",
-                String::from_utf8(flag.long().to_vec()).unwrap(),
-            ),
-            ClapErrorKind::AssignOperator { previous_token, next_token } => {
-                match (previous_token, next_token) {
-                    (Some(p), Some(n)) if p.is_flag() && !n.is_flag() => format!(
-                        "Try `{} {}` instead of `{} = {}`.",
-                        p.render_error(),
-                        n.render_error(),
-                        p.render_error(),
-                        n.render_error(),
-                    ),
-                    _ => String::new(),
-                }
+            ClapErrorKind::IncompatibleFlags(flag1, flag2) => match (flag1, flag2) {
+                (Flag::Hir, Flag::Mir)
+                | (Flag::Mir, Flag::Hir) => format!(
+                    "`{}` asks the compiler to stop at the hir pass and `{}` asks the compiler to stop at the mir pass. Where should it stop at?",
+                    Flag::Hir.render_error(),
+                    Flag::Mir.render_error(),
+                ),
+                (Flag::Help, f)
+                | (f, Flag::Help) => format!(
+                    "There's no help message for `{}`",
+                    f.render_error(),
+                ),
+                (Flag::Version, f)
+                | (f, Flag::Version) => format!(
+                    "There's no version info for `{}`",
+                    f.render_error(),
+                ),
+                _ => String::new(),
             },
+            ClapErrorKind::SameFlagMultipleTimes(None) => String::from("Sodigy compiler cannot compile multiple files at once. You have to use `-L` option."),
             ClapErrorKind::InvalidUtf8
             | ClapErrorKind::InvalidArgument(_, _)
             | ClapErrorKind::NoArg(_)
-            | ClapErrorKind::NoInputFiles
+            | ClapErrorKind::NoInputFile
             | ClapErrorKind::MultipleInputFiles
             | ClapErrorKind::SameFlagMultipleTimes(_)
             | ClapErrorKind::IntegerRangeError { .. } => String::new(),
@@ -260,12 +266,11 @@ impl SodigyErrorKind for ClapErrorKind {
             ClapErrorKind::InvalidArgument(_, _) => 2,
             ClapErrorKind::NoArgsAtAll => 3,
             ClapErrorKind::NoArg(_) => 4,
-            ClapErrorKind::NoInputFiles => 5,
+            ClapErrorKind::NoInputFile => 5,
             ClapErrorKind::MultipleInputFiles => 6,
             ClapErrorKind::SameFlagMultipleTimes(_) => 7,
-            ClapErrorKind::UnnecessaryFlag(_) => 8,
+            ClapErrorKind::IncompatibleFlags(_, _) => 8,
             ClapErrorKind::IntegerRangeError { .. } => 9,
-            ClapErrorKind::AssignOperator { .. } => 10,
         }
     }
 }

@@ -11,12 +11,14 @@ type Path = String;
 #[derive(Clone)]
 pub struct CompilerOption {
     pub do_not_compile_and_do_this: Option<SpecialOutput>,
-    pub input_file: Option<Path>,
+    pub input_path: Option<Path>,
+    pub output_path: Option<Path>,
+    pub output_format: CompilerOutputFormat,
 
-    pub output: CompilerOutputFormat,
     pub show_warnings: bool,
     pub dump_hir_to: Option<Path>,
     pub dump_mir_to: Option<Path>,
+    pub library_paths: Option<HashMap<String, String>>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
@@ -24,9 +26,6 @@ pub struct CompilerOption {
     // It has to be `Vec<u8>` because the test code has to run
     // invalid utf-8 strings.
     pub raw_input: Option<Vec<u8>>,
-
-    // users cannot set this flag manually
-    pub parse_config_file: bool,
 }
 
 impl CompilerOption {
@@ -48,9 +47,8 @@ impl CompilerOption {
     pub fn test_runner(code: &[u8]) -> Self {
         CompilerOption {
             do_not_compile_and_do_this: None,
-            input_file: None,
-            output: CompilerOutputFormat::None,
-            save_ir: false,
+            input_path: None,
+            output_path: None,
             raw_input: Some(code.to_vec()),
             ..Self::default()
         }
@@ -61,17 +59,15 @@ impl Default for CompilerOption {
     fn default() -> Self {
         CompilerOption {
             do_not_compile_and_do_this: None,
-            input_file: None,
-            output: CompilerOutputFormat::None,
+            input_path: None,
+            output_path: None,
+            output_format: CompilerOutputFormat::Binary,
             show_warnings: true,
-            save_ir: true,
             dump_hir_to: None,
             dump_mir_to: None,
-            dependencies: HashMap::new(),
+            library_paths: None,
             verbosity: 1,
             raw_input: None,
-            parse_config_file: false,
-            num_workers: calc_num_workers(),
         }
     }
 }
@@ -85,21 +81,9 @@ pub enum SpecialOutput {
 #[derive(Clone)]
 pub enum CompilerOutputFormat {
     None,
-    Path(Path),
-    HighIr,
-    MidIr,
-}
-
-impl CompilerOutputFormat {
-    pub fn try_unwrap_path(&self) -> Option<&Path> {
-        if let CompilerOutputFormat::Path(p) = self {
-            Some(p)
-        }
-
-        else {
-            None
-        }
-    }
+    Hir,
+    Mir,
+    Binary,
 }
 
 // don't call these. just use session.get_results_mut()

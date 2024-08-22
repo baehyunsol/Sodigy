@@ -8,7 +8,6 @@ mod endec;
 mod error;
 mod expr;
 mod fmt;
-mod json;
 mod let_;
 mod ops;
 mod parse;
@@ -24,7 +23,6 @@ mod warn;
 mod tests;
 
 pub use expr::{Expr, ExprKind};
-pub use json::parse_config_file;
 pub use let_::{Let, LetKind};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_expr, parse_stmts};

@@ -1,8 +1,9 @@
 use sodigy_files::{FileHash, global_file_session};
+use sodigy_span::{SpanPoint, SpanRange};
 
 pub struct Token {
-    buffer: Vec<u8>,
-    span: SpanRange,
+    pub buffer: Vec<u8>,
+    pub span: SpanRange,
 }
 
 enum LexState {
@@ -15,13 +16,19 @@ enum LexState {
 /// It converts command line arguments into a file, so that we can use spans.
 pub fn into_file() -> (Vec<u8>, FileHash) {
     let args = std::env::args().map(
-        |arg| if arg.chars().any(|c| c == '\n' || c == ' ' || c == '\'' || c == '\"') {
+        |arg| if arg.chars().any(
+            |c| c == '\n' || c == ' '
+            || c == '\'' || c == '\"'
+            || c == '\r' || c == '\t'
+            || c == '\0' || c == '\\'
+        ) {
             format!("{arg:?}")
         } else {
             arg.to_string()
         }
     ).collect::<Vec<String>>();
 
+    // TODO: I want the spans in the error messages to show the path to the binary, or at least a string "sodigy"
     // first argument is the path to the binary
     let joined_args = (&args[1..]).join(" ");
     let file_session = unsafe { global_file_session() };
@@ -35,7 +42,7 @@ pub fn into_file() -> (Vec<u8>, FileHash) {
 
 /// It seems inefficient to join the splitted tokens then split them again,
 /// but that's the only way to use spans.
-fn lex_cli(code: &[u8], span_start: SpanPoint) -> Vec<Token> {
+pub fn lex_cli(code: &[u8], span_start: SpanPoint) -> Vec<Token> {
     let mut buffer = vec![];
     let mut tokens = vec![];
     let mut curr_state = LexState::Init;
@@ -73,7 +80,7 @@ fn lex_cli(code: &[u8], span_start: SpanPoint) -> Vec<Token> {
                 else if *c == b'"' {
                     curr_state = LexState::Init;
                     tokens.push(Token {
-                        buffer: buffer.clone(),
+                        buffer: unescape_rust_string_literal(&buffer),
                         span: span_start.offset(
                             (i - buffer.len()) as i32
                         ).extend(span_start.offset(i as i32)),
@@ -125,4 +132,36 @@ fn lex_cli(code: &[u8], span_start: SpanPoint) -> Vec<Token> {
     }
 
     tokens
+}
+
+fn unescape_rust_string_literal(buffer: &[u8]) -> Vec<u8> {
+    let mut result = Vec::with_capacity(buffer.len());
+    let mut is_escaped = false;
+
+    for c in buffer.iter() {
+        if is_escaped {
+            let cc = match *c {
+                b'r' => b'\r',
+                b'n' => b'\n',
+                b't' => b'\t',
+                b'0' => b'\0',
+                _ => *c,
+            };
+
+            result.push(cc);
+            is_escaped = false;
+        }
+
+        else {
+            if *c == b'\\' {
+                is_escaped = true;
+            }
+
+            else {
+                result.push(*c);
+            }
+        }
+    }
+
+    result
 }

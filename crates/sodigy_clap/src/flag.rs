@@ -2,7 +2,7 @@ use crate::token::TokenKind;
 
 mod fmt;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum Flag {
     Help,
     Version,
@@ -34,20 +34,20 @@ pub const FLAGS: [Flag; 12] = [
 ];
 
 impl Flag {
-    pub fn arg_kind(&self) -> ArgKind {
+    pub fn arg_kind(&self) -> TokenKind {
         match self {
-            Flag::Help => ArgKind::None,
-            Flag::Version => ArgKind::None,
-            Flag::Output => ArgKind::Path,
-            Flag::Hir => ArgKind::None,
-            Flag::Mir => ArgKind::None,
-            Flag::Library => ArgKind::Library,
-            Flag::ShowWarnings => ArgKind::None,
-            Flag::HideWarnings => ArgKind::None,
-            Flag::RawInput => ArgKind::String,
-            Flag::DumpHirTo => ArgKind::Path,
-            Flag::DumpMirTo => ArgKind::Path,
-            Flag::Verbose => ArgKind::Integer,
+            Flag::Help => TokenKind::None,
+            Flag::Version => TokenKind::None,
+            Flag::Output => TokenKind::Path,
+            Flag::Hir => TokenKind::None,
+            Flag::Mir => TokenKind::None,
+            Flag::Library => TokenKind::Library,
+            Flag::ShowWarnings => TokenKind::None,
+            Flag::HideWarnings => TokenKind::None,
+            Flag::RawInput => TokenKind::String,
+            Flag::DumpHirTo => TokenKind::Path,
+            Flag::DumpMirTo => TokenKind::Path,
+            Flag::Verbose => TokenKind::Integer,
         }
     }
 
@@ -83,6 +83,12 @@ impl Flag {
             Flag::DumpMirTo => Some(b"--dump-mir-to"),
             Flag::Verbose => Some(b"--verbose"),
         }
+    }
+
+    // use this to format Flag
+    pub fn long_or_short(&self) -> &[u8] {
+        // either self.long or self.short must succeed
+        self.long().unwrap_or_else(|| self.short().unwrap())
     }
 
     pub fn try_parse(s: &[u8]) -> Option<Self> {

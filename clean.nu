@@ -1,3 +1,5 @@
+# TODO: how the compiler works has changed since this was written
+
 rm -f *.hir
 rm -f *.mir
 

@@ -34,6 +34,8 @@ def main [--depgraph] {
 
     chmod +x ./sodigy
 
+    ./sodigy --raw-input "let main = \"Hello, World!\";"
+
     # TODO: run `./sodigy --test XXX.sdg` here
 
     $env.RUST_LOG = "off"

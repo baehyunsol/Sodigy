@@ -9,7 +9,6 @@ use sodigy_files::{
     write_string,
     WriteMode,
 };
-use std::collections::HashMap;
 
 fn random_string(len: usize) -> String {
     (0..len).map(
@@ -68,17 +67,15 @@ fn very_long_file() {
 
     let mut res = run(CompilerOption {
         do_not_compile_and_do_this: None,
-        input_file: Some(tmp_file_name.clone()),
-        output: CompilerOutputFormat::Path(dummy_output_file.clone()),
-        show_warnings: true,
-        save_ir: true,
+        input_path: Some(tmp_file_name.clone()),
+        output_path: Some(dummy_output_file.clone()),
+        output_format: CompilerOutputFormat::Binary,
         dump_hir_to: None,
         dump_mir_to: None,
-        dependencies: HashMap::new(),
+        show_warnings: true,
         verbosity: 0,
         raw_input: None,
-        parse_config_file: false,
-        num_workers: 1,
+        library_paths: None,
     });
 
     if res.has_error() {

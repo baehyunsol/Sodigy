@@ -17,22 +17,15 @@ pub struct ClapWarning {
 }
 
 impl ClapWarning {
-    pub fn same_flag_multiple_times(flag: Flag, span: SpanRange) -> Self {
-        ClapWarning {
-            kind: ClapWarningKind::SameFlagMultipleTimes(flag),
-            spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
-        }
-    }
-
-    pub fn ignored_flag(
-        flag: Flag,
-        span: SpanRange,
-        ignored_because_of: Flag,
+    pub fn incompatible_flags(
+        flag1: Flag,
+        span1: SpanRange,
+        flag2: Flag,
+        span2: SpanRange,
     ) -> Self {
         ClapWarning {
-            kind: ClapWarningKind::IgnoredFlag { flag, ignored_because_of },
-            spans: smallvec![span],
+            kind: ClapWarningKind::IncompatibleFlags(flag1, flag2),
+            spans: smallvec![span1, span2],
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
@@ -70,33 +63,38 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
 }
 
 pub enum ClapWarningKind {
-    SameFlagMultipleTimes(Flag),
-    IgnoredFlag {
-        flag: Flag,
-        ignored_because_of: Flag,
-    },
+    IncompatibleFlags(Flag, Flag),
 }
 
 impl SodigyErrorKind for ClapWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            ClapWarningKind::SameFlagMultipleTimes(flag) => format!("`{}` given more than once", flag.render_error()),
-            ClapWarningKind::IgnoredFlag { flag, .. } => format!("ignored flag `{}`", flag.render_error()),
+            ClapWarningKind::IncompatibleFlags(flag1, flag2) => format!("`{}` and `{}` are incompatible", flag1.render_error(), flag2.render_error()),
         }
     }
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
-            ClapWarningKind::SameFlagMultipleTimes(_) => String::new(),
-            ClapWarningKind::IgnoredFlag { flag, ignored_because_of } => format!("`{}` is ignored because of `{}`", flag.render_error(), ignored_because_of.render_error()),
+            ClapWarningKind::IncompatibleFlags(flag1, flag2) => match (flag1, flag2) {
+                (Flag::Hir, Flag::DumpMirTo)
+                | (Flag::DumpMirTo, Flag::Hir) => format!(
+                    "`{}` does not generate mir, so there's not mir to dump!",
+                    Flag::Hir.render_error(),
+                ),
+                (Flag::Hir, Flag::Library)
+                | (Flag::Library, Flag::Hir) => format!(
+                    "`{}` stops the compilation at the hir pass, and it doesn't have to look for libraries when generating hir.",
+                    Flag::Hir.render_error(),
+                ),
+                _ => String::new(),
+            },
         }
     }
 
     // we don't need this, but I want it to look more complete
     fn index(&self) -> u32 {
         match self {
-            ClapWarningKind::SameFlagMultipleTimes(_) => 0,
-            ClapWarningKind::IgnoredFlag { .. } => 1,
+            ClapWarningKind::IncompatibleFlags(_, _) => 0,
         }
     }
 }
