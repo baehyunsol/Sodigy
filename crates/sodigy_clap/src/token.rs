@@ -29,17 +29,17 @@ impl TokenKind {
             | TokenKind::Optional(_) => unreachable!(),
             TokenKind::Path => Ok(Arg::Path(
                 String::from_utf8(token.buffer.to_vec()).map_err(
-                    |e| ClapError::invalid_utf8(token.span)
+                    |_| ClapError::invalid_utf8(token.span)
                 )?
             )),
             TokenKind::String => Ok(Arg::String(
                 String::from_utf8(token.buffer.to_vec()).map_err(
-                    |e| ClapError::invalid_utf8(token.span)
+                    |_| ClapError::invalid_utf8(token.span)
                 )?
             )),
             TokenKind::Integer => match BigInt::from_string(
                 &String::from_utf8(token.buffer.to_vec()).map_err(
-                    |e| ClapError::invalid_utf8(token.span)
+                    |_| ClapError::invalid_utf8(token.span)
                 )?
             ) {
                 Ok(n) => match i64::try_from(n.clone()) {

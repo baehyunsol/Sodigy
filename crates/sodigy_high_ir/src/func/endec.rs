@@ -102,10 +102,13 @@ impl DumpJson for Func {
         json_key_value_table(vec![
             ("name", self.name.dump_json()),
             ("arguments", self.args.dump_json()),
+            ("generics", self.generics.dump_json()),
             ("return_value", self.return_val.dump_json()),
             ("return_type_annotation", self.return_ty.dump_json()),
+            ("attributes", self.attributes.dump_json()),
             ("uid", self.uid.dump_json()),
-            // TODO: more fields
+            ("kind", self.kind.dump_json()),
+            ("rendered", self.to_string().dump_json()),
         ])
     }
 }
@@ -116,7 +119,25 @@ impl DumpJson for Arg {
             ("name", self.name.dump_json()),
             ("type_annotation", self.ty.dump_json()),
             ("has_question_mark", self.has_question_mark.dump_json()),
-            // TODO: attributes
+            ("attributes", self.attributes.dump_json()),
         ])
+    }
+}
+
+impl DumpJson for FuncKind {
+    fn dump_json(&self) -> JsonObj {
+        match self {
+            FuncKind::Normal => "normal".dump_json(),
+            FuncKind::Lambda => "lambda".dump_json(),
+            FuncKind::Enum { variants } => json_key_value_table(vec![
+                ("enum", variants.dump_json()),
+            ]),
+            FuncKind::EnumVariant { parent } => json_key_value_table(vec![
+                ("kind", "enum_variant".dump_json()),
+                ("parent", parent.dump_json()),
+            ]),
+            FuncKind::StructDef => "struct_def".dump_json(),
+            FuncKind::StructConstr => "struct_constructor".dump_json(),
+        }
     }
 }

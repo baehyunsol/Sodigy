@@ -29,7 +29,7 @@ use std::collections::HashMap;
 
 type Path = String;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub enum PathOrRawInput<'a> {
     Path(&'a Path),
     RawInput(&'a Vec<u8>),
@@ -85,6 +85,7 @@ pub fn construct_hir(
     let mut lex_session = LexSession::new();
 
     if let Err(()) = lex(code, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
+        info!("construct_hir({input:?}) failed at lex(...)");
         compiler_output.collect_errors_and_warnings_from_session(&lex_session);
 
         return (None, compiler_output);
@@ -114,6 +115,7 @@ pub fn construct_hir(
     }
 
     if res.is_err() {
+        info!("construct_hir({input:?}) failed at from_tokens(...)");
         compiler_output.collect_errors_and_warnings_from_session(&new_lex_session);
         compiler_output.collect_errors_and_warnings_from_session(&parse_session);
         return (None, compiler_output);
@@ -127,6 +129,7 @@ pub fn construct_hir(
     let res = parse_stmts(&mut tokens, &mut ast_session);
 
     if res.is_err() {
+        info!("construct_hir({input:?}) failed at parse_stmts(...)");
         compiler_output.collect_errors_and_warnings_from_session(&ast_session);
         return (None, compiler_output);
     }

@@ -58,11 +58,11 @@ impl DumpJson for Attribute {
     fn dump_json(&self) -> JsonObj {
         match self {
             Attribute::DocComment(d) => json_key_value_table(vec![
-                ("attribute_kind", "document".to_string().dump_json()),
+                ("attribute_kind", "document".dump_json()),
                 ("content", d.dump_json()),
             ]),
             Attribute::Decorator(d) => json_key_value_table(vec![
-                ("attribute_kind", "decorator".to_string().dump_json()),
+                ("attribute_kind", "decorator".dump_json()),
                 ("content", d.dump_json()),
             ]),
         }

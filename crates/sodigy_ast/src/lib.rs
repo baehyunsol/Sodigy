@@ -8,6 +8,7 @@ mod endec;
 mod error;
 mod expr;
 mod fmt;
+mod lang_item;
 mod let_;
 mod ops;
 mod parse;
@@ -23,6 +24,7 @@ mod warn;
 mod tests;
 
 pub use expr::{Expr, ExprKind};
+pub use lang_item::create_lang_item;
 pub use let_::{Let, LetKind};
 pub use ops::{InfixOp, PostfixOp, PrefixOp};
 pub use parse::{parse_expr, parse_stmts};
@@ -95,7 +97,7 @@ impl ScopeBlock {
     }
 }
 
-// for now, a type is a comp-time evaluable expression, whose type is `Type`.
+// a type is a comp-time evaluable expression, whose type is `Type`.
 #[derive(Clone, Debug)]
 pub struct TypeDef(Expr);
 

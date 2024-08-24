@@ -86,6 +86,17 @@ pub enum CompilerOutputFormat {
     Binary,
 }
 
+impl CompilerOutputFormat {
+    pub fn create_output_path(&self) -> String {
+        match self {
+            CompilerOutputFormat::None => String::new(),
+            CompilerOutputFormat::Hir => String::from("./a.hir"),
+            CompilerOutputFormat::Mir => String::from("./a.mir"),
+            CompilerOutputFormat::Binary => String::from("./a.out"),
+        }
+    }
+}
+
 // don't call these. just use session.get_results_mut()
 impl SessionOutput<CompilerOption> for CompilerOption {
     fn pop(&mut self) -> Option<CompilerOption> {

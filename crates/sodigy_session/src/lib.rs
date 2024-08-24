@@ -20,8 +20,10 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_errors_mut().pop()
     }
 
+    // TODO: it has to read from `get_previous_errors`,
+    //       but some implementations of the func returns errors and warnings
     fn has_error(&self) -> bool {
-        !self.get_errors().is_empty() || !self.get_previous_errors().is_empty()
+        !self.get_errors().is_empty()
     }
 
     fn clear_errors(&mut self) {

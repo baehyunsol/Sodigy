@@ -122,7 +122,29 @@ impl DumpJson for IdentWithOrigin {
 
 impl DumpJson for NameOrigin {
     fn dump_json(&self) -> JsonObj {
-        // TODO
-        JsonObj::Null
+        match self {
+            NameOrigin::Prelude => json_key_value_table(vec![("type", "prelude".dump_json())]),
+            NameOrigin::FuncArg { index } => json_key_value_table(vec![
+                ("type", "func_arg".dump_json()),
+                ("index", index.dump_json()),
+            ]),
+            NameOrigin::FuncGeneric { index } => json_key_value_table(vec![
+                ("type", "func_generic".dump_json()),
+                ("index", index.dump_json()),
+            ]),
+            NameOrigin::Local { origin } => json_key_value_table(vec![
+                ("type", "local".dump_json()),
+                ("origin", origin.dump_json()),
+            ]),
+            NameOrigin::Global { origin } => json_key_value_table(vec![
+                ("type", "global".dump_json()),
+                ("origin", origin.dump_json()),
+            ]),
+            NameOrigin::Captured { lambda, index } => json_key_value_table(vec![
+                ("type", "captured".dump_json()),
+                ("lambda", lambda.dump_json()),
+                ("index", index.dump_json()),
+            ]),
+        }
     }
 }

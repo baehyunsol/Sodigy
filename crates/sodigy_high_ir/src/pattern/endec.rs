@@ -1,7 +1,14 @@
 use crate::Type;
 use super::{NumberLike, Pattern, PatternKind, RangeType, StringPattern};
 use sodigy_ast::IdentWithSpan;
-use sodigy_endec::{Endec, EndecError, EndecSession};
+use sodigy_endec::{
+    DumpJson,
+    Endec,
+    EndecError,
+    EndecSession,
+    JsonObj,
+    json_key_value_table,
+};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_span::SpanRange;
 
@@ -158,5 +165,75 @@ impl Endec for StringPattern {
             open_suffix: bool::decode(buffer, index, session)?,
             is_binary: bool::decode(buffer, index, session)?,
         })
+    }
+}
+
+impl DumpJson for Pattern {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("kind", self.kind.dump_json()),
+            ("span", self.span.dump_json()),
+            ("ty", self.ty.dump_json()),
+            ("bind", self.bind.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for PatternKind {
+    fn dump_json(&self) -> JsonObj {
+        match self {
+            PatternKind::Binding(name) => json_key_value_table(vec![
+                ("binding", name.dump_json()),
+            ]),
+            PatternKind::String(string_pattern) => json_key_value_table(vec![
+                ("string_pattern", string_pattern.dump_json()),
+            ]),
+            PatternKind::Range { ty, from, to } => json_key_value_table(vec![
+                ("range", ty.dump_json()),
+                ("from", from.dump_json()),
+                ("to", to.dump_json()),
+            ]),
+            PatternKind::Tuple(elements) => json_key_value_table(vec![
+                ("tuple", elements.dump_json()),
+            ]),
+            PatternKind::TupleStruct {
+                name,
+                fields,
+            } => json_key_value_table(vec![
+                ("name", name.dump_json()),
+                ("fields", fields.dump_json()),
+            ]),
+            PatternKind::Wildcard => "wildcard".dump_json(),
+        }
+    }
+}
+
+impl DumpJson for StringPattern {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("strings", self.strings.dump_json()),
+            ("open_prefix", self.open_prefix.dump_json()),
+            ("open_suffix", self.open_suffix.dump_json()),
+            ("is_binary", self.is_binary.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for RangeType {
+    fn dump_json(&self) -> JsonObj {
+        format!("{self:?}").dump_json()
+    }
+}
+
+impl DumpJson for NumberLike {
+    fn dump_json(&self) -> JsonObj {
+        match self {
+            NumberLike::OpenEnd { is_negative } => format!(
+                "{} infinite",
+                if *is_negative { "negative" } else { "positive" },
+            ),
+            NumberLike::Exact(n) => n.to_string(),
+            NumberLike::MinusEpsilon(n) => format!("{n} - epsilon"),
+        }.dump_json()
     }
 }

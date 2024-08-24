@@ -3,12 +3,15 @@ use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
+use sodigy_lang_item::LangItem;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 /*
+TODO: namespace?
+      it has to be `Option.Some`, not `Option`
 let enum Option<T> = { Some(T), None };
 ->
 let Option<T>: Type = ...; let Some<T>(val: T): Option(T) = ...; let None<T>: Option<T> = ...;
@@ -105,7 +108,10 @@ pub fn lower_ast_enum(
         generics,
         None,     // args
         todo!(),  // return_val
-        todo!(),  // return_ty
+        &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+            LangItem::Type,
+            SpanRange::dummy(0x60dc78e7),
+        ))),
         uid,
         session,
         used_names,

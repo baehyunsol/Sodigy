@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+mod fmt;
 pub mod stages;
 
 #[cfg(test)]
@@ -56,11 +57,11 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
                     let save_hir_at = options.output_path.as_ref().map(
                         |path| path.to_string()
                     ).unwrap_or_else(
-                        || todo!()  // create path for hir
+                        || options.output_format.create_output_path()
                     );
 
                     if let Err(e) = session.save_to_file(&save_hir_at) {
-                        todo!()  // push error to the output
+                        output.push_error(e.into());
                     }
                 }
             }

@@ -42,7 +42,7 @@ pub fn parse_cli(code: &[u8], span_start: SpanPoint) -> Result<Vec<FlagWithArg>,
                     curr_flag = Some(flag);
                 },
                 None => {
-                    if let Some(flag) = curr_flag {
+                    if let Some(_) = curr_flag {
                         result.push(FlagWithArg {
                             flag: curr_flag,
                             flag_span: curr_flag_span,
@@ -243,10 +243,10 @@ fn parse_library_args(
     while index < tokens.len() {
         result.insert(
             String::from_utf8(tokens[index].buffer.to_vec()).map_err(
-                |e| ClapError::invalid_utf8(tokens[index].span)
+                |_| ClapError::invalid_utf8(tokens[index].span)
             )?,
             String::from_utf8(tokens[index + 2].buffer.to_vec()).map_err(
-                |e| ClapError::invalid_utf8(tokens[index + 2].span)
+                |_| ClapError::invalid_utf8(tokens[index + 2].span)
             )?,
         );
         entire_span = entire_span.merge(tokens[index + 2].span);

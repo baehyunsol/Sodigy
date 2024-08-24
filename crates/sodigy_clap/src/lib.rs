@@ -35,8 +35,6 @@ use parse::{FlagWithArg, parse_cli};
 pub use session::ClapSession;
 pub use warn::ClapWarning;
 
-type Path = String;
-
 pub fn parse_cli_args() -> ClapSession {
     let (input, file) = into_file();
 

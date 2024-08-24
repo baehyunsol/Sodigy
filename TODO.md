@@ -432,22 +432,6 @@ The final stages of the compiler
 
 ---
 
-sometimes the compiler has to generate Sodigy code on the fly
-
-for example, the compiler lowers enum definitions to functions in hir pass
-
-there must be identifiers in the 'fake' function, but you know, it's really tough to deal with the naming rules
-
-so my suggestion is:
-
-1. use identifiers that human-generated Sodigy code cannot use
-  - for example: the return type of an enum definition is `@Type`, not `Type`
-  - a valid Sodigy code can override `Type`, but not `@Type`
-  - `@`s are already used for tmp field names
-2. later `@Type`, `@map`, ... are mapped to correspondances in std lib
-
----
-
 Better Document
 
 let's get some inspirations from https://ziglang.org/documentation/0.11.0/

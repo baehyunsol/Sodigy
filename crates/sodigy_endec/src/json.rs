@@ -43,6 +43,12 @@ impl DumpJson for String {
     }
 }
 
+impl DumpJson for &str {
+    fn dump_json(&self) -> JsonObj {
+        JsonObj::String(self.to_string())
+    }
+}
+
 impl DumpJson for bool {
     fn dump_json(&self) -> JsonObj {
         JsonObj::Bool(*self)
@@ -55,6 +61,12 @@ impl<T: DumpJson> DumpJson for Option<T> {
             Some(v) => v.dump_json(),
             None => JsonObj::Null,
         }
+    }
+}
+
+impl <T: DumpJson> DumpJson for Box<T> {
+    fn dump_json(&self) -> JsonObj {
+        self.as_ref().dump_json()
     }
 }
 

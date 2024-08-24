@@ -342,7 +342,7 @@ impl DumpJson for ExprKind {
                 value,
                 uid,
             }) => json_key_value_table(vec![
-                ("kind", String::from("scoped_block").dump_json()),
+                ("kind", "scoped_block".dump_json()),
                 ("lets", lets.dump_json()),
                 ("value", value.dump_json()),
             ]),
@@ -350,7 +350,11 @@ impl DumpJson for ExprKind {
                 arms,
                 value,
                 is_lowered_from_if_pattern: _,
-            }) => todo!(),
+            }) => json_key_value_table(vec![
+                ("kind", "match".dump_json()),
+                ("arms", arms.dump_json()),
+                ("value", value.dump_json()),
+            ]),
             ExprKind::Lambda(Lambda {
                 args,
                 value,
@@ -358,7 +362,14 @@ impl DumpJson for ExprKind {
                 return_ty,
                 uid,
                 lowered_from_scoped_let: _,
-            }) => todo!(),
+            }) => json_key_value_table(vec![
+                ("kind", "lambda".dump_json()),
+                ("args", args.dump_json()),
+                ("value", value.dump_json()),
+                ("captured_values", captured_values.dump_json()),
+                ("return_ty", return_ty.dump_json()),
+                ("uid", uid.dump_json()),
+            ]),
             ExprKind::Branch(Branch { arms }) => json_key_value_table(vec![
                 ("kind", String::from("branch").dump_json()),
                 ("arms", arms.dump_json()),
@@ -387,6 +398,16 @@ impl DumpJson for BranchArm {
         json_key_value_table(vec![
             ("condition", self.cond.dump_json()),
             ("value", self.value.dump_json()),
+        ])
+    }
+}
+
+impl DumpJson for MatchArm {
+    fn dump_json(&self) -> JsonObj {
+        json_key_value_table(vec![
+            ("pattern", self.pattern.dump_json()),
+            ("value", self.value.dump_json()),
+            ("guard", self.guard.dump_json()),
         ])
     }
 }

@@ -1,12 +1,9 @@
 use super::ParseSession;
 use crate::{ParseError, ParseWarning, TokenTree};
-use log::info;
 use sodigy_endec::{
-    DumpJson,
     Endec,
     EndecError,
     EndecSession,
-    JsonObj,
 };
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
@@ -40,12 +37,5 @@ impl Endec for ParseSession {
             dependencies: Vec::<SessionDependency>::decode(buffer, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
         })
-    }
-}
-
-impl DumpJson for ParseSession {
-    fn dump_json(&self) -> JsonObj {
-        info!("ParseSession::dump_json()");
-        todo!()
     }
 }

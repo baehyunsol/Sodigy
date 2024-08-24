@@ -11,6 +11,7 @@ smallvec = "1.13.1"
 sodigy_endec = { path = "../sodigy_endec" }
 sodigy_error = { path = "../sodigy_error" }
 sodigy_keyword = { path = "../sodigy_keyword" }
+sodigy_lang_item = { path = "../sodigy_lang_item" }
 sodigy_lex = { path = "../sodigy_lex" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_parse = { path = "../sodigy_parse" }

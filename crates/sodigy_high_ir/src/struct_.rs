@@ -3,6 +3,7 @@ use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::InternedString;
+use sodigy_lang_item::LangItem;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -14,7 +15,8 @@ let struct Message<T> = { data: T, id: Int };
 let __init_Message<T>(data: T, id: Int): Message(T) = ...;
 let Message<T>: Type = ...;
 
-`Message { data: "", id: 0 }` is lowered to `__init_Message`, and `Message(String)`, which is a type annotation is lowered to `Message<T>`.
+`Message { data: "", id: 0 }` is lowered to `__init_Message`.
+`Message(String)`, which is a type annotation, is lowered to `Message<T>`.
 */
 pub fn lower_ast_struct(
     name: &IdentWithSpan,
@@ -49,7 +51,10 @@ pub fn lower_ast_struct(
         generics,
         None,  // args
         todo!(),  // return_val
-        todo!(),  // return_ty
+        &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+            LangItem::Type,
+            SpanRange::dummy(0x14f03cf9),
+        ))),
         uid,
         session,
         used_names,
@@ -73,7 +78,9 @@ pub fn lower_ast_struct(
 fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {
     fields.iter().map(
         |ast::FieldDef {
-            name, ty, attributes,
+            name,
+            ty,
+            attributes,
         }| ast::ArgDef {
             name: *name,
             ty: Some(ty.clone()),
