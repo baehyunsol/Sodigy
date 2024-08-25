@@ -70,8 +70,6 @@ impl UniversalError {
             self.is_warning,
         );
 
-        let spans = self.spans.iter().filter(|span| !span.is_dummy()).map(|span| *span).collect::<Vec<_>>();
-
         let color_scheme = if self.is_warning {
             ColorScheme::warning()
         } else {
@@ -79,17 +77,17 @@ impl UniversalError {
         };
 
         let span = match self.show_span {
-            true if spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
-            true => render_spans(&spans, color_scheme),
-            false if spans.is_empty() => String::new(),
-            false => show_file_names(&spans),
+            true if self.spans.is_empty() => format!("<NO SPANS AVAILABLE>"),
+            true => render_spans(&self.spans, color_scheme),
+            false if self.spans.is_empty() => String::new(),
+            false => show_file_names(&self.spans),
         };
 
         format!("{title}\n{}\n{span}", self.message)
     }
 
-    pub fn first_span(&self) -> SpanRange {
-        self.spans.get(0).map(|span| *span).unwrap_or_else(|| SpanRange::dummy(0x5be88343))
+    pub fn first_span(&self) -> Option<SpanRange> {
+        self.spans.get(0).map(|span| *span)
     }
 
     pub fn hash(&self) -> u64 {

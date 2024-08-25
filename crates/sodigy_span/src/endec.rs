@@ -17,6 +17,7 @@ impl Endec for SpanRange {
         self.file.encode(buffer, session);
         self.start.encode(buffer, session);
         self.end.encode(buffer, session);
+        self.is_real.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -24,6 +25,7 @@ impl Endec for SpanRange {
             file: u64::decode(buffer, index, session)?,
             start: usize::decode(buffer, index, session)?,
             end: usize::decode(buffer, index, session)?,
+            is_real: bool::decode(buffer, index, session)?,
         })
     }
 }
@@ -36,6 +38,7 @@ impl DumpJson for SpanRange {
             ("file", file_session.render_file_hash(self.file).dump_json()),
             ("start", self.start.dump_json()),
             ("end", self.end.dump_json()),
+            ("is_real", self.is_real.dump_json()),
         ])
     }
 }

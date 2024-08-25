@@ -27,33 +27,3 @@ impl fmt::Debug for InternedString {
         write!(fmt, "{:?}", String::from_utf8_lossy(&v).to_string())
     }
 }
-
-// v.len() > 64, v is a valid utf-8 str
-fn first_few_chars(v: &[u8]) -> Vec<u8> {
-    let mut curr = 7;
-
-    loop {
-        if v[curr] < 128 {
-            return v[0..curr].to_vec();
-        }
-
-        else if v[curr] >= 192 {
-            return v[0..(curr - 1)].to_vec();
-        }
-
-        curr += 1;
-    }
-}
-
-// v.len() > 64, v is a valid utf-8 str
-fn last_few_chars(v: &[u8]) -> Vec<u8> {
-    let mut curr = v.len() - 8;
-
-    loop {
-        if v[curr] < 128 || v[curr] >= 192 {
-            return v[curr..].to_vec();
-        }
-
-        curr -= 1;
-    }
-}

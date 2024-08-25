@@ -10,11 +10,11 @@ use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 /*
-TODO: namespace?
-      it has to be `Option.Some`, not `Option`
 let enum Option<T> = { Some(T), None };
 ->
 let Option<T>: Type = ...; let Some<T>(val: T): Option(T) = ...; let None<T>: Option<T> = ...;
+
+it has to hide the name `Some` from other functions. `Some` has to be accessed via `Option.Some`
 
 for `Option<T>`, `Option` and `Option(Int)` is valid, but `Option()` is not. See the documents for the generics.
 
@@ -51,8 +51,16 @@ pub fn lower_ast_enum(
                     name,
                     generics,
                     None,     // args
-                    todo!(),  // return_val,
-                    todo!(),  // return_ty,
+                    &ast::create_lang_item(
+                        LangItem::Todo,
+                        name.span().into_fake(),
+                        session.get_interner(),
+                    ),
+                    &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+                        LangItem::Todo,
+                        name.span().into_fake(),
+                        session.get_interner(),
+                    ))),
                     uid,
                     session,
                     used_names,
@@ -70,19 +78,27 @@ pub fn lower_ast_enum(
             ast::VariantKind::Tuple(types) => {
                 let args = types.iter().enumerate().map(
                     |(index, ty)| ast::ArgDef {
-                        name: session.make_nth_arg_name(index),
+                        name: session.make_nth_arg_name(index, name.span().into_fake()),
                         ty: Some(ty.clone()),
                         has_question_mark: false,
                         attributes: vec![],
                     }
                 ).collect::<Vec<ast::ArgDef>>();
 
-                if let Ok(f) = lower_ast_func(
+                if let Ok(mut f) = lower_ast_func(
                     name,
                     generics,
                     Some(&args),
-                    todo!(),  // return_val,
-                    todo!(),  // return_ty,
+                    &ast::create_lang_item(
+                        LangItem::Todo,
+                        name.span().into_fake(),
+                        session.get_interner(),
+                    ),
+                    &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+                        LangItem::Todo,
+                        name.span().into_fake(),
+                        session.get_interner(),
+                    ))),
                     uid,
                     session,
                     used_names,
@@ -107,10 +123,15 @@ pub fn lower_ast_enum(
         name,
         generics,
         None,     // args
-        todo!(),  // return_val
+        &ast::create_lang_item(
+            LangItem::Todo,
+            name.span().into_fake(),
+            session.get_interner(),
+        ),
         &Some(ast::TypeDef::from_expr(ast::create_lang_item(
             LangItem::Type,
-            SpanRange::dummy(0x60dc78e7),
+            name.span().into_fake(),
+            session.get_interner(),
         ))),
         uid,
         session,

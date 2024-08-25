@@ -2060,7 +2060,7 @@ fn parse_generic_param_list(tokens: &mut Tokens, session: &mut AstSession) -> Re
             },
             None => {
                 session.push_error(AstError::unexpected_end(
-                    tokens.span_end().unwrap_or(SpanRange::dummy(0x5b553e85)),
+                    tokens.span_end().unwrap_or(SpanRange::dummy()),
                     ExpectedToken::comma_or_gt(),
                 ));
 
@@ -2438,7 +2438,7 @@ fn parse_let_statement(
         },
         None => {
             session.push_error(AstError::unexpected_end(
-                tokens.span_end().unwrap_or(SpanRange::dummy(0x05fc6577)),
+                tokens.span_end().unwrap_or(SpanRange::dummy()),
                 ExpectedToken::let_statement(),
             ).set_error_context(
                 ErrorContext::ParsingLetStatement

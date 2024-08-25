@@ -37,8 +37,16 @@ pub fn lower_ast_struct(
         &constructor_name,
         generics,
         Some(&fields_to_args(fields)),
-        todo!(),  // return_val
-        todo!(),  // return_ty
+        &ast::create_lang_item(
+            LangItem::Todo,
+            name.span().into_fake(),
+            session.get_interner(),
+        ),
+        &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+            LangItem::Todo,
+            name.span().into_fake(),
+            session.get_interner(),
+        ))),
         Uid::new_def(),
         session,
         used_names,
@@ -50,10 +58,15 @@ pub fn lower_ast_struct(
         name,
         generics,
         None,  // args
-        todo!(),  // return_val
+        &ast::create_lang_item(
+            LangItem::Todo,
+            name.span().into_fake(),
+            session.get_interner(),
+        ),
         &Some(ast::TypeDef::from_expr(ast::create_lang_item(
             LangItem::Type,
-            SpanRange::dummy(0x14f03cf9),
+            name.span().into_fake(),
+            session.get_interner(),
         ))),
         uid,
         session,

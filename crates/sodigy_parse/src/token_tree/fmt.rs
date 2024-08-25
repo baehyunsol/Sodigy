@@ -79,7 +79,7 @@ impl RenderError for TokenTreeKind {
                 tokens: vec![
                     TokenTree::new_ident(
                         try_intern_short_string(b"...").unwrap(),
-                        SpanRange::dummy(0x368421a5),
+                        SpanRange::dummy(),
                     ),
                 ],
             }.to_string(),

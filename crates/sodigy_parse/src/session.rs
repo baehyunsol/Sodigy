@@ -57,7 +57,7 @@ impl ParseSession {
         let mut errors = vec![];
         let mut curr_state = ExpandState::Init;
 
-        let mut curr_macro_span = SpanRange::dummy(0x1da1ced0);
+        let mut curr_macro_span = self.tokens.get(0).map(|token| token.span).unwrap_or(SpanRange::dummy());
         let mut curr_macro_name_tokens = vec![];
         let mut curr_macro_args;
 

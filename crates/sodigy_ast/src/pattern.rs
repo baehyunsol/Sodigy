@@ -118,11 +118,11 @@ impl Pattern {
         }
     }
 
-    pub fn dummy_wildcard() -> Self {
+    pub fn dummy_wildcard(span: SpanRange) -> Self {
         Pattern {
             kind: PatternKind::Wildcard,
             ty: None,
-            span: SpanRange::dummy(0x130cd8bc),
+            span,
             bind: None,
         }
     }

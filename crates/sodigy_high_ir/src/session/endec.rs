@@ -69,6 +69,7 @@ impl DumpJson for HirSession {
             ("imported_names", imported_names),
             ("modules", modules),
             ("errors_from_previous_session", previous_errors),
+            ("rendered", self.dump_hir().dump_json()),
         ])
     }
 }

@@ -117,23 +117,23 @@ fn endec_test() {
     let sample = vec![
         TokenTree {
             kind: TokenTreeKind::DocComment(intern_string((b"This is a doc-comment.").to_vec())),
-            span: SpanRange::dummy(10),
+            span: SpanRange::dummy(),
         },
         TokenTree {
             kind: TokenTreeKind::Punct(Punct::At),
-            span: SpanRange::dummy(100),
+            span: SpanRange::dummy(),
         },
         TokenTree {
             kind: TokenTreeKind::Identifier(intern_string((b"test").to_vec())),
-            span: SpanRange::dummy(101),
+            span: SpanRange::dummy(),
         },
         TokenTree {
             kind: TokenTreeKind::Punct(Punct::Dot),
-            span: SpanRange::dummy(102),
+            span: SpanRange::dummy(),
         },
         TokenTree {
             kind: TokenTreeKind::Identifier(intern_string((b"eq").to_vec())),
-            span: SpanRange::dummy(103),
+            span: SpanRange::dummy(),
         },
         TokenTree {
             kind: TokenTreeKind::Group {
@@ -142,11 +142,11 @@ fn endec_test() {
                 tokens: vec![
                     TokenTree {
                         kind: TokenTreeKind::Number(intern_numeric(SodigyNumber::SmallInt(0))),
-                        span: SpanRange::dummy(104),
+                        span: SpanRange::dummy(),
                     }
                 ],
             },
-            span: SpanRange::dummy(105),
+            span: SpanRange::dummy(),
         },
     ];
     let mut buffer = vec![];

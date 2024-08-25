@@ -526,3 +526,9 @@ regular expressions
 ---
 
 I don't like the term "scoped let" in the error message "unused local name binding in a scoped let: `x`"
+
+---
+
+naming conventions
+
+into_XXX vs to_XXX vs as_XXX

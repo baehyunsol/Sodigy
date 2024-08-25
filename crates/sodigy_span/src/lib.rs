@@ -53,6 +53,7 @@ impl SpanPoint {
             file: self.file,
             start: self.index,
             end: end.index,
+            is_real: true,  // SpanPoint is always real
         }
     }
 
@@ -69,6 +70,7 @@ impl SpanPoint {
             file: self.file,
             start: self.index,
             end: self.index + 1,
+            is_real: true,  // SpanPoint is always real
         }
     }
 }
@@ -78,32 +80,20 @@ pub struct SpanRange {
     pub file: FileHash,
     start: usize,  // inclusive
     end: usize,    // exclusive
+
+    // sometimes the compiler has to create code
+    // those code use spans of nearby code so that the error message gets nicer
+    pub is_real: bool,
 }
 
 impl SpanRange {
-    /// Even though it's a dummy, it takes an argument: dummy index.
-    /// That's for debugging purpose: when you encounter a dummy span while testing the compiler,
-    /// you might wanna know who instantiated this dummy span. `dummy_index` will help you in those cases.
-    pub fn dummy(dummy_index: usize) -> Self {
+    /// make sure not to call `render_spans` on dummy spans
+    pub fn dummy() -> SpanRange {
         SpanRange {
             file: DUMMY_FILE_HASH,
-            start: dummy_index,
+            start: 0,
             end: 0,
-        }
-    }
-
-    pub fn is_dummy(&self) -> bool {
-        self.file == DUMMY_FILE_HASH
-    }
-
-    /// Read the comments in `Self::dummy()`
-    pub fn get_dummy_index(&self) -> Option<usize> {
-        if self.is_dummy() {
-            Some(self.start)
-        }
-
-        else {
-            None
+            is_real: false,
         }
     }
 
@@ -126,6 +116,7 @@ impl SpanRange {
             file: self.file,
             start: self.start,
             end: self.start + 1,
+            is_real: self.is_real,
         }
     }
 
@@ -135,17 +126,27 @@ impl SpanRange {
             file: self.file,
             start: self.end - 1,
             end: self.end,
+            is_real: self.is_real,
         }
     }
 
     #[must_use = "method returns a new span and does not mutate the original value"]
     pub fn merge(&self, other: SpanRange) -> Self {
         debug_assert!(self.end <= other.start);
+        debug_assert!(self.file == other.file);
 
         SpanRange {
             file: self.file,
             start: self.start,
             end: other.end,
+            is_real: self.is_real && other.is_real,
+        }
+    }
+
+    pub fn into_fake(&self) -> Self {
+        SpanRange {
+            is_real: false,
+            ..*self
         }
     }
 
@@ -155,6 +156,7 @@ impl SpanRange {
             let mut hasher = hash_map::DefaultHasher::new();
             hasher.write(&(self.start as u64).to_be_bytes());
             hasher.write(&(self.end as u64).to_be_bytes());
+            hasher.write(&[self.is_real as u8]);
 
             hasher.finish() as u128
         }
@@ -163,10 +165,6 @@ impl SpanRange {
     // reads the actual file and convert the span to the original string
     /// EXPENSIVE
     pub fn to_utf8(&self) -> Vec<u8> {
-        if self.is_dummy() {
-            return format!("This is a dummy span: {:?}", self.get_dummy_index()).as_bytes().to_vec();
-        }
-
         unsafe {
             let g = global_file_session();
 

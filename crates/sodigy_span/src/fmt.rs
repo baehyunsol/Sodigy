@@ -25,22 +25,13 @@ impl fmt::Debug for SpanPoint {
 
 impl fmt::Debug for SpanRange {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        if self.is_dummy() {
-            write!(
-                fmt,
-                "DummySpanRange({})",
-                self.start,
-            )
-        }
-
-        else {
-            write!(
-                fmt,
-                "Span({}, {}, {})",
-                unsafe { global_file_session().render_file_hash(self.file) },
-                self.start,
-                self.end,
-            )
-        }
+        write!(
+            fmt,
+            "Span({}, {}, {}{})",
+            unsafe { global_file_session().render_file_hash(self.file) },
+            self.start,
+            self.end,
+            if !self.is_real { ", fake_span" } else { "" },
+        )
     }
 }

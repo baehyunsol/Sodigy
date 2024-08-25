@@ -337,7 +337,7 @@ impl DumpJson for ExprKind {
                 json_key_value_table(vec![(name, elements.dump_json())])
             },
             ExprKind::Scope(Scope {
-                original_patterns,
+                original_patterns: _,
                 lets,
                 value,
                 uid,

@@ -59,7 +59,7 @@ pub fn lower_patterns_to_name_bindings(
 
             // let tmp = foo();
             name_bindings.push(DestructuredPattern::new(
-                IdentWithSpan::new(tmp_name, SpanRange::dummy(0xb37cd590)),  // $tmp
+                IdentWithSpan::new(tmp_name, pattern.span.into_fake()),  // $tmp
                 expr.clone(),
                 pattern.ty.clone(),
                 false,  // not a real name
@@ -96,7 +96,11 @@ pub fn lower_patterns_to_name_bindings(
                         if let Some(bind) = &curr_pattern.bind {
                             name_bindings.push(DestructuredPattern::new(
                                 *bind,
-                                field_expr_with_name_and_index(tmp_name, FieldKind::Range(index as i64, index as i64 - patterns.len() as i64 + 1)),
+                                field_expr_with_name_and_index(
+                                    tmp_name,
+                                    FieldKind::Range(index as i64, index as i64 - patterns.len() as i64 + 1),
+                                    curr_pattern.span.into_fake(),
+                                ),
                                 None,
                                 false,  // TODO: is this real?
                             ));
@@ -109,10 +113,18 @@ pub fn lower_patterns_to_name_bindings(
                 let subpattern_expr = if let Some(_) = shorthand_index {
                     // `(_, _, .., $x, $y)`
                     // `$x` -> `tuple_field_index(tmp, -2)`
-                    field_expr_with_name_and_index(tmp_name, FieldKind::Index(index as i64 - patterns.len() as i64))
+                    field_expr_with_name_and_index(
+                        tmp_name,
+                        FieldKind::Index(index as i64 - patterns.len() as i64),
+                        curr_pattern.span.into_fake(),
+                    )
                 } else {
                     // `tmp` + 0 -> `tmp._0`
-                    field_expr_with_name_and_index(tmp_name, FieldKind::Index(index as i64))
+                    field_expr_with_name_and_index(
+                        tmp_name,
+                        FieldKind::Index(index as i64),
+                        curr_pattern.span.into_fake(),
+                    )
                 };
 
                 if let Err(()) = lower_patterns_to_name_bindings(
@@ -406,16 +418,16 @@ fn check_same_type_or_error(
 }
 
 /// `'name'` + `0` -> `name._0`
-fn field_expr_with_name_and_index(name: InternedString, index: FieldKind) -> ast::Expr {
+fn field_expr_with_name_and_index(name: InternedString, index: FieldKind, span: SpanRange) -> ast::Expr {
     ast::Expr {
         kind: ast::ExprKind::Field {
             pre: Box::new(ast::Expr {
                 kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
-                span: SpanRange::dummy(0x923a3852),
+                span,
             }),
             post: index,
         },
-        span: SpanRange::dummy(0x9edc0524),
+        span,
     }
 }
 

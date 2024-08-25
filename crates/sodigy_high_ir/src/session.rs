@@ -151,11 +151,11 @@ impl HirSession {
     }
 
     // `tmp` in `let Some<T>(tmp: T): Option(T) = ...;`
-    pub fn make_nth_arg_name(&mut self, index: usize) -> IdentWithSpan {
+    pub fn make_nth_arg_name(&mut self, index: usize, span: SpanRange) -> IdentWithSpan {
         // there's no reason to define another method :)
         IdentWithSpan::new(
             self.get_tuple_field_expr(index),
-            SpanRange::dummy(0x1fc513e3),
+            span,
         )
     }
 

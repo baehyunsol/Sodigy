@@ -46,7 +46,7 @@ impl LexSession {
         self.tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().concat()
     }
 
-    pub fn try_push_whitespace(&mut self) {
+    pub fn try_push_whitespace(&mut self, span: SpanRange) {
         match self.tokens.last() {
             Some(t) if t.is_whitespace() => {
                 // nop
@@ -54,7 +54,7 @@ impl LexSession {
             _ => {
                 self.tokens.push(Token {
                     kind: TokenKind::Whitespace,
-                    span: SpanRange::dummy(0x114835f6),
+                    span,
                 });
             },
         }

@@ -61,8 +61,8 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
 
     // make sure to sort errors and warnings before dumping to json
     fn sort_errors_and_warnings(&mut self) {
-        self.get_errors_mut().sort_by_key(|error| error.get_first_span().unwrap_or_else(|| SpanRange::dummy(0xb044289b)));
-        self.get_warnings_mut().sort_by_key(|warning| warning.get_first_span().unwrap_or_else(|| SpanRange::dummy(0x73c3d8aa)));
+        self.get_errors_mut().sort_by_key(|error| error.get_first_span().unwrap_or_else(|| SpanRange::dummy()));
+        self.get_warnings_mut().sort_by_key(|warning| warning.get_first_span().unwrap_or_else(|| SpanRange::dummy()));
     }
 
     // sessions also store errors and warnings from previous sessions

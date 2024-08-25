@@ -117,7 +117,7 @@ pub fn lex(
                                 };
                             },
                             b' ' | b'\n' | b'\t' => {
-                                session.try_push_whitespace();
+                                session.try_push_whitespace(span_start.offset(index as i32).into_range());
                             },
                             b'0'..=b'9' => {
                                 if c == b'0' {
