@@ -1,0 +1,4 @@
+let struct Person = {
+    name: String,
+    age: Int,
+};
