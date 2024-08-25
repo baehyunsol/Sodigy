@@ -21,52 +21,6 @@ pub struct ClapError {
 }
 
 impl ClapError {
-    pub fn invalid_flag(token: Vec<u8>, span: SpanRange) -> Self {
-        match String::from_utf8(token.clone()) {
-            Ok(s) => {
-                // it catches the typo (this search is very expensive)
-                let mut closest_flag = vec![];
-                let mut closest_dist = usize::MAX;
-
-                for flag in FLAGS.iter() {
-                    if let Some(flag) = flag.long() {
-                        let dist = substr_edit_distance(&token, flag);
-
-                        if dist < closest_dist {
-                            closest_dist = dist;
-                            closest_flag = flag.to_vec();
-                        }
-                    }
-
-                    if let Some(flag) = flag.short() {
-                        let dist = substr_edit_distance(&token, flag);
-
-                        if dist < closest_dist {
-                            closest_dist = dist;
-                            closest_flag = flag.to_vec();
-                        }
-                    }
-                }
-
-                let mut extra = ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine);
-
-                //  --xx -> --to  (no sense)
-                //  --tx -> --to  (makes sense)
-                //  --verrrion -> --version (makes sense)
-                if (token.len() > 4 && closest_dist < 3) || closest_dist < 2 {
-                    extra.set_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
-                }
-
-                ClapError {
-                    kind: ClapErrorKind::InvalidFlag(s),
-                    spans: smallvec![span],
-                    extra,
-                }
-            },
-            Err(_) => ClapError::invalid_utf8(span),
-        }
-    }
-
     pub fn invalid_utf8(span: SpanRange) -> Self {
         ClapError {
             kind: ClapErrorKind::InvalidUtf8,
@@ -76,10 +30,55 @@ impl ClapError {
     }
 
     pub fn invalid_argument(kind: TokenKind, argument: &[u8], span: SpanRange) -> Self {
-        ClapError {
-            kind: ClapErrorKind::InvalidArgument(kind, String::from_utf8_lossy(argument).to_string()),
-            spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        match kind {
+            TokenKind::Path if argument.get(0) == Some(&b'-') => match String::from_utf8(argument.to_vec()) {
+                Ok(s) => {
+                    // it catches the typo (this search is very expensive)
+                    let mut closest_flag = vec![];
+                    let mut closest_dist = usize::MAX;
+
+                    for flag in FLAGS.iter() {
+                        if let Some(flag) = flag.long() {
+                            let dist = substr_edit_distance(&argument, flag);
+
+                            if dist < closest_dist {
+                                closest_dist = dist;
+                                closest_flag = flag.to_vec();
+                            }
+                        }
+
+                        if let Some(flag) = flag.short() {
+                            let dist = substr_edit_distance(&argument, flag);
+
+                            if dist < closest_dist {
+                                closest_dist = dist;
+                                closest_flag = flag.to_vec();
+                            }
+                        }
+                    }
+
+                    let mut extra = ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine);
+
+                    //  --xx -> --to  (no sense)
+                    //  --tx -> --to  (makes sense)
+                    //  --verrrion -> --version (makes sense)
+                    if (argument.len() > 4 && closest_dist < 3) || closest_dist < 2 {
+                        extra.set_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
+                    }
+
+                    ClapError {
+                        kind: ClapErrorKind::InvalidArgument(kind, s),
+                        spans: smallvec![span],
+                        extra,
+                    }
+                },
+                Err(_) => ClapError::invalid_utf8(span),
+            },
+            _ => ClapError {
+                kind: ClapErrorKind::InvalidArgument(kind, String::from_utf8_lossy(argument).to_string()),
+                spans: smallvec![span],
+                extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            },
         }
     }
 
@@ -177,7 +176,6 @@ impl SodigyError<ClapErrorKind> for ClapError {
 }
 
 pub enum ClapErrorKind {
-    InvalidFlag(String),
     InvalidUtf8,
     InvalidArgument(TokenKind, String),
     NoArgsAtAll,
@@ -198,7 +196,6 @@ pub enum ClapErrorKind {
 impl SodigyErrorKind for ClapErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            ClapErrorKind::InvalidFlag(s) => format!("invalid flag: `{s}`"),
             ClapErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
             ClapErrorKind::NoArgsAtAll => String::from("expected an input file, got nothing"),
             ClapErrorKind::InvalidArgument(kind, arg) => format!(
@@ -225,8 +222,7 @@ impl SodigyErrorKind for ClapErrorKind {
 
     fn help(&self, _: &mut InternSession) -> String {
         match self {
-            ClapErrorKind::InvalidFlag(_)
-            | ClapErrorKind::NoArgsAtAll => String::from("Try `sodigy --help` to see available options."),
+            ClapErrorKind::NoArgsAtAll => String::from("Try `sodigy --help` to see available options."),
             ClapErrorKind::IncompatibleFlags(flag1, flag2) => match (flag1, flag2) {
                 (Flag::Hir, Flag::Mir)
                 | (Flag::Mir, Flag::Hir) => format!(
@@ -246,9 +242,14 @@ impl SodigyErrorKind for ClapErrorKind {
                 ),
                 _ => String::new(),
             },
+            ClapErrorKind::InvalidArgument(kind, argument) if *kind == TokenKind::Path &&
+                (argument.starts_with("-") || argument.starts_with("=")) => format!(
+                    "It's not allowed to use paths that start with \"{}\", in order to prevent confusion. If you want to do so, try \"./{argument}\"",
+                    argument.chars().next().unwrap(),
+                ),
             ClapErrorKind::SameFlagMultipleTimes(None) => String::from("Sodigy compiler cannot compile multiple files at once. You have to use `-L` option."),
-            ClapErrorKind::InvalidUtf8
-            | ClapErrorKind::InvalidArgument(_, _)
+            ClapErrorKind::InvalidArgument(_, _)
+            | ClapErrorKind::InvalidUtf8
             | ClapErrorKind::NoArg(_)
             | ClapErrorKind::NoInputFile
             | ClapErrorKind::MultipleInputFiles
@@ -260,16 +261,15 @@ impl SodigyErrorKind for ClapErrorKind {
     // we don't need this, but I want it to look more complete
     fn index(&self) -> u32 {
         match self {
-            ClapErrorKind::InvalidFlag(_) => 0,
-            ClapErrorKind::InvalidUtf8 => 1,
-            ClapErrorKind::InvalidArgument(_, _) => 2,
-            ClapErrorKind::NoArgsAtAll => 3,
-            ClapErrorKind::NoArg(_) => 4,
-            ClapErrorKind::NoInputFile => 5,
-            ClapErrorKind::MultipleInputFiles => 6,
-            ClapErrorKind::SameFlagMultipleTimes(_) => 7,
-            ClapErrorKind::IncompatibleFlags(_, _) => 8,
-            ClapErrorKind::IntegerRangeError { .. } => 9,
+            ClapErrorKind::InvalidUtf8 => 0,
+            ClapErrorKind::InvalidArgument(_, _) => 1,
+            ClapErrorKind::NoArgsAtAll => 2,
+            ClapErrorKind::NoArg(_) => 3,
+            ClapErrorKind::NoInputFile => 4,
+            ClapErrorKind::MultipleInputFiles => 5,
+            ClapErrorKind::SameFlagMultipleTimes(_) => 6,
+            ClapErrorKind::IncompatibleFlags(_, _) => 7,
+            ClapErrorKind::IntegerRangeError { .. } => 8,
         }
     }
 }

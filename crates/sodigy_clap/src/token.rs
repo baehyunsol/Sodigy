@@ -5,6 +5,7 @@ use hmath::BigInt;
 
 mod fmt;
 
+#[derive(Clone, PartialEq)]
 pub enum TokenKind {
     None,
     Path,
@@ -27,11 +28,21 @@ impl TokenKind {
             | TokenKind::Flag
             | TokenKind::EqualSign
             | TokenKind::Optional(_) => unreachable!(),
-            TokenKind::Path => Ok(Arg::Path(
-                String::from_utf8(token.buffer.to_vec()).map_err(
-                    |_| ClapError::invalid_utf8(token.span)
-                )?
-            )),
+            // it doesn't allow path starting with "-" or "=", in order to prevent confusion
+            // if the user really wants to use such paths, the path have to be prefixed with "./"
+            TokenKind::Path => if token.buffer.get(0) == Some(&b'-') || token.buffer == b"=" {
+                Err(ClapError::invalid_argument(
+                    TokenKind::Path,
+                    &token.buffer,
+                    token.span,
+                ))
+            } else {
+                Ok(Arg::Path(
+                    String::from_utf8(token.buffer.to_vec()).map_err(
+                        |_| ClapError::invalid_utf8(token.span)
+                    )?
+                ))
+            },
             TokenKind::String => Ok(Arg::String(
                 String::from_utf8(token.buffer.to_vec()).map_err(
                     |_| ClapError::invalid_utf8(token.span)

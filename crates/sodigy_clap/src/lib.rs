@@ -133,14 +133,6 @@ pub fn parse_cli_args() -> ClapSession {
         else {
             let path = arg.unwrap().unwrap_path();
 
-            if path.starts_with("-") {
-                errors.push(ClapError::invalid_flag(
-                    path.bytes().collect(),
-                    arg_span.unwrap(),
-                ));
-                continue;
-            }
-
             if let Some(input_path_span) = input_path_span {
                 errors.push(ClapError::same_flag_multiple_times(
                     None,
