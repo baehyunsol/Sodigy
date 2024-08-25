@@ -114,6 +114,7 @@ pub fn lower_ast_enum(
                     has_error = true;
                 }
             },
+            // let struct Event<T> = { kind: T, id: Int };
             ast::VariantKind::Struct(_) => todo!(),
         }
     }

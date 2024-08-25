@@ -64,7 +64,7 @@ pub fn lower_ast_expr(
                     }
                 }
 
-                else if let Some(origin) = name_space.find_origin(*id) {
+                else if let Some(origin) = name_space.find_origin(*id, session.get_interner()) {
                     used_names.insert(IdentWithOrigin::new(*id, origin));
 
                     Expr {

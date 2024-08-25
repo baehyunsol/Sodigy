@@ -139,6 +139,7 @@ pub fn find_and_replace_captured_values(
             match origin {
                 NameOrigin::Prelude   // not captured 
                 | NameOrigin::Global { .. }  // not captured
+                | NameOrigin::LangItem { .. }  // not captured
                 | NameOrigin::Captured { .. }  // captured, but it'll handle names in Lambda.captured_values
                 => {
                     return;

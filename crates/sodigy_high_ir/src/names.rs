@@ -1,6 +1,7 @@
 use sodigy_ast::{ArgDef, IdentWithSpan};
 use sodigy_error::substr_edit_distance;
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_lang_item::LangItemTrait;
 use sodigy_prelude::PRELUDES;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
@@ -32,6 +33,7 @@ impl IdentWithOrigin {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
     Prelude,
+    LangItem,
     FuncArg {
         index: usize,
     },
@@ -191,11 +193,15 @@ impl NameSpace {
         Ok(())
     }
 
-    pub fn find_origin(&self, id: InternedString) -> Option<NameOrigin> {
+    pub fn find_origin(&self, id: InternedString, interner: &mut InternSession) -> Option<NameOrigin> {
         for (uid, names) in self.locals.iter().rev() {
             if names.contains(&id) {
                 return Some(NameOrigin::Local { origin: *uid });
             }
+        }
+
+        if id.is_lang_item(interner) {
+            return Some(NameOrigin::LangItem);
         }
 
         if !self.func_args_locked {

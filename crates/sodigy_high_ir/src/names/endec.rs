@@ -30,24 +30,27 @@ impl Endec for NameOrigin {
             NameOrigin::Prelude => {
                 buffer.push(0);
             },
-            NameOrigin::FuncArg { index } => {
+            NameOrigin::LangItem => {
                 buffer.push(1);
-                index.encode(buffer, session);
             },
-            NameOrigin::FuncGeneric { index } => {
+            NameOrigin::FuncArg { index } => {
                 buffer.push(2);
                 index.encode(buffer, session);
             },
-            NameOrigin::Local { origin } => {
+            NameOrigin::FuncGeneric { index } => {
                 buffer.push(3);
-                origin.encode(buffer, session);
+                index.encode(buffer, session);
             },
-            NameOrigin::Global { origin } => {
+            NameOrigin::Local { origin } => {
                 buffer.push(4);
                 origin.encode(buffer, session);
             },
-            NameOrigin::Captured { lambda, index } => {
+            NameOrigin::Global { origin } => {
                 buffer.push(5);
+                origin.encode(buffer, session);
+            },
+            NameOrigin::Captured { lambda, index } => {
+                buffer.push(6);
                 lambda.encode(buffer, session);
                 index.encode(buffer, session);
             },
@@ -61,15 +64,16 @@ impl Endec for NameOrigin {
 
                 match *n {
                     0 => Ok(NameOrigin::Prelude),
-                    1 => Ok(NameOrigin::FuncArg { index: usize::decode(buffer, index, session)? }),
-                    2 => Ok(NameOrigin::FuncGeneric { index: usize::decode(buffer, index, session)? }),
-                    3 => Ok(NameOrigin::Local { origin: Uid::decode(buffer, index, session)? }),
-                    4 => Ok(NameOrigin::Global { origin: Option::<Uid>::decode(buffer, index, session)? }),
-                    5 => Ok(NameOrigin::Captured {
+                    1 => Ok(NameOrigin::LangItem),
+                    2 => Ok(NameOrigin::FuncArg { index: usize::decode(buffer, index, session)? }),
+                    3 => Ok(NameOrigin::FuncGeneric { index: usize::decode(buffer, index, session)? }),
+                    4 => Ok(NameOrigin::Local { origin: Uid::decode(buffer, index, session)? }),
+                    5 => Ok(NameOrigin::Global { origin: Option::<Uid>::decode(buffer, index, session)? }),
+                    6 => Ok(NameOrigin::Captured {
                         lambda: Uid::decode(buffer, index, session)?,
                         index: usize::decode(buffer, index, session)?,
                     }),
-                    6.. => Err(EndecError::invalid_enum_variant(*n)),
+                    7.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
@@ -124,6 +128,7 @@ impl DumpJson for NameOrigin {
     fn dump_json(&self) -> JsonObj {
         match self {
             NameOrigin::Prelude => json_key_value_table(vec![("type", "prelude".dump_json())]),
+            NameOrigin::LangItem => json_key_value_table(vec![("type", "lang_item".dump_json())]),
             NameOrigin::FuncArg { index } => json_key_value_table(vec![
                 ("type", "func_arg".dump_json()),
                 ("index", index.dump_json()),
