@@ -500,20 +500,6 @@ function return type annotation에서 ':'대신 '->' 쓰면 에러 메시지에 
 
 ---
 
-regular expressions
-
-1. libraries for regex
-  - necessary
-  - has to be impemented in Sodigy one day
-2. syntax sugars for regex
-  - string literals prefixed with `r`
-3. native support for regex in patterns
-  - would be convenient, but would make the compiler really complicated
-4. native support for regex in expressions
-  - no
-
----
-
 아희 interpreter in Sodigy
 
 1. very thin wrapper on 아희
@@ -529,6 +515,128 @@ I don't like the term "scoped let" in the error message "unused local name bindi
 
 ---
 
-naming conventions
+naming conventions (in Sodigy and the Compiler)
 
 into_XXX vs to_XXX vs as_XXX
+
+---
+
+prefixed strings
+
+1. b
+  - already implemented
+  - both for char and str
+2. f
+  - already implemented
+  - only for str
+  - b + f? (which is not implemented)
+    - doesn't make much sense: f string is evaled at runtime, but I don't want the str -> bin conversion to take place at run time
+3. r (raw)
+  - required (if we want regex in sodigy)
+  - f + r like Python?
+    - unlike Python, Sodigy uses backslashes in f strings. it wouldn't do well with r strings
+  - r + b?
+    - would be nice
+  - there's a conflict between r string and the current impl of f string
+    - for now, backslash + brace must be an f string, because backslash chars always mark an escape literal
+    - but with r strings, backslash + brace is just backslash + brace...
+4. e (regex compiled by the compiler)
+  - if we're to impl e, we must have r + e
+  - we need a marker for regex if we're to use regices in pattern matchings
+  - very niche use case: f + e
+    - f strings are evaled at run time: so f strings cannot be mixed with the other prefixes
+    - but we need it quite often
+
+the entire thing is to allow regices in pattern matchings. I'd like to do so, but
+
+1. it'd make the language (and the compiler) ugly
+2. would be very useful in some cases
+3. I don't think compiling regices at compile time is a big issue
+
+---
+
+the final path
+
+1. tail call optimization: necessary
+2. call stack for non-tail calls: my own vs C's (or whatever backend it's using)
+  - later would be better
+3. lazy initializations in scoped lets
+  - will try my best to opt out, but cannot remove all
+  - relying on the callstack is not 100% safe, there's a niche case where it can be a problem
+    - there's `foo(x)` and `x` has to be lazily initialized, but not initialized yet
+    - the call to `foo(x)` is not tail-call
+    - x may or may not be used in foo
+    - there are 2 choices
+      - initialize x before calling foo: easier to implement, but could be inefficient in some cases
+      - initialize x inside foo: harder to implement
+      - even more difficult: let the compiler analyse whether foo uses x or not
+    - the best way is to inline the function, but we cannot inline all functions
+4. reference counter
+  - reference counter on all types, including small integers, booleans, ascii characters... wouldn't that be too inefficient?
+  - if there's a string with 100000 characters, which is relatively light in Rust, it has 100001 reference counters in Sodigy
+  - how about using small integer types?
+    - 1, it only exists in the compiler. Sodigy users have nothing to do with the type
+    - 2, if a value of an integer (-ish type) is guaranteed to be in i32::MIN ~ i32::MAX, the compiler uses the type
+    - 3, it doesn't use heap and doesn't use the reference counter
+    - 4, can be used for: enum variant indices, characters, and small integers (normal integers in Sodigy, but verified to be small by the compiler)
+5. malloc/free?
+  - with the previous section in mind, now the language has 3 primitive types: big integer, small integer and list
+  - big integers and lists have to be malloc/free -ed.
+
+---
+
+another idea on enum: merging enum variant indices
+
+let's say enum `Foo` uses index 0, 1, and 2. Let's say enum `Result` uses index 0 and 1. Then how would a `Result(Foo, Foo)` look like?
+
+```
+# Ok(Foo::Zero)
+@@__enum_variant(
+    0,
+    @@__enum_variant(
+        0,
+        (),
+    ),
+)
+
+# Err(Foo::One)
+@@__enum_variant(
+    1,
+    @@__enum_variant(
+        1,
+        (),
+    ),
+)
+```
+
+It makes sense, but is a bit inefficient (double boxing). Since there're 6 (2 * 3) variants of `Result(Foo, Foo)`, using a single-layered `@@__enum_variant` with index 0 ~ 5 would be enough
+
+---
+
+error messages must be dumped to stderr, not stdout
+
+seems like rustc dumps both errors and warnings to stderr
+
+---
+
+sodigy regex compiler
+
+0. things that I want sodigy-regex to implement
+  - `[...]`, `[^...]`
+    - I can use internal representation of these to represent `.`
+  - `(...)`, `(?:...)`
+  - `PAT | PAT`
+  - `PAT{m,n}`, `PAT{m,n}?`
+  - `\number`
+  - `^`, `$`, `\A`, `\Z`
+    - the latter two always match the start and the end of the string, while the first two may match the start and the end of the line
+1. lower regex
+  - `+` -> `{1,}`
+  - `*` -> `{0,}`
+  - `?` -> `{0,1}`
+  - `\d` -> `[0-9]`
+  - `\D` -> `[^0-9]`
+  - `\s` -> `[ \t\n\r\f\v]`
+  - `\S` -> `[^ \t\n\r\f\v]`
+2. construct AST
+3. construct FSM

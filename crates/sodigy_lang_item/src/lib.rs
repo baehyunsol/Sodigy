@@ -8,6 +8,10 @@ pub const LANG_ITEM_PREFIX: &'static [u8] = b"@@__lang_item_";
 pub enum LangItem {
     Type,
 
+    // an enum variant is converted to a function definition by the compiler
+    // this is the body of the function
+    EnumBody,
+
     // it's not a 'real' lang item
     // it's used when a compiler feature is not implemented, but I don't want the compiler to panic
     Todo,
@@ -25,6 +29,7 @@ impl LangItem {
     pub fn into_sodigy_name(&self) -> &'static str {
         match self {
             LangItem::Type => "type",
+            LangItem::EnumBody => "enum_variant_body",
             LangItem::Todo => "todo",
         }
     }

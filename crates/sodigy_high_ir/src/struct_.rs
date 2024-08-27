@@ -42,10 +42,9 @@ pub fn lower_ast_struct(
             name.span().into_fake(),
             session.get_interner(),
         ),
-        &Some(ast::TypeDef::from_expr(ast::create_lang_item(
-            LangItem::Todo,
-            name.span().into_fake(),
-            session.get_interner(),
+        &Some(ast::TypeDef::from_expr(name_to_type(
+            name,
+            generics,
         ))),
         Uid::new_def(),
         session,
@@ -101,4 +100,31 @@ fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {
             attributes: attributes.clone(),
         }
     ).collect()
+}
+
+pub fn name_to_type(
+    name: &IdentWithSpan,
+    generics: &Vec<ast::GenericDef>,
+) -> ast::Expr {
+    if generics.is_empty() {
+        ast::Expr {
+            kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name.id())),
+            span: name.span().into_fake(),
+        }
+    }
+
+    else {
+        ast::Expr {
+            kind: ast::ExprKind::Call {
+                func: Box::new(name_to_type(name, &vec![])),
+                args: generics.iter().map(
+                    |generic| ast::Expr {
+                        kind: ast::ExprKind::Value(ast::ValueKind::Identifier(generic.id())),
+                        span: generic.span().into_fake(),
+                    }
+                ).collect(),
+            },
+            span: name.span().into_fake(),
+        }
+    }
 }
