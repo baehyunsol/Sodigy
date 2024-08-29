@@ -11,6 +11,15 @@ use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
+// when an enum has a struct variant,
+// the variant is lowered to a struct, and goes through extra steps
+// this info is needed for the extra steps
+pub(crate) struct StructVariantInfo {
+    pub variant_index: usize,
+    pub parent_uid: Uid,
+    pub parent_name: IdentWithSpan,
+}
+
 /*
 let enum Option<T> = { Some(T), None };
 ->
@@ -42,7 +51,6 @@ let @@struct_constructor_@@MsgKind@@variant@@Event<T>(data: T, id: Int): MsgKind
     1,
     @@struct_body(data, id),
 );
-# TODO: `@@struct_constructor_Event` might lead to a name collision because there can be other enums who has a struct variant with the same name
 */
 
 pub fn lower_ast_enum(
@@ -152,7 +160,7 @@ pub fn lower_ast_enum(
             },
             // let struct Event<T> = { kind: T, id: Int };
             ast::VariantKind::Struct(fields) => {
-                if let Ok(e) = lower_ast_struct(
+                if let Err(_) = lower_ast_struct(
                     &add_enum_struct_prefix(
                         enum_name,
                         variant_name,
@@ -166,7 +174,11 @@ pub fn lower_ast_enum(
                     imports,
                     attributes,
                     name_space,
-                    Some(variant_index),
+                    Some(StructVariantInfo {
+                        parent_name: *enum_name,
+                        parent_uid,
+                        variant_index,
+                    }),
                 ) {
                     has_error = true;
                 }

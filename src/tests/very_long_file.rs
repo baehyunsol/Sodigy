@@ -2,6 +2,7 @@ use crate::run;
 use sodigy_config::{
     CompilerOption,
     CompilerOutputFormat,
+    DumpType,
 };
 use sodigy_files::{
     join,
@@ -72,6 +73,7 @@ fn very_long_file() {
         output_format: CompilerOutputFormat::Hir,  // TODO: it has to be `CompilerOutputFormat::Binary`, but it's not implemented yet
         dump_hir_to: None,
         dump_mir_to: None,
+        dump_type: DumpType::Json,
         show_warnings: true,
         verbosity: 0,
         raw_input: None,

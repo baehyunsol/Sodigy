@@ -1,9 +1,11 @@
+use crate::enum_::StructVariantInfo;
 use crate::func::{FuncKind, lower_ast_func};
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lang_item::LangItem;
+use sodigy_number::SodigyNumber;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -28,25 +30,38 @@ pub fn lower_ast_struct(
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     attributes: &Vec<ast::Attribute>,
     name_space: &mut NameSpace,
-
-    // if it's a variant of an enum, it's Some(i)
-    variant_index: Option<usize>,
+    variant_info: Option<StructVariantInfo>,
 ) -> Result<(), ()> {
+    let type_name = match &variant_info {
+        Some(StructVariantInfo { parent_name, .. }) => parent_name,
+        None => name,
+    };
+
     let constructor_name = IdentWithSpan::new(
         session.add_prefix(name.id(), "@@struct_constructor_"),
         *name.span(),
     );
+    let mut constructor_body = create_struct_body(
+        fields_to_values(fields),
+        name.span().into_fake(),
+        session.get_interner(),
+    );
+
+    if let Some(StructVariantInfo { variant_index, .. }) = variant_info {
+        constructor_body = wrap_struct_body_with_enum_body(
+            constructor_body,
+            variant_index,
+            session.get_interner(),
+        );
+    }
+
     let constructor = lower_ast_func(
         &constructor_name,
         generics,
         Some(&fields_to_args(fields)),
-        &create_struct_body(
-            fields_to_values(fields),
-            name.span().into_fake(),
-            session.get_interner(),
-        ),
+        &constructor_body,
         &Some(ast::TypeDef::from_expr(name_to_type(
-            name,
+            type_name,
             generics,
         ))),
         Uid::new_def(),
@@ -56,36 +71,38 @@ pub fn lower_ast_struct(
         attributes,
         name_space,
     );
-    let struct_type = lower_ast_func(
-        name,
-        generics,
-        None,  // args
-        &ast::create_lang_item(
-            LangItem::Todo,
-            name.span().into_fake(),
-            session.get_interner(),
-        ),
-        &Some(ast::TypeDef::from_expr(ast::create_lang_item(
-            LangItem::Type,
-            name.span().into_fake(),
-            session.get_interner(),
-        ))),
-        uid,
-        session,
-        used_names,
-        imports,
-        attributes,
-        name_space,
-    );
+
+    if variant_info.is_none() {
+        let struct_type = lower_ast_func(
+            name,
+            generics,
+            None,  // args
+            &ast::create_lang_item(
+                LangItem::Todo,
+                name.span().into_fake(),
+                session.get_interner(),
+            ),
+            &Some(ast::TypeDef::from_expr(ast::create_lang_item(
+                LangItem::Type,
+                name.span().into_fake(),
+                session.get_interner(),
+            ))),
+            uid,
+            session,
+            used_names,
+            imports,
+            attributes,
+            name_space,
+        );
+
+        let mut struct_type = struct_type?;
+        struct_type.kind = FuncKind::StructDef;
+        session.get_results_mut().insert(name.id(), struct_type);
+    }
 
     let mut constructor = constructor?;
     constructor.kind = FuncKind::StructConstr;
-
-    let mut struct_type = struct_type?;
-    struct_type.kind = FuncKind::StructDef;
-
     session.get_results_mut().insert(constructor_name.id(), constructor);
-    session.get_results_mut().insert(name.id(), struct_type);
 
     Ok(())
 }
@@ -168,5 +185,31 @@ pub fn name_to_type(
             },
             span: name.span().into_fake(),
         }
+    }
+}
+
+fn wrap_struct_body_with_enum_body(
+    struct_body: ast::Expr,
+    variant_index: usize,
+    interner: &mut InternSession,
+) -> ast::Expr {
+    let span = struct_body.span.into_fake();
+
+    ast::Expr {
+        kind: ast::ExprKind::Call {
+            func: Box::new(ast::create_lang_item(
+                LangItem::EnumBody,
+                span,
+                interner,
+            )),
+            args: vec![
+                ast::Expr {
+                    kind: ast::ExprKind::Value(ast::ValueKind::Number(interner.intern_numeric(SodigyNumber::from(variant_index as u32)))),
+                    span,
+                },
+                struct_body,
+            ],
+        },
+        span,
     }
 }
