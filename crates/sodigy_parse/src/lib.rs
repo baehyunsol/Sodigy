@@ -181,7 +181,6 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                                 let span = ds.span.merge(token.span);
                                 let mut tokens = Vec::with_capacity(session.get_results().len() - ds.index);
 
-                                // TODO: there must be a better/neater/prettier function
                                 while session.get_results().len() > ds.index {
                                     tokens.push(session.pop_result().unwrap());
                                 }

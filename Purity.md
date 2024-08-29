@@ -9,7 +9,7 @@ There are 2 pure types for IO operations: `IOAction` and `IOResult`. Being pure,
 There's an impure function that takes `IOAction` as an input and returns `IOResult`. This is the only impure function in this language, and only the main function can call this function.
 
 ```
-let run_io(action: IOAction): IOResult = @@__very_dangerous_function(action);
+let run_io(action: IOAction): IOResult = @@very_dangerous_function(action);
 
 let struct IOAction = {
     #> IOResult also has an `id` field, telling which action the result is from.

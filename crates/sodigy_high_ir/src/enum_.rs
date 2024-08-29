@@ -1,7 +1,7 @@
 use crate::func::{FuncKind, lower_ast_func};
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
-use crate::struct_::name_to_type;
+use crate::struct_::{lower_ast_struct, name_to_type};
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lang_item::LangItem;
@@ -15,13 +15,13 @@ use std::collections::{HashMap, HashSet};
 let enum Option<T> = { Some(T), None };
 ->
 let Option<T>: Type = ...;  # Do we need a body for this?
-let Some<T>(val: T): Option(T) = @@__enum_variant_body(
+let Some<T>(val: T): Option(T) = @@enum_variant_body(
     0,    # variant index
     val,  # variant value
 );
 
 # Do we need <T> when this variant has no value?
-let None<T>: Option(T) = @@__enum_variant_body(
+let None<T>: Option(T) = @@enum_variant_body(
     1,   # variant index
     0,   # variant value: the compiler guarantees that this field is never read
 );
@@ -31,18 +31,20 @@ for `Option<T>`, `Option` and `Option(Int)` is valid, but `Option()` is not. See
 let enum MsgKind<T> = { Quit, Event { kind: T, id: Int } };
 ->
 let MsgKind<T>: Type = ...;
-let Quit<T>: MsgKind(T) = @@__enum_variant_body(
+let Quit<T>: MsgKind(T) = @@enum_variant_body(
     0,
     0,
 );
 
-# TODO: it first has to lower `ast::ExprKind::StructInit` to `ast::ExprKind::Call`
-let struct __Event<T> = { kind: T, id: Int };
-let Event<T>(val: __Event(T)): MsgKind(T) = @@__enum_variant_body(
+let struct @@MsgKind@@variant@@Event<T> = { kind: T, id: Int };
+# which is lowered to
+let @@struct_constructor_@@MsgKind@@variant@@Event<T>(data: T, id: Int): MsgKind(T) = @@enum_variant_body(
     1,
-    val,
+    @@struct_body(data, id),
 );
+# TODO: `@@struct_constructor_Event` might lead to a name collision because there can be other enums who has a struct variant with the same name
 */
+
 pub fn lower_ast_enum(
     enum_name: &IdentWithSpan,
     generics: &Vec<ast::GenericDef>,
@@ -56,7 +58,6 @@ pub fn lower_ast_enum(
 ) -> Result<(), ()> {
     let mut has_error = false;
     let parent_uid = uid;
-
     let mut variant_uids = Vec::with_capacity(variants.len());
 
     for (
@@ -65,8 +66,8 @@ pub fn lower_ast_enum(
             name: variant_name, args, attributes,
         },
     ) in variants.iter().enumerate() {
-        let curr_uid = Uid::new_enum_variant();
-        variant_uids.push(curr_uid);
+        let variant_uid = Uid::new_enum_variant();
+        variant_uids.push(variant_uid);
 
         match args {
             // let None<T>: Option(T) = ...;
@@ -91,7 +92,7 @@ pub fn lower_ast_enum(
                         enum_name,
                         generics,
                     ))),
-                    uid,
+                    variant_uid,
                     session,
                     used_names,
                     imports,
@@ -134,7 +135,7 @@ pub fn lower_ast_enum(
                         enum_name,
                         generics,
                     ))),
-                    uid,
+                    variant_uid,
                     session,
                     used_names,
                     imports,
@@ -150,7 +151,26 @@ pub fn lower_ast_enum(
                 }
             },
             // let struct Event<T> = { kind: T, id: Int };
-            ast::VariantKind::Struct(_) => todo!(),
+            ast::VariantKind::Struct(fields) => {
+                if let Ok(e) = lower_ast_struct(
+                    &add_enum_struct_prefix(
+                        enum_name,
+                        variant_name,
+                        session.get_interner(),
+                    ),
+                    generics,
+                    fields,
+                    variant_uid,
+                    session,
+                    used_names,
+                    imports,
+                    attributes,
+                    name_space,
+                    Some(variant_index),
+                ) {
+                    has_error = true;
+                }
+            },
         }
     }
 
@@ -208,9 +228,33 @@ fn add_enum_variant_prefix(
     IdentWithSpan::new(
         interner.intern_string(
             vec![
-                b"@@__enum_".to_vec(),
+                b"@@enum_".to_vec(),
                 enum_name,
-                b"@@__variant_".to_vec(),
+                b"@@variant_".to_vec(),
+                variant_name,
+            ].concat(),
+        ),
+        variant_span,
+    )
+}
+
+// for a struct variant of an enum: it has to change its name in order to avoid name collisions
+fn add_enum_struct_prefix(
+    enum_name: &IdentWithSpan,
+    variant_name: &IdentWithSpan,
+    interner: &mut InternSession,
+) -> IdentWithSpan {
+    let variant_span = variant_name.span().into_fake();
+    let enum_name = interner.unintern_string(enum_name.id()).unwrap().to_vec();
+    let variant_name = interner.unintern_string(variant_name.id()).unwrap().to_vec();
+
+    IdentWithSpan::new(
+        interner.intern_string(
+            vec![
+                b"@@".to_vec(),
+                enum_name,
+                b"@@variant".to_vec(),
+                b"@@".to_vec(),
                 variant_name,
             ].concat(),
         ),
@@ -220,19 +264,19 @@ fn add_enum_variant_prefix(
 
 /*
 # None
-@@__enum_variant_body(
+@@enum_variant_body(
     index,
     0,  # dummy
 )
 
 # Some(x)
-@@__enum_variant_body(
+@@enum_variant_body(
     index,
     x,
 )
 
 # Multi(x, y)
-@@__enum_variant_body(
+@@enum_variant_body(
     index,
     (x, y),  // into_tuple
 )
@@ -278,7 +322,6 @@ fn create_enum_variant_body(
                     },
                 },
             ],
-            // args: ,
         },
         span,
     }

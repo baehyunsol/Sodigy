@@ -19,3 +19,4 @@ punct_token!(gt, Gt);
 punct_token!(lt, Lt);
 punct_token!(assign, Assign);
 punct_token!(r_arrow, RArrow);
+punct_token!(sub, Sub);

@@ -74,4 +74,14 @@ impl<T> ExpectedToken<T> {
     pub fn let_statement() -> Self {
         ExpectedToken::LetStatement
     }
+
+    pub fn add_specific_token(&mut self, token: T) -> Result<(), ()> {
+        match self {
+            ExpectedToken::Specific(tokens) => {
+                tokens.push(token);
+                Ok(())
+            },
+            _ => Err(()),
+        }
+    }
 }

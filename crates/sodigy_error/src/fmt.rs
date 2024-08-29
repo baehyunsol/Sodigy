@@ -106,6 +106,6 @@ impl RenderError for EndecErrorContext {
 impl RenderError for InternedString {
     fn render_error(&self) -> String {
         let v = unintern_string(*self);
-        trim_long_string(String::from_utf8_lossy(&v).to_string(), 8, 8)
+        trim_long_string(String::from_utf8_lossy(&v).to_string(), 16, 16)
     }
 }

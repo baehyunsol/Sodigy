@@ -16,6 +16,7 @@ impl fmt::Debug for Uid {
         let ty = match self.get_type() as u128 {
             x if x == (DEF >> 124) => "DEF",
             x if x == (ENUM >> 124) => "ENUM",
+            x if x == (ENUM_VARIANT >> 124) => "ENUM_VARIANT",
             x if x == (STRUCT >> 124) => "STRUCT",
             x if x == (MODULE >> 124) => "MODULE",
             x if x == (LAMBDA >> 124) => "LAMBDA",

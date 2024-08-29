@@ -230,6 +230,8 @@ pub fn parse_comma_separated_types(tokens: &mut Tokens, session: &mut AstSession
     ))
 }
 
+// pratt parsing
+// TODO: right-associativity
 pub fn parse_expr(
     tokens: &mut Tokens,
     session: &mut AstSession,
@@ -2393,11 +2395,28 @@ fn parse_let_statement(
             let assign_span = tokens.peek_span();
 
             if let Err(mut e) = tokens.consume(TokenKind::assign()) {
-                session.push_error(
-                    e.set_error_context(
-                        ErrorContext::ParsingLetStatement,
-                    ).to_owned()
-                );
+                if return_ty.is_none() {
+                    e.add_expected_token(TokenKind::colon()).unwrap();
+
+                    // I want to tell the users who use "->" to annotate a return type of a function
+                    if tokens.match_first_tokens(&vec![
+                        TokenKind::sub(),
+                        TokenKind::gt(),
+                    ]) {
+                        e.set_message(String::from("Sodigy does not use `->` to annotate a return type of a function. Try `:` instead."));
+                    }
+
+                    if args.is_none() {
+                        e.add_expected_token(TokenKind::new_group(Delim::Paren)).unwrap();
+
+                        if generics.is_empty() {
+                            e.add_expected_token(TokenKind::lt()).unwrap();
+                        }
+                    }
+                }
+
+                e.set_error_context(ErrorContext::ParsingLetStatement);
+                session.push_error(e);
                 return Err(());
             }
 

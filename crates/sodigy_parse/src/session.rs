@@ -61,7 +61,6 @@ impl ParseSession {
         let mut curr_macro_name_tokens = vec![];
         let mut curr_macro_args;
 
-        // TODO: it has too many `clone`s
         for token in self.tokens.iter() {
             match curr_state {
                 ExpandState::Init => {

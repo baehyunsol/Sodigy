@@ -328,6 +328,29 @@ impl<'t> Tokens<'t> {
     pub fn first_few_tokens(&self) -> &[Token] {
         &self.data[..4.min(self.data.len())]
     }
+
+    pub fn match_first_tokens(
+        &self,
+        tokens: &[TokenKind],
+    ) -> bool {
+        let mut curr_index = self.cursor;
+
+        for token in tokens.iter() {
+            if let Some(curr_token) = self.data.get(curr_index) {
+                if curr_token.kind != *token {
+                    return false;
+                }
+            }
+
+            else {
+                return false;
+            }
+
+            curr_index += 1;
+        }
+
+        true
+    }
 }
 
 // for optimization, it assumes that `Tokens.data` doesn't change.

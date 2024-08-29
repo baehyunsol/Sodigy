@@ -103,7 +103,7 @@ pub fn lower_stmts(
                 if let Some((collision, _)) = names.insert(name.id(), (*name, Some(*uid))) {
                     let mut error = HirError::name_collision(*name, collision);
 
-                    // TODO: it only makes sense if `import foo;` comes before `module foo;`
+                    // TODO: it only works if `import foo;` comes before `module foo;`
                     if imports.contains_key(&name.id()) {
                         error.set_message(
                             format!(
@@ -265,6 +265,7 @@ pub fn lower_stmts(
                             &imports,
                             &ast_attributes,
                             &mut name_space,
+                            None,  // not an enum variant
                         );
                     },
                     LetKind::Pattern(pattern, _) => {

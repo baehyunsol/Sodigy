@@ -105,6 +105,14 @@ impl TokenTreeKind {
             _ => unreachable!(),
         }
     }
+
+    pub fn new_group(delim: Delim) -> Self {
+        TokenTreeKind::Group {
+            delim,
+            tokens: vec![],
+            prefix: b'\0',
+        }
+    }
 }
 
 impl PartialEq for TokenTreeKind {

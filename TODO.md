@@ -489,14 +489,13 @@ import rules for package manager
 
 ---
 
-naming convention
+kind error messages for generic types
 
-If an identifier is less than or equal to 6 characters, do not use abbreviation.
-- Int, Char, String, Option, Result
+It's `Option(T)`, not `Option<T>`. I guess users would get confused with this and I want to give kind error messages to them. How would I implement that?
 
----
-
-function return type annotation에서 ':'대신 '->' 쓰면 에러 메시지에 정확하게 알려주기
+1. `<` and `>` are valid expressions, and a type annotation is just an expression.
+2. In very rare cases, `Option<T>` can be a valid prefix of a valid expression. it cannot be a full expression as long as `>` is not a postfix operator.
+3. Since it's an expression, there are so many contexts such errors can occur
 
 ---
 
@@ -591,25 +590,25 @@ let's say enum `Foo` uses index 0, 1, and 2. Let's say enum `Result` uses index 
 
 ```
 # Ok(Foo::Zero)
-@@__enum_variant(
+@@enum_variant(
     0,
-    @@__enum_variant(
+    @@enum_variant(
         0,
         (),
     ),
 )
 
 # Err(Foo::One)
-@@__enum_variant(
+@@enum_variant(
     1,
-    @@__enum_variant(
+    @@enum_variant(
         1,
         (),
     ),
 )
 ```
 
-It makes sense, but is a bit inefficient (double boxing). Since there're 6 (2 * 3) variants of `Result(Foo, Foo)`, using a single-layered `@@__enum_variant` with index 0 ~ 5 would be enough
+It makes sense, but is a bit inefficient (double boxing). Since there're 6 (2 * 3) variants of `Result(Foo, Foo)`, using a single-layered `@@enum_variant` with index 0 ~ 5 would be enough
 
 ---
 
@@ -640,3 +639,25 @@ sodigy regex compiler
   - `\S` -> `[^ \t\n\r\f\v]`
 2. construct AST
 3. construct FSM
+
+---
+
+field modifiers in Sodigy: left-associative or right-associative?
+
+since the backtick character doesn't get along well with markdown, I'll just use `'`
+
+1. when modifying multiple fields
+  - `person 'name "Bae" 'age 26`
+  - it has to be left-associative
+  - if it were rust, the syntax would be `person.name = "Bae"; person.age = 26;`. the Sodigy one is better
+2. when modifying a deep field
+  - `smart_phone 'ap smart_phone.ap 'cpu smart_phone.ap.cpu 'alu smart_phone.ap.cpu.alu 'adder new_adder`
+  - it has to be right-associative
+  - it gets dirty: if the depth is N, the length of the code is O(N*N)
+  - how about another operator (or a syntactic sugar) for such cases?
+  - if it were rust, the syntax would be `smart_phone.ap.cpu.alu.adder = new_adder`. the rust one is better
+  - how about `smart_phone 'ap 'cpu 'alu 'adder new_adder`?
+    - this one is better than both
+    - it would complicate the parser, a lot.
+
+하는 김에 field modifier에 integer도 넣을 수 있게 할까? `[1, 2, 3, 4] '1 100` 하면 `[1, 100, 3, 4]` 되게. 요거는 살짝 애매: 보통 index는 constant가 아니고 variable이잖아

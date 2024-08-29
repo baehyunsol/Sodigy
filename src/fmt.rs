@@ -13,7 +13,7 @@ impl<'a> fmt::Debug for PathOrRawInput<'a> {
                 ),
                 PathOrRawInput::RawInput(raw_input) => format!(
                     "RawInput({})",
-                    trim_long_string(format!("{raw_input:?}"), 32, 32),
+                    trim_long_string(String::from_utf8_lossy(raw_input).to_string(), 32, 32),
                 ),
             },
         )

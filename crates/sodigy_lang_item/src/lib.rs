@@ -3,7 +3,7 @@
 use sodigy_intern::{InternedString, InternSession};
 
 // it has to start with a character that cannot be used by user code
-pub const LANG_ITEM_PREFIX: &'static [u8] = b"@@__lang_item_";
+pub const LANG_ITEM_PREFIX: &'static [u8] = b"@@lang_item_";
 
 pub enum LangItem {
     Type,
@@ -11,6 +11,10 @@ pub enum LangItem {
     // an enum variant is converted to a function definition by the compiler
     // this is the body of the function
     EnumBody,
+
+    // a struct constructor is converted to a function by the compiler
+    // this is the function
+    StructBody,
 
     // it's not a 'real' lang item
     // it's used when a compiler feature is not implemented, but I don't want the compiler to panic
@@ -30,6 +34,7 @@ impl LangItem {
         match self {
             LangItem::Type => "type",
             LangItem::EnumBody => "enum_variant_body",
+            LangItem::StructBody => "struct_body",
             LangItem::Todo => "todo",
         }
     }

@@ -516,20 +516,4 @@ There are no specs for macros, only rough sketches for them.
 
 ## Modules and Imports
 
-There are two keywords in Sodigy for modules: `module` and `import`.
-
-`module foo;` defines a module named `foo`. The code must be at `./foo.sdg` or `./foo/lib.sdg`. `module foo;` implies `import foo;`. Your code can use names in `foo` with dots. For example, if `bar` is defined in `module foo`, it can be accessed with `foo.bar`.
-
-The `import` keyword imports external modules. There are 4 ways you can link external Sodigy files. Let's say you did `import foo;`
-
-- You can tell the compiler where `foo.sdg` is. TODO: it's not implemented yet
-- Local files. For `import foo;`, the compiler first looks for `./foo.sdg` and `./foo/lib.sdg`. If either of them exists, the compiler links the file.
-  - `.` depends on where you called the compiler, not where the file is at. For example, `import foo;` in `./x/y/z.sdg` might point to `./foo.sdg`, not `./x/y/foo.sdg` if you invoked the compiler at `.`.
-- You can specify the path of the `.sdg` file in `sodigy.json`. The `sodigy.json` file must be at `.`.
-- Standard Library. TODO: not implemented yet
-
-The compiler tries in that order.
-
-TODO: I want the compiler to warn unused dependencies. For ex, if there's `foo = { path = "../foo.sdg" }` in `sodgiy.json` but no one imports `foo`, the compiler should warn that!
-
-You cannot `import *;` like many other languages. Sodigy cannot detect/prevent cyclic imports.
+There are 2 keywords: `module` and `import`.

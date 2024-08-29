@@ -224,6 +224,14 @@ impl AstError {
             extra: ExtraErrInfo::none(),
         }
     }
+
+    pub fn add_expected_token(&mut self, token: TokenKind) -> Result<(), ()> {
+        match &mut self.kind {
+            AstErrorKind::UnexpectedToken(_, tokens)
+            | AstErrorKind::UnexpectedEnd(tokens) => tokens.add_specific_token(token),
+            _ => Err(()),
+        }
+    }
 }
 
 impl SodigyError<AstErrorKind> for AstError {
