@@ -18,6 +18,7 @@ pub struct CompilerOption {
     pub show_warnings: bool,
     pub dump_hir_to: Option<Path>,
     pub dump_mir_to: Option<Path>,
+    pub dump_type: DumpType,
     pub library_paths: Option<HashMap<String, String>>,
 
     // TODO: this doesn't do anything
@@ -65,6 +66,7 @@ impl Default for CompilerOption {
             show_warnings: true,
             dump_hir_to: None,
             dump_mir_to: None,
+            dump_type: DumpType::Json,
             library_paths: None,
             verbosity: 1,
             raw_input: None,
@@ -114,4 +116,10 @@ impl SessionOutput<CompilerOption> for CompilerOption {
     fn len(&self) -> usize {
         unreachable!()
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DumpType {
+    Json,
+    String,
 }

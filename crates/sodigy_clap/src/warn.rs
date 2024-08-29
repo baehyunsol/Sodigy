@@ -29,6 +29,14 @@ impl ClapWarning {
             extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
+
+    pub fn unnecessary_flag(flag: Flag, span: SpanRange) -> Self {
+        ClapWarning {
+            kind: ClapWarningKind::UnnecessaryFlag(flag),
+            spans: smallvec![span],
+            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+        }
+    }
 }
 
 impl SodigyError<ClapWarningKind> for ClapWarning {
@@ -64,12 +72,14 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
 
 pub enum ClapWarningKind {
     IncompatibleFlags(Flag, Flag),
+    UnnecessaryFlag(Flag),
 }
 
 impl SodigyErrorKind for ClapWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             ClapWarningKind::IncompatibleFlags(flag1, flag2) => format!("`{}` and `{}` are incompatible", flag1.render_error(), flag2.render_error()),
+            ClapWarningKind::UnnecessaryFlag(flag) => format!("`{}` doesn't do anything", flag.render_error()),
         }
     }
 
@@ -88,6 +98,15 @@ impl SodigyErrorKind for ClapWarningKind {
                 ),
                 _ => String::new(),
             },
+            ClapWarningKind::UnnecessaryFlag(flag) => match flag {
+                Flag::DumpType => format!(
+                    "`{}` does nothing without `{}` or `{}`. If there's nothing to dump, what 'dump' type does it set?",
+                    Flag::DumpType.render_error(),
+                    Flag::DumpHirTo.render_error(),
+                    Flag::DumpMirTo.render_error(),
+                ),
+                _ => String::new(),
+            },
         }
     }
 
@@ -95,6 +114,7 @@ impl SodigyErrorKind for ClapWarningKind {
     fn index(&self) -> u32 {
         match self {
             ClapWarningKind::IncompatibleFlags(_, _) => 0,
+            ClapWarningKind::UnnecessaryFlag(_) => 1,
         }
     }
 }

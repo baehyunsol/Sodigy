@@ -108,6 +108,7 @@ Options:
                                     result to stdout.
     --dump-mir-to PATH              Dump the mir session to <PATH> as a json file. If <PATH> is `STDOUT`, it dumps the
                                     result to stdout.
+    --dump-type [json|string]       Set the type of the hir/mir dump (default: json)
     --verbose [0|1|2]               Set verbosity (default 1)
                                     Set it to 0 to silence it. Set it to 2 for verbose output.
 ";

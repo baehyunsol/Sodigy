@@ -1,3 +1,4 @@
+use crate::DumpType;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -6,6 +7,7 @@ pub enum Arg {
     String(String),
     Integer(i64),
     Library(HashMap<String, String>),
+    DumpType(DumpType),
 }
 
 impl Arg {
@@ -33,6 +35,13 @@ impl Arg {
     pub fn unwrap_library(&self) -> HashMap<String, String> {
         match self {
             Arg::Library(l) => l.clone(),
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_dump_type(&self) -> DumpType {
+        match self {
+            Arg::DumpType(d) => *d,
             _ => panic!(),
         }
     }

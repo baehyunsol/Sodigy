@@ -1,3 +1,4 @@
+use crate::DumpType;
 use crate::arg::Arg;
 use crate::error::ClapError;
 use crate::lex::Token;
@@ -17,6 +18,7 @@ pub enum TokenKind {
 
     Optional(Box<TokenKind>),
     Flag,
+    DumpType,
     EqualSign,  // for error messages
 }
 
@@ -64,6 +66,15 @@ impl TokenKind {
                 },
                 Err(_) => Err(ClapError::invalid_argument(
                     TokenKind::Integer,
+                    &token.buffer,
+                    token.span,
+                )),
+            },
+            TokenKind::DumpType => match &token.buffer {
+                b if b == b"json" => Ok(Arg::DumpType(DumpType::Json)),
+                b if b == b"string" => Ok(Arg::DumpType(DumpType::String)),
+                _ => Err(ClapError::invalid_argument(
+                    TokenKind::DumpType,
                     &token.buffer,
                     token.span,
                 )),

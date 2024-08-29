@@ -65,6 +65,7 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_warnings_mut().sort_by_key(|warning| warning.get_first_span().unwrap_or_else(|| SpanRange::dummy()));
     }
 
+    // TODO: it must be previous_errors and previous_warnings
     // sessions also store errors and warnings from previous sessions
     fn get_previous_errors(&self) -> &Vec<UniversalError>;
     fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError>;

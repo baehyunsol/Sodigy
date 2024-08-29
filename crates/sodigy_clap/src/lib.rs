@@ -28,12 +28,13 @@ mod session;
 mod token;
 mod warn;
 
-pub use error::ClapError;
-pub use flag::Flag;
-use lex::into_file;
-use parse::{FlagWithArg, parse_cli};
-pub use session::ClapSession;
-pub use warn::ClapWarning;
+pub use crate::error::ClapError;
+pub use crate::flag::Flag;
+use crate::lex::into_file;
+use crate::parse::{FlagWithArg, parse_cli};
+pub use crate::session::ClapSession;
+pub use crate::warn::ClapWarning;
+pub use sodigy_config::DumpType;
 
 pub fn parse_cli_args() -> ClapSession {
     let (input, file) = into_file();
@@ -123,6 +124,9 @@ pub fn parse_cli_args() -> ClapSession {
                 },
                 Flag::DumpMirTo => {
                     result.dump_mir_to = Some(arg.unwrap().unwrap_path());
+                },
+                Flag::DumpType => {
+                    result.dump_type = arg.unwrap().unwrap_dump_type();
                 },
                 Flag::Library => {
                     result.library_paths = Some(arg.unwrap().unwrap_library());
@@ -244,6 +248,17 @@ fn warn_incompatible_flags(flags: &HashMap<Flag, SpanRange>) -> Vec<ClapWarning>
             *hir_span,
             Flag::Library,
             *library_span,
+        ));
+    }
+
+    if let (Some(dump_type_span), None, None) = (
+        flags.get(&Flag::DumpType),
+        flags.get(&Flag::DumpHirTo),
+        flags.get(&Flag::DumpMirTo),
+    ) {
+        result.push(ClapWarning::unnecessary_flag(
+            Flag::DumpType,
+            *dump_type_span,
         ));
     }
 

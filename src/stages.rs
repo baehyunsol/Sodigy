@@ -5,7 +5,7 @@ use sodigy_ast::{
     Tokens,
     parse_stmts,
 };
-use sodigy_config::CompilerOption;
+use sodigy_config::{CompilerOption, DumpType};
 use sodigy_endec::DumpJson;
 use sodigy_error::{
     UniversalError,
@@ -138,7 +138,10 @@ pub fn construct_hir(
     let _ = lower_stmts(ast_session.get_results(), &mut hir_session);
 
     if let Some(path) = &compiler_option.dump_hir_to {
-        let res = hir_session.dump_json().pretty(4);
+        let res = match compiler_option.dump_type {
+            DumpType::Json => hir_session.dump_json().pretty(4),
+            DumpType::String => hir_session.dump_hir(),
+        };
         debug!("dump_hir_to: {path:?}");
 
         if path != "STDOUT" {
