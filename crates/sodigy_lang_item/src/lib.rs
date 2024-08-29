@@ -16,9 +16,10 @@ pub enum LangItem {
     // this is the function
     StructBody,
 
-    // it's not a 'real' lang item
-    // it's used when a compiler feature is not implemented, but I don't want the compiler to panic
-    Todo,
+    // it's used when an expr is expected but there's nothing to use
+    // for example, `let Option<T>: Type = @@lang_item_dummy`
+    // this value is not supposed to be evaluated at runtime
+    Dummy,
 }
 
 impl LangItem {
@@ -35,7 +36,7 @@ impl LangItem {
             LangItem::Type => "type",
             LangItem::EnumBody => "enum_variant_body",
             LangItem::StructBody => "struct_body",
-            LangItem::Todo => "todo",
+            LangItem::Dummy => "dummy",
         }
     }
 }

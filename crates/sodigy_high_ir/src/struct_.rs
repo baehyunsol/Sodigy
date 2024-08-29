@@ -15,7 +15,7 @@ use std::collections::{HashMap, HashSet};
 let struct Message<T> = { data: T, id: Int };
 ->
 let @@struct_constructor_Message<T>(data: T, id: Int): Message(T) = @@struct_body(data, id);
-let Message<T>: Type = ...;
+let Message<T>: Type = @@dummy;
 
 `Message { data: "", id: 0 }` is lowered to `@@struct_constructor_Message("", 0)`.
 `Message(String)`, which is a type annotation, is lowered to `Message<T>`.
@@ -78,7 +78,7 @@ pub fn lower_ast_struct(
             generics,
             None,  // args
             &ast::create_lang_item(
-                LangItem::Todo,
+                LangItem::Dummy,
                 name.span().into_fake(),
                 session.get_interner(),
             ),

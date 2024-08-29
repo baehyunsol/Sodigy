@@ -23,7 +23,7 @@ pub(crate) struct StructVariantInfo {
 /*
 let enum Option<T> = { Some(T), None };
 ->
-let Option<T>: Type = ...;  # Do we need a body for this?
+let Option<T>: Type = @@dummy;
 let Some<T>(val: T): Option(T) = @@enum_variant_body(
     0,    # variant index
     val,  # variant value
@@ -39,7 +39,7 @@ for `Option<T>`, `Option` and `Option(Int)` is valid, but `Option()` is not. See
 
 let enum MsgKind<T> = { Quit, Event { kind: T, id: Int } };
 ->
-let MsgKind<T>: Type = ...;
+let MsgKind<T>: Type = @@dummy;
 let Quit<T>: MsgKind(T) = @@enum_variant_body(
     0,
     0,
@@ -192,7 +192,7 @@ pub fn lower_ast_enum(
         generics,
         None,     // args
         &ast::create_lang_item(
-            LangItem::Todo,
+            LangItem::Dummy,
             enum_name.span().into_fake(),
             session.get_interner(),
         ),
