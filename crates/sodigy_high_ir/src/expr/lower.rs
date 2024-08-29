@@ -11,8 +11,8 @@ use super::{
     StructInit,
     StructInitField,
     lambda::{
-        find_and_replace_captured_values,
         ValueCaptureCtxt,
+        find_and_replace_captured_values,
     },
 };
 use crate::lower_ast_ty;
@@ -386,7 +386,14 @@ pub fn lower_ast_expr(
                                 /* is_real */ true,
                             ));
                         },
-                        _ => todo!(),
+                        ast::LetKind::Enum { name, .. } => {
+                            session.push_error(HirError::todo("enum definition in an expr", *name.span()));
+                            return Err(());
+                        },
+                        ast::LetKind::Struct { name, .. } => {
+                            session.push_error(HirError::todo("struct definition in an expr", *name.span()));
+                            return Err(());
+                        },
                     }
                 }
 

@@ -146,12 +146,15 @@ pub fn lower_patterns_to_name_bindings(
             fields,
             ..
         } => {
-            for ast::PatField {
-                name,
-                pattern,
-            } in fields.iter() {
-                todo!();
-            }
+            // for ast::PatField {
+            //     name,
+            //     pattern,
+            // } in fields.iter() {
+            //     // TODO
+            // }
+
+            session.push_error(HirError::todo("destructuring struct patterns", pattern.span));
+            return Err(());
         },
         _ => {
             session.push_error(HirError::refutable_pattern_in_let(pattern));
