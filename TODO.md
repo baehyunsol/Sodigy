@@ -489,13 +489,13 @@ import rules for package manager
 
 ---
 
-kind error messages for generic types
+generic_err.sdg -> 에러 메시지 쭉 보셈 걍 엉망임 ㅋㅋㅋ
 
-It's `Option(T)`, not `Option<T>`. I guess users would get confused with this and I want to give kind error messages to them. How would I implement that?
-
-1. `<` and `>` are valid expressions, and a type annotation is just an expression.
-2. In very rare cases, `Option<T>` can be a valid prefix of a valid expression. it cannot be a full expression as long as `>` is not a postfix operator.
-3. Since it's an expression, there are so many contexts such errors can occur
+1. 실제로는 type_annotation에서 문제가 생겼지만, 거기서는 넘어가고 (valid한 곳까지만 자름), 그 뒤에서 에러 내놓음 (앞에서 막 잘랐으니까 뒤에서 당연히 에러)
+2. 에러가 5개여야 하는데, 7개가 뜸
+  - "error message를 최대한 많이 뽑자"가 실패하는 사례. 앞에서 이미 망가져서 뒤의 token도 어차피 망가지는데 굳이 더 진행을 해서 이상한 error message를 만듦
+3. ErrorContext의 개념도 너무 애매...
+  - function argument 안의 type annotation: ParsingFunctionArgument vs ParsingTypeAnnotation... 뭐가 더 하위 항목임?
 
 ---
 

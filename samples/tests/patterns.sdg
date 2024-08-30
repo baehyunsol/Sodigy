@@ -94,3 +94,16 @@ let shorthand_tests = {
 
 @test.eq(7)
 let if_pattern_test = if pattern ((), ($x, $y)) = ((), (3, 4)) { x + y } else { 5 };
+
+@test.eq(345)
+let struct_test = {
+    let pattern Foo { x: $x, y: Bar { y: $y, z: $z } } = Foo {
+        x: 300,
+        y: Bar {
+            y: 40,
+            z: 5,
+        },
+    };
+
+    x + y + z
+};

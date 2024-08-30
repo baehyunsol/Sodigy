@@ -312,11 +312,11 @@ fn create_enum_variant_body(
                     span,
                 },
                 match args.len() {
-                    // TODO: I'm not sure how I would implement the later passes, but I guess `()` would be cheaper than `0`
-                    0 => ast::Expr {  // dummy value. The compiler guarantees that it's not read by anyone
-                        kind: ast::ExprKind::Value(ast::ValueKind::Number(interner.intern_numeric(SodigyNumber::from(0)))),
-                        span,
-                    },
+                    0 => ast::create_lang_item(
+                        LangItem::Dummy,
+                        span.into_fake(),
+                        interner,
+                    ),
                     1 => ast::Expr {
                         kind: ast::ExprKind::Value(ast::ValueKind::Identifier(args[0].name.id())),
                         span: *args[0].name.span(),

@@ -23,5 +23,6 @@ pub enum ErrorContext {
     ParsingScopeBlock,
     ParsingFormattedString,
     ParsingPattern,
+    ParsingTypeAnnotation,
     ParsingTypeInPattern,
 }

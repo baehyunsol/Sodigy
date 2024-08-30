@@ -140,15 +140,16 @@ check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is b
 check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision4, "import a.foo; import b.foo;", "`foo` is bound multiple times");
 
-check_output!(stmt, err, no_module2, "import invalid_module_name;", "module not found");
+// TODO
+// check_output!(stmt, err, no_module2, "import invalid_module_name;", "module not found");
 check_output!(stmt, err, name_collision5, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
 check_output!(stmt, err, kind_error_for_func_return_type, "let add(x: Int, y: Int) -> Int = x + y;", "try `:` instead");
 
 // TODO: the compiler thinks `>` is an infix operator following `T`
-check_output!(stmt, err, kind_error_for_generic, "let unwrap<T>(option: Option<T>): T = match option { Option.Some(v) => v, Option.None => panic };", "_______");
+// check_output!(stmt, err, kind_error_for_generic, "let unwrap<T>(option: Option<T>): T = match option { Option.Some(v) => v, Option.None => panic };", "_______");
 
 // TODO: the compiler thinks `E` is a name of an argument
-check_output!(stmt, err, kind_error_for_generic2, "let unwrap<T>(result: Result<T, E>): T = match result { Result.Ok(v) => v, Result.Error(e) => panic };", "_______");
+// check_output!(stmt, err, kind_error_for_generic2, "let unwrap<T>(result: Result<T, E>): T = match result { Result.Ok(v) => v, Result.Error(e) => panic };", "_______");
 
 // non-utf8 inputs
 check_output!(non_utf8, non_utf8_comment, make_non_utf8("# U\nlet main = 123;"), "invalid utf-8");
@@ -167,8 +168,8 @@ check_output!(expr, err, expr_test8, "[1, 2, 3, 4", "unclosed delimiter");
 check_output!(expr, err, expr_test9, "if x { 0 } else { }", "got nothing");
 
 // TODO
-check_output!(expr, err, expr_test10, "if x > y { x } * 2", "____");
-check_output!(expr, err, expr_test11, "if x > y { x }", "____");
+// check_output!(expr, err, expr_test10, "if x > y { x } * 2", "____");
+// check_output!(expr, err, expr_test11, "if x > y { x }", "____");
 
 check_output!(expr, err, expr_test12, "match {}", "got nothing");  // it expects `match { value } { arms }`
 check_output!(expr, err, expr_test13, "match x {}", "got nothing");

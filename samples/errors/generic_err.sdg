@@ -1,0 +1,9 @@
+let unwrap<T>(option: Option<T>): T = if pattern Option.Some(x) = option { x } else { panic };
+let unwrap<T, E>(result: Result<T, E>): T = if pattern Result.Ok(x) = option { x } else { panic };
+let wrap<T>(val: T): Option<T> = Option.Some(val);
+let wrap<T, E>(val: T): Result<T, E> = Result.Ok(val);
+let wrap2<T>(val: T) = {
+    let x: Option<T> = wrap(val);
+
+    wrap(x)
+};

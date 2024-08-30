@@ -141,6 +141,17 @@ pub fn lower_patterns_to_name_bindings(
                 return Err(());
             }
         },
+        // let pattern Foo { x: $x, y: Bar { y: $y, z: $z }, .. } = foo();
+        // ->
+        // let tmp = foo();
+        // let x = tmp.x;
+        // let pattern Bar { y: $y, z: $z } = tmp.y;
+        // ->
+        // let tmp = foo();
+        // let x = tmp.x;
+        // let tmp2 = tmp.y;
+        // let y = tmp2.y;
+        // let z = tmp2.z;
         ast::PatternKind::Struct {
             struct_name,
             fields,

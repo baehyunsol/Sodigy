@@ -25,7 +25,8 @@ impl Endec for ErrorContext {
             ErrorContext::ParsingScopeBlock => { buffer.push(18); },
             ErrorContext::ParsingFormattedString => { buffer.push(19); },
             ErrorContext::ParsingPattern => { buffer.push(20); },
-            ErrorContext::ParsingTypeInPattern => { buffer.push(21); },
+            ErrorContext::ParsingTypeAnnotation => { buffer.push(21); },
+            ErrorContext::ParsingTypeInPattern => { buffer.push(22); },
         }
     }
 
@@ -56,8 +57,9 @@ impl Endec for ErrorContext {
                     18 => Ok(ErrorContext::ParsingScopeBlock),
                     19 => Ok(ErrorContext::ParsingFormattedString),
                     20 => Ok(ErrorContext::ParsingPattern),
-                    21 => Ok(ErrorContext::ParsingTypeInPattern),
-                    22.. => Err(EndecError::invalid_enum_variant(*n)),
+                    21 => Ok(ErrorContext::ParsingTypeAnnotation),
+                    22 => Ok(ErrorContext::ParsingTypeInPattern),
+                    23.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

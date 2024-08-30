@@ -38,6 +38,7 @@ impl fmt::Display for ErrorContext {
             ErrorContext::ParsingScopeBlock => "parsing a scope block",
             ErrorContext::ParsingFormattedString => "parsing a formatted string",
             ErrorContext::ParsingPattern => "parsing a pattern",
+            ErrorContext::ParsingTypeAnnotation => "parsing a type annotation",
             ErrorContext::ParsingTypeInPattern => "parsing type of a pattern",
         };
 

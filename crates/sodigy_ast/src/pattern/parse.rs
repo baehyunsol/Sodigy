@@ -66,7 +66,6 @@ pub fn parse_pattern_full(
             let ty = parse_type_def(
                 tokens,
                 session,
-                Some(ErrorContext::ParsingTypeInPattern),
                 punct_span,
             )?;
             lhs.set_ty(ty);
@@ -82,27 +81,45 @@ fn parse_pattern_no_annotation(
     tokens: &mut Tokens,
     session: &mut AstSession,
 ) -> Result<Pattern, ()> {
-    let lhs = parse_pattern_with_binding(tokens, session)?;
+    let mut lhs = parse_pattern_with_binding(tokens, session)?;
 
-    match tokens.peek() {
-        Some(Token {
-            kind: TokenKind::Punct(Punct::Or),
-            span,
-        }) => {
-            let or_span = *span;
-            tokens.step().unwrap();
+    while let Some(Token {
+        kind: TokenKind::Punct(Punct::Or),
+        span,
+    }) = tokens.peek() {
+        let or_span = *span;
+        tokens.step().unwrap();
 
-            let rhs = parse_pattern_with_binding(tokens, session)?;
+        let rhs = parse_pattern_with_binding(tokens, session)?;
 
-            Ok(Pattern {
-                kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
-                span: or_span,
-                bind: None,
-                ty: None,
-            })
-        },
-        _ => Ok(lhs),
+        lhs = Pattern {
+            kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
+            span: or_span,
+            bind: None,
+            ty: None,
+        };
     }
+
+    Ok(lhs)
+    // match tokens.peek() {
+    //     Some(Token {
+    //         kind: TokenKind::Punct(Punct::Or),
+    //         span,
+    //     }) => {
+    //         let or_span = *span;
+    //         tokens.step().unwrap();
+
+    //         let rhs = parse_pattern_with_binding(tokens, session)?;
+
+    //         Ok(Pattern {
+    //             kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
+    //             span: or_span,
+    //             bind: None,
+    //             ty: None,
+    //         })
+    //     },
+    //     _ => Ok(lhs),
+    // }
 }
 
 // `@` level precedence

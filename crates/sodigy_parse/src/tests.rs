@@ -19,6 +19,7 @@ fn parse_test() {
         "a.b.c.d",
         "people `name \"Bae\"",
         "\\{x, y, x + y}(10, 10)",
+        "match x { 1 | 2 | 3 => \"small\", _ => \"big\" }",
     ];
     let g = unsafe { global_file_session() };
 

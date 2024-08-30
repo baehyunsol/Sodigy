@@ -230,6 +230,11 @@ pub fn parse_comma_separated_types(tokens: &mut Tokens, session: &mut AstSession
     ))
 }
 
+// NOTE: deciding whether to continue or not when there's an error
+//       1. if there's an error inside paren/brace/bracket, it continues parsing the tokens after the paren/brace/bracket
+//          - it's sure that the error will not affect the tokens outside paren/brace/bracket
+//       2. otherwise, it halts immediately
+//          - it doesn't know where the error ends
 // pratt parsing
 // TODO: right-associativity
 pub fn parse_expr(
@@ -746,10 +751,7 @@ pub fn parse_expr(
                         let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, punct_span) {
                             expr
                         } else {
-                            Expr {
-                                kind: ExprKind::Error,
-                                span: punct_span,  // nobody cares about this span
-                            }
+                            return Err(());
                         };
 
                         lhs = Expr {
@@ -911,10 +913,7 @@ pub fn parse_expr(
                 let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, span) {
                     expr
                 } else {
-                    Expr {
-                        kind: ExprKind::Error,
-                        span,  // nobody cares about this span
-                    }
+                    return Err(());
                 };
 
                 lhs = Expr {
@@ -936,7 +935,6 @@ pub fn parse_expr(
 pub fn parse_type_def(
     tokens: &mut Tokens,
     session: &mut AstSession,
-    error_context: Option<ErrorContext>,
 
     // when `tokens` is empty, it uses this span for the error message
     parent_span: SpanRange,
@@ -950,14 +948,23 @@ pub fn parse_type_def(
         return Err(());
     }
 
-    Ok(TypeDef::from_expr(parse_expr(
+    match parse_expr(
         tokens,
         session,
         0,
         false,
-        error_context,
+        Some(ErrorContext::ParsingTypeAnnotation),
         parent_span,
-    )?))
+    ) {
+        Ok(expr) => Ok(TypeDef::from_expr(expr)),
+        Err(_) => {
+            // TODO: there must be users who say `Option<T>` instead of `Option(T)`
+            //       and this is where those cases would generate an error
+            //       I want to warn them
+            //       see samples/errors/generic_err.sdg
+            Err(())
+        },
+    }
 }
 
 // this function allows a trailing comma and args without type annotations
@@ -1029,7 +1036,6 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                 arg_type = Some(parse_type_def(
                     tokens,
                     session,
-                    Some(ErrorContext::ParsingFuncArgs),
                     colon_span,
                 )?);
             },
@@ -1049,11 +1055,21 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                 continue;
             },
             Some(token) => {
-                session.push_error(AstError::unexpected_token(
+                let mut e = AstError::unexpected_token(
                     token.clone(),
                     ExpectedToken::comma_or_colon(),
-                ));
+                );
 
+                if let Token {
+                    kind: TokenKind::Punct(Punct::Gt),
+                    ..
+                } = token {
+                    e.set_message(String::from(
+                        "TODO: a kind error message telling the user that it must be parentheses, not angle brackets",
+                    ));
+                }
+
+                session.push_error(e);
                 return Err(());
             },
             None => {
@@ -1229,7 +1245,6 @@ fn parse_lambda_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRa
                         let ty_anno = parse_type_def(
                             tokens,
                             session,
-                            Some(ErrorContext::ParsingLambdaBody),
                             colon_span,
                         )?;
 
@@ -1792,7 +1807,6 @@ fn parse_struct_body(tokens: &mut Tokens, session: &mut AstSession, group_span: 
         let field_ty = parse_type_def(
             tokens,
             session,
-            Some(ErrorContext::ParsingStructBody),
             colon_span.unwrap(),
         )?;
 
@@ -2387,7 +2401,7 @@ fn parse_let_statement(
             let return_ty = if tokens.is_curr_token(TokenKind::colon()) {
                 let colon_span = tokens.step().unwrap().span;
 
-                Some(parse_type_def(tokens, session, Some(ErrorContext::ParsingFuncRetType), colon_span)?)
+                Some(parse_type_def(tokens, session, colon_span)?)
             } else {
                 None
             };
@@ -2413,9 +2427,17 @@ fn parse_let_statement(
                             e.add_expected_token(TokenKind::lt()).unwrap();
                         }
                     }
+
+                    e.set_error_context(ErrorContext::ParsingLetStatement);
                 }
 
-                e.set_error_context(ErrorContext::ParsingLetStatement);
+                // it's impossible to know the user's intention here.
+                // it chose ParsingTypeAnnotation because that context has
+                // more error messages to provide
+                else {
+                    e.set_error_context(ErrorContext::ParsingTypeAnnotation);
+                }
+
                 session.push_error(e);
                 return Err(());
             }
