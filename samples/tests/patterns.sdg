@@ -120,6 +120,7 @@ let struct_test = {
 
 let struct_test_worker(b: Bar) = match b {
     Bar { y: $yy @ 0..50, z: _ } => f"\{yy}!",
+    Bar { y: $yy @ (1 | 2), .. } => f"\{yy} is one or two",
     _ => "nope",
 };
 
@@ -128,3 +129,6 @@ let struct_test2 = struct_test_worker(Bar { y: 35, z: 100 });
 
 @test.eq("nope")
 let struct_test3 = struct_test_worker(Bar { y: 100, z: 35 });
+
+@test.eq("1 is one or two")
+let struct_test4 = struct_test_worker(Bar { y: 1, z: 100 });

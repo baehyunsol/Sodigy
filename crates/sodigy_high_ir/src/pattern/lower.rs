@@ -157,15 +157,44 @@ pub fn lower_patterns_to_name_bindings(
             fields,
             ..
         } => {
-            // for ast::PatField {
-            //     name,
-            //     pattern,
-            // } in fields.iter() {
-            //     // TODO
-            // }
+            let mut has_error = false;
+            let tmp_name = session.allocate_tmp_name();
 
-            session.push_error(HirError::todo("destructuring struct patterns", pattern.span));
-            return Err(());
+            // let tmp = foo();
+            name_bindings.push(DestructuredPattern::new(
+                IdentWithSpan::new(tmp_name, pattern.span.into_fake()),  // $tmp
+                expr.clone(),
+                pattern.ty.clone(),
+                false,  // not a real name
+            ));
+
+            for ast::PatField {
+                name,
+                pattern,
+            } in fields.iter() {
+                if pattern.is_wildcard() || pattern.is_shorthand() {
+                    continue;
+                }
+
+                let subpattern_expr = field_expr_with_name_and_index(
+                    tmp_name,
+                    FieldKind::Named(*name),
+                    pattern.span.into_fake(),
+                );
+
+                if let Err(()) = lower_patterns_to_name_bindings(
+                    pattern,      // x
+                    &subpattern_expr,  // tmp.x
+                    name_bindings,
+                    session,
+                ) {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
         },
         _ => {
             session.push_error(HirError::refutable_pattern_in_let(pattern));
