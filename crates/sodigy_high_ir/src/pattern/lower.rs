@@ -409,8 +409,34 @@ fn lower_ast_pattern_kind(
             PatternKind::TupleStruct { name: name.to_vec(), fields: result }
         },
         ast::PatternKind::Wildcard => PatternKind::Wildcard,
-        _ => {
-            session.push_error(HirError::todo("patterns", span));
+        ast::PatternKind::Shorthand => PatternKind::Shorthand,
+
+        // these two basically have the same meaning: an enum variant without values
+        ast::PatternKind::Identifier(id) => PatternKind::TupleStruct { name: vec![IdentWithSpan::new(*id, span)], fields: vec![] },
+        ast::PatternKind::Path(name) => PatternKind::TupleStruct { name: name.to_vec(), fields: vec![] },
+
+        ast::PatternKind::Number(_) => {
+            session.push_error(HirError::todo("number literals in patterns", span));
+            return Err(());
+        },
+        ast::PatternKind::Char(_) => {
+            session.push_error(HirError::todo("char literals in patterns", span));
+            return Err(());
+        },
+        ast::PatternKind::String { .. } => {
+            session.push_error(HirError::todo("string literals in patterns", span));
+            return Err(());
+        },
+        ast::PatternKind::List(_) => {
+            session.push_error(HirError::todo("list patterns", span));
+            return Err(());
+        },
+        ast::PatternKind::Struct { .. } => {
+            session.push_error(HirError::todo("struct patterns", span));
+            return Err(());
+        },
+        ast::PatternKind::Or(_, _) => {
+            session.push_error(HirError::todo("or patterns", span));
             return Err(());
         },
     };

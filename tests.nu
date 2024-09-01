@@ -29,10 +29,7 @@ def main [--depgraph] {
         cargo depgraph | dot -Tpng | save -f dep_graph.png
     }
 
-    nu clean.nu  # TODO: it has to run whether or not the tests fails
     nu link_bin.nu
-
-    chmod +x ./sodigy
 
     ./sodigy --raw-input "let main = \"Hello, World!\";"
 

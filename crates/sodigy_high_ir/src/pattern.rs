@@ -35,12 +35,16 @@ pub enum PatternKind {
     },
 
     Tuple(Vec<Pattern>),
+
+    // it's for matching enum variants, including ones that do not have any value
+    // e.g. `Option.Some(x)`, `Option.None` and `None`
     TupleStruct {
         name: ast::DottedNames,
         fields: Vec<Pattern>,
     },
 
-    Wildcard,
+    Wildcard,   // _
+    Shorthand,  // ..
 }
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.

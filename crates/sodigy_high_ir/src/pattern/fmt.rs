@@ -97,6 +97,7 @@ impl fmt::Display for PatternKind {
                 ).collect::<Vec<_>>().join(", "),
             ),
             PatternKind::Wildcard => String::from("_"),
+            PatternKind::Shorthand => String::from(".."),
         };
 
         write!(fmt, "{result}")

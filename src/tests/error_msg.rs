@@ -246,7 +246,6 @@ check_output!(expr, err, errors_with_macros1, "@[]()", "expected an identifier, 
 check_output!(expr, err, errors_with_macros2, "@[]", "expected `(");
 check_output!(expr, err, errors_with_macros3, "@[abc]", "expected `(");
 
-// TODO
 check_output!(expr, err, wrong_binding_order1, "match 1 { 1 @ $x => 1, _ => 0 }", "to bind a name to a pattern");
 check_output!(expr, err, wrong_binding_order2, "match foo() { Foo { x: $x, y: $y } @ $x => 1, _ => 0 }", "to bind a name to a pattern");
 check_output!(expr, err, wrong_binding_order3, "match foo() { Foo { x: 1 @ $x, y: 2 } => 1, _ => 0 }", "to bind a name to a pattern");

@@ -59,6 +59,9 @@ impl Endec for PatternKind {
             PatternKind::Wildcard => {
                 buffer.push(5);
             },
+            PatternKind::Shorthand => {
+                buffer.push(6);
+            },
         }
     }
 
@@ -81,7 +84,8 @@ impl Endec for PatternKind {
                         fields: Vec::<Pattern>::decode(buffer, index, session)?,
                     }),
                     5 => Ok(PatternKind::Wildcard),
-                    6.. => Err(EndecError::invalid_enum_variant(*n)),
+                    6 => Ok(PatternKind::Shorthand),
+                    7.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
@@ -204,6 +208,7 @@ impl DumpJson for PatternKind {
                 ("fields", fields.dump_json()),
             ]),
             PatternKind::Wildcard => "wildcard".dump_json(),
+            PatternKind::Shorthand => "shorthand".dump_json(),
         }
     }
 }

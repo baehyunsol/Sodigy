@@ -1,4 +1,6 @@
-SodigyC Test Runner (TODO: not implemented yet) automatically runs tests in this directory. Below is how it works.
+NOTE: nothing is implemented yet
+
+SodigyC Test Runner automatically runs tests in this directory. Below is how it works.
 
 The test runner searches for `test.json` inside this directory (and recursively). If it finds one, it runs a test according to the file.
 
@@ -14,13 +16,4 @@ A JSON-object represents a single test case. There are 3 kinds of test cases: `r
 
 `compile` compiles a sodigy file. You cannot give a `stdin` option. It checks whether the `stdout` and `stderr` from the compilation matches the conditions.
 
-`test` runs `sodigy --test`. TODO: not implemented yet
-
-## TODO
-
-For each test case,
-
-1. run `sodigy --clean`
-2. run the test
-3. run the same test again (check if it works when the IRs are cached)
-4. run `sodigy --clean`
+`test` runs `sodigy --test`.
