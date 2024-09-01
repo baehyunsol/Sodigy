@@ -101,25 +101,6 @@ fn parse_pattern_no_annotation(
     }
 
     Ok(lhs)
-    // match tokens.peek() {
-    //     Some(Token {
-    //         kind: TokenKind::Punct(Punct::Or),
-    //         span,
-    //     }) => {
-    //         let or_span = *span;
-    //         tokens.step().unwrap();
-
-    //         let rhs = parse_pattern_with_binding(tokens, session)?;
-
-    //         Ok(Pattern {
-    //             kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
-    //             span: or_span,
-    //             bind: None,
-    //             ty: None,
-    //         })
-    //     },
-    //     _ => Ok(lhs),
-    // }
 }
 
 // `@` level precedence
@@ -435,9 +416,16 @@ fn parse_pattern_value(
                                         break;
                                     },
                                     Err(mut e) => {
-                                        session.push_error(e.set_error_context(
-                                            ErrorContext::ParsingPattern
-                                        ).to_owned());
+                                        e.set_error_context(ErrorContext::ParsingPattern);
+
+                                        if let Some(Token {
+                                            kind: TokenKind::Punct(Punct::At),
+                                            ..
+                                        }) = group_tokens.peek() {
+                                            e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                                        }
+
+                                        session.push_error(e);
                                         return Err(());
                                     },
                                 }
@@ -673,13 +661,18 @@ fn parse_comma_separated_patterns(
             }
 
             else {
-                session.push_error(AstError::unexpected_token(
-                    tokens.peek().unwrap().clone().clone(),
+                let last_token = tokens.peek().unwrap().clone();
+                let mut e = AstError::unexpected_token(
+                    last_token.clone(),
                     ExpectedToken::nothing(),
-                ).set_error_context(
-                    ErrorContext::ParsingPattern
-                ).to_owned());
+                );
+                e.set_error_context(ErrorContext::ParsingPattern);
 
+                if let TokenKind::Punct(Punct::At) = &last_token.kind {
+                    e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                }
+
+                session.push_error(e);
                 return Err(());
             }
         }

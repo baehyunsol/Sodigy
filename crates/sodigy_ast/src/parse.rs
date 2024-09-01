@@ -1404,12 +1404,17 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 }
             },
             Some(token) => {
-                session.push_error(AstError::unexpected_token(
+                let mut e = AstError::unexpected_token(
                     token.clone(),
                     ExpectedToken::guard_or_arrow(),
-                ).set_error_context(
-                    ErrorContext::ParsingMatchBody
-                ).to_owned());
+                );
+                e.set_error_context(ErrorContext::ParsingMatchBody);
+
+                if let TokenKind::Punct(Punct::At) = &token.kind {
+                    e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                }
+
+                session.push_error(e);
 
                 // check typo: `->` instead of `=>`
                 if token.kind == TokenKind::Punct(Punct::Sub) {
@@ -2252,9 +2257,16 @@ fn parse_let_statement(
                     let assign_span = tokens.peek_span();
 
                     if let Err(mut e) = tokens.consume(TokenKind::assign()) {
-                        session.push_error(e.set_error_context(
-                            ErrorContext::ParsingLetStatement
-                        ).to_owned());
+                        e.set_error_context(ErrorContext::ParsingLetStatement);
+
+                        if let Some(Token {
+                            kind: TokenKind::Punct(Punct::At),
+                            ..
+                        }) = tokens.peek() {
+                            e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                        }
+
+                        session.push_error(e);
                         return Err(());
                     }
 

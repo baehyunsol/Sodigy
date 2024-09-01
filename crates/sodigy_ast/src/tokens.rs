@@ -104,11 +104,11 @@ impl<'t> Tokens<'t> {
                     },
                     _ => {
                         self.cursor += 1;
-                    }
+                    },
                 },
                 None => {
                     return false;
-                }
+                },
             }
         }
     }
@@ -236,6 +236,9 @@ impl<'t> Tokens<'t> {
         }
     }
 
+    // some functions rely on the fact that this method moves the cursor
+    // if and only if there's an expected token
+    // please do not change this behavior
     pub fn consume(&mut self, token_kind: TokenKind) -> Result<(), AstError> {
         match self.peek() {
             // `PartialEq` for `TokenKind` makes sense only when the kind is

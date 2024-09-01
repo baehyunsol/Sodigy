@@ -247,10 +247,12 @@ check_output!(expr, err, errors_with_macros2, "@[]", "expected `(");
 check_output!(expr, err, errors_with_macros3, "@[abc]", "expected `(");
 
 // TODO
-check_output!(expr, err, wrong_binding_order1, "match 1 { 1 @ $x => 1, _ => 0 }", "____");
-check_output!(expr, err, wrong_binding_order2, "match foo() { Foo { x: $x, y: $y } @ $x => 1, _ => 0 }", "____");
-check_output!(expr, err, wrong_binding_order3, "match foo() { Foo { x: 1 @ $x, y: 2 } => 1, _ => 0 }", "____");
-check_output!(expr, err, wrong_binding_order4, "{ let pattern (1, 2, 3) @ $x = (1, 2, 3); x }", "____");
+check_output!(expr, err, wrong_binding_order1, "match 1 { 1 @ $x => 1, _ => 0 }", "to bind a name to a pattern");
+check_output!(expr, err, wrong_binding_order2, "match foo() { Foo { x: $x, y: $y } @ $x => 1, _ => 0 }", "to bind a name to a pattern");
+check_output!(expr, err, wrong_binding_order3, "match foo() { Foo { x: 1 @ $x, y: 2 } => 1, _ => 0 }", "to bind a name to a pattern");
+check_output!(expr, err, wrong_binding_order4, "{ let pattern (1, 2, 3) @ $x = (1, 2, 3); x }", "to bind a name to a pattern");
+check_output!(expr, err, wrong_binding_order5, "{ let pattern (1, 2, 3 @ $x) = (1, 2, 3); x }", "to bind a name to a pattern");
+check_output!(expr, err, wrong_binding_order6, "{ let pattern (1, 2 @ $x, 3) = (1, 2, 3); x }", "to bind a name to a pattern");
 
 // TODO
 // check_output!(expr, err, logical_and_to_ifs, "if True || 3 { 0 } else { 1 }", "TODO: emit a nice type error");
