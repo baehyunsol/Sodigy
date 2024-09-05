@@ -197,6 +197,7 @@ pub fn lower_patterns_to_name_bindings(
             }
         },
         _ => {
+            // TODO: rust allows `let ((y @ 1, x @ 2) | (x, y)) = (1, 2);`
             session.push_error(HirError::refutable_pattern_in_let(pattern));
             return Err(());
         },
@@ -205,8 +206,6 @@ pub fn lower_patterns_to_name_bindings(
     Ok(())
 }
 
-// TODO: `(p1, p2, p3 | p4)` -> `(p1, p2, p3) | (p1, p2, p4)`
-// TODO: does it make sense? that would explode exponentially
 pub fn lower_ast_pattern(
     pattern: &ast::Pattern,
     session: &mut HirSession,
@@ -356,7 +355,9 @@ fn lower_ast_pattern_kind(
                 res
             }
         },
-        ast::PatternKind::Tuple(patterns) => {
+        p_kind @ (ast::PatternKind::Tuple(patterns)
+        | ast::PatternKind::Or(patterns)) => {
+            let is_tuple = matches!(p_kind, ast::PatternKind::Tuple(_));
             let mut result = Vec::with_capacity(patterns.len());
             let mut has_error = false;
 
@@ -380,7 +381,11 @@ fn lower_ast_pattern_kind(
                 return Err(());
             }
 
-            PatternKind::Tuple(result)
+            if is_tuple {
+                PatternKind::Tuple(result)
+            } else {
+                PatternKind::Or(result)
+            }
         },
         ast::PatternKind::TupleStruct { name, fields } => {
             let mut result = Vec::with_capacity(fields.len());
@@ -435,10 +440,7 @@ fn lower_ast_pattern_kind(
             session.push_error(HirError::todo("struct patterns", span));
             return Err(());
         },
-        ast::PatternKind::Or(_, _) => {
-            session.push_error(HirError::todo("or patterns", span));
-            return Err(());
-        },
+        ast::PatternKind::OrRaw(_, _) => unreachable!(),
     };
 
     Ok(res)
@@ -506,4 +508,32 @@ fn get_all_shorthand_spans(patterns: &[ast::Pattern]) -> Vec<SpanRange> {
     ).map(
         |pat| pat.span
     ).collect()
+}
+
+pub fn check_names_in_or_patterns(pattern: &ast::Pattern) -> Vec<HirError> {
+    match &pattern.kind {
+        ast::PatternKind::Or(patterns) => {
+            // it has to keep spans for error messages
+            let mut name_set = HashMap::new();
+
+            for (index, pattern) in patterns.iter().enumerate() {
+                let mut buffer = vec![];
+                pattern.get_name_bindings(&mut buffer);
+
+                if index == 0 {
+                    name_set = buffer.into_iter().map(
+                        |name| (name.id(), *name.span())
+                    ).collect();
+                }
+
+                else {
+                    // TODO: check name_set.keys() == buffer
+                    //       check collision in buffer
+                }
+            }
+
+            todo!()
+        },
+        _ => vec![],  // no error
+    }
 }

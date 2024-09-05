@@ -56,6 +56,7 @@ impl From<WriteMode> for OpenOptions {
 }
 
 // since the compiler is very very unstable, it refuses big files!
+// TODO: make it configurable
 const FILE_SIZE_LIMIT: u64 = 64 * 1024 * 1024;
 
 fn reject_too_big_file(path: &str) -> Result<(), FileError> {

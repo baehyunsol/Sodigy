@@ -6,16 +6,30 @@ There are 2 classes of impurity: IO and debug. Note that panicking (aborting the
 
 There are 2 pure types for IO operations: `IOAction` and `IOResult`. Being pure, any function can do anything with the types.
 
-There's an impure function that takes `IOAction` as an input and returns `IOResult`. This is the only impure function in this language, and only the main function can call this function.
+```
+let main(world: List(IOResult)): List(IOAction) = # Your implementation goes here
+```
+
+Above is how the main function deals with impurity.
+
+1. It returns impure actions to run.
+2. The actions are run outside Sodigy.
+3. When the results are ready, the main function is called again with the new results.
+4. It's called over and over until you quit.
+5. It doesn't mean the type signature of the main function has to be like that.
+  - If it returns an `Int`, it's the same as quitting with an exit code. An integer greater than 255 or less than 0 are converted to 1.
 
 ```
-let run_io(action: IOAction): IOResult = @@very_dangerous_function(action);
-
+#> Every `IOAction` generates exactly one `IOResult`, except `Quit`.
+#> If it's synchronous, the result is given at the next call of `main`.
 let struct IOAction = {
     #> IOResult also has an `id` field, telling which action the result is from.
     #> It's users' responsibility to keep it unique.
     id: Int,
     kind: IOActionKind,
+
+    #> Any IOAction can be asynchronous.
+    async: Bool,
 };
 
 let enum IOActionKind = {
@@ -34,6 +48,7 @@ let enum IOActionKind = {
         content: List(Byte),
         mode: WriteMode,
     },
+    Quit { code: Int },
 };
 
 let struct IOResult = {
@@ -44,6 +59,7 @@ let struct IOResult = {
 let enum IOResultKind = {
     FileNotFoundError { path: String },
     PermissionError { path: String },
+    # TODO: many more variants...
 };
 ```
 

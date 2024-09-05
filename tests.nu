@@ -13,8 +13,8 @@ def main [--depgraph] {
         "ast", "clap", "config",
         "endec", "error", "files",
         "high_ir", "intern", "keyword",
-        "lex", "number", "output",
-        "parse", "prelude",
+        "lang_item", "lex", "number",
+        "output", "parse", "prelude",
         "session", "span", "uid",
     ]
 

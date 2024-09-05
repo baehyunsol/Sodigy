@@ -98,6 +98,11 @@ impl fmt::Display for PatternKind {
             ),
             PatternKind::Wildcard => String::from("_"),
             PatternKind::Shorthand => String::from(".."),
+
+            // TODO: no parentheses?
+            PatternKind::Or(patterns) => patterns.iter().map(
+                |pattern| pattern.to_string()
+            ).collect::<Vec<_>>().join("|"),
         };
 
         write!(fmt, "{result}")

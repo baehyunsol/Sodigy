@@ -661,3 +661,33 @@ since the backtick character doesn't get along well with markdown, I'll just use
     - it would complicate the parser, a lot.
 
 하는 김에 field modifier에 integer도 넣을 수 있게 할까? `[1, 2, 3, 4] '1 100` 하면 `[1, 100, 3, 4]` 되게. 요거는 살짝 애매: 보통 index는 constant가 아니고 variable이잖아
+
+---
+
+as far as I know, Sodigy does not allow `$x @ _`, but it has to be allowed since `$x` is just a shortcut for `$x @ _`.
+
+---
+
+lowering for `or` patterns
+
+```
+{
+  let pattern (1, $x @ 2, $y @ (3 | 4)) | ($x @ 100, $y @ 200, _) = (a, b, c);
+
+  x + y
+}
+
+# becomes...
+
+match (a, b, c) {
+  (1, $x @ 2, $y @ (3 | 4)) => x + y,
+  ($x @ 1, $y @ 100, _) => x + y,
+}
+```
+
+1. I know it's not refutable, but does that matter?
+2. can I even do that?
+3. 생각해보면 or는 저거 안해도 되는 거 아님?
+  - match 안에 있는 pattern들은 어차피 저거 안함
+  - let에서 저거 쓰면 refutable함
+4. ㅋㅋㅋ 그렇네, match 안에 있는 pattern들 어떻게 처리할지만 더 고민해보면 될 듯!

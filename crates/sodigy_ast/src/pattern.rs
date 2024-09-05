@@ -8,6 +8,7 @@ use crate::{
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
+use std::collections::HashMap;
 
 mod fmt;
 mod parse;
@@ -83,10 +84,28 @@ impl Pattern {
                     pattern.get_name_bindings(buffer);
                 }
             },
-            PatternKind::Or(left, right) => {
-                left.get_name_bindings(buffer);
-                right.get_name_bindings(buffer);
+            // 1. The result of this function is used to check name collisions.
+            //    - TODO: it's not a good idea to restrict the usage of this function
+            // 2. `($x, 0) | ($x, 1)` is not a collision but `($x, $x) | (0, 1)` is.
+            // 3. There's another restriction on `or` patterns: each pattern must have the same set of names.
+            //    - These conditions are checked by `check_names_in_or_patterns`.
+            // 4. This function just assumes that there's no name errors in the `or` pattern.
+            PatternKind::Or(patterns) => {
+                let mut tmp_buffer = vec![];
+
+                for pattern in patterns.iter() {
+                    pattern.get_name_bindings(&mut tmp_buffer);
+                }
+
+                let deduplicated: HashMap<InternedString, SpanRange> = tmp_buffer.into_iter().map(
+                    |name| (name.id(), *name.span())
+                ).collect();
+
+                for (id, span) in deduplicated.into_iter() {
+                    buffer.push(IdentWithSpan::new(id, span));
+                }
             },
+            PatternKind::OrRaw(left, right) => unreachable!(),
         }
 
         if let Some(id) = &self.bind {
@@ -111,7 +130,7 @@ impl Pattern {
         let span = pat1.span.merge(pat2.span);
 
         Pattern {
-            kind: PatternKind::Or(Box::new(pat1), Box::new(pat2)),
+            kind: PatternKind::OrRaw(Box::new(pat1), Box::new(pat2)),
             ty: None,
             span,
             bind: None,
@@ -223,8 +242,13 @@ pub enum PatternKind {
     Wildcard,   // _
     Shorthand,  // ..
 
-    // will later be converted to Vec<Pattern>
-    Or(Box<Pattern>, Box<Pattern>),
+    // `|` operators are first lowered to `OrRaw` and then to `Or`.
+    // `OrRaw` is only used as intermediate representation in `parse_pattern` functions
+    // it's a compiler bug if this variant is found in other contexts
+    OrRaw(Box<Pattern>, Box<Pattern>),
+
+    // It's guaranteed to be non-recursive.
+    Or(Vec<Pattern>),
 }
 
 impl PatternKind {

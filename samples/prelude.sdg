@@ -8,9 +8,10 @@ let struct Ratio = {
 # it's not a new type: all the methods of `List` can be applied to `String`s
 let String: Type = List(Char);
 
-# todo: how about `let type Byte = Int;`
-# todo: what happens when it overflows?
-# todo: i want to inherit some methods of `Int`, but not all
+# TODO
+#     1. keyword for new_types?
+#     2. always make sure that the value is in the range: just check in runtime
+#     3. I want it to inherit some methods from Int, but not all
 @new_type
 @int_max(255)
 @int_min(0)

@@ -9,7 +9,11 @@ mod fmt;
 mod lower;
 pub mod string;
 
-pub use lower::{lower_ast_pattern, lower_patterns_to_name_bindings};
+pub use lower::{
+    check_names_in_or_patterns,
+    lower_ast_pattern,
+    lower_patterns_to_name_bindings,
+};
 pub use string::StringPattern;
 
 #[derive(Clone)]
@@ -45,6 +49,8 @@ pub enum PatternKind {
 
     Wildcard,   // _
     Shorthand,  // ..
+
+    Or(Vec<Pattern>),
 }
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.

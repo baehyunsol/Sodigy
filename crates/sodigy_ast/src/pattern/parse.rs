@@ -55,24 +55,32 @@ pub fn parse_pattern_full(
 ) -> Result<Pattern, ()> {
     let mut lhs = parse_pattern_no_annotation(tokens, session)?;
 
-    match tokens.peek() {
-        Some(Token {
-            kind: TokenKind::Punct(Punct::Colon),
-            span,
-        }) => {
-            let punct_span = *span;
-            tokens.step().unwrap();
+    if let Some(Token {
+        kind: TokenKind::Punct(Punct::Colon),
+        span,
+    }) = tokens.peek() {
+        let punct_span = *span;
+        tokens.step().unwrap();
 
-            let ty = parse_type_def(
-                tokens,
-                session,
-                punct_span,
-            )?;
-            lhs.set_ty(ty);
+        let ty = parse_type_def(
+            tokens,
+            session,
+            punct_span,
+        )?;
+        lhs.set_ty(ty);
+    }
 
-            Ok(lhs)
-        },
-        _ => Ok(lhs),
+    let unfolded = unfold_or_patterns(&lhs);
+
+    if unfolded.len() == 1 {
+        Ok(unfolded[0].clone())
+    }
+
+    else {
+        Ok(Pattern {
+            kind: PatternKind::Or(unfolded),
+            ..lhs.clone()
+        })
     }
 }
 
@@ -93,7 +101,7 @@ fn parse_pattern_no_annotation(
         let rhs = parse_pattern_with_binding(tokens, session)?;
 
         lhs = Pattern {
-            kind: PatternKind::Or(Box::new(lhs), Box::new(rhs)),
+            kind: PatternKind::OrRaw(Box::new(lhs), Box::new(rhs)),
             span: or_span,
             bind: None,
             ty: None,
@@ -677,4 +685,134 @@ fn parse_comma_separated_patterns(
             }
         }
     }
+}
+
+// TODO: This function is very inefficient in 2 ways.
+// 1. It has tons of `clone`s, vector allocation and redundant searches.
+// 2. It naively unfolds all the patterns, which easily gets very big.
+//    For example `((1 | 2), (3 | 4), (5 | 6), (7 | 8))` would be unfolded to 16 patterns.
+fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
+    match &p.kind {
+        PatternKind::Identifier(_)
+        | PatternKind::Number(_)
+        | PatternKind::Char(_)
+        | PatternKind::String { .. }
+        | PatternKind::Binding(_)
+        | PatternKind::Path(_)
+        | PatternKind::Wildcard
+        | PatternKind::Shorthand => vec![p.clone()],
+        PatternKind::Range {
+            from,
+            to,
+            inclusive,
+            is_string,
+        } => {
+            let from = from.as_ref().map(|pattern| unfold_or_patterns(pattern.as_ref()));
+            let to = to.as_ref().map(|pattern| unfold_or_patterns(pattern.as_ref()));
+            let from_unfolded = from.as_ref().map(|patterns| patterns.len() > 1).unwrap_or(false);
+            let to_unfolded = to.as_ref().map(|patterns| patterns.len() > 1).unwrap_or(false);
+
+            if !from_unfolded && !to_unfolded {
+                vec![p.clone()]
+            }
+
+            else {
+                // converting `Option<Vec<Pattern>>` to `Vec<Option<Pattern>>`
+                // it makes the iteration easier
+                let from = match from {
+                    Some(v) => v.into_iter().map(|x| Some(x)).collect(),
+                    None => vec![None],
+                };
+                let to = match to {
+                    Some(v) => v.into_iter().map(|x| Some(x)).collect(),
+                    None => vec![None],
+                };
+
+                let mut result = Vec::with_capacity(from.len() * to.len());
+
+                for f in from.iter() {
+                    for t in to.iter() {
+                        result.push(Pattern {
+                            kind: PatternKind::Range {
+                                from: f.as_ref().map(|f| Box::new(f.clone())),
+                                to: t.as_ref().map(|t| Box::new(t.clone())),
+                                inclusive: *inclusive,
+                                is_string: *is_string,
+                            },
+                            ..p.clone()
+                        });
+                    }
+                }
+
+                result
+            }
+        },
+        p_kind @ (PatternKind::Tuple(patterns)
+        | PatternKind::List(patterns)) => {
+            let is_tuple = matches!(p_kind, PatternKind::Tuple(_));
+            let mut has_recursive_or_pattern = false;
+            let unfolded_patterns: Vec<Vec<Pattern>> = patterns.iter().map(
+                |pattern| {
+                    let u = unfold_or_patterns(pattern);
+
+                    if u.len() > 1 {
+                        has_recursive_or_pattern = true;
+                    }
+
+                    u
+                }
+            ).collect();
+
+            if has_recursive_or_pattern {
+                let unfolded_patterns = permutation(&unfolded_patterns);
+
+                unfolded_patterns.into_iter().map(
+                    |patterns| Pattern {
+                        kind: if is_tuple { PatternKind::Tuple(patterns) } else { PatternKind::List(patterns) },
+                        ..p.clone()
+                    }
+                ).collect()
+            }
+
+            else {
+                vec![p.clone()]
+            }
+        },
+        PatternKind::Struct { .. } => todo!(),
+        PatternKind::TupleStruct { .. } => todo!(),
+        PatternKind::OrRaw(left, right) => {
+            let left = unfold_or_patterns(left.as_ref());
+            let right = unfold_or_patterns(right.as_ref());
+
+            vec![
+                left,
+                right,
+            ].concat()
+        },
+        PatternKind::Or(patterns) => patterns.clone(),
+    }
+}
+
+// TODO
+//   1. It's too naive
+//   2. Is there any better place for this function?
+// [[1, 2, 3], [4, 5], [6]] -> [[1, 4, 6], [2, 4, 6], [3, 4, 6], [1, 5, 6], [2, 5, 6], [3, 5, 6]]
+fn permutation<T: Clone>(s: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let mut result = vec![vec![]];
+
+    for v in s.iter() {
+        let mut new_result = vec![];
+
+        for x in v.iter() {
+            for r in result.iter() {
+                let mut new_r = r.clone();
+                new_r.push(x.clone());
+                new_result.push(new_r);
+            }
+        }
+
+        result = new_result;
+    }
+
+    result
 }

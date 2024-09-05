@@ -111,19 +111,14 @@ impl fmt::Display for PatternKind {
 
                 format!("{name}{{{}}}", fields.join(", "))
             },
-            PatternKind::Or(lhs, rhs) => format!(
-                "{} | {}",
-                if lhs.needs_paren() {
-                    format!("({lhs})")
+            PatternKind::Or(patterns) => patterns.iter().map(
+                |pattern| if pattern.needs_paren() {
+                    format!("({pattern})")
                 } else {
-                    lhs.to_string()
-                },
-                if rhs.needs_paren() {
-                    format!("({rhs})")
-                } else {
-                    rhs.to_string()
-                },
-            ),
+                    pattern.to_string()
+                }
+            ).collect::<Vec<_>>().join("|"),
+            PatternKind::OrRaw(lhs, rhs) => unreachable!(),
             PatternKind::TupleStruct {
                 name, fields,
             } => {
@@ -202,11 +197,10 @@ impl RenderError for PatternKind {
                     },
                 )
             },
-            PatternKind::Or(p1, p2) => format!(
-                "{} | {}",
-                p1.kind.render_error(),
-                p2.kind.render_error(),
-            ),
+            PatternKind::Or(patterns) => patterns.iter().map(
+                |pattern| pattern.kind.render_error()
+            ).collect::<Vec<_>>().join("|"),
+            PatternKind::OrRaw(_, _) => unreachable!(),
         }
     }
 }
@@ -236,7 +230,8 @@ impl PatternKind {
             | PatternKind::Struct { .. }
             | PatternKind::TupleStruct { .. } => false,
             PatternKind::Range { .. }
-            | PatternKind::Or(_, _) => true,
+            | PatternKind::OrRaw(_, _)
+            | PatternKind::Or(_) => true,
         }
     }
 }

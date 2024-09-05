@@ -20,7 +20,12 @@ use crate::attr::lower_ast_attributes;
 use crate::error::HirError;
 use crate::func::Arg;
 use crate::names::{IdentWithOrigin, NameBindingType, NameOrigin, NameSpace};
-use crate::pattern::{DestructuredPattern, lower_patterns_to_name_bindings, lower_ast_pattern};
+use crate::pattern::{
+    DestructuredPattern,
+    check_names_in_or_patterns,
+    lower_patterns_to_name_bindings,
+    lower_ast_pattern,
+};
 use crate::session::HirSession;
 use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
@@ -868,11 +873,19 @@ pub fn lower_ast_expr(
                 value,
                 uid,
             } in arms.iter() {
-                // TODO: it's a copy-paste of ast::ExprKind::Scope
+                // NOTE: name checks in `or` patterns
+                //       1. each pattern must have the same set of names
+                //          - `get_name_bindings` and `check_names_in_or_patterns` take care of that
+                //       2. each name must be bound to the same type of value
+                //          - it's checked later (TODO: not implemented yet)
                 let mut name_bindings = HashSet::new();
                 let mut name_collision_checker = HashMap::new();
                 let mut name_bindings_buffer = vec![];
                 pattern.get_name_bindings(&mut name_bindings_buffer);
+
+                for err in check_names_in_or_patterns(&pattern) {
+                    session.push_error(err);
+                }
 
                 for def in name_bindings_buffer.iter() {
                     match name_collision_checker.get(&def.id()) {

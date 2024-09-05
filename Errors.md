@@ -53,6 +53,7 @@ Error messages in Rust... for inspiration :)
   - ``` integer literal is too large ```
   - ``` type annotations needed ```
     - when the compiler doesn't know the type of `x.iter().collect()`
+  - ``` refutable pattern in local binding ```
 
 ---
 

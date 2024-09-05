@@ -39,8 +39,11 @@ impl ExtraErrInfo {
     }
 
     pub fn set_message(&mut self, msg: String) -> &mut Self {
-        self.msg = msg;
+        // I want to make sure that it doesn't override previous message
+        // If there're previous ones, I want it to be stacked (TODO)
+        debug_assert!(self.msg.is_empty());
 
+        self.msg = msg;
         self
     }
 
