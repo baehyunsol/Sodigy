@@ -1,6 +1,5 @@
 #![deny(unused_imports)]
 
-use sodigy_session::SessionOutput;
 use std::collections::HashMap;
 
 pub const MIN_VERBOSITY: u8 = 0;
@@ -19,10 +18,11 @@ pub struct CompilerOption {
     pub dump_hir_to: Option<Path>,
     pub dump_mir_to: Option<Path>,
     pub dump_type: DumpType,
-    pub library_paths: Option<HashMap<String, String>>,
+    pub library_paths: Option<HashMap<String, Path>>,
 
     // TODO: this doesn't do anything
     pub verbosity: u8,
+    pub or_pattern_expansion_limit: usize,
 
     // It has to be `Vec<u8>` because the test code has to run
     // invalid utf-8 strings.
@@ -69,6 +69,7 @@ impl Default for CompilerOption {
             dump_type: DumpType::Json,
             library_paths: None,
             verbosity: 1,
+            or_pattern_expansion_limit: 1024,
             raw_input: None,
         }
     }
@@ -96,25 +97,6 @@ impl CompilerOutputFormat {
             CompilerOutputFormat::Mir => String::from("./a.mir"),
             CompilerOutputFormat::Binary => String::from("./a.out"),
         }
-    }
-}
-
-// don't call these. just use session.get_results_mut()
-impl SessionOutput<CompilerOption> for CompilerOption {
-    fn pop(&mut self) -> Option<CompilerOption> {
-        unreachable!()
-    }
-
-    fn push(&mut self, _: CompilerOption) {
-        unreachable!()
-    }
-
-    fn clear(&mut self) {
-        unreachable!()
-    }
-
-    fn len(&self) -> usize {
-        unreachable!()
     }
 }
 

@@ -1,4 +1,5 @@
 use super::*;
+use sodigy_config::CompilerOption;
 use sodigy_error::SodigyError;
 use sodigy_files::{
     get_all_sdg,
@@ -13,16 +14,17 @@ use sodigy_parse::{from_tokens, ParseSession};
 #[test]
 fn ast_test() {
     let g = unsafe { global_file_session() };
+    let compiler_option = CompilerOption::test_runner(&[]);
 
     for path in get_all_sdg(&join("..", &join("..", "samples").unwrap()).unwrap(), true, "sdg").unwrap() {
-        let mut lex_session = LexSession::new();
+        let mut lex_session = LexSession::new(compiler_option.clone());
         let f = g.register_file(&path.to_string()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
         lex(&content, 0, SpanPoint::at_file(f, 0), &mut lex_session).unwrap();
 
         let mut parse_session = ParseSession::from_lex_session(&lex_session);
-        from_tokens(lex_session.get_results(), &mut parse_session, &mut LexSession::new()).unwrap();
+        from_tokens(lex_session.get_results(), &mut parse_session, &mut LexSession::new(compiler_option.clone())).unwrap();
 
         let mut ast_session = AstSession::from_parse_session(&parse_session);
         let mut tokens = parse_session.get_results().to_vec();

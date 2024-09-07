@@ -134,7 +134,7 @@ impl Endec for NumberLike {
 }
 
 impl Endec for RangeType {
-    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
             RangeType::Integer => { buffer.push(0); },
             RangeType::Char => { buffer.push(1); },
@@ -142,7 +142,7 @@ impl Endec for RangeType {
         }
     }
 
-    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
         match buffer.get(*index) {
             Some(n) => {
                 *index += 1;

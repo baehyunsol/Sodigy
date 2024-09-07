@@ -1,11 +1,11 @@
 use crate::{Delim, Punct, TokenTree, TokenTreeKind};
 use crate::error::{ParseError, ParseErrorKind};
 use crate::warn::{ParseWarning, ParseWarningKind};
+use sodigy_config::CompilerOption;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError, UniversalError};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lex::LexSession;
 use sodigy_session::{
-    SessionDependency,
     SessionSnapshot,
     SodigySession,
 };
@@ -20,10 +20,11 @@ pub struct ParseSession {
     warnings: Vec<ParseWarning>,
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
-    dependencies: Vec<SessionDependency>,
+    compiler_option: CompilerOption,
 
     // errors from `LexSession`
     previous_errors: Vec<UniversalError>,
+    previous_warnings: Vec<UniversalError>,
 
     // names of unexpanded macros
     // parse_session will look for the definitions of these macros later
@@ -32,16 +33,17 @@ pub struct ParseSession {
 }
 
 impl ParseSession {
-    pub fn from_lex_session(s: &LexSession) -> Self {
+    pub fn from_lex_session(session: &LexSession) -> Self {
         ParseSession {
             tokens: vec![],
             errors: vec![],
             warnings: vec![],
-            interner: s.get_interner_cloned(),
+            interner: session.get_interner_cloned(),
             snapshots: vec![],
             unexpanded_macros: HashMap::new(),
-            dependencies: s.get_dependencies().clone(),
-            previous_errors: s.get_all_errors_and_warnings(),
+            compiler_option: session.get_compiler_option().clone(),
+            previous_errors: session.get_all_errors(),
+            previous_warnings: session.get_all_warnings(),
         }
     }
 
@@ -230,6 +232,14 @@ impl SodigySession<ParseError, ParseErrorKind, ParseWarning, ParseWarningKind, V
         &mut self.previous_errors
     }
 
+    fn get_previous_warnings(&self) -> &Vec<UniversalError> {
+        &self.previous_warnings
+    }
+
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_warnings
+    }
+
     fn get_results(&self) -> &Vec<TokenTree> {
         &self.tokens
     }
@@ -250,12 +260,8 @@ impl SodigySession<ParseError, ParseErrorKind, ParseWarning, ParseWarningKind, V
         &mut self.snapshots
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency> {
-        &self.dependencies
-    }
-
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
-        &mut self.dependencies
+    fn get_compiler_option(&self) -> &CompilerOption {
+        &self.compiler_option
     }
 }
 

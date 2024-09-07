@@ -1,7 +1,6 @@
 #![deny(unused_imports)]
 
 use sodigy_error::{SodigyError, SodigyErrorKind, UniversalError};
-use sodigy_files::last_modified;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_number::SodigyNumber;
 use sodigy_span::SpanRange;
@@ -12,6 +11,14 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
     fn get_errors(&self) -> &Vec<E>;
     fn get_errors_mut(&mut self) -> &mut Vec<E>;
 
+    fn get_all_errors(&self) -> Vec<UniversalError> {
+        self.get_errors().iter().map(
+            |e| e.to_universal()
+        ).chain(self.get_previous_errors().iter().map(
+            |e| e.clone()
+        )).collect()
+    }
+
     fn push_error(&mut self, e: E) {
         self.get_errors_mut().push(e);
     }
@@ -20,10 +27,8 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_errors_mut().pop()
     }
 
-    // TODO: it has to read from `get_previous_errors`,
-    //       but some implementations of the func returns errors and warnings
     fn has_error(&self) -> bool {
-        !self.get_errors().is_empty()
+        !self.get_errors().is_empty() || !self.get_previous_errors().is_empty()
     }
 
     fn clear_errors(&mut self) {
@@ -42,6 +47,14 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
 
     fn get_warnings(&self) -> &Vec<W>;
     fn get_warnings_mut(&mut self) -> &mut Vec<W>;
+
+    fn get_all_warnings(&self) -> Vec<UniversalError> {
+        self.get_warnings().iter().map(
+            |w| w.to_universal()
+        ).chain(self.get_previous_warnings().iter().map(
+            |w| w.clone()
+        )).collect()
+    }
 
     fn push_warning(&mut self, w: W) {
         self.get_warnings_mut().push(w);
@@ -65,29 +78,36 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_warnings_mut().sort_by_key(|warning| warning.get_first_span().unwrap_or_else(|| SpanRange::dummy()));
     }
 
-    // TODO: it must be previous_errors and previous_warnings
-    // sessions also store errors and warnings from previous sessions
     fn get_previous_errors(&self) -> &Vec<UniversalError>;
     fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError>;
+    fn get_previous_warnings(&self) -> &Vec<UniversalError>;
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError>;
 
     fn merge_errors_and_warnings<S: SodigySession<E_, EK_, W_, WK_, Outputs_, Output_>, E_, EK_, W_, WK_, Outputs_, Output_>(&mut self, previous_session: &S)
         where E_: SodigyError<EK_>, EK_: SodigyErrorKind, W_: SodigyError<WK_>, WK_: SodigyErrorKind, Outputs_: SessionOutput<Output_>
     {
         let self_errors = self.get_previous_errors_mut();
 
-        for error in previous_session.get_all_errors_and_warnings().into_iter() {
+        for error in previous_session.get_all_errors().into_iter() {
             self_errors.push(error);
+        }
+
+        let self_warnings = self.get_previous_warnings_mut();
+
+        for warning in previous_session.get_all_warnings().into_iter() {
+            self_warnings.push(warning);
         }
     }
 
-    // it concats `.get_errors()`, `.get_warnings()` and `.get_previous_errors()`
     fn get_all_errors_and_warnings(&self) -> Vec<UniversalError> {
         self.get_errors().iter().map(
             |err| err.to_universal()
         ).chain(self.get_warnings().iter().map(
-            |warn| warn.to_universal()
+            |warning| warning.to_universal()
         )).chain(self.get_previous_errors().iter().map(
             |err| err.clone()
+        )).chain(self.get_previous_warnings().iter().map(
+            |warning| warning.clone()
         )).collect()
     }
 
@@ -164,28 +184,7 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         }
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency>;
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency>;
-
-    fn add_dependency(&mut self, dependency: SessionDependency) {
-        self.get_dependencies_mut().push(dependency);
-    }
-
-    fn check_all_dependency_up_to_date(&self) -> bool {
-        for SessionDependency { path, last_modified_at } in self.get_dependencies().iter() {
-            if let Ok(last_modified_at_) = last_modified(path) {
-                if *last_modified_at != last_modified_at_ {
-                    return false;
-                }
-            }
-
-            else {
-                return false;
-            }
-        }
-
-        true
-    }
+    fn get_compiler_option(&self) -> &CompilerOption;
 }
 
 pub trait SessionOutput<T> {
@@ -223,8 +222,12 @@ pub struct SessionSnapshot {
     results: usize,
 }
 
-#[derive(Clone)]
-pub struct SessionDependency {
-    pub path: String,
-    pub last_modified_at: u64,  // hash of st_mtime
+use sodigy_config::CompilerOption;
+
+// don't call these
+impl SessionOutput<CompilerOption> for CompilerOption {
+    fn pop(&mut self) -> Option<CompilerOption> { unreachable!() }
+    fn push(&mut self, v: CompilerOption) { unreachable!() }
+    fn clear(&mut self) { unreachable!() }
+    fn len(&self) -> usize { unreachable!() }
 }

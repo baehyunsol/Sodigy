@@ -17,9 +17,10 @@ pub enum Flag {
     DumpMirTo,
     DumpType,
     Verbose,
+    OrPatternLimit,
 }
 
-pub const FLAGS: [Flag; 13] = [
+pub const FLAGS: [Flag; 14] = [
     Flag::Help,
     Flag::Version,
     Flag::Output,
@@ -33,6 +34,7 @@ pub const FLAGS: [Flag; 13] = [
     Flag::DumpMirTo,
     Flag::DumpType,
     Flag::Verbose,
+    Flag::OrPatternLimit,
 ];
 
 impl Flag {
@@ -51,6 +53,7 @@ impl Flag {
             Flag::DumpMirTo => TokenKind::Path,
             Flag::DumpType => TokenKind::DumpType,
             Flag::Verbose => TokenKind::Integer,
+            Flag::OrPatternLimit => TokenKind::Integer,
         }
     }
 
@@ -69,6 +72,7 @@ impl Flag {
             Flag::DumpMirTo => None,
             Flag::DumpType => None,
             Flag::Verbose => None,
+            Flag::OrPatternLimit => None,
         }
     }
 
@@ -87,6 +91,7 @@ impl Flag {
             Flag::DumpMirTo => Some(b"--dump-mir-to"),
             Flag::DumpType => Some(b"--dump-type"),
             Flag::Verbose => Some(b"--verbose"),
+            Flag::OrPatternLimit => Some(b"--or-pattern-limit"),
         }
     }
 

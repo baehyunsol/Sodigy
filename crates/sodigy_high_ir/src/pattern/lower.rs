@@ -102,7 +102,7 @@ pub fn lower_patterns_to_name_bindings(
                                     curr_pattern.span.into_fake(),
                                 ),
                                 None,
-                                false,  // TODO: is this real?
+                                false,
                             ));
                         }
                     }
@@ -514,7 +514,9 @@ pub fn check_names_in_or_patterns(pattern: &ast::Pattern) -> Vec<HirError> {
     match &pattern.kind {
         ast::PatternKind::Or(patterns) => {
             // it has to keep spans for error messages
-            let mut name_set = HashMap::new();
+            let mut name_set: HashMap<InternedString, SpanRange> = HashMap::new();
+            let first_pattern_span = patterns[0].span;
+            let mut errors = vec![];
 
             for (index, pattern) in patterns.iter().enumerate() {
                 let mut buffer = vec![];
@@ -527,12 +529,41 @@ pub fn check_names_in_or_patterns(pattern: &ast::Pattern) -> Vec<HirError> {
                 }
 
                 else {
-                    // TODO: check name_set.keys() == buffer
-                    //       check collision in buffer
+                    let mut name_collision_checker = HashMap::new();
+
+                    for name in buffer.iter() {
+                        if name_collision_checker.contains_key(&name.id()) {
+                            errors.push(HirError::name_collision(
+                                IdentWithSpan::new(name.id(), *name.span()),
+                                IdentWithSpan::new(name.id(), *name_collision_checker.get(&name.id()).unwrap()),
+                            ));
+                            continue;
+                        }
+
+                        else {
+                            name_collision_checker.insert(name.id(), *name.span());
+                        }
+
+                        if !name_set.contains_key(&name.id()) {
+                            errors.push(HirError::name_not_bound_in_all_patterns(
+                                *name,
+                                first_pattern_span,
+                            ));
+                        }
+                    }
+
+                    for (name, span) in name_set.iter() {
+                        if !name_collision_checker.contains_key(name) {
+                            errors.push(HirError::name_not_bound_in_all_patterns(
+                                IdentWithSpan::new(*name, *span),
+                                pattern.span,
+                            ));
+                        }
+                    }
                 }
             }
 
-            todo!()
+            errors
         },
         _ => vec![],  // no error
     }

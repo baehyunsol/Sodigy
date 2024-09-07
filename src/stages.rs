@@ -82,7 +82,7 @@ pub fn construct_hir(
         },
     };
 
-    let mut lex_session = LexSession::new();
+    let mut lex_session = LexSession::new(compiler_option.clone());
 
     if let Err(()) = lex(code, 0, SpanPoint::at_file(file_hash, 0), &mut lex_session) {
         info!("construct_hir({input:?}) failed at lex(...)");
@@ -93,7 +93,7 @@ pub fn construct_hir(
 
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
     let tokens = lex_session.get_results();
-    let mut new_lex_session = LexSession::new();
+    let mut new_lex_session = LexSession::new(compiler_option.clone());
 
     let mut res = from_tokens(tokens, &mut parse_session, &mut new_lex_session);
 

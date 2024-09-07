@@ -39,7 +39,7 @@ impl FileCache {
     }
 
     // TODO: lifetime of `self` and `[u8]` are different,
-    // but the compiler doesn't know that -> this causes VERY VERY SERIOUS problems VERY VERY OFTEN
+    // but the rustc doesn't know that -> this causes VERY VERY SERIOUS problems VERY VERY OFTEN
     pub fn get(&mut self, hash: FileHash) -> Option<&[u8]> {
         debug_assert_eq!(
             self.data.iter().map(

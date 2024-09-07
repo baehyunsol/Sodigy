@@ -54,6 +54,8 @@ Error messages in Rust... for inspiration :)
   - ``` type annotations needed ```
     - when the compiler doesn't know the type of `x.iter().collect()`
   - ``` refutable pattern in local binding ```
+  - ``` variable `x` is not bound in all patterns ```
+    - multiple patterns are connected via `or`, and a pattern has name `x` while another does not
 
 ---
 

@@ -1,5 +1,6 @@
 use super::ParseSession;
 use crate::{ParseError, ParseWarning, TokenTree};
+use sodigy_config::CompilerOption;
 use sodigy_endec::{
     Endec,
     EndecError,
@@ -7,7 +8,7 @@ use sodigy_endec::{
 };
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
-use sodigy_session::{SessionDependency, SessionSnapshot};
+use sodigy_session::SessionSnapshot;
 use sodigy_span::SpanRange;
 use std::collections::HashMap;
 
@@ -20,8 +21,9 @@ impl Endec for ParseSession {
         self.warnings.encode(buffer, session);
         self.unexpanded_macros.encode(buffer, session);
         self.snapshots.encode(buffer, session);
-        self.dependencies.encode(buffer, session);
+        self.compiler_option.encode(buffer, session);
         self.previous_errors.encode(buffer, session);
+        self.previous_warnings.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -34,8 +36,9 @@ impl Endec for ParseSession {
             interner: InternSession::new(),
             unexpanded_macros: HashMap::<InternedString, SpanRange>::decode(buffer, index, session)?,
             snapshots: Vec::<SessionSnapshot>::decode(buffer, index, session)?,
-            dependencies: Vec::<SessionDependency>::decode(buffer, index, session)?,
+            compiler_option: CompilerOption::decode(buffer, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
+            previous_warnings: Vec::<UniversalError>::decode(buffer, index, session)?,
         })
     }
 }

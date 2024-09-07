@@ -1,11 +1,11 @@
 use crate::error::{AstError, AstErrorKind};
 use crate::stmt::Stmt;
 use crate::warn::{AstWarning, AstWarningKind};
+use sodigy_config::CompilerOption;
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_parse::ParseSession;
 use sodigy_session::{
-    SessionDependency,
     SessionSnapshot,
     SodigySession,
 };
@@ -16,8 +16,9 @@ pub struct AstSession {
     stmts: Vec<Stmt>,
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
-    dependencies: Vec<SessionDependency>,
+    compiler_option: CompilerOption,
     previous_errors: Vec<UniversalError>,
+    previous_warnings: Vec<UniversalError>,
 }
 
 impl AstSession {
@@ -28,9 +29,14 @@ impl AstSession {
             stmts: vec![],
             interner: session.get_interner_cloned(),
             snapshots: vec![],
-            dependencies: session.get_dependencies().clone(),
-            previous_errors: session.get_all_errors_and_warnings(),
+            compiler_option: session.get_compiler_option().clone(),
+            previous_errors: session.get_all_errors(),
+            previous_warnings: session.get_all_warnings(),
         }
+    }
+
+    pub fn get_or_pattern_expansion_limit(&self) -> usize {
+        self.compiler_option.or_pattern_expansion_limit
     }
 }
 
@@ -59,6 +65,14 @@ impl SodigySession<AstError, AstErrorKind, AstWarning, AstWarningKind, Vec<Stmt>
         &mut self.previous_errors
     }
 
+    fn get_previous_warnings(&self) -> &Vec<UniversalError> {
+        &self.previous_warnings
+    }
+
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_warnings
+    }
+
     fn get_results(&self) -> &Vec<Stmt> {
         &self.stmts
     }
@@ -79,11 +93,7 @@ impl SodigySession<AstError, AstErrorKind, AstWarning, AstWarningKind, Vec<Stmt>
         &mut self.snapshots
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency> {
-        &self.dependencies
-    }
-
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
-        &mut self.dependencies
+    fn get_compiler_option(&self) -> &CompilerOption {
+        &self.compiler_option
     }
 }

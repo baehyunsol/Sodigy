@@ -136,9 +136,7 @@ impl ClapError {
     }
 
     // `start` is inclusive, and `end` is exclusive
-    pub fn integer_range_error(start: BigInt, end: BigInt, given: BigInt, span: SpanRange) -> Self {
-        debug_assert!(start < end && (given < start || end <= given));
-
+    pub fn integer_range_error(start: Option<BigInt>, end: Option<BigInt>, given: BigInt, span: SpanRange) -> Self {
         ClapError {
             kind: ClapErrorKind::IntegerRangeError {
                 start, end, given,
@@ -187,8 +185,8 @@ pub enum ClapErrorKind {
     // `None` indicates a cli option that does not have a flag: input_path
     SameFlagMultipleTimes(Option<Flag>),
     IntegerRangeError {
-        start: BigInt,  // inclusive
-        end: BigInt,    // exclusive
+        start: Option<BigInt>,  // inclusive
+        end: Option<BigInt>,    // exclusive
         given: BigInt,
     },
 }
@@ -215,7 +213,9 @@ impl SodigyErrorKind for ClapErrorKind {
             },
             ClapErrorKind::IncompatibleFlags(flag1, flag2) => format!("`{}` and `{}` are incompatible", flag1.render_error(), flag2.render_error()),
             ClapErrorKind::IntegerRangeError { start, end, given } => format!(
-                "expected an integer in range {start}..{end}, got {given}"
+                "expected an integer in range {}..{}, got {given}",
+                start.as_ref().map(|n| n.to_string()).unwrap_or(String::new()),
+                end.as_ref().map(|n| n.to_string()).unwrap_or(String::new()),
             ),
         }
     }

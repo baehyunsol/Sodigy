@@ -9,9 +9,126 @@ use crate::{
 };
 use crate::session::EncodedInternal;
 use hmath::{BigInt, Ratio};
+use sodigy_config::{
+    CompilerOption,
+    CompilerOutputFormat,
+    DumpType,
+    SpecialOutput,
+};
 use sodigy_intern::{InternedString, InternedNumeric};
 use sodigy_keyword::Keyword;
 use sodigy_number::SodigyNumber;
+use std::collections::HashMap;
+
+impl Endec for CompilerOption {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.do_not_compile_and_do_this.encode(buffer, session);
+        self.input_path.encode(buffer, session);
+        self.output_path.encode(buffer, session);
+        self.output_format.encode(buffer, session);
+        self.show_warnings.encode(buffer, session);
+        self.dump_hir_to.encode(buffer, session);
+        self.dump_mir_to.encode(buffer, session);
+        self.dump_type.encode(buffer, session);
+        self.library_paths.encode(buffer, session);
+        self.verbosity.encode(buffer, session);
+        self.or_pattern_expansion_limit.encode(buffer, session);
+        self.raw_input.encode(buffer, session);
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(CompilerOption {
+            do_not_compile_and_do_this: Option::<SpecialOutput>::decode(buffer, index, session)?,
+            input_path: Option::<String>::decode(buffer, index, session)?,
+            output_path: Option::<String>::decode(buffer, index, session)?,
+            output_format: CompilerOutputFormat::decode(buffer, index, session)?,
+            show_warnings: bool::decode(buffer, index, session)?,
+            dump_hir_to: Option::<String>::decode(buffer, index, session)?,
+            dump_mir_to: Option::<String>::decode(buffer, index, session)?,
+            dump_type: DumpType::decode(buffer, index, session)?,
+            library_paths: Option::<HashMap<String, String>>::decode(buffer, index, session)?,
+            verbosity: u8::decode(buffer, index, session)?,
+            or_pattern_expansion_limit: usize::decode(buffer, index, session)?,
+            raw_input: Option::<Vec<u8>>::decode(buffer, index, session)?,
+        })
+    }
+}
+
+impl Endec for SpecialOutput {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
+        match self {
+            SpecialOutput::HelpMessage => { buffer.push(0); },
+            SpecialOutput::VersionInfo => { buffer.push(1); },
+        }
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
+            Some(n) => {
+                *index += 1;
+
+                match *n {
+                    0 => Ok(SpecialOutput::HelpMessage),
+                    1 => Ok(SpecialOutput::VersionInfo),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
+                }
+            },
+            None => Err(EndecError::eof()),
+        }
+    }
+}
+
+impl Endec for CompilerOutputFormat {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
+        match self {
+            CompilerOutputFormat::None => { buffer.push(0); },
+            CompilerOutputFormat::Hir => { buffer.push(1); },
+            CompilerOutputFormat::Mir => { buffer.push(2); },
+            CompilerOutputFormat::Binary => { buffer.push(3); },
+        }
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
+            Some(n) => {
+                *index += 1;
+
+                match *n {
+                    0 => Ok(CompilerOutputFormat::None),
+                    1 => Ok(CompilerOutputFormat::Hir),
+                    2 => Ok(CompilerOutputFormat::Mir),
+                    3 => Ok(CompilerOutputFormat::Binary),
+                    4.. => Err(EndecError::invalid_enum_variant(*n)),
+                }
+            },
+            None => Err(EndecError::eof()),
+        }
+    }
+}
+
+impl Endec for DumpType {
+    fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
+        match self {
+            DumpType::Json => { buffer.push(0); },
+            DumpType::String => { buffer.push(1); },
+        }
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, _: &mut EndecSession) -> Result<Self, EndecError> {
+        match buffer.get(*index) {
+            Some(n) => {
+                *index += 1;
+
+                match *n {
+                    0 => Ok(DumpType::Json),
+                    1 => Ok(DumpType::String),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
+                }
+            },
+            None => Err(EndecError::eof()),
+        }
+    }
+}
 
 impl Endec for InternedString {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {

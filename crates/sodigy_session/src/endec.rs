@@ -1,19 +1,5 @@
-use crate::{SessionDependency, SessionSnapshot};
+use crate::SessionSnapshot;
 use sodigy_endec::{Endec, EndecError, EndecSession};
-
-impl Endec for SessionDependency {
-    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
-        self.path.encode(buffer, session);
-        self.last_modified_at.encode(buffer, session);
-    }
-
-    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(SessionDependency {
-            path: String::decode(buffer, index, session)?,
-            last_modified_at: u64::decode(buffer, index, session)?,
-        })
-    }
-}
 
 impl Endec for SessionSnapshot {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {

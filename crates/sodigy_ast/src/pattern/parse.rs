@@ -4,7 +4,7 @@ use crate::error::{AstError, AstErrorKind};
 use crate::parse::{parse_type_def};
 use crate::session::AstSession;
 use crate::tokens::Tokens;
-use crate::utils::{try_into_char, IntoCharErr};
+use crate::utils::{IntoCharError, try_into_char};
 use crate::warn::AstWarning;
 use smallvec::SmallVec;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
@@ -70,7 +70,14 @@ pub fn parse_pattern_full(
         lhs.set_ty(ty);
     }
 
-    let unfolded = unfold_or_patterns(&lhs);
+    let or_pattern_expansion_limit = session.get_or_pattern_expansion_limit();
+    let unfolded = match unfold_or_patterns(&lhs, or_pattern_expansion_limit) {
+        Ok(u) => u,
+        Err(_) => {
+            session.push_error(AstError::excessive_or_pattern(lhs.span, or_pattern_expansion_limit));
+            return Err(());
+        },
+    };
 
     if unfolded.len() == 1 {
         Ok(unfolded[0].clone())
@@ -527,7 +534,7 @@ fn parse_pattern_value(
                         Err(e) => {
                             session.push_error(
                                 e.into_ast_error(*span).set_error_context(
-                                    ErrorContext::ParsingPattern
+                                    ErrorContext::ParsingPattern,
                                 ).to_owned()
                             );
                             return Err(());
@@ -537,8 +544,8 @@ fn parse_pattern_value(
 
                 else {
                     session.push_error(
-                        IntoCharErr::TooLong.into_ast_error(*span).set_error_context(
-                            ErrorContext::ParsingPattern
+                        IntoCharError::TooLong.into_ast_error(*span).set_error_context(
+                            ErrorContext::ParsingPattern,
                         ).to_owned()
                     );
                     return Err(());
@@ -691,7 +698,10 @@ fn parse_comma_separated_patterns(
 // 1. It has tons of `clone`s, vector allocation and redundant searches.
 // 2. It naively unfolds all the patterns, which easily gets very big.
 //    For example `((1 | 2), (3 | 4), (5 | 6), (7 | 8))` would be unfolded to 16 patterns.
-fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
+fn unfold_or_patterns(
+    p: &Pattern,
+    length_limit: usize,  // it returns Err if it exceeds limit
+) -> Result<Vec<Pattern>, ()> {
     match &p.kind {
         PatternKind::Identifier(_)
         | PatternKind::Number(_)
@@ -700,20 +710,26 @@ fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
         | PatternKind::Binding(_)
         | PatternKind::Path(_)
         | PatternKind::Wildcard
-        | PatternKind::Shorthand => vec![p.clone()],
+        | PatternKind::Shorthand => Ok(vec![p.clone()]),
         PatternKind::Range {
             from,
             to,
             inclusive,
             is_string,
         } => {
-            let from = from.as_ref().map(|pattern| unfold_or_patterns(pattern.as_ref()));
-            let to = to.as_ref().map(|pattern| unfold_or_patterns(pattern.as_ref()));
+            let from = match from.as_ref() {
+                Some(pattern) => Some(unfold_or_patterns(pattern.as_ref(), length_limit)?),
+                None => None,
+            };
+            let to = match to.as_ref() {
+                Some(pattern) => Some(unfold_or_patterns(pattern.as_ref(), length_limit)?),
+                None => None,
+            };
             let from_unfolded = from.as_ref().map(|patterns| patterns.len() > 1).unwrap_or(false);
             let to_unfolded = to.as_ref().map(|patterns| patterns.len() > 1).unwrap_or(false);
 
             if !from_unfolded && !to_unfolded {
-                vec![p.clone()]
+                Ok(vec![p.clone()])
             }
 
             else {
@@ -730,6 +746,10 @@ fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
 
                 let mut result = Vec::with_capacity(from.len() * to.len());
 
+                if result.capacity() > length_limit {
+                    return Err(());
+                }
+
                 for f in from.iter() {
                     for t in to.iter() {
                         result.push(Pattern {
@@ -744,52 +764,58 @@ fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
                     }
                 }
 
-                result
+                Ok(result)
             }
         },
         p_kind @ (PatternKind::Tuple(patterns)
         | PatternKind::List(patterns)) => {
             let is_tuple = matches!(p_kind, PatternKind::Tuple(_));
             let mut has_recursive_or_pattern = false;
-            let unfolded_patterns: Vec<Vec<Pattern>> = patterns.iter().map(
-                |pattern| {
-                    let u = unfold_or_patterns(pattern);
+            let mut unfolded_patterns = Vec::with_capacity(patterns.len());
 
-                    if u.len() > 1 {
-                        has_recursive_or_pattern = true;
-                    }
+            for pattern in patterns.iter() {
+                let u = unfold_or_patterns(pattern, length_limit)?;
 
-                    u
+                if u.len() > 1 {
+                    has_recursive_or_pattern = true;
                 }
-            ).collect();
+
+                unfolded_patterns.push(u);
+            }
 
             if has_recursive_or_pattern {
-                let unfolded_patterns = permutation(&unfolded_patterns);
+                let unfolded_patterns = permutation(&unfolded_patterns, length_limit)?;
 
-                unfolded_patterns.into_iter().map(
+                Ok(unfolded_patterns.into_iter().map(
                     |patterns| Pattern {
                         kind: if is_tuple { PatternKind::Tuple(patterns) } else { PatternKind::List(patterns) },
                         ..p.clone()
                     }
-                ).collect()
+                ).collect())
             }
 
             else {
-                vec![p.clone()]
+                Ok(vec![p.clone()])
             }
         },
         PatternKind::Struct { .. } => todo!(),
         PatternKind::TupleStruct { .. } => todo!(),
         PatternKind::OrRaw(left, right) => {
-            let left = unfold_or_patterns(left.as_ref());
-            let right = unfold_or_patterns(right.as_ref());
+            let left = unfold_or_patterns(left.as_ref(), length_limit)?;
+            let right = unfold_or_patterns(right.as_ref(), length_limit)?;
 
-            vec![
-                left,
-                right,
-            ].concat()
+            if left.len() + right.len() > length_limit {
+                Err(())
+            }
+
+            else {
+                Ok(vec![
+                    left,
+                    right,
+                ].concat())
+            }
         },
-        PatternKind::Or(patterns) => patterns.clone(),
+        PatternKind::Or(patterns) => Ok(patterns.clone()),
     }
 }
 
@@ -797,8 +823,15 @@ fn unfold_or_patterns(p: &Pattern) -> Vec<Pattern> {
 //   1. It's too naive
 //   2. Is there any better place for this function?
 // [[1, 2, 3], [4, 5], [6]] -> [[1, 4, 6], [2, 4, 6], [3, 4, 6], [1, 5, 6], [2, 5, 6], [3, 5, 6]]
-fn permutation<T: Clone>(s: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+fn permutation<T: Clone>(
+    s: &Vec<Vec<T>>,
+    length_limit: usize,  // it returns Err if it exceeds the limit
+) -> Result<Vec<Vec<T>>, ()> {
     let mut result = vec![vec![]];
+
+    if s.iter().map(|e| e.len()).product::<usize>() > length_limit {
+        return Err(());
+    }
 
     for v in s.iter() {
         let mut new_result = vec![];
@@ -814,5 +847,5 @@ fn permutation<T: Clone>(s: &Vec<Vec<T>>) -> Vec<Vec<T>> {
         result = new_result;
     }
 
-    result
+    Ok(result)
 }

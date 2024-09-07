@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sodigy_config = { path = "../sodigy_config" }
 sodigy_files = { path = "../sodigy_files" }
 sodigy_endec = { path = "../sodigy_endec" }
 sodigy_error = { path = "../sodigy_error" }

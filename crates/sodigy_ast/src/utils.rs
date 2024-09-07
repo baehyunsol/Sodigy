@@ -42,16 +42,16 @@ pub(crate) fn merge_dotted_names(name1: &DottedNames, name2: &DottedNames) -> Do
     name1.iter().chain(name2.iter()).map(|id| *id).collect()
 }
 
-pub(crate) fn try_into_char(s: &[u8]) -> Result<char, IntoCharErr> {
+pub(crate) fn try_into_char(s: &[u8]) -> Result<char, IntoCharError> {
     // let's not call `.to_vec` for lengthy strings
     if s.len() > 4 {
-        return Err(IntoCharErr::TooLong);
+        return Err(IntoCharError::TooLong);
     }
 
     let s = String::from_utf8(s.to_vec());
 
     if let Err(_) = s {
-        return Err(IntoCharErr::InvalidUtf8);
+        return Err(IntoCharError::InvalidUtf8);
     }
 
     let s = s.unwrap();
@@ -62,27 +62,27 @@ pub(crate) fn try_into_char(s: &[u8]) -> Result<char, IntoCharErr> {
             let c = c;
 
             if chars.next().is_some() {
-                return Err(IntoCharErr::TooLong);
+                return Err(IntoCharError::TooLong);
             }
 
             Ok(c)
         },
-        None => Err(IntoCharErr::EmptyString),
+        None => Err(IntoCharError::EmptyString),
     }
 }
 
-pub(crate) enum IntoCharErr {
+pub(crate) enum IntoCharError {
     TooLong,
     InvalidUtf8,
     EmptyString,
 }
 
-impl IntoCharErr {
+impl IntoCharError {
     pub fn into_ast_error(&self, span: SpanRange) -> AstError {
         match self {
-            IntoCharErr::TooLong => AstError::too_long_char_literal(span),
-            IntoCharErr::InvalidUtf8 => AstError::invalid_utf8(span),
-            IntoCharErr::EmptyString => AstError::empty_char_literal(span),
+            IntoCharError::TooLong => AstError::too_long_char_literal(span),
+            IntoCharError::InvalidUtf8 => AstError::invalid_utf8(span),
+            IntoCharError::EmptyString => AstError::empty_char_literal(span),
         }
     }
 }

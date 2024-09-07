@@ -76,6 +76,7 @@ fn very_long_file() {
         dump_type: DumpType::Json,
         show_warnings: true,
         verbosity: 0,
+        or_pattern_expansion_limit: 32,
         raw_input: None,
         library_paths: None,
     });

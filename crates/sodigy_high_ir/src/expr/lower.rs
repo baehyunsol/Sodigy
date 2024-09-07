@@ -386,8 +386,6 @@ pub fn lower_ast_expr(
                                 // `return_ty` of `ast::LetKind::Callable` is that of the function,
                                 // not this value itself: `Int` vs `Func(Int, Int, Int)`
                                 None,
-
-                                // TODO: is this REAL?
                                 /* is_real */ true,
                             ));
                         },
@@ -883,8 +881,8 @@ pub fn lower_ast_expr(
                 let mut name_bindings_buffer = vec![];
                 pattern.get_name_bindings(&mut name_bindings_buffer);
 
-                for err in check_names_in_or_patterns(&pattern) {
-                    session.push_error(err);
+                for error in check_names_in_or_patterns(&pattern) {
+                    session.push_error(error);
                 }
 
                 for def in name_bindings_buffer.iter() {

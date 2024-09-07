@@ -86,8 +86,8 @@ pub fn parse_str(
                         let mut tmp_parse_session = ParseSession::from_lex_session(&lex_session);
 
                         if let Err(()) = from_tokens(&tokens, &mut tmp_parse_session, lex_session) {
-                            for err in tmp_parse_session.get_errors() {
-                                parse_session.push_error(err.clone());
+                            for error in tmp_parse_session.get_errors() {
+                                parse_session.push_error(error.clone());
                             }
 
                             has_error = true;

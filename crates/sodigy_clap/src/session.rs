@@ -4,7 +4,6 @@ use crate::warn::{ClapWarning, ClapWarningKind};
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{
-    SessionDependency,
     SessionSnapshot,
     SodigySession,
 };
@@ -15,10 +14,9 @@ pub struct ClapSession {
     pub(crate) result: CompilerOption,
     pub(crate) interner: InternSession,
     pub(crate) snapshots: Vec<SessionSnapshot>,
-    pub(crate) dependencies: Vec<SessionDependency>,
 
-    // must be empty because it doesn't have a previous session
-    pub(crate) previous_errors: Vec<UniversalError>,
+    // it's used for the return value of `previous_errors` and `previous_warnings`
+    empty_vector: Vec<UniversalError>,
 }
 
 impl ClapSession {
@@ -45,8 +43,7 @@ impl Default for ClapSession {
             result: CompilerOption::default(),
             interner: InternSession::new(),
             snapshots: vec![],
-            dependencies: vec![],
-            previous_errors: vec![],
+            empty_vector: vec![],
         }
     }
 }
@@ -69,11 +66,19 @@ impl SodigySession<ClapError, ClapErrorKind, ClapWarning, ClapWarningKind, Compi
     }
 
     fn get_previous_errors(&self) -> &Vec<UniversalError> {
-        &self.previous_errors
+        &self.empty_vector
     }
 
     fn get_previous_errors_mut(&mut self) -> &mut Vec<UniversalError> {
-        &mut self.previous_errors
+        &mut self.empty_vector
+    }
+
+    fn get_previous_warnings(&self) -> &Vec<UniversalError> {
+        &self.empty_vector
+    }
+
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.empty_vector
     }
 
     fn get_results(&self) -> &CompilerOption {
@@ -96,11 +101,8 @@ impl SodigySession<ClapError, ClapErrorKind, ClapWarning, ClapWarningKind, Compi
         &mut self.snapshots
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency> {
-        &self.dependencies
-    }
-
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
-        &mut self.dependencies
+    // `CompilerOption` is not initialized yet
+    fn get_compiler_option(&self) -> &CompilerOption {
+        unreachable!()
     }
 }

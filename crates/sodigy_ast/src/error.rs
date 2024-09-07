@@ -217,6 +217,14 @@ impl AstError {
         }
     }
 
+    pub fn excessive_or_pattern(pattern_span: SpanRange, limit: usize) -> Self {
+        AstError {
+            kind: AstErrorKind::ExcessiveOrPattern { limit },
+            spans: smallvec![pattern_span],
+            extra: ExtraErrInfo::none(),
+        }
+    }
+
     pub fn invalid_utf8(span: SpanRange) -> Self {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
@@ -282,6 +290,7 @@ pub enum AstErrorKind {
     },
     NameBindingNotAllowed,
     TypeAnnoNotAllowed,
+    ExcessiveOrPattern { limit: usize },
     InvalidUtf8,
 }
 
@@ -320,6 +329,7 @@ impl SodigyErrorKind for AstErrorKind {
             },
             AstErrorKind::NameBindingNotAllowed => String::from("name binding not allowed in this place"),
             AstErrorKind::TypeAnnoNotAllowed => String::from("type annotation not allowed in this place"),
+            AstErrorKind::ExcessiveOrPattern { .. } => String::from("excessive use of `|` in a pattern"),
             AstErrorKind::InvalidUtf8 => String::from("invalid utf-8"),
         }
     }
@@ -358,6 +368,7 @@ impl SodigyErrorKind for AstErrorKind {
                 format!("{this} attribute{s} {does}n't do anything.")
             },
             AstErrorKind::NoGenericsAllowed => String::from("Generic parameters are only allowed in top-level statements."),
+            AstErrorKind::ExcessiveOrPattern { limit } => format!("The compiler naively expands `|` operators in patterns, and it might lead to an exponential blow-up. The current limit is {limit} and you can adjust it with `--or-pattern-limit` command-line option."),
             AstErrorKind::MultipleShorthandsInOnePattern
             | AstErrorKind::InvalidUtf8
             | AstErrorKind::NameBindingNotAllowed
@@ -383,7 +394,8 @@ impl SodigyErrorKind for AstErrorKind {
             AstErrorKind::StrandedAttribute { .. } => 13,
             AstErrorKind::NameBindingNotAllowed => 14,
             AstErrorKind::TypeAnnoNotAllowed => 15,
-            AstErrorKind::InvalidUtf8 => 16,
+            AstErrorKind::ExcessiveOrPattern { .. } => 16,
+            AstErrorKind::InvalidUtf8 => 17,
         }
     }
 }

@@ -247,7 +247,10 @@ pub enum PatternKind {
     // it's a compiler bug if this variant is found in other contexts
     OrRaw(Box<Pattern>, Box<Pattern>),
 
-    // It's guaranteed to be non-recursive.
+    // invariants regarding `or` patterns
+    // 1. `Or(vec)` has at least 2 patterns
+    // 2. Recursive `or` patterns are all unfolded
+    // 3. The other variants cannot contain this variant
     Or(Vec<Pattern>),
 }
 

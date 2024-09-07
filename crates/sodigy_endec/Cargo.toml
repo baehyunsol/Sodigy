@@ -9,6 +9,7 @@ edition = "2021"
 hmath = "0.1.17"
 json = "0.12.4"
 smallvec = "1.13.1"
+sodigy_config = { path = "../sodigy_config" }
 sodigy_files = { path = "../sodigy_files" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_keyword = { path = "../sodigy_keyword" }

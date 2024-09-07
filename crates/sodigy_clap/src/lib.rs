@@ -84,8 +84,8 @@ pub fn parse_cli_args() -> ClapSession {
 
                     if verbosity < MIN_VERBOSITY as i64 || verbosity > MAX_VERBOSITY as i64 {
                         errors.push(ClapError::integer_range_error(
-                            BigInt::from(MIN_VERBOSITY),
-                            BigInt::from(MAX_VERBOSITY).add_i32(1),
+                            Some(BigInt::from(MIN_VERBOSITY)),
+                            Some(BigInt::from(MAX_VERBOSITY).add_i32(1)),
                             BigInt::from(verbosity),
                             arg_span.unwrap(),
                         ));
@@ -93,6 +93,22 @@ pub fn parse_cli_args() -> ClapSession {
 
                     else {
                         result.verbosity = verbosity as u8;
+                    }
+                },
+                Flag::OrPatternLimit => {
+                    let value = arg.unwrap().unwrap_int();
+
+                    if value < 0 || value > u32::MAX as i64 {
+                        errors.push(ClapError::integer_range_error(
+                            Some(BigInt::from(0)),
+                            Some(BigInt::from(u32::MAX).add_i32(1)),
+                            BigInt::from(value),
+                            arg_span.unwrap(),
+                        ));
+                    }
+
+                    else {
+                        result.or_pattern_expansion_limit = value as usize;
                     }
                 },
                 Flag::Hir => {

@@ -5,6 +5,7 @@ use crate::module::Module;
 use crate::warn::HirWarning;
 use log::info;
 use sodigy_ast::IdentWithSpan;
+use sodigy_config::CompilerOption;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -15,7 +16,6 @@ use sodigy_endec::{
 };
 use sodigy_error::UniversalError;
 use sodigy_intern::InternedString;
-use sodigy_session::SessionDependency;
 use std::collections::HashMap;
 
 impl Endec for HirSession {
@@ -25,8 +25,9 @@ impl Endec for HirSession {
         self.func_defs.encode(buffer, session);
         self.imported_names.encode(buffer, session);
         self.modules.encode(buffer, session);
-        self.dependencies.encode(buffer, session);
+        self.compiler_option.encode(buffer, session);
         self.previous_errors.encode(buffer, session);
+        self.previous_warnings.encode(buffer, session);
 
         // There's no point in encoding the other fields
     }
@@ -39,9 +40,10 @@ impl Endec for HirSession {
             func_defs: HashMap::<InternedString, Func>::decode(buffer, index, session)?,
             imported_names: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
             modules: Vec::<Module>::decode(buffer, index, session)?,
-            dependencies: Vec::<SessionDependency>::decode(buffer, index, session)?,
+            compiler_option: CompilerOption::decode(buffer, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
-            ..HirSession::new()
+            previous_warnings: Vec::<UniversalError>::decode(buffer, index, session)?,
+            ..HirSession::new(None)
         })
     }
 }

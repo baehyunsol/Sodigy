@@ -58,8 +58,8 @@ impl TokenKind {
                 Ok(n) => match i64::try_from(n.clone()) {
                     Ok(n) => Ok(Arg::Integer(n)),
                     Err(_) => Err(ClapError::integer_range_error(
-                        BigInt::from(i64::MIN),
-                        BigInt::from(i64::MAX).add_i32(1),
+                        Some(BigInt::from(i64::MIN)),
+                        Some(BigInt::from(i64::MAX).add_i32(1)),
                         n,
                         token.span,
                     )),

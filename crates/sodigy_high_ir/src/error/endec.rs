@@ -54,9 +54,13 @@ impl Endec for HirErrorKind {
             HirErrorKind::InclusiveStringPattern => { buffer.push(8); },
             HirErrorKind::NameBindingNotAllowedHere => { buffer.push(9); },
             HirErrorKind::TyAnnoNotAllowedHere => { buffer.push(10); },
-            HirErrorKind::TyError => { buffer.push(11); },
+            HirErrorKind::NameNotBoundInAllPatterns(name) => {
+                buffer.push(11);
+                name.encode(buffer, session);
+            },
+            HirErrorKind::TyError => { buffer.push(12); },
             HirErrorKind::TODO(s) => {
-                buffer.push(12);
+                buffer.push(13);
                 s.encode(buffer, session);
             },
         }
@@ -82,9 +86,10 @@ impl Endec for HirErrorKind {
                     8 => Ok(HirErrorKind::InclusiveStringPattern),
                     9 => Ok(HirErrorKind::NameBindingNotAllowedHere),
                     10 => Ok(HirErrorKind::TyAnnoNotAllowedHere),
-                    11 => Ok(HirErrorKind::TyError),
-                    12 => Ok(HirErrorKind::TODO(String::decode(buffer, index, session)?)),
-                    13.. => Err(EndecError::invalid_enum_variant(*n)),
+                    11 => Ok(HirErrorKind::NameNotBoundInAllPatterns(InternedString::decode(buffer, index, session)?)),
+                    12 => Ok(HirErrorKind::TyError),
+                    13 => Ok(HirErrorKind::TODO(String::decode(buffer, index, session)?)),
+                    14.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

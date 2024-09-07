@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 log = "0.4.8"
 smallvec = "1.13.1"
+sodigy_config = { path = "../sodigy_config" }
 sodigy_endec = { path = "../sodigy_endec" }
 sodigy_error = { path = "../sodigy_error" }
 sodigy_intern = { path = "../sodigy_intern" }

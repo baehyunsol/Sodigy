@@ -10,6 +10,9 @@ use crate::{
     let_::Let,
     MatchArm,
     ops::{
+        InfixOp,
+        PostfixOp,
+        PrefixOp,
         call_binding_power,
         index_binding_power,
         infix_binding_power,
@@ -17,9 +20,6 @@ use crate::{
         postfix_binding_power,
         prefix_binding_power,
         struct_init_binding_power,
-        InfixOp,
-        PostfixOp,
-        PrefixOp,
     },
     pattern::parse_pattern_full,
     ScopeBlock,
@@ -38,7 +38,11 @@ use crate::{
     StructInitDef,
     tokens::Tokens, Token, TokenKind,
     TypeDef,
-    utils::{format_string_into_expr, try_into_char, IntoCharErr},
+    utils::{
+        IntoCharError,
+        format_string_into_expr,
+        try_into_char,
+    },
     value::ValueKind,
 };
 use log::{debug, info};
@@ -573,7 +577,7 @@ pub fn parse_expr(
 
                 else {
                     session.push_error(
-                        IntoCharErr::TooLong.into_ast_error(span).try_set_error_context(
+                        IntoCharError::TooLong.into_ast_error(span).try_set_error_context(
                             error_context,
                         ).to_owned()
                     );

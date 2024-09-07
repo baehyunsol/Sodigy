@@ -3,11 +3,11 @@ use crate::func::Func;
 use crate::module::Module;
 use crate::warn::{HirWarning, HirWarningKind};
 use sodigy_ast::{AstSession, IdentWithSpan};
+use sodigy_config::CompilerOption;
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_prelude::PRELUDES;
 use sodigy_session::{
-    SessionDependency,
     SessionOutput,
     SessionSnapshot,
     SodigySession,
@@ -40,10 +40,10 @@ pub struct HirSession {
     pub(crate) modules: Vec<Module>,
 
     snapshots: Vec<SessionSnapshot>,
-    dependencies: Vec<SessionDependency>,
+    compiler_option: CompilerOption,
 
-    // errors and warnings from `AstSession`
     previous_errors: Vec<UniversalError>,
+    previous_warnings: Vec<UniversalError>,
 }
 
 impl HirSession {
@@ -69,12 +69,13 @@ impl HirSession {
             imported_names: vec![],
             modules: vec![],
             snapshots: vec![],
-            dependencies: session.get_dependencies().clone(),
-            previous_errors: session.get_all_errors_and_warnings(),
+            compiler_option: session.get_compiler_option().clone(),
+            previous_errors: session.get_all_errors(),
+            previous_warnings: session.get_all_warnings(),
         }
     }
 
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(compiler_option: Option<CompilerOption>) -> Self {
         let mut interner = InternSession::new();
         let mut tmp_names = vec![];
 
@@ -96,8 +97,9 @@ impl HirSession {
             imported_names: vec![],
             modules: vec![],
             snapshots: vec![],
-            dependencies: vec![],
+            compiler_option: compiler_option.unwrap_or_else(|| CompilerOption::default()),
             previous_errors: vec![],
+            previous_warnings: vec![],
         }
     }
 
@@ -219,6 +221,14 @@ impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<I
         &mut self.previous_errors
     }
 
+    fn get_previous_warnings(&self) -> &Vec<UniversalError> {
+        &self.previous_warnings
+    }
+
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_warnings
+    }
+
     fn get_results(&self) -> &HashMap<InternedString, Func> {
         &self.func_defs
     }
@@ -239,12 +249,8 @@ impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<I
         &mut self.snapshots
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency> {
-        &self.dependencies
-    }
-
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
-        &mut self.dependencies
+    fn get_compiler_option(&self) -> &CompilerOption {
+        &self.compiler_option
     }
 }
 

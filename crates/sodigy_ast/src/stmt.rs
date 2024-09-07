@@ -1,8 +1,6 @@
 use crate::{
-    ArgDef,
     DottedNames,
     Expr,
-    GenericDef,
     IdentWithSpan,
     let_::Let,
     TypeDef,
@@ -49,15 +47,6 @@ impl StmtKind {
             | StmtKind::DocComment(_) => None,
         }
     }
-}
-
-pub struct FuncDef {
-    pub name: IdentWithSpan,
-    pub generics: Vec<GenericDef>,
-    pub args: Option<Vec<ArgDef>>,
-    pub return_ty: Option<TypeDef>,
-    pub return_val: Expr,
-    pub uid: Uid,
 }
 
 // `import a, b, c.d, e as f from x.y;`

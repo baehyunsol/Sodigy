@@ -50,6 +50,7 @@ pub enum PatternKind {
     Wildcard,   // _
     Shorthand,  // ..
 
+    // invariant: len > 1
     Or(Vec<Pattern>),
 }
 

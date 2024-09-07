@@ -2,10 +2,10 @@ use crate::error::{LexError, LexErrorKind};
 use crate::token::{Token, TokenKind};
 use crate::warn::{LexWarning, LexWarningKind};
 
+use sodigy_config::CompilerOption;
 use sodigy_error::UniversalError;
 use sodigy_intern::InternSession;
 use sodigy_session::{
-    SessionDependency,
     SessionSnapshot,
     SodigySession,
 };
@@ -18,22 +18,24 @@ pub struct LexSession {
     warnings: Vec<LexWarning>,
     interner: InternSession,
     snapshots: Vec<SessionSnapshot>,
-    dependencies: Vec<SessionDependency>,
+    compiler_option: CompilerOption,
 
     // must be empty because it doesn't have a previous session
     previous_errors: Vec<UniversalError>,
+    previous_warnings: Vec<UniversalError>,
 }
 
 impl LexSession {
-    pub fn new() -> Self {
+    pub fn new(compiler_option: CompilerOption) -> Self {
         LexSession {
             tokens: vec![],
             errors: vec![],
             warnings: vec![],
             interner: InternSession::new(),
             snapshots: vec![],
-            dependencies: vec![],
+            compiler_option,
             previous_errors: vec![],
+            previous_warnings: vec![],
         }
     }
 
@@ -86,6 +88,14 @@ impl SodigySession<LexError, LexErrorKind, LexWarning, LexWarningKind, Vec<Token
         &mut self.previous_errors
     }
 
+    fn get_previous_warnings(&self) -> &Vec<UniversalError> {
+        &self.previous_warnings
+    }
+
+    fn get_previous_warnings_mut(&mut self) -> &mut Vec<UniversalError> {
+        &mut self.previous_warnings
+    }
+
     fn get_results(&self) -> &Vec<Token> {
         &self.tokens
     }
@@ -106,11 +116,7 @@ impl SodigySession<LexError, LexErrorKind, LexWarning, LexWarningKind, Vec<Token
         &mut self.snapshots
     }
 
-    fn get_dependencies(&self) -> &Vec<SessionDependency> {
-        &self.dependencies
-    }
-
-    fn get_dependencies_mut(&mut self) -> &mut Vec<SessionDependency> {
-        &mut self.dependencies
+    fn get_compiler_option(&self) -> &CompilerOption {
+        &self.compiler_option
     }
 }
