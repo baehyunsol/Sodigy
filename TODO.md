@@ -26,24 +26,6 @@ std macros
 - `@[generate](iterate 3..10; filter x % 2 == 0; map x * x;)`
   - list comprehension
 
-the compiler tries to find the definitions of the macros at...
-
-1. compiler-builtin macros
-2. `sodigy.toml` file
-  - one cannot `import` macros because macros are expanded before the name resolution
-
-name issues with `@[map]`: how does it know the name of std.hash_map? what if the preluded name is overloaded?
-- how about protecting absolute paths? so that the full name of `Map` never changes, ex: `Sodigy.prelude.Map`, in this case, a new definition of `Sodigy` would be rejected by the compiler
-
-can macros be nested?
-
-1. compiler expands macro over and over until no macro is found
-2. The one who implements `Func(List(TokenTree), Result(List(TokenTree), CompileError))` must tell the compiler whether the result has another macro or not
-
-both make sense
-
-read comments in the code -> at try_get_macro_definition
-
 ---
 
 more feature rich f-strings
@@ -226,17 +208,6 @@ Ratio: `denom.len()`이나 `numer.len()`이 64보다 커지면 줄이자
   - runtime error??
   - `inf`?? -> 이거는 어떻게 표현?
     - `1/0`하고 `-1/0`으로 표현할까? 이러면 if문 몇개 더 필요하긴한데 꽤 깔끔할 듯?
-
----
-
-Conditional Compilation & Compile Time Function Evaluation
-
-- `cond_comp(is_debug_mode(), print(x), x)`
-  - `cond_comp`의 cond는 무조건 comp time에 evaluate 돼야 하고, 선택된 branch만 남음.
-  - expression에만 사용가능
-- `comp_time(x.type).variants`
-  - type 관련된 친구들은 당연히 compile time에 전부 계산돼야지!
-  - module 같은 친구들도 마찬가지고
 
 ---
 
@@ -489,16 +460,6 @@ import rules for package manager
 
 ---
 
-generic_err.sdg -> 에러 메시지 쭉 보셈 걍 엉망임 ㅋㅋㅋ
-
-1. 실제로는 type_annotation에서 문제가 생겼지만, 거기서는 넘어가고 (valid한 곳까지만 자름), 그 뒤에서 에러 내놓음 (앞에서 막 잘랐으니까 뒤에서 당연히 에러)
-2. 에러가 5개여야 하는데, 7개가 뜸
-  - "error message를 최대한 많이 뽑자"가 실패하는 사례. 앞에서 이미 망가져서 뒤의 token도 어차피 망가지는데 굳이 더 진행을 해서 이상한 error message를 만듦
-3. ErrorContext의 개념도 너무 애매...
-  - function argument 안의 type annotation: ParsingFunctionArgument vs ParsingTypeAnnotation... 뭐가 더 하위 항목임?
-
----
-
 아희 interpreter in Sodigy
 
 1. very thin wrapper on 아희
@@ -664,30 +625,11 @@ since the backtick character doesn't get along well with markdown, I'll just use
 
 ---
 
-as far as I know, Sodigy does not allow `$x @ _`, but it has to be allowed since `$x` is just a shortcut for `$x @ _`.
-
----
-
-lowering for `or` patterns
-
 ```
-{
-  let pattern (1, $x @ 2, $y @ (3 | 4)) | ($x @ 100, $y @ 200, _) = (a, b, c);
-
-  x + y
-}
-
-# becomes...
-
-match (a, b, c) {
-  (1, $x @ 2, $y @ (3 | 4)) => x + y,
-  ($x @ 1, $y @ 100, _) => x + y,
+match foo() {
+    Foo { x: $x @ (1 | 2), y: $y @ (3 | 4) } => (x, y),
+    ($x @ (1 | 2), $y @ (3 | 4)) => (0, 0),
 }
 ```
 
-1. I know it's not refutable, but does that matter?
-2. can I even do that?
-3. 생각해보면 or는 저거 안해도 되는 거 아님?
-  - match 안에 있는 pattern들은 어차피 저거 안함
-  - let에서 저거 쓰면 refutable함
-4. ㅋㅋㅋ 그렇네, match 안에 있는 pattern들 어떻게 처리할지만 더 고민해보면 될 듯!
+쟤네들 lower하면 name binding이 다 날라감

@@ -132,3 +132,10 @@ let struct_test3 = struct_test_worker(Bar { y: 100, z: 35 });
 
 @test.eq("1 is one or two")
 let struct_test4 = struct_test_worker(Bar { y: 1, z: 100 });
+
+@test.eq("1 and 5")
+let name_bindings_with_or = match (1, 5) {
+    ($x @ (1 | 2), $y @ (3 | 4)) => "nope!",
+    ($x @ (1 | 2), $y @ (5 | 6)) => f"\{x} and \{y}",
+    _ => "base",
+};

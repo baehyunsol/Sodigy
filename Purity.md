@@ -28,6 +28,7 @@ let struct IOAction = {
     id: Int,
     kind: IOActionKind,
 
+    # TODO: is it possible to impl async for all IOAction?
     #> Any IOAction can be asynchronous.
     async: Bool,
 };
