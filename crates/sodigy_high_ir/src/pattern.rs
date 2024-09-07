@@ -1,4 +1,10 @@
-use crate::{HirError, HirSession, HirWarning, Type};
+use crate::{
+    ExprKind,
+    HirError,
+    HirSession,
+    HirWarning,
+    Type,
+};
 use sodigy_ast::{self as ast, IdentWithSpan};
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
 use sodigy_session::SodigySession;
@@ -26,6 +32,7 @@ pub struct Pattern {
 
 #[derive(Clone)]
 pub enum PatternKind {
+    Constant(ExprKind),
     Binding(InternedString),
 
     String(StringPattern),

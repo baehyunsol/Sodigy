@@ -39,6 +39,7 @@ impl fmt::Display for Pattern {
 impl fmt::Display for PatternKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let result = match self {
+            PatternKind::Constant(v) => v.to_string(),
             PatternKind::Binding(name) => format!("${name}"),
             PatternKind::String(StringPattern {
                 strings,

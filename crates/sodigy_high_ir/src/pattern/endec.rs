@@ -1,5 +1,12 @@
 use crate::Type;
-use super::{NumberLike, Pattern, PatternKind, RangeType, StringPattern};
+use super::{
+    ExprKind,
+    NumberLike,
+    Pattern,
+    PatternKind,
+    RangeType,
+    StringPattern,
+};
 use sodigy_ast::IdentWithSpan;
 use sodigy_endec::{
     DumpJson,
@@ -33,37 +40,41 @@ impl Endec for Pattern {
 impl Endec for PatternKind {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            PatternKind::Binding(id) => {
+            PatternKind::Constant(v) => {
                 buffer.push(0);
+                v.encode(buffer, session);
+            },
+            PatternKind::Binding(id) => {
+                buffer.push(1);
                 id.encode(buffer, session);
             },
             PatternKind::String(st) => {
-                buffer.push(1);
+                buffer.push(2);
                 st.encode(buffer, session);
             },
             PatternKind::Range { ty, from, to } => {
-                buffer.push(2);
+                buffer.push(3);
                 ty.encode(buffer, session);
                 from.encode(buffer, session);
                 to.encode(buffer, session);
             },
             PatternKind::Tuple(patterns) => {
-                buffer.push(3);
+                buffer.push(4);
                 patterns.encode(buffer, session);
             },
             PatternKind::TupleStruct { name, fields } => {
-                buffer.push(4);
+                buffer.push(5);
                 name.encode(buffer, session);
                 fields.encode(buffer, session);
             },
             PatternKind::Wildcard => {
-                buffer.push(5);
-            },
-            PatternKind::Shorthand => {
                 buffer.push(6);
             },
-            PatternKind::Or(patterns) => {
+            PatternKind::Shorthand => {
                 buffer.push(7);
+            },
+            PatternKind::Or(patterns) => {
+                buffer.push(8);
                 patterns.encode(buffer, session);
             },
         }
@@ -75,22 +86,23 @@ impl Endec for PatternKind {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(PatternKind::Binding(InternedString::decode(buffer, index, session)?)),
-                    1 => Ok(PatternKind::String(StringPattern::decode(buffer, index, session)?)),
-                    2 => Ok(PatternKind::Range {
+                    0 => Ok(PatternKind::Constant(ExprKind::decode(buffer, index, session)?)),
+                    1 => Ok(PatternKind::Binding(InternedString::decode(buffer, index, session)?)),
+                    2 => Ok(PatternKind::String(StringPattern::decode(buffer, index, session)?)),
+                    3 => Ok(PatternKind::Range {
                         ty: RangeType::decode(buffer, index, session)?,
                         from: NumberLike::decode(buffer, index, session)?,
                         to: NumberLike::decode(buffer, index, session)?,
                     }),
-                    3 => Ok(PatternKind::Tuple(Vec::<Pattern>::decode(buffer, index, session)?)),
-                    4 => Ok(PatternKind::TupleStruct {
+                    4 => Ok(PatternKind::Tuple(Vec::<Pattern>::decode(buffer, index, session)?)),
+                    5 => Ok(PatternKind::TupleStruct {
                         name: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
                         fields: Vec::<Pattern>::decode(buffer, index, session)?,
                     }),
-                    5 => Ok(PatternKind::Wildcard),
-                    6 => Ok(PatternKind::Shorthand),
-                    7 => Ok(PatternKind::Or(Vec::<Pattern>::decode(buffer, index, session)?)),
-                    8.. => Err(EndecError::invalid_enum_variant(*n)),
+                    6 => Ok(PatternKind::Wildcard),
+                    7 => Ok(PatternKind::Shorthand),
+                    8 => Ok(PatternKind::Or(Vec::<Pattern>::decode(buffer, index, session)?)),
+                    9.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
@@ -191,6 +203,7 @@ impl DumpJson for Pattern {
 impl DumpJson for PatternKind {
     fn dump_json(&self) -> JsonObj {
         match self {
+            PatternKind::Constant(v) => v.dump_json(),
             PatternKind::Binding(name) => json_key_value_table(vec![
                 ("binding", name.dump_json()),
             ]),

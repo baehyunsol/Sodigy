@@ -798,8 +798,36 @@ fn unfold_or_patterns(
                 Ok(vec![p.clone()])
             }
         },
+        PatternKind::TupleStruct { name, fields } => {
+            let mut has_recursive_or_pattern = false;
+            let mut unfolded_patterns = Vec::with_capacity(fields.len());
+
+            for field in fields.iter() {
+                let u = unfold_or_patterns(field, length_limit)?;
+
+                if u.len() > 1 {
+                    has_recursive_or_pattern = true;
+                }
+
+                unfolded_patterns.push(u);
+            }
+
+            if has_recursive_or_pattern {
+                let unfolded_patterns = permutation(&unfolded_patterns, length_limit)?;
+
+                Ok(unfolded_patterns.into_iter().map(
+                    |patterns| Pattern {
+                        kind: PatternKind::TupleStruct { name: name.clone(), fields: patterns },
+                        ..p.clone()
+                    }
+                ).collect())
+            }
+
+            else {
+                Ok(vec![p.clone()])
+            }
+        },
         PatternKind::Struct { .. } => todo!(),
-        PatternKind::TupleStruct { .. } => todo!(),
         PatternKind::OrRaw(left, right) => {
             let left = unfold_or_patterns(left.as_ref(), length_limit)?;
             let right = unfold_or_patterns(right.as_ref(), length_limit)?;

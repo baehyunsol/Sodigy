@@ -1,5 +1,6 @@
 use super::{
     DestructuredPattern,
+    ExprKind,
     NumberLike,
     Pattern,
     PatternKind,
@@ -420,18 +421,16 @@ fn lower_ast_pattern_kind(
         ast::PatternKind::Identifier(id) => PatternKind::TupleStruct { name: vec![IdentWithSpan::new(*id, span)], fields: vec![] },
         ast::PatternKind::Path(name) => PatternKind::TupleStruct { name: name.to_vec(), fields: vec![] },
 
-        ast::PatternKind::Number(_) => {
-            session.push_error(HirError::todo("number literals in patterns", span));
-            return Err(());
+        ast::PatternKind::Number(n) => if n.is_integer() {
+            PatternKind::Constant(ExprKind::Integer(*n))
+        } else {
+            PatternKind::Constant(ExprKind::Ratio(*n))
         },
-        ast::PatternKind::Char(_) => {
-            session.push_error(HirError::todo("char literals in patterns", span));
-            return Err(());
-        },
-        ast::PatternKind::String { .. } => {
-            session.push_error(HirError::todo("string literals in patterns", span));
-            return Err(());
-        },
+        ast::PatternKind::Char(c) => PatternKind::Constant(ExprKind::Char(*c)),
+        ast::PatternKind::String { content, is_binary } => PatternKind::Constant(ExprKind::String {
+            content: *content,
+            is_binary: *is_binary,
+        }),
         ast::PatternKind::List(_) => {
             session.push_error(HirError::todo("list patterns", span));
             return Err(());
