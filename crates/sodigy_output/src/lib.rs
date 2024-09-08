@@ -134,21 +134,22 @@ impl CompilerOutput {
 
     /// It requires `&mut self` because it has to
     /// sort errors and warnings.
-    pub fn concat_results(&mut self) -> String {
-        let mut result = vec![];
+    pub fn concat_results(&mut self) -> (String, String) {  // (stdout, stderr)
+        let mut stdout = vec![];
+        let mut stderr = vec![];
         let warnings = self.concat_warnings();
         let errors = self.concat_errors();
 
         if !warnings.is_empty() {
-            result.push(warnings);
+            stderr.push(warnings);
         }
 
         if !errors.is_empty() {
-            result.push(errors);
+            stderr.push(errors);
         }
 
         if !self.stdout.is_empty() {
-            result.push(self.stdout.clone().join("\n"));
+            stdout.push(self.stdout.clone().join("\n"));
         }
 
         if self.show_overall_result {
@@ -160,9 +161,16 @@ impl CompilerOutput {
                 if self.warnings.len() < 2 { "" } else { "s" },
             );
 
-            result.push(overall);
+            stderr.push(overall);
         }
 
-        result.join("\n\n")
+        (stdout.join("\n\n"), stderr.join("\n\n"))
+    }
+
+    pub fn concat_and_dump_results(&mut self) {
+        let (stdout, stderr) = self.concat_results();
+
+        println!("{stdout}");
+        eprintln!("{stderr}");
     }
 }

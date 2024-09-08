@@ -82,7 +82,8 @@ fn very_long_file() {
     });
 
     if res.has_error() {
-        panic!("{}", res.concat_results());
+        let (_, stderr) = res.concat_results();
+        panic!("{stderr}");
     }
 
     remove_file(&tmp_file_name).unwrap();

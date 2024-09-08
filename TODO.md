@@ -573,12 +573,6 @@ It makes sense, but is a bit inefficient (double boxing). Since there're 6 (2 * 
 
 ---
 
-error messages must be dumped to stderr, not stdout
-
-seems like rustc dumps both errors and warnings to stderr
-
----
-
 sodigy regex compiler
 
 0. things that I want sodigy-regex to implement
@@ -622,19 +616,6 @@ since the backtick character doesn't get along well with markdown, I'll just use
     - it would complicate the parser, a lot.
 
 하는 김에 field modifier에 integer도 넣을 수 있게 할까? `[1, 2, 3, 4] '1 100` 하면 `[1, 100, 3, 4]` 되게. 요거는 살짝 애매: 보통 index는 constant가 아니고 variable이잖아
-
----
-
-```
-match foo() {
-    Foo { x: $x @ (1 | 2), y: $y @ (3 | 4) } => (x, y),
-    ($x @ (1 | 2), $y @ (3 | 4)) => (0, 0),
-}
-```
-
-쟤네들 lower하면 name binding이 다 날라감
-
-another sample: `($x @ ($y @ 1 | $z @ 2), $a @ ($b @ 1 | $c @ 2))`
 
 ---
 

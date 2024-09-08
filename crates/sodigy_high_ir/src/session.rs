@@ -260,7 +260,7 @@ impl SessionOutput<Func> for HashMap<InternedString, Func> {
         unreachable!()
     }
 
-    fn push(&mut self, v: Func) {
+    fn push(&mut self, _: Func) {
         unreachable!()
     }
 

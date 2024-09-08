@@ -33,15 +33,14 @@ fn main() {
     }
 
     if clap_result.has_error() {
-        println!("{}", compiler_output.concat_results());
+        compiler_output.concat_and_dump_results();
         has_error = true;
     }
 
     else {
         let compiler_output_ = run(clap_result.get_results().clone());
         compiler_output.merge(compiler_output_);
-
-        println!("{}", compiler_output.concat_results());
+        compiler_output.concat_and_dump_results();
 
         if compiler_output.has_error() {
             has_error = true;

@@ -105,7 +105,7 @@ impl Pattern {
                     buffer.push(IdentWithSpan::new(id, span));
                 }
             },
-            PatternKind::OrRaw(left, right) => unreachable!(),
+            PatternKind::OrRaw(_, _) => unreachable!(),
         }
 
         if let Some(id) = &self.bind {
