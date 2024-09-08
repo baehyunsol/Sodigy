@@ -51,10 +51,7 @@ impl AstError {
                     // This is very expensive. Make sure that compilation has already failed before this branch is reached.
                     ExpectedToken::AnyStatement => {
                         let mut sess = InternSession::new();
-                        let id = match sess.unintern_string(*id) {
-                            Some(s) => s.to_vec(),
-                            _ => b"Unexpected error, but I don't want it to mess up any other stuff.".to_vec(),
-                        };
+                        let id = sess.unintern_string(*id).to_vec();
 
                         if id == b"fn" || id == b"def" {
                             extra.set_message(format!("Do you mean `let`?"));

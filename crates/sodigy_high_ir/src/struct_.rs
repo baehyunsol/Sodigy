@@ -143,7 +143,7 @@ fn sort_struct_fields(
     fields: &mut Vec<ast::FieldDef>,
     interner: &mut InternSession,
 ) {
-    fields.sort_by_key(|field| interner.unintern_string(field.name.id()).map(|id| id.to_vec()).unwrap_or(vec![]))
+    fields.sort_by_key(|field| interner.unintern_string(field.name.id()).to_vec())
 }
 
 fn create_struct_body(

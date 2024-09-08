@@ -231,13 +231,8 @@ impl NameSpace {
 
     // This is VERY EXPENSIVE.
     pub fn find_similar_names(&self, id: InternedString) -> Vec<InternedString> {
-        let mut sess = InternSession::new();
-        let id_u8 = match sess.unintern_string(id) {
-            Some(s) => s.to_vec(),
-            _ => {
-                return vec![];
-            }
-        };
+        let mut session = InternSession::new();
+        let id_u8 = session.unintern_string(id).to_vec();
 
         // distance("f", "x") = 1, but it's not a good suggestion
         // distance("foo", "goo") = 1, and it seems like a good suggestion
@@ -248,12 +243,7 @@ impl NameSpace {
 
         for (_, names) in self.locals.iter().rev() {
             for name in names.iter() {
-                let name_u8 = match sess.unintern_string(*name) {
-                    Some(s) => s.to_vec(),
-                    _ => {
-                        continue;
-                    }
-                };
+                let name_u8 = session.unintern_string(*name).to_vec();
 
                 if substr_edit_distance(&id_u8, &name_u8) < similarity_threshold {
                     result.push(*name);
@@ -282,12 +272,7 @@ impl NameSpace {
         )).chain(self.globals.keys().map(|i| *i)).chain(
             self.preludes.iter().map(|i| *i)
         ) {
-            let name_u8 = match sess.unintern_string(name) {
-                Some(s) => s.to_vec(),
-                _ => {
-                    continue;
-                }
-            };
+            let name_u8 = session.unintern_string(name).to_vec();
 
             if substr_edit_distance(&id_u8, &name_u8) < similarity_threshold {
                 result.push(name);

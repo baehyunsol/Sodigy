@@ -234,8 +234,8 @@ fn add_enum_variant_prefix(
     interner: &mut InternSession,
 ) -> IdentWithSpan {
     let variant_span = variant_name.span().into_fake();
-    let enum_name = interner.unintern_string(enum_name.id()).unwrap().to_vec();
-    let variant_name = interner.unintern_string(variant_name.id()).unwrap().to_vec();
+    let enum_name = interner.unintern_string(enum_name.id()).to_vec();
+    let variant_name = interner.unintern_string(variant_name.id()).to_vec();
 
     IdentWithSpan::new(
         interner.intern_string(
@@ -257,8 +257,8 @@ fn add_enum_struct_prefix(
     interner: &mut InternSession,
 ) -> IdentWithSpan {
     let variant_span = variant_name.span().into_fake();
-    let enum_name = interner.unintern_string(enum_name.id()).unwrap().to_vec();
-    let variant_name = interner.unintern_string(variant_name.id()).unwrap().to_vec();
+    let enum_name = interner.unintern_string(enum_name.id()).to_vec();
+    let variant_name = interner.unintern_string(variant_name.id()).to_vec();
 
     IdentWithSpan::new(
         interner.intern_string(

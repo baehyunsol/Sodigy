@@ -138,7 +138,7 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_interner().unintern_string_fast(string)
     }
 
-    fn unintern_string(&mut self, string: InternedString) -> Option<&[u8]> {
+    fn unintern_string(&mut self, string: InternedString) -> &[u8] {
         self.get_interner().unintern_string(string)
     }
 
@@ -146,7 +146,7 @@ pub trait SodigySession<E: SodigyError<EK>, EK: SodigyErrorKind, W: SodigyError<
         self.get_interner().intern_numeric(n)
     }
 
-    fn unintern_numeric(&mut self, s: InternedNumeric) -> Option<&SodigyNumber> {
+    fn unintern_numeric(&mut self, s: InternedNumeric) -> &SodigyNumber {
         self.get_interner().unintern_numeric(s)
     }
 
@@ -227,7 +227,7 @@ use sodigy_config::CompilerOption;
 // don't call these
 impl SessionOutput<CompilerOption> for CompilerOption {
     fn pop(&mut self) -> Option<CompilerOption> { unreachable!() }
-    fn push(&mut self, v: CompilerOption) { unreachable!() }
+    fn push(&mut self, _: CompilerOption) { unreachable!() }
     fn clear(&mut self) { unreachable!() }
     fn len(&self) -> usize { unreachable!() }
 }

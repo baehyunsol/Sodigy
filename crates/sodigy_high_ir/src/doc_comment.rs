@@ -18,7 +18,7 @@ pub fn concat_doc_comments(
 
         let d = docs.iter().map(
             |d| {
-                let d = session.unintern_string(d.id()).unwrap();
+                let d = session.unintern_string(d.id());
 
                 remove_leading_whitespace(d)
             }

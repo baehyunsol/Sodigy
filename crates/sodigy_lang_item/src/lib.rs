@@ -48,12 +48,6 @@ pub trait LangItemTrait {
 
 impl LangItemTrait for InternedString {
     fn is_lang_item(&self, intern_session: &mut InternSession) -> bool {
-        if let Some(s) = intern_session.unintern_string(*self) {
-            s.starts_with(LANG_ITEM_PREFIX)
-        }
-
-        else {
-            false
-        }
+        intern_session.unintern_string(*self).starts_with(LANG_ITEM_PREFIX)
     }
 }

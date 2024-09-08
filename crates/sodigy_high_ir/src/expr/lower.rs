@@ -365,7 +365,7 @@ pub fn lower_ast_expr(
                         ast::LetKind::Callable {
                             name,
                             args,
-                            generics,
+                            generics,  // TODO: there's no room for generics in `ValueKind::Lambda`
                             return_ty,
                             return_val,
                             uid,

@@ -129,7 +129,7 @@ impl NumberLike {
                 Ok(NumberLike::Exact(*num))
             } else {
                 if num.is_integer() {
-                    let num = session.unintern_numeric(*num).unwrap();
+                    let num = session.unintern_numeric(*num);
                     let new_num = num.minus_one();
 
                     Ok(NumberLike::Exact(session.intern_numeric(new_num)))
@@ -168,11 +168,8 @@ impl NumberLike {
 
     pub fn try_into_u32(&self, session: &mut InternSession) -> Option<u32> {
         match self {
-            NumberLike::Exact(num) => match session.unintern_numeric(*num) {
-                Some(n) => match u32::try_from(n) {
-                    Ok(n) => Some(n),
-                    _ => None,
-                },
+            NumberLike::Exact(num) => match u32::try_from(session.unintern_numeric(*num)) {
+                Ok(n) => Some(n),
                 _ => None,
             },
             _ => None,

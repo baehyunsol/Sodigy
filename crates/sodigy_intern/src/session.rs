@@ -86,10 +86,10 @@ impl LocalInternSession {
         self.local_string_table_rev.get(&string).map(|s| s as &[u8])
     }
 
-    pub fn unintern_string(&mut self, string: InternedString) -> Option<&[u8]> {
+    pub fn unintern_string(&mut self, string: InternedString) -> &[u8] {
         match self.unintern_string_fast(string) {
             // trust me, it's safe
-            Some(s) => unsafe { std::mem::transmute::<Option<&[u8]>, Option<&'static [u8]>>(Some(s)) },
+            Some(s) => unsafe { std::mem::transmute::<&[u8], &'static [u8]>(s) },
             None => unsafe {
                 if let Some((length, bytes)) = string.try_unwrap_short_string() {
                     let s = bytes[0..(length as usize)].to_vec();
@@ -103,7 +103,8 @@ impl LocalInternSession {
                 else {
                     let g = global_intern_session();
 
-                    g.strings_rev.get(&string).map(|s| s as &[u8])
+                    // if it fails, it's an ICE
+                    g.strings_rev.get(&string).map(|s| s as &[u8]).unwrap()
                 }
             },
         }
@@ -114,10 +115,10 @@ impl LocalInternSession {
         self.local_numeric_table_rev.get(&numeric)
     }
 
-    pub fn unintern_numeric(&mut self, numeric: InternedNumeric) -> Option<&SodigyNumber> {
+    pub fn unintern_numeric(&mut self, numeric: InternedNumeric) -> &SodigyNumber {
         match self.unintern_numeric_fast(numeric) {
             // trust me, it's safe
-            Some(n) => unsafe { std::mem::transmute::<Option<&SodigyNumber>, Option<&'static SodigyNumber>>(Some(n)) },
+            Some(n) => unsafe { std::mem::transmute::<&SodigyNumber, &'static SodigyNumber>(n) },
             None => unsafe {
                 if let Some(n) = numeric.try_unwrap_small_integer() {
                     let n = SodigyNumber::SmallInt(n as i64);
@@ -131,7 +132,8 @@ impl LocalInternSession {
                 else {
                     let g = global_intern_session();
 
-                    g.numerics_rev.get(&numeric)
+                    // if it fails, it's an ICE
+                    g.numerics_rev.get(&numeric).unwrap()
                 }
             },
         }

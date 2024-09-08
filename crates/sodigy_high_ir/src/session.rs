@@ -179,20 +179,13 @@ impl HirSession {
     }
 
     pub fn add_prefix(&mut self, s: InternedString, prefix: &str) -> InternedString {
-        if let Some(s) = self.unintern_string(s) {
-            let new_s = vec![
-                prefix.as_bytes().to_vec(),
-                s.to_vec(),
-            ].concat();
+        let s = self.unintern_string(s);
+        let new_s = vec![
+            prefix.as_bytes().to_vec(),
+            s.to_vec(),
+        ].concat();
 
-            self.intern_string(new_s)
-        }
-
-        else {
-            // TODO: if it's unreachable, what's the point of `HirSession::unintern_string`?
-            // if that never returns `None`, why is the return type `Option<&[u8]>`
-            unreachable!()
-        }
+        self.intern_string(new_s)
     }
 }
 
