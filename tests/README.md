@@ -10,7 +10,7 @@ A test file consists of one or more tests. A test case is a JSON-object. If a fi
 
 ## JSON-object
 
-A JSON-object represents a single test case. There are 3 kinds of test cases: `run`, `compile` and `test`.
+A JSON-object represents a test case. There are 3 kinds of test cases: `run`, `compile` and `test`.
 
 `run` runs a sodigy file in the dir, with an optional `stdin`. It checks whether the `stdout` and `stderr` from the run matches the conditions in the JSON.
 

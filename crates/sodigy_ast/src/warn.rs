@@ -57,7 +57,7 @@ pub enum AstWarningKind {
 impl SodigyErrorKind for AstWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
-            AstWarningKind::MultipleBindingsOnOnePattern => String::from("multiple name bindings on a single pattern"),
+            AstWarningKind::MultipleBindingsOnOnePattern => String::from("multiple name bindings on a pattern"),
         }
     }
 

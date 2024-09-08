@@ -71,7 +71,7 @@ pub fn parse_pattern_full(
     }
 
     let or_pattern_expansion_limit = session.get_or_pattern_expansion_limit();
-    let unfolded = match unfold_or_patterns(&lhs, or_pattern_expansion_limit) {
+    let unfolded = match unfold_or_patterns(&lhs, or_pattern_expansion_limit, session) {
         Ok(u) => u,
         Err(_) => {
             session.push_error(AstError::excessive_or_pattern(lhs.span, or_pattern_expansion_limit));
@@ -701,6 +701,9 @@ fn parse_comma_separated_patterns(
 fn unfold_or_patterns(
     p: &Pattern,
     length_limit: usize,  // it returns Err if it exceeds limit
+
+    // it only collects warnings. errors are collected by its callee
+    session: &mut AstSession,
 ) -> Result<Vec<Pattern>, ()> {
     match &p.kind {
         PatternKind::Identifier(_)
@@ -718,11 +721,19 @@ fn unfold_or_patterns(
             is_string,
         } => {
             let from = match from.as_ref() {
-                Some(pattern) => Some(unfold_or_patterns(pattern.as_ref(), length_limit)?),
+                Some(pattern) => Some(unfold_or_patterns(
+                    pattern.as_ref(),
+                    length_limit,
+                    session,
+                )?),
                 None => None,
             };
             let to = match to.as_ref() {
-                Some(pattern) => Some(unfold_or_patterns(pattern.as_ref(), length_limit)?),
+                Some(pattern) => Some(unfold_or_patterns(
+                    pattern.as_ref(),
+                    length_limit,
+                    session,
+                )?),
                 None => None,
             };
             let from_unfolded = from.as_ref().map(|patterns| patterns.len() > 1).unwrap_or(false);
@@ -774,7 +785,11 @@ fn unfold_or_patterns(
             let mut unfolded_patterns = Vec::with_capacity(patterns.len());
 
             for pattern in patterns.iter() {
-                let u = unfold_or_patterns(pattern, length_limit)?;
+                let u = unfold_or_patterns(
+                    pattern,
+                    length_limit,
+                    session,
+                )?;
 
                 if u.len() > 1 {
                     has_recursive_or_pattern = true;
@@ -784,7 +799,12 @@ fn unfold_or_patterns(
             }
 
             if has_recursive_or_pattern {
-                let unfolded_patterns = permutation(&unfolded_patterns, length_limit)?;
+                let unfolded_patterns = permutation(
+                    &patterns,
+                    &unfolded_patterns,
+                    length_limit,
+                    session,
+                )?;
 
                 Ok(unfolded_patterns.into_iter().map(
                     |patterns| Pattern {
@@ -798,12 +818,16 @@ fn unfold_or_patterns(
                 Ok(vec![p.clone()])
             }
         },
-        PatternKind::TupleStruct { name, fields } => {
+        PatternKind::TupleStruct { name, fields: patterns } => {
             let mut has_recursive_or_pattern = false;
-            let mut unfolded_patterns = Vec::with_capacity(fields.len());
+            let mut unfolded_patterns = Vec::with_capacity(patterns.len());
 
-            for field in fields.iter() {
-                let u = unfold_or_patterns(field, length_limit)?;
+            for pattern in patterns.iter() {
+                let u = unfold_or_patterns(
+                    pattern,
+                    length_limit,
+                    session,
+                )?;
 
                 if u.len() > 1 {
                     has_recursive_or_pattern = true;
@@ -813,7 +837,12 @@ fn unfold_or_patterns(
             }
 
             if has_recursive_or_pattern {
-                let unfolded_patterns = permutation(&unfolded_patterns, length_limit)?;
+                let unfolded_patterns = permutation(
+                    &patterns,
+                    &unfolded_patterns,
+                    length_limit,
+                    session,
+                )?;
 
                 Ok(unfolded_patterns.into_iter().map(
                     |patterns| Pattern {
@@ -836,7 +865,11 @@ fn unfold_or_patterns(
             let mut unfolded_patterns = Vec::with_capacity(fields.len());
 
             for field in fields.iter() {
-                let u = unfold_or_patterns(&field.pattern, length_limit)?;
+                let u = unfold_or_patterns(
+                    &field.pattern,
+                    length_limit,
+                    session,
+                )?;
 
                 if u.len() > 1 {
                     has_recursive_or_pattern = true;
@@ -846,7 +879,14 @@ fn unfold_or_patterns(
             }
 
             if has_recursive_or_pattern {
-                let unfolded_patterns = permutation(&unfolded_patterns, length_limit)?;
+                let unfolded_patterns = permutation(
+                    &fields.iter().map(
+                        |PatField { pattern, .. }| pattern.clone()
+                    ).collect::<Vec<_>>(),
+                    &unfolded_patterns,
+                    length_limit,
+                    session,
+                )?;
 
                 Ok(unfolded_patterns.into_iter().map(
                     |patterns| Pattern {
@@ -870,45 +910,125 @@ fn unfold_or_patterns(
             }
         },
         PatternKind::OrRaw(left, right) => {
-            let left = unfold_or_patterns(left.as_ref(), length_limit)?;
-            let right = unfold_or_patterns(right.as_ref(), length_limit)?;
+            let mut left = unfold_or_patterns(
+                left.as_ref(),
+                length_limit,
+                session,
+            )?;
+            let mut right = unfold_or_patterns(
+                right.as_ref(),
+                length_limit,
+                session,
+            )?;
 
             if left.len() + right.len() > length_limit {
                 Err(())
             }
 
             else {
+                if let Some(bind) = &p.bind {
+                    for ll in left.iter_mut() {
+                        if ll.bind.is_some() {
+                            session.push_warning(AstWarning::multiple_bindings_on_one_pattern(
+                                ll.bind.clone().unwrap(),
+                                bind.clone(),
+                            ))
+                        }
+
+                        ll.bind = Some(bind.clone());
+                    }
+
+                    for rr in right.iter_mut() {
+                        if rr.bind.is_some() {
+                            session.push_warning(AstWarning::multiple_bindings_on_one_pattern(
+                                rr.bind.clone().unwrap(),
+                                bind.clone(),
+                            ))
+                        }
+
+                        rr.bind = Some(bind.clone());
+                    }
+                }
+
+                // TODO: it has to do the same thing on type annotations, but I'm not sure whether
+                //       multiple_type_annotation_on_one_pattern is an error or a warning
+                //       plus, the type checker will find errors later. what I'm concerned is that
+
                 Ok(vec![
                     left,
                     right,
                 ].concat())
             }
         },
-        PatternKind::Or(patterns) => Ok(patterns.clone()),
+        PatternKind::Or(patterns) => {
+            Ok(patterns.clone())
+        },
     }
 }
 
 // TODO
 //   1. It's too naive
 //   2. Is there any better place for this function?
-// [[1, 2, 3], [4, 5], [6]] -> [[1, 4, 6], [2, 4, 6], [3, 4, 6], [1, 5, 6], [2, 5, 6], [3, 5, 6]]
-fn permutation<T: Clone>(
-    s: &Vec<Vec<T>>,
+//
+// annotated_patterns
+// [$x, $y, $z]
+//
+// patterns_to_permute
+// [[1, 2, 3], [4, 5], [6]]
+//
+// result
+// [
+//     [$x @ 1, $y @ 4, $z @ 6],
+//     [$x @ 2, $y @ 4, $z @ 6],
+//     [$x @ 3, $y @ 4, $z @ 6],
+//     [$x @ 1, $y @ 5, $z @ 6],
+//     [$x @ 2, $y @ 5, $z @ 6],
+//     [$x @ 3, $y @ 5, $z @ 6],
+// ]
+fn permutation(
+    // the result has to inherit name bindings and type annotations from the original patterns
+    annotated_patterns: &Vec<Pattern>,
+
+    patterns_to_permute: &Vec<Vec<Pattern>>,
     length_limit: usize,  // it returns Err if it exceeds the limit
-) -> Result<Vec<Vec<T>>, ()> {
+
+    // it only collects warnings. errors are collected by someone else
+    session: &mut AstSession,
+) -> Result<Vec<Vec<Pattern>>, ()> {
     let mut result = vec![vec![]];
 
-    if s.iter().map(|e| e.len()).product::<usize>() > length_limit {
+    if patterns_to_permute.iter().map(|e| e.len()).product::<usize>() > length_limit {
         return Err(());
     }
 
-    for v in s.iter() {
+    for (index, v) in patterns_to_permute.iter().enumerate() {
         let mut new_result = vec![];
+        let curr_annotation = &annotated_patterns[index];
 
         for x in v.iter() {
             for r in result.iter() {
+                let mut new_x = x.clone();
                 let mut new_r = r.clone();
-                new_r.push(x.clone());
+                // for `$a @ ($b @ 1 | $c @ 2)`, new_x.bind is $c and curr_annotation.bind is $a
+
+                if curr_annotation.bind.is_some() {
+                    if new_x.bind.is_some() {
+                        let mut w = AstWarning::multiple_bindings_on_one_pattern(
+                            new_x.bind.clone().unwrap(),
+                            curr_annotation.bind.clone().unwrap(),
+                        );
+                        w.set_message(String::from("In this case, the compiler ignores one of the binding and it might lead to a confusion in name collision checking. `($x @ 1 | $x @ 2)` is anti-pattern. Use `$x @ (1 | 2)`"));
+                        session.push_warning(w);
+                    }
+
+                    new_x.bind = curr_annotation.bind.clone();
+                }
+
+                if curr_annotation.ty.is_some() {
+                    new_x.ty = curr_annotation.ty.clone();
+                }
+
+                new_r.push(new_x.clone());
                 new_result.push(new_r);
             }
         }

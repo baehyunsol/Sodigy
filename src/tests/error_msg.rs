@@ -285,6 +285,8 @@ check_output!(expr, warn, expr_warn_test9, "
         x + y + z
     }", "unused local name binding in a scoped let: `w`");
 check_output!(expr, warn, expr_warn_test10, "{let pattern ($x @ _, $y) = (0, 1); y}", "name binding on wildcard");
+check_output!(expr, warn, expr_warn_test11, "match (1, 2) {($aa @ (1 | 2), $bb @ (3 | 4)) => aa, _ => 0}", "unused name binding in match arm: `bb`");
+check_output!(expr, warn, expr_warn_test12, "match (1, 2) { ($x @ ($y @ 1 | $z @ 2), $a @ ($b @ 1 | $c @ 2)) => 0, _ => 1 }", "multiple name bindings on a pattern");
 
 fn make_non_utf8(s: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(s.len() + 4);

@@ -633,3 +633,38 @@ match foo() {
 ```
 
 쟤네들 lower하면 name binding이 다 날라감
+
+another sample: `($x @ ($y @ 1 | $z @ 2), $a @ ($b @ 1 | $c @ 2))`
+
+---
+
+REPL mode
+
+1. I need this for quick testing
+2. If a line starts with `let`, the definition is added to... somewhere
+  - there must be some kinda incremental compilation for this
+3. If it's not `let`, it's wrapped with `let main = print(` and `);`
+  - the main function is abandoned after an execution
+4. there must be multi-line mode
+  - for example, Python waits until I close a parenthesis if I open one in a repl
+
+---
+
+Purity를 저렇게 짜면...
+
+github의 특정 repo에다가 http req를 날린 다음에 star 개수만 int로 반환하는 함수
+
+`count_stars(author: String, repo: String): Option(Int)`가 있다고 치자.
+
+1. 애초에 impure하니 저런 함수는 없는게 맞다
+2. `count_stars(author: String, repo: String): IOResult(Option(Int))`같은 모양으로 바꿔야 한다
+  - 이것도 여전히 애매. 저기에 달린 `IOResult`를 어떻게 벗겨냄? match로 벗겨내? 그럼 match를 쓰는 순간 실제 http req이 날라가나? 그럼 지금이랑 구조가 다른데?
+  - 아니면 haskell처럼 완전히 lazy하게 만들기? 그러려면 런타임 구조를 싹 뜯어고쳐야 함...
+3. 2단계로 쪼개기
+  - `count_stars_builder(author: String, repo: String): IOAction`: http req을 만들어냄
+  - `count_stars(http_response: IOResult): Option(Int)`: http resp를 보고 star를 셈
+  - 이러면 호출이 너무 불편한 거 아님? 저 함수를 읽으려면 무조건 main까지 한번 갔다와야 하는 건데?
+  - 이러면 main 함수에 엄청나게 긴 match가 필요한 거 아님? IO 필요한 애들은 전부 다 main으로 나가고, 그 결과를 한 match에서 싹다 확인해야하는데...
+    - 더 애매한게, IOResult만 보고 이게 `count_stars_builder`에서 나온 거라는 걸 알아내는게 너무 빡셈. http req 하는 함수가 무지 많을 텐데, 걔네들 type만 보고는 아무것도 모르는데 그럼 IOAction의 id와 함수들을 연결하는 거대한 mapping을 관리해야함. 그건 너무 빡셈!
+  - 일단 무조건 필요한 거: `count_stars_builder`의 결과물이 나오면 (Ok든 Err든) 그 결과물을 처리할 함수를 직접 붙여놔야함.
+    - 이거 그거 아님? node랑 deno에서 callback vs promise가 이거 아님??

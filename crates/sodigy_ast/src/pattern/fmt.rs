@@ -118,7 +118,11 @@ impl fmt::Display for PatternKind {
                     pattern.to_string()
                 }
             ).collect::<Vec<_>>().join("|"),
-            PatternKind::OrRaw(lhs, rhs) => unreachable!(),
+            PatternKind::OrRaw(lhs, rhs) => format!(
+                "{}|{}",
+                if lhs.needs_paren() { format!("({lhs})") } else { lhs.to_string() },
+                if rhs.needs_paren() { format!("({rhs})") } else { rhs.to_string() },
+            ),
             PatternKind::TupleStruct {
                 name, fields,
             } => {

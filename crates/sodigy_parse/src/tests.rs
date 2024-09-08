@@ -1,4 +1,5 @@
 use super::*;
+use sodigy_config::CompilerOption;
 use sodigy_files::{global_file_session, get_all_sdg, FileHash};
 use sodigy_lex::lex;
 use sodigy_span::SpanPoint;
@@ -24,7 +25,8 @@ fn parse_test() {
     let g = unsafe { global_file_session() };
 
     for code in codes.into_iter() {
-        let mut lex_session = LexSession::new();
+        let compiler_option = CompilerOption::new();
+        let mut lex_session = LexSession::new(compiler_option.clone());
         let f = g.register_tmp_file(code.as_bytes()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
@@ -32,7 +34,8 @@ fn parse_test() {
     }
 
     for path in get_all_sdg("../../samples", true, "sdg").unwrap() {
-        let mut lex_session = LexSession::new();
+        let compiler_option = CompilerOption::new();
+        let mut lex_session = LexSession::new(compiler_option.clone());
         let f = g.register_file(&path.to_string()).unwrap();
         let content = g.get_file_content(f).unwrap();
 
@@ -41,6 +44,8 @@ fn parse_test() {
 }
 
 fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
+    let compiler_option = CompilerOption::test_runner();
+
     if let Err(()) = lex(content, 0, SpanPoint::at_file(f, 0), lex_session) {
         panic!(
             "{}",
@@ -54,7 +59,7 @@ fn test_runner(f: FileHash, content: &[u8], lex_session: &mut LexSession) {
 
     let mut parse_session = ParseSession::from_lex_session(&lex_session);
 
-    if let Err(()) = from_tokens(&lex_session.get_results(), &mut parse_session, &mut LexSession::new()) {
+    if let Err(()) = from_tokens(&lex_session.get_results(), &mut parse_session, &mut LexSession::new(compiler_option.clone())) {
         panic!(
             "{}",
             lex_session.get_errors().iter().map(

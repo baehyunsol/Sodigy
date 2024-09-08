@@ -510,7 +510,7 @@ let add(x: Int, y: Int): Int = x + y;
 
 There are no specs for macros, only rough sketches for them.
 
-1. `MACRO_NAME` is a single identifier that identifies the macro. The list of macros are at `sodigy.toml`. It tells you where to find the definitions of the macros.
+1. `MACRO_NAME` is an identifier of the macro. The list of macros are at `sodigy.toml`. It tells you where to find the definitions of the macros.
 2. Macros are implemented in Sodigy. It's like how procedural macros work in Rust. A macro is a sodigy function that takes `List(Token)` and returns `Result(List(Token), CompileError)`.
 3. The compiler uses its interpreter to run macros. That means macros make the compilation VERY SLOW.
 
