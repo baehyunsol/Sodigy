@@ -604,3 +604,13 @@ github의 특정 repo에다가 http req를 날린 다음에 star 개수만 int�
     - 더 애매한게, IOResult만 보고 이게 `count_stars_builder`에서 나온 거라는 걸 알아내는게 너무 빡셈. http req 하는 함수가 무지 많을 텐데, 걔네들 type만 보고는 아무것도 모르는데 그럼 IOAction의 id와 함수들을 연결하는 거대한 mapping을 관리해야함. 그건 너무 빡셈!
   - 일단 무조건 필요한 거: `count_stars_builder`의 결과물이 나오면 (Ok든 Err든) 그 결과물을 처리할 함수를 직접 붙여놔야함.
     - 이거 그거 아님? node랑 deno에서 callback vs promise가 이거 아님??
+
+---
+
+reasonable syntax for type classes, like `<T: Clone>` or `where T: Clone` in Rust
+
+1. It's too early to define how type classes work
+2. Let's at least define the syntax for them. Flexible enough to embrace future improvements
+  - It's tough to put something inside the angle brackets: the parser does not group the angle brackets.
+  - are type classes an expression? if so, I would need an extremely flexible syntax
+  - `where` style would be better, or how about decorators?

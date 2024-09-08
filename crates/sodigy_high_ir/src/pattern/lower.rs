@@ -437,10 +437,6 @@ fn lower_ast_pattern_kind(
             content: *content,
             is_binary: *is_binary,
         }),
-        ast::PatternKind::List(_) => {
-            session.push_error(HirError::todo("list patterns", span));
-            return Err(());
-        },
         ast::PatternKind::Struct { .. } => {
             session.push_error(HirError::todo("struct patterns", span));
             return Err(());

@@ -42,7 +42,7 @@ pub fn lower_ast_struct(
         *name.span(),
     );
     let mut constructor_body = create_struct_body(
-        fields_to_values(fields),
+        fields_to_values(fields, session.get_interner()),
         name.span().into_fake(),
         session.get_interner(),
     );
@@ -58,7 +58,7 @@ pub fn lower_ast_struct(
     let constructor = lower_ast_func(
         &constructor_name,
         generics,
-        Some(&fields_to_args(fields)),
+        Some(&fields_to_args(fields, session.get_interner())),
         &constructor_body,
         &Some(ast::TypeDef::from_expr(name_to_type(
             type_name,
@@ -107,9 +107,9 @@ pub fn lower_ast_struct(
     Ok(())
 }
 
-fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {
+fn fields_to_args(fields: &Vec<ast::FieldDef>, interner: &mut InternSession) -> Vec<ast::ArgDef> {
     let mut fields = fields.clone();
-    sort_struct_fields(&mut fields);
+    sort_struct_fields(&mut fields, interner);
 
     fields.into_iter().map(
         |ast::FieldDef {
@@ -125,9 +125,9 @@ fn fields_to_args(fields: &Vec<ast::FieldDef>) -> Vec<ast::ArgDef> {
     ).collect()
 }
 
-fn fields_to_values(fields: &Vec<ast::FieldDef>) -> Vec<ast::Expr> {
+fn fields_to_values(fields: &Vec<ast::FieldDef>, interner: &mut InternSession) -> Vec<ast::Expr> {
     let mut fields = fields.clone();
-    sort_struct_fields(&mut fields);
+    sort_struct_fields(&mut fields, interner);
 
     fields.into_iter().map(
         |ast::FieldDef {
@@ -139,8 +139,11 @@ fn fields_to_values(fields: &Vec<ast::FieldDef>) -> Vec<ast::Expr> {
     ).collect()
 }
 
-fn sort_struct_fields(fields: &mut Vec<ast::FieldDef>) {
-    // TODO
+fn sort_struct_fields(
+    fields: &mut Vec<ast::FieldDef>,
+    interner: &mut InternSession,
+) {
+    fields.sort_by_key(|field| interner.unintern_string(field.name.id()).map(|id| id.to_vec()).unwrap_or(vec![]))
 }
 
 fn create_struct_body(
