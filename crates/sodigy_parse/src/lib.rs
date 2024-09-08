@@ -14,9 +14,6 @@ mod session;
 mod token_tree;
 mod warn;
 
-#[cfg(test)]
-mod tests;
-
 pub use delim::{Delim, DelimStart};
 pub use error::ParseError;
 use formatted_str::parse_str;

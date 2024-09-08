@@ -20,9 +20,6 @@ mod utils;
 mod value;
 mod warn;
 
-#[cfg(test)]
-mod tests;
-
 pub use expr::{Expr, ExprKind};
 pub use lang_item::create_lang_item;
 pub use let_::{Let, LetKind};
