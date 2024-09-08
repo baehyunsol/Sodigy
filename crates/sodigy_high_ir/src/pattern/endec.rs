@@ -62,19 +62,23 @@ impl Endec for PatternKind {
                 buffer.push(4);
                 patterns.encode(buffer, session);
             },
-            PatternKind::TupleStruct { name, fields } => {
+            PatternKind::List(patterns) => {
                 buffer.push(5);
+                patterns.encode(buffer, session);
+            },
+            PatternKind::TupleStruct { name, fields } => {
+                buffer.push(6);
                 name.encode(buffer, session);
                 fields.encode(buffer, session);
             },
             PatternKind::Wildcard => {
-                buffer.push(6);
-            },
-            PatternKind::Shorthand => {
                 buffer.push(7);
             },
-            PatternKind::Or(patterns) => {
+            PatternKind::Shorthand => {
                 buffer.push(8);
+            },
+            PatternKind::Or(patterns) => {
+                buffer.push(9);
                 patterns.encode(buffer, session);
             },
         }
@@ -95,14 +99,15 @@ impl Endec for PatternKind {
                         to: NumberLike::decode(buffer, index, session)?,
                     }),
                     4 => Ok(PatternKind::Tuple(Vec::<Pattern>::decode(buffer, index, session)?)),
-                    5 => Ok(PatternKind::TupleStruct {
+                    5 => Ok(PatternKind::List(Vec::<Pattern>::decode(buffer, index, session)?)),
+                    6 => Ok(PatternKind::TupleStruct {
                         name: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
                         fields: Vec::<Pattern>::decode(buffer, index, session)?,
                     }),
-                    6 => Ok(PatternKind::Wildcard),
-                    7 => Ok(PatternKind::Shorthand),
-                    8 => Ok(PatternKind::Or(Vec::<Pattern>::decode(buffer, index, session)?)),
-                    9.. => Err(EndecError::invalid_enum_variant(*n)),
+                    7 => Ok(PatternKind::Wildcard),
+                    8 => Ok(PatternKind::Shorthand),
+                    9 => Ok(PatternKind::Or(Vec::<Pattern>::decode(buffer, index, session)?)),
+                    10.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
@@ -217,6 +222,9 @@ impl DumpJson for PatternKind {
             ]),
             PatternKind::Tuple(elements) => json_key_value_table(vec![
                 ("tuple", elements.dump_json()),
+            ]),
+            PatternKind::List(elements) => json_key_value_table(vec![
+                ("list", elements.dump_json()),
             ]),
             PatternKind::TupleStruct {
                 name,

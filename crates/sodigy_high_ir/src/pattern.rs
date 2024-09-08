@@ -46,6 +46,7 @@ pub enum PatternKind {
     },
 
     Tuple(Vec<Pattern>),
+    List(Vec<Pattern>),
 
     // it's for matching enum variants, including ones that do not have any value
     // e.g. `Option.Some(x)`, `Option.None` and `None`

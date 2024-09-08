@@ -91,8 +91,11 @@ impl fmt::Display for PatternKind {
                     |pat| pat.to_string()
                 ).collect::<Vec<_>>().join(", "),
             ),
-            PatternKind::Tuple(patterns) => format!(
-                "({})",
+            p_kind @ (PatternKind::Tuple(patterns)
+            | PatternKind::List(patterns)) => format!(
+                "{}{}{}",
+                if let PatternKind::Tuple(_) = p_kind { "(" } else { "[" },
+                if let PatternKind::Tuple(_) = p_kind { ")" } else { "]" },
                 patterns.iter().map(
                     |pattern| pattern.to_string()
                 ).collect::<Vec<_>>().join(", "),

@@ -357,8 +357,8 @@ fn lower_ast_pattern_kind(
             }
         },
         p_kind @ (ast::PatternKind::Tuple(patterns)
+        | ast::PatternKind::List(patterns)
         | ast::PatternKind::Or(patterns)) => {
-            let is_tuple = matches!(p_kind, ast::PatternKind::Tuple(_));
             let mut result = Vec::with_capacity(patterns.len());
             let mut has_error = false;
 
@@ -382,9 +382,15 @@ fn lower_ast_pattern_kind(
                 return Err(());
             }
 
-            if is_tuple {
+            if let ast::PatternKind::Tuple(_) = p_kind {
                 PatternKind::Tuple(result)
-            } else {
+            }
+
+            else if let ast::PatternKind::List(_) = p_kind {
+                PatternKind::List(result)
+            }
+
+            else {
                 PatternKind::Or(result)
             }
         },
