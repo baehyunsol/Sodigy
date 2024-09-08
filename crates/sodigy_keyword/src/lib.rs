@@ -11,11 +11,10 @@ pub enum Keyword {
     Import = 4,
     As = 5,
     From = 6,
-    In = 7,
-    If = 8,
-    Else = 9,
-    Pattern = 10,
-    Match = 11,
+    If = 7,
+    Else = 8,
+    Pattern = 9,
+    Match = 10,
 }
 
 impl Keyword {
@@ -24,7 +23,7 @@ impl Keyword {
     }
 }
 
-pub const fn keywords() -> [Keyword; 12] {
+pub const fn keywords() -> [Keyword; 11] {
     [
         Keyword::Let,
         Keyword::Enum,
@@ -33,7 +32,6 @@ pub const fn keywords() -> [Keyword; 12] {
         Keyword::Import,
         Keyword::As,
         Keyword::From,
-        Keyword::In,
         Keyword::If,
         Keyword::Else,
         Keyword::Pattern,

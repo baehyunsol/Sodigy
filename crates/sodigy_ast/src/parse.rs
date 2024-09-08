@@ -900,32 +900,6 @@ pub fn parse_expr(
                     }
                 }
             },
-            Some(Token {
-                kind: TokenKind::Keyword(kw @ (Keyword::As | Keyword::In)),
-                span,
-            }) => {
-                let op = (*kw).try_into().unwrap();
-                let span = *span;
-                let (l_bp, r_bp) = infix_binding_power(op);
-
-                if l_bp < min_bp {
-                    // parse this op later
-                    tokens.backward().unwrap();
-                    break;
-                }
-
-                let rhs = if let Ok(expr) = parse_expr(tokens, session, r_bp, false, error_context, span) {
-                    expr
-                } else {
-                    return Err(());
-                };
-
-                lhs = Expr {
-                    kind: ExprKind::InfixOp(op, Box::new(lhs), Box::new(rhs)),
-                    span,
-                };
-                continue;
-            },
             _ => {
                 tokens.backward().unwrap();
                 break;

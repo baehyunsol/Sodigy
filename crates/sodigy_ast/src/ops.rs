@@ -1,5 +1,4 @@
 use sodigy_intern::InternedString;
-use sodigy_keyword::Keyword;
 use sodigy_parse::Punct;
 
 mod endec;
@@ -61,8 +60,6 @@ pub enum InfixOp {
     Xor,
     ShiftRight,
     ShiftLeft,
-    As,
-    In,
 
     /// `[]`
     Index,
@@ -122,18 +119,6 @@ impl TryFrom<Punct> for InfixOp {
     }
 }
 
-impl TryFrom<Keyword> for InfixOp {
-    type Error = ();
-
-    fn try_from(kw: Keyword) -> Result<Self, ()> {
-        match kw {
-            Keyword::As => Ok(InfixOp::As),
-            Keyword::In => Ok(InfixOp::In),
-            _ => Err(()),
-        }
-    }
-}
-
 impl TryFrom<PostfixOp> for InfixOp {
     type Error = ();
 
@@ -164,11 +149,10 @@ pub fn infix_binding_power(op: InfixOp) -> (u32, u32) {
     match op {
         InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
         InfixOp::Mul | InfixOp::Div | InfixOp::Rem => (MUL, MUL + 1),
-        InfixOp::As => (AS, AS + 1),
         InfixOp::Concat => (CONCAT, CONCAT + 1),
         InfixOp::Range | InfixOp::InclusiveRange => (RANGE, RANGE + 1),
         InfixOp::Index => (INDEX, INDEX + 1),
-        InfixOp::Gt | InfixOp::Lt | InfixOp::Ge | InfixOp::Le | InfixOp::In => (COMP, COMP + 1),
+        InfixOp::Gt | InfixOp::Lt | InfixOp::Ge | InfixOp::Le => (COMP, COMP + 1),
         InfixOp::Eq | InfixOp::Ne => (COMP_EQ, COMP_EQ + 1),
         InfixOp::ShiftRight | InfixOp::ShiftLeft => (SHIFT, SHIFT + 1),
         InfixOp::BitwiseAnd => (BITWISE_AND, BITWISE_AND + 1),
@@ -196,13 +180,12 @@ pub fn struct_init_binding_power() -> (u32, u32) {
     (STRUCT_INIT, STRUCT_INIT + 1)
 }
 
-const PATH: u32 = 39;
-const STRUCT_INIT: u32 = 37;
-const CALL: u32 = 35;
-const INDEX: u32 = 33;
-const QUESTION: u32 = 31;
-const NEG: u32 = 29;
-const AS: u32 = 27;
+const PATH: u32 = 37;
+const STRUCT_INIT: u32 = 35;
+const CALL: u32 = 33;
+const INDEX: u32 = 31;
+const QUESTION: u32 = 29;
+const NEG: u32 = 27;
 const MUL: u32 = 25;
 const ADD: u32 = 23;
 const SHIFT: u32 = 21;

@@ -260,31 +260,6 @@ Generic function의 type checking은 언제 하는 거임??
 
 ---
 
-`as` operator
-
-- Rust에서는 infallible하게만 쓸 수 있음
-- zig에서는 예외 가능한 거랑 아닌 거랑 구분하지 않나?? 아닌가??
-
-내 생각이 -> `A as B` 했을 때 `B`가 나오는 거 하고 `Result(B, _)`가 나오는 거를 둘 다 쓰고 싶음!
-
-1. infallible한 정의만 있는 경우
-  - 전자는 그냥 `B`를 주면 되고, 후자도 그냥 `B`를 구한 다음에 거기에 `Ok()`를 씌우면 됨!
-2. fallible한 정의만 있는 경우
-  - 전자는 무조건 `.unwrap`을 호출하고, 후자는 그냥 fallible한 거 호출하면 됨
-3. 둘 다 있는 경우
-  - 전자 후자 각각 호출
-
-fallible한 거는 어떻게 나타냄? 이것도 infix operator로 나타내?
-
-1. `A !as B` -> 보기에 너무 이상함...
-2. `A try_as B` -> 새로운 keyword를 추가해야하는데 그 정도의 가치가 있는지 모르겠음...
-
-둘 다 굳이...
-
-아니면 `A as Int`, `A as Option(Int)`로 해도 되지 않음??
-
----
-
 methods
 
 ```
@@ -304,26 +279,6 @@ let get<T>(self: Node(T), key: Int): T = { ... };
   - 이게 돼야 `tree.sdg`가 작동함.
   - 이게 되려면 `@method(Questioned(Node(T)))`가 안되게 만들어야 함!
   - 저걸 금지시켜야 `node?.get()`을 했을 때 안 헷갈리지...
-
----
-
-Haskell-ish way IO
-
-```
-@method(World)
-let exists(self: World, path: String): IO(Bool) = ...;
-
-@method(IO(T))
-let map<T, U>(self: IO(T), f: Func(T, U)): IO(U) = ...;
-
-let main(env: World): World = env.exists("./data.txt").map(
-  \{e, if e {
-    env.remove_file("./data.txt")
-  } else {
-    env.print("file not found!")
-  }}
-).unwrap();
-```
 
 ---
 

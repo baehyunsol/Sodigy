@@ -22,8 +22,6 @@ impl fmt::Display for InfixOp {
             InfixOp::Xor => String::from("^"),
             InfixOp::ShiftRight => String::from(">>"),
             InfixOp::ShiftLeft => String::from("<<"),
-            InfixOp::As => String::from("as"),
-            InfixOp::In => String::from("in"),
             InfixOp::Index => String::from("[]"),
             InfixOp::Concat => String::from("<>"),
             InfixOp::Range => String::from(".."),

@@ -71,14 +71,12 @@ impl Endec for InfixOp {
             InfixOp::Xor => { buffer.push(15); },
             InfixOp::ShiftRight => { buffer.push(16); },
             InfixOp::ShiftLeft => { buffer.push(17); },
-            InfixOp::As => { buffer.push(18); },
-            InfixOp::In => { buffer.push(19); },
-            InfixOp::Index => { buffer.push(20); },
-            InfixOp::Concat => { buffer.push(21); },
-            InfixOp::Range => { buffer.push(22); },
-            InfixOp::InclusiveRange => { buffer.push(23); },
+            InfixOp::Index => { buffer.push(18); },
+            InfixOp::Concat => { buffer.push(19); },
+            InfixOp::Range => { buffer.push(20); },
+            InfixOp::InclusiveRange => { buffer.push(21); },
             InfixOp::FieldModifier(id) => {
-                buffer.push(24);
+                buffer.push(22);
                 id.encode(buffer, session);
             },
         }
@@ -108,14 +106,12 @@ impl Endec for InfixOp {
                     15 => Ok(InfixOp::Xor),
                     16 => Ok(InfixOp::ShiftRight),
                     17 => Ok(InfixOp::ShiftLeft),
-                    18 => Ok(InfixOp::As),
-                    19 => Ok(InfixOp::In),
-                    20 => Ok(InfixOp::Index),
-                    21 => Ok(InfixOp::Concat),
-                    22 => Ok(InfixOp::Range),
-                    23 => Ok(InfixOp::InclusiveRange),
-                    24 => Ok(InfixOp::FieldModifier(InternedString::decode(buffer, index, session)?)),
-                    25.. => Err(EndecError::invalid_enum_variant(*n)),
+                    18 => Ok(InfixOp::Index),
+                    19 => Ok(InfixOp::Concat),
+                    20 => Ok(InfixOp::Range),
+                    21 => Ok(InfixOp::InclusiveRange),
+                    22 => Ok(InfixOp::FieldModifier(InternedString::decode(buffer, index, session)?)),
+                    23.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
