@@ -81,11 +81,11 @@ fn very_long_file() {
         library_paths: None,
     });
 
+    remove_file(&tmp_file_name).unwrap();
+    remove_file(&dummy_output_file).unwrap();
+
     if res.has_error() {
         let (_, stderr) = res.concat_results();
         panic!("{stderr}");
     }
-
-    remove_file(&tmp_file_name).unwrap();
-    remove_file(&dummy_output_file).unwrap();
 }

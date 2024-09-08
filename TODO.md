@@ -614,3 +614,7 @@ reasonable syntax for type classes, like `<T: Clone>` or `where T: Clone` in Rus
   - It's tough to put something inside the angle brackets: the parser does not group the angle brackets.
   - are type classes an expression? if so, I would need an extremely flexible syntax
   - `where` style would be better, or how about decorators?
+
+---
+
+version에다가 git hash도 넣고 싶음. git commit 하기 전에 검사하는 스크립트를 짜야하나?
