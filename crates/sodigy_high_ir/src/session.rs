@@ -75,34 +75,6 @@ impl HirSession {
         }
     }
 
-    pub(crate) fn new(compiler_option: Option<CompilerOption>) -> Self {
-        let mut interner = InternSession::new();
-        let mut tmp_names = vec![];
-
-        for i in 0..4 {
-            tmp_names.push((
-                // prefixed `@` guarantees that the users cannot use that name
-                interner.intern_string(format!("@HirSessionTmpName{i}").as_bytes().to_vec()),
-                false,
-            ));
-        }
-
-        HirSession {
-            errors: vec![],
-            warnings: vec![],
-            interner,
-            func_defs: HashMap::new(),
-            tmp_names,
-            field_exprs: vec![],
-            imported_names: vec![],
-            modules: vec![],
-            snapshots: vec![],
-            compiler_option: compiler_option.unwrap_or_else(|| CompilerOption::default()),
-            previous_errors: vec![],
-            previous_warnings: vec![],
-        }
-    }
-
     // linear search is fine, because tmp_names.len() is very small in most cases
     pub fn allocate_tmp_name(&mut self) -> InternedString {
         for (name, used) in self.tmp_names.iter_mut() {

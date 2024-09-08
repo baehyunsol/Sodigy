@@ -15,35 +15,42 @@ use sodigy_endec::{
     json_key_value_table,
 };
 use sodigy_error::UniversalError;
-use sodigy_intern::InternedString;
+use sodigy_intern::{InternedString, InternSession};
+use sodigy_session::SessionSnapshot;
 use std::collections::HashMap;
 
 impl Endec for HirSession {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        // There's no point in encoding intern_session and field_exprs
+
         self.errors.encode(buffer, session);
         self.warnings.encode(buffer, session);
+        self.tmp_names.encode(buffer, session);
         self.func_defs.encode(buffer, session);
         self.imported_names.encode(buffer, session);
         self.modules.encode(buffer, session);
+        self.snapshots.encode(buffer, session);
         self.compiler_option.encode(buffer, session);
         self.previous_errors.encode(buffer, session);
         self.previous_warnings.encode(buffer, session);
-
-        // There's no point in encoding the other fields
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        // There's no point in decoding the other fields
+        // There's no point in decoding intern_session and field_exprs
+
         Ok(HirSession {
             errors: Vec::<HirError>::decode(buffer, index, session)?,
             warnings: Vec::<HirWarning>::decode(buffer, index, session)?,
+            interner: InternSession::new(),
             func_defs: HashMap::<InternedString, Func>::decode(buffer, index, session)?,
+            tmp_names: Vec::<(InternedString, bool)>::decode(buffer, index, session)?,
+            field_exprs: Vec::new(),
             imported_names: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
             modules: Vec::<Module>::decode(buffer, index, session)?,
+            snapshots: Vec::<SessionSnapshot>::decode(buffer, index, session)?,
             compiler_option: CompilerOption::decode(buffer, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,
             previous_warnings: Vec::<UniversalError>::decode(buffer, index, session)?,
-            ..HirSession::new(None)
         })
     }
 }
