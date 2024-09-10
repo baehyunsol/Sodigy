@@ -26,7 +26,7 @@ impl fmt::Display for InfixOp {
             InfixOp::Concat => String::from("<>"),
             InfixOp::Range => String::from(".."),
             InfixOp::InclusiveRange => String::from("..~"),
-            InfixOp::FieldModifier(id) => format!("`{id}"),
+            InfixOp::FieldModifier(ids) => ids.iter().map(|id| format!("`{}", id.id())).collect::<Vec<_>>().join(" "),
         };
 
         write!(fmt, "{s}")

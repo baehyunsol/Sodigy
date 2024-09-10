@@ -1,5 +1,5 @@
 use crate::HirSession;
-use sodigy_ast::IdentWithSpan;
+use sodigy_parse::IdentWithSpan;
 use sodigy_session::SodigySession;
 
 // This function is quite expensive.

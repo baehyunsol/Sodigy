@@ -2,10 +2,11 @@ use crate::error::{HirError, HirErrorKind};
 use crate::func::Func;
 use crate::module::Module;
 use crate::warn::{HirWarning, HirWarningKind};
-use sodigy_ast::{AstSession, IdentWithSpan};
+use sodigy_ast::AstSession;
 use sodigy_config::CompilerOption;
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_parse::IdentWithSpan;
 use sodigy_prelude::PRELUDES;
 use sodigy_session::{
     SessionOutput,

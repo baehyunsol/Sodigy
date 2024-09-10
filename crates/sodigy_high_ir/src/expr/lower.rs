@@ -29,8 +29,9 @@ use crate::pattern::{
 use crate::session::HirSession;
 use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
-use sodigy_ast::{self as ast, FieldKind, IdentWithSpan, ValueKind};
+use sodigy_ast::{self as ast, FieldKind, ValueKind};
 use sodigy_intern::InternedString;
+use sodigy_parse::IdentWithSpan;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -564,7 +565,7 @@ pub fn lower_ast_expr(
 
             Expr {
                 kind: ExprKind::InfixOp(
-                    *op,
+                    op.clone(),
                     Box::new(lhs?),
                     Box::new(rhs?),
                 ),

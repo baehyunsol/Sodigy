@@ -165,7 +165,7 @@ impl<'t> Tokens<'t> {
                 let span = *span;
                 self.cursor += 1;
 
-                Ok(IdentWithSpan(ident, span))
+                Ok(IdentWithSpan::new(ident, span))
             },
             Some(token) => Err(AstError::unexpected_token(
                 token.clone(),

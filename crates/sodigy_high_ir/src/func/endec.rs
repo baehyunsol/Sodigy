@@ -1,6 +1,6 @@
 use super::{Arg, Func, FuncKind};
 use crate::{Attribute, Type, expr::Expr};
-use sodigy_ast::{GenericDef, IdentWithSpan};
+use sodigy_ast::GenericDef;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -9,6 +9,7 @@ use sodigy_endec::{
     JsonObj,
     json_key_value_table,
 };
+use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
 impl Endec for Func {

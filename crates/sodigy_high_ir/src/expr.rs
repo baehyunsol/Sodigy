@@ -2,8 +2,9 @@ use crate::Type;
 use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
-use sodigy_ast::{FieldKind, IdentWithSpan, InfixOp, PostfixOp, PrefixOp};
+use sodigy_ast::{FieldKind, InfixOp, PostfixOp, PrefixOp};
 use sodigy_intern::{InternedNumeric, InternedString};
+use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 

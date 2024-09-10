@@ -40,7 +40,7 @@ impl fmt::Display for Punct {
                 QuestionMark => "?".to_string(),
                 InclusiveRange => "..~".to_string(),
                 RArrow => "=>".to_string(),
-                FieldModifier(id) => format!("`{id}"),
+                FieldModifier(ids) => ids.iter().map(|id| format!("`{}", id.id())).collect::<Vec<_>>().join(" "),
             },
         )
     }

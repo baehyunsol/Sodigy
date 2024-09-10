@@ -266,10 +266,10 @@ pub fn parse_expr(
             kind: TokenKind::Punct(p),
             span,
         }) => {
-            let punct = *p;
+            let punct = p;
             let prefix_op_span = *span;
 
-            match PrefixOp::try_from(punct) {
+            match PrefixOp::try_from(punct.clone()) {
                 Ok(op) => {
                     let bp = prefix_binding_power(op);
                     let rhs = parse_expr(tokens, session, bp, false, error_context, prefix_op_span)?;
@@ -284,7 +284,7 @@ pub fn parse_expr(
                     return Err(());
                 },
                 Err(()) => {
-                    let message = if punct == Punct::DotDot {
+                    let message = if let Punct::DotDot = punct {
                         String::from("`..` is not a valid prefix operator. If you want its lhs to be 0, specify it. Like `0..`")
                     }
 
@@ -293,7 +293,7 @@ pub fn parse_expr(
                     };
 
                     session.push_error(AstError::unexpected_token(
-                        Token::new_punct(punct, prefix_op_span),
+                        Token::new_punct(punct.clone(), prefix_op_span),
                         ExpectedToken::expr(),
                     ).set_message(
                         message
@@ -654,10 +654,10 @@ pub fn parse_expr(
                 kind: TokenKind::Punct(p),
                 span,
             }) => {
-                let punct = *p;
+                let punct = p;
                 let punct_span = *span;
 
-                match PostfixOp::try_from(punct) {
+                match PostfixOp::try_from(punct.clone()) {
                     // `..` can both be infix and postfix!
                     Ok(op @ PostfixOp::Range) => {
                         let bp = postfix_binding_power(op);
@@ -709,7 +709,7 @@ pub fn parse_expr(
                 }
 
                 // path operator
-                if punct == Punct::Dot {
+                if let Punct::Dot = punct {
                     let (l_bp, _) = path_binding_power();
 
                     if l_bp < min_bp {
@@ -742,9 +742,9 @@ pub fn parse_expr(
                     continue;
                 }
 
-                match InfixOp::try_from(punct) {
+                match InfixOp::try_from(punct.clone()) {
                     Ok(op) => {
-                        let (l_bp, r_bp) = infix_binding_power(op);
+                        let (l_bp, r_bp) = infix_binding_power(op.clone());
 
                         if l_bp < min_bp {
                             // parse this op later
@@ -759,7 +759,7 @@ pub fn parse_expr(
                         };
 
                         lhs = Expr {
-                            kind: ExprKind::InfixOp(op, Box::new(lhs), Box::new(rhs)),
+                            kind: ExprKind::InfixOp(op.clone(), Box::new(lhs), Box::new(rhs)),
                             span: punct_span,
                         };
                         continue;

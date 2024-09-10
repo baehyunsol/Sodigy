@@ -1,9 +1,10 @@
-use sodigy_intern::InternedString;
+use crate::IdentWithSpan;
+use smallvec::SmallVec;
 
 mod endec;
 mod fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Punct {
     At, // `@`
     Add,
@@ -44,7 +45,7 @@ pub enum Punct {
     RArrow,
 
     /// ``` `field_name ```
-    FieldModifier(InternedString),
+    FieldModifier(SmallVec<[IdentWithSpan; 2]>),
 }
 
 impl Punct {

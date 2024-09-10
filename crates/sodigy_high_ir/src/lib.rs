@@ -2,9 +2,10 @@
 
 use crate as hir;
 use log::info;
-use sodigy_ast::{self as ast, IdentWithSpan, LetKind, StmtKind};
+use sodigy_ast::{self as ast, LetKind, StmtKind};
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
+use sodigy_parse::IdentWithSpan;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;

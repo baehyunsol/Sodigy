@@ -8,7 +8,7 @@ use sodigy_endec::{
     JsonObj,
     json_key_value_table,
 };
-use sodigy_ast::IdentWithSpan;
+use sodigy_parse::IdentWithSpan;
 
 impl Endec for Attribute {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {

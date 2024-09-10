@@ -2,6 +2,7 @@ use super::{Attribute, Decorator};
 use crate::{HirSession, IdentWithOrigin, NameSpace, concat_doc_comments, lower_ast_expr};
 use sodigy_ast as ast;
 use sodigy_intern::InternedString;
+use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
 use std::collections::{HashMap, HashSet};
 
@@ -9,7 +10,7 @@ pub fn lower_ast_decorator(
     decorator: &ast::Decorator,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
-    imports: &HashMap<InternedString, (SpanRange, Vec<ast::IdentWithSpan>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<Decorator, ()> {
     let mut has_error = false;
@@ -54,7 +55,7 @@ pub fn lower_ast_attributes(
     attributes: &Vec<ast::Attribute>,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
-    imports: &HashMap<InternedString, (SpanRange, Vec<ast::IdentWithSpan>)>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
     name_space: &mut NameSpace,
 ) -> Result<Vec<Attribute>, ()> {
     let mut doc_comments = vec![];

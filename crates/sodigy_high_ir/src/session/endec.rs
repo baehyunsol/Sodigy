@@ -4,7 +4,6 @@ use crate::func::Func;
 use crate::module::Module;
 use crate::warn::HirWarning;
 use log::info;
-use sodigy_ast::IdentWithSpan;
 use sodigy_config::CompilerOption;
 use sodigy_endec::{
     DumpJson,
@@ -16,6 +15,7 @@ use sodigy_endec::{
 };
 use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_parse::IdentWithSpan;
 use sodigy_session::SessionSnapshot;
 use std::collections::HashMap;
 

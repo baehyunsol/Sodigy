@@ -1,5 +1,6 @@
 use crate as hir;
-use sodigy_ast::{self as ast, IdentWithSpan};
+use sodigy_ast as ast;
+use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
 mod endec;

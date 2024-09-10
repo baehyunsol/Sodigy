@@ -1,5 +1,6 @@
 use crate::expr::Expr;
-use sodigy_ast::{DottedNames, IdentWithSpan};
+use sodigy_ast::DottedNames;
+use sodigy_parse::IdentWithSpan;
 
 mod endec;
 mod fmt;

@@ -1,0 +1,28 @@
+let struct Foo = {
+    bar: Bar,
+    baz: Baz,
+};
+
+let struct Bar = {
+    i: Int,
+    j: Int,
+};
+
+let struct Baz = {
+    k: Int,
+    l: Int,
+};
+
+let foo(i, j, k, l) = Foo {
+    bar: Bar {
+        i: i,
+        j: j,
+    },
+    baz: Baz {
+        k: k,
+        l: l,
+    },
+};
+
+@test.eq(foo(1, 2, 3, 4))
+let test() = foo(5, 6, 7, 8) `bar `i 1 `bar `j 2 `bar `k 3 `bar `l 4;

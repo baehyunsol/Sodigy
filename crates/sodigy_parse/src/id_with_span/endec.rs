@@ -1,4 +1,4 @@
-use crate::IdentWithSpan;
+use super::IdentWithSpan;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -32,3 +32,4 @@ impl DumpJson for IdentWithSpan {
         ])
     }
 }
+

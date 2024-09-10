@@ -1,6 +1,7 @@
-use crate::{Delim, Punct, TokenTree, TokenTreeKind};
+use crate::{Delim, IdentWithSpan, Punct, TokenTree, TokenTreeKind};
 use crate::error::{ParseError, ParseErrorKind};
 use crate::warn::{ParseWarning, ParseWarningKind};
+use smallvec::smallvec;
 use sodigy_config::CompilerOption;
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError, UniversalError};
 use sodigy_intern::{InternedString, InternSession};
@@ -50,6 +51,24 @@ impl ParseSession {
     /// EXPENSIVE
     pub fn dump_tokens(&self) -> String {
         self.tokens.iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" ")
+    }
+
+    pub fn push_field_modifier(&mut self, id: InternedString, span: SpanRange) {
+        match self.tokens.last_mut() {
+            Some(TokenTree {
+                kind: TokenTreeKind::Punct(Punct::FieldModifier(fields)),
+                span: prev_span,
+            }) => {
+                fields.push(IdentWithSpan::new(id, span));
+                *prev_span = prev_span.merge(span);
+            },
+            _ => {
+                self.tokens.push(TokenTree {
+                    kind: TokenTreeKind::Punct(Punct::FieldModifier(smallvec![IdentWithSpan::new(id, span)])),
+                    span,
+                });
+            },
+        }
     }
 
     // it finds `@[...]`s and replace them with `TokenTree::Macro`

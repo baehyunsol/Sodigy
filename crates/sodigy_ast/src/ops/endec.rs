@@ -1,6 +1,7 @@
 use super::{InfixOp, PostfixOp, PrefixOp};
+use smallvec::SmallVec;
 use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_intern::InternedString;
+use sodigy_parse::IdentWithSpan;
 
 impl Endec for PrefixOp {
     fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
@@ -110,7 +111,7 @@ impl Endec for InfixOp {
                     19 => Ok(InfixOp::Concat),
                     20 => Ok(InfixOp::Range),
                     21 => Ok(InfixOp::InclusiveRange),
-                    22 => Ok(InfixOp::FieldModifier(InternedString::decode(buffer, index, session)?)),
+                    22 => Ok(InfixOp::FieldModifier(SmallVec::<[IdentWithSpan; 2]>::decode(buffer, index, session)?)),
                     23.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },

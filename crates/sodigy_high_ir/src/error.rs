@@ -1,5 +1,5 @@
 use smallvec::{SmallVec, smallvec};
-use sodigy_ast::{self as ast, IdentWithSpan};
+use sodigy_ast as ast;
 use sodigy_error::{
     ExtraErrInfo,
     RenderError,
@@ -9,6 +9,7 @@ use sodigy_error::{
     concat_commas,
 };
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
 
 mod endec;

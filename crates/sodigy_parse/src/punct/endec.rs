@@ -1,6 +1,7 @@
+use crate::IdentWithSpan;
 use super::Punct;
+use smallvec::SmallVec;
 use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_intern::InternedString;
 
 impl Endec for Punct {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
@@ -84,7 +85,7 @@ impl Endec for Punct {
                     30 => Ok(Punct::QuestionMark),
                     31 => Ok(Punct::InclusiveRange),
                     32 => Ok(Punct::RArrow),
-                    33 => Ok(Punct::FieldModifier(InternedString::decode(buffer, index, session)?)),
+                    33 => Ok(Punct::FieldModifier(SmallVec::<[IdentWithSpan; 2]>::decode(buffer, index, session)?)),
                     34.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },

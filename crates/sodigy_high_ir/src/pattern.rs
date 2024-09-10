@@ -5,8 +5,9 @@ use crate::{
     HirWarning,
     Type,
 };
-use sodigy_ast::{self as ast, IdentWithSpan};
+use sodigy_ast as ast;
 use sodigy_intern::{InternedNumeric, InternedString, InternSession};
+use sodigy_parse::IdentWithSpan;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
 

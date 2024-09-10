@@ -7,7 +7,6 @@ use super::{
     RangeType,
     StringPattern,
 };
-use sodigy_ast::IdentWithSpan;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -17,6 +16,7 @@ use sodigy_endec::{
     json_key_value_table,
 };
 use sodigy_intern::{InternedNumeric, InternedString};
+use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
 
 impl Endec for Pattern {

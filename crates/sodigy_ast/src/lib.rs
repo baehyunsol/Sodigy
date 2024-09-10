@@ -1,10 +1,9 @@
 #![deny(unused_imports)]
 
-use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
+use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
-mod endec;
 mod error;
 mod expr;
 mod fmt;
@@ -38,33 +37,7 @@ pub use stmt::{
 };
 pub use tokens::Tokens;
 pub use value::ValueKind;
-
 pub use sodigy_parse::{TokenTree as Token, TokenTreeKind as TokenKind};
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub struct IdentWithSpan(InternedString, SpanRange);
-
-impl IdentWithSpan {
-    pub fn new(id: InternedString, span: SpanRange) -> Self {
-        IdentWithSpan(id, span)
-    }
-
-    pub fn id(&self) -> InternedString {
-        self.0
-    }
-
-    pub fn span(&self) -> &SpanRange {
-        &self.1
-    }
-
-    pub fn set_id(&mut self, id: InternedString) {
-        self.0 = id;
-    }
-
-    pub fn set_span(&mut self, span: SpanRange) {
-        self.1 = span;
-    }
-}
 
 pub type DottedNames = Vec<IdentWithSpan>;
 

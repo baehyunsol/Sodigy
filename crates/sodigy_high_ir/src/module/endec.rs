@@ -1,6 +1,5 @@
 use super::Module;
 use crate::attr::Attribute;
-use sodigy_ast::IdentWithSpan;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -9,6 +8,7 @@ use sodigy_endec::{
     JsonObj,
     json_key_value_table,
 };
+use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
 impl Endec for Module {

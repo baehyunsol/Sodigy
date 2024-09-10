@@ -4,7 +4,9 @@ Purely functional Rust-like programming language.
 
 It's still under development.
 
-In order to build the compiler, read [this](Build.md).
+- Other manuals
+  - [Build.md](Build.md)
+  - [Language.md](Language.md)
 
 ## Goal of Sodigy (and the compiler)
 

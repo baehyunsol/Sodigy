@@ -164,7 +164,7 @@ fn parse_pattern_value(
         }) => {
             let punct_span = *span;
 
-            match *punct {
+            match punct {
                 Punct::Dollar => match tokens.expect_ident() {
                     Ok(mut id) => {
                         id.set_span(punct_span.merge(*id.span()));
@@ -185,7 +185,7 @@ fn parse_pattern_value(
                 },
                 p @ (Punct::DotDot
                 | Punct::InclusiveRange) => {  // prefixed dotdot operator
-                    let is_inclusive = p == Punct::InclusiveRange;
+                    let is_inclusive = matches!(p, Punct::InclusiveRange);
 
                     // there are cases where `parse_pattern_value` fails but it's not an error
                     // in those cases, `tokens` and `session` have to be restored

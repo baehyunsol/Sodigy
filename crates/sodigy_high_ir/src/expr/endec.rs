@@ -17,7 +17,6 @@ use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
 use sodigy_ast::{
-    IdentWithSpan,
     InfixOp,
     PostfixOp,
     PrefixOp,
@@ -31,6 +30,7 @@ use sodigy_endec::{
     json_key_value_table,
 };
 use sodigy_intern::{InternedNumeric, InternedString};
+use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 

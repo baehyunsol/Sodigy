@@ -1,5 +1,5 @@
-use sodigy_intern::InternedString;
-use sodigy_parse::Punct;
+use smallvec::SmallVec;
+use sodigy_parse::{IdentWithSpan, Punct};
 
 mod endec;
 mod fmt;
@@ -40,7 +40,7 @@ impl TryFrom<Punct> for PostfixOp {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum InfixOp {
     Add,
     Sub,
@@ -74,7 +74,7 @@ pub enum InfixOp {
     InclusiveRange,
 
     /// `` ` ``
-    FieldModifier(InternedString),
+    FieldModifier(SmallVec<[IdentWithSpan; 2]>),
 }
 
 impl TryFrom<Punct> for InfixOp {

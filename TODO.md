@@ -556,28 +556,6 @@ sodigy regex compiler
 
 ---
 
-field modifiers in Sodigy: left-associative or right-associative?
-
-since the backtick character doesn't get along well with markdown, I'll just use `'`
-
-1. when modifying multiple fields
-  - `person 'name "Bae" 'age 26`
-  - it has to be left-associative
-  - if it were rust, the syntax would be `person.name = "Bae"; person.age = 26;`. the Sodigy one is better
-2. when modifying a deep field
-  - `smart_phone 'ap smart_phone.ap 'cpu smart_phone.ap.cpu 'alu smart_phone.ap.cpu.alu 'adder new_adder`
-  - it has to be right-associative
-  - it gets dirty: if the depth is N, the length of the code is O(N*N)
-  - how about another operator (or a syntactic sugar) for such cases?
-  - if it were rust, the syntax would be `smart_phone.ap.cpu.alu.adder = new_adder`. the rust one is better
-  - how about `smart_phone 'ap 'cpu 'alu 'adder new_adder`?
-    - this one is better than both
-    - it would complicate the parser, a lot.
-
-하는 김에 field modifier에 integer도 넣을 수 있게 할까? `[1, 2, 3, 4] '1 100` 하면 `[1, 100, 3, 4]` 되게. 요거는 살짝 애매: 보통 index는 constant가 아니고 variable이잖아
-
----
-
 REPL mode
 
 1. I need this for quick testing

@@ -9,6 +9,7 @@ use sodigy_session::SodigySession;
 mod delim;
 mod error;
 mod formatted_str;
+mod id_with_span;
 mod punct;
 mod session;
 mod token_tree;
@@ -18,6 +19,7 @@ pub use delim::{Delim, DelimStart};
 pub use error::ParseError;
 use formatted_str::parse_str;
 pub use formatted_str::FormattedStringElement;
+pub use id_with_span::IdentWithSpan;
 pub use punct::Punct;
 pub use session::ParseSession;
 pub use token_tree::{TokenTree, TokenTreeKind};
@@ -79,11 +81,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                         // field modifier
                         match tokens.get(index + 1) {
                             Some(Token { kind: TokenKind::Identifier(id), span: span2 }) => {
-                                session.push_result(TokenTree {
-                                    kind: TokenTreeKind::Punct(Punct::FieldModifier(*id)),
-                                    span: token.span.merge(*span2),
-                                });
-
+                                session.push_field_modifier(*id, token.span.merge(*span2));
                                 index += 1;
                             },
                             _ => {

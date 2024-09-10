@@ -1,5 +1,5 @@
 use crate::attr::Attribute;
-use sodigy_ast::IdentWithSpan;
+use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
 mod endec;

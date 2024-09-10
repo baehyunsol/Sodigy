@@ -1,7 +1,8 @@
-use sodigy_ast::{ArgDef, IdentWithSpan};
+use sodigy_ast::ArgDef;
 use sodigy_error::substr_edit_distance;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lang_item::LangItemTrait;
+use sodigy_parse::IdentWithSpan;
 use sodigy_prelude::PRELUDES;
 use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
