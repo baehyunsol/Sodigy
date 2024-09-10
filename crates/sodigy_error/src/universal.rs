@@ -1,4 +1,10 @@
-use crate::{ErrorContext, RenderError, render_error_title, show_file_names};
+use crate::{
+    ErrorContext,
+    RenderError,
+    Stage,
+    render_error_title,
+    show_file_names,
+};
 use smallvec::{SmallVec, smallvec};
 use sodigy_endec::EndecError;
 use sodigy_files::FileError;
@@ -23,6 +29,7 @@ pub struct UniversalError {
 
     /// It's used to remove duplicate errors.
     pub(crate) hash: u64,
+    pub(crate) stage: Stage,
 }
 
 impl UniversalError {
@@ -31,6 +38,7 @@ impl UniversalError {
         is_warning: bool,
         show_span: bool,
         span: Option<SpanRange>,
+        stage: Stage,
 
         // those of SodigyErrorKind
         msg: String,
@@ -61,6 +69,7 @@ impl UniversalError {
             is_warning,
             show_span,
             spans,
+            stage,
         }
     }
 
@@ -103,7 +112,6 @@ impl UniversalError {
     }
 }
 
-// TODO: `From<FileError> for UniversalError` and `From<EndecError> for UniversalError` look the same
 impl From<FileError> for UniversalError {
     fn from(e: FileError) -> UniversalError {
         UniversalError {
@@ -113,6 +121,7 @@ impl From<FileError> for UniversalError {
             show_span: false,
             spans: smallvec![],
             hash: e.hash_u64(),
+            stage: Stage::FileIo,
         }
     }
 }
@@ -126,6 +135,7 @@ impl From<EndecError> for UniversalError {
             show_span: false,
             spans: smallvec![],
             hash: e.hash_u64(),
+            stage: Stage::Endec,
         }
     }
 }

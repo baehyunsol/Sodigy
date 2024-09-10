@@ -1,8 +1,8 @@
 use crate::names::NameBindingType;
 use crate::pattern::{NumberLike, RangeType};
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use sodigy_ast::{self as ast, IdentWithSpan};
-use sodigy_error::{ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind};
+use sodigy_error::{ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind, Stage};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_span::SpanRange;
 
@@ -85,6 +85,10 @@ impl SodigyError<HirWarningKind> for HirWarning {
 
     fn index(&self) -> u32 {
         5
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Hir
     }
 }
 

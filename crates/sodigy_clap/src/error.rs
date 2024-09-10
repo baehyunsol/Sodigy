@@ -8,6 +8,7 @@ use sodigy_error::{
     RenderError,
     SodigyError,
     SodigyErrorKind,
+    Stage,
     substr_edit_distance,
     trim_long_string,
 };
@@ -170,6 +171,10 @@ impl SodigyError<ClapErrorKind> for ClapError {
 
     fn index(&self) -> u32 {
         2
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Clap
     }
 }
 

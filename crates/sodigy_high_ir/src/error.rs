@@ -5,6 +5,7 @@ use sodigy_error::{
     RenderError,
     SodigyError,
     SodigyErrorKind,
+    Stage,
     concat_commas,
 };
 use sodigy_intern::{InternedString, InternSession};
@@ -165,6 +166,10 @@ impl SodigyError<HirErrorKind> for HirError {
 
     fn index(&self) -> u32 {
         4
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Hir
     }
 }
 

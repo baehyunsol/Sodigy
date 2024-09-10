@@ -1,5 +1,11 @@
 use smallvec::{SmallVec, smallvec};
-use sodigy_error::{ErrorContext, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{
+    ErrorContext,
+    ExtraErrInfo,
+    SodigyError,
+    SodigyErrorKind,
+    Stage,
+};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
@@ -56,7 +62,11 @@ impl SodigyError<ParseWarningKind> for ParseWarning {
     }
 
     fn index(&self) -> u32 {
-        11
+        9
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Parse
     }
 }
 

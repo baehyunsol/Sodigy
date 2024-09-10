@@ -17,6 +17,7 @@ mod dist;
 mod expected_token;
 mod extra_info;
 mod fmt;
+mod stage;
 mod universal;
 
 pub use ctxt::ErrorContext;
@@ -24,6 +25,7 @@ pub use dist::substr_edit_distance;
 pub use expected_token::ExpectedToken;
 pub use extra_info::ExtraErrInfo;
 pub use fmt::RenderError;
+pub use stage::Stage;
 pub use universal::UniversalError;
 
 pub trait SodigyError<K: SodigyErrorKind> {
@@ -37,9 +39,11 @@ pub trait SodigyError<K: SodigyErrorKind> {
 
     fn error_kind(&self) -> &K;
 
-    /// Errors at different passes have different indices.
+    /// Errors at different stages have different indices.
     /// For example, lex error, parse error and ast error have different ones.
     fn index(&self) -> u32;
+
+    fn get_stage(&self) -> Stage;
 
     /// override this when it's a warning
     fn is_warning(&self) -> bool {
@@ -106,6 +110,7 @@ pub trait SodigyError<K: SodigyErrorKind> {
             is_warning: self.is_warning(),
             show_span: self.get_error_info().show_span,
             spans: self.get_spans().into(),
+            stage: self.get_stage(),
             hash,
         }
     }

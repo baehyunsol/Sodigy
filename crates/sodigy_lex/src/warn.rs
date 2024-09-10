@@ -1,5 +1,5 @@
 use smallvec::SmallVec;
-use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind, Stage};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
@@ -37,6 +37,10 @@ impl SodigyError<LexWarningKind> for LexWarning {
 
     fn index(&self) -> u32 {
         7
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Lex
     }
 }
 

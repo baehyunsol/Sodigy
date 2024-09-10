@@ -1,3 +1,4 @@
+use crate::Stage;
 use super::UniversalError;
 use smallvec::SmallVec;
 use sodigy_endec::{
@@ -18,6 +19,7 @@ impl Endec for UniversalError {
         self.spans.encode(buffer, session);
         self.show_span.encode(buffer, session);
         self.hash.encode(buffer, session);
+        self.stage.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -28,6 +30,7 @@ impl Endec for UniversalError {
             spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
             show_span: bool::decode(buffer, index, session)?,
             hash: u64::decode(buffer, index, session)?,
+            stage: Stage::decode(buffer, index, session)?,
         })
     }
 }

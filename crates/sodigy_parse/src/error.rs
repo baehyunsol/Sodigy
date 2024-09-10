@@ -6,6 +6,7 @@ use sodigy_error::{
     RenderError,
     SodigyError,
     SodigyErrorKind,
+    Stage,
 };
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
@@ -123,7 +124,11 @@ impl SodigyError<ParseErrorKind> for ParseError {
     }
 
     fn index(&self) -> u32 {
-        10
+        8
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Parse
     }
 }
 

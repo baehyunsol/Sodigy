@@ -1,14 +1,15 @@
 use crate::{IdentWithSpan, Token, TokenKind};
 use crate::pattern::{Pattern, PatternKind};
 use crate::stmt::Attribute;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use sodigy_error::{
-    substr_edit_distance,
     ErrorContext,
     ExpectedToken,
     ExtraErrInfo,
     SodigyError,
     SodigyErrorKind,
+    Stage,
+    substr_edit_distance,
 };
 use sodigy_error::RenderError;
 use sodigy_intern::{InternedString, InternSession};
@@ -262,6 +263,10 @@ impl SodigyError<AstErrorKind> for AstError {
 
     fn index(&self) -> u32 {
         0
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Ast
     }
 }
 

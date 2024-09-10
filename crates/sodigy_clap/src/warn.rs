@@ -6,6 +6,7 @@ use sodigy_error::{
     RenderError,
     SodigyError,
     SodigyErrorKind,
+    Stage,
 };
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
@@ -64,9 +65,12 @@ impl SodigyError<ClapWarningKind> for ClapWarning {
         true
     }
 
-    // do we even need this?
     fn index(&self) -> u32 {
         3
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Clap
     }
 }
 
@@ -110,7 +114,6 @@ impl SodigyErrorKind for ClapWarningKind {
         }
     }
 
-    // we don't need this, but I want it to look more complete
     fn index(&self) -> u32 {
         match self {
             ClapWarningKind::IncompatibleFlags(_, _) => 0,

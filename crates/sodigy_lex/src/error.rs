@@ -1,5 +1,11 @@
 use smallvec::{smallvec, SmallVec};
-use sodigy_error::{concat_commas, ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{
+    concat_commas,
+    ExtraErrInfo,
+    SodigyError,
+    SodigyErrorKind,
+    Stage,
+};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
@@ -116,6 +122,10 @@ impl SodigyError<LexErrorKind> for LexError {
 
     fn index(&self) -> u32 {
         6
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Lex
     }
 }
 

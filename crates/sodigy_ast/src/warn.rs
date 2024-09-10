@@ -1,6 +1,6 @@
 use crate::IdentWithSpan;
 use smallvec::{smallvec, SmallVec};
-use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind};
+use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind, Stage};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
@@ -47,6 +47,10 @@ impl SodigyError<AstWarningKind> for AstWarning {
 
     fn index(&self) -> u32 {
         1
+    }
+
+    fn get_stage(&self) -> Stage {
+        Stage::Ast
     }
 }
 
