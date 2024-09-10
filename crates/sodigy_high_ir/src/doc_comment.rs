@@ -26,7 +26,11 @@ pub fn concat_doc_comments(
 
         Some(IdentWithSpan::new(
             session.intern_string(d.into()),
-            first_span.merge(*last_span),
+            if docs.len() > 1 {
+                first_span.merge(*last_span)
+            } else {
+                *first_span
+            },
         ))
     }
 }

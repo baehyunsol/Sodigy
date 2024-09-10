@@ -7,7 +7,7 @@ This is a document for the Sodigy Compiler. It's written in Rust, and there's no
 Like other compilers, Sodigy compiler goes through multiple steps to compile.
 
 1. Code
-  - It's a text file the programmer provides. There's no modification yet.
+  - It's text the programmer provides. There's no modification yet.
 2. `Token`
   - Raw texts is processed by `sodigy_lex` to become `Token`s.
   - It's a very simple representation. It distinguishes identifiers, punctuations, and literals. That's it.
@@ -39,7 +39,7 @@ In order to make the life of programmers easier, the compiler tries to emit as m
 
 ## Sodigy-first
 
-If you're implementing a Sodigy function, it has to be written in Sodigy. Writing a function in C (and all the other backends) might give you a better performance, but I don't want more dependencies to manage. Everything has to be in Sodigy except very primitive functions.
+If you're implementing a Sodigy function, it has to be written in Sodigy. Writing a function in C (or whatever backend you're using) might give you a better performance, but I don't want more dependencies to manage. Everything has to be in Sodigy except very primitive functions.
 
 That's one of the reason Sodigy uses rational numbers instead of floating point numbers.
 
