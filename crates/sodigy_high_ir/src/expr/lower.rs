@@ -712,6 +712,8 @@ pub fn lower_ast_expr(
                 // `if pattern PAT = COND { EXPR } else if ... `
                 // -> `match COND { PAT => EXPR, _ => if ... }`
                 else {
+                    // TODO: in order to make sure that `arms[1]` exists,
+                    //       some kinda exhaustiveness checking must be done. but it hasn't
                     let match_expr = ast::Expr {
                         kind: ast::ExprKind::Match {
                             value: Box::new(arms[0].cond.clone().unwrap()),

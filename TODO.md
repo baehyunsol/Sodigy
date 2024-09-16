@@ -651,7 +651,7 @@ lower name bindings in match statements
 
 ```
 match x {
-  ($a, 2, 3) => foo(a),
+  ($a, 2, 3) | (1, $a, 2) => foo(a),
 }
 ```
 
@@ -661,6 +661,12 @@ becomes
 match x {
   (_, 2, 3) => {
     let a = pattern._0;  // TODO: implicit name binding for the whole pattern
+
+    foo(a)
+  },
+  // TODO: there must be a smarter notation, since the expr is redundant
+  (1, _, 2) => {
+    let a = pattern._1;
 
     foo(a)
   },
