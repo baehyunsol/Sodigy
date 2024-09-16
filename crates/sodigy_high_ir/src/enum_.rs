@@ -109,7 +109,7 @@ pub fn lower_ast_enum(
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
-                    session.get_results_mut().insert(variant_func_name.id(), f);
+                    assert!(session.get_results_mut().insert(f.uid, f).is_none());
                 } else {
                     has_error = true;
                 }
@@ -152,7 +152,7 @@ pub fn lower_ast_enum(
                     name_space,
                 ) {
                     f.kind = FuncKind::EnumVariant { parent: parent_uid };
-                    session.get_results_mut().insert(variant_func_name.id(), f);
+                    assert!(session.get_results_mut().insert(f.uid, f).is_none());
                 }
 
                 else {
@@ -210,7 +210,7 @@ pub fn lower_ast_enum(
         name_space,
     ) {
         f.kind = FuncKind::Enum { variants: variant_uids };
-        session.get_results_mut().insert(enum_name.id(), f);
+        assert!(session.get_results_mut().insert(f.uid, f).is_none());
     }
 
     else {

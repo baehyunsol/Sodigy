@@ -27,11 +27,13 @@ impl Endec for IdentWithOrigin {
 impl Endec for NameOrigin {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
-            NameOrigin::Prelude => {
+            NameOrigin::Prelude(uid) => {
                 buffer.push(0);
+                uid.encode(buffer, session);
             },
-            NameOrigin::LangItem => {
+            NameOrigin::LangItem(uid) => {
                 buffer.push(1);
+                uid.encode(buffer, session);
             },
             NameOrigin::FuncArg { index } => {
                 buffer.push(2);
@@ -41,9 +43,15 @@ impl Endec for NameOrigin {
                 buffer.push(3);
                 index.encode(buffer, session);
             },
-            NameOrigin::Local { origin } => {
+            NameOrigin::Local {
+                origin,
+                binding_type,
+                index,
+            } => {
                 buffer.push(4);
                 origin.encode(buffer, session);
+                binding_type.encode(buffer, session);
+                index.encode(buffer, session);
             },
             NameOrigin::Global { origin } => {
                 buffer.push(5);
@@ -63,11 +71,15 @@ impl Endec for NameOrigin {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(NameOrigin::Prelude),
-                    1 => Ok(NameOrigin::LangItem),
+                    0 => Ok(NameOrigin::Prelude(Uid::decode(buffer, index, session)?)),
+                    1 => Ok(NameOrigin::LangItem(Uid::decode(buffer, index, session)?)),
                     2 => Ok(NameOrigin::FuncArg { index: usize::decode(buffer, index, session)? }),
                     3 => Ok(NameOrigin::FuncGeneric { index: usize::decode(buffer, index, session)? }),
-                    4 => Ok(NameOrigin::Local { origin: Uid::decode(buffer, index, session)? }),
+                    4 => Ok(NameOrigin::Local {
+                        origin: Uid::decode(buffer, index, session)?,
+                        binding_type: NameBindingType::decode(buffer, index, session)?,
+                        index: usize::decode(buffer, index, session)?,
+                    }),
                     5 => Ok(NameOrigin::Global { origin: Option::<Uid>::decode(buffer, index, session)? }),
                     6 => Ok(NameOrigin::Captured {
                         lambda: Uid::decode(buffer, index, session)?,
@@ -127,8 +139,8 @@ impl DumpJson for IdentWithOrigin {
 impl DumpJson for NameOrigin {
     fn dump_json(&self) -> JsonObj {
         match self {
-            NameOrigin::Prelude => json_key_value_table(vec![("type", "prelude".dump_json())]),
-            NameOrigin::LangItem => json_key_value_table(vec![("type", "lang_item".dump_json())]),
+            NameOrigin::Prelude(_) => json_key_value_table(vec![("type", "prelude".dump_json())]),
+            NameOrigin::LangItem(_) => json_key_value_table(vec![("type", "lang_item".dump_json())]),
             NameOrigin::FuncArg { index } => json_key_value_table(vec![
                 ("type", "func_arg".dump_json()),
                 ("index", index.dump_json()),
@@ -137,9 +149,15 @@ impl DumpJson for NameOrigin {
                 ("type", "func_generic".dump_json()),
                 ("index", index.dump_json()),
             ]),
-            NameOrigin::Local { origin } => json_key_value_table(vec![
+            NameOrigin::Local {
+                binding_type,
+                origin,
+                index,
+            } => json_key_value_table(vec![
                 ("type", "local".dump_json()),
+                ("binding_type", binding_type.dump_json()),
                 ("origin", origin.dump_json()),
+                ("index", index.dump_json()),
             ]),
             NameOrigin::Global { origin } => json_key_value_table(vec![
                 ("type", "global".dump_json()),
@@ -151,5 +169,11 @@ impl DumpJson for NameOrigin {
                 ("index", index.dump_json()),
             ]),
         }
+    }
+}
+
+impl DumpJson for NameBindingType {
+    fn dump_json(&self) -> JsonObj {
+        format!("{self:?}").dump_json()
     }
 }

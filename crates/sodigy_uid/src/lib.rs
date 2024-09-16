@@ -25,6 +25,7 @@ pub(crate) const MODULE: u128       = 0x4 << 124;
 pub(crate) const LAMBDA: u128       = 0x5 << 124;
 pub(crate) const SCOPE_BLOCK: u128  = 0x6 << 124;
 pub(crate) const MATCH_ARM: u128    = 0x7 << 124;
+pub(crate) const LANG_ITEM: u128    = 0x8 << 124;
 
 // Metadata
 pub(crate) const IS_PRELUDE: u128 = 0b1000 << 120;
@@ -66,6 +67,10 @@ impl Uid {
 
     pub fn new_match_arm() -> Self {
         Uid(rand::random::<u128>() & ERASER | MATCH_ARM)
+    }
+
+    pub fn new_lang_item_from_hash(hash: u128) -> Self {
+        Uid(hash & ERASER | LANG_ITEM)
     }
 
     pub fn into_def(&self) -> Self {

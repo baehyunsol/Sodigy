@@ -81,10 +81,9 @@ impl Endec for SpecialOutput {
 impl Endec for CompilerOutputFormat {
     fn encode(&self, buffer: &mut Vec<u8>, _: &mut EndecSession) {
         match self {
-            CompilerOutputFormat::None => { buffer.push(0); },
-            CompilerOutputFormat::Hir => { buffer.push(1); },
-            CompilerOutputFormat::Mir => { buffer.push(2); },
-            CompilerOutputFormat::Binary => { buffer.push(3); },
+            CompilerOutputFormat::Hir => { buffer.push(0); },
+            CompilerOutputFormat::Mir => { buffer.push(1); },
+            CompilerOutputFormat::Binary => { buffer.push(2); },
         }
     }
 
@@ -94,11 +93,10 @@ impl Endec for CompilerOutputFormat {
                 *index += 1;
 
                 match *n {
-                    0 => Ok(CompilerOutputFormat::None),
-                    1 => Ok(CompilerOutputFormat::Hir),
-                    2 => Ok(CompilerOutputFormat::Mir),
-                    3 => Ok(CompilerOutputFormat::Binary),
-                    4.. => Err(EndecError::invalid_enum_variant(*n)),
+                    0 => Ok(CompilerOutputFormat::Hir),
+                    1 => Ok(CompilerOutputFormat::Mir),
+                    2 => Ok(CompilerOutputFormat::Binary),
+                    3.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

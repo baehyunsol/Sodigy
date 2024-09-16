@@ -3,9 +3,8 @@ use crate::{lower_ast_expr, lower_ast_ty};
 use crate::attr::lower_ast_attributes;
 use crate::error::HirError;
 use crate::expr::try_warn_unnecessary_paren;
-use crate::names::{IdentWithOrigin, NameBindingType, NameSpace};
+use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
-use crate::warn::HirWarning;
 use sodigy_ast as ast;
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
@@ -137,20 +136,6 @@ pub fn lower_ast_func(
         imports,
         name_space,
     );
-
-    // find unused names
-
-    for (arg, name_origin) in name_space.iter_func_args() {
-        if !used_names.contains(&IdentWithOrigin::new(arg.id(), name_origin)) {
-            session.push_warning(HirWarning::unused_name(arg, NameBindingType::FuncArg));
-        }
-    }
-
-    for (generic, name_origin) in name_space.iter_func_generics() {
-        if !used_names.contains(&IdentWithOrigin::new(generic.id(), name_origin)) {
-            session.push_warning(HirWarning::unused_name(generic, NameBindingType::FuncGeneric));
-        }
-    }
 
     name_space.leave_func_def();
 

@@ -276,7 +276,7 @@ check_output!(expr, warn, expr_warn_test4, "{{5}}", "unnecessary parenthesis");
 check_output!(expr, warn, expr_warn_test5, "match x { 0..~0 => 0, _ => x }", "`0..~0` is just `0`");
 check_output!(expr, warn, expr_warn_test6, "match x { 0.1..~0.1 => 0, _ => x }", "`0.1..~0.1` is just `0.1`");
 check_output!(expr, warn, expr_warn_test7, "match x { 1..2 => 1, _ => x }", "`1..~1` is just `1`");
-check_output!(expr, warn, expr_warn_test8, "{let pattern ($x, $y) = (0, 1); x}", "unused local name binding");
+check_output!(expr, warn, expr_warn_test8, "{let pattern ($xx, $yy) = (0, 1); xx}", "unused local name binding");
 check_output!(expr, warn, expr_warn_test9, "
     {
         let pattern ($x, ($y, $z)) = (0, (1, 2));
@@ -287,6 +287,7 @@ check_output!(expr, warn, expr_warn_test9, "
 check_output!(expr, warn, expr_warn_test10, "{let pattern ($x @ _, $y) = (0, 1); y}", "name binding on wildcard");
 check_output!(expr, warn, expr_warn_test11, "match (1, 2) {($aa @ (1 | 2), $bb @ (3 | 4)) => aa, _ => 0}", "unused name binding in match arm: `bb`");
 check_output!(expr, warn, expr_warn_test12, "match (1, 2) { ($x @ ($y @ 1 | $z @ 2), $a @ ($b @ 1 | $c @ 2)) => 0, _ => 1 }", "multiple name bindings on a pattern");
+check_output!(expr, warn, expr_warn_test13, "f\"\\{{let x = 3; 4}}\"", "unused local name binding");
 
 fn make_non_utf8(s: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(s.len() + 4);

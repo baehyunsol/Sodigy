@@ -1,6 +1,7 @@
 #![deny(unused_imports)]
 
 use sodigy_intern::{InternedString, InternSession};
+use sodigy_uid::Uid;
 
 // it has to start with a character that cannot be used by user code
 pub const LANG_ITEM_PREFIX: &'static [u8] = b"@@lang_item_";
@@ -43,11 +44,31 @@ impl LangItem {
 
 // extension on InternedString for LangItem-related methods
 pub trait LangItemTrait {
-    fn is_lang_item(&self, intern_session: &mut InternSession) -> bool;
+    fn try_get_lang_item_uid(&self, intern_session: &mut InternSession) -> Option<Uid>;
 }
 
 impl LangItemTrait for InternedString {
-    fn is_lang_item(&self, intern_session: &mut InternSession) -> bool {
-        intern_session.unintern_string(*self).starts_with(LANG_ITEM_PREFIX)
+    fn try_get_lang_item_uid(&self, intern_session: &mut InternSession) -> Option<Uid> {
+        let uninterned = intern_session.unintern_string(*self);
+
+        if uninterned.starts_with(LANG_ITEM_PREFIX) {
+            Some(Uid::new_lang_item_from_hash(hash_bytes(&uninterned)))
+        }
+
+        else {
+            None
+        }
     }
+}
+
+// I just felt like writing my own hash function
+pub fn hash_bytes(bytes: &[u8]) -> u128 {
+    let mut result: u128 = 0;
+
+    for (i, c) in bytes.iter().enumerate() {
+        let inter = ((result & 0xfff_ffff) << 24) | ((i & 0xfff) << 12) as u128 | *c as u128;
+        result += ((inter * inter) << 1) + inter;
+    }
+
+    result & 0xffff_ffff_ffff_ffff_ffff_ffff_ffff
 }

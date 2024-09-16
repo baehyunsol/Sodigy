@@ -1,4 +1,3 @@
-use crate::names::NameBindingType;
 use crate::pattern::{NumberLike, RangeType};
 use smallvec::{SmallVec, smallvec};
 use sodigy_ast as ast;
@@ -19,14 +18,6 @@ impl HirWarning {
     pub fn redef_prelude(id: IdentWithSpan) -> Self {
         HirWarning {
             kind: HirWarningKind::RedefPrelude(id.id()),
-            spans: smallvec![*id.span()],
-            extra: ExtraErrInfo::none(),
-        }
-    }
-
-    pub fn unused_name(id: IdentWithSpan, binding_type: NameBindingType) -> Self {
-        HirWarning {
-            kind: HirWarningKind::UnusedName(id.id(), binding_type),
             spans: smallvec![*id.span()],
             extra: ExtraErrInfo::none(),
         }
@@ -95,7 +86,6 @@ impl SodigyError<HirWarningKind> for HirWarning {
 
 pub enum HirWarningKind {
     RedefPrelude(InternedString),
-    UnusedName(InternedString, NameBindingType),
     UnnecessaryParen {
         is_brace: bool,
     },
@@ -111,7 +101,6 @@ impl SodigyErrorKind for HirWarningKind {
     fn msg(&self, _: &mut InternSession) -> String {
         match self {
             HirWarningKind::RedefPrelude(name) => format!("redefinition of prelude `{}`", name.render_error()),
-            HirWarningKind::UnusedName(name, nbt) => format!("unused {}: `{}`", nbt.render_error(), name.render_error()),
             HirWarningKind::UnnecessaryParen { .. } => format!("unnecessary parenthesis"),
             HirWarningKind::PointRange { .. } => format!("meaningless range"),
             HirWarningKind::NameBindingOnWildcard => format!("name binding on wildcard"),
@@ -145,10 +134,9 @@ impl SodigyErrorKind for HirWarningKind {
     fn index(&self) -> u32 {
         match self {
             HirWarningKind::RedefPrelude(..) => 0,
-            HirWarningKind::UnusedName(..) => 1,
-            HirWarningKind::UnnecessaryParen { .. } => 2,
-            HirWarningKind::PointRange { .. } => 3,
-            HirWarningKind::NameBindingOnWildcard => 4,
+            HirWarningKind::UnnecessaryParen { .. } => 1,
+            HirWarningKind::PointRange { .. } => 2,
+            HirWarningKind::NameBindingOnWildcard => 3,
         }
     }
 }

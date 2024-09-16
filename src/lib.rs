@@ -81,7 +81,6 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
             output
         },
-        CompilerOutputFormat::None => unreachable!(),  // TODO: what's this format for?
     };
 
     output.show_overall_result = true;

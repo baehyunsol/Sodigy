@@ -17,6 +17,7 @@ use sodigy_error::UniversalError;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_parse::IdentWithSpan;
 use sodigy_session::SessionSnapshot;
+use sodigy_uid::Uid;
 use std::collections::HashMap;
 
 impl Endec for HirSession {
@@ -44,7 +45,7 @@ impl Endec for HirSession {
             interner: InternSession::new(),
             tmp_names: Vec::<(InternedString, bool)>::decode(buffer, index, session)?,
             field_exprs: Vec::new(),
-            func_defs: HashMap::<InternedString, Func>::decode(buffer, index, session)?,
+            func_defs: HashMap::<Uid, Func>::decode(buffer, index, session)?,
             imported_names: Vec::<IdentWithSpan>::decode(buffer, index, session)?,
             modules: Vec::<Module>::decode(buffer, index, session)?,
             snapshots: Vec::<SessionSnapshot>::decode(buffer, index, session)?,

@@ -83,7 +83,6 @@ pub enum SpecialOutput {
 
 #[derive(Clone)]
 pub enum CompilerOutputFormat {
-    None,
     Hir,
     Mir,
     Binary,
@@ -92,7 +91,6 @@ pub enum CompilerOutputFormat {
 impl CompilerOutputFormat {
     pub fn create_output_path(&self) -> String {
         match self {
-            CompilerOutputFormat::None => String::new(),
             CompilerOutputFormat::Hir => String::from("./a.hir"),
             CompilerOutputFormat::Mir => String::from("./a.mir"),
             CompilerOutputFormat::Binary => String::from("./a.out"),

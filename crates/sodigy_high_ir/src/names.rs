@@ -5,7 +5,7 @@ use sodigy_lang_item::LangItemTrait;
 use sodigy_parse::IdentWithSpan;
 use sodigy_prelude::PRELUDES;
 use sodigy_uid::Uid;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 mod endec;
 mod fmt;
@@ -33,8 +33,8 @@ impl IdentWithOrigin {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameOrigin {
-    Prelude,
-    LangItem,
+    Prelude(Uid),
+    LangItem(Uid),
     FuncArg {
         index: usize,
     },
@@ -43,7 +43,8 @@ pub enum NameOrigin {
     },
     Local {   // match arm, `if pattern`, scope
         origin: Uid,
-        // binding_type: NameBindingType,
+        binding_type: NameBindingType,
+        index: usize,
     },
     Global {  // top-level `let`s, `module` and `import`
 
@@ -54,8 +55,9 @@ pub enum NameOrigin {
     Captured { lambda: Uid, index: usize },  // inside closures
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NameBindingType {
-    ScopedLet,  // `let x = 3` in `{ ... }`
+    ScopedLet,
     FuncArg,
     FuncGeneric,
     LambdaArg,
@@ -65,7 +67,7 @@ pub enum NameBindingType {
 }
 
 pub struct NameSpace {
-    preludes: HashSet<InternedString>,
+    preludes: HashMap<InternedString, Uid>,
 
     // `let`, `import`, and `module` in the current module
     globals: HashMap<InternedString, Option<Uid>>,
@@ -75,19 +77,15 @@ pub struct NameSpace {
     func_generics: Vec<IdentWithSpan>,
 
     // name bindings in `match`, scope, lambda, `if pattern`, and etc
-    locals: Vec<(Uid, HashSet<InternedString>)>,
+    locals: Vec<(NameBindingType, Uid, Vec<InternedString>)>,
 
     pub(crate) func_args_locked: bool,
 }
 
 impl NameSpace {
     pub fn new() -> Self {
-        let preludes = PRELUDES.keys().map(
-            |id| *id
-        ).collect();
-
         NameSpace {
-            preludes,
+            preludes: PRELUDES.clone(),
             globals: HashMap::new(),
             func_args: vec![],
             func_generics: vec![],
@@ -167,8 +165,8 @@ impl NameSpace {
         }
     }
 
-    pub fn push_locals(&mut self, uid: Uid, locals: HashSet<InternedString>) {
-        self.locals.push((uid, locals));
+    pub fn push_locals(&mut self, name_binding_type: NameBindingType, uid: Uid, locals: Vec<InternedString>) {
+        self.locals.push((name_binding_type, uid, locals));
     }
 
     pub fn pop_locals(&mut self) {
@@ -177,7 +175,7 @@ impl NameSpace {
 
     pub fn has_this_local_uid(&self, uid: Uid) -> bool {
         // `self.locals.len()` is small enough in most cases
-        self.locals.iter().any(|(id, _)| *id == uid)
+        self.locals.iter().any(|(_, id, _)| *id == uid)
     }
 
     pub fn find_arg_generic_name_collision(&self) -> Result<(), [IdentWithSpan; 2]> {
@@ -195,14 +193,20 @@ impl NameSpace {
     }
 
     pub fn find_origin(&self, id: InternedString, interner: &mut InternSession) -> Option<NameOrigin> {
-        for (uid, names) in self.locals.iter().rev() {
-            if names.contains(&id) {
-                return Some(NameOrigin::Local { origin: *uid });
+        for (binding_type, uid, names) in self.locals.iter().rev() {
+            for (index, name) in names.iter().enumerate() {
+                if *name == id {
+                    return Some(NameOrigin::Local {
+                        binding_type: *binding_type,
+                        origin: *uid,
+                        index,
+                    });
+                }
             }
         }
 
-        if id.is_lang_item(interner) {
-            return Some(NameOrigin::LangItem);
+        if let Some(uid) = id.try_get_lang_item_uid(interner) {
+            return Some(NameOrigin::LangItem(uid));
         }
 
         if !self.func_args_locked {
@@ -223,8 +227,8 @@ impl NameSpace {
             return Some(NameOrigin::Global { origin: *uid });
         }
 
-        if self.preludes.contains(&id) {
-            return Some(NameOrigin::Prelude);
+        if let Some(uid) = self.preludes.get(&id) {
+            return Some(NameOrigin::Prelude(*uid));
         }
 
         None
@@ -242,7 +246,7 @@ impl NameSpace {
 
         let mut result = vec![];
 
-        for (_, names) in self.locals.iter().rev() {
+        for (_, _, names) in self.locals.iter().rev() {
             for name in names.iter() {
                 let name_u8 = session.unintern_string(*name).to_vec();
 
@@ -271,7 +275,7 @@ impl NameSpace {
         ).chain(self.func_generics.iter().map(
             |name| name.id()
         )).chain(self.globals.keys().map(|i| *i)).chain(
-            self.preludes.iter().map(|i| *i)
+            self.preludes.iter().map(|(i, _)| *i)
         ) {
             let name_u8 = session.unintern_string(name).to_vec();
 

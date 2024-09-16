@@ -140,25 +140,6 @@ decorators (spec)
 
 ---
 
-linear type system (check in MIR)
-
-- `let foo(x: Int, y: Int): Int = bar(...);`
-  - check how many times `x` is used
-    - none: warning
-    - exactly once: maybe useful later when doing RC optimization
-    - not known at compile time due to branch
-  - check how many times foreign uid is used
-    - for example `bar` is used...
-    - at least once / 0 ~ more: use this info when building dependency graphs
-      - for ex, if `foo` calls itself at least once, that's an infinite recursion
-- `{let x = ...; let y = ...; ...}`
-  - check how many times `x` is used
-    - none: warning
-    - exactly once: remove `let x = ...;` and replace `x` with its value
-    - at least once: no need for lazy evaluation, just evaluate this eagerly when the scope is entered
-
----
-
 clap 관련 참신한 아이디어
 
 지금은 `Vec<String>`으로 된 args를 concat한 다음에 바로 parser에 넣잖아? 근데 이걸 한 스텝 더 하는 거임!
@@ -605,16 +586,6 @@ version에다가 git hash도 넣고 싶음. git commit 하기 전에 검사하�
 
 ---
 
-linear type system
-
-1. scoped let
-  - for each name binding, count how many times each name is used
-  - graph between names?
-    - it has to reject cycles
-2. function
-  - almost identical to scoped lets
-  - I also want to draw a graph of uids
-
 지금 저게 중요한게 아니고, 런타임을 어떻게 구현할지가 더 중요...
 
 1. scoped let을 위한 stack이 필요
@@ -673,3 +644,36 @@ name resolver도 생각보다 생각할게 많음
 1. name resolver: hir 모양은 그대로 두고 NameOrigin만 다 채우기
 2. lower to mir: 모든게 함수호출 모양으로 된 mir. integer constant 같은 거는 이 단계에서 type checking까지 가능!
 3. type checker: (lowering 덜 된) mir을 갖고 interpreter를 돌려야 함! hir로 돌리는 것보다는 나을 듯?
+
+---
+
+lower name bindings in match statements
+
+```
+match x {
+  ($a, 2, 3) => foo(a),
+}
+```
+
+becomes
+
+```
+match x {
+  (_, 2, 3) => {
+    let a = pattern._0;  // TODO: implicit name binding for the whole pattern
+
+    foo(a)
+  },
+}
+```
+
+---
+
+local values in MIR
+
+1. only 1 scope for a function
+  - all the local name bindings in a function are merged to a 1 big scope
+  - unused name warning, mutual recursive name binding, optimization, 전부 여기서 진행
+  - inlining도 여기서 (내부 함수의 local name binding을 전부 밖으로 빼버리면 됨!)
+
+---

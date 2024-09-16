@@ -966,9 +966,7 @@ fn unfold_or_patterns(
     }
 }
 
-// TODO
-//   1. It's too naive
-//   2. Is there any better place for this function?
+// TODO: It's too naive
 //
 // annotated_patterns
 // [$x, $y, $z]

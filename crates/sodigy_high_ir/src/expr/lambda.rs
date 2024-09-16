@@ -45,8 +45,6 @@ impl<'h> LambdaCollectCtxt<'h> {
 
     pub fn new_name_from_span(&mut self, span: SpanRange) -> InternedString {
         let span_hash = span.hash128();
-
-        // `@` prevents name collisions
         self.session.intern_string(format!("@@LAMBDA_{span_hash:x}").into())
     }
 }
@@ -137,7 +135,7 @@ pub fn find_and_replace_captured_values(
 
             // checks whether this id should be captured or not
             match origin {
-                NameOrigin::Prelude   // not captured 
+                NameOrigin::Prelude(_)   // not captured
                 | NameOrigin::Global { .. }  // not captured
                 | NameOrigin::LangItem { .. }  // not captured
                 | NameOrigin::Captured { .. }  // captured, but it'll handle names in Lambda.captured_values
@@ -148,7 +146,7 @@ pub fn find_and_replace_captured_values(
                 | NameOrigin::FuncGeneric { .. } => {
                     /* must be captured */
                 },
-                NameOrigin::Local { origin: local_origin } => {
+                NameOrigin::Local { origin: local_origin, .. } => {
                     // has to see whether it's captured or not
                     // there are 2 cases: Lambda in a Scope, Scope in a Lambda
                     // first case: that's a captured name and the scope is still in the name_space

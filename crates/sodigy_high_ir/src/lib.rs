@@ -22,6 +22,7 @@ mod func;
 mod module;
 mod names;
 mod pattern;
+mod scope;
 mod session;
 mod struct_;
 mod walker;
@@ -54,7 +55,9 @@ pub use func::{Arg, Func, FuncKind};
 use func::lower_ast_func;
 pub use names::NameOrigin;
 pub use module::Module;
-use names::{IdentWithOrigin, NameBindingType, NameSpace};
+use names::{IdentWithOrigin, NameSpace};
+pub use names::NameBindingType;
+pub use scope::{Scope, ScopedLet};
 pub use session::HirSession;
 use struct_::lower_ast_struct;
 use warn::HirWarning;
@@ -223,10 +226,10 @@ pub fn lower_stmts(
 
                         // TODO: `try_convert_closures_to_lambdas` on these
                         for func in lambda_context.collected_lambdas.into_iter() {
-                            session.get_results_mut().insert(func.name.id(), func);
+                            assert!(session.get_results_mut().insert(func.uid, func).is_none());
                         }
 
-                        session.get_results_mut().insert(f.name.id(), f);
+                        assert!(session.get_results_mut().insert(f.uid, f).is_none());
                     },
                     LetKind::Enum {
                         name,
@@ -299,15 +302,6 @@ pub fn lower_stmts(
             StmtKind::Import(_) => {
                 // already handled
             },
-        }
-    }
-
-    for (name, (span, _)) in imports.iter() {
-        if !used_names.contains(&IdentWithOrigin::new(*name, NameOrigin::Global { origin: None })) {
-            session.push_warning(HirWarning::unused_name(
-                IdentWithSpan::new(*name, *span),
-                NameBindingType::Import,
-            ));
         }
     }
 

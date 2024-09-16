@@ -18,6 +18,7 @@ members = [
     "crates/sodigy_keyword",
     "crates/sodigy_lang_item",
     "crates/sodigy_lex",
+    "crates/sodigy_mid_ir",
     "crates/sodigy_number",
     "crates/sodigy_output",
     "crates/sodigy_parse",

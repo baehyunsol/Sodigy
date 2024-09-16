@@ -1,3 +1,4 @@
+use crate::{Scope, ScopedLet};
 use crate::attr::{Attribute, Decorator};
 use crate::expr::{self as hir, Expr, ExprKind};
 use crate::func::{Arg, Func};
@@ -82,7 +83,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
                 mut_walker_expr(elem, c, worker);
             }
         },
-        ExprKind::Scope(hir::Scope {
+        ExprKind::Scope(Scope {
             lets,
             value,
 
@@ -93,7 +94,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
         }) => {
             mut_walker_expr(value, c, worker);
 
-            for hir::ScopedLet { value, .. } in lets.iter_mut() {
+            for ScopedLet { value, .. } in lets.iter_mut() {
                 mut_walker_expr(value, c, worker);
             }
         },

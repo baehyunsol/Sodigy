@@ -14,6 +14,7 @@ use sodigy_session::{
     SodigySession,
 };
 use sodigy_span::SpanRange;
+use sodigy_uid::Uid;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -22,9 +23,7 @@ pub struct HirSession {
     errors: Vec<HirError>,
     warnings: Vec<HirWarning>,
     interner: InternSession,
-
-    // HashMap<name, def>
-    func_defs: HashMap<InternedString, Func>,
+    func_defs: HashMap<Uid, Func>,
 
     // you can get tmp names using `.allocate_tmp_name` method
     // tmp_names from this vector is guaranteed to be unique
@@ -162,7 +161,7 @@ impl HirSession {
     }
 }
 
-impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<InternedString, Func>, Func> for HirSession {
+impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<Uid, Func>, Func> for HirSession {
     fn get_errors(&self) -> &Vec<HirError> {
         &self.errors
     }
@@ -195,11 +194,11 @@ impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<I
         &mut self.previous_warnings
     }
 
-    fn get_results(&self) -> &HashMap<InternedString, Func> {
+    fn get_results(&self) -> &HashMap<Uid, Func> {
         &self.func_defs
     }
 
-    fn get_results_mut(&mut self) -> &mut HashMap<InternedString, Func> {
+    fn get_results_mut(&mut self) -> &mut HashMap<Uid, Func> {
         &mut self.func_defs
     }
 
@@ -221,7 +220,7 @@ impl SodigySession<HirError, HirErrorKind, HirWarning, HirWarningKind, HashMap<I
 }
 
 // don't use this. just use session.get_results_mut().insert()
-impl SessionOutput<Func> for HashMap<InternedString, Func> {
+impl SessionOutput<Func> for HashMap<Uid, Func> {
     fn pop(&mut self) -> Option<Func> {
         unreachable!()
     }

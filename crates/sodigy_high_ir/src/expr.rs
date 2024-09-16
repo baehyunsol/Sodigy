@@ -2,6 +2,7 @@ use crate::Type;
 use crate::func::Arg;
 use crate::names::IdentWithOrigin;
 use crate::pattern::Pattern;
+use crate::scope::{Scope, ScopedLet};
 use sodigy_ast::{FieldKind, InfixOp, PostfixOp, PrefixOp};
 use sodigy_intern::{InternedNumeric, InternedString};
 use sodigy_parse::IdentWithSpan;
@@ -56,42 +57,6 @@ pub enum ExprKind {
     PrefixOp(PrefixOp, Box<Expr>),
     PostfixOp(PostfixOp, Box<Expr>),
     InfixOp(InfixOp, Box<Expr>, Box<Expr>),
-}
-
-#[derive(Clone)]
-pub struct Scope {
-    // used later for type-checking
-    pub original_patterns: Vec<(Pattern, Expr)>,
-
-    pub lets: Vec<ScopedLet>,
-    pub value: Box<Expr>,
-    pub uid: Uid,
-}
-
-#[derive(Clone)]
-pub struct ScopedLet {
-    pub name: IdentWithSpan,
-    pub value: Expr,
-    pub ty: Option<Type>,
-
-    // the compiler generates tmp local defs during the compilation
-    pub is_real: bool,
-}
-
-impl ScopedLet {
-    pub fn try_new(name: IdentWithSpan, value: Result<Expr, ()>, ty: Option<Result<Type, ()>>, is_real: bool) -> Option<Self> {
-        match (&value, &ty) {
-            (Ok(_), Some(Ok(_))) => Some(ScopedLet {
-                name, value: value.unwrap(),
-                ty: ty.map(|ty| ty.unwrap()), is_real,
-            }),
-            (Ok(_), None) => Some(ScopedLet {
-                name, value: value.unwrap(),
-                ty: None, is_real,
-            }),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone)]

@@ -98,12 +98,12 @@ pub fn lower_ast_struct(
 
         let mut struct_type = struct_type?;
         struct_type.kind = FuncKind::StructDef;
-        session.get_results_mut().insert(name.id(), struct_type);
+        assert!(session.get_results_mut().insert(struct_type.uid, struct_type).is_none());
     }
 
     let mut constructor = constructor?;
     constructor.kind = FuncKind::StructConstr;
-    session.get_results_mut().insert(constructor_name.id(), constructor);
+    assert!(session.get_results_mut().insert(constructor.uid, constructor).is_none());
 
     Ok(())
 }
