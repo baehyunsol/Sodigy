@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 sodigy_high_ir = { path = "../sodigy_high_ir" }
 sodigy_intern = { path = "../sodigy_intern" }
+sodigy_parse = { path = "../sodigy_parse" }
 sodigy_span = { path = "../sodigy_span" }
 sodigy_uid = { path = "../sodigy_uid" }

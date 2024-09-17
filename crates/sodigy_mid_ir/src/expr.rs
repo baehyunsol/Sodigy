@@ -1,7 +1,8 @@
-use sodigy_high_ir::NameBindingType;
 use sodigy_intern::InternedNumeric;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
+
+mod lower;
 
 pub struct Expr {
     kind: ExprKind,
