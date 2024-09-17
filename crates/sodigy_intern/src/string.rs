@@ -2,6 +2,7 @@ use crate::prelude::{
     DATA_BIT_WIDTH,
     FOUR_BYTES_CHAR,
     IS_SHORT_STRING,
+    STARTS_WITH_AT,
 };
 
 mod fmt;
@@ -27,6 +28,10 @@ pub fn try_intern_short_string(s: &[u8]) -> Option<InternedString> {
 
             index += 1;
             step -= 8;
+        }
+
+        if s.starts_with(b"@") {
+            res |= STARTS_WITH_AT;
         }
 
         Some(InternedString(res))

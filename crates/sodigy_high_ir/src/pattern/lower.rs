@@ -42,6 +42,8 @@ pub fn lower_patterns_to_name_bindings(
     session: &mut HirSession,
 ) -> Result<(), ()> {
     match &pattern.kind {
+        // let pattern $x = foo();
+        // -> `let x = foo();`  (no change)
         ast::PatternKind::Binding(name) => {
             name_bindings.push(DestructuredPattern::new(
                 IdentWithSpan::new(*name, pattern.span),
@@ -49,6 +51,26 @@ pub fn lower_patterns_to_name_bindings(
                 pattern.ty.clone(),
                 true,
             ));
+        },
+        // `let pattern $x @ _ = foo();` ||
+        // `let pattern $x @ 1 = foo();` ||
+        // `let pattern $x @ a = foo();` || ...
+        // -> `let x = foo();`
+        // this function doesn't care whether `foo()` matches the pattern or not
+        // it would either be checked by refutability check or runtime pattern matching
+        ast::PatternKind::Wildcard
+        | ast::PatternKind::Identifier(_)
+        | ast::PatternKind::Number(_)
+        | ast::PatternKind::Char(_)
+        | ast::PatternKind::String { .. } => {
+            if let Some(name) = &pattern.bind {
+                name_bindings.push(DestructuredPattern::new(
+                    IdentWithSpan::new(name.id(), *name.span()),
+                    expr.clone(),
+                    pattern.ty.clone(),
+                    true,
+                ));
+            }
         },
         // let pattern ($x, ($y, $z)) = foo();
         // -> `let tmp = foo(); let x = tmp._0; let tmp2 = tmp._1; let y = tmp2._0; let z = tmp2._1;`
@@ -192,8 +214,7 @@ pub fn lower_patterns_to_name_bindings(
             }
         },
         _ => {
-            // TODO: rust allows `let ((y @ 1, x @ 2) | (x, y)) = (1, 2);`
-            session.push_error(HirError::refutable_pattern_in_let(pattern));
+            session.push_error(HirError::todo(&format!("lower_patterns_to_name_bindings({pattern:?})"), pattern.span));
             return Err(());
         },
     }

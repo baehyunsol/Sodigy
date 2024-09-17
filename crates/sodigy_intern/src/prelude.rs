@@ -19,6 +19,9 @@ pub(crate) const SHORT_STRING_LENGTH_MASK: u32 = 0b001_100 << DATA_BIT_WIDTH;
 // 🦫
 pub(crate) const FOUR_BYTES_CHAR: u32 = 0b010_000 << DATA_BIT_WIDTH;
 
+// `.starts_with("@")`. this character is frequently used by compiler-generated identifiers
+pub(crate) const STARTS_WITH_AT: u32 = 0b000_010 << DATA_BIT_WIDTH;
+
 // metadata for numerics
 pub(crate) const IS_INTEGER: u32 = 0b100_000 << DATA_BIT_WIDTH;
 
@@ -84,6 +87,10 @@ impl InternedString {
 
     pub fn is_underbar(&self) -> bool {
         self.0 == IS_SHORT_STRING | (1 << (DATA_BIT_WIDTH + 2)) | ((b'_' as u32) << 16)
+    }
+
+    pub fn starts_with_at(&self) -> bool {
+        self.0 & STARTS_WITH_AT != 0
     }
 
     pub fn is_empty(&self) -> bool {

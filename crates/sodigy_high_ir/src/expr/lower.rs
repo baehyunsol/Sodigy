@@ -27,7 +27,7 @@ use crate::pattern::{
     lower_ast_pattern,
 };
 use crate::session::HirSession;
-use crate::walker::mut_walker_expr;
+use crate::walker::{MutWalkerState, mut_walker_expr};
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, FieldKind, ValueKind};
 use sodigy_intern::InternedString;
@@ -855,22 +855,51 @@ pub fn lower_ast_expr(
                 span: e.span,
             }
         },
+        /*
+        ```
+        match bar() {
+            ($x, 1, 2) => foo(x),
+            (1, $y, 3) if y > 100 => bar(0),
+            (100, $x, 3) => bar(x),
+            _ => baz(),
+        }
+        ```
+        becomes
+        ```
+        {
+            let @@pattern = bar();
+            let @@x1 = @@pattern._0;
+            let @@y = @@pattern._1;
+            let @@x2 = @@pattern._1;
+
+            match _pattern {
+                # `$x` in pattern is ignored after this pass
+                ($x, 1, 2) => foo(@@x1),
+                (1, $y, 3) if @@y > 100 => bar(0),
+                (100, $x, 3) => bar(@@x2),
+            }
+        }
+        ```
+        */
         ast::ExprKind::Match { value, arms, is_lowered_from_if_pattern } => {
             try_warn_unnecessary_paren(value, session);
+            let mut matched_arms = Vec::with_capacity(arms.len());
+            let mut tmp_names = vec![];
+            let mut name_binding_to_tmp_name_map = HashMap::new();  // used by `avoid_name_collisions_in_match_arms`
+            let mut has_error = false;
 
-            let result_value = lower_ast_expr(
-                value,
-                session,
-                used_names,
-                imports,
-                name_space,
-            );
-            let mut result_arms = Vec::with_capacity(arms.len());
+            // `@@pattern` in `let @@pattern = bar()`
+            let entire_pattern_name = session.allocate_tmp_name();
+            let entire_pattern = ast::Expr {
+                kind: ast::ExprKind::Value(ast::ValueKind::Identifier(entire_pattern_name)),
+                span: value.span.into_fake(),
+            };
+            let scoped_let_uid = Uid::new_scope();
 
             for ast::MatchArm {
                 pattern,
                 guard,
-                value,
+                value: value_in_arm,
                 uid,
             } in arms.iter() {
                 // NOTE: name checks in `or` patterns
@@ -878,37 +907,50 @@ pub fn lower_ast_expr(
                 //          - `get_name_bindings` and `check_names_in_or_patterns` take care of that
                 //       2. each name must be bound to the same type of value
                 //          - it's checked later (TODO: not implemented yet)
+                let mut name_bindings = Vec::new();
+                let mut name_collision_checker = HashMap::new();
+                let mut name_bindings_buffer = vec![];
+                pattern.get_name_bindings(&mut name_bindings_buffer);
+
                 for error in check_names_in_or_patterns(&pattern) {
                     session.push_error(error);
                 }
 
-                let mut name_bindings = vec![];
+                for def in name_bindings_buffer.iter() {
+                    match name_collision_checker.get(&def.id()) {
+                        Some(id) => {
+                            session.push_error(HirError::name_collision(*def, *id));
+                        },
+                        None => {
+                            name_collision_checker.insert(def.id(), *def);
+                        },
+                    }
 
-                // `match bar() {($x, 1, 2) => foo(x)}`
-                // becomes
-                // `{let _pattern = bar(); match _pattern {($x, 1, 2) => {let tmp = _pattern; let x = tmp._0; foo(x)}}}`
-                // `_pattern` is a special identifier that's bound to the pattern
-                // `tmp` is a tmp name allocated by `lower_patterns_to_name_bindings`
-                // `$x` in the pattern is ignored after this pass. it only cares about `let x = tmp._0`
-                lower_patterns_to_name_bindings(
+                    name_bindings.push(def.id());
+                }
+
+                if let Err(_) = lower_patterns_to_name_bindings(
                     pattern,
-                    todo!(),  // use a special identifier (e.g. `_pattern`)
-                    &mut name_bindings,
+                    &entire_pattern,
+                    &mut tmp_names,
                     session,
-                )?;
+                ) {
+                    has_error = true;
+                }
 
-                let value = if name_bindings.is_empty() {
-                    lower_ast_expr(
-                        value,
-                        session,
-                        used_names,
-                        imports,
-                        name_space,
-                    )
-                } else {
-                    // wrap the value with a scope with the name bindings
-                    todo!()
-                };
+                name_space.push_locals(
+                    NameBindingType::MatchArm,
+                    *uid,
+                    name_bindings,
+                );
+
+                let value_in_arm = lower_ast_expr(
+                    value_in_arm,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                );
 
                 let pattern = lower_ast_pattern(
                     pattern,
@@ -918,10 +960,6 @@ pub fn lower_ast_expr(
                     name_space,
                 );
 
-                // TODO: now that name bindings in match arms are lowered to scoped lets,
-                // lowering `guard` also has to be changed
-                // 1. newly bound names must be seen from the guard
-                // 2. it has to prevent false-negative unused-name warnings
                 let guard = guard.as_ref().map(|g| lower_ast_expr(
                     g,
                     session,
@@ -930,20 +968,141 @@ pub fn lower_ast_expr(
                     name_space,
                 ));
 
-                result_arms.push(MatchArm {
-                    value: value?,
+                name_space.pop_locals();
+
+                let mut value_in_arm = value_in_arm?;
+                avoid_name_collisions_in_match_arms(
+                    &mut value_in_arm,
+                    &mut tmp_names,
+                    &mut name_binding_to_tmp_name_map,
+                    *uid,
+                    scoped_let_uid,
+                    session,
+                );
+
+                let guard = if let Some(g) = guard {
+                    let mut guard = g?;
+
+                    avoid_name_collisions_in_match_arms(
+                        &mut guard,
+                        &mut tmp_names,
+                        &mut name_binding_to_tmp_name_map,
+                        *uid,
+                        scoped_let_uid,
+                        session,
+                    );
+
+                    Some(guard)
+                } else {
+                    None
+                };
+
+                matched_arms.push(MatchArm {
+                    value: value_in_arm,
                     pattern: pattern?,
-                    guard: if let Some(g) = guard { Some(g?) } else { None },
+                    guard: if let Some(g) = guard { Some(g) } else { None },
                 });
             }
 
-            Expr {
-                kind: ExprKind::Match(Match {
-                    arms: result_arms,
-                    value: Box::new(result_value?),
-                    is_lowered_from_if_pattern: *is_lowered_from_if_pattern,
-                }),
-                span: e.span,
+            if has_error {
+                return Err(());
+            }
+
+            if tmp_names.is_empty() {
+                let matched_value = lower_ast_expr(
+                    value,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                )?;
+
+                Expr {
+                    kind: ExprKind::Match(Match {
+                        arms: matched_arms,
+                        value: Box::new(matched_value),
+                        is_lowered_from_if_pattern: *is_lowered_from_if_pattern,
+                    }),
+                    span: e.span,
+                }
+            }
+
+            else {
+                let mut matched_value = None;
+                tmp_names.push(DestructuredPattern {
+                    name: IdentWithSpan::new(entire_pattern_name, value.span.into_fake()),
+                    ty: None,
+                    expr: *value.clone(),
+                    is_real: false,
+                });
+                let mut lets = Vec::with_capacity(tmp_names.len());
+                name_space.push_locals(
+                    NameBindingType::ScopedLet,
+                    scoped_let_uid,
+                    tmp_names.iter().map(
+                        |tmp_name| tmp_name.name.id()
+                    ).collect(),
+                );
+
+                for DestructuredPattern {
+                    name, expr, ty, is_real,
+                } in tmp_names.into_iter() {
+                    let expr = lower_ast_expr(
+                        &expr,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    );
+
+                    // it has to prevent lowering `expr` twice
+                    // otherwise, the users would see the same error messages twice
+                    if name.id() == entire_pattern_name {
+                        matched_value = Some(expr.clone());
+                    }
+
+                    if let Some(s) = ScopedLet::try_new(
+                        name,
+                        expr,
+                        ty.map(|ty| lower_ast_ty(
+                            &ty,
+                            session,
+                            used_names,
+                            imports,
+                            name_space,
+                        )),
+                        is_real,
+                    ) {
+                        lets.push(s);
+                    }
+
+                    else {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    return Err(());
+                }
+
+                name_space.pop_locals();
+
+                Expr {
+                    kind: ExprKind::Scope(Scope {
+                        original_patterns: vec![],  // TODO: do I need this?
+                        lets,
+                        uid: scoped_let_uid,
+                        value: Box::new(Expr {
+                            kind: ExprKind::Match(Match {
+                                arms: matched_arms,
+                                value: Box::new(matched_value.unwrap().unwrap()),
+                                is_lowered_from_if_pattern: *is_lowered_from_if_pattern,
+                            }),
+                            span: e.span,
+                        }),
+                    }),
+                    span: e.span.into_fake(),
+                }
             }
         },
         ast::ExprKind::Parenthesis(expr) => {
@@ -1007,3 +1166,92 @@ fn fields_from_vec(names: &[IdentWithSpan], span: SpanRange) -> Expr {
         }
     }
 }
+
+/*
+```
+{
+    let tmp = foo();
+    let x = tmp._0;
+    let x = tmp._1;
+
+    match tmp {
+        ($x, 1, 2) => bar(x),
+        (0, $x, 0) => baz(x),
+    }
+}
+```
+
+becomes
+
+```
+{
+    let tmp foo();
+    let tmp2 = tmp._0;
+    let tmp3 = tmp._1;
+
+    match tmp {
+        ($x, 1, 2) => bar(tmp2),
+        (0, $x, 0) => baz(tmp3),
+    }
+}
+```
+*/
+fn avoid_name_collisions_in_match_arms(
+    expr: &mut Expr,
+    names: &mut Vec<DestructuredPattern>,
+    // `x` -> `tmp2`
+    name_map: &mut HashMap<(InternedString, Uid), (InternedString, usize)>,
+    match_arm_uid: Uid,
+    scope_uid: Uid,
+    session: &mut HirSession,
+) {
+    for (index, name) in names.iter_mut().enumerate() {
+        if !name.name.id().starts_with_at() {
+            let new_name = session.allocate_tmp_name();
+            name_map.insert(
+                (name.name.id(), match_arm_uid),
+                (new_name, index),
+            );
+            name.name = IdentWithSpan::new(new_name, *name.name.span());
+        }
+    }
+
+    mut_walker_expr(
+        expr,
+        &mut NameReplaceState {
+            map: name_map,
+            scope_uid,
+        },
+        &Box::new(replace_names_in_match_arm),
+    );
+}
+
+struct NameReplaceState<'a> {
+    map: &'a mut HashMap<(InternedString, Uid), (InternedString, usize)>,
+    scope_uid: Uid,
+}
+
+pub fn replace_names_in_match_arm<'a>(e: &mut Expr, c: &mut NameReplaceState<'a>) {
+    if let ExprKind::Identifier(id) = &mut e.kind {
+        if let NameOrigin::Local {
+            binding_type: NameBindingType::MatchArm,
+            origin,
+            ..
+        } = id.origin() {
+            let origin = *origin;
+
+            if let Some((new_name, index)) = c.map.get(&(id.id(), origin)) {
+                e.kind = ExprKind::Identifier(IdentWithOrigin::new(
+                    *new_name,
+                    NameOrigin::Local {
+                        origin: c.scope_uid,
+                        binding_type: NameBindingType::ScopedLet,
+                        index: *index,
+                    },
+                ));
+            }
+        }
+    }
+}
+
+impl<'a> MutWalkerState for NameReplaceState<'a> {}

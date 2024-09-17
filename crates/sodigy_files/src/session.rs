@@ -97,7 +97,6 @@ impl FileSession {
         }
 
         else {
-            println!("{hash}, {:?}, {:?}", self.files, self.tmp_files);
             None
         }
     }

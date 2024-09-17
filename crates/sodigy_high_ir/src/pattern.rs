@@ -64,6 +64,7 @@ pub enum PatternKind {
 }
 
 // `let pattern PAT = EXPR;` is destructured to multiple `DestructuredPattern`s.
+#[derive(Debug)]
 pub struct DestructuredPattern {
     pub(crate) name: IdentWithSpan,
 

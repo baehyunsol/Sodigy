@@ -2,7 +2,7 @@ use crate::{
     InternedNumeric,
     InternedString,
     numeric::try_intern_small_integer,
-    prelude::DATA_MASK,
+    prelude::{DATA_MASK, STARTS_WITH_AT},
     string::try_intern_short_string,
 };
 use sodigy_keyword::keywords;
@@ -83,7 +83,11 @@ impl GlobalInternSession {
                     }
 
                     else {
-                        let ii = self.get_new_string_index();
+                        let mut ii = self.get_new_string_index();
+
+                        if string.starts_with(b"@") {
+                            ii.0 |= STARTS_WITH_AT;
+                        }
 
                         self.strings.insert(string.clone(), ii);
                         self.strings_rev.insert(ii, string);
