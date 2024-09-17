@@ -127,7 +127,6 @@ impl SodigyErrorKind for HirWarningKind {
                 format!("`{rendered}..~{rendered}` is just `{rendered}`.")
             },
             HirWarningKind::NameBindingOnWildcard => String::from("This name binding doesn't do anything."),
-            _ => String::new(),
         }
     }
 

@@ -1,3 +1,4 @@
+use crate::ty::Type;
 use sodigy_intern::InternedNumeric;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -8,8 +9,8 @@ pub struct Expr {
     kind: ExprKind,
     span: SpanRange,
 
-    // TODO: what if it does not have a type annotation?
-    // ty: Type,
+    // TODO: replace `Type` with `&'session Type` when the other implementation is complete
+    ty: Option<Type>,
 }
 
 pub enum ExprKind {

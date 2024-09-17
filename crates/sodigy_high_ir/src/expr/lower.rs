@@ -337,6 +337,8 @@ pub fn lower_ast_expr(
                 for let_ in scope.lets.iter() {
                     match &let_.kind {
                         ast::LetKind::Pattern(pattern, expr) => {
+                            // TODO: it doesn't check whether the pattern is refutable or not
+                            //       the check has to be done at mir pass, don't forget to add one!
                             if let Err(_) = lower_patterns_to_name_bindings(
                                 pattern,
                                 expr,
@@ -775,7 +777,7 @@ pub fn lower_ast_expr(
                     // `if COND1 { EXPR1 } else if pattern PAT = COND2 { EXPR2 } else { EXPR3 }`
                     // -> `if COND1 { EXPR1 } else { if pattern PAT = COND2 { EXPR2 } else { EXPR3 } }`
                     // -> `if COND1 { EXPR1 } else { match COND2 { PAT => EXPR2, _ => EXPR3 } }`
-                    if let Some(pattern_bind) = pattern_bind {
+                    if let Some(_) = pattern_bind {
                         let else_branch = ast::Expr {
                             kind: ast::ExprKind::Branch(arms[index..].to_vec()),
                             span: *span,
@@ -876,41 +878,37 @@ pub fn lower_ast_expr(
                 //          - `get_name_bindings` and `check_names_in_or_patterns` take care of that
                 //       2. each name must be bound to the same type of value
                 //          - it's checked later (TODO: not implemented yet)
-                let mut name_bindings = Vec::new();
-                let mut name_collision_checker = HashMap::new();
-                let mut name_bindings_buffer = vec![];
-                pattern.get_name_bindings(&mut name_bindings_buffer);
-
                 for error in check_names_in_or_patterns(&pattern) {
                     session.push_error(error);
                 }
 
-                for def in name_bindings_buffer.iter() {
-                    match name_collision_checker.get(&def.id()) {
-                        Some(id) => {
-                            session.push_error(HirError::name_collision(*def, *id));
-                        },
-                        None => {
-                            name_collision_checker.insert(def.id(), *def);
-                        },
-                    }
+                let mut name_bindings = vec![];
 
-                    name_bindings.push(def.id());
-                }
-
-                name_space.push_locals(
-                    NameBindingType::MatchArm,
-                    *uid,
-                    name_bindings,
-                );
-
-                let value = lower_ast_expr(
-                    value,
+                // `match bar() {($x, 1, 2) => foo(x)}`
+                // becomes
+                // `{let _pattern = bar(); match _pattern {($x, 1, 2) => {let tmp = _pattern; let x = tmp._0; foo(x)}}}`
+                // `_pattern` is a special identifier that's bound to the pattern
+                // `tmp` is a tmp name allocated by `lower_patterns_to_name_bindings`
+                // `$x` in the pattern is ignored after this pass. it only cares about `let x = tmp._0`
+                lower_patterns_to_name_bindings(
+                    pattern,
+                    todo!(),  // use a special identifier (e.g. `_pattern`)
+                    &mut name_bindings,
                     session,
-                    used_names,
-                    imports,
-                    name_space,
-                );
+                )?;
+
+                let value = if name_bindings.is_empty() {
+                    lower_ast_expr(
+                        value,
+                        session,
+                        used_names,
+                        imports,
+                        name_space,
+                    )
+                } else {
+                    // wrap the value with a scope with the name bindings
+                    todo!()
+                };
 
                 let pattern = lower_ast_pattern(
                     pattern,
@@ -920,6 +918,10 @@ pub fn lower_ast_expr(
                     name_space,
                 );
 
+                // TODO: now that name bindings in match arms are lowered to scoped lets,
+                // lowering `guard` also has to be changed
+                // 1. newly bound names must be seen from the guard
+                // 2. it has to prevent false-negative unused-name warnings
                 let guard = guard.as_ref().map(|g| lower_ast_expr(
                     g,
                     session,
@@ -927,8 +929,6 @@ pub fn lower_ast_expr(
                     imports,
                     name_space,
                 ));
-
-                name_space.pop_locals();
 
                 result_arms.push(MatchArm {
                     value: value?,

@@ -139,3 +139,23 @@ let name_bindings_with_or = match (1, 5) {
     ($x @ (1 | 2), $y @ (5 | 6)) => f"\{x} and \{y}",
     _ => "base",
 };
+
+@test.eq(100)
+let irrefutable_bar = {
+    let pattern Bar {
+        y: $y @ _,
+        z: _,
+    } = Bar { y: 100, z: 200 };
+
+    y
+};
+
+@test.eq(200)
+let irrefutable_bar2 = {
+    let pattern Bar {
+        y: _,
+        z: $z,
+    } = Bar { y: 100, z: 200 };
+
+    z
+};

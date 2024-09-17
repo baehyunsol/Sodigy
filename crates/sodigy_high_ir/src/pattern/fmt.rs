@@ -95,10 +95,10 @@ impl fmt::Display for PatternKind {
             | PatternKind::List(patterns)) => format!(
                 "{}{}{}",
                 if let PatternKind::Tuple(_) = p_kind { "(" } else { "[" },
-                if let PatternKind::Tuple(_) = p_kind { ")" } else { "]" },
                 patterns.iter().map(
                     |pattern| pattern.to_string()
                 ).collect::<Vec<_>>().join(", "),
+                if let PatternKind::Tuple(_) = p_kind { ")" } else { "]" },
             ),
             PatternKind::Wildcard => String::from("_"),
             PatternKind::Shorthand => String::from(".."),

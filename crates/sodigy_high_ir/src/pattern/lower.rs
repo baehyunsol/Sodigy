@@ -34,10 +34,7 @@ use std::collections::{HashMap, HashSet};
 //
 // `let pattern Foo { bar: $x @ Foo { .. }, .. } = f();`
 // -> same as `let Foo { bar: $x, .. } = f();`
-//
-// let's not allow `$x @ _` -> it makes sense but why would someone do this?
 
-// TODO: it doesn't check whether there are name collisions or not
 pub fn lower_patterns_to_name_bindings(
     pattern: &ast::Pattern,
     expr: &ast::Expr,
@@ -174,10 +171,6 @@ pub fn lower_patterns_to_name_bindings(
                 name,
                 pattern,
             } in fields.iter() {
-                if pattern.is_wildcard() || pattern.is_shorthand() {
-                    continue;
-                }
-
                 let subpattern_expr = field_expr_with_name_and_index(
                     tmp_name,
                     FieldKind::Named(*name),
