@@ -12,6 +12,4 @@ Use the latest version. Please run `rustup update` before building Sodigy.
 
 ## Tests
 
-Once you built Sodigy, you should run tests to see if the build was successful. The test script requires [nushell](https://nushell.sh) to run.
-
-After installing the shell, run `nu tests.nu` to run the tests.
+Run `python3 tests.py` to see if it passes all the tests.
