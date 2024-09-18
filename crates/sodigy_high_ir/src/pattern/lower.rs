@@ -132,7 +132,7 @@ pub fn lower_patterns_to_name_bindings(
                 }
 
                 let subpattern_expr = if let Some(_) = shorthand_index {
-                    // `(_, _, .., $x, $y)`
+                    // `let pattern (_, _, .., $x, $y) = ...`
                     // `$x` -> `tuple_field_index(tmp, -2)`
                     field_expr_with_name_and_index(
                         tmp_name,
@@ -140,6 +140,7 @@ pub fn lower_patterns_to_name_bindings(
                         curr_pattern.span.into_fake(),
                     )
                 } else {
+                    // `let pattern ($x, _, ..) = ...`
                     // `tmp` + 0 -> `tmp._0`
                     field_expr_with_name_and_index(
                         tmp_name,
@@ -174,7 +175,6 @@ pub fn lower_patterns_to_name_bindings(
         // let y = tmp2.y;
         // let z = tmp2.z;
         ast::PatternKind::Struct {
-            struct_name,
             fields,
             ..
         } => {
@@ -202,6 +202,103 @@ pub fn lower_patterns_to_name_bindings(
                 if let Err(()) = lower_patterns_to_name_bindings(
                     pattern,      // x
                     &subpattern_expr,  // tmp.x
+                    name_bindings,
+                    session,
+                ) {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+        },
+        // similar to tuple
+        // let pattern [$x, [$y, $z]] = foo();
+        // -> `let tmp = foo(); let x = tmp.[0]; let tmp2 = tmp.[1]; let y = tmp2.[0]; let z = tmp2.[1];`
+        ast::PatternKind::List(patterns) => {
+            let mut has_error = false;
+            let tmp_name = session.allocate_tmp_name();
+
+            // let tmp = foo();
+            name_bindings.push(DestructuredPattern::new(
+                IdentWithSpan::new(tmp_name, pattern.span.into_fake()),  // $tmp
+                expr.clone(),
+                pattern.ty.clone(),
+                false,  // not a real name
+            ));
+
+            let mut shorthand_index = None;
+
+            for (index, curr_pattern) in patterns.iter().enumerate() {
+                if curr_pattern.is_wildcard() {
+                    if let Some(bind) = &curr_pattern.bind {
+                        session.push_warning(
+                            HirWarning::name_binding_on_wildcard(*bind)
+                        );
+                    }
+
+                    continue;
+                }
+
+                if curr_pattern.is_shorthand() {
+                    if let Some(_) = shorthand_index {
+                        session.push_error(HirError::multiple_shorthands(
+                            // It's okay to be inefficient when there's an error
+                            get_all_shorthand_spans(&patterns)
+                        ));
+                        has_error = true;
+                    }
+
+                    else {
+                        shorthand_index = Some(index);
+
+                        // `let pattern [_, $x @ .., _] = [0, 1, 2, 3];`
+                        // -> `let x = tmp[1 .. -1]`
+                        if let Some(bind) = &curr_pattern.bind {
+                            name_bindings.push(DestructuredPattern::new(
+                                *bind,
+                                index_expr_with_name_and_index(
+                                    tmp_name,
+                                    index as i64,
+                                    Some(index as i64 - patterns.len() as i64 + 1),
+                                    curr_pattern.span.into_fake(),
+                                    session,
+                                ),
+                                None,
+                                false,
+                            ));
+                        }
+                    }
+
+                    continue;
+                }
+
+                let subpattern_expr = if let Some(_) = shorthand_index {
+                    // `let pattern [_, _, .., $x, $y] = ...`
+                    // -> `let x = tmp[-2];`
+                    index_expr_with_name_and_index(
+                        tmp_name,
+                        index as i64 - patterns.len() as i64,
+                        None,
+                        curr_pattern.span.into_fake(),
+                        session,
+                    )
+                } else {
+                    // `let pattern [_, $x, ..] = ...`
+                    // -> `let x = tmp[1];`
+                    index_expr_with_name_and_index(
+                        tmp_name,
+                        index as i64,
+                        None,
+                        curr_pattern.span.into_fake(),
+                        session,
+                    )
+                };
+
+                if let Err(()) = lower_patterns_to_name_bindings(
+                    curr_pattern,  // $x
+                    &subpattern_expr,  // tmp._0
                     name_bindings,
                     session,
                 ) {
@@ -514,6 +611,50 @@ fn field_expr_with_name_and_index(name: InternedString, index: FieldKind, span: 
             }),
             post: index,
         },
+        span,
+    }
+}
+
+/// ('name', 1, None) -> `name[1]`
+/// ('name', -3, Some(-1)) -> `name[-3..-1]`
+fn index_expr_with_name_and_index(
+    name: InternedString,
+    index_start: i64,
+    index_end: Option<i64>,
+    span: SpanRange,
+    session: &mut HirSession,
+) -> ast::Expr {
+    let index_rhs = if let Some(index_end) = index_end {
+        ast::Expr {
+            kind: ast::ExprKind::InfixOp(
+                ast::InfixOp::Range,
+                Box::new(ast::Expr {
+                    kind: ast::ExprKind::Value(ast::ValueKind::Number(session.intern_numeric(index_start.into()))),
+                    span,
+                }),
+                Box::new(ast::Expr {
+                    kind: ast::ExprKind::Value(ast::ValueKind::Number(session.intern_numeric(index_end.into()))),
+                    span,
+                }),
+            ),
+            span,
+        }
+    } else {
+        ast::Expr {
+            kind: ast::ExprKind::Value(ast::ValueKind::Number(session.intern_numeric(index_start.into()))),
+            span,
+        }
+    };
+
+    ast::Expr {
+        kind: ast::ExprKind::InfixOp(
+            ast::InfixOp::Index,
+            Box::new(ast::Expr {
+                kind: ast::ExprKind::Value(ast::ValueKind::Identifier(name)),
+                span,
+            }),
+            Box::new(index_rhs),
+        ),
         span,
     }
 }

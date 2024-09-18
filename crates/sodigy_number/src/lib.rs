@@ -262,6 +262,12 @@ impl From<u32> for SodigyNumber {
     }
 }
 
+impl From<i64> for SodigyNumber {
+    fn from(n: i64) -> Self {
+        SodigyNumber::SmallInt(n)
+    }
+}
+
 impl TryFrom<&SodigyNumber> for u32 {
     type Error = ();
 
