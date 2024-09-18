@@ -4,9 +4,7 @@ import sys
 import time
 
 def goto_root_dir():
-    dirs = os.listdir()
-
-    while "tests.py" not in dirs and ".gitignore" not in dirs:
+    while "tests.py" not in (dirs := os.listdir()) and ".gitignore" not in dirs:
         os.chdir("..")
 
 def clean():

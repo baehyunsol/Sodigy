@@ -25,8 +25,13 @@ pub enum ExprKind {
     },
     Object(Uid),
     Call {
-        func: Box<Expr>,
+        func: MirFunc,
         args: Vec<Expr>,
         tail_call: bool,
     },
+}
+
+pub enum MirFunc {
+    Static(Uid),
+    Dynamic(Box<Expr>),
 }

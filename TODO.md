@@ -647,48 +647,6 @@ name resolver도 생각보다 생각할게 많음
 
 ---
 
-lower name bindings in match statements
-
-```
-match x {
-  ($a, 2, 3) | (1, $a, 2) => foo(a),
-}
-```
-
-becomes
-
-```
-match x {
-  (_, 2, 3) => {
-    let a = pattern._0;  // TODO: implicit name binding for the whole pattern
-
-    foo(a)
-  },
-  // TODO: there must be a smarter notation, since the expr is redundant
-  (1, _, 2) => {
-    let a = pattern._1;
-
-    foo(a)
-  },
-}
-```
-
-지금의 lower_patterns_to_name_bindings를 재활용하자.
-
-1. let pattern이든 match든 동일한 로직 태우기
-  - if pattern은 match로 lower되기 때문에 신경쓸 필요 X
-  - let pattern에서 나온 애들은 그 scope에 그대로 추가가 되고, match에서 나온 애들은 value에 새로운 scope 씌운 다음에 거기에 추가
-2. let pattern의 refutable check는 나중에
-3. 현재 구현
-  - let pattern이 있으면, 일단 lower_patterns_to_name_bindings를 먼저 하고, 거기서 나온 ast::expr은 나중에 lower
-  - 모든게 irrefutable하다고 가정하고 짰기 때문에 조금 문제
-  - 지금은 match의 pattern의 name binding의 collision check를 따로 하는데 (lower 함수의 대부분을 거기 할애), lower_patterns_to_name_bindings를 하면 collision check 따로 안해도 됨
-4. match에서 작은 문제
-  - name binding이 value에서 사용될 수도 있고, guard에서 사용될 수도 있음
-  - unused name warning 어떻게 피함?
-
----
-
 local values in MIR
 
 1. only 1 scope for a function
