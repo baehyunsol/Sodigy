@@ -1,5 +1,6 @@
 #![deny(unused_imports)]
 
+use sodigy_attribute::Attribute;
 use sodigy_span::SpanRange;
 use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
@@ -27,8 +28,6 @@ pub use parse::{parse_expr, parse_stmts};
 pub use pattern::{PatField, Pattern, PatternKind};
 pub use session::AstSession;
 pub use stmt::{
-    Attribute,
-    Decorator,
     FieldDef,
     Stmt,
     StmtKind,
@@ -46,7 +45,7 @@ pub struct ArgDef {
     pub name: IdentWithSpan,
     pub ty: Option<TypeDef>,
     pub has_question_mark: bool,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<Expr>>,
 }
 
 impl ArgDef {

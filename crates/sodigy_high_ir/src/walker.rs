@@ -1,7 +1,7 @@
 use crate::{Scope, ScopedLet};
-use crate::attr::{Attribute, Decorator};
 use crate::expr::{self as hir, Expr, ExprKind};
 use crate::func::{Arg, Func};
+use sodigy_attribute::{Attribute, Decorator};
 
 // TODO: do we need this?
 pub enum WalkState {
@@ -154,7 +154,7 @@ pub fn mut_walker_expr<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(e: &mu
     }
 }
 
-pub fn mut_walker_decorator<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(d: &mut Decorator, c: &mut Ctxt, worker: &Box<F>) {
+pub fn mut_walker_decorator<Ctxt: MutWalkerState, F: Fn(&mut Expr, &mut Ctxt)>(d: &mut Decorator<Expr>, c: &mut Ctxt, worker: &Box<F>) {
     if let Some(args) = &mut d.args {
         for arg in args.iter_mut() {
             mut_walker_expr(arg, c, worker);

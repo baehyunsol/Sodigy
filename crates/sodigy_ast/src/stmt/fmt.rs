@@ -1,42 +1,9 @@
 use super::{
-    Attribute,
-    Decorator,
     FieldDef,
     VariantDef,
     VariantKind,
 };
 use std::fmt;
-
-// this does not include newline characters
-impl fmt::Display for Attribute {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self {
-            Attribute::DocComment(d) => write!(fmt, "#> {}", d.id()),
-            Attribute::Decorator(d) => write!(fmt, "{d}"),
-        }
-    }
-}
-
-impl fmt::Display for Decorator {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(
-            fmt, "@{}{}",
-            self.name.iter().map(
-                |name| name.id().to_string()
-            ).collect::<Vec<_>>().join("."),
-            if let Some(args) = &self.args {
-                format!(
-                    "({})",
-                    args.iter().map(
-                        |arg| arg.to_string()
-                    ).collect::<Vec<_>>().join(", "),
-                )
-            } else {
-                String::new()
-            },
-        )
-    }
-}
 
 impl fmt::Display for VariantDef {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {

@@ -1,6 +1,7 @@
 use super::{Arg, Func, FuncKind};
-use crate::{Attribute, Type, expr::Expr};
+use crate::{Expr, Type};
 use sodigy_ast::GenericDef;
+use sodigy_attribute::Attribute;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -31,7 +32,7 @@ impl Endec for Func {
             generics: Vec::<GenericDef>::decode(buffer, index, session)?,
             return_val: Expr::decode(buffer, index, session)?,
             return_ty: Option::<Type>::decode(buffer, index, session)?,
-            attributes: Vec::<Attribute>::decode(buffer, index, session)?,
+            attributes: Vec::<Attribute<Expr>>::decode(buffer, index, session)?,
             kind: FuncKind::decode(buffer, index, session)?,
             uid: Uid::decode(buffer, index, session)?,
         })
@@ -51,7 +52,7 @@ impl Endec for Arg {
             name: IdentWithSpan::decode(buffer, index, session)?,
             ty: Option::<Type>::decode(buffer, index, session)?,
             has_question_mark: bool::decode(buffer, index, session)?,
-            attributes: Vec::<Attribute>::decode(buffer, index, session)?,
+            attributes: Vec::<Attribute<Expr>>::decode(buffer, index, session)?,
         })
     }
 }

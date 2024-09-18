@@ -25,8 +25,6 @@ use crate::{
     ScopeBlock,
     session::AstSession,
     stmt::{
-        Attribute,
-        Decorator,
         FieldDef,
         Import,
         ImportedName,
@@ -46,6 +44,7 @@ use crate::{
     value::ValueKind,
 };
 use log::{debug, info};
+use sodigy_attribute::{Attribute, Decorator};
 use sodigy_error::{ErrorContext, ExpectedToken, SodigyError};
 use sodigy_intern::try_intern_short_string;
 use sodigy_keyword::Keyword;
@@ -1584,7 +1583,7 @@ fn parse_branch_arm(
 }
 
 // `@` is already consumed
-fn parse_decorator(at_span: SpanRange, tokens: &mut Tokens, session: &mut AstSession) -> Result<(Decorator, SpanRange), ()> {
+fn parse_decorator(at_span: SpanRange, tokens: &mut Tokens, session: &mut AstSession) -> Result<(Decorator<Expr>, SpanRange), ()> {
     let mut span = at_span;
     let mut names = vec![];
 
@@ -2222,7 +2221,7 @@ fn parse_let_statement(
     tokens: &mut Tokens,
     session: &mut AstSession,
     allows_generics: bool,
-    attributes: Vec<Attribute>,
+    attributes: Vec<Attribute<Expr>>,
 ) -> Result<Let, ()> {
     let result = match tokens.step() {
         Some(Token {

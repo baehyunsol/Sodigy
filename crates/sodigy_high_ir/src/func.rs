@@ -1,5 +1,6 @@
 use crate as hir;
 use sodigy_ast as ast;
+use sodigy_attribute::Attribute;
 use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
@@ -18,7 +19,7 @@ pub struct Func {
     pub(crate) generics: Vec<ast::GenericDef>,
     pub return_val: hir::Expr,
     pub return_ty: Option<hir::Type>,
-    pub attributes: Vec<hir::Attribute>,
+    pub attributes: Vec<Attribute<hir::Expr>>,
     pub uid: Uid,
 
     pub kind: FuncKind,
@@ -29,7 +30,7 @@ pub struct Arg {
     pub name: IdentWithSpan,
     pub ty: Option<hir::Type>,
     pub has_question_mark: bool,
-    pub attributes: Vec<hir::Attribute>,
+    pub attributes: Vec<Attribute<hir::Expr>>,
 }
 
 #[derive(Clone)]

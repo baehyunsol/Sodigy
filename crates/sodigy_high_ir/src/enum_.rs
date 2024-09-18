@@ -3,6 +3,7 @@ use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use crate::struct_::{lower_ast_struct, name_to_type};
 use sodigy_ast as ast;
+use sodigy_attribute::Attribute;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_lang_item::LangItem;
 use sodigy_number::SodigyNumber;
@@ -62,7 +63,7 @@ pub fn lower_ast_enum(
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
-    attributes: &Vec<ast::Attribute>,
+    attributes: &Vec<Attribute<ast::Expr>>,
     name_space: &mut NameSpace,
 ) -> Result<(), ()> {
     let mut has_error = false;

@@ -1,5 +1,6 @@
 use super::Module;
-use crate::attr::Attribute;
+use crate::Expr;
+use sodigy_attribute::Attribute;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -22,7 +23,7 @@ impl Endec for Module {
         Ok(Module {
             name: IdentWithSpan::decode(buffer, index, session)?,
             uid: Uid::decode(buffer, index, session)?,
-            attributes: Vec::<Attribute>::decode(buffer, index, session)?,
+            attributes: Vec::<Attribute<Expr>>::decode(buffer, index, session)?,
         })
     }
 }

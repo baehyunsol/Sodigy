@@ -3,6 +3,7 @@
 use crate as hir;
 use log::info;
 use sodigy_ast::{self as ast, LetKind, StmtKind};
+use sodigy_attribute::Attribute;
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_parse::IdentWithSpan;
@@ -28,11 +29,7 @@ mod struct_;
 mod walker;
 mod warn;
 
-pub use attr::{
-    lower_ast_attributes,
-    Attribute,
-    Decorator,
-};
+pub use attr::lower_ast_attributes;
 use doc_comment::concat_doc_comments;
 use enum_::lower_ast_enum;
 use error::HirError;
@@ -171,10 +168,10 @@ pub fn lower_stmts(
 
         match &stmt.kind {
             StmtKind::DocComment(c) => {
-                ast_attributes.push(ast::Attribute::DocComment(IdentWithSpan::new(*c, span)));
+                ast_attributes.push(Attribute::DocComment(IdentWithSpan::new(*c, span)));
             },
             StmtKind::Decorator(d) => {
-                ast_attributes.push(ast::Attribute::Decorator(d.clone()));
+                ast_attributes.push(Attribute::Decorator(d.clone()));
             },
             StmtKind::Let(l) => {
                 match &l.kind {

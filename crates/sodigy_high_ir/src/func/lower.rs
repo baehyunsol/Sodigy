@@ -6,6 +6,7 @@ use crate::expr::try_warn_unnecessary_paren;
 use crate::names::{IdentWithOrigin, NameSpace};
 use crate::session::HirSession;
 use sodigy_ast as ast;
+use sodigy_attribute::Attribute;
 use sodigy_error::SodigyError;
 use sodigy_intern::InternedString;
 use sodigy_parse::IdentWithSpan;
@@ -24,7 +25,7 @@ pub fn lower_ast_func(
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
     imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
-    attributes: &Vec<ast::Attribute>,
+    attributes: &Vec<Attribute<ast::Expr>>,
     name_space: &mut NameSpace,
 ) -> Result<Func, ()> {
     let mut hir_args = None;

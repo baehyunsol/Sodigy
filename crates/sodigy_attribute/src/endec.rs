@@ -1,5 +1,4 @@
 use super::{Attribute, Decorator};
-use crate::expr::Expr;
 use sodigy_endec::{
     DumpJson,
     Endec,
@@ -10,7 +9,7 @@ use sodigy_endec::{
 };
 use sodigy_parse::IdentWithSpan;
 
-impl Endec for Attribute {
+impl<Expr: Endec> Endec for Attribute<Expr> {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         match self {
             Attribute::DocComment(d) => {
@@ -40,7 +39,7 @@ impl Endec for Attribute {
     }
 }
 
-impl Endec for Decorator {
+impl<Expr: Endec> Endec for Decorator<Expr> {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
         self.name.encode(buffer, session);
         self.args.encode(buffer, session);
@@ -54,7 +53,7 @@ impl Endec for Decorator {
     }
 }
 
-impl DumpJson for Attribute {
+impl<Expr: DumpJson> DumpJson for Attribute<Expr> {
     fn dump_json(&self) -> JsonObj {
         match self {
             Attribute::DocComment(d) => json_key_value_table(vec![
@@ -69,7 +68,7 @@ impl DumpJson for Attribute {
     }
 }
 
-impl DumpJson for Decorator {
+impl<Expr: DumpJson> DumpJson for Decorator<Expr> {
     fn dump_json(&self) -> JsonObj {
         let mut result = vec![("name", self.name.dump_json())];
 

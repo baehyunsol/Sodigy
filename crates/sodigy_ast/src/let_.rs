@@ -7,8 +7,8 @@ use crate::{
     pattern::Pattern,
     TypeDef,
     VariantDef,
-    stmt::Attribute,
 };
+use sodigy_attribute::Attribute;
 use sodigy_uid::Uid;
 
 mod fmt;
@@ -19,11 +19,11 @@ pub struct Let {
 
     // if it's scoped-let, the attributes are here
     // if it's top-level-let, the attributes are in session.stmts
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<Expr>>,
 }
 
 impl Let {
-    pub fn pattern(pattern: Pattern, expr: Expr, attributes: Vec<Attribute>) -> Self {
+    pub fn pattern(pattern: Pattern, expr: Expr, attributes: Vec<Attribute<Expr>>) -> Self {
         Let {
             kind: LetKind::Pattern(pattern, expr),
             attributes,
@@ -36,7 +36,7 @@ impl Let {
         args: Option<Vec<ArgDef>>,
         return_ty: Option<TypeDef>,
         return_val: Expr,
-        attributes: Vec<Attribute>,
+        attributes: Vec<Attribute<Expr>>,
     ) -> Self {
         if let Some(args) = args {
             Let {
@@ -66,7 +66,7 @@ impl Let {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
         variants: Vec<VariantDef>,
-        attributes: Vec<Attribute>,
+        attributes: Vec<Attribute<Expr>>,
     ) -> Self {
         Let {
             kind: LetKind::Enum {
@@ -83,7 +83,7 @@ impl Let {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
         fields: Vec<FieldDef>,
-        attributes: Vec<Attribute>,
+        attributes: Vec<Attribute<Expr>>,
     ) -> Self {
         Let {
             kind: LetKind::Struct {

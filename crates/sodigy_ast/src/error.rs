@@ -1,7 +1,7 @@
-use crate::{IdentWithSpan, Token, TokenKind};
+use crate::{Expr, IdentWithSpan, Token, TokenKind};
 use crate::pattern::{Pattern, PatternKind};
-use crate::stmt::Attribute;
 use smallvec::{SmallVec, smallvec};
+use sodigy_attribute::Attribute;
 use sodigy_error::{
     ErrorContext,
     ExpectedToken,
@@ -191,7 +191,7 @@ impl AstError {
         }
     }
 
-    pub fn stranded_attribute(attributes: Vec<Attribute>, ctxt: AttributeIn) -> Self {
+    pub fn stranded_attribute(attributes: Vec<Attribute<Expr>>, ctxt: AttributeIn) -> Self {
         AstError {
             kind: AstErrorKind::StrandedAttribute { ctxt, multiple_attributes: attributes.len() > 1 },
             spans: attributes.iter().map(|attr| attr.span()).collect(),

@@ -1,23 +1,99 @@
-use crate::expr::Expr;
-use sodigy_ast::DottedNames;
+use crate::{Expr, HirSession, IdentWithOrigin, NameSpace, concat_doc_comments, lower_ast_expr};
+use sodigy_ast as ast;
+use sodigy_attribute::{Attribute, Decorator};
+use sodigy_intern::InternedString;
 use sodigy_parse::IdentWithSpan;
+use sodigy_span::SpanRange;
+use std::collections::{HashMap, HashSet};
 
-mod endec;
-mod fmt;
-mod lower;
+pub fn lower_ast_decorator(
+    decorator: &Decorator<ast::Expr>,
+    session: &mut HirSession,
+    used_names: &mut HashSet<IdentWithOrigin>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
+    name_space: &mut NameSpace,
+) -> Result<Decorator<Expr>, ()> {
+    let mut has_error = false;
 
-pub use lower::lower_ast_attributes;
+    let args = if let Some(args) = &decorator.args {
+        let mut result = Vec::with_capacity(args.len());
 
-// TODO: if we declare `Expr` as a generic, we can reuse this
-//       currently, it's defined 3 times (ast, hir, and mir) and that's a waste
-#[derive(Clone)]
-pub enum Attribute {
-    DocComment(IdentWithSpan),
-    Decorator(Decorator),
+        for arg in args.iter() {
+            if let Ok(arg) = lower_ast_expr(
+                arg,
+                session,
+                used_names,
+                imports,
+                name_space,
+            ) {
+                result.push(arg);
+            }
+
+            else {
+                has_error = true;
+            }
+        }
+
+        Some(result)
+    } else {
+        None
+    };
+
+    if has_error {
+        Err(())
+    }
+
+    else {
+        Ok(Decorator {
+            name: decorator.name.clone(),
+            args,
+        })
+    }
 }
 
-#[derive(Clone)]
-pub struct Decorator {
-    pub name: DottedNames,
-    pub args: Option<Vec<Expr>>,
+pub fn lower_ast_attributes(
+    attributes: &Vec<Attribute<ast::Expr>>,
+    session: &mut HirSession,
+    used_names: &mut HashSet<IdentWithOrigin>,
+    imports: &HashMap<InternedString, (SpanRange, Vec<IdentWithSpan>)>,
+    name_space: &mut NameSpace,
+) -> Result<Vec<Attribute<Expr>>, ()> {
+    let mut doc_comments = vec![];
+    let mut result = Vec::with_capacity(attributes.len());
+    let mut has_error = false;
+
+    for attribute in attributes.iter() {
+        match attribute {
+            Attribute::DocComment(d) => {
+                doc_comments.push(*d);
+            }
+            Attribute::Decorator(d) => {
+                if let Ok(d) = lower_ast_decorator(
+                    d,
+                    session,
+                    used_names,
+                    imports,
+                    name_space,
+                ) {
+                    result.push(Attribute::Decorator(d));
+                }
+
+                else {
+                    has_error = true;
+                }
+            },
+        }
+    }
+
+    if let Some(d) = concat_doc_comments(&doc_comments, session) {
+        result.push(Attribute::DocComment(d));
+    }
+
+    if has_error {
+        Err(())
+    }
+
+    else {
+        Ok(result)
+    }
 }

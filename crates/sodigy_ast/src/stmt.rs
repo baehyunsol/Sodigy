@@ -6,6 +6,7 @@ use crate::{
     TypeDef,
     utils::merge_dotted_names,
 };
+use sodigy_attribute::{Attribute, Decorator};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
@@ -21,7 +22,7 @@ pub enum StmtKind {
     Module(IdentWithSpan, Uid),
     Import(Import),
     Let(Let),
-    Decorator(Decorator),
+    Decorator(Decorator<Expr>),
 
     // consecutive doc comments are not merged yet
     DocComment(InternedString),
@@ -87,28 +88,11 @@ impl ImportedName {
     }
 }
 
-// attributes of enums and structs are collected later
-// in ast level, it only collects attributes of variants and fields
-#[derive(Clone, Debug)]
-pub enum Attribute {
-    DocComment(IdentWithSpan),
-    Decorator(Decorator),
-}
-
-impl Attribute {
-    pub fn span(&self) -> SpanRange {
-        match self {
-            Attribute::DocComment(iws) => *iws.span(),
-            Attribute::Decorator(dec) => dec.span(),
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct VariantDef {
     pub name: IdentWithSpan,
     pub args: VariantKind,
-    pub attributes: Vec<Attribute>,
+    pub attributes: Vec<Attribute<Expr>>,
 }
 
 #[derive(Clone, Debug)]
@@ -122,23 +106,5 @@ pub enum VariantKind {
 pub struct FieldDef {
     pub name: IdentWithSpan,
     pub ty: TypeDef,
-    pub attributes: Vec<Attribute>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Decorator {
-    pub name: DottedNames,
-    pub args: Option<Vec<Expr>>,
-}
-
-impl Decorator {
-    pub fn span(&self) -> SpanRange {
-        let mut result = *self.name[0].span();
-
-        for name in self.name[1..].iter() {
-            result = result.merge(*name.span());
-        }
-
-        result
-    }
+    pub attributes: Vec<Attribute<Expr>>,
 }

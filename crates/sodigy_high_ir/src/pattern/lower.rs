@@ -86,7 +86,6 @@ pub fn lower_patterns_to_name_bindings(
                 false,  // not a real name
             ));
 
-            let name_bindings_len = name_bindings.len();
             let mut shorthand_index = None;
 
             for (index, curr_pattern) in patterns.iter().enumerate() {

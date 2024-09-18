@@ -1,0 +1,11 @@
+[package]
+name = "sodigy_attribute"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sodigy_endec = { path = "../sodigy_endec" }
+sodigy_parse = { path = "../sodigy_parse" }
+sodigy_span = { path = "../sodigy_span" }
