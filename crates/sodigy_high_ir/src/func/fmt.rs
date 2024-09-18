@@ -25,11 +25,11 @@ impl fmt::Display for Func {
             ).collect::<Vec<String>>().join(", ")));
         }
 
-        if let Some(ty) = &self.return_ty {
+        if let Some(ty) = &self.return_type {
             result.push(format!(": {ty}"));
         }
 
-        result.push(format!(" = {};", self.return_val));
+        result.push(format!(" = {};", self.return_value));
 
         write!(
             fmt,

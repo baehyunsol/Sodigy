@@ -18,8 +18,8 @@ impl Endec for Func {
         self.name.encode(buffer, session);
         self.args.encode(buffer, session);
         self.generics.encode(buffer, session);
-        self.return_val.encode(buffer, session);
-        self.return_ty.encode(buffer, session);
+        self.return_value.encode(buffer, session);
+        self.return_type.encode(buffer, session);
         self.attributes.encode(buffer, session);
         self.kind.encode(buffer, session);
         self.uid.encode(buffer, session);
@@ -30,8 +30,8 @@ impl Endec for Func {
             name: IdentWithSpan::decode(buffer, index, session)?,
             args: Option::<Vec<Arg>>::decode(buffer, index, session)?,
             generics: Vec::<GenericDef>::decode(buffer, index, session)?,
-            return_val: Expr::decode(buffer, index, session)?,
-            return_ty: Option::<Type>::decode(buffer, index, session)?,
+            return_value: Expr::decode(buffer, index, session)?,
+            return_type: Option::<Type>::decode(buffer, index, session)?,
             attributes: Vec::<Attribute<Expr>>::decode(buffer, index, session)?,
             kind: FuncKind::decode(buffer, index, session)?,
             uid: Uid::decode(buffer, index, session)?,
@@ -105,8 +105,8 @@ impl DumpJson for Func {
             ("name", self.name.dump_json()),
             ("arguments", self.args.dump_json()),
             ("generics", self.generics.dump_json()),
-            ("return_value", self.return_val.dump_json()),
-            ("return_type_annotation", self.return_ty.dump_json()),
+            ("return_value", self.return_value.dump_json()),
+            ("return_type_annotation", self.return_type.dump_json()),
             ("attributes", self.attributes.dump_json()),
             ("uid", self.uid.dump_json()),
             ("kind", self.kind.dump_json()),

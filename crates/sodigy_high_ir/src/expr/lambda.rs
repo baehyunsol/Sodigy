@@ -65,7 +65,7 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
             value,
             captured_values,
             uid,
-            return_ty: _,
+            return_type: _,
             lowered_from_scoped_let: _,
         }) => {
             if captured_values.is_empty() {
@@ -79,8 +79,8 @@ fn give_names_to_lambdas_worker(e: &mut Expr, c: &mut LambdaCollectCtxt) {
                     ),
                     args: Some(args.to_vec()),
                     generics: vec![],
-                    return_val: *value.clone(),
-                    return_ty: None,
+                    return_value: *value.clone(),
+                    return_type: None,
                     attributes: vec![],
                     kind: FuncKind::Lambda,
                     uid,

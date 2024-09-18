@@ -1,6 +1,6 @@
 use crate::expr::Expr;
 use crate::ty::Type;
-use sodigy_high_ir::NameBindingType;
+use sodigy_high_ir::{self as hir, NameBindingType};
 use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
 
@@ -19,16 +19,43 @@ pub struct Func {
 }
 
 pub struct LocalValue {
-    name: IdentWithSpan,
-    value: Expr,
+    pub name: IdentWithSpan,
+
+    // func args and func generics don't have values
+    pub value: MaybeInit<hir::Expr, Expr>,
 
     // iff type annotation for this value exists
-    ty: Option<Type>,
+    pub ty: MaybeInit<hir::Type, Type>,
 
-    parent_func: Uid,
-    parent_scope: Option<Uid>,
-    name_binding_type: NameBindingType,
+    pub parent_func: Uid,
+    pub parent_scope: Option<Uid>,
+    pub name_binding_type: NameBindingType,
 
     // parent.local_values[self.index] = self
-    index: usize,
+    pub index: usize,
+}
+
+// for `local_values` in `Func`,
+// values have to be initialized after `Vec<LocalValue>` is constructed.
+// so there must be a placeholder for `hir::Expr`s while `Vec<LocalValue>` is being constructed
+pub enum MaybeInit<T, U> {
+    None,  // no value at all
+    Uninit(T),
+    Init(U),
+}
+
+impl<T, U> MaybeInit<T, U> {
+    pub fn try_unwrap_init(&self) -> Option<&U> {
+        match self {
+            MaybeInit::Init(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_unwrap_uninit(&self) -> Option<&T> {
+        match self {
+            MaybeInit::Uninit(v) => Some(v),
+            _ => None,
+        }
+    }
 }

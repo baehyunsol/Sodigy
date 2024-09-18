@@ -19,8 +19,8 @@ pub fn lower_ast_func(
     name: &IdentWithSpan,
     generics: &Vec<ast::GenericDef>,
     args: Option<&Vec<ast::ArgDef>>,
-    return_val: &ast::Expr,
-    return_ty: &Option<ast::TypeDef>,
+    return_value: &ast::Expr,
+    return_type: &Option<ast::TypeDef>,
     uid: Uid,
     session: &mut HirSession,
     used_names: &mut HashSet<IdentWithOrigin>,
@@ -110,17 +110,17 @@ pub fn lower_ast_func(
 
     name_space.unlock_func_args();
 
-    try_warn_unnecessary_paren(return_val, session);
+    try_warn_unnecessary_paren(return_value, session);
 
-    let return_val = lower_ast_expr(
-        return_val,
+    let return_value = lower_ast_expr(
+        return_value,
         session,
         used_names,
         imports,
         name_space,
     );
 
-    let return_ty = return_ty.as_ref().map(
+    let return_type = return_type.as_ref().map(
         |ty| lower_ast_ty(
             ty,
             session,
@@ -148,8 +148,8 @@ pub fn lower_ast_func(
         name: *name,
         generics: generics.clone(),
         args: hir_args,
-        return_val: return_val?,
-        return_ty: if let Some(ty) = return_ty { Some(ty?) } else { None },
+        return_value: return_value?,
+        return_type: if let Some(ty) = return_type { Some(ty?) } else { None },
         kind: FuncKind::Normal,
         attributes: attributes?,
         uid: uid,

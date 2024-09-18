@@ -180,14 +180,14 @@ pub fn lower_stmts(
                         let f = match &l.kind {
                             LetKind::Callable {
                                 name, generics,
-                                args, return_val,
-                                return_ty, uid,
+                                args, return_value,
+                                return_type, uid,
                             } => lower_ast_func(
                                 name,
                                 generics,
                                 Some(args),
-                                return_val,
-                                return_ty,
+                                return_value,
+                                return_type,
                                 *uid,
                                 session,
                                 &mut used_names,
@@ -197,13 +197,13 @@ pub fn lower_stmts(
                             ),
                             LetKind::Incallable {
                                 name, generics,
-                                return_val, return_ty, uid,
+                                return_value, return_type, uid,
                             } => lower_ast_func(
                                 name,
                                 generics,
                                 None,
-                                return_val,
-                                return_ty,
+                                return_value,
+                                return_type,
                                 *uid,
                                 session,
                                 &mut used_names,

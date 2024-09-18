@@ -34,16 +34,16 @@ impl Let {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
         args: Option<Vec<ArgDef>>,
-        return_ty: Option<TypeDef>,
-        return_val: Expr,
+        return_type: Option<TypeDef>,
+        return_value: Expr,
         attributes: Vec<Attribute<Expr>>,
     ) -> Self {
         if let Some(args) = args {
             Let {
                 kind: LetKind::Callable {
                     name, generics,
-                    args, return_ty,
-                    return_val,
+                    args, return_type,
+                    return_value,
                     uid: Uid::new_def(),
                 },
                 attributes,
@@ -54,7 +54,7 @@ impl Let {
             Let {
                 kind: LetKind::Incallable {
                     name, generics,
-                    return_ty, return_val,
+                    return_type, return_value,
                     uid: Uid::new_def(),
                 },
                 attributes,
@@ -123,16 +123,16 @@ pub enum LetKind {
     Incallable {
         name: IdentWithSpan,
         generics: Vec<GenericDef>,
-        return_ty: Option<TypeDef>,
-        return_val: Expr,
+        return_type: Option<TypeDef>,
+        return_value: Expr,
         uid: Uid,
     },
     Callable {
         name: IdentWithSpan,
         args: Vec<ArgDef>,
         generics: Vec<GenericDef>,
-        return_ty: Option<TypeDef>,
-        return_val: Expr,
+        return_type: Option<TypeDef>,
+        return_value: Expr,
         uid: Uid,
     },
     Enum {

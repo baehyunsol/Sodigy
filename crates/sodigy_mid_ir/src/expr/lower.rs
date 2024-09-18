@@ -1,5 +1,5 @@
 use super::{Expr, ExprKind, MirFunc};
-use crate::session::MirSession;
+use crate::session::{LocalValueSearchKey, MirSession};
 use crate::ty::lower_ty;
 use sodigy_high_ir::{self as hir, NameOrigin};
 
@@ -39,11 +39,20 @@ pub fn lower_expr_kind(
             NameOrigin::Global { origin } => ExprKind::Object(origin.unwrap()),
 
             NameOrigin::Local {
-                origin, index, binding_type: _,
+                origin, index: _, binding_type: _,
             } => ExprKind::LocalValue {
                 origin: session.curr_func_uid(),
-                index: session.get_local_value_index(origin, index),
+                index: session.get_local_value_index(LocalValueSearchKey::LocalValue(*origin, id_with_origin.id())),
             },
+            NameOrigin::FuncArg { .. } => ExprKind::LocalValue {
+                origin: session.curr_func_uid(),
+                index: session.get_local_value_index(LocalValueSearchKey::FuncArg(id_with_origin.id())),
+            },
+            NameOrigin::FuncGeneric { .. } => ExprKind::LocalValue {
+                origin: session.curr_func_uid(),
+                index: session.get_local_value_index(LocalValueSearchKey::FuncGeneric(id_with_origin.id())),
+            },
+            NameOrigin::Captured { .. } => todo!(),
         },
         hir::ExprKind::Integer(n) => ExprKind::Integer(*n),
         hir::ExprKind::Call {

@@ -5,6 +5,8 @@ use sodigy_uid::Uid;
 
 mod lower;
 
+pub use lower::lower_expr;
+
 pub struct Expr {
     kind: ExprKind,
     span: SpanRange,

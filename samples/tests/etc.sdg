@@ -61,7 +61,7 @@ let closures_test(x: Int, y: Int): Int = \{
 @test.eq(106)
 let closures_test_runner = closures_test(2, 4)(8, 16)(32, 64);
 
-# type signatures of functors: the last one is the return_ty
+# type signatures of functors: the last one is the return_type
 let adder(n: Int): Func(Int, Int) = \{x: Int, x + n};
 
 @test.eq([8, 16])

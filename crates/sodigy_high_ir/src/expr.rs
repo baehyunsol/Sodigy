@@ -81,7 +81,7 @@ pub struct Lambda {
     pub uid: Uid,
 
     // see comments in sodigy_ast::value::Lambda
-    pub return_ty: Option<Box<Type>>,
+    pub return_type: Option<Box<Type>>,
     pub lowered_from_scoped_let: bool,
 }
 

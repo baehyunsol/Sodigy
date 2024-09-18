@@ -111,7 +111,7 @@ impl Endec for ExprKind {
                 value,
                 captured_values,
                 uid,
-                return_ty,
+                return_type,
                 lowered_from_scoped_let,
             }) => {
                 buffer.push(11);
@@ -119,7 +119,7 @@ impl Endec for ExprKind {
                 value.encode(buffer, session);
                 captured_values.encode(buffer, session);
                 uid.encode(buffer, session);
-                return_ty.encode(buffer, session);
+                return_type.encode(buffer, session);
                 lowered_from_scoped_let.encode(buffer, session);
             },
             ExprKind::Branch(Branch { arms }) => {
@@ -192,7 +192,7 @@ impl Endec for ExprKind {
                         value: Box::new(Expr::decode(buffer, index, session)?),
                         captured_values: Vec::<Expr>::decode(buffer, index, session)?,
                         uid: Uid::decode(buffer, index, session)?,
-                        return_ty: Option::<Box<Type>>::decode(buffer, index, session)?,
+                        return_type: Option::<Box<Type>>::decode(buffer, index, session)?,
                         lowered_from_scoped_let: bool::decode(buffer, index, session)?,
                     })),
                     12 => Ok(ExprKind::Branch(Branch { arms: Vec::<BranchArm>::decode(buffer, index, session)? })),
@@ -341,7 +341,7 @@ impl DumpJson for ExprKind {
                 args,
                 value,
                 captured_values,
-                return_ty,
+                return_type,
                 uid,
                 lowered_from_scoped_let: _,
             }) => json_key_value_table(vec![
@@ -349,7 +349,7 @@ impl DumpJson for ExprKind {
                 ("args", args.dump_json()),
                 ("value", value.dump_json()),
                 ("captured_values", captured_values.dump_json()),
-                ("return_ty", return_ty.dump_json()),
+                ("return_type", return_type.dump_json()),
                 ("uid", uid.dump_json()),
             ]),
             ExprKind::Branch(Branch { arms }) => json_key_value_table(vec![

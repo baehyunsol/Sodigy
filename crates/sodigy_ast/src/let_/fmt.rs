@@ -23,11 +23,11 @@ impl fmt::Display for LetKind {
             LetKind::Incallable {
                 name,
                 generics,
-                return_ty,
-                return_val,
+                return_type,
+                return_value,
                 uid: _,
             } => format!(
-                "let {}{}{} = {return_val}",
+                "let {}{}{} = {return_value}",
                 name.id(),
                 if generics.is_empty() {
                     String::new()
@@ -39,7 +39,7 @@ impl fmt::Display for LetKind {
                         ).collect::<Vec<_>>().join(", "),
                     )
                 },
-                if let Some(ty) = return_ty {
+                if let Some(ty) = return_type {
                     format!(": {ty}")
                 } else {
                     String::new()
@@ -49,11 +49,11 @@ impl fmt::Display for LetKind {
                 name,
                 args,
                 generics,
-                return_ty,
-                return_val,
+                return_type,
+                return_value,
                 uid: _,
             } => format!(
-                "let {}({}){}{} = {return_val}",
+                "let {}({}){}{} = {return_value}",
                 name.id(),
                 args.iter().map(
                     |arg| arg.to_string()
@@ -68,7 +68,7 @@ impl fmt::Display for LetKind {
                         ).collect::<Vec<_>>().join(", "),
                     )
                 },
-                if let Some(ty) = return_ty {
+                if let Some(ty) = return_type {
                     format!(": {ty}")
                 } else {
                     String::new()

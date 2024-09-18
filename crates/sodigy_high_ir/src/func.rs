@@ -16,9 +16,9 @@ pub struct Func {
 
     // None if incallable
     pub args: Option<Vec<Arg>>,
-    pub(crate) generics: Vec<ast::GenericDef>,
-    pub return_val: hir::Expr,
-    pub return_ty: Option<hir::Type>,
+    pub generics: Vec<ast::GenericDef>,
+    pub return_value: hir::Expr,
+    pub return_type: Option<hir::Type>,
     pub attributes: Vec<Attribute<hir::Expr>>,
     pub uid: Uid,
 

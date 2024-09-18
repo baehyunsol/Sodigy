@@ -135,7 +135,7 @@ impl fmt::Display for ValueKind {
             ValueKind::Lambda {
                 args,
                 value,
-                return_ty,
+                return_type,
                 uid: _,
                 lowered_from_scoped_let: _,
             } => {
@@ -150,7 +150,7 @@ impl fmt::Display for ValueKind {
                 format!(
                     "\\{{{}}}{}",
                     result.join(", "),
-                    if let Some(ty) = return_ty {
+                    if let Some(ty) = return_type {
                         format!(": {ty}")
                     } else {
                         String::new()

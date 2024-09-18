@@ -192,7 +192,7 @@ pub fn lower_ast_expr(
             },
             ValueKind::Lambda {
                 args, value, uid,
-                return_ty,
+                return_type,
                 lowered_from_scoped_let,
             } => {
                 let mut hir_args = Vec::with_capacity(args.len());
@@ -264,7 +264,7 @@ pub fn lower_ast_expr(
                     });
                 }
 
-                let return_ty = if let Some(ty) = return_ty {
+                let return_type = if let Some(ty) = return_type {
                     if let Ok(ty) = lower_ast_ty(
                         ty,
                         session,
@@ -324,7 +324,7 @@ pub fn lower_ast_expr(
                         value: Box::new(value),
                         captured_values,
                         uid: *uid,
-                        return_ty,
+                        return_type,
                         lowered_from_scoped_let: *lowered_from_scoped_let,
                     }),
                     span: e.span,
@@ -351,14 +351,14 @@ pub fn lower_ast_expr(
                         ast::LetKind::Incallable {
                             name,
                             generics: _,  // parser guarantees that it's None
-                            return_ty,
-                            return_val,
+                            return_type,
+                            return_value,
                             uid: _,  // ignored
                         } => {
                             name_bindings.push(DestructuredPattern::new(
                                 *name,
-                                return_val.clone(),
-                                return_ty.clone(),
+                                return_value.clone(),
+                                return_type.clone(),
                                 /* is_real */ true,
                             ));
                         },
@@ -369,8 +369,8 @@ pub fn lower_ast_expr(
                             name,
                             args,
                             generics,  // TODO: there's no room for generics in `ValueKind::Lambda`
-                            return_ty,
-                            return_val,
+                            return_type,
+                            return_value,
                             uid,
                         } => {
                             name_bindings.push(DestructuredPattern::new(
@@ -378,15 +378,15 @@ pub fn lower_ast_expr(
                                 ast::Expr {
                                     kind: ast::ExprKind::Value(ast::ValueKind::Lambda {
                                         args: args.clone(),
-                                        value: Box::new(return_val.clone()),
+                                        value: Box::new(return_value.clone()),
                                         uid: *uid,
-                                        return_ty: return_ty.clone().map(|ty| Box::new(ty)),
+                                        return_type: return_type.clone().map(|ty| Box::new(ty)),
                                         lowered_from_scoped_let: true,
                                     }),
-                                    span: return_val.span,
+                                    span: return_value.span,
                                 },
 
-                                // `return_ty` of `ast::LetKind::Callable` is that of the function,
+                                // `return_type` of `ast::LetKind::Callable` is that of the function,
                                 // not this value itself: `Int` vs `Func(Int, Int, Int)`
                                 None,
                                 /* is_real */ true,

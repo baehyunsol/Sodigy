@@ -423,7 +423,7 @@ pub fn parse_expr(
                             value: Box::new(value),
                             uid: Uid::new_lambda(),
 
-                            return_ty: None,  // users cannot annotate return_ty of a lambda
+                            return_type: None,  // users cannot annotate return_type of a lambda
                             lowered_from_scoped_let: false,
                         }),
                         span,
@@ -2387,7 +2387,7 @@ fn parse_let_statement(
                 _ => None,
             };
 
-            let return_ty = if tokens.is_curr_token(TokenKind::colon()) {
+            let return_type = if tokens.is_curr_token(TokenKind::colon()) {
                 let colon_span = tokens.step().unwrap().span;
 
                 Some(parse_type_def(tokens, session, colon_span)?)
@@ -2398,7 +2398,7 @@ fn parse_let_statement(
             let assign_span = tokens.peek_span();
 
             if let Err(mut e) = tokens.consume(TokenKind::assign()) {
-                if return_ty.is_none() {
+                if return_type.is_none() {
                     e.add_expected_token(TokenKind::colon()).unwrap();
 
                     // I want to tell the users who use "->" to annotate a return type of a function
@@ -2431,7 +2431,7 @@ fn parse_let_statement(
                 return Err(());
             }
 
-            let return_val = parse_expr(
+            let return_value = parse_expr(
                 tokens,
                 session,
                 0,
@@ -2445,7 +2445,7 @@ fn parse_let_statement(
             }
 
             else {
-                Let::def(name, generics, args, return_ty, return_val, attributes)
+                Let::def(name, generics, args, return_type, return_value, attributes)
             }
         },
         Some(token) => {

@@ -12,10 +12,10 @@ def clean():
     pass
 
 def draw_depgraph():
-    depgraph_process = subprocess.Popen(["cargo", "depgraph"], stdout=subprocess.PIPE)
-    dot_process = subprocess.Popen(["dot", "-Tpng"], stdin=depgraph_process.stdout, stdout=subprocess.PIPE)
+    depgraph_process = subprocess.Popen(["cargo", "depgraph"], stdout = subprocess.PIPE)
+    dot_process = subprocess.Popen(["dot", "-Tpng"], stdin=depgraph_process.stdout, stdout = subprocess.PIPE)
 
-    depgraph_process.stdout.close()  # Allow depgraph_process to receive a SIGPIPE if dot_process exits.
+    depgraph_process.stdout.close()  # allow depgraph_process to receive a SIGPIPE if dot_process exits.
     output, _ = dot_process.communicate()
 
     with open("./dep_graph.png", "wb") as f:
