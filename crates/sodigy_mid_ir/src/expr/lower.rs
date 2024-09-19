@@ -9,20 +9,37 @@ pub fn lower_expr(
     tail_call: bool,
     session: &mut MirSession,
 ) -> Result<Expr, ()> {
-    let kind = lower_expr_kind(
-        &expr.kind,
-        tail_call,
-        session,
-    );
-    let ty = ty.map(
-        |ty| lower_ty()
-    );
+    if let hir::ExprKind::Scope(hir::Scope {
+        original_patterns,  // TODO: lower this and save somewhere
+        value,
+        ..
+    }) = &expr.kind {
+        // scoped-lets are already collected
 
-    Ok(Expr {
-        kind: kind?,
-        span: expr.span,
-        ty: if let Some(ty) = ty { Some(ty?) } else { None },
-    })
+        lower_expr(
+            value.as_ref(),
+            ty,
+            tail_call,
+            session,
+        )
+    }
+
+    else {
+        let kind = lower_expr_kind(
+            &expr.kind,
+            tail_call,
+            session,
+        );
+        let ty = ty.map(
+            |ty| lower_ty()
+        );
+
+        Ok(Expr {
+            kind: kind?,
+            span: expr.span,
+            ty: if let Some(ty) = ty { Some(ty?) } else { None },
+        })
+    }
 }
 
 pub fn lower_expr_kind(
@@ -99,7 +116,36 @@ pub fn lower_expr_kind(
                 tail_call,
             }
         },
-        _ => todo!(),
+        hir::ExprKind::List(elements) => {
+            let mut mir_elements = Vec::with_capacity(elements.len());
+            let mut has_error = false;
+
+            for element in elements.iter() {
+                if let Ok(mir_element) = lower_expr(
+                    element,
+                    None,
+                    false,
+                    session,
+                ) {
+                    mir_elements.push(mir_element);
+                } else {
+                    has_error = true;
+                }
+            }
+
+            if has_error {
+                return Err(());
+            }
+
+            ExprKind::Call {
+                func: MirFunc::Static(todo!() /* Prelude::init_list */ ),
+                args: mir_elements,
+                tail_call,
+            }
+        },
+        // see `lower_expr`
+        hir::ExprKind::Scope(_) => unreachable!(),
+        _ => panic!("TODO: {kind}"),
     };
 
     Ok(k)

@@ -1,13 +1,13 @@
 use crate::IdentWithSpan;
 use smallvec::{smallvec, SmallVec};
-use sodigy_error::{ExtraErrInfo, SodigyError, SodigyErrorKind, Stage};
+use sodigy_error::{ExtraErrorInfo, SodigyError, SodigyErrorKind, Stage};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
 pub struct AstWarning {
     kind: AstWarningKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl AstWarning {
@@ -15,17 +15,17 @@ impl AstWarning {
         AstWarning {
             kind: AstWarningKind::MultipleBindingsOnOnePattern,
             spans: smallvec![*bind1.span(), *bind2.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 }
 
 impl SodigyError<AstWarningKind> for AstWarning {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

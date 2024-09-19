@@ -99,4 +99,8 @@ impl Uid {
     pub fn get_metadata(self) -> u32 {
         ((self.0 & (0xf << 120)) >> 120) as u32
     }
+
+    pub fn get_u128(self) -> u128 {
+        self.0
+    }
 }

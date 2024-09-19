@@ -23,15 +23,15 @@ mod universal;
 pub use ctxt::ErrorContext;
 pub use dist::substr_edit_distance;
 pub use expected_token::ExpectedToken;
-pub use extra_info::ExtraErrInfo;
+pub use extra_info::ExtraErrorInfo;
 pub use fmt::RenderError;
 pub use stage::Stage;
 pub use universal::UniversalError;
 
 pub trait SodigyError<K: SodigyErrorKind> {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo;
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo;
 
-    fn get_error_info(&self) -> &ExtraErrInfo;
+    fn get_error_info(&self) -> &ExtraErrorInfo;
 
     fn get_first_span(&self) -> Option<SpanRange>;
 

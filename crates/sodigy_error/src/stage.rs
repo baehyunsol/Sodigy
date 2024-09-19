@@ -9,4 +9,5 @@ pub enum Stage {
     Parse,
     Ast,
     Hir,
+    Mir,
 }

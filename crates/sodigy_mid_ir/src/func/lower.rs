@@ -1,7 +1,7 @@
 use super::Func;
 use crate::expr::lower_expr;
 use crate::session::MirSession;
-use crate::ty::lower_ty;
+use crate::ty::{Type, lower_ty};
 use sodigy_high_ir as hir;
 
 pub fn lower_func(
@@ -15,15 +15,21 @@ pub fn lower_func(
         (&func.return_type).as_ref(),
         true,
         session,
-    );
+    )?;
     let return_type = func.return_type.as_ref().map(|ty| lower_ty());
+    let return_type = if let Some(ty) = return_type { ty? } else { Type::HasToBeInferred };
 
-    session.end_lowering_func();
-    Ok(Func {
+    let mut result = Func {
         name: func.name,
-        return_value: return_value?,
-        return_type: if let Some(ty) = return_type { ty? } else { todo!() /* has to be inferred later */ },
+        return_value,
+        return_type,
         local_values,
         uid: func.uid,
-    })
+    };
+    result.init_local_value_dependency_graphs(
+        session,
+    )?;
+
+    session.end_lowering_func();
+    Ok(result)
 }

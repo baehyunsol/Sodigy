@@ -2,7 +2,7 @@ use crate::token_tree::{TokenTree, TokenTreeKind};
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     ExpectedToken,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     RenderError,
     SodigyError,
     SodigyErrorKind,
@@ -17,7 +17,7 @@ mod endec;
 pub struct ParseError {
     pub(crate) kind: ParseErrorKind,
     pub(crate) spans: SmallVec<[SpanRange; 1]>,
-    pub(crate) extra: ExtraErrInfo,
+    pub(crate) extra: ExtraErrorInfo,
 }
 
 impl ParseError {
@@ -25,7 +25,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::UnfinishedDelim(c),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -33,7 +33,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::MismatchDelim(c),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -41,7 +41,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::EmptyFString,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -49,7 +49,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::ThreeDots,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -57,7 +57,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::LonelyBacktick,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -65,7 +65,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::LonelyBackslash,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -73,7 +73,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::FStringSingleQuote,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -81,7 +81,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::FStringWithoutPrefix { has_prefix_b },
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -89,7 +89,7 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::UnexpectedToken(token.kind, expected_token),
             spans: smallvec![token.span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -97,17 +97,17 @@ impl ParseError {
         ParseError {
             kind: ParseErrorKind::UnexpectedEof(expected_token),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 }
 
 impl SodigyError<ParseErrorKind> for ParseError {
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
@@ -124,7 +124,7 @@ impl SodigyError<ParseErrorKind> for ParseError {
     }
 
     fn index(&self) -> u32 {
-        8
+        10
     }
 
     fn get_stage(&self) -> Stage {

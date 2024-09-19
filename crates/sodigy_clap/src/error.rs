@@ -4,7 +4,7 @@ use hmath::BigInt;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     ErrorContext,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     RenderError,
     SodigyError,
     SodigyErrorKind,
@@ -18,7 +18,7 @@ use sodigy_span::SpanRange;
 pub struct ClapError {
     kind: ClapErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl ClapError {
@@ -26,7 +26,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::InvalidUtf8,
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -58,7 +58,7 @@ impl ClapError {
                         }
                     }
 
-                    let mut extra = ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine);
+                    let mut extra = ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine);
 
                     //  --xx -> --to  (no sense)
                     //  --tx -> --to  (makes sense)
@@ -78,7 +78,7 @@ impl ClapError {
             _ => ClapError {
                 kind: ClapErrorKind::InvalidArgument(kind, String::from_utf8_lossy(argument).to_string()),
                 spans: smallvec![span],
-                extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+                extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
             },
         }
     }
@@ -87,7 +87,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::NoArgsAtAll,
             spans: smallvec![],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
         }
     }
 
@@ -95,7 +95,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::NoArg(kind),
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -103,7 +103,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::NoInputFile,
             spans: smallvec![],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine).set_show_span(false).to_owned(),
         }
     }
 
@@ -111,7 +111,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::MultipleInputFiles,
             spans: smallvec![span1, span2],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -119,7 +119,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::SameFlagMultipleTimes(flag),
             spans,
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -132,7 +132,7 @@ impl ClapError {
         ClapError {
             kind: ClapErrorKind::IncompatibleFlags(flag1, flag2),
             spans: smallvec![span1, span2],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -143,17 +143,17 @@ impl ClapError {
                 start, end, given,
             },
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 }
 
 impl SodigyError<ClapErrorKind> for ClapError {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

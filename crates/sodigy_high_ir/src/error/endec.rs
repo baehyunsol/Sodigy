@@ -7,7 +7,7 @@ use sodigy_endec::{
     EndecSession,
     JsonObj,
 };
-use sodigy_error::{ExtraErrInfo, SodigyError};
+use sodigy_error::{ExtraErrorInfo, SodigyError};
 use sodigy_intern::InternedString;
 use sodigy_span::SpanRange;
 
@@ -22,7 +22,7 @@ impl Endec for HirError {
         Ok(HirError {
             kind: HirErrorKind::decode(buffer, index, session)?,
             spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
-            extra: ExtraErrInfo::decode(buffer, index, session)?,
+            extra: ExtraErrorInfo::decode(buffer, index, session)?,
         })
     }
 }

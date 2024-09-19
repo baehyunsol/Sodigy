@@ -3,7 +3,7 @@ use crate::ErrorContext;
 mod endec;
 
 #[derive(Clone, Debug)]
-pub struct ExtraErrInfo {
+pub struct ExtraErrorInfo {
     // very context-specific message for an error,
     // for example, there may be a very specific context for `UnexpectedToken`s (suspicious typos, deprecated features, etc...)
     pub(crate) msg: String,
@@ -11,9 +11,9 @@ pub struct ExtraErrInfo {
     pub(crate) show_span: bool,
 }
 
-impl ExtraErrInfo {
+impl ExtraErrorInfo {
     pub fn none() -> Self {
-        ExtraErrInfo {
+        ExtraErrorInfo {
             msg: String::new(),
             context: ErrorContext::Unknown,
             show_span: true,
@@ -21,7 +21,7 @@ impl ExtraErrInfo {
     }
 
     pub fn at_context(context: ErrorContext) -> Self {
-        ExtraErrInfo {
+        ExtraErrorInfo {
             msg: String::new(),
             context,
             show_span: true,

@@ -1,8 +1,11 @@
+use crate::func::LocalValueKey;
 use crate::ty::Type;
 use sodigy_intern::InternedNumeric;
 use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
+mod endec;
+mod fmt;
 mod lower;
 
 pub use lower::lower_expr;
@@ -11,6 +14,7 @@ pub struct Expr {
     kind: ExprKind,
     span: SpanRange,
 
+    // TODO: is it inferred type or an annotated type?
     // TODO: replace `Type` with `&'session Type` when the other implementation is complete
     ty: Option<Type>,
 }
@@ -21,9 +25,7 @@ pub enum ExprKind {
     LocalValue {
         // uid of the function it belongs to, not a local scope
         origin: Uid,
-
-        // index in the function, not in a local scope
-        index: usize,
+        index: LocalValueKey,
     },
     Object(Uid),
     Call {

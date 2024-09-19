@@ -1,5 +1,6 @@
 use super::NameBindingType;
 use sodigy_error::RenderError;
+use std::fmt;
 
 impl RenderError for NameBindingType {
     // "unused {self}" should make sense
@@ -13,5 +14,11 @@ impl RenderError for NameBindingType {
             NameBindingType::IfPattern => "name binding in an `if pattern` clause",
             NameBindingType::Import => "import",
         }.to_string()
+    }
+}
+
+impl fmt::Display for NameBindingType {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(fmt, "{self:?}")
     }
 }

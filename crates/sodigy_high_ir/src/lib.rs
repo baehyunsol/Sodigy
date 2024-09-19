@@ -57,6 +57,13 @@ pub use names::NameBindingType;
 pub use scope::{Scope, ScopedLet};
 pub use session::HirSession;
 use struct_::lower_ast_struct;
+pub use walker::{
+    EmptyWalkerState,
+    mut_walker_expr,
+    mut_walker_func,
+    walker_expr,
+    walker_func,
+};
 use warn::HirWarning;
 
 pub fn lower_stmts(

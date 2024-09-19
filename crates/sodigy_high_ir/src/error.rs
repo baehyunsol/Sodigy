@@ -1,7 +1,7 @@
 use smallvec::{SmallVec, smallvec};
 use sodigy_ast as ast;
 use sodigy_error::{
-    ExtraErrInfo,
+    ExtraErrorInfo,
     RenderError,
     SodigyError,
     SodigyErrorKind,
@@ -18,7 +18,7 @@ mod endec;
 pub struct HirError {
     kind: HirErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl HirError {
@@ -26,7 +26,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::NameCollision(id1.id()),
             spans: smallvec![*id1.span(), *id2.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -37,7 +37,7 @@ impl HirError {
                 suggestions,
             },
             spans: smallvec![*name.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -45,7 +45,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::NoDependentTypes(id.id()),
             spans: smallvec![*id.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -53,7 +53,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::UndefinedDeco(deco.id()),
             spans: smallvec![*deco.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -61,7 +61,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::RefutablePatternInLet,
             spans: smallvec![pattern.span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -69,7 +69,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::OpenInclusiveRange,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -77,7 +77,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::UnmatchablePattern,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -85,7 +85,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::MultipleShorthands,
             spans: spans.into(),
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -93,7 +93,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::InclusiveStringPattern,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -101,7 +101,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::NameBindingNotAllowedHere,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -109,7 +109,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::TyAnnoNotAllowedHere,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -120,7 +120,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::NameNotBoundInAllPatterns(name.id()),
             spans: smallvec![*name.span(), span_of_pattern_that_dont_have_the_name],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -131,7 +131,7 @@ impl HirError {
         HirError {
             kind: HirErrorKind::TyError,
             spans: span.into(),
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -139,17 +139,17 @@ impl HirError {
         HirError {
             kind: HirErrorKind::TODO(msg.to_string()),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 }
 
 impl SodigyError<HirErrorKind> for HirError {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

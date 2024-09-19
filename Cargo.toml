@@ -8,6 +8,7 @@ edition = "2021"
 [workspace]
 members = [
     "crates/sodigy_ast",
+    "crates/sodigy_attribute",
     "crates/sodigy_clap",
     "crates/sodigy_config",
     "crates/sodigy_error",
@@ -42,6 +43,7 @@ sodigy_files = { path = "crates/sodigy_files" }
 sodigy_high_ir = { path = "crates/sodigy_high_ir" }
 sodigy_intern = { path = "crates/sodigy_intern" }
 sodigy_lex = { path = "crates/sodigy_lex" }
+sodigy_mid_ir = { path = "crates/sodigy_mid_ir" }
 sodigy_output = { path = "crates/sodigy_output" }
 sodigy_parse = { path = "crates/sodigy_parse" }
 sodigy_session = { path = "crates/sodigy_session" }

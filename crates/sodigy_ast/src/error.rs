@@ -5,7 +5,7 @@ use sodigy_attribute::Attribute;
 use sodigy_error::{
     ErrorContext,
     ExpectedToken,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     SodigyError,
     SodigyErrorKind,
     Stage,
@@ -25,12 +25,12 @@ const STMT_START_KEYWORDS: [&'static str; 3] = [
 pub struct AstError {
     pub(crate) kind: AstErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl AstError {
     pub fn unexpected_token(token: Token, expected_token: ExpectedToken<TokenKind>) -> Self {
-        let mut extra = ExtraErrInfo::none();
+        let mut extra = ExtraErrorInfo::none();
 
         match &token.kind {
             TokenKind::Keyword(k) => {
@@ -51,8 +51,8 @@ impl AstError {
                 match expected_token {
                     // This is very expensive. Make sure that compilation has already failed before this branch is reached.
                     ExpectedToken::AnyStatement => {
-                        let mut sess = InternSession::new();
-                        let id = sess.unintern_string(*id).to_vec();
+                        let mut session = InternSession::new();
+                        let id = session.unintern_string(*id).to_vec();
 
                         if id == b"fn" || id == b"def" {
                             extra.set_message(format!("Do you mean `let`?"));
@@ -99,7 +99,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::UnexpectedEnd(expected_token),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -107,7 +107,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::EmptyGenericList,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -115,7 +115,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::BinaryChar,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -123,7 +123,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::EmptyCharLiteral,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -131,7 +131,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::TooLongCharLiteral,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -139,7 +139,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::EmptyScopeBlock,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -147,7 +147,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::EmptyMatchBody,
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingMatchBody),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingMatchBody),
         }
     }
 
@@ -155,7 +155,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::EmptyStructBody,
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingStructBody),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingStructBody),
         }
     }
 
@@ -163,7 +163,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::FuncArgWithoutType { arg_name: arg.id(), func_name },
             spans: smallvec![*arg.span()],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingFuncArgs),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingFuncArgs),
         }
     }
 
@@ -171,7 +171,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::ExpectedBindingGotPattern(pat.kind),
             spans: smallvec![pat.span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingPattern),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingPattern),
         }
     }
 
@@ -179,7 +179,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::MultipleShorthandsInOnePattern,
             spans,
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingPattern),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingPattern),
         }
     }
 
@@ -187,7 +187,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::NoGenericsAllowed,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -195,7 +195,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::StrandedAttribute { ctxt, multiple_attributes: attributes.len() > 1 },
             spans: attributes.iter().map(|attr| attr.span()).collect(),
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingFuncArgs),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingFuncArgs),
         }
     }
 
@@ -203,7 +203,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::NameBindingNotAllowed,
             spans: smallvec![binding_span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -211,7 +211,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::TypeAnnoNotAllowed,
             spans: smallvec![ty_span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -219,7 +219,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::ExcessiveOrPattern { limit },
             spans: smallvec![pattern_span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -227,7 +227,7 @@ impl AstError {
         AstError {
             kind: AstErrorKind::InvalidUtf8,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -241,11 +241,11 @@ impl AstError {
 }
 
 impl SodigyError<AstErrorKind> for AstError {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

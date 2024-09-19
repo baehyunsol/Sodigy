@@ -3,7 +3,7 @@ use crate::IdentWithOrigin;
 use crate::func::{Func, FuncKind};
 use crate::names::{NameOrigin, NameSpace};
 use crate::session::HirSession;
-use crate::walker::{EmptyMutWalkerState, MutWalkerState, mut_walker_func};
+use crate::walker::{EmptyWalkerState, mut_walker_func};
 use sodigy_intern::InternedString;
 use sodigy_parse::IdentWithSpan;
 use sodigy_session::SodigySession;
@@ -18,10 +18,10 @@ use std::collections::HashSet;
 //     fibo(10)
 // };
 pub fn try_convert_closures_to_lambdas(f: &mut Func) {
-    mut_walker_func(f, &mut EmptyMutWalkerState {}, &Box::new(try_convert_closures_to_lambdas_worker));
+    mut_walker_func(f, &mut EmptyWalkerState {}, &Box::new(try_convert_closures_to_lambdas_worker));
 }
 
-fn try_convert_closures_to_lambdas_worker(e: &mut Expr, c: &mut EmptyMutWalkerState) {
+fn try_convert_closures_to_lambdas_worker(e: &mut Expr, c: &mut EmptyWalkerState) {
     match &e.kind {
         ExprKind::Scope(Scope { .. }) => {
             // TODO
@@ -48,8 +48,6 @@ impl<'h> LambdaCollectCtxt<'h> {
         self.session.intern_string(format!("@@LAMBDA_{span_hash:x}").into())
     }
 }
-
-impl MutWalkerState for LambdaCollectCtxt<'_> {}
 
 // find lambda functions,
 // make them into an actual function,
@@ -108,8 +106,6 @@ pub struct ValueCaptureCtxt<'c> {
     used_names: &'c mut HashSet<IdentWithOrigin>,
     name_space: &'c mut NameSpace,
 }
-
-impl MutWalkerState for ValueCaptureCtxt<'_> {}
 
 impl<'c> ValueCaptureCtxt<'c> {
     pub fn new(

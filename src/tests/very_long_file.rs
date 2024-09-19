@@ -70,7 +70,7 @@ fn very_long_file() {
         do_not_compile_and_do_this: None,
         input_path: Some(tmp_file_name.clone()),
         output_path: Some(dummy_output_file.clone()),
-        output_format: CompilerOutputFormat::Hir,  // TODO: it has to be `CompilerOutputFormat::Binary`, but it's not implemented yet
+        output_format: CompilerOutputFormat::Mir,  // TODO: it has to be `CompilerOutputFormat::Binary`, but it's not implemented yet
         dump_hir_to: None,
         dump_mir_to: None,
         dump_type: DumpType::Json,

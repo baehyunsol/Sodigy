@@ -8,8 +8,11 @@ def goto_root_dir():
         os.chdir("..")
 
 def clean():
-    # TODO: clean garbages from tests, if any
-    pass
+    goto_root_dir()
+
+    for file in os.listdir():
+        if file.startswith("__tmp_") or file.startswith("__error_"):
+            os.remove(os.path.join(os.getcwd(), file))
 
 def draw_depgraph():
     depgraph_process = subprocess.Popen(["cargo", "depgraph"], stdout = subprocess.PIPE)

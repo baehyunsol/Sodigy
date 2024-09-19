@@ -14,10 +14,10 @@ pub use json::{DumpJson, JsonObj, json_key_value_table};
 pub use session::EndecSession;
 
 pub trait Endec {
-    fn encode(&self, buffer: &mut Vec<u8>, sess: &mut EndecSession);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession);
 
     /// It moves the cursor (`ind`) after decoding. If the decoding fails, it may or may not move the cursor.
-    fn decode(buffer: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> where Self: Sized;
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> where Self: Sized;
 
     fn save_to_file(&self, path: &str) -> Result<(), FileError> {
         let mut buffer = vec![];
@@ -131,25 +131,25 @@ impl<T: Endec> Endec for Option<T> {
 }
 
 impl<T: Endec, U: Endec> Endec for (T, U) {
-    fn encode(&self, buffer: &mut Vec<u8>, sess: &mut EndecSession) {
-        self.0.encode(buffer, sess);
-        self.1.encode(buffer, sess);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.0.encode(buffer, session);
+        self.1.encode(buffer, session);
     }
 
-    fn decode(buffer: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         Ok((
-            T::decode(buffer, index, sess)?,
-            U::decode(buffer, index, sess)?,
+            T::decode(buffer, index, session)?,
+            U::decode(buffer, index, session)?,
         ))
     }
 }
 
 impl <T: Endec> Endec for Box<T> {
-    fn encode(&self, buffer: &mut Vec<u8>, sess: &mut EndecSession) {
-        self.as_ref().encode(buffer, sess);
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.as_ref().encode(buffer, session);
     }
 
-    fn decode(buffer: &[u8], index: &mut usize, sess: &mut EndecSession) -> Result<Self, EndecError> {
-        Ok(Box::new(T::decode(buffer, index, sess)?))
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(Box::new(T::decode(buffer, index, session)?))
     }
 }

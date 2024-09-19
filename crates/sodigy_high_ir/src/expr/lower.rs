@@ -27,7 +27,7 @@ use crate::pattern::{
     lower_ast_pattern,
 };
 use crate::session::HirSession;
-use crate::walker::{MutWalkerState, mut_walker_expr};
+use crate::walker::mut_walker_expr;
 use crate::warn::HirWarning;
 use sodigy_ast::{self as ast, FieldKind, ValueKind};
 use sodigy_intern::InternedString;
@@ -1253,5 +1253,3 @@ pub fn replace_names_in_match_arm<'a>(e: &mut Expr, c: &mut NameReplaceState<'a>
         }
     }
 }
-
-impl<'a> MutWalkerState for NameReplaceState<'a> {}

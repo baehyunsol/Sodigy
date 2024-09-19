@@ -2,7 +2,7 @@ use crate::{
     InternedNumeric,
     InternedString,
     numeric::try_intern_small_integer,
-    prelude::{DATA_MASK, STARTS_WITH_AT},
+    prelude::{DATA_MASK, IS_INTEGER, STARTS_WITH_AT},
     string::try_intern_short_string,
 };
 use sodigy_keyword::keywords;
@@ -119,7 +119,11 @@ impl GlobalInternSession {
                         nn
                     },
                     _ => {
-                        let ii = self.get_new_numeric_index();
+                        let mut ii = self.get_new_numeric_index();
+
+                        if numeric.is_integer() {
+                            ii.0 |= IS_INTEGER;
+                        }
 
                         self.numerics.insert(numeric.clone(), ii);
                         self.numerics_rev.insert(ii, numeric);

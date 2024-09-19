@@ -15,7 +15,6 @@ use log::info;
 use sodigy_config::{CompilerOption, CompilerOutputFormat, SpecialOutput};
 use sodigy_endec::Endec;
 use sodigy_output::CompilerOutput;
-use sodigy_session::SodigySession;
 
 pub fn run(options: CompilerOption) -> CompilerOutput {
     info!("sodigy::run()");
@@ -52,17 +51,14 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
             if let Some(session) = session {
                 output.collect_errors_and_warnings_from_session(&session);
+                let save_hir_at = options.output_path.as_ref().map(
+                    |path| path.to_string()
+                ).unwrap_or_else(
+                    || options.output_format.create_output_path()
+                );
 
-                if !session.has_error() {
-                    let save_hir_at = options.output_path.as_ref().map(
-                        |path| path.to_string()
-                    ).unwrap_or_else(
-                        || options.output_format.create_output_path()
-                    );
-
-                    if let Err(e) = session.save_to_file(&save_hir_at) {
-                        output.push_error(e.into());
-                    }
+                if let Err(e) = session.save_to_file(&save_hir_at) {
+                    output.push_error(e.into());
                 }
             }
 
@@ -74,10 +70,18 @@ pub fn run(options: CompilerOption) -> CompilerOutput {
 
             if let Some(session) = session {
                 output.collect_errors_and_warnings_from_session(&session);
+                let save_mir_at = options.output_path.as_ref().map(
+                    |path| path.to_string()
+                ).unwrap_or_else(
+                    || options.output_format.create_output_path()
+                );
+
+                if let Err(e) = session.save_to_file(&save_mir_at) {
+                    output.push_error(e.into());
+                }
             }
 
-            // TODO: if it's mir, save it
-            //       if it's binary... then what?
+            // TODO: if it's binary, then what?
 
             output
         },

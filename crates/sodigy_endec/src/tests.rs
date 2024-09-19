@@ -22,17 +22,17 @@ macro_rules! vec_int_roundtrip {
                 ],
             ];
 
-            let mut sess = EndecSession::new();
+            let mut session = EndecSession::new();
 
             for sample in samples.into_iter() {
                 let mut buffer = vec![];
 
-                sample.encode(&mut buffer, &mut sess);
+                sample.encode(&mut buffer, &mut session);
                 let buffer_c = buffer.clone();
-                let t = Vec::<$t>::decode(&buffer, &mut 0, &mut sess).unwrap();
+                let t = Vec::<$t>::decode(&buffer, &mut 0, &mut session).unwrap();
 
                 let mut buffer = vec![];
-                t.encode(&mut buffer, &mut sess);
+                t.encode(&mut buffer, &mut session);
 
                 assert_eq!(sample, t);
                 assert_eq!(buffer, buffer_c);

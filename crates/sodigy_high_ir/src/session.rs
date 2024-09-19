@@ -23,7 +23,7 @@ pub struct HirSession {
     errors: Vec<HirError>,
     warnings: Vec<HirWarning>,
     interner: InternSession,
-    func_defs: HashMap<Uid, Func>,
+    pub func_defs: HashMap<Uid, Func>,
 
     // you can get tmp names using `.allocate_tmp_name` method
     // tmp_names from this vector is guaranteed to be unique

@@ -1,7 +1,7 @@
 use crate::pattern::{NumberLike, RangeType};
 use smallvec::{SmallVec, smallvec};
 use sodigy_ast as ast;
-use sodigy_error::{ExtraErrInfo, RenderError, SodigyError, SodigyErrorKind, Stage};
+use sodigy_error::{ExtraErrorInfo, RenderError, SodigyError, SodigyErrorKind, Stage};
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_parse::IdentWithSpan;
 use sodigy_span::SpanRange;
@@ -11,7 +11,7 @@ mod endec;
 pub struct HirWarning {
     kind: HirWarningKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl HirWarning {
@@ -19,7 +19,7 @@ impl HirWarning {
         HirWarning {
             kind: HirWarningKind::RedefPrelude(id.id()),
             spans: smallvec![*id.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -29,7 +29,7 @@ impl HirWarning {
                 is_brace: matches!(&e.kind, ast::ExprKind::Value(ast::ValueKind::Scope { .. })),
             },
             spans: smallvec![e.span.first_char(), e.span.last_char()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -37,7 +37,7 @@ impl HirWarning {
         HirWarning {
             kind: HirWarningKind::PointRange { from, to, ty },
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -45,17 +45,17 @@ impl HirWarning {
         HirWarning {
             kind: HirWarningKind::NameBindingOnWildcard,
             spans: smallvec![*bind.span()],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 }
 
 impl SodigyError<HirWarningKind> for HirWarning {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

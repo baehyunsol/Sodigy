@@ -1,16 +1,22 @@
 use smallvec::SmallVec;
-use sodigy_error::{ExtraErrorInfo, SodigyError, SodigyErrorKind, Stage};
+use sodigy_error::{
+    ExtraErrorInfo,
+    SodigyError,
+    SodigyErrorKind,
+    Stage,
+};
 use sodigy_intern::InternSession;
 use sodigy_span::SpanRange;
 
-#[derive(Clone)]
-pub struct LexWarning {
-    kind: LexWarningKind,
+mod endec;
+
+pub struct MirError {
+    kind: MirErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
     extra: ExtraErrorInfo,
 }
 
-impl SodigyError<LexWarningKind> for LexWarning {
+impl SodigyError<MirErrorKind> for MirError {
     fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
@@ -27,37 +33,31 @@ impl SodigyError<LexWarningKind> for LexWarning {
         &self.spans
     }
 
-    fn error_kind(&self) -> &LexWarningKind {
+    fn error_kind(&self) -> &MirErrorKind {
         &self.kind
     }
 
-    fn is_warning(&self) -> bool {
-        true
-    }
-
     fn index(&self) -> u32 {
-        7
+        8
     }
 
     fn get_stage(&self) -> Stage {
-        Stage::Lex
+        Stage::Mir
     }
 }
 
-#[derive(Clone)]
-pub enum LexWarningKind {}
+pub enum MirErrorKind {}
 
-// all of these are unreachable because the lexer never emits any warning
-impl SodigyErrorKind for LexWarningKind {
+impl SodigyErrorKind for MirErrorKind {
     fn msg(&self, _: &mut InternSession) -> String {
-        unreachable!()
+        todo!()
     }
 
     fn help(&self, _: &mut InternSession) -> String {
-        unreachable!()
+        todo!()
     }
 
     fn index(&self) -> u32 {
-        unreachable!()
+        todo!()
     }
 }

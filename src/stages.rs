@@ -22,6 +22,10 @@ use sodigy_high_ir::{
 };
 use sodigy_intern::InternedString;
 use sodigy_lex::{LexSession, lex};
+use sodigy_mid_ir::{
+    MirSession,
+    lower_funcs,
+};
 use sodigy_parse::{ParseSession, from_tokens};
 use sodigy_session::SodigySession;
 use sodigy_span::SpanPoint;
@@ -162,14 +166,38 @@ pub fn construct_hir(
 pub fn construct_mir(
     input: PathOrRawInput,
     compiler_option: &CompilerOption,
-) -> (
-    Option<HirSession>,  // TODO: it has to be `MirSession`, but that's not implemented yet
-    CompilerOutput,
-) {
+) -> (Option<MirSession>, CompilerOutput) {
     info!("sodigy::construct_mir() with input: {input:?}");
-    construct_hir(input, compiler_option)
+    let (hir_session, mut compiler_output) = construct_hir(input, compiler_option);
 
-    // TODO: construct mir from hir
+    if hir_session.is_none() || compiler_output.has_error() {
+        return (None, compiler_output);
+    }
+
+    let hir_session = hir_session.unwrap();
+    let mut mir_session = MirSession::from_hir_session(&hir_session);
+    let _ = lower_funcs(&hir_session, &mut mir_session);
+
+    if let Some(path) = &compiler_option.dump_mir_to {
+        let res = match compiler_option.dump_type {
+            DumpType::Json => mir_session.dump_json().pretty(4),
+            DumpType::String => mir_session.dump_mir(),
+        };
+        debug!("dump_mir_to: {path:?}");
+
+        if path != "STDOUT" {
+            if let Err(mut e) = write_string(path, &res, WriteMode::CreateOrTruncate) {
+                compiler_output.push_error(e.set_context(FileErrorContext::DumpingMirToFile).to_owned().into());
+            }
+        }
+
+        else {
+            compiler_output.dump_to_stdout(res);
+        }
+    }
+
+    info!("construct_mir() for {:?} successfully completed", input);
+    (Some(mir_session), compiler_output)
 }
 
 // it returns `()` because it's not implemented yet

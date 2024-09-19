@@ -2,7 +2,7 @@ use super::{ParseError, ParseErrorKind};
 use crate::token_tree::TokenTreeKind;
 use smallvec::SmallVec;
 use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_error::{ExpectedToken, ExtraErrInfo};
+use sodigy_error::{ExpectedToken, ExtraErrorInfo};
 use sodigy_span::SpanRange;
 
 impl Endec for ParseError {
@@ -16,7 +16,7 @@ impl Endec for ParseError {
         Ok(ParseError {
             kind: ParseErrorKind::decode(buffer, index, session)?,
             spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
-            extra: ExtraErrInfo::decode(buffer, index, session)?,
+            extra: ExtraErrorInfo::decode(buffer, index, session)?,
         })
     }
 }

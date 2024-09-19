@@ -1,7 +1,7 @@
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     concat_commas,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     SodigyError,
     SodigyErrorKind,
     Stage,
@@ -16,7 +16,7 @@ use crate::num::error::ParseNumberError;
 pub struct LexError {
     kind: LexErrorKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl LexError {
@@ -24,7 +24,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::UnexpectedChar(c, ExpectedChars::Any),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -32,7 +32,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::InvalidUtf8,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -40,7 +40,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::InvalidCharacterEscape(c),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -48,7 +48,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::UnfinishedComment,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -56,7 +56,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::UnfinishedString(kind),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -64,7 +64,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::UnfinishedNumLiteral(ExpectedChars::Any),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -72,7 +72,7 @@ impl LexError {
         LexError {
             kind: LexErrorKind::UnfinishedFString,
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -80,7 +80,7 @@ impl LexError {
         LexError {
             kind: e.into(),
             spans: smallvec![span],
-            extra: ExtraErrInfo::none(),
+            extra: ExtraErrorInfo::none(),
         }
     }
 
@@ -100,11 +100,11 @@ impl LexError {
 }
 
 impl SodigyError<LexErrorKind> for LexError {
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 

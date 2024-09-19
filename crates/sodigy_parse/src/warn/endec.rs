@@ -1,7 +1,7 @@
 use super::{ParseWarning, ParseWarningKind};
 use smallvec::SmallVec;
 use sodigy_endec::{Endec, EndecError, EndecSession};
-use sodigy_error::ExtraErrInfo;
+use sodigy_error::ExtraErrorInfo;
 use sodigy_span::SpanRange;
 
 impl Endec for ParseWarning {
@@ -15,7 +15,7 @@ impl Endec for ParseWarning {
         Ok(ParseWarning {
             kind: ParseWarningKind::decode(buffer, index, session)?,
             spans: SmallVec::<[SpanRange; 1]>::decode(buffer, index, session)?,
-            extra: ExtraErrInfo::decode(buffer, index, session)?,
+            extra: ExtraErrorInfo::decode(buffer, index, session)?,
         })
     }
 }

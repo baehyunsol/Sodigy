@@ -1,5 +1,5 @@
 use super::Type;
 
 pub fn lower_ty() -> Result<Type, ()> {
-    todo!()
+    Ok(Type::HasToBeInferred)  // TODO: type-related stuffs are not implemented at all!
 }

@@ -2,7 +2,7 @@ use crate::flag::Flag;
 use smallvec::{smallvec, SmallVec};
 use sodigy_error::{
     ErrorContext,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     RenderError,
     SodigyError,
     SodigyErrorKind,
@@ -14,7 +14,7 @@ use sodigy_span::SpanRange;
 pub struct ClapWarning {
     kind: ClapWarningKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl ClapWarning {
@@ -27,7 +27,7 @@ impl ClapWarning {
         ClapWarning {
             kind: ClapWarningKind::IncompatibleFlags(flag1, flag2),
             spans: smallvec![span1, span2],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 
@@ -35,17 +35,17 @@ impl ClapWarning {
         ClapWarning {
             kind: ClapWarningKind::UnnecessaryFlag(flag),
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingCommandLine),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingCommandLine),
         }
     }
 }
 
 impl SodigyError<ClapWarningKind> for ClapWarning {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 

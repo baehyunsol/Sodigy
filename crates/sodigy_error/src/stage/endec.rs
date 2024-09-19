@@ -11,6 +11,7 @@ impl Endec for Stage {
             Stage::Parse => { buffer.push(4); },
             Stage::Ast => { buffer.push(5); },
             Stage::Hir => { buffer.push(6); },
+            Stage::Mir => { buffer.push(7); },
         }
     }
 
@@ -27,7 +28,8 @@ impl Endec for Stage {
                     4 => Ok(Stage::Parse),
                     5 => Ok(Stage::Ast),
                     6 => Ok(Stage::Hir),
-                    7.. => Err(EndecError::invalid_enum_variant(*n)),
+                    7 => Ok(Stage::Mir),
+                    8.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

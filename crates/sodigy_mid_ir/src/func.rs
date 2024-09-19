@@ -3,19 +3,28 @@ use crate::ty::Type;
 use sodigy_high_ir::{self as hir, NameBindingType};
 use sodigy_parse::IdentWithSpan;
 use sodigy_uid::Uid;
+use std::collections::HashMap;
 
+mod endec;
+mod fmt;
+mod graph;
 mod lower;
 
+pub use graph::LocalValueGraph;
+pub use lower::lower_func;
+
+pub type LocalValueKey = u32;
+
 pub struct Func {
-    name: IdentWithSpan,
+    pub name: IdentWithSpan,
 
     return_type: Type,
     return_value: Expr,
 
     // all the local name bindings (names that do not have uids) are
     // stored here
-    local_values: Vec<LocalValue>,
-    uid: Uid,
+    local_values: HashMap<LocalValueKey, LocalValue>,
+    pub uid: Uid,
 }
 
 pub struct LocalValue {
@@ -31,13 +40,22 @@ pub struct LocalValue {
     pub parent_scope: Option<Uid>,
     pub name_binding_type: NameBindingType,
 
-    // parent.local_values[self.index] = self
-    pub index: usize,
+    // ones that created by the compiler vs by the user
+    pub is_real: bool,
+
+    // parent.local_values[self.key] = self
+    pub key: LocalValueKey,
+
+    // dependency graph on local values
+    // it's used for analysis and optimizations
+    pub graph: Option<LocalValueGraph>,
 }
 
 // for `local_values` in `Func`,
 // values have to be initialized after `Vec<LocalValue>` is constructed.
 // so there must be a placeholder for `hir::Expr`s while `Vec<LocalValue>` is being constructed
+//
+// it's like `Option<U>`, but has a tmp place for T
 pub enum MaybeInit<T, U> {
     None,  // no value at all
     Uninit(T),

@@ -1,7 +1,7 @@
 use smallvec::{SmallVec, smallvec};
 use sodigy_error::{
     ErrorContext,
-    ExtraErrInfo,
+    ExtraErrorInfo,
     SodigyError,
     SodigyErrorKind,
     Stage,
@@ -15,7 +15,7 @@ mod endec;
 pub struct ParseWarning {
     kind: ParseWarningKind,
     spans: SmallVec<[SpanRange; 1]>,
-    extra: ExtraErrInfo,
+    extra: ExtraErrorInfo,
 }
 
 impl ParseWarning {
@@ -23,7 +23,7 @@ impl ParseWarning {
         ParseWarning {
             kind: ParseWarningKind::NothingToEvalInFString,
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingFormattedString),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingFormattedString),
         }
     }
 
@@ -31,17 +31,17 @@ impl ParseWarning {
         ParseWarning {
             kind: ParseWarningKind::UnmatchedCurlyBrace,
             spans: smallvec![span],
-            extra: ExtraErrInfo::at_context(ErrorContext::ParsingFormattedString),
+            extra: ExtraErrorInfo::at_context(ErrorContext::ParsingFormattedString),
         }
     }
 }
 
 impl SodigyError<ParseWarningKind> for ParseWarning {
-    fn get_mut_error_info(&mut self) -> &mut ExtraErrInfo {
+    fn get_mut_error_info(&mut self) -> &mut ExtraErrorInfo {
         &mut self.extra
     }
 
-    fn get_error_info(&self) -> &ExtraErrInfo {
+    fn get_error_info(&self) -> &ExtraErrorInfo {
         &self.extra
     }
 
@@ -62,7 +62,7 @@ impl SodigyError<ParseWarningKind> for ParseWarning {
     }
 
     fn index(&self) -> u32 {
-        9
+        11
     }
 
     fn get_stage(&self) -> Stage {
