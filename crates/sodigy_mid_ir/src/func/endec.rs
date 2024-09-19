@@ -1,4 +1,11 @@
-use super::{Func, LocalValue, LocalValueGraph, MaybeInit};
+use super::{
+    Func,
+    LocalValue,
+    LocalValueGraph, 
+    LocalValueKey,
+    LocalValueRef,
+    MaybeInit,
+};
 use crate::expr::Expr;
 use crate::ty::Type;
 use sodigy_endec::{
@@ -18,6 +25,7 @@ impl Endec for Func {
         self.return_value.encode(buffer, session);
         self.local_values.encode(buffer, session);
         self.uid.encode(buffer, session);
+        self.local_values_reachable_from_return_value.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -27,6 +35,7 @@ impl Endec for Func {
             return_value: Expr::decode(buffer, index, session)?,
             local_values: HashMap::<u32, LocalValue>::decode(buffer, index, session)?,
             uid: Uid::decode(buffer, index, session)?,
+            local_values_reachable_from_return_value: HashMap::<LocalValueKey, LocalValueRef>::decode(buffer, index, session)?,
         })
     }
 }
@@ -42,6 +51,7 @@ impl Endec for LocalValue {
         self.is_real.encode(buffer, session);
         self.key.encode(buffer, session);
         self.graph.encode(buffer, session);
+        self.is_valid.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -55,6 +65,7 @@ impl Endec for LocalValue {
             is_real: bool::decode(buffer, index, session)?,
             key: u32::decode(buffer, index, session)?,
             graph: Option::<LocalValueGraph>::decode(buffer, index, session)?,
+            is_valid: bool::decode(buffer, index, session)?,
         })
     }
 }
@@ -100,5 +111,19 @@ impl Endec for LocalValueGraph {
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
         todo!()
+    }
+}
+
+impl Endec for LocalValueRef {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.must.encode(buffer, session);
+        self.cond.encode(buffer, session);
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(LocalValueRef {
+            must: u32::decode(buffer, index, session)?,
+            cond: u32::decode(buffer, index, session)?,
+        })
     }
 }

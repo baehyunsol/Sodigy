@@ -647,11 +647,6 @@ name resolver도 생각보다 생각할게 많음
 
 ---
 
-local values in MIR
+Is `!` really a pure-type? In Rust, the order of execution (which line is executed after which line) is explicit, and it's clear whether `panic!` is invoked or not. That clearity makes every analysis, including type-checking, possible.
 
-1. only 1 scope for a function
-  - all the local name bindings in a function are merged to a 1 big scope
-  - unused name warning, mutual recursive name binding, optimization, 전부 여기서 진행
-  - inlining도 여기서 (내부 함수의 local name binding을 전부 밖으로 빼버리면 됨!)
-
----
+But in Sodigy, it's not sure whether a `let x = panic()` is evaluated or not. That depends on compiler's optimization and runtime implementation. If a behavior of a program depends on the version of the compiler/runtime, can I call it pure?

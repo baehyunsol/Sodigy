@@ -10,7 +10,7 @@ mod fmt;
 mod graph;
 mod lower;
 
-pub use graph::LocalValueGraph;
+pub use graph::{LocalValueGraph, LocalValueRef};
 pub use lower::lower_func;
 
 pub type LocalValueKey = u32;
@@ -24,6 +24,7 @@ pub struct Func {
     // all the local name bindings (names that do not have uids) are
     // stored here
     local_values: HashMap<LocalValueKey, LocalValue>,
+    local_values_reachable_from_return_value: HashMap<LocalValueKey, LocalValueRef>,
     pub uid: Uid,
 }
 
@@ -49,6 +50,10 @@ pub struct LocalValue {
     // dependency graph on local values
     // it's used for analysis and optimizations
     pub graph: Option<LocalValueGraph>,
+
+    // if this local value is removed by dead code analysis, this flag is set to false
+    // DON'T do anything on this value if this flag is false
+    pub is_valid: bool,
 }
 
 // for `local_values` in `Func`,

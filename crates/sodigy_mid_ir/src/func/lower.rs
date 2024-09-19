@@ -3,6 +3,7 @@ use crate::expr::lower_expr;
 use crate::session::MirSession;
 use crate::ty::{Type, lower_ty};
 use sodigy_high_ir as hir;
+use std::collections::HashMap;
 
 pub fn lower_func(
     func: &hir::Func,
@@ -25,11 +26,16 @@ pub fn lower_func(
         return_type,
         local_values,
         uid: func.uid,
+        local_values_reachable_from_return_value: HashMap::new(),
     };
     result.init_local_value_dependency_graphs(session);
     result.reject_recursive_local_values(session)?;
     result.reject_dependent_types(session)?;
-    result.warn_unused_local_values(session, true /* remove unused local values */);
+    result.warn_unused_local_values(
+        session,
+        true,   // remove unused local values
+        false,  // silent warnings
+    );
 
     session.end_lowering_func();
     Ok(result)

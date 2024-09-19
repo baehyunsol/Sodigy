@@ -12,7 +12,7 @@ pub use lower::lower_expr;
 
 pub struct Expr {
     pub kind: ExprKind,
-    span: SpanRange,
+    pub span: SpanRange,
 
     // TODO: is it inferred type or an annotated type?
     // TODO: replace `Type` with `&'session Type` when the other implementation is complete

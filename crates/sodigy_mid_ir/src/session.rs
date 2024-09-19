@@ -97,6 +97,7 @@ impl MirSession {
                         parent_scope: None,
                         key,
                         graph: None,
+                        is_valid: true,
                     },
                 );
             }
@@ -122,6 +123,7 @@ impl MirSession {
                     parent_scope: None,
                     key,
                     graph: None,
+                    is_valid: true,
                 },
             );
         }
@@ -258,6 +260,7 @@ fn collect_local_values_in_func_worker(
                         parent_scope: Some(*uid),
                         key,
                         graph: None,
+                        is_valid: true,
                     },
                 );
             }
