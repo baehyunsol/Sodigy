@@ -26,9 +26,10 @@ pub fn lower_func(
         local_values,
         uid: func.uid,
     };
-    result.init_local_value_dependency_graphs(
-        session,
-    )?;
+    result.init_local_value_dependency_graphs(session);
+    result.reject_recursive_local_values(session)?;
+    result.reject_dependent_types(session)?;
+    result.warn_unused_local_values(session, true /* remove unused local values */);
 
     session.end_lowering_func();
     Ok(result)

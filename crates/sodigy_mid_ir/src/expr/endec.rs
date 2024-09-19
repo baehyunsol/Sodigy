@@ -32,10 +32,10 @@ impl Endec for ExprKind {
                 buffer.push(0);
                 n.encode(buffer, session);
             },
-            ExprKind::LocalValue { origin, index } => {
+            ExprKind::LocalValue { origin, key } => {
                 buffer.push(1);
                 origin.encode(buffer, session);
-                index.encode(buffer, session);
+                key.encode(buffer, session);
             },
             ExprKind::Object(uid) => {
                 buffer.push(2);
@@ -59,7 +59,7 @@ impl Endec for ExprKind {
                     0 => Ok(ExprKind::Integer(InternedNumeric::decode(buffer, index, session)?)),
                     1 => Ok(ExprKind::LocalValue {
                         origin: Uid::decode(buffer, index, session)?,
-                        index: u32::decode(buffer, index, session)?,
+                        key: u32::decode(buffer, index, session)?,
                     }),
                     2 => Ok(ExprKind::Object(Uid::decode(buffer, index, session)?)),
                     3 => Ok(ExprKind::Call {

@@ -7,6 +7,7 @@ mod expr;
 mod func;
 mod session;
 mod ty;
+mod walker;
 mod warn;
 
 use crate::func::lower_func;

@@ -11,7 +11,7 @@ mod lower;
 pub use lower::lower_expr;
 
 pub struct Expr {
-    kind: ExprKind,
+    pub kind: ExprKind,
     span: SpanRange,
 
     // TODO: is it inferred type or an annotated type?
@@ -25,7 +25,7 @@ pub enum ExprKind {
     LocalValue {
         // uid of the function it belongs to, not a local scope
         origin: Uid,
-        index: LocalValueKey,
+        key: LocalValueKey,
     },
     Object(Uid),
     Call {

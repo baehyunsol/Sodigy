@@ -59,15 +59,15 @@ pub fn lower_expr_kind(
                 origin, index: _, binding_type: _,
             } => ExprKind::LocalValue {
                 origin: session.curr_func_uid(),
-                index: session.get_local_value_index(LocalValueSearchKey::LocalValue(*origin, id_with_origin.id())),
+                key: session.get_local_value_index(LocalValueSearchKey::LocalValue(*origin, id_with_origin.id())),
             },
             NameOrigin::FuncArg { .. } => ExprKind::LocalValue {
                 origin: session.curr_func_uid(),
-                index: session.get_local_value_index(LocalValueSearchKey::FuncArg(id_with_origin.id())),
+                key: session.get_local_value_index(LocalValueSearchKey::FuncArg(id_with_origin.id())),
             },
             NameOrigin::FuncGeneric { .. } => ExprKind::LocalValue {
                 origin: session.curr_func_uid(),
-                index: session.get_local_value_index(LocalValueSearchKey::FuncGeneric(id_with_origin.id())),
+                key: session.get_local_value_index(LocalValueSearchKey::FuncGeneric(id_with_origin.id())),
             },
             NameOrigin::Captured { .. } => todo!(),
         },

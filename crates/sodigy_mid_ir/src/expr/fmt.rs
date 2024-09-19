@@ -11,7 +11,7 @@ impl fmt::Display for ExprKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let s = match self {
             ExprKind::Integer(n) => n.to_string(),
-            ExprKind::LocalValue { index, .. } => format!("_{index}"),
+            ExprKind::LocalValue { key, .. } => format!("_{key}"),
 
             // TODO: any better way?
             ExprKind::Object(uid) => format!("obj_{:x}", uid.get_u128()),
