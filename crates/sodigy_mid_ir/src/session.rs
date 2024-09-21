@@ -1,4 +1,10 @@
-use crate::func::{Func, LocalValue, LocalValueKey, MaybeInit};
+use crate::func::{
+    Func,
+    LocalValue,
+    LocalValueKey,
+    MaybeInit,
+    VisitFlag,
+};
 use crate::error::{MirError, MirErrorKind};
 use crate::expr::lower_expr;
 use crate::ty::lower_ty;
@@ -71,7 +77,7 @@ impl MirSession {
         let (mut local_values, mut local_value_table) = collect_local_values_in_func(func);
 
         if let Some(args) = &func.args {
-            for hir::Arg { name, ty, attributes, .. } in args.iter() {
+            for hir::Arg { name, ty, .. } in args.iter() {
                 let ty = match ty {
                     Some(ty) => MaybeInit::Uninit(ty.clone()),
                     None => MaybeInit::None,
@@ -98,6 +104,7 @@ impl MirSession {
                         key,
                         graph: None,
                         is_valid: true,
+                        visit_flag: VisitFlag::NotVisited,
                     },
                 );
             }
@@ -124,6 +131,7 @@ impl MirSession {
                     key,
                     graph: None,
                     is_valid: true,
+                    visit_flag: VisitFlag::NotVisited,
                 },
             );
         }
@@ -261,6 +269,7 @@ fn collect_local_values_in_func_worker(
                         key,
                         graph: None,
                         is_valid: true,
+                        visit_flag: VisitFlag::NotVisited,
                     },
                 );
             }

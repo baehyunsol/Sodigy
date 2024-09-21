@@ -1,21 +1,23 @@
-use super::{Func, LocalValueKey, MaybeInit};
+use super::{Func, LocalValue, LocalValueKey, MaybeInit, VisitFlag};
 use crate::error::MirError;
 use crate::expr::{Expr, ExprKind};
 use crate::session::MirSession;
 use crate::walker::walker_expr;
+use crate::warn::MirWarning;
 use sodigy_session::SodigySession;
 use sodigy_span::SpanRange;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 // invariants: `HashMap`s do not contain `LocalValueRef::zero`
+#[derive(Debug)]
 pub struct LocalValueGraph {
-    references: HashMap<LocalValueKey, LocalValueRef>,  // its value referencing other local values
-    ref_by: HashMap<LocalValueKey, LocalValueRef>,
-    ref_by_ret_val: LocalValueRef,
+    pub references: HashMap<LocalValueKey, LocalValueRef>,  // its value referencing other local values
+    pub ref_by: HashMap<LocalValueKey, LocalValueRef>,
+    pub ref_by_ret_val: LocalValueRef,
 
     // only generics can be referenced by type annotations. otherwise it's an error (dependent types)
-    ref_by_type_annot: LocalValueRef,
-    ref_type_annot: HashMap<LocalValueKey, LocalValueRef>,  // its type annotation referencing other local values
+    pub ref_by_type_annot: LocalValueRef,
+    pub ref_type_annot: HashMap<LocalValueKey, LocalValueRef>,  // its type annotation referencing other local values
 }
 
 impl LocalValueGraph {
@@ -33,7 +35,7 @@ impl LocalValueGraph {
 // this local value is un-conditionally referenced at least `must` times
 // and conditionally referenced at least `cond` times.
 // if both are 0, it's guaranteed that this value is not referenced
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct LocalValueRef {
     pub must: u32,
     pub cond: u32,
@@ -120,8 +122,9 @@ impl Func {
         // TODO: ref_by_type_annot, ref_type_annot
     }
 
-    pub fn reject_recursive_local_values(&self, session: &mut MirSession) -> Result<(), ()> {
+    pub fn reject_recursive_local_values(&mut self, session: &mut MirSession) -> Result<(), ()> {
         let mut has_error = false;
+        let mut recursive_values = HashSet::new();
 
         for local_value in self.local_values.values() {
             match &local_value.graph {
@@ -133,13 +136,36 @@ impl Func {
                             local_value.key,
                         );
                         session.push_error(MirError::recursive_local_value(local_value, span));
+                        recursive_values.insert(local_value.key);
                     }
                 },
                 _ => {},
             }
         }
 
-        // TODO: find cycles in the graph and raise error if found
+        let all_keys = self.local_values.values().map(
+            |local_value| (
+                local_value.key,
+                local_value.graph.as_ref().map(|graph| graph.references.keys().map(|key| *key).collect::<Vec<_>>()).unwrap_or(vec![]),
+            )
+        ).collect::<Vec<_>>();
+
+        for (key, neighbors) in all_keys.into_iter() {
+            self.visit_all_reachable_local_values(&neighbors);
+
+            if let VisitFlag::Visited = self.local_values.get(&key).unwrap().visit_flag {
+                // recursive values always make a cycle: there's no point in raising errors twice
+                if recursive_values.contains(&key) {
+                    continue;
+                }
+
+                has_error = true;
+                let cycle = self.get_all_visited_local_values();
+                session.push_error(MirError::cycle_in_local_values(
+                    cycle.iter().map(|local_value| local_value.name).collect::<Vec<_>>(),
+                ));
+            }
+        }
 
         if has_error {
             Err(())
@@ -151,7 +177,8 @@ impl Func {
     }
 
     pub fn reject_dependent_types(&self, session: &mut MirSession) -> Result<(), ()> {
-        todo!()
+        // TODO
+        Ok(())
     }
 
     // it traverses the graph from the return value, and finds all the local values that are unreachable
@@ -162,7 +189,72 @@ impl Func {
         remove_unused_values: bool,
         silent_warnings: bool,
     ) {
-        todo!()
+        let init = self.local_values_reachable_from_return_value.keys().map(|key| *key).collect::<Vec<_>>();
+        self.visit_all_reachable_local_values(&init);
+
+        // TODO: generics have to be handled in a different way
+        // TODO: unused imports
+
+        for local_value in self.local_values.values_mut() {
+            if local_value.visit_flag != VisitFlag::Visited {
+                if remove_unused_values {
+                    local_value.is_valid = false;
+                }
+
+                if !silent_warnings {
+                    let no_ref_at_all = local_value.graph.as_ref().unwrap().ref_by.is_empty();
+                    session.push_warning(MirWarning::unused_local_value(&local_value, no_ref_at_all));
+                }
+            }
+        }
+    }
+
+    pub fn reset_visit_flags(&mut self) {
+        for local_value in self.local_values.values_mut() {
+            if !local_value.is_valid {
+                continue;
+            }
+
+            local_value.visit_flag = VisitFlag::NotVisited;
+        }
+    }
+
+    // make sure that all the graphs are initialized before calling this function
+    pub fn visit_all_reachable_local_values(
+        &mut self,
+
+        // actually, it's start.references.map(|v| v.key)
+        // I did it this way because I wanted make `start.visit = not_visited` unless there's a cycle
+        start: &[LocalValueKey],
+    ) {
+        self.reset_visit_flags();
+        let mut queue = start.iter().map(|key| *key).collect::<BTreeSet<_>>();
+
+        while let Some(key) = queue.pop_first() {
+            let local_value = self.local_values.get_mut(&key).unwrap();
+
+            if !local_value.is_valid || local_value.visit_flag != VisitFlag::NotVisited {
+                continue;
+            }
+
+            local_value.visit_flag = VisitFlag::Visited;
+
+            for key in local_value.graph.as_ref().unwrap().references.keys() {
+                queue.insert(*key);
+            }
+        }
+    }
+
+    pub fn get_all_visited_local_values(&self) -> Vec<&LocalValue> {
+        let mut result = vec![];
+
+        for local_value in self.local_values.values() {
+            if local_value.is_valid && local_value.visit_flag == VisitFlag::Visited {
+                result.push(local_value);
+            }
+        }
+
+        result
     }
 }
 

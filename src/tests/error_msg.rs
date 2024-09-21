@@ -139,10 +139,11 @@ check_output!(stmt, err, name_collision1, "let foo = 3; module foo;", "`foo` is 
 check_output!(stmt, err, name_collision2, "import foo; module foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision3, "module foo; import foo;", "`foo` is bound multiple times");
 check_output!(stmt, err, name_collision4, "import a.foo; import b.foo;", "`foo` is bound multiple times");
+check_output!(stmt, err, name_collision5, "import x, x;", "`x` is bound multiple times");
 
 // TODO
 // check_output!(stmt, err, no_module2, "import invalid_module_name;", "module not found");
-check_output!(stmt, err, name_collision5, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
+check_output!(stmt, err, name_collision6, "let foo = 3; let struct foo = { n: Int };", "`foo` is bound multiple times");
 check_output!(stmt, err, kind_error_for_func_return_type, "let add(x: Int, y: Int) -> Int = x + y;", "try `:` instead");
 
 // TODO: the compiler thinks `>` is an infix operator following `T`
@@ -231,6 +232,8 @@ check_output!(expr, err, expr_test57, "match \"abc\" { \"a\"..(\"c\": String) =>
 check_output!(expr, err, expr_test58, "match \"abc\" { \"a\"..($c @ \"c\") => 0, _ => 1 }", "name binding not allowed");
 
 check_output!(expr, err, expr_test59, "match ((), ()) {($x @ (), $y @ ()) | (_, _) => (), _ => ()}", "name `x` not bound in all patterns");
+check_output!(expr, err, expr_test60, "{let x = y; let y = x; 100}", "a cycle in local values");
+check_output!(expr, err, expr_test61, "{let x = x + 1; 100}", "`x` is referencing itself");
 
 // TODO: Type errors are not implemented yet
 // check_output!(expr, err, expr_test59, "match \"abc\" { b\"a\"..\"c\" => 0, _ => 1 }", "------");
@@ -290,6 +293,7 @@ check_output!(expr, warn, expr_warn_test10, "{let pattern ($x @ _, $y) = (0, 1);
 check_output!(expr, warn, expr_warn_test11, "match (1, 2) {($aa @ (1 | 2), $bb @ (3 | 4)) => aa, _ => 0}", "unused name binding in match arm: `bb`");
 check_output!(expr, warn, expr_warn_test12, "match (1, 2) { ($x @ ($y @ 1 | $z @ 2), $a @ ($b @ 1 | $c @ 2)) => 0, _ => 1 }", "multiple name bindings on a pattern");
 check_output!(expr, warn, expr_warn_test13, "f\"\\{{let x = 3; 4}}\"", "unused local name binding");
+check_output!(expr, warn, expr_warn_test14, "{let x = 3; let y = x; 100}", "`x` is used by another value");
 
 fn make_non_utf8(s: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(s.len() + 4);

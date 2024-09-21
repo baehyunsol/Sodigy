@@ -1,6 +1,10 @@
 # Sodigy
 
-Purely functional Rust-like programming language.
+tl;dr
+
+1. Rust-like syntax
+2. Purely functional
+3. Reference-counting memory management
 
 It's still under development.
 

@@ -549,29 +549,6 @@ REPL mode
 
 ---
 
-Purity를 저렇게 짜면...
-
-github의 특정 repo에다가 http req를 날린 다음에 star 개수만 int로 반환하는 함수
-
-`count_stars(author: String, repo: String): Option(Int)`가 있다고 치자.
-
-1. 애초에 impure하니 저런 함수는 없는게 맞다
-2. `count_stars(author: String, repo: String): IOResult(Option(Int))`같은 모양으로 바꿔야 한다
-  - 이것도 여전히 애매. 저기에 달린 `IOResult`를 어떻게 벗겨냄? match로 벗겨내? 그럼 match를 쓰는 순간 실제 http req이 날라가나? 그럼 지금이랑 구조가 다른데?
-  - 아니면 haskell처럼 완전히 lazy하게 만들기? 그러려면 런타임 구조를 싹 뜯어고쳐야 함...
-3. 2단계로 쪼개기
-  - `count_stars_builder(author: String, repo: String): IOAction`: http req을 만들어냄
-  - `count_stars(http_response: IOResult): Option(Int)`: http resp를 보고 star를 셈
-  - 이러면 호출이 너무 불편한 거 아님? 저 함수를 읽으려면 무조건 main까지 한번 갔다와야 하는 건데?
-  - 이러면 main 함수에 엄청나게 긴 match가 필요한 거 아님? IO 필요한 애들은 전부 다 main으로 나가고, 그 결과를 한 match에서 싹다 확인해야하는데...
-    - 더 애매한게, IOResult만 보고 이게 `count_stars_builder`에서 나온 거라는 걸 알아내는게 너무 빡셈. http req 하는 함수가 무지 많을 텐데, 걔네들 type만 보고는 아무것도 모르는데 그럼 IOAction의 id와 함수들을 연결하는 거대한 mapping을 관리해야함. 그건 너무 빡셈!
-  - 일단 무조건 필요한 거: `count_stars_builder`의 결과물이 나오면 (Ok든 Err든) 그 결과물을 처리할 함수를 직접 붙여놔야함.
-    - 이거 그거 아님? node랑 deno에서 callback vs promise가 이거 아님??
-
-아니면은 완전히 새롭게? 예를 들어서, main 함수가 state machine처럼 행동하도록 강제하는 거임! 각 state에서 나가거나 들어올 때는 impure한 행동을 할 수 있지만, state 내부에서는 pure한 것만 가능하도록...
-
----
-
 reasonable syntax for type classes, like `<T: Clone>` or `where T: Clone` in Rust
 
 1. It's too early to define how type classes work
@@ -586,67 +563,28 @@ version에다가 git hash도 넣고 싶음. git commit 하기 전에 검사하�
 
 ---
 
-지금 저게 중요한게 아니고, 런타임을 어떻게 구현할지가 더 중요...
-
-1. scoped let을 위한 stack이 필요
-  - scoped let의 stack이 쌓이더라도 이전 stack이 visible
-  - call stack이 쌓이면 다른 모든 stack 위에 덮어씀
-  - call stack은 C 런타임이 자동으로 정리하지만 (수동 정리 구현해도 상관없고), scoped let stack은 내가 수동으로 정리해야함 (call stack에 올라타는 거 불가능)
-2. 어차피 stack을 새로 만들어야 하면, call stack도 내가 만들까?
-
-```
-let foo(x, y) = {
-  let x = 3;
-  let z = {
-    let x = 4;
-
-    x + bar(y + 1)
-  };
-
-  bar(x + y) + z
-};
-
-let bar(n) = [n + n, n][1];
-```
-
-0. shadowing은 더이상 신경쓰지 말자
-  - 어차피 uid 선에서 구분되니까 문제없을 거고, 더 심하면 그냥 이름을 바꿔버려도 됨
-1. tail_call도 없고 lazy eval도 없는 경우
-  - let으로 정의되는 순간 ref_count++, {} 나가는 순간 ref_count--
-  - 특정 함수의 arg로 들어가는 순간 ref_count++, 특정 함수에서 나오는 순간 ref_count--
-    - add도 마찬가지로 해야하는데, add는 primitive instruction일 확률이 높아서 ref_count--할 타이밍이 애매.
-    - 그냥 primitive들은 ref_count++도 하지마
-2. tail call은 있고 lazy eval은 없는 경우
-  - 다 똑같은데, tail call 호출하기 직전에 arg들 ref_count-- 하면 됨
-  - 나중에 최적화 하면서 ++이랑 -- 붙어있으면 날리면 될 듯?
-  - 나머지는 동일
-3. lazy eval의 경우... 일단은 구현을 하지 말까?
-  - 이걸 함으로써 얻는 이득이 뭐임?? 불필요한 init을 안해서 얻는 이득이 검사하는 비용보다 큰가?
-  - 생각보다 클 수도 있을 거 같은게... inline을 하면 scoped let이 계속 생길텐데 그럼 unused value가 생각보다 많지 않을까?
-
-저거를 하려면 lowering이 엄청나게 많이 되어야 함. operator나 f-string, list init 같은 애들도 전부 function call로 바꿔놔야 함! 근데 그러려면 type checking이 끝났어야 하고, type checking 하려면 interpreter가 필요... 완전 hir 위에서 도는 interpreter를 만드는데, 적당히 hir/mir 섞여있는 버전으로 만들어도 됨!
-
-일단 제일 먼저 할 수 있는 거: name resolver. NameOrigin에 있는 빈칸들 전부 채우는 거임! 모든 identifier에 대해서, 무슨 uid를 가리키는지 resolve!
-
-지금 NameOrigin 모양도 살짝 마음에 안 듦:
-
-1. prelude랑 langitem도 uid를 연결해놓는게 나중에 편할 듯?
-2. scoped let의 각각의 let에다가 전부 uid를 붙일까? 지금은 uid로 scope만 찾고 그 안에서 이름으로 다시 검색해야함...
-  - 전부 uid까지 안 붙이더라도 integer index 붙이기만 해도 훨씬 나을 듯?
-
-name resolver도 생각보다 생각할게 많음
-
-1. 외부의 hir을 먹여야 함, but how?
-2. if 2 hirs depend on each other, can it handle such case?
-
-앞으로 과정을 생각해보면...
-
-1. name resolver: hir 모양은 그대로 두고 NameOrigin만 다 채우기
-2. lower to mir: 모든게 함수호출 모양으로 된 mir. integer constant 같은 거는 이 단계에서 type checking까지 가능!
-3. type checker: (lowering 덜 된) mir을 갖고 interpreter를 돌려야 함! hir로 돌리는 것보다는 나을 듯?
-
----
-
 Is `!` really a pure-type? In Rust, the order of execution (which line is executed after which line) is explicit, and it's clear whether `panic!` is invoked or not. That clearity makes every analysis, including type-checking, possible.
 
 But in Sodigy, it's not sure whether a `let x = panic()` is evaluated or not. That depends on compiler's optimization and runtime implementation. If a behavior of a program depends on the version of the compiler/runtime, can I call it pure?
+
+---
+
+what is impossible in rust but has to be possible in Sodigy:
+
+```
+match foo() {
+  Foo::String(n)
+  | Foo::Int(n) => n.to_string(),
+}
+```
+
+let's say `n` is `String` or `Int`. It's impossible in Rust because they have different types. But since both implements `.to_string()`, I want that code to be valid.
+
+---
+
+unused import warnings
+
+1. 원래는 hir에서 name collect가 전부 다 돈 다음에 unused import warning을 날렸음
+2. 이제는 name collector가 없음
+3. mir의 dependency graph는 unused import를 못 잡음 (inter-function 검사를 못하니까)
+4. 나중에 unused function 검사하면서 같이 검사해야하나? 이것도 조금 tricky한게, mir에서는 더이상 파일 단위의 구분이 없지만, unused import는 파일 단위로 검사해야함...

@@ -34,6 +34,10 @@ impl Endec for MirErrorKind {
                 name.encode(buffer, session);
                 name_binding_type.encode(buffer, session);
             },
+            MirErrorKind::CycleInLocalValues { names } => {
+                buffer.push(1);
+                names.encode(buffer, session);
+            },
         }
     }
 
@@ -47,7 +51,10 @@ impl Endec for MirErrorKind {
                         name: InternedString::decode(buffer, index, session)?,
                         name_binding_type: NameBindingType::decode(buffer, index, session)?,
                     }),
-                    1.. => Err(EndecError::invalid_enum_variant(*n)),
+                    1 => Ok(MirErrorKind::CycleInLocalValues {
+                        names: Vec::<InternedString>::decode(buffer, index, session)?,
+                    }),
+                    2.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

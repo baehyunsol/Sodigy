@@ -5,6 +5,7 @@ use super::{
     LocalValueKey,
     LocalValueRef,
     MaybeInit,
+    VisitFlag,
 };
 use crate::expr::Expr;
 use crate::ty::Type;
@@ -52,6 +53,7 @@ impl Endec for LocalValue {
         self.key.encode(buffer, session);
         self.graph.encode(buffer, session);
         self.is_valid.encode(buffer, session);
+        self.visit_flag.encode(buffer, session);
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
@@ -66,6 +68,7 @@ impl Endec for LocalValue {
             key: u32::decode(buffer, index, session)?,
             graph: Option::<LocalValueGraph>::decode(buffer, index, session)?,
             is_valid: bool::decode(buffer, index, session)?,
+            visit_flag: VisitFlag::decode(buffer, index, session)?,
         })
     }
 }
@@ -104,13 +107,55 @@ impl<T: Endec, U: Endec> Endec for MaybeInit<T, U> {
     }
 }
 
-impl Endec for LocalValueGraph {
+impl Endec for VisitFlag {
     fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
-        todo!()
+        match self {
+            VisitFlag::Visited => {
+                buffer.push(0);
+            },
+            VisitFlag::NotVisited => {
+                buffer.push(1);
+            },
+            VisitFlag::Gray => {
+                buffer.push(2);
+            },
+        }
     }
 
     fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
-        todo!()
+        match buffer.get(*index) {
+            Some(n) => {
+                *index += 1;
+
+                match *n {
+                    0 => Ok(VisitFlag::Visited),
+                    1 => Ok(VisitFlag::NotVisited),
+                    2 => Ok(VisitFlag::Gray),
+                    3.. => Err(EndecError::invalid_enum_variant(*n)),
+                }
+            },
+            None => Err(EndecError::eof()),
+        }
+    }
+}
+
+impl Endec for LocalValueGraph {
+    fn encode(&self, buffer: &mut Vec<u8>, session: &mut EndecSession) {
+        self.references.encode(buffer, session);
+        self.ref_by.encode(buffer, session);
+        self.ref_by_ret_val.encode(buffer, session);
+        self.ref_by_type_annot.encode(buffer, session);
+        self.ref_type_annot.encode(buffer, session);
+    }
+
+    fn decode(buffer: &[u8], index: &mut usize, session: &mut EndecSession) -> Result<Self, EndecError> {
+        Ok(LocalValueGraph {
+            references: HashMap::<LocalValueKey, LocalValueRef>::decode(buffer, index, session)?,
+            ref_by: HashMap::<LocalValueKey, LocalValueRef>::decode(buffer, index, session)?,
+            ref_by_ret_val: LocalValueRef::decode(buffer, index, session)?,
+            ref_by_type_annot: LocalValueRef::decode(buffer, index, session)?,
+            ref_type_annot: HashMap::<LocalValueKey, LocalValueRef>::decode(buffer, index, session)?,
+        })
     }
 }
 

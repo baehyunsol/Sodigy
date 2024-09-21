@@ -10,6 +10,7 @@ mod lower;
 
 pub use lower::lower_expr;
 
+#[derive(Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub span: SpanRange,
@@ -19,6 +20,7 @@ pub struct Expr {
     ty: Option<Type>,
 }
 
+#[derive(Clone)]
 pub enum ExprKind {
     // `Ratio`, `Char` and `String` are lowered to function calls
     Integer(InternedNumeric),
@@ -35,6 +37,7 @@ pub enum ExprKind {
     },
 }
 
+#[derive(Clone)]
 pub enum MirFunc {
     Static(Uid),
     Dynamic(Box<Expr>),

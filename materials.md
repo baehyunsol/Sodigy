@@ -3,3 +3,4 @@
 - https://downloads.haskell.org/ghc/latest/docs/users_guide/using-optimisation.html
 - https://llvm.org/docs/CommandGuide/FileCheck.html
 - https://smallcultfollowing.com/babysteps/blog/2017/03/25/unification-in-chalk-part-1/
+- https://www.microsoft.com/en-us/research/wp-content/uploads/2002/07/inline.pdf

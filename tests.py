@@ -38,10 +38,9 @@ def main(
         ["cargo", "test", "--release"],
     ]
 
-    # TODO: it doesn't run on windows
     aux_commands = [
-        ["sh", "./link_bin.sh"],
-        ["./sodigy", "--raw-input", "let main = \"Hello, World!\";"],
+        ["cargo", "run", "--release", "--", "--raw-input", "let main = \"Hello, World!\";"],
+        ["cargo", "run", "--", "--raw-input", "let main = \"Hello, World!\";"],
     ]
 
     try:

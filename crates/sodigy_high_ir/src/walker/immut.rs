@@ -31,7 +31,6 @@ pub fn walker_func<Ctxt, F: Fn(&Expr, &mut Ctxt)>(f: &Func, c: &mut Ctxt, worker
     }
 }
 
-// TODO: does it have to walk through exprs in type annotations? so do in mut_walker?
 pub fn walker_expr<Ctxt, F: Fn(&Expr, &mut Ctxt)>(e: &Expr, c: &mut Ctxt, worker: &Box<F>) {
     worker(e, c);
 
@@ -68,8 +67,12 @@ pub fn walker_expr<Ctxt, F: Fn(&Expr, &mut Ctxt)>(e: &Expr, c: &mut Ctxt, worker
         }) => {
             walker_expr(value, c, worker);
 
-            for ScopedLet { value, .. } in lets.iter() {
+            for ScopedLet { value, ty, .. } in lets.iter() {
                 walker_expr(value, c, worker);
+
+                if let Some(ty) = ty {
+                    walker_expr(ty.as_expr(), c, worker);
+                }
             }
         },
         ExprKind::Match(hir::Match { arms, value, .. }) => {

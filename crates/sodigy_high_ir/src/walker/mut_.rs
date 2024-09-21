@@ -67,8 +67,12 @@ pub fn mut_walker_expr<Ctxt, F: Fn(&mut Expr, &mut Ctxt)>(e: &mut Expr, c: &mut 
         }) => {
             mut_walker_expr(value, c, worker);
 
-            for ScopedLet { value, .. } in lets.iter_mut() {
+            for ScopedLet { value, ty, .. } in lets.iter_mut() {
                 mut_walker_expr(value, c, worker);
+
+                if let Some(ty) = ty {
+                    mut_walker_expr(&mut ty.0, c, worker);
+                }
             }
         },
         ExprKind::Match(hir::Match { arms, value, .. }) => {

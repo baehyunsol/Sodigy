@@ -171,6 +171,10 @@ pub fn construct_mir(
     let (hir_session, mut compiler_output) = construct_hir(input, compiler_option);
 
     if hir_session.is_none() || compiler_output.has_error() {
+        if let Some(hir_session) = &hir_session {
+            compiler_output.collect_errors_and_warnings_from_session(hir_session);
+        }
+
         return (None, compiler_output);
     }
 

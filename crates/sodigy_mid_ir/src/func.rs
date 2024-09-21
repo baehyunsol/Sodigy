@@ -54,6 +54,9 @@ pub struct LocalValue {
     // if this local value is removed by dead code analysis, this flag is set to false
     // DON'T do anything on this value if this flag is false
     pub is_valid: bool,
+
+    // used when traversing graph
+    pub visit_flag: VisitFlag,
 }
 
 // for `local_values` in `Func`,
@@ -81,4 +84,11 @@ impl<T, U> MaybeInit<T, U> {
             _ => None,
         }
     }
+}
+
+#[derive(PartialEq)]
+pub enum VisitFlag {
+    Visited,
+    NotVisited,
+    Gray,
 }
