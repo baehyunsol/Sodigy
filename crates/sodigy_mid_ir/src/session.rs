@@ -36,6 +36,7 @@ pub struct MirSession {
     warnings: Vec<MirWarning>,
     interner: InternSession,
     pub func_defs: HashMap<Uid, Func>,
+    struct_defs: HashMap<Uid, hir::StructInfo>,
 
     curr_lowering_func: Option<Uid>,
     // only applied to `curr_lowering_func`
@@ -54,6 +55,7 @@ impl MirSession {
             warnings: vec![],
             interner: session.get_interner_cloned(),
             func_defs: HashMap::new(),
+            struct_defs: session.struct_defs.clone(),
             curr_lowering_func: None,
             local_value_table: HashMap::new(),
             snapshots: vec![],
@@ -190,6 +192,10 @@ impl MirSession {
 
     pub fn curr_func_uid(&self) -> Uid {
         self.curr_lowering_func.unwrap()
+    }
+
+    pub fn get_struct_info(&self, uid: Uid) -> Option<&hir::StructInfo> {
+        self.struct_defs.get(&uid)
     }
 
     // Expensive

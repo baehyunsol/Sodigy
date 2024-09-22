@@ -4,6 +4,7 @@ use crate::session::{LocalValueSearchKey, MirSession};
 use crate::ty::lower_ty;
 use sodigy_high_ir::{self as hir, NameOrigin};
 use sodigy_session::SodigySession;
+use sodigy_span::SpanRange;
 use sodigy_uid::Uid;
 
 pub fn lower_expr(
@@ -30,6 +31,7 @@ pub fn lower_expr(
     else {
         let kind = lower_expr_kind(
             &expr.kind,
+            expr.span,
             tail_call,
             session,
         );
@@ -47,6 +49,7 @@ pub fn lower_expr(
 
 pub fn lower_expr_kind(
     kind: &hir::ExprKind,
+    span: SpanRange,  // of hir::Expr
     tail_call: bool,
     session: &mut MirSession,
 ) -> Result<ExprKind, ()> {
@@ -161,7 +164,7 @@ pub fn lower_expr_kind(
             struct_, fields,
         }) => {
             let mut has_error = false;
-            let struct_ = lower_expr(
+            let mir_struct = lower_expr(
                 struct_.as_ref(),
                 None,
                 false,
@@ -189,22 +192,26 @@ pub fn lower_expr_kind(
                 return Err(());
             }
 
-            let struct_ = struct_?;
+            let mir_struct = mir_struct?;
 
-            match &struct_.kind {
-                ExprKind::Object(uid) => match session.get_struct_info(uid) {
-                    Some(StructInfo {
-                        field_names,  // it's sorted in correct order
+            match &mir_struct.kind {
+                ExprKind::Object(uid) => match session.get_struct_info(*uid) {
+                    Some(hir::StructInfo {
+                        struct_name,
+                        field_names,
                         constructor_uid,
                         ..
                     }) => {
+                        let struct_name = *struct_name;
+                        let constructor_uid = *constructor_uid;
+                        let field_names = field_names.clone();
                         let mut args = Vec::with_capacity(field_names.len());
                         let mut missing_fields = vec![];
                         let mut unknown_fields = vec![];
 
                         for field_name in field_names.iter() {
                             if let Some(field) = mir_fields.iter().filter(
-                                |(name, _)| *name == *field_name
+                                |(name, _)| name.id() == *field_name
                             ).next() {
                                 args.push(field.1.clone());
                             }
@@ -215,19 +222,18 @@ pub fn lower_expr_kind(
                         }
 
                         for (name, _) in mir_fields.iter() {
-                            if !field_names.contains(name) {
+                            if !field_names.contains(&name.id()) {
                                 unknown_fields.push(*name);
                             }
                         }
 
                         if !missing_fields.is_empty() {
-                            session.push_error(MirError::missing_fields_in_struct_constructor(missing_fields));
+                            session.push_error(MirError::missing_fields_in_struct_constructor(span, missing_fields, struct_name.id()));
                             has_error = true;
                         }
 
                         if !unknown_fields.is_empty() {
-                            // TODO: search for similar names
-                            session.push_error(MirError::unknown_fields_in_struct_constructor(unknown_fields));
+                            session.push_error(MirError::unknown_fields_in_struct_constructor(unknown_fields, field_names.clone(), struct_name.id()));
                             has_error = true;
                         }
 
@@ -242,14 +248,16 @@ pub fn lower_expr_kind(
                         }
                     },
                     None => {
-                        session.push_error(MirError::not_a_struct(&struct_));
+                        session.push_error(MirError::not_a_struct(struct_));
                         return Err(());
                     },
                 },
 
-                // 1. is this even reachable?
-                // 2. if so, how would I lower this?
-                _ => todo!(),
+                // TODO: are you sure that it's always an error?
+                _ => {
+                    session.push_error(MirError::not_a_struct(struct_));
+                    return Err(());
+                },
             }
         },
         _ => panic!("TODO: {kind}"),

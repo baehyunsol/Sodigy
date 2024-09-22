@@ -40,7 +40,7 @@ impl AstError {
                     ExpectedToken::AnyIdentifier
                     | ExpectedToken::AnyExpression
                     | ExpectedToken::IdentOrBrace => {
-                        extra.set_message(format!(
+                        extra.push_message(format!(
                             "`{k}` is a keyword, not an identifier. If you want to use `{k}` as an identifier, try `{k}_`."
                         ));
                     },
@@ -55,13 +55,13 @@ impl AstError {
                         let id = session.unintern_string(*id).to_vec();
 
                         if id == b"fn" || id == b"def" {
-                            extra.set_message(format!("Do you mean `let`?"));
+                            extra.push_message(format!("Do you mean `let`?"));
                         }
 
                         else {
                             for stmt_start in STMT_START_KEYWORDS.iter() {
                                 if substr_edit_distance(&id, stmt_start.as_bytes()) < 2 {
-                                    extra.set_message(format!("Do you mean `{stmt_start}`?"));
+                                    extra.push_message(format!("Do you mean `{stmt_start}`?"));
                                 }
                             }
                         }
@@ -74,18 +74,16 @@ impl AstError {
                 prefix: b'\0',
                 tokens,
             } if tokens.is_empty() => {
-                extra.set_message(String::from("It's obvious that it's an error, but it's hard to know what you've intended. If you're to initialize a struct, please provide fields. A struct in Sodigy must have at least one field. If it's just an expression, please provide a value."));
+                extra.push_message(String::from("It's obvious that it's an error, but it's hard to know what you've intended. If you're to initialize a struct, please provide fields. A struct in Sodigy must have at least one field. If it's just an expression, please provide a value."));
             },
             _ => {},
         }
 
-        if !extra.has_message() {
-            match expected_token {
-                ExpectedToken::AnyStatement => {
-                    extra.set_message(String::from("Sodigy is not a script language. If you want to execute something, try `let main = ...;`."));
-                },
-                _ => {},
-            }
+        match expected_token {
+            ExpectedToken::AnyStatement => {
+                extra.push_message(String::from("Sodigy is not a script language. If you want to execute something, try `let main = ...;`."));
+            },
+            _ => {},
         }
 
         AstError {

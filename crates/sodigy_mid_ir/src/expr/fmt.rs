@@ -14,7 +14,7 @@ impl fmt::Display for ExprKind {
             ExprKind::LocalValue { key, .. } => format!("_{key}"),
 
             // TODO: any better way?
-            ExprKind::Object(uid) => format!("obj_{:x}", uid.get_u128()),
+            ExprKind::Object(uid) => format!("obj_{:032x}", uid.get_u128()),
             ExprKind::Call { 
                 func, args, ..
             } => {
@@ -23,7 +23,7 @@ impl fmt::Display for ExprKind {
                 ).collect::<Vec<_>>().join(", ");
 
                 match func {
-                    MirFunc::Static(uid) => format!("obj_{:x}({args})", uid.get_u128()),
+                    MirFunc::Static(uid) => format!("obj_{:032x}({args})", uid.get_u128()),
                     MirFunc::Dynamic(f) => format!("({f})({args})"),
                 }
             },

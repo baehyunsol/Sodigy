@@ -588,3 +588,18 @@ unused import warnings
 2. 이제는 name collector가 없음
 3. mir의 dependency graph는 unused import를 못 잡음 (inter-function 검사를 못하니까)
 4. 나중에 unused function 검사하면서 같이 검사해야하나? 이것도 조금 tricky한게, mir에서는 더이상 파일 단위의 구분이 없지만, unused import는 파일 단위로 검사해야함...
+
+---
+
+```
+let struct Foo = {
+    x: Int,
+    y: Int,
+};
+
+let foo = Foo {
+    x: 3,
+};
+```
+
+죽을 때도 있고 살 때도 있음. HashMap order랑 관련된 문제인 듯?

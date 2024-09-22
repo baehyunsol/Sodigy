@@ -52,7 +52,7 @@ pub fn from_tokens(tokens: &[Token], session: &mut ParseSession, lex_session: &m
                 TokenKind::String { kind, content, is_fstring } /* prefixed string literals are already handled */ => {
                     if *is_fstring {
                         let mut error = ParseError::fstring_without_prefix(false, token.span);
-                        error.set_message(
+                        error.push_message(
                             "Also, use double quotes for a format-string. Single quotes are for a character literals.".to_string()
                         );
 

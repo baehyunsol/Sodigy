@@ -81,8 +81,8 @@ pub trait SodigyError<K: SodigyErrorKind> {
         self
     }
 
-    fn set_message(&mut self, message: String) -> &mut Self {
-        self.get_mut_error_info().set_message(message);
+    fn push_message(&mut self, message: String) -> &mut Self {
+        self.get_mut_error_info().push_message(message);
 
         self
     }
@@ -135,13 +135,12 @@ pub trait SodigyError<K: SodigyErrorKind> {
             s if s.is_empty() => String::new(),
             s => format!("\nHelp: {s}"),
         };
-        let extra_msg = match &self.get_error_info().msg {
-            s if s.is_empty() => String::new(),
-            s => format!("\nNote: {s}"),
-        };
+        let extra_messages = self.get_error_info().extra_messages.iter().map(
+            |msg| format!("\nNote: {msg}")
+        ).collect::<Vec<_>>().concat();
 
         format!(
-            "{msg}{help}{extra_msg}",
+            "{msg}{help}{extra_messages}",
         )
     }
 

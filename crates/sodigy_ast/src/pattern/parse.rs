@@ -437,7 +437,7 @@ fn parse_pattern_value(
                                             kind: TokenKind::Punct(Punct::At),
                                             ..
                                         }) = group_tokens.peek() {
-                                            e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                                            e.push_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
                                         }
 
                                         session.push_error(e);
@@ -684,7 +684,7 @@ fn parse_comma_separated_patterns(
                 e.set_error_context(ErrorContext::ParsingPattern);
 
                 if let TokenKind::Punct(Punct::At) = &last_token.kind {
-                    e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                    e.push_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
                 }
 
                 session.push_error(e);
@@ -1015,7 +1015,9 @@ fn permutation(
                             new_x.bind.clone().unwrap(),
                             curr_annotation.bind.clone().unwrap(),
                         );
-                        w.set_message(String::from("In this case, the compiler ignores one of the binding and it might lead to a confusion in name collision checking. `($x @ 1 | $x @ 2)` is anti-pattern. Use `$x @ (1 | 2)`"));
+                        w.push_message(
+                            String::from("In this case, the compiler ignores one of the binding and it might lead to a confusion in name collision checking. `($x @ 1 | $x @ 2)` is anti-pattern. Use `$x @ (1 | 2)`"),
+                        );
                         session.push_warning(w);
                     }
 

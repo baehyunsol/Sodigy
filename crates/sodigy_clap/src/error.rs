@@ -64,7 +64,7 @@ impl ClapError {
                     //  --tx -> --to  (makes sense)
                     //  --verrrion -> --version (makes sense)
                     if (argument.len() > 4 && closest_dist < 3) || closest_dist < 2 {
-                        extra.set_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
+                        extra.push_message(format!("Do you mean `{}`?", String::from_utf8(closest_flag).unwrap()));
                     }
 
                     ClapError {

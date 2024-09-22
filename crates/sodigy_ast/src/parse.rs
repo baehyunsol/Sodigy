@@ -134,7 +134,7 @@ pub fn parse_stmts(tokens: &mut Tokens, session: &mut AstSession) -> Result<(), 
                         );
 
                         if unexpected_keyword == Keyword::From {
-                            e.set_message(String::from("`from` comes after `import`. Try `import ... from ...;` instead of `from ... import ...;`."));
+                            e.push_message(String::from("`from` comes after `import`. Try `import ... from ...;` instead of `from ... import ...;`."));
                         }
 
                         session.push_error(e);
@@ -294,7 +294,7 @@ pub fn parse_expr(
                     session.push_error(AstError::unexpected_token(
                         Token::new_punct(punct.clone(), prefix_op_span),
                         ExpectedToken::expr(),
-                    ).set_message(
+                    ).push_message(
                         message
                     ).try_set_error_context(
                         error_context,
@@ -437,7 +437,7 @@ pub fn parse_expr(
                     session.push_error(AstError::unexpected_token(
                         curr_token,
                         ExpectedToken::specific(TokenKind::Group { delim: Delim::Brace, tokens: vec![], prefix: b'\0' }),
-                    ).set_message(
+                    ).push_message(
                         String::from("If you're to use a lambda function, use curly braces.")
                     ).try_set_error_context(
                         error_context,
@@ -722,11 +722,11 @@ pub fn parse_expr(
                             e.try_set_error_context(error_context);
 
                             if matches!(e.kind, AstErrorKind::UnexpectedToken(..)) {
-                                e.set_message(String::from("A name of a field must be an identifier."));
+                                e.push_message(String::from("A name of a field must be an identifier."));
                             }
 
                             else if matches!(e.kind, AstErrorKind::UnexpectedEnd(_)) {
-                                e.set_message(String::from("Please provide the name of a field."));
+                                e.push_message(String::from("Please provide the name of a field."));
                             }
 
                             session.push_error(e);
@@ -780,7 +780,7 @@ pub fn parse_expr(
                     session.push_error(AstError::unexpected_token(
                         curr.clone(),
                         ExpectedToken::post(),
-                    ).set_message(
+                    ).push_message(
                         String::from("Try remove `\\`.")
                     ).try_set_error_context(
                         error_context,
@@ -1041,7 +1041,7 @@ fn parse_arg_defs(tokens: &mut Tokens, session: &mut AstSession) -> Result<Vec<A
                     kind: TokenKind::Punct(Punct::Gt),
                     ..
                 } = token {
-                    e.set_message(String::from(
+                    e.push_message(String::from(
                         "TODO: a kind error message telling the user that it must be parentheses, not angle brackets",
                     ));
                 }
@@ -1167,7 +1167,7 @@ fn parse_scope_block(
         );
 
         if curr_token.kind == TokenKind::semi_colon() {
-            e.set_message("`;`s are used to separate statements, not the value of a block. Try remove this `;`.".to_string());
+            e.push_message("`;`s are used to separate statements, not the value of a block. Try remove this `;`.".to_string());
         }
 
         session.push_error(e);
@@ -1388,7 +1388,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                 e.set_error_context(ErrorContext::ParsingMatchBody);
 
                 if let TokenKind::Punct(Punct::At) = &token.kind {
-                    e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                    e.push_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
                 }
 
                 session.push_error(e);
@@ -1405,7 +1405,7 @@ fn parse_match_body(tokens: &mut Tokens, session: &mut AstSession, span: SpanRan
                             ExpectedToken::specific(TokenKind::r_arrow()),
                         ).set_error_context(
                             ErrorContext::ParsingMatchBody
-                        ).set_message(
+                        ).push_message(
                             String::from("Use `=>` instead of `->`.")
                         ).to_owned());
                         return Err(());
@@ -1524,7 +1524,7 @@ fn parse_branch_arm(
                 },
                 Err(mut e) => {
                     if cond.starts_with_curly_brace() {
-                        e.set_message("It seems like you're missing a condition of a branch.".to_string());
+                        e.push_message("It seems like you're missing a condition of a branch.".to_string());
                     }
 
                     session.push_error(e);
@@ -2240,7 +2240,7 @@ fn parse_let_statement(
                             kind: TokenKind::Punct(Punct::At),
                             ..
                         }) = tokens.peek() {
-                            e.set_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
+                            e.push_message(String::from("To bind a name to a pattern, the name must come before the pattern, not after it."));
                         }
 
                         session.push_error(e);
@@ -2406,7 +2406,7 @@ fn parse_let_statement(
                         TokenKind::sub(),
                         TokenKind::gt(),
                     ]) {
-                        e.set_message(String::from("Sodigy does not use `->` to annotate a return type of a function. Try `:` instead."));
+                        e.push_message(String::from("Sodigy does not use `->` to annotate a return type of a function. Try `:` instead."));
                     }
 
                     if args.is_none() {
@@ -2459,7 +2459,7 @@ fn parse_let_statement(
             if token.is_group(Delim::Paren)
             || token.is_group(Delim::Bracket)
             || matches!(token.kind, TokenKind::Punct(Punct::Dollar)) {
-                e.set_message("If you meant to destruct a pattern, use `let pattern` instead of `let`.".to_string());
+                e.push_message("If you meant to destruct a pattern, use `let pattern` instead of `let`.".to_string());
             }
 
             session.push_error(e);
@@ -2482,7 +2482,7 @@ fn parse_let_statement(
         e.set_error_context(ErrorContext::ParsingLetStatement);
 
         if tokens.is_curr_token(TokenKind::Keyword(Keyword::Let)) {
-            e.set_message("Use `;` before the keyword `let` to separate statements.".to_string());
+            e.push_message("Use `;` before the keyword `let` to separate statements.".to_string());
         }
 
         session.push_error(e);

@@ -102,7 +102,7 @@ pub fn lower_ast_func(
 
     if let Err([name1, name2]) = name_space.find_arg_generic_name_collision() {
         session.push_error(
-            HirError::name_collision(name1, name2).set_message(
+            HirError::name_collision(name1, name2).push_message(
                 String::from("Generic parameters and function arguments are in the same namespace. You cannot use the same names.")
             ).to_owned()
         );

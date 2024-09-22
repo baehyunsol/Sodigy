@@ -56,7 +56,7 @@ use names::{IdentWithOrigin, NameSpace};
 pub use names::NameBindingType;
 pub use scope::{Scope, ScopedLet};
 pub use session::HirSession;
-use struct_::lower_ast_struct;
+pub use struct_::{StructInfo, lower_ast_struct};
 pub use walker::{
     EmptyWalkerState,
     mut_walker_expr,
@@ -113,7 +113,7 @@ pub fn lower_stmts(
 
                     // TODO: it only works if `import foo;` comes before `module foo;`
                     if imports.contains_key(&name.id()) {
-                        error.set_message(
+                        error.push_message(
                             format!(
                                 "`module {};` implies `import {};`. You don't have to import `{}` again.",
                                 name.id(),

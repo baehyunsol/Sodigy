@@ -6,7 +6,7 @@ mod endec;
 pub struct ExtraErrorInfo {
     // very context-specific message for an error,
     // for example, there may be a very specific context for `UnexpectedToken`s (suspicious typos, deprecated features, etc...)
-    pub(crate) msg: String,
+    pub(crate) extra_messages: Vec<String>,
     pub(crate) context: ErrorContext,
     pub(crate) show_span: bool,
 }
@@ -14,7 +14,7 @@ pub struct ExtraErrorInfo {
 impl ExtraErrorInfo {
     pub fn none() -> Self {
         ExtraErrorInfo {
-            msg: String::new(),
+            extra_messages: vec![],
             context: ErrorContext::Unknown,
             show_span: true,
         }
@@ -22,14 +22,14 @@ impl ExtraErrorInfo {
 
     pub fn at_context(context: ErrorContext) -> Self {
         ExtraErrorInfo {
-            msg: String::new(),
+            extra_messages: vec![],
             context,
             show_span: true,
         }
     }
 
-    pub fn has_message(&self) -> bool {
-        !self.msg.is_empty()
+    pub fn has_extra_message(&self) -> bool {
+        !self.extra_messages.is_empty()
     }
 
     pub fn set_error_context(&mut self, context: ErrorContext) -> &mut Self {
@@ -38,12 +38,8 @@ impl ExtraErrorInfo {
         self
     }
 
-    pub fn set_message(&mut self, msg: String) -> &mut Self {
-        // I want to make sure that it doesn't override previous message
-        // If there're previous ones, I want it to be stacked (TODO)
-        debug_assert!(self.msg.is_empty());
-
-        self.msg = msg;
+    pub fn push_message(&mut self, message: String) -> &mut Self {
+        self.extra_messages.push(message);
         self
     }
 

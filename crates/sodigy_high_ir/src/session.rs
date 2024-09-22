@@ -1,6 +1,7 @@
 use crate::error::{HirError, HirErrorKind};
 use crate::func::Func;
 use crate::module::Module;
+use crate::struct_::StructInfo;
 use crate::warn::{HirWarning, HirWarningKind};
 use sodigy_ast::AstSession;
 use sodigy_config::CompilerOption;
@@ -24,6 +25,7 @@ pub struct HirSession {
     warnings: Vec<HirWarning>,
     interner: InternSession,
     pub func_defs: HashMap<Uid, Func>,
+    pub struct_defs: HashMap<Uid, StructInfo>,
 
     // you can get tmp names using `.allocate_tmp_name` method
     // tmp_names from this vector is guaranteed to be unique
@@ -64,6 +66,7 @@ impl HirSession {
             warnings: vec![],
             interner,
             func_defs: HashMap::new(),
+            struct_defs: HashMap::new(),
             tmp_names,
             field_exprs: vec![],
             imported_names: vec![],

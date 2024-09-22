@@ -38,6 +38,20 @@ impl Endec for MirErrorKind {
                 buffer.push(1);
                 names.encode(buffer, session);
             },
+            MirErrorKind::MissingFieldsInStructConstructor { names, struct_name } => {
+                buffer.push(2);
+                names.encode(buffer, session);
+                struct_name.encode(buffer, session);
+            },
+            MirErrorKind::UnknownFieldsInStructConstructor { names, struct_name } => {
+                buffer.push(3);
+                names.encode(buffer, session);
+                struct_name.encode(buffer, session);
+            },
+            MirErrorKind::NotAStruct { rendered_expr } => {
+                buffer.push(4);
+                rendered_expr.encode(buffer, session);
+            },
         }
     }
 
@@ -54,7 +68,18 @@ impl Endec for MirErrorKind {
                     1 => Ok(MirErrorKind::CycleInLocalValues {
                         names: Vec::<InternedString>::decode(buffer, index, session)?,
                     }),
-                    2.. => Err(EndecError::invalid_enum_variant(*n)),
+                    2 => Ok(MirErrorKind::MissingFieldsInStructConstructor {
+                        names: Vec::<InternedString>::decode(buffer, index, session)?,
+                        struct_name: InternedString::decode(buffer, index, session)?,
+                    }),
+                    3 => Ok(MirErrorKind::UnknownFieldsInStructConstructor {
+                        names: Vec::<InternedString>::decode(buffer, index, session)?,
+                        struct_name: InternedString::decode(buffer, index, session)?,
+                    }),
+                    4 => Ok(MirErrorKind::NotAStruct {
+                        rendered_expr: Option::<String>::decode(buffer, index, session)?,
+                    }),
+                    5.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),
