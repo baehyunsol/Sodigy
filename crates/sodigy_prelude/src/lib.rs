@@ -27,9 +27,12 @@ prelude_ref!(INT, "Int");
 prelude_ref!(TYPE, "Type");
 prelude_ref!(CHAR, "Char");
 prelude_ref!(LIST, "List");
+prelude_ref!(TUPLE, "Tuple");
 prelude_ref!(STRING, "String");
 prelude_ref!(BOOL, "Bool");
 prelude_ref!(FUNC, "Func");
+prelude_ref!(RATIO, "Ratio");
+prelude_ref!(BYTES, "Bytes");
 prelude_ref!(OPTION, "Option");
 prelude_ref!(ASSERT, "assert");
 
@@ -44,6 +47,7 @@ lazy_static! {
             ("String", Uid::new_def().mark_prelude()),
             ("Bool", Uid::new_enum().mark_prelude()),
             ("Func", Uid::new_def().mark_prelude()),
+            ("Ratio", Uid::new_def().mark_prelude()),
             ("Option", Uid::new_enum().mark_prelude()),
             ("assert", Uid::new_def().mark_prelude()),
         ];

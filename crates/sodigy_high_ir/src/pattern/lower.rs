@@ -571,6 +571,18 @@ fn check_same_type_or_error(
             ast::PatternKind::Number(n2),
         ) if n1.is_integer() == n2.is_integer() => Ok(()),  // valid types
         (
+            ast::PatternKind::Number(n1),
+            ast::PatternKind::Number(n2),
+        ) => {
+            session.push_error(HirError::type_error(
+                vec![p1.span, p2.span],
+                p1.get_type_string(),  // expected
+                p2.get_type_string(),  // got
+            ));
+
+            return Err(());
+        },
+        (
             ast::PatternKind::Char(_),
             ast::PatternKind::Char(_),
         ) => Ok(()),  // valid types
@@ -583,17 +595,24 @@ fn check_same_type_or_error(
         ) => {
             // valid types for a range pattern,
             // but they have to be the same
-
-            // TODO: raise a 'real' type error when they're implemented
-            session.push_error(HirError::ty_error(vec![p2.span]));
+            session.push_error(HirError::type_error(
+                vec![p2.span],
+                p1.get_type_string(),  // expected
+                p2.get_type_string(),  // got
+            ));
 
             Err(())
         },
         _ => {
             // invalid types for a range pattern
+            session.push_error(HirError::type_error(
+                vec![p1.span, p2.span],
+                // TODO: better representation?
+                String::from("Int | Ratio | String | Char"),  // expected
 
-            // TODO: raise a 'real' type error when they're implemented
-            session.push_error(HirError::ty_error(vec![p1.span, p2.span]));
+                // TODO: error message doesn't make sense when p1 is a valid type and p2 is not
+                p1.get_type_string(),  // got
+            ));
 
             Err(())
         },

@@ -11,7 +11,7 @@ def clean():
     goto_root_dir()
 
     for file in os.listdir():
-        if file.startswith("__tmp_") or file.startswith("__error_"):
+        if file.startswith("__tmp_") or file.startswith("__error_") or file == "a.out":
             os.remove(os.path.join(os.getcwd(), file))
 
 def draw_depgraph():
@@ -26,6 +26,7 @@ def draw_depgraph():
 
 def main(
     depgraph: bool = False,
+    force: bool = False,
 ):
     started_at = time.time()
     goto_root_dir()
@@ -45,7 +46,7 @@ def main(
 
     try:
         for command in test_commands:
-            assert subprocess.run(command, env=env).returncode == 0
+            assert subprocess.run(command, env=env).returncode == 0 or force
 
         os.chdir("./crates")
 
@@ -56,14 +57,14 @@ def main(
             os.chdir(crate)
 
             for command in test_commands:
-                assert subprocess.run(command, env=env).returncode == 0
+                assert subprocess.run(command, env=env).returncode == 0 or force
 
             os.chdir("..")
 
         goto_root_dir()
 
         for command in aux_commands:
-            assert subprocess.run(command, env=env).returncode == 0
+            assert subprocess.run(command, env=env).returncode == 0 or force
 
         # TODO: run `./sodigy --test XXX.sdg` here
 
@@ -78,5 +79,6 @@ def main(
 
 if __name__ == "__main__":
     main(
-        depgraph="--dep-graph" in sys.argv,
+        depgraph = "--dep-graph" in sys.argv,
+        force = "--force" in sys.argv,
     )

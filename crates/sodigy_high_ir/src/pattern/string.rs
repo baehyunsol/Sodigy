@@ -2,6 +2,7 @@ use crate::HirSession;
 use crate::error::HirError;
 use sodigy_ast as ast;
 use sodigy_parse::IdentWithSpan;
+use sodigy_prelude as prelude;
 use sodigy_session::SodigySession;
 
 #[derive(Clone)]
@@ -74,7 +75,11 @@ pub fn lower_string_pattern(
                 ast::Pattern {
                     span, ..
                 } => {
-                    session.push_error(HirError::ty_error(vec![*span]));
+                    session.push_error(HirError::type_error(
+                        vec![*span],
+                        prelude::STRING.0.to_string(),  // expected
+                        prefix.get_type_string(),       // got
+                    ));
                     return Err(());
                 }
             }
@@ -98,7 +103,11 @@ pub fn lower_string_pattern(
                     ..
                 } => {
                     if result.is_binary != *is_binary {
-                        session.push_error(HirError::ty_error(vec![*result.strings[0].span(), *span]));
+                        session.push_error(HirError::type_error(
+                            vec![*result.strings[0].span(), *span],
+                            prelude::BYTES.0.to_string(),   // expected
+                            prelude::STRING.0.to_string(),  // got
+                        ));
                         return Err(());
                     }
 
@@ -121,7 +130,11 @@ pub fn lower_string_pattern(
                 ast::Pattern {
                     span, ..
                 } => {
-                    session.push_error(HirError::ty_error(vec![*span]));
+                    session.push_error(HirError::type_error(
+                        vec![*span],
+                        prelude::STRING.0.to_string(),  // expected
+                        suffix.get_type_string(),       // got
+                    ));
                     return Err(());
                 }
             }

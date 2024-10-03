@@ -17,7 +17,7 @@ pub fn lower_func(
         true,
         session,
     )?;
-    let return_type = func.return_type.as_ref().map(|ty| lower_ty());
+    let return_type = func.return_type.as_ref().map(|ty| lower_ty(ty, session));
     let return_type = if let Some(ty) = return_type { ty? } else { Type::HasToBeInferred };
 
     let mut result = Func {

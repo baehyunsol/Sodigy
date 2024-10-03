@@ -25,6 +25,8 @@ pub struct HirSession {
     warnings: Vec<HirWarning>,
     interner: InternSession,
     pub func_defs: HashMap<Uid, Func>,
+
+    // the key is equal to `value.struct_uid`
     pub struct_defs: HashMap<Uid, StructInfo>,
 
     // you can get tmp names using `.allocate_tmp_name` method

@@ -1,3 +1,4 @@
+use crate::expr::Expr;
 use crate::func::LocalValue;
 use smallvec::{SmallVec, smallvec};
 use sodigy_error::{
@@ -108,6 +109,23 @@ impl MirError {
             extra: ExtraErrorInfo::none(),
         }
     }
+
+    pub fn type_error(
+        expr: &Expr,
+
+        // call `Type.render_error(session)` before calling this
+        expected_rendered: String,
+        got_rendered: String,
+    ) -> Self {
+        MirError {
+            kind: MirErrorKind::TypeError {
+                expected: expected_rendered,
+                got: got_rendered,
+            },
+            spans: smallvec![expr.span],
+            extra: ExtraErrorInfo::none(),
+        }
+    }
 }
 
 impl SodigyError<MirErrorKind> for MirError {
@@ -146,6 +164,11 @@ pub enum MirErrorKind {
     MissingFieldsInStructConstructor { names: Vec<InternedString>, struct_name: InternedString },
     UnknownFieldsInStructConstructor { names: Vec<InternedString>, struct_name: InternedString },
     NotAStruct { rendered_expr: Option<String> },
+    TypeError {
+        // I found it very trick to stringfy `mir::Type` without `MirSession`
+        expected: String,
+        got: String,
+    },
 }
 
 impl SodigyErrorKind for MirErrorKind {
@@ -181,6 +204,7 @@ impl SodigyErrorKind for MirErrorKind {
                 ),
             ),
             MirErrorKind::NotAStruct { .. } => String::from("invalid struct constructor"),
+            MirErrorKind::TypeError { expected, got } => format!("expected type `{expected}`, got type `{got}`"),
         }
     }
 
@@ -198,7 +222,8 @@ impl SodigyErrorKind for MirErrorKind {
             },
             MirErrorKind::CycleInLocalValues { .. }
             | MirErrorKind::MissingFieldsInStructConstructor { .. }
-            | MirErrorKind::UnknownFieldsInStructConstructor { .. } => String::new(),
+            | MirErrorKind::UnknownFieldsInStructConstructor { .. }
+            | MirErrorKind::TypeError { .. } => String::new(),
         }
     }
 
@@ -209,6 +234,7 @@ impl SodigyErrorKind for MirErrorKind {
             MirErrorKind::MissingFieldsInStructConstructor { .. } => 2,
             MirErrorKind::UnknownFieldsInStructConstructor { .. } => 3,
             MirErrorKind::NotAStruct { .. } => 4,
+            MirErrorKind::TypeError { .. } => 5,
         }
     }
 }

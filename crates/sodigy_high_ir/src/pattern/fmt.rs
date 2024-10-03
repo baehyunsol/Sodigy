@@ -6,7 +6,24 @@ use super::{
     RangeType,
 };
 use sodigy_error::RenderError;
+use sodigy_prelude as prelude;
 use std::fmt;
+
+impl Pattern {
+    // for error messages
+    pub fn get_type_string(&self) -> String {
+        match &self.kind {
+            PatternKind::String(s) => if s.is_binary {
+                prelude::BYTES.0.to_string()
+            } else {
+                prelude::STRING.0.to_string()
+            },
+            PatternKind::Tuple(_) => prelude::TUPLE.0.to_string(),
+            PatternKind::List(_) => prelude::LIST.0.to_string(),
+            _ => String::from("_"),  // TODO
+        }
+    }
+}
 
 impl fmt::Display for Pattern {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {

@@ -17,6 +17,7 @@ sodigy_lang_item = { path = "../sodigy_lang_item" }
 sodigy_lex = { path = "../sodigy_lex" }
 sodigy_intern = { path = "../sodigy_intern" }
 sodigy_parse = { path = "../sodigy_parse" }
+sodigy_prelude = { path = "../sodigy_prelude" }
 sodigy_session = { path = "../sodigy_session" }
 sodigy_span = { path = "../sodigy_span" }
 sodigy_uid = { path = "../sodigy_uid" }

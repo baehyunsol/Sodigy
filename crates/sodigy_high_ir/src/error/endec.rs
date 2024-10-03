@@ -58,7 +58,11 @@ impl Endec for HirErrorKind {
                 buffer.push(11);
                 name.encode(buffer, session);
             },
-            HirErrorKind::TyError => { buffer.push(12); },
+            HirErrorKind::TypeError { expected, got } => {
+                buffer.push(12);
+                expected.encode(buffer, session);
+                got.encode(buffer, session);
+            },
             HirErrorKind::TODO(s) => {
                 buffer.push(13);
                 s.encode(buffer, session);
@@ -87,7 +91,10 @@ impl Endec for HirErrorKind {
                     9 => Ok(HirErrorKind::NameBindingNotAllowedHere),
                     10 => Ok(HirErrorKind::TyAnnoNotAllowedHere),
                     11 => Ok(HirErrorKind::NameNotBoundInAllPatterns(InternedString::decode(buffer, index, session)?)),
-                    12 => Ok(HirErrorKind::TyError),
+                    12 => Ok(HirErrorKind::TypeError {
+                        expected: String::decode(buffer, index, session)?,
+                        got: String::decode(buffer, index, session)?,
+                    }),
                     13 => Ok(HirErrorKind::TODO(String::decode(buffer, index, session)?)),
                     14.. => Err(EndecError::invalid_enum_variant(*n)),
                 }

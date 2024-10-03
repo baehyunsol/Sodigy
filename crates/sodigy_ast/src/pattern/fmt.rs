@@ -1,6 +1,40 @@
 use super::{PatField, Pattern, PatternKind};
 use sodigy_error::RenderError;
+use sodigy_prelude as prelude;
 use std::fmt;
+
+impl Pattern {
+    // for error messages
+    pub fn get_type_string(&self) -> String {
+        match &self.kind {
+            PatternKind::Number(n) => if n.is_integer() {
+                prelude::INT.0.to_string()
+            } else {
+                prelude::RATIO.0.to_string()
+            },
+            PatternKind::String { is_binary, .. } => if *is_binary {
+                prelude::BYTES.0.to_string()
+            } else {
+                prelude::STRING.0.to_string()
+            },
+            PatternKind::Char(_) => prelude::CHAR.0.to_string(),
+            PatternKind::Tuple(_) => prelude::TUPLE.0.to_string(),
+            PatternKind::List(_) => prelude::LIST.0.to_string(),
+
+            // `3..4` -> is an integer in patterns, but is not an integer in exprs
+            PatternKind::Range { from, to, ..} => match (
+                from.as_ref().map(|pat| pat.get_type_string()).unwrap_or(String::from("None")),
+                to.as_ref().map(|pat| pat.get_type_string()).unwrap_or(String::from("None")),
+            ) {
+                (f, t) if f == "None" => t,
+                (f, t) if t == "None" => f,
+                (f, t) if f == t => f,
+                _ => String::from("_"),  // TODO: better representation?
+            },
+            _ => String::from("_"),  // TODO: better representation?
+        }
+    }
+}
 
 impl fmt::Display for Pattern {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {

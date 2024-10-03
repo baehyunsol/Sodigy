@@ -36,7 +36,7 @@ pub fn lower_expr(
             session,
         );
         let ty = ty.map(
-            |ty| lower_ty()
+            |ty| lower_ty(ty, session)
         );
 
         Ok(Expr {
@@ -145,6 +145,7 @@ pub fn lower_expr_kind(
                 return Err(());
             }
 
+            // TODO: lang_itme vs prelude
             let func_uid = match ekind {
                 hir::ExprKind::List(_) => Uid::dummy(1),  // TODO
                 hir::ExprKind::Tuple(_) => Uid::dummy(2),  // TODO

@@ -102,7 +102,14 @@ impl RangeType {
             },
             ast::PatternKind::Char(_) => Ok(RangeType::Char),
             _ => {
-                session.push_error(HirError::ty_error(vec![p.span]));
+                session.push_error(HirError::type_error(
+                    vec![p.span],
+
+                    // TODO: better representation?
+                    //       there's no standard for this kinda type annotations
+                    String::from("Int | Ratio | Char"),  // expected
+                    p.get_type_string(),  // got
+                ));
                 return Err(());
             },
         }
@@ -154,7 +161,14 @@ impl NumberLike {
                 Ok(NumberLike::Exact(session.intern_numeric(c.into())))
             },
             _ => {
-                session.push_error(HirError::ty_error(vec![p.span]));
+                session.push_error(HirError::type_error(
+                    vec![p.span],
+
+                    // TODO: better representation?
+                    //       there's no standard for this kinda type annotations
+                    String::from("Int | Ratio | Char"),  // expected
+                    p.get_type_string(),  // got
+                ));
                 return Err(());
             },
         }

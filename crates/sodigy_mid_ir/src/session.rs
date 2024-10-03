@@ -7,7 +7,7 @@ use crate::func::{
 };
 use crate::error::{MirError, MirErrorKind};
 use crate::expr::lower_expr;
-use crate::ty::lower_ty;
+use crate::ty::{Type, lower_ty};
 use crate::warn::{MirWarning, MirWarningKind};
 use sodigy_config::CompilerOption;
 use sodigy_error::UniversalError;
@@ -21,6 +21,8 @@ use sodigy_intern::{
     InternedString,
     InternSession,
 };
+use sodigy_lang_item::LANG_ITEM_MAP;
+use sodigy_prelude as prelude;
 use sodigy_session::{
     SessionOutput,
     SessionSnapshot,
@@ -38,9 +40,14 @@ pub struct MirSession {
     pub func_defs: HashMap<Uid, Func>,
     struct_defs: HashMap<Uid, hir::StructInfo>,
 
-    curr_lowering_func: Option<Uid>,
+    pub curr_lowering_func: Option<Uid>,
     // only applied to `curr_lowering_func`
     local_value_table: HashMap<LocalValueSearchKey, LocalValueKey>,
+
+    // it's for error messages and debugging mir.
+    // NOTE: since every uid is unique, this map doesn't have to be here.
+    //       you can even upload it on your website, and it's still valid.
+    uid_name_map: HashMap<Uid, InternedString>,
 
     snapshots: Vec<SessionSnapshot>,
     compiler_option: CompilerOption,
@@ -58,6 +65,7 @@ impl MirSession {
             struct_defs: session.struct_defs.clone(),
             curr_lowering_func: None,
             local_value_table: HashMap::new(),
+            uid_name_map: HashMap::new(),
             snapshots: vec![],
             compiler_option: session.get_compiler_option().clone(),
             previous_errors: session.get_all_errors(),
@@ -126,7 +134,7 @@ impl MirSession {
                     name: *generic,
                     name_binding_type: NameBindingType::FuncGeneric,
                     value: MaybeInit::None,
-                    ty: todo!(),  // Prelude::Type
+                    ty: MaybeInit::Init(Type::from_uid(prelude::TYPE.1)),
                     is_real: true,
                     parent_func: func.uid,
                     parent_scope: None,
@@ -165,7 +173,10 @@ impl MirSession {
 
             match &local_value.ty {
                 MaybeInit::Uninit(ty) => {
-                    let ty = lower_ty();
+                    let ty = lower_ty(
+                        ty,
+                        self,
+                    );
 
                     if let Ok(ty) = ty {
                         local_value.ty = MaybeInit::Init(ty);
@@ -173,8 +184,8 @@ impl MirSession {
                         has_error = true;
                     }
                 },
-                MaybeInit::None => {},
-                MaybeInit::Init(_) => unreachable!(),
+                MaybeInit::None
+                | MaybeInit::Init(_) => { /* nop */ },
             }
         }
 
@@ -198,6 +209,40 @@ impl MirSession {
         self.struct_defs.get(&uid)
     }
 
+    pub fn update_uid_name_map(&mut self) {
+        for (uid, func) in self.func_defs.iter() {
+            self.uid_name_map.insert(
+                *uid,
+                func.name.id(),
+            );
+        }
+
+        for (name, uid) in prelude::PRELUDES.iter() {
+            self.uid_name_map.insert(
+                *uid,
+                *name,
+            );
+        }
+
+        for (uid, name) in LANG_ITEM_MAP.iter() {
+            self.uid_name_map.insert(
+                *uid,
+                *name,
+            );
+        }
+    }
+
+    pub fn uid_to_string(&mut self, u: Uid) -> String {
+        match self.uid_name_map.get(&u) {
+            Some(id) => {
+                let id = *id;
+
+                String::from_utf8_lossy(self.interner.unintern_string(id)).to_string()
+            },
+            _ => u.to_ident(),
+        }
+    }
+
     // Expensive
     pub fn dump_mir(&self) -> String {
         let mut lines = Vec::with_capacity(self.func_defs.len());
@@ -208,7 +253,25 @@ impl MirSession {
             lines.push(f.to_string());
         }
 
-        lines.join("\n\n")
+        let mut result = lines.join("\n\n");
+        result = self.prettify_uids(&result);
+
+        result
+    }
+
+    // It's very naive and expensive: it's just a bunch of string replacements.
+    // It's solely for helping debugging MIR.
+    fn prettify_uids(&self, s: &String) -> String {
+        let mut result = s.clone();
+
+        for (uid, name) in self.uid_name_map.iter() {
+            result = result.replace(
+                &uid.to_ident(),
+                &name.to_string(),
+            );
+        }
+
+        result
     }
 }
 

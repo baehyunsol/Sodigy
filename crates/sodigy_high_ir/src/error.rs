@@ -124,12 +124,13 @@ impl HirError {
         }
     }
 
-    // tmp variant for type errors.
-    // must be replaced with 'real' type errors when
-    // Sodigy type system is implemented
-    pub fn ty_error(span: Vec<SpanRange>) -> Self {
+    pub fn type_error(
+        span: Vec<SpanRange>,
+        expected: String,
+        got: String,
+    ) -> Self {
         HirError {
-            kind: HirErrorKind::TyError,
+            kind: HirErrorKind::TypeError { expected, got },
             spans: span.into(),
             extra: ExtraErrorInfo::none(),
         }
@@ -192,10 +193,12 @@ pub enum HirErrorKind {
     TyAnnoNotAllowedHere,
     NameNotBoundInAllPatterns(InternedString),
 
-    // tmp variant for type errors.
-    // must be replaced with 'real' type errors when
-    // Sodigy type system is implemented
-    TyError,
+    // It's supposed to be equal to `MirErrorKind::TypeError`
+    // TODO: how do I guarantee that?
+    TypeError {
+        expected: String,
+        got: String,
+    },
     TODO(String),
 }
 
@@ -214,7 +217,10 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::NameBindingNotAllowedHere => String::from("name binding not allowed here"),
             HirErrorKind::TyAnnoNotAllowedHere => String::from("type annotation not allowed here"),
             HirErrorKind::NameNotBoundInAllPatterns(name) => format!("name `{}` not bound in all patterns", name.render_error()),
-            HirErrorKind::TyError => String::from("TODO: Type Error"),  // Sodigy type system is not complete yet
+            HirErrorKind::TypeError {
+                expected,
+                got,
+            } => format!("expected type `{expected}`, got type `{got}`"),
             HirErrorKind::TODO(s) => format!("not implemented: {s}"),
         }
     }
@@ -253,7 +259,7 @@ impl SodigyErrorKind for HirErrorKind {
             | HirErrorKind::InclusiveStringPattern
             | HirErrorKind::NameBindingNotAllowedHere
             | HirErrorKind::TyAnnoNotAllowedHere
-            | HirErrorKind::TyError
+            | HirErrorKind::TypeError { .. }
             | HirErrorKind::TODO(_) => String::new(),
         }
     }
@@ -272,7 +278,7 @@ impl SodigyErrorKind for HirErrorKind {
             HirErrorKind::NameBindingNotAllowedHere => 9,
             HirErrorKind::TyAnnoNotAllowedHere => 10,
             HirErrorKind::NameNotBoundInAllPatterns(_) => 11,
-            HirErrorKind::TyError => 62,
+            HirErrorKind::TypeError { .. } => 12,
             HirErrorKind::TODO(..) => 63,
         }
     }

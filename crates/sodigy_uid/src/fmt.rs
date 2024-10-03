@@ -1,6 +1,12 @@
 use super::*;
 use std::fmt;
 
+impl Uid {
+    pub fn to_ident(&self) -> String {
+        format!("obj_{:32x}", self.0)
+    }
+}
+
 impl fmt::Display for Uid {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(

@@ -27,5 +27,9 @@ pub fn lower_funcs(
                 f,
             );
         }
+
+        else if mir_session.curr_lowering_func.is_some() {
+            mir_session.end_lowering_func();
+        }
     }
 }

@@ -423,35 +423,25 @@ into_XXX vs to_XXX vs as_XXX
 
 prefixed strings
 
-1. b
+1. `b`, `f`
   - already implemented
-  - both for char and str
-2. f
-  - already implemented
-  - only for str
-  - b + f? (which is not implemented)
-    - doesn't make much sense: f string is evaled at runtime, but I don't want the str -> bin conversion to take place at run time
-3. r (raw)
-  - required (if we want regex in sodigy)
-  - f + r like Python?
-    - unlike Python, Sodigy uses backslashes in f strings. it wouldn't do well with r strings
-  - r + b?
-    - would be nice
-  - there's a conflict between r string and the current impl of f string
-    - for now, backslash + brace must be an f string, because backslash chars always mark an escape literal
-    - but with r strings, backslash + brace is just backslash + brace...
-4. e (regex compiled by the compiler)
-  - if we're to impl e, we must have r + e
-  - we need a marker for regex if we're to use regices in pattern matchings
-  - very niche use case: f + e
-    - f strings are evaled at run time: so f strings cannot be mixed with the other prefixes
-    - but we need it quite often
+  - bf doesn't make sense
+2. `r`
+  - necessary
+  - `br` makes sense but `bf` doesn't
+  - it has to modify the lexer and parser because escape rules are hard-coded
+  - it also has to modify the parser because the prefix characters are hard-coded
+3. something for regex (how about `re`?)
+  - my current plan is to allow regex literals only in patterns
+  - it assumes `r`. there's no `e` prefix, it must always be used with `r`
+  - it also has to modify the parser because the prefix characters are hard-coded
 
-the entire thing is to allow regices in pattern matchings. I'd like to do so, but
+conclusion: modify the lexer and parser so that
 
-1. it'd make the language (and the compiler) ugly
-2. would be very useful in some cases
-3. I don't think compiling regices at compile time is a big issue
+1. a string literal can be prefixed with any identifier
+  - invalid_string_identifier is raised after lexing
+2. more flexible rule for escaping
+  - it doesn't care about the escapes while lexing
 
 ---
 
@@ -519,11 +509,26 @@ sodigy regex compiler
   - `[...]`, `[^...]`
     - I can use internal representation of these to represent `.`
   - `(...)`, `(?:...)`
+  - `(?P<name>...)`
+    - is necessary if I'm to allow match statements use regex patterns
+  - `(?#...)`
+    - so easy to implement hahaha
   - `PAT | PAT`
   - `PAT{m,n}`, `PAT{m,n}?`
   - `\number`
   - `^`, `$`, `\A`, `\Z`
     - the latter two always match the start and the end of the string, while the first two may match the start and the end of the line
+  - things that I'm not sure
+    - `(?P=name)`: back-reference
+      - I'm not sure if I'm smart enough to implement it in Sodigy
+    - `(?aiLmsux)`: setting flags
+      - seems useful and necessary, but I don't 100% understand what each flag means
+    - lookaround: https://elvanov.com/2388 , https://www.regular-expressions.info/lookaround.html
+      - `X(?=Y)` X if followed by Y
+      - `X(?!Y)` X if not followed by Y
+      - `(?<=Y)X` X if after Y
+      - `(?<!Y)X` X if not after Y
+      - if `X` is matched, it tries to match `Y` without consuming `Y`
 1. lower regex
   - `+` -> `{1,}`
   - `*` -> `{0,}`
@@ -534,6 +539,8 @@ sodigy regex compiler
   - `\S` -> `[^ \t\n\r\f\v]`
 2. construct AST
 3. construct FSM
+
+Note: you can find Python's test cases at `cpython/Lib/test/test_re.py` in their repo -> it would be safer to import test cases from the file, than creating my own. Creating test cases using Python impl as a reference may fail (there can be bugs), but the test cases, especially something like `test_bug_24680` are not likely to have bugs.
 
 ---
 
@@ -588,18 +595,41 @@ unused import warnings
 2. 이제는 name collector가 없음
 3. mir의 dependency graph는 unused import를 못 잡음 (inter-function 검사를 못하니까)
 4. 나중에 unused function 검사하면서 같이 검사해야하나? 이것도 조금 tricky한게, mir에서는 더이상 파일 단위의 구분이 없지만, unused import는 파일 단위로 검사해야함...
+5. 생각해보니까 hir name resolving하면서 자연스럽게 될 듯? name resolving 하면서 unknown ident를 전부 찾아서 uid를 붙이는데, unknown ident는 전부 import 문에서 찾을테니까! 중간에 check 한번만 하면 될 듯!
 
 ---
 
-```
-let struct Foo = {
-    x: Int,
-    y: Int,
-};
+Come to think about it, cloning (Rust's clone, not Sodigy's) `hir::Expr`, `Expr` per se, is very dangerous. If there's an anonymous function in an expr, it would create a new `Func` instance. If the expr is cloned 3 times, there's a possibility that the func is also instantiated 3 times...
 
-let foo = Foo {
-    x: 3,
-};
-```
+TBH, I'm not smart enough to design and implement a *perfect* compiler (and language), the only way is to run enough tests and make sure that it covers all the edge cases
 
-죽을 때도 있고 살 때도 있음. HashMap order랑 관련된 문제인 듯?
+---
+
+How would I lower `"abc": String` in hir to mir?
+
+1. uid of `string_init`
+  - what does `string_init` do?
+2. `['a', 'b', 'c'].into(String)`
+  - can we have an optimization? It would be very painful long strings, and the long strings would be more common than I could think
+    - let's not think about optimizations for now. Let's just focus on making it work.
+  - do I have to wait until TypeClasses are stable? `into` works with type classes
+  - type classes? I don't even have specs for methods...
+
+---
+
+Why I need very sophisticated type classes + why people don't like `List.map` in Elm.
+
+Rust implements map, filter, count, sum and many other methods on `Iter`, not on types. That means we don't have to impl `HashMap.iter.filter` and `HashSet.iter.filter` separately. But for elm (and Sodigy for now), people have to impl `List.map` and `Set.map` separately, while the impl of the two would be very similar.
+
+How would I implement map function?
+
+1. I want it to be a method, rather than a normal function: `a.map().filter().sum()` is nicer than `sum(filter(map(a)))`. Imagine nesting it.
+2. It has to be generic. As I just mentioned, I don't want to inherit the disadvantages of Elm.
+
+---
+
+lang_item vs prelude
+
+1. if users can access the name, that's prelude. otherwise, that's lang item
+2. ... no it's not. `@@_lang_item_type` and `Prelude::Type` are supposed to be the same
+  - the difference is that it's dangerous to use an identifier `Type`, so the compiler just generates an identifier with special characters

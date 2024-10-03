@@ -12,7 +12,7 @@ use sodigy_endec::{
 };
 use sodigy_error::UniversalError;
 use sodigy_high_ir::StructInfo;
-use sodigy_intern::InternSession;
+use sodigy_intern::{InternSession, InternedString};
 use sodigy_session::SessionSnapshot;
 use sodigy_uid::Uid;
 use std::collections::HashMap;
@@ -23,6 +23,7 @@ impl Endec for MirSession {
         self.warnings.encode(buffer, session);
         self.func_defs.encode(buffer, session);
         self.struct_defs.encode(buffer, session);
+        self.uid_name_map.encode(buffer, session);
         self.snapshots.encode(buffer, session);
         self.compiler_option.encode(buffer, session);
         self.previous_errors.encode(buffer, session);
@@ -38,6 +39,7 @@ impl Endec for MirSession {
             struct_defs: HashMap::<Uid, StructInfo>::decode(buffer, index, session)?,
             curr_lowering_func: None,
             local_value_table: HashMap::new(),
+            uid_name_map: HashMap::<Uid, InternedString>::decode(buffer, index, session)?,
             snapshots: Vec::<SessionSnapshot>::decode(buffer, index, session)?,
             compiler_option: CompilerOption::decode(buffer, index, session)?,
             previous_errors: Vec::<UniversalError>::decode(buffer, index, session)?,

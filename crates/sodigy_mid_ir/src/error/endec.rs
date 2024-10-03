@@ -52,6 +52,11 @@ impl Endec for MirErrorKind {
                 buffer.push(4);
                 rendered_expr.encode(buffer, session);
             },
+            MirErrorKind::TypeError { expected, got } => {
+                buffer.push(5);
+                expected.encode(buffer, session);
+                got.encode(buffer, session);
+            },
         }
     }
 
@@ -79,7 +84,11 @@ impl Endec for MirErrorKind {
                     4 => Ok(MirErrorKind::NotAStruct {
                         rendered_expr: Option::<String>::decode(buffer, index, session)?,
                     }),
-                    5.. => Err(EndecError::invalid_enum_variant(*n)),
+                    5 => Ok(MirErrorKind::TypeError {
+                        expected: String::decode(buffer, index, session)?,
+                        got: String::decode(buffer, index, session)?,
+                    }),
+                    6.. => Err(EndecError::invalid_enum_variant(*n)),
                 }
             },
             None => Err(EndecError::eof()),

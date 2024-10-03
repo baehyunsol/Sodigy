@@ -952,7 +952,7 @@ fn unfold_or_patterns(
 
                 // TODO: it has to do the same thing on type annotations, but I'm not sure whether
                 //       multiple_type_annotation_on_one_pattern is an error or a warning
-                //       plus, the type checker will find errors later. what I'm concerned is that
+                //       plus, the type checker will find errors later.
 
                 Ok(vec![
                     left,

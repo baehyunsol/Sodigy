@@ -1,4 +1,4 @@
-use super::sort_struct_fields;
+use super::{StructInfo, sort_struct_fields};
 use crate::enum_::StructVariantInfo;
 use crate::func::{FuncKind, lower_ast_func};
 use crate::names::{IdentWithOrigin, NameSpace};
@@ -39,13 +39,15 @@ pub fn lower_ast_struct(
         Some(StructVariantInfo { parent_name, .. }) => parent_name,
         None => name,
     };
+    let mut fields = fields.to_vec();
+    sort_struct_fields(&mut fields, session.get_interner());
 
     let constructor_name = IdentWithSpan::new(
         session.add_prefix(name.id(), "@@struct_constructor_"),
         *name.span(),
     );
     let mut constructor_body = create_struct_body(
-        fields_to_values(fields, session.get_interner()),
+        fields_to_values(&fields, session.get_interner()),
         name.span().into_fake(),
         session.get_interner(),
     );
@@ -61,7 +63,7 @@ pub fn lower_ast_struct(
     let constructor = lower_ast_func(
         &constructor_name,
         generics,
-        Some(&fields_to_args(fields, session.get_interner())),
+        Some(&fields_to_args(&fields, session.get_interner())),
         &constructor_body,
         &Some(ast::TypeDef::from_expr(name_to_type(
             type_name,
@@ -105,9 +107,20 @@ pub fn lower_ast_struct(
 
     let mut constructor = constructor?;
     constructor.kind = FuncKind::StructConstr;
+    let constructor_uid = constructor.uid;
     assert!(session.get_results_mut().insert(constructor.uid, constructor).is_none());
 
-    // TODO: update session.struct_defs
+    session.struct_defs.insert(
+        uid,
+        StructInfo {
+            struct_name: *name,
+            field_names: fields.iter().map(
+                |field| field.name.id()
+            ).collect(),
+            struct_uid: uid,
+            constructor_uid,
+        },
+    );
 
     Ok(())
 }
@@ -131,9 +144,6 @@ fn fields_to_args(fields: &Vec<ast::FieldDef>, interner: &mut InternSession) -> 
 }
 
 fn fields_to_values(fields: &Vec<ast::FieldDef>, interner: &mut InternSession) -> Vec<ast::Expr> {
-    let mut fields = fields.clone();
-    sort_struct_fields(&mut fields, interner);
-
     fields.into_iter().map(
         |ast::FieldDef {
             name, ..

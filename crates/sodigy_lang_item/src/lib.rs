@@ -1,10 +1,34 @@
 #![deny(unused_imports)]
 
+use lazy_static::lazy_static;
 use sodigy_intern::{InternedString, InternSession};
 use sodigy_uid::Uid;
+use std::collections::HashMap;
 
 // it has to start with a character that cannot be used by user code
 pub const LANG_ITEM_PREFIX: &'static [u8] = b"@@lang_item_";
+pub const LANG_ITEMS: [LangItem; 4] = [
+    LangItem::Type,
+    LangItem::EnumBody,
+    LangItem::StructBody,
+    LangItem::Dummy,
+];
+
+lazy_static! {
+    pub static ref LANG_ITEM_MAP: HashMap<Uid, InternedString> = {
+        let mut result = HashMap::with_capacity(LANG_ITEMS.len());
+        let mut intern_session = InternSession::new();
+
+        for item in LANG_ITEMS.iter() {
+            let id = item.into_interned_string(&mut intern_session);
+            let uid = id.try_get_lang_item_uid(&mut intern_session).unwrap();
+
+            result.insert(uid, id);
+        }
+
+        result
+    };
+}
 
 pub enum LangItem {
     Type,
@@ -48,6 +72,8 @@ pub trait LangItemTrait {
 }
 
 impl LangItemTrait for InternedString {
+    // TODO: is it okay to use a deterministic hash for uid?
+    //       the compiler assumes that *ALL* the uids are unique
     fn try_get_lang_item_uid(&self, intern_session: &mut InternSession) -> Option<Uid> {
         let uninterned = intern_session.unintern_string(*self);
 

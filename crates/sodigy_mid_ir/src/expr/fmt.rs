@@ -1,5 +1,28 @@
 use super::{Expr, ExprKind, MirFunc};
+use crate::session::MirSession;
 use std::fmt;
+
+impl Expr {
+    pub fn render_error(&self, session: &mut MirSession) -> String {
+        match &self.kind {
+            ExprKind::Integer(n) => n.to_string(),
+            ExprKind::LocalValue { key, .. } => format!("_{key}"),
+            ExprKind::Object(uid) => session.uid_to_string(*uid),
+            ExprKind::Call {
+                func, args, ..
+            } => {
+                let args = args.iter().map(
+                    |arg| arg.to_string()
+                ).collect::<Vec<_>>().join(", ");
+
+                match func {
+                    MirFunc::Static(uid) => format!("{}({args})", session.uid_to_string(*uid)),
+                    MirFunc::Dynamic(f) => format!("({f})({args})"),
+                }
+            },
+        }
+    }
+}
 
 impl fmt::Display for Expr {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -12,10 +35,8 @@ impl fmt::Display for ExprKind {
         let s = match self {
             ExprKind::Integer(n) => n.to_string(),
             ExprKind::LocalValue { key, .. } => format!("_{key}"),
-
-            // TODO: any better way?
-            ExprKind::Object(uid) => format!("obj_{:032x}", uid.get_u128()),
-            ExprKind::Call { 
+            ExprKind::Object(uid) => uid.to_ident(),
+            ExprKind::Call {
                 func, args, ..
             } => {
                 let args = args.iter().map(
@@ -23,7 +44,7 @@ impl fmt::Display for ExprKind {
                 ).collect::<Vec<_>>().join(", ");
 
                 match func {
-                    MirFunc::Static(uid) => format!("obj_{:032x}({args})", uid.get_u128()),
+                    MirFunc::Static(uid) => format!("{}({args})", uid.to_ident()),
                     MirFunc::Dynamic(f) => format!("({f})({args})"),
                 }
             },
