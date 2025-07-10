@@ -1,1 +1,0 @@
-let multiplier(x, y) = x * y;
