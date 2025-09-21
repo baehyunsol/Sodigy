@@ -1,4 +1,0 @@
-module foo;
-module bar;
-
-let main = assert(foo.baz.adder(3, 4) + bar.baz.multiplier(10, 11) == 117);
