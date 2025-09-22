@@ -5,12 +5,14 @@ use sodigy_span::Span;
 use sodigy_token::{Token, TokenKind};
 
 mod block;
-mod decl;
 mod expr;
+mod func;
+mod r#let;
 
 pub use block::Block;
-pub use decl::Decl;
 pub use expr::Expr;
+pub use func::Func;
+pub use r#let::Let;
 
 /// Actually, it's a `BlockParseSession` because a file of Sodigy is a block.
 /// If there's a block inside a block, you have to create another session.
@@ -19,7 +21,8 @@ pub struct ParseSession<'t> {
     tokens: &'t [Token],
     cursor: usize,
     errors: Vec<Error>,
-    decls: Vec<Decl>,
+    decls: Vec<Let>,
+    funcs: Vec<Func>,
     value: Option<Expr>,
 }
 
@@ -31,6 +34,7 @@ impl<'t> ParseSession<'t> {
             cursor: 0,
             errors: s.errors.clone(),
             decls: vec![],
+            funcs: vec![],
             value: None,
         }
     }

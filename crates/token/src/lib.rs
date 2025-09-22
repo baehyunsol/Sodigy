@@ -50,12 +50,14 @@ impl TokenKind {
             (TokenKind::DocComment(_), _) => false,
             (TokenKind::Punct(a), TokenKind::Punct(b)) => a == b,
             (TokenKind::Punct(_), _) => false,
+            (TokenKind::Group { delim: a, .. }, TokenKind::Group { delim: b, .. }) => a == b,
+            (TokenKind::Group { .. }, _) => false,
             _ => todo!(),
         }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Delim {
     Parenthesis,
     Bracket,

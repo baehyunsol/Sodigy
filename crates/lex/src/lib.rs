@@ -303,6 +303,7 @@ impl LexSession {
                         b"if" => TokenKind::Keyword(Keyword::If),
                         b"let" => TokenKind::Keyword(Keyword::Let),
                         b"match" => TokenKind::Keyword(Keyword::Match),
+                        b"func" => TokenKind::Keyword(Keyword::Func),
                         _ => {
                             let interned = self.intern_string();
                             TokenKind::Identifier(interned)
