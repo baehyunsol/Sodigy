@@ -1,5 +1,6 @@
 use sodigy_file::File;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Span {
     File(File),
     Range {
@@ -9,6 +10,7 @@ pub enum Span {
         start: usize,
         end: usize,
     },
+    Eof(File),
     None,
 }
 
@@ -17,7 +19,26 @@ impl Span {
         Span::Range { file, start, end }
     }
 
+    pub fn eof(file: File) -> Self {
+        Span::Eof(file)
+    }
+
     pub fn file(file: File) -> Self {
         Span::File(file)
+    }
+
+    #[must_use = "method returns a new span and does not mutate the original value"]
+    pub fn merge(&self, other: Span) -> Self {
+        match (self, other) {
+            (
+                Span::Range { file: file1, start: start1, end: end1 },
+                Span::Range { file: file2, start: start2, end: end2 },
+            ) if *file1 == file2 => Span::Range {
+                file: *file1,
+                start: (*start1).min(start2),
+                end: (*end1).max(end2),
+            },
+            _ => todo!(),
+        }
     }
 }

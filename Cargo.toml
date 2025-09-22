@@ -1,0 +1,8 @@
+[package]
+name = "sodigy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-lex = { version = "0.1.0", path = "crates/lex" }
+sodigy-parse = { version = "0.1.0", path = "crates/parse" }

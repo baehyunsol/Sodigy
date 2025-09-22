@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 sodigy-span = { version = "0.1.0", path = "../span" }
+sodigy-token = { version = "0.1.0", path = "../token" }

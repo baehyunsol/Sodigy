@@ -1,11 +1,5 @@
-use sodigy_span::Span;
+mod error;
+mod warning;
 
-pub struct Error {
-    kind: ErrorKind,
-    span: Span,
-}
-
-pub enum ErrorKind {
-    InvalidNumberLiteral,
-    UnterminatedBlockComment,
-}
+pub use error::{Error, ErrorKind};
+pub use warning::{Warning, WarningKind};

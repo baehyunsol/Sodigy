@@ -1,10 +1,31 @@
+mod fmt;
+
 // 0 A A A A A A A   ... (15 bytes actual data)
 // 1 B B B B B B B   B B B B B B B B   B B B B B B B B   B B B B B B B B   ... (12 bytes hash value)
-
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct InternedString(pub u128);
 
-impl InternedString {}
+impl InternedString {
+    pub fn try_unintern_short_string(&self) -> Option<Vec<u8>> {
+        let length = match (self.0 >> 120) as u8 {
+            x @ (0..=15) => x as usize,
+            _ => {
+                return None;
+            },
+        };
+        let bytes = self.0.to_be_bytes();
+        Some(bytes[1..(1 + length)].to_vec())
+    }
+
+    pub fn dummy() -> Self {
+        // invalid Interned String
+        InternedString(0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff)
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.0 == 0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff
+    }
+}
 
 pub fn intern_string(s: &[u8]) -> InternedString {
     match s.len() {
@@ -13,7 +34,7 @@ pub fn intern_string(s: &[u8]) -> InternedString {
             let hashed = hash(s);
 
             InternedString(u128::from_be_bytes([
-                127 | (s.len() >> 24) as u8,
+                128 | (s.len() >> 24) as u8,
                 ((s.len() >> 16) & 0xff) as u8,
                 ((s.len() >> 8) & 0xff) as u8,
                 (s.len() & 0xff) as u8,
