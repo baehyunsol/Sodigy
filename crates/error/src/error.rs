@@ -1,16 +1,17 @@
 use sodigy_span::Span;
 use sodigy_token::ErrorToken;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Error {
     pub kind: ErrorKind,
     pub span: Span,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ErrorKind {
     InvalidNumberLiteral,
     UnterminatedBlockComment,
+    UnclosedDelimiter(u8),
     UnexpectedToken {
         expected: ErrorToken,
         got: ErrorToken,
@@ -18,5 +19,9 @@ pub enum ErrorKind {
     UnexpectedEof {
         expected: ErrorToken,
     },
-    UnclosedDelimiter(u8),
+    // It's like Eof, but an end of a group (parenthesis, braces or brackets).
+    UnexpectedEog {
+        expected: ErrorToken,
+    },
+    DocCommentForNothing,
 }

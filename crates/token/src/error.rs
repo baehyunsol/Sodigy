@@ -1,11 +1,15 @@
 use crate::TokenKind;
 
 // TokenKind for error variants
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ErrorToken {
     Any,
     Character(u8),
+    Identifier,
     Declaration,
+    Expr,
+    ColonOrComma,
+    Comma,
 }
 
 impl From<&TokenKind> for ErrorToken {

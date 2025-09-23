@@ -2,6 +2,8 @@ use sodigy_file::File;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Span {
+    // When a span has something to do with this file, but we cannot tell the exact location.
+    // e.g. if there's an error reading the file, the error has this span.
     File(File),
     Range {
         file: File,
@@ -39,6 +41,18 @@ impl Span {
                 end: (*end1).max(end2),
             },
             _ => todo!(),
+        }
+    }
+
+    pub fn end(&self) -> Self {
+        match self {
+            Span::File(file) | Span::Eof(file) => Span::Eof(*file),
+            Span::Range { file, start, end } => Span::Range {
+                file: *file,
+                start: (*end).max(1) - 1,
+                end: *end,
+            },
+            Span::None => Span::None,
         }
     }
 }

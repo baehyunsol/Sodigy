@@ -38,6 +38,7 @@ pub struct LexSession {
 enum LexState {
     Init,
     Identifier,
+    Decorator,
     Integer(Base),
     Fraction,
     LineComment,
@@ -101,6 +102,14 @@ impl LexSession {
                     self.token_start = self.cursor + self.offset;
                     self.state = LexState::Identifier;
                     self.cursor += 1;
+                },
+                (Some(b'@'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
+                    self.buffer1.clear();
+                    self.buffer1.push(*y);
+
+                    self.token_start = self.cursor + self.offset;
+                    self.state = LexState::Decorator;
+                    self.cursor += 2;
                 },
                 (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => todo!(),
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'), _) => {
@@ -312,6 +321,25 @@ impl LexSession {
 
                     self.tokens.push(Token {
                         kind: token_kind,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                },
+            },
+            LexState::Decorator => match self.input_buffer.get(self.cursor) {
+                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
+                    self.buffer1.push(*x);
+                    self.cursor += 1;
+                },
+                _ => {
+                    let interned = self.intern_string();
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::Decorator(interned),
                         span: Span::range(
                             self.file,
                             self.token_start,

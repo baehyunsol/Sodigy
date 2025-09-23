@@ -5,7 +5,6 @@ fn main() {
     let mut lex_session = sodigy_lex::LexSession::gara_init(bytes);
     lex_session.lex();
     // println!("{:?}", lex_session.tokens);
-    let mut parse_session = sodigy_parse::ParseSession::from_lex_session(&lex_session);
-    let ast = parse_session.parse().unwrap();
+    let ast = sodigy_parse::parse(&lex_session.tokens);
     println!("{ast:?}");
 }
