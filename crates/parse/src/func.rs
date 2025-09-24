@@ -5,17 +5,18 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Func {
     name: InternedString,
     name_span: Span,
     args: Vec<Arg>,
     r#type: Option<Expr>,
+    value: Expr,
     pub doc_comment: Option<DocComment>,
     pub decorators: Vec<Decorator>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Arg {
     name: InternedString,
     name_span: Span,
@@ -39,7 +40,7 @@ impl<'t> Tokens<'t> {
         let mut arg_tokens = Tokens::new(arg_tokens_inner, arg_tokens.span.end());
         let args = arg_tokens.parse_func_arg_defs()?;
 
-        let r#type = match self.tokens.get(self.cursor) {
+        let r#type = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
                 self.cursor += 1;
                 Some(self.parse_expr()?)
@@ -47,11 +48,15 @@ impl<'t> Tokens<'t> {
             _ => None,
         };
 
+        self.match_and_pop(TokenKind::Punct(Punct::Eq))?;
+        let value = self.parse_expr()?;
+
         Ok(Func {
             name,
             name_span,
             args,
             r#type,
+            value,
 
             // Its parent will set these fields.
             doc_comment: None,
@@ -72,8 +77,18 @@ impl<'t> Tokens<'t> {
             let mut r#type = None;
 
             'colon_or_comma: loop {
-                match self.tokens.get(self.cursor) {
-                    Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }) => {
+                match self.peek() {
+                    Some(Token { kind: TokenKind::Punct(Punct::Colon), span }) => {
+                        if r#type.is_some() {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Punct(Punct::Comma),
+                                    got: ErrorToken::Punct(Punct::Colon),
+                                },
+                                span: *span,
+                            }]);
+                        }
+
                         self.cursor += 1;
                         r#type = Some(self.parse_expr()?);
                         continue 'colon_or_comma;

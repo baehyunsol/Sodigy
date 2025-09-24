@@ -3,7 +3,7 @@ use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Let {
     name: InternedString,
     name_span: Span,

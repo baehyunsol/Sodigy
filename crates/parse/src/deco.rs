@@ -51,10 +51,7 @@ impl<'t> Tokens<'t> {
         let mut decorator_buffer = vec![];
 
         loop {
-            match (
-                self.tokens.get(self.cursor),
-                self.tokens.get(self.cursor + 1),
-            ) {
+            match self.peek2() {
                 (Some(Token { kind: TokenKind::DocComment(doc), span }), _) => {
                     doc_comment_buffer.push(DocComment::new(*doc, *span));
                     self.cursor += 1;

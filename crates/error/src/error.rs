@@ -10,7 +10,14 @@ pub struct Error {
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
     InvalidNumberLiteral,
+    InvalidStringLiteralPrefix,
+    InvalidCharLiteralPrefix,
     UnterminatedBlockComment,
+    WrongNumberOfQuotesInRawStringLiteral,
+    EmptyCharLiteral,
+
+    // You can use up to 127 quotes for opening or 254 quotes (open 127 + close 127) consecutively.
+    TooManyQuotes,
     UnclosedDelimiter(u8),
     UnexpectedToken {
         expected: ErrorToken,

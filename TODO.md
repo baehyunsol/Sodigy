@@ -18,6 +18,24 @@
 7. Combination
   - e.g. format + binary
 
+---
+
+중간 정리
+
+1. normal string/char: rust-like
+2. binary string/char: rust-like
+3. format string: python-like
+4. raw string
+  - backslashes don't have any effect at all!!
+  - if it starts with N double quotes, it has to end with N double quotes. otherwise, double quotes have no effect at all!
+5. regex string
+  - backslashes don't have any effect except `\\` and `\"`
+  - everything else is the same as the normal strings
+  - if it's in a pattern, it's a regex pattern
+    - I want to bind names to its groups, but how?
+    - How about `r @ r"(\d+)x(\d+)"` and use something like `r._0`, `r._1`.
+      - `r` is a tuple: `(Option(String), Option(String), Option(String))`
+
 # 1. Complete Rewrite!!
 
 Let's make it 1) simple enough that I can implement and 2) complicated enough that I don't get bored.

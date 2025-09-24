@@ -37,7 +37,31 @@ pub struct LexSession {
 #[derive(Debug)]
 enum LexState {
     Init,
+
+    // `StringPrefix` first parses prefix `b`, `f` or `r` before the literal
+    // then `StringInit` counts the number of double quote characters
+    // then `String` parses the content of the literal
+    StringPrefix,
+    StringInit {
+        binary: bool,
+        format: bool,
+        regex: bool,
+    },
+    String {
+        binary: bool,
+        regex: bool,
+        quote_count: usize,
+    },
+    Char {
+        binary: bool,
+    },
+    FormattedString {
+        regex: bool,
+        quote_count: usize,
+    },
+
     Identifier,
+    FieldModifier,
     Decorator,
     Integer(Base),
     Fraction,
@@ -90,11 +114,11 @@ impl LexSession {
 
         match self.state {
             LexState::Init => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1), self.input_buffer.get(self.cursor + 2)) {
-                (Some(b'f'), Some(b'"' | b'\''), _) => todo!(),
-                (Some(b'b'), Some(b'"' | b'\''), _) => todo!(),
-                (Some(b'r'), Some(b'"' | b'\''), _) => todo!(),
-                (Some(b'"'), Some(b'"'), Some(b'"')) => todo!(),
-                (Some(b'"' | b'\''), _, _) => todo!(),
+                (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(b'"' | b'\'')) |
+                (Some(b'a'..=b'z'), Some(b'"' | b'\''), _) |
+                (Some(b'"' | b'\''), _, _) => {
+                    self.state = LexState::StringPrefix;
+                },
                 (Some(x @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _, _) => {
                     self.buffer1.clear();
                     self.buffer1.push(*x);
@@ -102,6 +126,14 @@ impl LexSession {
                     self.token_start = self.cursor + self.offset;
                     self.state = LexState::Identifier;
                     self.cursor += 1;
+                },
+                (Some(b'`'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
+                    self.buffer1.clear();
+                    self.buffer1.push(*y);
+
+                    self.token_start = self.cursor + self.offset;
+                    self.state = LexState::FieldModifier;
+                    self.cursor += 2;
                 },
                 (Some(b'@'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
                     self.buffer1.clear();
@@ -302,6 +334,310 @@ impl LexSession {
                     }
                 },
             },
+            // b"abc" -> binary string
+            // b'a' -> binary char
+            // f"abc" -> formatted string
+            // r"abc" -> regex string
+            // br"abc", rb"abc" -> binary regex string
+            // fr"abc", rf"abc" -> formatted regex string
+            LexState::StringPrefix => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1), self.input_buffer.get(self.cursor + 2)) {
+                // Cannot use the same prefix multiple times.
+                (Some(x @ (b'b' | b'f' | b'r')), Some(y @ (b'b' | b'f' | b'r')), Some(z @ (b'"' | b'\''))) if x == y => {
+                    self.errors.push(Error {
+                        kind: if *z == b'"' {
+                            ErrorKind::InvalidStringLiteralPrefix
+                        } else {
+                            ErrorKind::InvalidCharLiteralPrefix
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'b'), Some(b'f'), Some(z @ (b'"' | b'\''))) |
+                (Some(b'f'), Some(b'b'), Some(z @ (b'"' | b'\''))) => {
+                    self.errors.push(Error {
+                        kind: if *z == b'"' {
+                            ErrorKind::InvalidStringLiteralPrefix
+                        } else {
+                            ErrorKind::InvalidCharLiteralPrefix
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'b'), Some(b'r'), Some(b'"')) |
+                (Some(b'r'), Some(b'b'), Some(b'"')) => {
+                    self.state = LexState::StringInit {
+                        binary: true,
+                        format: false,
+                        regex: true,
+                    };
+                    self.cursor += 2;
+                },
+                // A binary char is okay, but a regex char is not.
+                (Some(x @ b'b'), Some(b'r'), Some(b'\'')) |
+                (Some(x @ b'r'), Some(b'b'), Some(b'\'')) => {
+                    let error_span = if *x == b'b' {
+                        Span::range(
+                            self.file,
+                            self.cursor + 1 + self.offset,
+                            self.cursor + 2 + self.offset,
+                        )
+                    } else {
+                        Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        )
+                    };
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        span: error_span,
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'f'), Some(b'r'), Some(b'"')) |
+                (Some(b'r'), Some(b'f'), Some(b'"')) => {
+                    self.state = LexState::StringInit {
+                        binary: false,
+                        format: true,
+                        regex: true,
+                    };
+                    self.cursor += 2;
+                },
+                // `f` and `r` are both invalid for a char literal
+                (Some(b'f'), Some(b'r'), Some(b'\'')) |
+                (Some(b'r'), Some(b'f'), Some(b'\'')) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(x @ (b'b' | b'f' | b'r')), Some(b'"'), _) => {
+                    self.state = LexState::StringInit {
+                        binary: *x == b'b',
+                        format: *x == b'f',
+                        regex: *x == b'r',
+                    };
+                    self.cursor += 1;
+                },
+                (Some(b'b'), Some(b'\''), _) => {
+                    self.state = LexState::StringInit {
+                        binary: true,
+                        format: false,
+                        regex: false,
+                    };
+                    self.cursor += 1;
+                },
+                (Some(b'f' | b'r'), Some(b'\''), _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'"' | b'\''), _, _) => {
+                    self.state = LexState::StringInit {
+                        binary: false,
+                        format: false,
+                        regex: false,
+                    };
+                },
+                (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
+                    self.errors.push(Error {
+                        kind: if *z == b'"' {
+                            ErrorKind::InvalidStringLiteralPrefix
+                        } else {
+                            ErrorKind::InvalidCharLiteralPrefix
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'a'..=b'z'), Some(y @ (b'"' | b'\'')), _) => {
+                    self.errors.push(Error {
+                        kind: if *y == b'"' {
+                            ErrorKind::InvalidStringLiteralPrefix
+                        } else {
+                            ErrorKind::InvalidCharLiteralPrefix
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                _ => unreachable!(),
+            },
+            // `LexState::StringInit` doesn't care even if a char literal has multiple characters.
+            // `LexState::Char` will throw an error for that.
+            LexState::StringInit { binary, format, regex } => match (
+                self.input_buffer.get(self.cursor),
+                self.input_buffer.get(self.cursor + 1),
+                self.input_buffer.get(self.cursor + 2),
+            ) {
+                (Some(b'"'), Some(b'"'), Some(b'"')) => {
+                    let quote_count = count_quotes(&self.input_buffer, self.cursor).unwrap_or(256);
+
+                    if quote_count % 2 == 0 && quote_count > 254 || quote_count % 2 == 1 && quote_count > 127 {
+                        self.errors.push(Error {
+                            kind: ErrorKind::TooManyQuotes,
+                            span: Span::range(
+                                self.file,
+                                // I don't want to highlight all the quotes... it's *TooMany*Quotes
+                                self.cursor + self.offset,
+                                self.cursor + 1 + self.offset,
+                            ),
+                        });
+                        self.halt_with_error = true;
+                        return;
+                    }
+
+                    match quote_count {
+                        // an empty string literal
+                        // for example, if double-quote appears 6 times,
+                        // the first 3 starts the literal and the last 3 ends the literal
+                        x if x % 4 == 2 => {
+                            self.tokens.push(Token {
+                                kind: TokenKind::String(InternedString::empty()),
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor + self.offset,
+                                    self.cursor + quote_count + self.offset,
+                                ),
+                            });
+                            self.state = LexState::Init;
+                            self.cursor += quote_count;
+                        },
+
+                        // invalid
+                        // a string literal must start with an odd number of quotes
+                        x if x % 4 == 0 => {
+                            self.errors.push(Error {
+                                kind: ErrorKind::WrongNumberOfQuotesInRawStringLiteral,
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor + self.offset,
+                                    self.cursor + quote_count + self.offset,
+                                ),
+                            });
+                            self.halt_with_error = true;
+                        },
+
+                        // start of a literal
+                        _ => {
+                            self.token_start = self.cursor + self.offset;
+
+                            if format {
+                                self.state = LexState::FormattedString {
+                                    regex,
+                                    quote_count,
+                                };
+                            }
+
+                            else {
+                                self.state = LexState::String {
+                                    binary,
+                                    regex,
+                                    quote_count,
+                                };
+                            }
+
+                            self.cursor += quote_count;
+                        },
+                    }
+                },
+                // an empty string literal
+                (Some(b'"'), Some(b'"'), _) => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::String(InternedString::empty()),
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                    self.cursor += 2;
+                },
+                // an empty char literal -> error!
+                (Some(b'\''), Some(b'\''), _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::EmptyCharLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'"'), _, _) => {
+                    self.token_start = self.cursor + self.offset;
+                    self.state = LexState::String {
+                        binary,
+                        regex,
+                        quote_count: 1,
+                    };
+                    self.cursor += 1;
+                },
+                (Some(b'\''), _, _) => {
+                    self.token_start = self.cursor + self.offset;
+                    self.state = LexState::Char { binary };
+                    self.cursor += 1;
+                },
+                _ => unreachable!(),
+            },
+            LexState::String { binary, regex, quote_count } => todo!(),
+            LexState::FormattedString { regex, quote_count } => todo!(),
+            // NOTE: empty char literals are already filtered out!
+            // NOTE: the cursor is pointing at the first byte of the content (not the quote)
+            LexState::Char { binary } => match (
+                self.input_buffer.get(self.cursor),
+                self.input_buffer.get(self.cursor + 1),
+                self.input_buffer.get(self.cursor + 2),
+                self.input_buffer.get(self.cursor + 3),
+                self.input_buffer.get(self.cursor + 4),
+            ) {
+                // valid escape
+                (Some(b'\\'), Some(b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0'), Some(b'\''), _, _) => {},
+                // ascii escape
+                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'7')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), _) => {},
+                // invalid escape
+                (Some(b'\\'), Some(y), _, _, _) => {},
+                // invalid char
+                (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {},
+                // valid char (utf-8)
+                (Some(0..=127), Some(b'\''), _, _, _) => {},
+                (Some(192..=223), Some(128..=191), Some(b'\''), _, _) => {},
+                (Some(224..=239), Some(128..=191), Some(128..=191), Some(b'\''), _) => {},
+                (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => {},
+                (Some(_), _, _, _, _) => {},
+                (None, _, _, _, _) => {},
+            },
             LexState::Identifier => match self.input_buffer.get(self.cursor) {
                 Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
                     self.buffer1.push(*x);
@@ -310,7 +646,9 @@ impl LexSession {
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
                         b"if" => TokenKind::Keyword(Keyword::If),
+                        b"else" => TokenKind::Keyword(Keyword::Else),
                         b"let" => TokenKind::Keyword(Keyword::Let),
+                        b"pat" => TokenKind::Keyword(Keyword::Pat),
                         b"match" => TokenKind::Keyword(Keyword::Match),
                         b"func" => TokenKind::Keyword(Keyword::Func),
                         _ => {
@@ -321,6 +659,25 @@ impl LexSession {
 
                     self.tokens.push(Token {
                         kind: token_kind,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                },
+            },
+            LexState::FieldModifier => match self.input_buffer.get(self.cursor) {
+                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
+                    self.buffer1.push(*x);
+                    self.cursor += 1;
+                },
+                _ => {
+                    let interned = self.intern_string();
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::FieldModifier(interned),
                         span: Span::range(
                             self.file,
                             self.token_start,
@@ -579,6 +936,35 @@ impl LexSession {
 
     fn unintern_string(&self, s: InternedString) -> Option<&Vec<u8>> {
         self.string_map.get(&s)
+    }
+}
+
+// If there's more than 255 quotes, it dies. There's a reason:
+// Sodigy-compiler may or may not load the entire file at once.
+// So, if it reaches the end of buffer while counting quotes, that
+// would be real eof or not-loaded-yet. But it's guaranteed that there's
+// at least 255 remaining bytes in the buffer (otherwise eof), so it's
+// safe to count quotes up to 255.
+fn count_quotes(buffer: &[u8], mut cursor: usize) -> Result<usize, ()> {
+    let mut count = 0;
+
+    loop {
+        match buffer.get(cursor) {
+            Some(b'"') => {
+                count += 1;
+                cursor += 1;
+
+                if count == 256 {
+                    return Err(());
+                }
+            },
+            Some(_) => {
+                return Ok(count);
+            },
+            None => {
+                return Ok(count);
+            },
+        }
     }
 }
 

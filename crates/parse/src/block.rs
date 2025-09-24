@@ -3,11 +3,11 @@ use sodigy_error::Error;
 use sodigy_keyword::Keyword;
 use sodigy_token::{ErrorToken, TokenKind};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Block {
     lets: Vec<Let>,
     funcs: Vec<Func>,
-    value: Expr,
+    value: Box<Expr>,
 }
 
 impl<'t> Tokens<'t> {
@@ -28,7 +28,7 @@ impl<'t> Tokens<'t> {
                 },
             };
 
-            match self.tokens.get(self.cursor).map(|t| &t.kind) {
+            match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Keyword(Keyword::Let)) => match self.parse_let() {
                     Ok(mut r#let) => {
                         r#let.doc_comment = doc_comment;
@@ -79,7 +79,7 @@ impl<'t> Tokens<'t> {
         Ok(Block {
             lets,
             funcs,
-            value,
+            value: Box::new(value),
         })
     }
 }

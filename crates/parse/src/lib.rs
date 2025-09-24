@@ -6,14 +6,18 @@ mod block;
 mod deco;
 mod expr;
 mod func;
+mod r#if;
 mod r#let;
+mod pattern;
 mod tokens;
 
 pub use block::Block;
 pub use deco::{Decorator, DocComment};
 pub use expr::Expr;
 pub use func::Func;
+pub use r#if::If;
 pub use r#let::Let;
+pub use pattern::Pattern;
 pub(crate) use tokens::Tokens;
 
 pub fn parse(tokens: &[Token]) -> Result<Block, Vec<Error>> {

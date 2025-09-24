@@ -18,6 +18,9 @@ pub enum TokenKind {
     Keyword(Keyword),
     Identifier(InternedString),
     Number(InternedNumber),
+    String(InternedString),
+    Char(char),
+    FieldModifier(InternedString),
     Decorator(InternedString),
     DocComment(InternedString),
     Punct(Punct),
@@ -81,6 +84,7 @@ pub enum Punct {
     Eq,
     Gt,
     Comma,
+    Dot,
 }
 
 impl From<u8> for Punct {
@@ -97,7 +101,8 @@ impl From<u8> for Punct {
             b'<' => Punct::Lt,
             b'=' => Punct::Eq,
             b'>' => Punct::Gt,
-            _ => todo!(),
+            b'.' => Punct::Dot,
+            _ => panic!("TODO: {:?}", b as char),
         }
     }
 }

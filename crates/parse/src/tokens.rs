@@ -25,6 +25,7 @@ impl<'t> Tokens<'t> {
     // That's because some parsers might return multiple errors,
     // and mixing `Result<_, Error>` and `Result<_, Vec<Error>>` makes the code messy.
     pub fn match_and_pop(&mut self, token: TokenKind) -> Result<&'t Token, Vec<Error>> {
+        // If we use `self.peek()` here, the borrow-checker will refuse it.
         match self.tokens.get(self.cursor) {
             Some(t) if t.kind.matches(&token) => {
                 self.cursor += 1;
@@ -46,10 +47,11 @@ impl<'t> Tokens<'t> {
     }
 
     pub fn pop_name_and_span(&mut self) -> Result<(InternedString, Span), Vec<Error>> {
-        match self.tokens.get(self.cursor) {
+        match self.peek() {
             Some(Token { kind: TokenKind::Identifier(id), span }) => {
+                let (id, span) = (*id, *span);  // bypass the borrow-checker
                 self.cursor += 1;
-                Ok((*id, *span))
+                Ok((id, span))
             },
             Some(t) => Err(vec![Error {
                 kind: ErrorKind::UnexpectedToken {
@@ -81,5 +83,12 @@ impl<'t> Tokens<'t> {
 
     pub fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.cursor)
+    }
+
+    pub fn peek2(&self) -> (Option<&Token>, Option<&Token>) {
+        (
+            self.tokens.get(self.cursor),
+            self.tokens.get(self.cursor + 1),
+        )
     }
 }

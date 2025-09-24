@@ -6,6 +6,10 @@ mod fmt;
 pub struct InternedString(pub u128);
 
 impl InternedString {
+    pub fn empty() -> Self {
+        intern_short_string(b"")
+    }
+
     pub fn try_unintern_short_string(&self) -> Option<Vec<u8>> {
         let length = match (self.0 >> 120) as u8 {
             x @ (0..=15) => x as usize,
