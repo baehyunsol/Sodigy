@@ -18,8 +18,15 @@ pub enum TokenKind {
     Keyword(Keyword),
     Identifier(InternedString),
     Number(InternedNumber),
-    String(InternedString),
-    Char(char),
+    String {
+        binary: bool,
+        raw: bool,
+        s: InternedString,
+    },
+    Char {
+        binary: bool,
+        ch: char,
+    },
     FieldModifier(InternedString),
     Decorator(InternedString),
     DocComment(InternedString),

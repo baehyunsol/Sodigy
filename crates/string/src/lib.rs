@@ -10,6 +10,10 @@ impl InternedString {
         intern_short_string(b"")
     }
 
+    pub fn is_short_string(&self) -> bool {
+        self.0 < (1 << 127)
+    }
+
     pub fn try_unintern_short_string(&self) -> Option<Vec<u8>> {
         let length = match (self.0 >> 120) as u8 {
             x @ (0..=15) => x as usize,

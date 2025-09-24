@@ -5,7 +5,8 @@ use sodigy_keyword::Keyword;
 #[derive(Clone, Debug)]
 pub enum ErrorToken {
     Any,
-    Character(u8),
+    Character(u8),  // specific character
+    Char,  // any character (in a character literal)
     Keyword(Keyword),
     Punct(Punct),
     Group(Delim),

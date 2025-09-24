@@ -22,15 +22,19 @@
 
 중간 정리
 
+A string literal starts with N (odd number) double quotes and ends with the same number of double quotes. If it's prefixed with `r`, all the escapes are ignored.
+
+In pattern matching, `r`-prefixed strings are treated specially.
+
 1. normal string/char: rust-like
 2. binary string/char: rust-like
 3. format string: python-like
-4. raw string
-  - backslashes don't have any effect at all!!
-  - if it starts with N double quotes, it has to end with N double quotes. otherwise, double quotes have no effect at all!
+4. multi-quote string
+  - if it starts with N double quotes, it has to end with N double quotes.
+  - 
 5. regex string
-  - backslashes don't have any effect except `\\` and `\"`
-  - everything else is the same as the normal strings
+  - backslashes don't have any effect
+    - if you want to use 
   - if it's in a pattern, it's a regex pattern
     - I want to bind names to its groups, but how?
     - How about `r @ r"(\d+)x(\d+)"` and use something like `r._0`, `r._1`.

@@ -45,18 +45,18 @@ enum LexState {
     StringInit {
         binary: bool,
         format: bool,
-        regex: bool,
+        raw: bool,
     },
     String {
         binary: bool,
-        regex: bool,
+        raw: bool,
         quote_count: usize,
     },
     Char {
         binary: bool,
     },
     FormattedString {
-        regex: bool,
+        raw: bool,
         quote_count: usize,
     },
 
@@ -337,9 +337,9 @@ impl LexSession {
             // b"abc" -> binary string
             // b'a' -> binary char
             // f"abc" -> formatted string
-            // r"abc" -> regex string
-            // br"abc", rb"abc" -> binary regex string
-            // fr"abc", rf"abc" -> formatted regex string
+            // r"abc" -> raw string
+            // br"abc", rb"abc" -> binary raw string
+            // fr"abc", rf"abc" -> formatted raw string
             LexState::StringPrefix => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1), self.input_buffer.get(self.cursor + 2)) {
                 // Cannot use the same prefix multiple times.
                 (Some(x @ (b'b' | b'f' | b'r')), Some(y @ (b'b' | b'f' | b'r')), Some(z @ (b'"' | b'\''))) if x == y => {
@@ -378,11 +378,11 @@ impl LexSession {
                     self.state = LexState::StringInit {
                         binary: true,
                         format: false,
-                        regex: true,
+                        raw: true,
                     };
                     self.cursor += 2;
                 },
-                // A binary char is okay, but a regex char is not.
+                // A binary char is okay, but a raw char is not.
                 (Some(x @ b'b'), Some(b'r'), Some(b'\'')) |
                 (Some(x @ b'r'), Some(b'b'), Some(b'\'')) => {
                     let error_span = if *x == b'b' {
@@ -409,7 +409,7 @@ impl LexSession {
                     self.state = LexState::StringInit {
                         binary: false,
                         format: true,
-                        regex: true,
+                        raw: true,
                     };
                     self.cursor += 2;
                 },
@@ -430,7 +430,7 @@ impl LexSession {
                     self.state = LexState::StringInit {
                         binary: *x == b'b',
                         format: *x == b'f',
-                        regex: *x == b'r',
+                        raw: *x == b'r',
                     };
                     self.cursor += 1;
                 },
@@ -438,7 +438,7 @@ impl LexSession {
                     self.state = LexState::StringInit {
                         binary: true,
                         format: false,
-                        regex: false,
+                        raw: false,
                     };
                     self.cursor += 1;
                 },
@@ -457,7 +457,7 @@ impl LexSession {
                     self.state = LexState::StringInit {
                         binary: false,
                         format: false,
-                        regex: false,
+                        raw: false,
                     };
                 },
                 (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
@@ -494,7 +494,7 @@ impl LexSession {
             },
             // `LexState::StringInit` doesn't care even if a char literal has multiple characters.
             // `LexState::Char` will throw an error for that.
-            LexState::StringInit { binary, format, regex } => match (
+            LexState::StringInit { binary, format, raw } => match (
                 self.input_buffer.get(self.cursor),
                 self.input_buffer.get(self.cursor + 1),
                 self.input_buffer.get(self.cursor + 2),
@@ -522,7 +522,11 @@ impl LexSession {
                         // the first 3 starts the literal and the last 3 ends the literal
                         x if x % 4 == 2 => {
                             self.tokens.push(Token {
-                                kind: TokenKind::String(InternedString::empty()),
+                                kind: TokenKind::String {
+                                    binary,
+                                    raw,
+                                    s: InternedString::empty(),
+                                },
                                 span: Span::range(
                                     self.file,
                                     self.cursor + self.offset,
@@ -553,15 +557,16 @@ impl LexSession {
 
                             if format {
                                 self.state = LexState::FormattedString {
-                                    regex,
+                                    raw,
                                     quote_count,
                                 };
                             }
 
                             else {
+                                self.buffer1.clear();
                                 self.state = LexState::String {
                                     binary,
-                                    regex,
+                                    raw,
                                     quote_count,
                                 };
                             }
@@ -573,7 +578,11 @@ impl LexSession {
                 // an empty string literal
                 (Some(b'"'), Some(b'"'), _) => {
                     self.tokens.push(Token {
-                        kind: TokenKind::String(InternedString::empty()),
+                        kind: TokenKind::String {
+                            binary,
+                            raw,
+                            s: InternedString::empty(),
+                        },
                         span: Span::range(
                             self.file,
                             self.cursor + self.offset,
@@ -596,10 +605,11 @@ impl LexSession {
                     self.halt_with_error = true;
                 },
                 (Some(b'"'), _, _) => {
+                    self.buffer1.clear();
                     self.token_start = self.cursor + self.offset;
                     self.state = LexState::String {
                         binary,
-                        regex,
+                        raw,
                         quote_count: 1,
                     };
                     self.cursor += 1;
@@ -611,8 +621,118 @@ impl LexSession {
                 },
                 _ => unreachable!(),
             },
-            LexState::String { binary, regex, quote_count } => todo!(),
-            LexState::FormattedString { regex, quote_count } => todo!(),
+            LexState::String { binary, raw: true, quote_count } => match (
+                self.input_buffer.get(self.cursor),
+                self.input_buffer.get(self.cursor + 1),
+                self.input_buffer.get(self.cursor + 2),
+            ) {
+                (Some(b'"'), _, _) if quote_count == 1 => {
+                    let interned = self.intern_string();
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::String {
+                            binary,
+                            raw: true,
+                            s: interned,
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                    self.cursor += 1;
+                },
+                (Some(b'"'), Some(b'"'), Some(b'"')) => {
+                    if quote_count == 3 {
+                        todo!()
+                    }
+
+                    else {
+                        let curr_quote_count = count_quotes(&self.input_buffer, self.cursor).unwrap_or(256);
+
+                        if curr_quote_count >= quote_count {
+                            todo!()
+                        }
+
+                        else {
+                            self.buffer1.push(b'"');
+                            self.buffer1.push(b'"');
+                            self.buffer1.push(b'"');
+                            self.cursor += 3;
+                        }
+                    }
+                },
+                (Some(x), _, _) => {
+                    self.buffer1.push(*x);
+                    self.cursor += 1;
+                },
+                (None, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::UnterminatedStringLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.token_start + quote_count,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+            },
+            LexState::String { binary, raw: false, quote_count } => match (
+                self.input_buffer.get(self.cursor),
+                self.input_buffer.get(self.cursor + 1),
+                self.input_buffer.get(self.cursor + 2),
+                self.input_buffer.get(self.cursor + 3),
+            ) {
+                // valid escape
+                (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), _, _) => {
+                    let byte = match *y {
+                        b'\'' | b'"' | b'\\' => *y,
+                        b'n' => b'\n',
+                        b'r' => b'\r',
+                        b't' => b'\t',
+                        b'0' => b'\0',
+                        _ => unreachable!(),
+                    };
+                    self.buffer1.push(byte);
+                    self.cursor += 2;
+                },
+                // ascii escape
+                (Some(b'\\'), Some(b'x'), Some(z @ b'0'..=b'7'), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
+                // TODO: unicode escape
+                // invalid escape
+                (Some(b'\\'), Some(y), _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidEscape,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + 1 + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (Some(b'"'), _, _, _) if quote_count == 1 => todo!(),
+                (Some(b'"'), Some(b'"'), Some(b'"'), _) if quote_count >= 3 => todo!(),
+                (Some(x), _, _, _) => {
+                    self.buffer1.push(*x);
+                    self.cursor += 1;
+                },
+                (None, _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::UnterminatedStringLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.token_start + quote_count,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+            },
+            LexState::FormattedString { raw, quote_count } => todo!(),
             // NOTE: empty char literals are already filtered out!
             // NOTE: the cursor is pointing at the first byte of the content (not the quote)
             LexState::Char { binary } => match (
@@ -623,20 +743,119 @@ impl LexSession {
                 self.input_buffer.get(self.cursor + 4),
             ) {
                 // valid escape
-                (Some(b'\\'), Some(b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0'), Some(b'\''), _, _) => {},
+                (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), Some(b'\''), _, _) => {
+                    let ch = match *y {
+                        b'\'' => '\'',
+                        b'"' => '"',
+                        b'\\' => '\\',
+                        b'n' => '\n',
+                        b'r' => '\r',
+                        b't' => '\t',
+                        b'0' => '\0',
+                        _ => unreachable!(),
+                    };
+                    self.tokens.push(Token {
+                        kind: TokenKind::Char { binary, ch },
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + 3 + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                    self.cursor += 3;
+                },
                 // ascii escape
-                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'7')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), _) => {},
+                (Some(b'\\'), Some(b'x'), Some(z @ b'0'..=b'7'), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(b'\'')) => todo!(),
+                // TODO: unicode escape
                 // invalid escape
-                (Some(b'\\'), Some(y), _, _, _) => {},
+                (Some(b'\\'), Some(y), _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidEscape,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + 1 + self.offset,
+                            self.cursor + 2 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
                 // invalid char
-                (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {},
+                (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidCharLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
                 // valid char (utf-8)
-                (Some(0..=127), Some(b'\''), _, _, _) => {},
-                (Some(192..=223), Some(128..=191), Some(b'\''), _, _) => {},
-                (Some(224..=239), Some(128..=191), Some(128..=191), Some(b'\''), _) => {},
-                (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => {},
-                (Some(_), _, _, _, _) => {},
-                (None, _, _, _, _) => {},
+                (Some(x @ 0..=127), Some(b'\''), _, _, _) => match char::from_u32(*x as u32) {
+                    Some(ch) => {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Char { binary, ch },
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor + 2 + self.offset,
+                            ),
+                        });
+                        self.state = LexState::Init;
+                        self.cursor += 2;
+                    },
+                    None => {
+                        self.errors.push(Error {
+                            kind: ErrorKind::InvalidUtf8,
+                            span: Span::range(
+                                self.file,
+                                self.cursor + self.offset,
+                                self.cursor + 1 + self.offset,
+                            ),
+                        });
+                        self.halt_with_error = true;
+                    },
+                },
+                (Some(192..=223), Some(128..=191), Some(b'\''), _, _) => todo!(),
+                (Some(224..=239), Some(128..=191), Some(128..=191), Some(b'\''), _) => todo!(),
+                (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => todo!(),
+                // invalid utf-8
+                (Some(128..), _, _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidUtf8,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                // etc error (probably multi-character literal)
+                (Some(_), _, _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidCharLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.token_start + 1,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
+                (None, _, _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::UnterminatedCharLiteral,
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.token_start + 1,
+                        ),
+                    });
+                    self.halt_with_error = true;
+                },
             },
             LexState::Identifier => match self.input_buffer.get(self.cursor) {
                 Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
@@ -927,15 +1146,23 @@ impl LexSession {
     fn intern_string(&mut self) -> InternedString {
         let ins = intern_string(&self.buffer1);
 
-        if let Entry::Vacant(e) = self.string_map.entry(ins) {
-            e.insert(self.buffer1.to_vec());
+        if !ins.is_short_string() {
+            if let Entry::Vacant(e) = self.string_map.entry(ins) {
+                e.insert(self.buffer1.to_vec());
+            }
         }
 
         ins
     }
 
-    fn unintern_string(&self, s: InternedString) -> Option<&Vec<u8>> {
-        self.string_map.get(&s)
+    fn unintern_string(&self, s: InternedString) -> Option<Vec<u8>> {
+        if let Some(s) = s.try_unintern_short_string() {
+            Some(s)
+        }
+
+        else {
+            self.string_map.get(&s).map(|s| s.to_vec())
+        }
     }
 }
 

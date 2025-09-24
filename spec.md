@@ -19,29 +19,22 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
 
 ## Literals
 
-### String/Char literals
+### String literals
 
-- Normal Strings
-  - Double quote, no prefixes.
-  - It's supposed to be the same as rust's string literals.
-- Normal Chars
-  - Single quote, no prefixes.
-  - It's supposed to be the same as rust's char literals.
-- Binary Strings
-  - Double quote, prefix `b`.
-- Binary Chars
-  - Single quote, prefix `b`.
-- Formatted Strings
-  - Double quote, prefix `f`.
-- Raw Strings
-  - It starts with an odd number (N >= 3) of double quotes, and ends with the same number of double quotes.
-  - There's no escape characters in the literal, backslashes and double quotes are treated like other characters.
-- Regex Strings
-  - Double quote, prefix `r`.
-  - If a backslash character is not followed by `\` or `"`, it's treated like other characters.
+A string literal starts with N (odd number) double-quotes, and ends with the same number of double-quotes.
+
+- Binary Strings: prefix `b`.
+- Formatted Strings: prefix `f`.
+- Raw Strings: prefix `r`.
+  - All the escapes are ignored.
   - If it's an expression, it's just a string. If it's a pattern, it's treated specially.
     - You can bind the matched regex. The bound value is a tuple of `Option(String)`.
     - For example, value `m` in pattern `m @ r"(\d+)x(\d+)"` has type `(Option(String), Option(String), Option(String))`: 1 for the entire match and 2 for the groups.
 - Mixes
-  - You can create a prefixed raw string by using prefix + multiple quotes.
   - You can use multiple prefixes at once (only `br`, `rb`, `fr`, `rf`).
+
+### Char literals
+
+A char literal starts with a single-quote character and ends with a single-quote character
+
+- Binary Chars: prefix `b`
