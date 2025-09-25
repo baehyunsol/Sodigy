@@ -1,5 +1,4 @@
 let x = 3;
 let y = 4;
-func add(x, y, z) = x + y + z;
 
-add(x, x, y)
+func add(x, y, z) = x + y + z;

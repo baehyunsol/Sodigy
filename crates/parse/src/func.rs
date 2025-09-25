@@ -7,22 +7,29 @@ use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    name: InternedString,
-    name_span: Span,
-    args: Vec<Arg>,
-    r#type: Option<Expr>,
-    value: Expr,
+    pub name: InternedString,
+    pub name_span: Span,
+    pub args: Vec<FuncArgDef>,
+    pub r#type: Option<Expr>,
+    pub value: Expr,
     pub doc_comment: Option<DocComment>,
     pub decorators: Vec<Decorator>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Arg {
-    name: InternedString,
-    name_span: Span,
-    r#type: Option<Expr>,
+pub struct FuncArgDef {
+    pub name: InternedString,
+    pub name_span: Span,
+    pub r#type: Option<Expr>,
+    pub default_value: Option<Expr>,
     pub doc_comment: Option<DocComment>,
     pub decorators: Vec<Decorator>,
+}
+
+#[derive(Clone, Debug)]
+pub struct CallArg {
+    pub keyword: Option<(InternedString, Span)>,
+    pub arg: Expr,
 }
 
 impl<'t> Tokens<'t> {
@@ -48,8 +55,9 @@ impl<'t> Tokens<'t> {
             _ => None,
         };
 
-        self.match_and_pop(TokenKind::Punct(Punct::Eq))?;
+        self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
         let value = self.parse_expr()?;
+        self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Func {
             name,
@@ -64,7 +72,7 @@ impl<'t> Tokens<'t> {
         })
     }
 
-    pub fn parse_func_arg_defs(&mut self) -> Result<Vec<Arg>, Vec<Error>> {
+    pub fn parse_func_arg_defs(&mut self) -> Result<Vec<FuncArgDef>, Vec<Error>> {
         let mut args = vec![];
 
         if self.peek().is_none() {
@@ -75,8 +83,9 @@ impl<'t> Tokens<'t> {
             let (doc_comment, decorators) = self.collect_doc_comment_and_decorators()?;
             let (name, name_span) = self.pop_name_and_span()?;
             let mut r#type = None;
+            let mut default_value = None;
 
-            'colon_or_comma: loop {
+            'colon_or_value_or_comma: loop {
                 match self.peek() {
                     Some(Token { kind: TokenKind::Punct(Punct::Colon), span }) => {
                         if r#type.is_some() {
@@ -91,13 +100,29 @@ impl<'t> Tokens<'t> {
 
                         self.cursor += 1;
                         r#type = Some(self.parse_expr()?);
-                        continue 'colon_or_comma;
+                        continue 'colon_or_value_or_comma;
+                    },
+                    Some(Token { kind: TokenKind::Punct(Punct::Assign), span }) => {
+                        if default_value.is_some() {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Punct(Punct::Comma),
+                                    got: ErrorToken::Punct(Punct::Assign),
+                                },
+                                span: *span,
+                            }]);
+                        }
+
+                        self.cursor += 1;
+                        default_value = Some(self.parse_expr()?);
+                        continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {
-                        args.push(Arg {
+                        args.push(FuncArgDef {
                             name,
                             name_span,
                             r#type,
+                            default_value,
                             doc_comment,
                             decorators,
                         });
@@ -126,5 +151,47 @@ impl<'t> Tokens<'t> {
         }
 
         Ok(args)
+    }
+
+    // (3, 4, x = 4, y = 5)
+    pub fn parse_call_args(&mut self) -> Result<Vec<CallArg>, Vec<Error>> {
+        let mut call_args = vec![];
+
+        if self.is_empty() {
+            return Ok(call_args);
+        }
+
+        loop {
+            let keyword = match self.peek2() {
+                (
+                    Some(Token { kind: TokenKind::Identifier(id), span }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
+                ) => Some((*id, *span)),
+                _ => None,
+            };
+            let arg = self.parse_expr()?;
+            call_args.push(CallArg { keyword, arg });
+
+            match self.peek2() {
+                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), Some(_)) => {
+                    self.cursor += 1;
+                },
+                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) => {
+                    return Ok(call_args);
+                },
+                (Some(t), _) => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::Punct(Punct::Comma),
+                            got: (&t.kind).into(),
+                        },
+                        span: t.span,
+                    }]);
+                },
+                (None, _) => {
+                    return Ok(call_args);
+                },
+            }
+        }
     }
 }

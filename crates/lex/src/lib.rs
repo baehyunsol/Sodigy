@@ -4,7 +4,7 @@ use sodigy_keyword::Keyword;
 use sodigy_number::{Base, InternedNumber, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Delim, ErrorToken, Token, TokenKind};
+use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct LexSession {
@@ -219,13 +219,13 @@ impl LexSession {
                     });
                     self.cursor += 1;
                 },
-                (Some(b'\\'), Some(b'{'), _) => {
+                (Some(b'\\'), Some(b'('), _) => {
                     let opening_span = Span::range(
                         self.file,
                         self.cursor + self.offset,
                         self.cursor + 2 + self.offset,
                     );
-                    self.group_stack.push((b'}', opening_span));
+                    self.group_stack.push((b')', opening_span));
                     self.tokens.push(Token {
                         kind: TokenKind::GroupDelim {
                             delim: Some(Delim::Lambda),
@@ -275,33 +275,52 @@ impl LexSession {
                         self.halt_with_error = true;
                     },
                 },
-                (Some(x @ (b'!' | b'<' | b'=' | b'>')), Some(y @ (b'<' | b'=' | b'>')), _) => match (x, y) {
-                    (b'!', b'=') => todo!(),
-                    (b'<', b'<') => todo!(),
-                    (b'<', b'=') => todo!(),
-                    (b'=', b'=') => todo!(),
-                    (b'>', b'=') => todo!(),
-                    (b'>', b'>') => todo!(),
-                    _ => {
-                        // It'd be 99.9% parse error, but lexer doesn't care about that.
-                        self.tokens.push(Token {
-                            kind: TokenKind::Punct((*x).into()),
-                            span: Span::range(
-                                self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
-                            ),
-                        });
-                        self.tokens.push(Token {
-                            kind: TokenKind::Punct((*y).into()),
-                            span: Span::range(
-                                self.file,
-                                self.cursor + 1 + self.offset,
-                                self.cursor + 2 + self.offset,
-                            ),
-                        });
-                        self.cursor += 2;
-                    },
+                (Some(x @ (b'!' | b'.' | b'<' | b'=' | b'>')), Some(y @ (b'.' | b'<' | b'=' | b'>')), _) => {
+                    let punct = match (x, y) {
+                        (b'!', b'=') => Some(Punct::Neq),
+                        (b'.', b'.') => Some(Punct::DotDot),
+                        (b'<', b'<') => Some(Punct::Shl),
+                        (b'<', b'=') => Some(Punct::Leq),
+                        (b'=', b'=') => Some(Punct::Eq),
+                        (b'=', b'>') => Some(Punct::Arrow),
+                        (b'>', b'=') => Some(Punct::Geq),
+                        (b'>', b'>') => Some(Punct::Shr),
+                        _ => None,
+                    };
+
+                    match punct {
+                        Some(p) => {
+                            self.tokens.push(Token {
+                                kind: TokenKind::Punct(p),
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor + self.offset,
+                                    self.cursor + 2 + self.offset,
+                                ),
+                            });
+                            self.cursor += 2;
+                        },
+                        None => {
+                            // It'd be 99.9% parse error, but lexer doesn't care about that.
+                            self.tokens.push(Token {
+                                kind: TokenKind::Punct((*x).into()),
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor + self.offset,
+                                    self.cursor + 1 + self.offset,
+                                ),
+                            });
+                            self.tokens.push(Token {
+                                kind: TokenKind::Punct((*y).into()),
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor + 1 + self.offset,
+                                    self.cursor + 2 + self.offset,
+                                ),
+                            });
+                            self.cursor += 2;
+                        },
+                    }
                 },
                 (Some(x @ (
                     b'!' | b'#' | b'$' | b'%' | b'&' |
@@ -700,7 +719,7 @@ impl LexSession {
                     self.cursor += 2;
                 },
                 // ascii escape
-                (Some(b'\\'), Some(b'x'), Some(z @ b'0'..=b'7'), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
+                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
                 // TODO: unicode escape
                 // invalid escape
                 (Some(b'\\'), Some(y), _, _) => {
@@ -714,11 +733,57 @@ impl LexSession {
                     });
                     self.halt_with_error = true;
                 },
-                (Some(b'"'), _, _, _) if quote_count == 1 => todo!(),
+                (Some(b'"'), _, _, _) if quote_count == 1 => {
+                    let interned = self.intern_string();
+                    self.tokens.push(Token {
+                        kind: TokenKind::String {
+                            binary,
+                            raw: false,
+                            s: interned,
+                        },
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                    self.cursor += 1;
+                },
                 (Some(b'"'), Some(b'"'), Some(b'"'), _) if quote_count >= 3 => todo!(),
-                (Some(x), _, _, _) => {
+                // valid char (utf-8)
+                (Some(x @ 0..=127), _, _, _) => {
                     self.buffer1.push(*x);
                     self.cursor += 1;
+                },
+                (Some(x @ 192..=223), Some(y @ 128..=191), _, _) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.cursor += 2;
+                },
+                (Some(x @ 224..=239), Some(y @ 128..=191), Some(z @ 128..=191), _) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.buffer1.push(*z);
+                    self.cursor += 3;
+                },
+                (Some(x @ 240..=247), Some(y @ 128..=191), Some(z @ 128..=191), Some(w @ 128..=191)) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.buffer1.push(*z);
+                    self.buffer1.push(*w);
+                    self.cursor += 4;
+                },
+                (Some(_), _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidUtf8,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.halt_with_error = true;
                 },
                 (None, _, _, _) => {
                     self.errors.push(Error {
@@ -766,10 +831,10 @@ impl LexSession {
                     self.cursor += 3;
                 },
                 // ascii escape
-                (Some(b'\\'), Some(b'x'), Some(z @ b'0'..=b'7'), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(b'\'')) => todo!(),
+                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(b'\'')) => todo!(),
                 // TODO: unicode escape
                 // invalid escape
-                (Some(b'\\'), Some(y), _, _, _) => {
+                (Some(b'\\'), Some(_), _, _, _) => {
                     self.errors.push(Error {
                         kind: ErrorKind::InvalidEscape,
                         span: Span::range(
@@ -864,12 +929,14 @@ impl LexSession {
                 },
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
+                        b"let" => TokenKind::Keyword(Keyword::Let),
+                        b"func" => TokenKind::Keyword(Keyword::Func),
+                        b"struct" => TokenKind::Keyword(Keyword::Struct),
+                        b"enum" => TokenKind::Keyword(Keyword::Enum),
                         b"if" => TokenKind::Keyword(Keyword::If),
                         b"else" => TokenKind::Keyword(Keyword::Else),
-                        b"let" => TokenKind::Keyword(Keyword::Let),
                         b"pat" => TokenKind::Keyword(Keyword::Pat),
                         b"match" => TokenKind::Keyword(Keyword::Match),
-                        b"func" => TokenKind::Keyword(Keyword::Func),
                         _ => {
                             let interned = self.intern_string();
                             TokenKind::Identifier(interned)

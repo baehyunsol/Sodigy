@@ -9,17 +9,17 @@ use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct If {
     // If it's `if pat`, `if_span` is a merged span of `if` and `pat`.
-    if_span: Span,
+    pub if_span: Span,
 
-    cond: Box<Expr>,
-    pattern: Option<Pattern>,  // `if pat Some((x, _)) = foo() { x + 1 }`
+    pub cond: Box<Expr>,
+    pub pattern: Option<Pattern>,  // `if pat Some((x, _)) = foo() { x + 1 }`
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.
-    else_span: Span,
+    pub else_span: Span,
 
-    true_value: Box<Expr>,
-    false_value: Box<Expr>,
+    pub true_value: Box<Expr>,
+    pub false_value: Box<Expr>,
 }
 
 impl<'t> Tokens<'t> {
@@ -35,7 +35,7 @@ impl<'t> Tokens<'t> {
                 let span = span1.merge(*span2);
                 self.cursor += 2;
                 pattern = Some(self.parse_pattern()?);
-                self.match_and_pop(TokenKind::Punct(Punct::Eq))?;
+                self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
                 (span, self.parse_expr()?)
             },
             // if COND
@@ -70,7 +70,7 @@ impl<'t> Tokens<'t> {
             span: true_value_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
         let mut true_value_tokens = Tokens::new(true_value_tokens, true_value_span.end());
-        let true_value = Box::new(Expr::Block(true_value_tokens.parse_block()?));
+        let true_value = Box::new(Expr::Block(true_value_tokens.parse_block(false /* top-level */)?));
 
         let (else_span, false_value) = match self.peek2() {
             (
@@ -87,12 +87,12 @@ impl<'t> Tokens<'t> {
             ) => {
                 let span1 = *span1;
                 let mut false_value_tokens = Tokens::new(false_value_tokens, span2.end());
-                let false_value = Expr::Block(false_value_tokens.parse_block()?);
+                let false_value = Expr::Block(false_value_tokens.parse_block(false /* top-level */)?);
                 self.cursor += 2;
                 (span1, Box::new(false_value))
             },
             (
-                Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Else), .. }),
                 Some(t2),
             ) => {
                 return Err(vec![Error {
@@ -104,7 +104,7 @@ impl<'t> Tokens<'t> {
                 }]);
             },
             (
-                Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Else), .. }),
                 None,
             ) => {
                 return Err(vec![self.unexpected_end(ErrorToken::Block)]);

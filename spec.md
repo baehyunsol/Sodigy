@@ -17,6 +17,11 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
 2. `let pat ($x, $y) = foo();`
 3. `if pat (0..3, _) = foo() { 1 } else { 0 }`
 
+## Lambda Functions
+
+- `\(a, b) => a + b`
+- `\(a: Int, b: Int): Int => a + b`
+
 ## Literals
 
 ### String literals
@@ -27,7 +32,7 @@ A string literal starts with N (odd number) double-quotes, and ends with the sam
 - Formatted Strings: prefix `f`.
 - Raw Strings: prefix `r`.
   - All the escapes are ignored.
-  - If it's an expression, it's just a string. If it's a pattern, it's treated specially.
+  - If it's an expression, it's just a string. If it's a pattern, it's treated as a regex pattern.
     - You can bind the matched regex. The bound value is a tuple of `Option(String)`.
     - For example, value `m` in pattern `m @ r"(\d+)x(\d+)"` has type `(Option(String), Option(String), Option(String))`: 1 for the entire match and 2 for the groups.
 - Mixes

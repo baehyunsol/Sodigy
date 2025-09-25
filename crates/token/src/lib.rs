@@ -3,9 +3,15 @@ use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
+mod delim;
 mod error;
+mod op;
+mod punct;
 
+pub use delim::Delim;
 pub use error::ErrorToken;
+pub use op::{InfixOp, PostfixOp, PrefixOp};
+pub use punct::Punct;
 
 #[derive(Clone, Debug)]
 pub struct Token {
@@ -66,50 +72,6 @@ impl TokenKind {
             (TokenKind::Group { delim: a, .. }, TokenKind::Group { delim: b, .. }) => a == b,
             (TokenKind::Group { .. }, _) => false,
             _ => todo!(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Delim {
-    Parenthesis,
-    Bracket,
-    Brace,
-    Lambda,  // \{}
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Punct {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Rem,
-    Colon,
-    Semicolon,
-    Lt,
-    Eq,
-    Gt,
-    Comma,
-    Dot,
-}
-
-impl From<u8> for Punct {
-    fn from(b: u8) -> Punct {
-        match b {
-            b'%' => Punct::Rem,
-            b'*' => Punct::Mul,
-            b'+' => Punct::Add,
-            b',' => Punct::Comma,
-            b'-' => Punct::Sub,
-            b'/' => Punct::Div,
-            b':' => Punct::Colon,
-            b';' => Punct::Semicolon,
-            b'<' => Punct::Lt,
-            b'=' => Punct::Eq,
-            b'>' => Punct::Gt,
-            b'.' => Punct::Dot,
-            _ => panic!("TODO: {:?}", b as char),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Expr, Tokens};
+use crate::{CallArg, Expr, Tokens};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -6,8 +6,8 @@ use sodigy_token::{Delim, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct DocComment {
-    content: InternedString,
-    span: Span,
+    pub content: InternedString,
+    pub span: Span,
 }
 
 impl DocComment {
@@ -18,15 +18,15 @@ impl DocComment {
 
 #[derive(Clone, Debug)]
 pub struct Decorator {
-    name: InternedString,
-    name_span: Span,
+    pub name: InternedString,
+    pub name_span: Span,
 
     // `@public` and `@public()` are different!
-    args: Option<Vec<Expr>>,
+    pub args: Option<Vec<CallArg>>,
 }
 
 impl Decorator {
-    pub fn new_with_args(name: InternedString, name_span: Span, args: Vec<Expr>) -> Self {
+    pub fn new_with_args(name: InternedString, name_span: Span, args: Vec<CallArg>) -> Self {
         Decorator {
             name,
             name_span,
@@ -62,7 +62,7 @@ impl<'t> Tokens<'t> {
                 ) => {
                     let mut tokens = Tokens::new(tokens, span2.end());
 
-                    match tokens.parse_comma_separated_expr(true /* consume all */) {
+                    match tokens.parse_call_args() {
                         Ok(args) => {
                             decorator_buffer.push(Decorator::new_with_args(*dec, *span1, args));
                         },

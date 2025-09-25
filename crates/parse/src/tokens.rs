@@ -9,7 +9,7 @@ pub struct Tokens<'t> {
 
     // It's used by `Tokens::unexpected_end`.
     // It can be Span::Eof or the span of the closing delimitor of the group.
-    span_end: Span,
+    pub(crate) span_end: Span,
 }
 
 impl<'t> Tokens<'t> {
@@ -90,5 +90,15 @@ impl<'t> Tokens<'t> {
             self.tokens.get(self.cursor),
             self.tokens.get(self.cursor + 1),
         )
+    }
+
+    /// It doesn't care about the cursor!
+    pub fn last(&self) -> Option<&Token> {
+        self.tokens.last()
+    }
+
+    /// It doesn't care about the cursor!
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
     }
 }

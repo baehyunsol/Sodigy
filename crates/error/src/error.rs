@@ -36,4 +36,9 @@ pub enum ErrorKind {
         expected: ErrorToken,
     },
     DocCommentForNothing,
+    BlockWithoutValue,
+    StructWithoutField,
+    EmptyCurlyBraceBlock,
+    PositionalArgAfterKeywordArg,
+    NonDefaultValueAfterDefaultValue,
 }
