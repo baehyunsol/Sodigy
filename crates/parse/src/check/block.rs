@@ -1,21 +1,56 @@
 use crate::Block;
-use sodigy_error::Error;
+use sodigy_error::{Error, ErrorKind};
+use sodigy_span::Span;
+use sodigy_string::InternedString;
+use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
     // TODO: sort the errors by span
-    // TODO: name collision checks
     pub fn check(&self) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
+        let mut span_by_name: HashMap<InternedString, Span> = HashMap::new();
 
         for r#let in self.lets.iter() {
             if let Err(e) = r#let.check() {
                 errors.extend(e);
             }
+
+            match span_by_name.entry(r#let.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: r#let.name,
+                        },
+                        span: r#let.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(r#let.name_span);
+                },
+            }
         }
 
-        for r#func in self.funcs.iter() {
-            if let Err(e) = r#func.check() {
+        for func in self.funcs.iter() {
+            if let Err(e) = func.check() {
                 errors.extend(e);
+            }
+
+            match span_by_name.entry(func.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: func.name,
+                        },
+                        span: func.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(func.name_span);
+                },
             }
         }
 
@@ -23,11 +58,43 @@ impl Block {
             if let Err(e) = r#struct.check() {
                 errors.extend(e);
             }
+
+            match span_by_name.entry(r#struct.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: r#struct.name,
+                        },
+                        span: r#struct.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(r#struct.name_span);
+                },
+            }
         }
 
         for r#enum in self.enums.iter() {
             if let Err(e) = r#enum.check() {
                 errors.extend(e);
+            }
+
+            match span_by_name.entry(r#enum.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: r#enum.name,
+                        },
+                        span: r#enum.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(r#enum.name_span);
+                },
             }
         }
 

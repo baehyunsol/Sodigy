@@ -152,6 +152,7 @@ impl LexSession {
                             self.cursor + 1 + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -261,6 +262,7 @@ impl LexSession {
                                 self.cursor + self.offset,
                                 self.cursor + 1 + self.offset,
                             ),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     },
@@ -271,6 +273,7 @@ impl LexSession {
                                 got: ErrorToken::Character(*x),
                             },
                             span: Span::eof(self.file),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     },
@@ -344,6 +347,7 @@ impl LexSession {
                         self.errors.push(Error {
                             kind: ErrorKind::UnclosedDelimiter(delim),
                             span: span,
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     }
@@ -373,6 +377,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -389,6 +394,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -420,6 +426,7 @@ impl LexSession {
                     self.errors.push(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix,
                         span: error_span,
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -442,6 +449,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -469,6 +477,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 1 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -491,6 +500,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -506,6 +516,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 1 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -530,6 +541,7 @@ impl LexSession {
                                 self.cursor + self.offset,
                                 self.cursor + 1 + self.offset,
                             ),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                         return;
@@ -566,6 +578,7 @@ impl LexSession {
                                     self.cursor + self.offset,
                                     self.cursor + quote_count + self.offset,
                                 ),
+                                ..Error::default()
                             });
                             self.halt_with_error = true;
                         },
@@ -620,6 +633,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -695,6 +709,7 @@ impl LexSession {
                             self.token_start,
                             self.token_start + quote_count,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -730,6 +745,7 @@ impl LexSession {
                             self.cursor + 1 + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -782,6 +798,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 1 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -793,6 +810,7 @@ impl LexSession {
                             self.token_start,
                             self.token_start + quote_count,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -842,6 +860,7 @@ impl LexSession {
                             self.cursor + 1 + self.offset,
                             self.cursor + 2 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -854,6 +873,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 1 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -879,6 +899,7 @@ impl LexSession {
                                 self.cursor + self.offset,
                                 self.cursor + 1 + self.offset,
                             ),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     },
@@ -895,6 +916,7 @@ impl LexSession {
                             self.cursor + self.offset,
                             self.cursor + 1 + self.offset,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -907,6 +929,7 @@ impl LexSession {
                             self.token_start,
                             self.token_start + 1,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -918,6 +941,7 @@ impl LexSession {
                             self.token_start,
                             self.token_start + 1,
                         ),
+                        ..Error::default()
                     });
                     self.halt_with_error = true;
                 },
@@ -1002,6 +1026,7 @@ impl LexSession {
                                 self.cursor + self.offset,
                                 self.cursor + 1 + self.offset,
                             ),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     }
@@ -1026,6 +1051,7 @@ impl LexSession {
                                 self.cursor + self.offset,
                                 self.cursor + 1 + self.offset,
                             ),
+                            ..Error::default()
                         });
                         self.halt_with_error = true;
                     },
@@ -1105,6 +1131,7 @@ impl LexSession {
                             expected: ErrorToken::Declaration,
                         },
                         span: Span::eof(self.file),
+                        ..Error::default()
                     });
                 },
             },
@@ -1126,6 +1153,7 @@ impl LexSession {
                             self.token_start,
                             self.token_start + 2,
                         ),
+                        ..Error::default()
                     });
                 },
             },

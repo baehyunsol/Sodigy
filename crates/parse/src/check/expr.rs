@@ -1,6 +1,6 @@
 use super::check_call_args;
-use crate::{CallArg, Expr};
-use sodigy_error::{Error, ErrorKind};
+use crate::Expr;
+use sodigy_error::Error;
 
 impl Expr {
     pub fn check(&self) -> Result<(), Vec<Error>> {
@@ -29,7 +29,47 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::InfixOp { lhs, rhs, .. } => {
+            Expr::StructInit {
+                r#struct,
+                fields,
+            } => {
+                let mut errors = vec![];
+
+                if let Err(e) = r#struct.check() {
+                    errors.extend(e);
+                }
+
+                for field in fields.iter() {
+                    if let Err(e) = field.value.check() {
+                        errors.extend(e);
+                    }
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Expr::Path { lhs, .. } => {
+                let mut errors = vec![];
+
+                if let Err(e) = lhs.check() {
+                    errors.extend(e);
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Expr::InfixOp { lhs, rhs, .. } |
+            Expr::FieldModifier { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
                 if let Err(e) = lhs.check() {

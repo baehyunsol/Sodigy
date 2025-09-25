@@ -127,6 +127,7 @@ impl<'t> Tokens<'t> {
                                 got: t.into(),
                             },
                             span: self.peek().unwrap().span,
+                            ..Error::default()
                         });
                         return Err(errors);
                     }
@@ -157,6 +158,7 @@ impl<'t> Tokens<'t> {
             errors.push(Error {
                 kind: ErrorKind::BlockWithoutValue,
                 span: self.span_end,
+                ..Error::default()
             });
         }
 

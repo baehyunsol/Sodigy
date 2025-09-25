@@ -27,7 +27,7 @@ pub(crate) use tokens::Tokens;
 
 pub fn parse(tokens: &[Token]) -> Result<Block, Vec<Error>> {
     let mut tokens = Tokens::new(tokens, tokens.last().map(|t| t.span.end()).unwrap_or(Span::None));
-    let mut block = tokens.parse_block(true /* top-level */)?;
+    let block = tokens.parse_block(true /* top-level */)?;
 
     block.check()?;
     Ok(block)

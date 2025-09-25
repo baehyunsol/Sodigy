@@ -54,6 +54,7 @@ impl<'t> Tokens<'t> {
                         got: (&t1.kind).into(),
                     },
                     span: t1.span,
+                    ..Error::default()
                 }]);
             },
             (None, _) => {
@@ -101,6 +102,7 @@ impl<'t> Tokens<'t> {
                         got: (&t2.kind).into(),
                     },
                     span: t2.span,
+                    ..Error::default()
                 }]);
             },
             (
@@ -116,6 +118,7 @@ impl<'t> Tokens<'t> {
                         got: (&t1.kind).into(),
                     },
                     span: t1.span,
+                    ..Error::default()
                 }]);
             },
             (None, _) => {

@@ -95,6 +95,7 @@ impl<'t> Tokens<'t> {
                                     got: ErrorToken::Punct(Punct::Colon),
                                 },
                                 span: *span,
+                                ..Error::default()
                             }]);
                         }
 
@@ -110,6 +111,7 @@ impl<'t> Tokens<'t> {
                                     got: ErrorToken::Punct(Punct::Assign),
                                 },
                                 span: *span,
+                                ..Error::default()
                             }]);
                         }
 
@@ -144,6 +146,7 @@ impl<'t> Tokens<'t> {
                                 got: (&t.kind).into(),
                             },
                             span: t.span,
+                            ..Error::default()
                         }]);
                     },
                 }
@@ -186,6 +189,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         span: t.span,
+                        ..Error::default()
                     }]);
                 },
                 (None, _) => {

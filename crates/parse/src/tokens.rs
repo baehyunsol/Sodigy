@@ -38,6 +38,7 @@ impl<'t> Tokens<'t> {
                         got: (&t.kind).into(),
                     },
                     span: t.span,
+                    ..Error::default()
                 }]);
             },
             None => {
@@ -59,6 +60,7 @@ impl<'t> Tokens<'t> {
                     got: (&t.kind).into(),
                 },
                 span: t.span,
+                ..Error::default()
             }]),
             None => Err(vec![self.unexpected_end(ErrorToken::Identifier)]),
         }
@@ -71,12 +73,14 @@ impl<'t> Tokens<'t> {
                     expected: expected_token,
                 },
                 span: self.span_end,
+                ..Error::default()
             },
             Span::Range { .. } => Error {
                 kind: ErrorKind::UnexpectedEog {
                     expected: expected_token,
                 },
                 span: self.span_end,
+                ..Error::default()
             },
         }
     }

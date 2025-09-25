@@ -1,4 +1,4 @@
-use crate::{CallArg, Expr, Tokens};
+use crate::{CallArg, Tokens};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -94,6 +94,7 @@ impl<'t> Tokens<'t> {
                     errors.push(Error {
                         kind: ErrorKind::DocCommentForNothing,
                         span: doc_comment_buffer[0].span,
+                        ..Error::default()
                     });
                     return Err(errors);
                 },

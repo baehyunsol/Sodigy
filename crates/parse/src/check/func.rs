@@ -19,6 +19,7 @@ impl Func {
                 errors.push(Error {
                     kind: ErrorKind::NonDefaultValueAfterDefaultValue,
                     span: arg.name_span,
+                    ..Error::default()
                 });
             }
 

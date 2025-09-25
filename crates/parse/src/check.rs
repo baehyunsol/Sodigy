@@ -1,6 +1,9 @@
 use crate::CallArg;
 use sodigy_error::{Error, ErrorKind};
 
+// If new names are defined (e.g. function arg defs, struct field defs), it checks name collisions.
+// If defined names are used (e.g. calling a function with keyword args, initializing a struct), it doesn't check name collisions.
+
 mod block;
 mod deco;
 mod r#enum;
@@ -21,6 +24,7 @@ pub(crate) fn check_call_args(args: &[CallArg]) -> Result<(), Vec<Error>> {
             errors.push(Error {
                 kind: ErrorKind::PositionalArgAfterKeywordArg,
                 span: arg.arg.error_span(),
+                ..Error::default()
             });
         }
 

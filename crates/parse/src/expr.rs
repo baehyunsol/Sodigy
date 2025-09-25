@@ -146,6 +146,7 @@ impl<'t> Tokens<'t> {
                     }
                 },
                 Delim::Parenthesis => {
+                    let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
                     let exprs = tokens.parse_comma_separated_expr()?;
                     let mut is_tuple = exprs.len() != 1;
@@ -158,10 +159,12 @@ impl<'t> Tokens<'t> {
                         is_tuple = true;
                     }
 
+                    self.cursor += 1;
+
                     if is_tuple {
                         Expr::Tuple {
                             elements: exprs,
-                            group_span: *span,
+                            group_span: span,
                         }
                     }
 
@@ -376,6 +379,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         span: t.span,
+                        ..Error::default()
                     }]);
                 },
             }

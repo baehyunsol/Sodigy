@@ -16,6 +16,7 @@ impl Struct {
             errors.push(Error {
                 kind: ErrorKind::StructWithoutField,
                 span: self.name_span,
+                ..Error::default()
             });
         }
 
