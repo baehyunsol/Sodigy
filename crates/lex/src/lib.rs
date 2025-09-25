@@ -957,6 +957,8 @@ impl LexSession {
                         b"func" => TokenKind::Keyword(Keyword::Func),
                         b"struct" => TokenKind::Keyword(Keyword::Struct),
                         b"enum" => TokenKind::Keyword(Keyword::Enum),
+                        b"module" => TokenKind::Keyword(Keyword::Module),
+                        b"use" => TokenKind::Keyword(Keyword::Use),
                         b"if" => TokenKind::Keyword(Keyword::If),
                         b"else" => TokenKind::Keyword(Keyword::Else),
                         b"pat" => TokenKind::Keyword(Keyword::Pat),

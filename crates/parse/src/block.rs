@@ -1,4 +1,13 @@
-use crate::{Enum, Expr, Func, Let, Struct, Tokens};
+use crate::{
+    Enum,
+    Expr,
+    Func,
+    Let,
+    Module,
+    Struct,
+    Tokens,
+    Use,
+};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_token::{ErrorToken, TokenKind};
@@ -9,6 +18,8 @@ pub struct Block {
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
+    pub modules: Vec<Module>,
+    pub uses: Vec<Use>,
 
     // top-level block doesn't have a value
     pub value: Box<Option<Expr>>,
@@ -28,6 +39,8 @@ impl<'t> Tokens<'t> {
         let mut funcs = vec![];
         let mut structs = vec![];
         let mut enums = vec![];
+        let mut modules = vec![];
+        let mut uses = vec![];
         let mut value = None;
 
         loop {
@@ -118,7 +131,10 @@ impl<'t> Tokens<'t> {
                         else {
                             return Err(errors);
                         }
-                    },},
+                    },
+                },
+                Some(TokenKind::Keyword(Keyword::Module)) => todo!(),
+                Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
                 Some(t) => {
                     if top_level {
                         errors.push(Error {
@@ -168,6 +184,8 @@ impl<'t> Tokens<'t> {
                 funcs,
                 structs,
                 enums,
+                modules,
+                uses,
                 value: Box::new(value),
             })
         }

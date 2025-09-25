@@ -98,6 +98,50 @@ impl Block {
             }
         }
 
+        for module in self.modules.iter() {
+            if let Err(e) = module.check() {
+                errors.extend(e);
+            }
+
+            match span_by_name.entry(module.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: module.name,
+                        },
+                        span: module.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(module.name_span);
+                },
+            }
+        }
+
+        for r#use in self.uses.iter() {
+            if let Err(e) = r#use.check() {
+                errors.extend(e);
+            }
+
+            match span_by_name.entry(r#use.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: r#use.name,
+                        },
+                        span: r#use.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(r#use.name_span);
+                },
+            }
+        }
+
         if let Some(value) = self.value.as_ref() {
             if let Err(e) = value.check() {
                 errors.extend(e);

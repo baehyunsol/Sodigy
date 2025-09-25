@@ -47,7 +47,7 @@ impl Span {
     pub fn end(&self) -> Self {
         match self {
             Span::File(file) | Span::Eof(file) => Span::Eof(*file),
-            Span::Range { file, start, end } => Span::Range {
+            Span::Range { file, end, .. } => Span::Range {
                 file: *file,
                 start: (*end).max(1) - 1,
                 end: *end,

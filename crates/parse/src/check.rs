@@ -11,7 +11,9 @@ mod expr;
 mod func;
 mod r#if;
 mod r#let;
+mod module;
 mod r#struct;
+mod r#use;
 
 pub(crate) fn check_call_args(args: &[CallArg]) -> Result<(), Vec<Error>> {
     // Like Python, a positional argument cannot follow a keyword argument

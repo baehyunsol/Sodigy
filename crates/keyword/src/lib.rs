@@ -4,6 +4,8 @@ pub enum Keyword {
     Func,
     Struct,
     Enum,
+    Module,
+    Use,
     If,
     Else,
     Pat,
