@@ -5,10 +5,8 @@ impl Let {
     pub fn check(&self) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        for decorator in self.decorators.iter() {
-            if let Err(e) = decorator.check() {
-                errors.extend(e);
-            }
+        if let Err(e) = self.attribute.check() {
+            errors.extend(e);
         }
 
         if let Some(r#type) = &self.r#type {

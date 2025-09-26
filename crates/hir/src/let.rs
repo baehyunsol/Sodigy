@@ -3,7 +3,7 @@ use sodigy_parse as ast;
 
 #[derive(Clone, Debug)]
 pub struct Let {
-    value: Expr,
+    pub value: Expr,
 }
 
 impl Let {

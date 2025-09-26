@@ -1,4 +1,4 @@
-use crate::{Decorator, DocComment, Expr, FuncArgDef, Tokens};
+use crate::{Attribute, Expr, FuncArgDef, Tokens};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -11,8 +11,7 @@ pub struct Struct {
     pub name: InternedString,
     pub name_span: Span,
     pub fields: Vec<StructField>,
-    pub doc_comment: Option<DocComment>,
-    pub decorators: Vec<Decorator>,
+    pub attribute: Attribute,
 }
 
 pub type StructField = FuncArgDef;
@@ -46,10 +45,7 @@ impl<'t> Tokens<'t> {
             name,
             name_span,
             fields,
-
-            // Its parent will set these fields.
-            doc_comment: None,
-            decorators: vec![],
+            attribute: Attribute::new(),
         })
     }
 

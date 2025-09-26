@@ -5,6 +5,25 @@ use sodigy_string::InternedString;
 use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
+pub struct Attribute {
+    pub doc_comment: Option<DocComment>,
+    pub decorators: Vec<Decorator>,
+}
+
+impl Attribute {
+    pub fn new() -> Self {
+        Attribute {
+            doc_comment: None,
+            decorators: vec![],
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.doc_comment.is_none() && self.decorators.is_empty()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct DocComment {
     pub content: InternedString,
     pub span: Span,
@@ -18,7 +37,7 @@ impl DocComment {
 
 #[derive(Clone, Debug)]
 pub struct Decorator {
-    pub name: Vec<(InternedString, Span)>,
+    pub name: Vec<(InternedString, Span)>,  // dotted name, like `test.eq`
     pub name_span: Span,  // merged span of names
 
     // `@public` and `@public()` are different!
@@ -45,7 +64,7 @@ impl Decorator {
 
 impl<'t> Tokens<'t> {
     // If there are multiple doc comments, it throws an error.
-    pub fn collect_doc_comment_and_decorators(&mut self) -> Result<(Option<DocComment>, Vec<Decorator>), Vec<Error>> {
+    pub fn collect_attribute(&mut self) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];
         let mut doc_comment_buffer = vec![];
         let mut decorator_buffer = vec![];
@@ -113,7 +132,10 @@ impl<'t> Tokens<'t> {
                 },
             };
 
-            Ok((doc_comment, decorator_buffer))
+            Ok(Attribute {
+                doc_comment,
+                decorators: decorator_buffer,
+            })
         }
 
         else {

@@ -3,6 +3,32 @@ use sodigy_error::Error;
 
 impl If {
     pub fn check(&self) -> Result<(), Vec<Error>> {
-        todo!()
+        let mut errors = vec![];
+
+        if let Err(e) = self.cond.check() {
+            errors.extend(e);
+        }
+
+        if let Some(pattern) = &self.pattern {
+            if let Err(e) = pattern.check() {
+                errors.extend(e);
+            }
+        }
+
+        if let Err(e) = self.true_value.check() {
+            errors.extend(e);
+        }
+
+        if let Err(e) = self.false_value.check() {
+            errors.extend(e);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        }
+
+        else {
+            Err(errors)
+        }
     }
 }

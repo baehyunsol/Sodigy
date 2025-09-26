@@ -1,4 +1,5 @@
 use crate::{
+    Attribute,
     Enum,
     Expr,
     Func,
@@ -65,14 +66,14 @@ impl<'t> Tokens<'t> {
         let mut value = None;
 
         loop {
-            let (doc_comment, decorators) = match self.collect_doc_comment_and_decorators() {
-                Ok((doc_comment, decorators)) => (doc_comment, decorators),
+            let attribute = match self.collect_attribute() {
+                Ok(attribute) => attribute,
 
-                // Even though there's an error, the parser can still distinguish decorators and declarations.
+                // Even though there's an error, the parser can still find declarations.
                 // We'll continue parsing so that we can find more errors.
                 Err(e) => {
                     errors.extend(e);
-                    (None, vec![])
+                    Attribute::new()
                 },
             };
 
@@ -80,8 +81,7 @@ impl<'t> Tokens<'t> {
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Keyword(Keyword::Let)) => match self.parse_let() {
                     Ok(mut r#let) => {
-                        r#let.doc_comment = doc_comment;
-                        r#let.decorators = decorators;
+                        r#let.attribute = attribute;
                         lets.push(r#let);
                     },
                     Err(e) => {
@@ -98,8 +98,7 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Func)) => match self.parse_func() {
                     Ok(mut func) => {
-                        func.doc_comment = doc_comment;
-                        func.decorators = decorators;
+                        func.attribute = attribute;
                         funcs.push(func);
                     },
                     Err(e) => {
@@ -116,8 +115,7 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Struct)) => match self.parse_struct() {
                     Ok(mut r#struct) => {
-                        r#struct.doc_comment = doc_comment;
-                        r#struct.decorators = decorators;
+                        r#struct.attribute = attribute;
                         structs.push(r#struct);
                     },
                     Err(e) => {
@@ -134,8 +132,7 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Enum)) => match self.parse_enum() {
                     Ok(mut r#enum) => {
-                        r#enum.doc_comment = doc_comment;
-                        r#enum.decorators = decorators;
+                        r#enum.attribute = attribute;
                         enums.push(r#enum);
                     },
                     Err(e) => {
@@ -152,7 +149,7 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Module)) => match self.parse_module() {
                     Ok(module) => {
-                        if doc_comment.is_some() || !decorators.is_empty() {
+                        if !attribute.is_empty() {
                             // TODO: raise error
                             todo!()
                         }
@@ -185,7 +182,7 @@ impl<'t> Tokens<'t> {
                         return Err(errors);
                     }
 
-                    if doc_comment.is_some() || !decorators.is_empty() {
+                    if !attribute.is_empty() {
                         // TODO: raise error
                         todo!()
                     }

@@ -12,6 +12,7 @@ mod func;
 mod r#if;
 mod r#let;
 mod module;
+mod pattern;
 mod r#struct;
 mod r#use;
 

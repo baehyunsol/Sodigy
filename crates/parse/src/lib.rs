@@ -17,7 +17,7 @@ mod tokens;
 mod r#use;
 
 pub use block::Block;
-pub use deco::{Decorator, DocComment};
+pub use deco::{Attribute, Decorator, DocComment};
 pub use r#enum::Enum;
 pub use expr::Expr;
 pub use func::{CallArg, Func, FuncArgDef};

@@ -12,14 +12,18 @@ use sodigy_parse as ast;
 mod block;
 mod expr;
 mod func;
+mod r#if;
 mod r#let;
 mod name;
+mod pattern;
 mod session;
 
 pub use block::Block;
 pub use expr::Expr;
 pub use func::{CallArg, Func};
+pub use r#if::If;
 pub use r#let::Let;
+pub use pattern::Pattern;
 pub use session::Session;
 
 pub(crate) use name::{NameOrigin, Namespace, NamespaceKind};

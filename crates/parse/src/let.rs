@@ -1,4 +1,4 @@
-use crate::{Decorator, DocComment, Expr, Tokens};
+use crate::{Attribute, Expr, Tokens};
 use sodigy_error::Error;
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -12,8 +12,7 @@ pub struct Let {
     pub name_span: Span,
     pub r#type: Option<Expr>,
     pub value: Expr,
-    pub doc_comment: Option<DocComment>,
-    pub decorators: Vec<Decorator>,
+    pub attribute: Attribute,
 }
 
 impl<'t> Tokens<'t> {
@@ -38,10 +37,7 @@ impl<'t> Tokens<'t> {
             name_span,
             r#type,
             value,
-
-            // Its parent will set these fields.
-            doc_comment: None,
-            decorators: vec![],
+            attribute: Attribute::new(),
         })
     }
 }

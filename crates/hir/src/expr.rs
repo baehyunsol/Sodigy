@@ -1,4 +1,4 @@
-use crate::{CallArg, NameOrigin, Session};
+use crate::{Block, CallArg, If, NameOrigin, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
@@ -20,6 +20,8 @@ pub enum Expr {
         n: InternedNumber,
         span: Span,
     },
+    If(If),
+    Block(Block),
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
@@ -57,6 +59,8 @@ impl Expr {
                 },
             },
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
+            ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
+            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session)?)),
             ast::Expr::Call { func, args } => {
                 let func = Expr::from_ast(func, session);
                 let mut new_args = Vec::with_capacity(args.len());

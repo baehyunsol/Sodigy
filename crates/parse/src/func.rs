@@ -1,4 +1,4 @@
-use crate::{Decorator, DocComment, Expr, Tokens};
+use crate::{Attribute, Expr, Tokens};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -13,8 +13,7 @@ pub struct Func {
     pub args: Vec<FuncArgDef>,
     pub r#type: Option<Expr>,
     pub value: Expr,
-    pub doc_comment: Option<DocComment>,
-    pub decorators: Vec<Decorator>,
+    pub attribute: Attribute,
 }
 
 #[derive(Clone, Debug)]
@@ -23,8 +22,7 @@ pub struct FuncArgDef {
     pub name_span: Span,
     pub r#type: Option<Expr>,
     pub default_value: Option<Expr>,
-    pub doc_comment: Option<DocComment>,
-    pub decorators: Vec<Decorator>,
+    pub attribute: Attribute,
 }
 
 #[derive(Clone, Debug)]
@@ -67,10 +65,7 @@ impl<'t> Tokens<'t> {
             args,
             r#type,
             value,
-
-            // Its parent will set these fields.
-            doc_comment: None,
-            decorators: vec![],
+            attribute: Attribute::new(),
         })
     }
 
@@ -82,7 +77,7 @@ impl<'t> Tokens<'t> {
         }
 
         'args: loop {
-            let (doc_comment, decorators) = self.collect_doc_comment_and_decorators()?;
+            let attribute = self.collect_attribute()?;
             let (name, name_span) = self.pop_name_and_span()?;
             let mut r#type = None;
             let mut default_value = None;
@@ -127,8 +122,7 @@ impl<'t> Tokens<'t> {
                             name_span,
                             r#type,
                             default_value,
-                            doc_comment,
-                            decorators,
+                            attribute,
                         });
 
                         match self.tokens.get(self.cursor + 1) {

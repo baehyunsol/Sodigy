@@ -12,7 +12,7 @@ pub struct If {
     pub if_span: Span,
 
     pub cond: Box<Expr>,
-    pub pattern: Option<Pattern>,  // `if pat Some((x, _)) = foo() { x + 1 }`
+    pub pattern: Option<Pattern>,  // `if pat Some(($x, _)) = foo() { x + 1 }`
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.
@@ -71,6 +71,9 @@ impl<'t> Tokens<'t> {
             span: true_value_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
         let mut true_value_tokens = Tokens::new(true_value_tokens, true_value_span.end());
+
+        // TODO: if block is simple, unwrap it
+        //       for example, if it's `if foo() { 3 }`, `{ 3 }` doesn't have to be a block
         let true_value = Box::new(Expr::Block(true_value_tokens.parse_block(false /* top-level */)?));
 
         let (else_span, false_value) = match self.peek2() {
