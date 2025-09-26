@@ -2,9 +2,9 @@ use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
+mod attribute;
 mod block;
 mod check;
-mod deco;
 mod r#enum;
 mod expr;
 mod func;
@@ -16,8 +16,8 @@ mod r#struct;
 mod tokens;
 mod r#use;
 
+pub use attribute::{Attribute, Decorator, DocComment};
 pub use block::Block;
-pub use deco::{Attribute, Decorator, DocComment};
 pub use r#enum::Enum;
 pub use expr::Expr;
 pub use func::{CallArg, Func, FuncArgDef};
