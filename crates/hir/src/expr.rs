@@ -1,4 +1,4 @@
-use crate::{Block, CallArg, If, NameOrigin, Session};
+use crate::{Block, CallArg, Func, If, NameOrigin, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
@@ -83,6 +83,27 @@ impl Expr {
                 match (func, has_error) {
                     (Ok(func), false) => Ok(Expr::Call { func: Box::new(func), args: new_args }),
                     _ => Err(()),
+                }
+            },
+            ast::Expr::Lambda { args, r#type, value } => {
+                // TODO
+                //   1. How do I name the anonymous function?
+                //   2. What do I do with the anonymous function?
+                //   3. How do I register the new function to session?
+                //   4. I have to identify anonymous functions, how?
+                //   5. If I give a gara-name to the anonymous function, it has to be added to session.foreign_names.
+                let anonymous_func = ast::Func {
+                    keyword_span: Span::None,
+                    name_span: Span::None,
+                    args: args.clone(),
+                    r#type: r#type.as_ref().clone(),
+                    value: value.as_ref().clone(),
+                    attribute: ast::Attribute::new(),
+                };
+
+                match Func::from_ast(&anonymous_func, session) {
+                    Ok(func) => {},
+                    Err(()) => Err(()),
                 }
             },
             ast::Expr::InfixOp { op, lhs, rhs } => {

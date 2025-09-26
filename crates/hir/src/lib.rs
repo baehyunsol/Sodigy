@@ -32,5 +32,7 @@ impl Session {
     /// Errors and warnings are stored in the session.
     pub fn lower(&mut self, ast_block: &ast::Block) -> Result<Block, ()> {
         Block::from_ast(ast_block, self)
+
+        // TODO: find all lambda functions and convert them to normal functions
     }
 }
