@@ -5,6 +5,7 @@ use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Enum {
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub doc_comment: Option<DocComment>,

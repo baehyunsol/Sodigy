@@ -1,6 +1,6 @@
 use sodigy_file::File;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {
     // When a span has something to do with this file, but we cannot tell the exact location.
     // e.g. if there's an error reading the file, the error has this span.

@@ -7,7 +7,7 @@ use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 use std::collections::hash_map::{Entry, HashMap};
 
-pub struct LexSession {
+pub struct Session {
     pub file: File,
     input_buffer: Vec<u8>,
     state: LexState,
@@ -70,37 +70,40 @@ enum LexState {
     BlockComment,
 }
 
-impl LexSession {
-    pub fn gara_init(input: Vec<u8>) -> Self {
-        LexSession {
-            file: File::gara(),
-            input_buffer: input,
-            state: LexState::Init,
-            cursor: 0,
-            offset: 0,
-            tokens: vec![],
-            string_map: HashMap::new(),
-            errors: vec![],
-            group_stack: vec![],
-            token_start: 0,
-            buffer1: vec![],
-            buffer2: vec![],
-            halt_with_error: false,
-            halt_without_error: false,
-        }
+pub fn lex_gara(input: Vec<u8>) -> Result<Vec<Token>, Vec<Error>> {
+    let mut gara_session = Session {
+        file: File::gara(),
+        input_buffer: input,
+        state: LexState::Init,
+        cursor: 0,
+        offset: 0,
+        tokens: vec![],
+        string_map: HashMap::new(),
+        errors: vec![],
+        group_stack: vec![],
+        token_start: 0,
+        buffer1: vec![],
+        buffer2: vec![],
+        halt_with_error: false,
+        halt_without_error: false,
+    };
+
+    while !gara_session.halt_with_error && !gara_session.halt_without_error {
+        gara_session.step();
     }
 
-    pub fn lex(&mut self) {
-        while !self.halt_with_error && !self.halt_without_error {
-            self.step();
-        }
-
-        if self.errors.is_empty() {
-            self.group_tokens();
-            self.merge_doc_comments();
-        }
+    if gara_session.errors.is_empty() {
+        gara_session.group_tokens();
+        gara_session.merge_doc_comments();
+        Ok(gara_session.tokens)
     }
 
+    else {
+        Err(gara_session.errors)
+    }
+}
+
+impl Session {
     fn step(&mut self) {
         if let Err(e) = self.try_load_input() {
             self.errors.push(e);
@@ -1157,6 +1160,7 @@ impl LexSession {
                         ),
                         ..Error::default()
                     });
+                    self.halt_with_error = true;
                 },
             },
         }

@@ -60,10 +60,14 @@ pub enum ErrorKind {
     EmptyCurlyBraceBlock,
     PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue,
+    CannotDeclareInlineModule,
     NameCollision {
         name: InternedString,
 
         // TODO
         // context: NameCollisionContext,
     },
+
+    // TODO: suggest similar names
+    UndefinedName(InternedString),
 }

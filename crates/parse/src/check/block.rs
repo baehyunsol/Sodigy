@@ -6,7 +6,7 @@ use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
     // TODO: sort the errors by span
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, top_level: bool) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
         let mut span_by_name: HashMap<InternedString, Span> = HashMap::new();
 
@@ -99,6 +99,14 @@ impl Block {
         }
 
         for module in self.modules.iter() {
+            if !top_level {
+                errors.push(Error {
+                    kind: ErrorKind::CannotDeclareInlineModule,
+                    span: module.keyword_span,
+                    ..Error::default()
+                });
+            }
+
             if let Err(e) = module.check() {
                 errors.extend(e);
             }

@@ -9,7 +9,7 @@ impl Expr {
             Expr::Number { .. } |
             Expr::String { .. } => Ok(()),
             Expr::If(r#if) => r#if.check(),
-            Expr::Block(block) => block.check(),
+            Expr::Block(block) => block.check(false /* top_level */),
             Expr::Call { func, args } => {
                 let mut errors = vec![];
 
@@ -19,6 +19,23 @@ impl Expr {
 
                 if let Err(e) = check_call_args(args) {
                     errors.extend(e);
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Expr::Tuple { elements, .. } => {
+                let mut errors = vec![];
+
+                for element in elements.iter() {
+                    if let Err(e) = element.check() {
+                        errors.extend(e);
+                    }
                 }
 
                 if errors.is_empty() {

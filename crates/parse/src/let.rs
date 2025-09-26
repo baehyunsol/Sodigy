@@ -7,6 +7,7 @@ use sodigy_token::{Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Let {
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub r#type: Option<Expr>,
@@ -17,7 +18,7 @@ pub struct Let {
 
 impl<'t> Tokens<'t> {
     pub fn parse_let(&mut self) -> Result<Let, Vec<Error>> {
-        self.match_and_pop(TokenKind::Keyword(Keyword::Let))?;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
 
         let r#type = match self.peek() {
@@ -32,6 +33,7 @@ impl<'t> Tokens<'t> {
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Let {
+            keyword_span,
             name,
             name_span,
             r#type,

@@ -7,6 +7,7 @@ use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Func {
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub args: Vec<FuncArgDef>,
@@ -36,7 +37,7 @@ impl<'t> Tokens<'t> {
     // `func foo(x) = 3;`
     // `func bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
-        self.match_and_pop(TokenKind::Keyword(Keyword::Func))?;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Func))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
 
         let arg_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
@@ -60,6 +61,7 @@ impl<'t> Tokens<'t> {
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Func {
+            keyword_span,
             name,
             name_span,
             args,

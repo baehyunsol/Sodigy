@@ -7,6 +7,7 @@ use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Struct {
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub fields: Vec<StructField>,
@@ -25,7 +26,7 @@ pub struct StructInitField {
 
 impl<'t> Tokens<'t> {
     pub fn parse_struct(&mut self) -> Result<Struct, Vec<Error>> {
-        self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
 
@@ -41,6 +42,7 @@ impl<'t> Tokens<'t> {
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Struct {
+            keyword_span,
             name,
             name_span,
             fields,

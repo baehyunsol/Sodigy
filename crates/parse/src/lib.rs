@@ -33,6 +33,6 @@ pub fn parse(tokens: &[Token]) -> Result<Block, Vec<Error>> {
     let mut tokens = Tokens::new(tokens, tokens.last().map(|t| t.span.end()).unwrap_or(Span::None));
     let block = tokens.parse_block(true /* top-level */)?;
 
-    block.check()?;
+    block.check(true /* top_level */)?;
     Ok(block)
 }

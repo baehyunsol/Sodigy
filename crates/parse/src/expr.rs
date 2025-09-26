@@ -111,7 +111,7 @@ impl<'t> Tokens<'t> {
                 Expr::Identifier { id, span }
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
-                let (n, span) = (n.clone(), *span);
+                let (n, span) = (*n, *span);
                 self.cursor += 1;
                 Expr::Number { n, span }
             },
@@ -172,7 +172,13 @@ impl<'t> Tokens<'t> {
                         exprs[0].clone()
                     }
                 },
-                Delim::Brace => todo!(),
+                Delim::Brace => {
+                    let mut tokens = Tokens::new(tokens, span.end());
+                    let block = tokens.parse_block(false /* top_level */)?;
+                    self.cursor += 1;
+
+                    Expr::Block(block)
+                },
                 Delim::Bracket => todo!(),
             },
             Some(t) => panic!("TODO: {t:?}"),

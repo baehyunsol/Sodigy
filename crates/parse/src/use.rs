@@ -8,6 +8,7 @@ use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Use {
+    pub keyword_span: Span,
     // use <full_path> as <name>
     pub name: InternedString,
     pub name_span: Span,

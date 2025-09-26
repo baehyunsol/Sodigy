@@ -6,7 +6,7 @@ pub use base::Base;
 /// A number literal `1` becomes `InternedNumber::SmallInteger(1)`, not `InternedNumber::SmallRatio`
 /// because the goal of interning the number is to remember the value, not the literal. It's lexer's
 /// responsibility to remember the original literal.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum InternedNumber {
     SmallInteger(i64),
     SmallRatio {

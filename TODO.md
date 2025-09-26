@@ -1,3 +1,28 @@
+# 7. name analysis
+
+어떤 함수 안의 identifier X에 대해서, X는 1) 함수의 arg이거나 2) arg는 아니지만 함수 내부에서 선언된 값이거나 3) 둘다 아니거나. -> 딱 이것만 구분하면 됨!
+
+# 6. Generics
+
+1. funcs
+2. structs
+3. enums
+
+일단 하지마! 단, built-in generic은 있음 (`List(Int)`, `Option(String)`, `Result(String, Error)`, `Map(String, List(String))`)
+
+나중에 추가할 가능성이 있을까?
+
+```
+struct GenericSomething(T) = {
+    generic_field: T,
+    integer_field: Int,
+    string_field: String,
+};
+```
+
+나중에 이렇게 수정하려면 많이 복잡할까?
+일단, angle bracket은 안 쓰고 싶음. 걔네는 group으로 안 잡혀서 parsing이 빡셈 ㅠㅠ
+
 # 5. Lambda function
 
 문법을 좀 더 생각해보자.

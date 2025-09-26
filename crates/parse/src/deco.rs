@@ -2,7 +2,7 @@ use crate::{CallArg, Tokens};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, Token, TokenKind};
+use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct DocComment {
@@ -18,15 +18,15 @@ impl DocComment {
 
 #[derive(Clone, Debug)]
 pub struct Decorator {
-    pub name: InternedString,
-    pub name_span: Span,
+    pub name: Vec<(InternedString, Span)>,
+    pub name_span: Span,  // merged span of names
 
     // `@public` and `@public()` are different!
     pub args: Option<Vec<CallArg>>,
 }
 
 impl Decorator {
-    pub fn new_with_args(name: InternedString, name_span: Span, args: Vec<CallArg>) -> Self {
+    pub fn new_with_args(name: Vec<(InternedString, Span)>, name_span: Span, args: Vec<CallArg>) -> Self {
         Decorator {
             name,
             name_span,
@@ -34,7 +34,7 @@ impl Decorator {
         }
     }
 
-    pub fn new_without_args(name: InternedString, name_span: Span) -> Self {
+    pub fn new_without_args(name: Vec<(InternedString, Span)>, name_span: Span) -> Self {
         Decorator {
             name,
             name_span,
@@ -51,34 +51,47 @@ impl<'t> Tokens<'t> {
         let mut decorator_buffer = vec![];
 
         loop {
-            match self.peek2() {
-                (Some(Token { kind: TokenKind::DocComment(doc), span }), _) => {
+            match self.peek() {
+                Some(Token { kind: TokenKind::DocComment(doc), span }) => {
                     doc_comment_buffer.push(DocComment::new(*doc, *span));
                     self.cursor += 1;
                 },
-                (
-                    Some(Token { kind: TokenKind::Decorator(dec), span: span1 }),
-                    Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
-                ) => {
-                    let mut tokens = Tokens::new(tokens, span2.end());
-
-                    match tokens.parse_call_args() {
-                        Ok(args) => {
-                            decorator_buffer.push(Decorator::new_with_args(*dec, *span1, args));
-                        },
-                        Err(e) => {
-                            errors.extend(e);
-                        },
-                    }
-
-                    self.cursor += 2;
-                },
-                (
-                    Some(Token { kind: TokenKind::Decorator(dec), span }),
-                    _,
-                ) => {
-                    decorator_buffer.push(Decorator::new_without_args(*dec, *span));
+                Some(Token { kind: TokenKind::Decorator(dec), span }) => {
+                    let mut name = vec![(*dec, *span)];
+                    let mut name_span = *span;
                     self.cursor += 1;
+
+                    loop {
+                        match self.peek2() {
+                            (
+                                Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
+                                Some(Token { kind: TokenKind::Identifier(dec), span }),
+                            ) => {
+                                name.push((*dec, *span));
+                                name_span = name_span.merge(*span);
+                                self.cursor += 2;
+                            },
+                            (Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }), _) => {
+                                let mut tokens = Tokens::new(tokens, span.end());
+
+                                match tokens.parse_call_args() {
+                                    Ok(args) => {
+                                        decorator_buffer.push(Decorator::new_with_args(name, name_span, args));
+                                    },
+                                    Err(e) => {
+                                        errors.extend(e);
+                                    },
+                                }
+
+                                self.cursor += 1;
+                                break;
+                            },
+                            _ => {
+                                decorator_buffer.push(Decorator::new_without_args(name, name_span));
+                                break;
+                            },
+                        }
+                    }
                 },
                 _ => {
                     break;

@@ -10,6 +10,8 @@ use crate::{
 };
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
+use sodigy_span::Span;
+use sodigy_string::InternedString;
 use sodigy_token::{ErrorToken, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -18,11 +20,30 @@ pub struct Block {
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
+
+    // only the top-level block can have modules
     pub modules: Vec<Module>,
     pub uses: Vec<Use>,
 
-    // top-level block doesn't have a value
+    // the top-level block doesn't have a value
     pub value: Box<Option<Expr>>,
+}
+
+impl Block {
+    // hir will use this function.
+    pub fn iter_names(&self) -> impl Iterator<Item = (InternedString, Span)> {
+        self.lets.iter().map(|l| (l.name, l.name_span)).chain(
+            self.funcs.iter().map(|f| (f.name, f.name_span))
+        ).chain(
+            self.structs.iter().map(|s| (s.name, s.name_span))
+        ).chain(
+            self.enums.iter().map(|e| (e.name, e.name_span))
+        ).chain(
+            self.modules.iter().map(|m| (m.name, m.name_span))
+        ).chain(
+            self.uses.iter().map(|u| (u.name, u.name_span))
+        )
+    }
 }
 
 impl<'t> Tokens<'t> {
@@ -55,13 +76,12 @@ impl<'t> Tokens<'t> {
                 },
             };
 
-            // FIXME: the same code is repeated 4 times...
+            // FIXME: the same code is repeated multiple times...
             match self.peek().map(|t| &t.kind) {
                 Some(TokenKind::Keyword(Keyword::Let)) => match self.parse_let() {
                     Ok(mut r#let) => {
                         r#let.doc_comment = doc_comment;
                         r#let.decorators = decorators;
-
                         lets.push(r#let);
                     },
                     Err(e) => {
@@ -80,7 +100,6 @@ impl<'t> Tokens<'t> {
                     Ok(mut func) => {
                         func.doc_comment = doc_comment;
                         func.decorators = decorators;
-
                         funcs.push(func);
                     },
                     Err(e) => {
@@ -99,7 +118,6 @@ impl<'t> Tokens<'t> {
                     Ok(mut r#struct) => {
                         r#struct.doc_comment = doc_comment;
                         r#struct.decorators = decorators;
-
                         structs.push(r#struct);
                     },
                     Err(e) => {
@@ -118,7 +136,6 @@ impl<'t> Tokens<'t> {
                     Ok(mut r#enum) => {
                         r#enum.doc_comment = doc_comment;
                         r#enum.decorators = decorators;
-
                         enums.push(r#enum);
                     },
                     Err(e) => {
@@ -133,7 +150,27 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Module)) => todo!(),
+                Some(TokenKind::Keyword(Keyword::Module)) => match self.parse_module() {
+                    Ok(module) => {
+                        if doc_comment.is_some() || !decorators.is_empty() {
+                            // TODO: raise error
+                            todo!()
+                        }
+
+                        modules.push(module);
+                    },
+                    Err(e) => {
+                        errors.extend(e);
+
+                        if top_level {
+                            self.march_until_top_level_statement();
+                        }
+
+                        else {
+                            return Err(errors);
+                        }
+                    },
+                },
                 Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
                 Some(t) => {
                     if top_level {
@@ -197,16 +234,18 @@ impl<'t> Tokens<'t> {
 
     // If there's no top-level statement, it marches until the end
     fn march_until_top_level_statement(&mut self) {
-        match self.peek().map(|t| &t.kind) {
-            Some(TokenKind::Keyword(Keyword::Let | Keyword::Func | Keyword::Struct | Keyword::Enum)) => {
-                return;
-            },
-            Some(_) => {
-                self.cursor += 1;
-            },
-            None => {
-                return;
-            },
+        loop {
+            match self.peek().map(|t| &t.kind) {
+                Some(TokenKind::Keyword(Keyword::Let | Keyword::Func | Keyword::Struct | Keyword::Enum)) => {
+                    return;
+                },
+                Some(_) => {
+                    self.cursor += 1;
+                },
+                None => {
+                    return;
+                },
+            }
         }
     }
 }

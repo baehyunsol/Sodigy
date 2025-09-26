@@ -2,9 +2,58 @@
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
     let bytes = std::fs::read(&args[1]).unwrap();
-    let mut lex_session = sodigy_lex::LexSession::gara_init(bytes);
-    lex_session.lex();
-    // println!("{:?}", lex_session.tokens);
-    let ast = sodigy_parse::parse(&lex_session.tokens);
-    println!("{ast:?}");
+
+    let tokens = match sodigy_lex::lex_gara(bytes.clone()) {
+        Ok(tokens) => tokens,
+        Err(errors) => {
+            for error in errors.iter() {
+                eprintln!(
+                    "{:?}\n{}\n",
+                    error.kind,
+                    sodigy_error::render_span(
+                        &bytes,
+                        error.span,
+                        error.extra_span,
+                        sodigy_error::RenderSpanOption {
+                            max_width: 88,
+                            max_height: 10,
+                            color: true,
+                        },
+                    ),
+                );
+            }
+
+            return;
+        },
+    };
+    // println!("{tokens:?}");
+
+    let ast_block = match sodigy_parse::parse(&tokens) {
+        Ok(ast_block) => ast_block,
+        Err(errors) => {
+            for error in errors.iter() {
+                eprintln!(
+                    "{:?}\n{}\n",
+                    error.kind,
+                    sodigy_error::render_span(
+                        &bytes,
+                        error.span,
+                        error.extra_span,
+                        sodigy_error::RenderSpanOption {
+                            max_width: 88,
+                            max_height: 10,
+                            color: true,
+                        },
+                    ),
+                );
+            }
+
+            return;
+        },
+    };
+    // println!("{ast_block:?}");
+
+    let mut hir_session = sodigy_hir::Session::new();
+    let hir_block = hir_session.lower(&ast_block).unwrap();
+    println!("{hir_block:?}");
 }

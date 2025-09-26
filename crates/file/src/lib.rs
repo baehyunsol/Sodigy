@@ -1,6 +1,6 @@
 mod fmt;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 pub struct File;
 
 impl File {

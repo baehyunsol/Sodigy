@@ -6,8 +6,5 @@ func fibonacci(n: Int): Int = if n < 2 {
 
 let fibonacci_lambda = \(n) => if n < 2 { 1 } else { fibonacci_lambda(n - 1) + fibonacci_lambda(n - 2) };
 
-// TODO: nice syntax for `assert_eq`
-//       Assertions either panic or do nothing, so it's a pure function.
-//       It may or may not be evaluated because Sodigy is half-lazy.
-//       I only need a syntax that guarantees that it's evaluated.
-// assert_eq(fibonacci(9), fibonacci_lambda(9));
+@test.true
+let x = fibonacci(9) == fibonacci_lambda(9);

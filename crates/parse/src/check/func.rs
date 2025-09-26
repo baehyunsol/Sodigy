@@ -1,10 +1,13 @@
 use crate::{Func, FuncArgDef};
 use sodigy_error::{Error, ErrorKind};
+use sodigy_span::Span;
+use sodigy_string::InternedString;
+use std::collections::hash_map::{Entry, HashMap};
 
 impl Func {
-    // TODO: name collision checks
     pub fn check(&self) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
+        let mut span_by_name: HashMap<InternedString, Span> = HashMap::new();
 
         for decorator in self.decorators.iter() {
             if let Err(e) = decorator.check() {
@@ -29,6 +32,22 @@ impl Func {
 
             if arg.default_value.is_some() {
                 must_have_default_value = true;
+            }
+
+            match span_by_name.entry(arg.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: arg.name,
+                        },
+                        span: arg.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(arg.name_span);
+                },
             }
         }
 
