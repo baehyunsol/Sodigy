@@ -20,7 +20,17 @@ pub enum NamespaceKind {
     Local,  // anything other than those
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
+pub struct IdentWithOrigin {
+    pub id: InternedString,
+    pub span: Span,
+    pub origin: NameOrigin,
+
+    // It's used to uniquely identify the identifiers.
+    pub def_span: Span,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum NameOrigin {
     // If funcs are nested, only the inner-most function counts.
     FuncArg {

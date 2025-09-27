@@ -23,6 +23,7 @@ pub use expr::Expr;
 pub use func::{CallArg, Func};
 pub use r#if::If;
 pub use r#let::Let;
+pub use name::IdentWithOrigin;
 pub use pattern::Pattern;
 pub use session::Session;
 

@@ -1,4 +1,12 @@
-use crate::{Block, CallArg, Func, If, NameOrigin, Session};
+use crate::{
+    Block,
+    CallArg,
+    Func,
+    IdentWithOrigin,
+    If,
+    NameOrigin,
+    Session,
+};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
@@ -8,14 +16,7 @@ use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Identifier {
-        id: InternedString,
-        span: Span,
-        origin: NameOrigin,
-
-        // It's used to uniquely identify the identifiers.
-        def_span: Span,
-    },
+    Identifier(IdentWithOrigin),
     Number {
         n: InternedNumber,
         span: Span,
@@ -42,12 +43,12 @@ impl Expr {
                         session.foreign_names.insert((*id, def_span));
                     }
 
-                    Ok(Expr::Identifier {
+                    Ok(Expr::Identifier(IdentWithOrigin {
                         id: *id,
                         span: *span,
                         origin,
                         def_span,
-                    })
+                    }))
                 },
                 None => {
                     session.errors.push(Error {
@@ -109,12 +110,12 @@ impl Expr {
                     Ok(func) => {
                         session.foreign_names.insert((name, span));
                         session.lambda_funcs.push(func);
-                        Ok(Expr::Identifier {
+                        Ok(Expr::Identifier(IdentWithOrigin {
                             id: name,
                             span,
                             def_span: span,
                             origin: NameOrigin::Foreign,
-                        })
+                        }))
                     },
                     Err(()) => Err(()),
                 }

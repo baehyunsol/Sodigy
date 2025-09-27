@@ -1,32 +1,17 @@
-pub enum Expr {
-    Identifier {},
-    Number {},
-    If(),
-    Block(),
-    Call {
-        func: Callable,
-        args: Vec<Expr>,
-        tail_call: bool,
-    },
-}
+mod block;
+mod expr;
+mod func;
+mod r#if;
+mod r#let;
 
-pub enum Callable {
-    // There must be `HashMap<Span, Func>` somewhere
-    Static(Span),
-}
+pub use block::Block;
+pub use expr::Expr;
+pub use func::Func;
+pub use r#if::If;
+pub use r#let::Let;
 
-pub fn from_hir(hir_expr: &hir::Expr) {
-    match hir_expr {
-        hir::Expr::Identifier {} => {},
-        hir::Expr::Number {} => {},
-        hir::Expr::If() => {},
-        hir::Expr::Block {} => {},
-        hir::Expr::Call {
-            func,
-            args,
-        } => {},
-
-        // TODO: it has to be `mir::Expr::Call`, but how?
-        hir::Expr::InfixOp {} => {},
-    }
+/// It's used to analyse the code in various ways.
+pub struct RefCount {
+    pub conditional: usize,
+    pub unconditional: usize,
 }

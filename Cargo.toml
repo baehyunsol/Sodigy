@@ -7,4 +7,5 @@ edition = "2024"
 sodigy-error = { version = "0.1.0", path = "crates/error" }
 sodigy-hir = { version = "0.1.0", path = "crates/hir" }
 sodigy-lex = { version = "0.1.0", path = "crates/lex" }
+sodigy-mir = { version = "0.1.0", path = "crates/mir" }
 sodigy-parse = { version = "0.1.0", path = "crates/parse" }
