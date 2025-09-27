@@ -105,7 +105,7 @@ impl Expr {
                     attribute: ast::Attribute::new(),
                 };
 
-                match Func::from_ast(&func, session) {
+                match Func::from_ast(&func, session, true /* is_from_lambda */) {
                     Ok(func) => {
                         session.foreign_names.insert((name, span));
                         session.lambda_funcs.push(func);

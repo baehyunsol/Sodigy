@@ -30,15 +30,24 @@ impl Let {
 
         let value = match Expr::from_ast(&ast_let.value, session) {
             Ok(value) => Some(value),
-            Err(_) => None,
+            Err(_) => {
+                has_error = true;
+                None
+            },
         };
 
-        Ok(Let {
-            keyword_span: ast_let.keyword_span,
-            name: ast_let.name,
-            name_span: ast_let.name_span,
-            r#type,
-            value: value.unwrap(),
-        })
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(Let {
+                keyword_span: ast_let.keyword_span,
+                name: ast_let.name,
+                name_span: ast_let.name_span,
+                r#type,
+                value: value.unwrap(),
+            })
+        }
     }
 }

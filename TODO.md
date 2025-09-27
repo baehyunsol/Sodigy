@@ -1,6 +1,26 @@
-# 7. name analysis
+# 8. Linear type system
 
-어떤 함수 안의 identifier X에 대해서, X는 1) 함수의 arg이거나 2) arg는 아니지만 함수 내부에서 선언된 값이거나 3) 둘다 아니거나. -> 딱 이것만 구분하면 됨!
+한 block에서, 각 name에 대해서
+
+1. 몇번 쓰였는지 확인
+  - 0번, (무조건) 1번, (조건부) 1번, (무조건) 여러번, (조건부) 여러번
+2. 확인하면 뭐함?
+  - 0번: warning, 정의 삭제
+    - inline block은 unused_name이라는 개념이 되게 명확한데, top-level은 unused_name이 뭔지 애매함...
+      - main에서 안 쓰면 unused인가? 근데 sodigy에도 bin/lib 구분이 있음? 있어야 할 거 같은데...
+  - (조건부든 아니든) 1번: inlining
+  - 여러번: ... 뭐 하지?
+  - (무조건) 1번 이상: eager-evaluation 하는게 성능에 더 도움됨!
+3. block에서 let을 다 없애는데 성공했으면 expr로 줄일 수 있음!
+4. lazily-evaluated value를 최대한 줄이는게 목표!
+
+생각해보니 이 작업은 mir에서 해야함!
+
+1. function inline을 한 다음에 unused name 없애는 작업을 또 해야할 수도 있음. 근데 function inline은 mir 이후에만 가능!
+
+function arg 갖고도 unused name warning을 해야함! 이거랑 같이 해? 따로 해? 하는 김에 같이 하는게 낫지 않나?
+
+더 좋지만 복잡한 idea: unused function arg도 걍 삭제해버리면 되거든? 걔를 삭제하고 나서 block name counting을 하면 더 효율적일 수도 있음. 근데 func arg를 삭제한 다음에 block name counting을 하면 unused name warning이 헷갈릴 수 있음 (사용자 입장에선 used처럼 보이는데 unused로 셀 수도 있으니...)
 
 # 6. Generics
 
@@ -22,27 +42,6 @@ struct GenericSomething(T) = {
 
 나중에 이렇게 수정하려면 많이 복잡할까?
 일단, angle bracket은 안 쓰고 싶음. 걔네는 group으로 안 잡혀서 parsing이 빡셈 ㅠㅠ
-
-# 5. Lambda function
-
-문법을 좀 더 생각해보자.
-
-1. parsing 용이성
-  - `parse_func_arg_defs`를 그대로 쓰고 싶은데, 그러려면 arg와 expr이 확실히 구분되는게 편함!
-2. 간결함: 너무 복잡하면 lambda의 의미가 없지!
-3. 확장 가능성: 대부분 type annotation을 안 넣겠지만, 필요할 수도 있음!
-
-- `\{x, y, x + y}` -> 현재 형태. default value 넣는 거나 type annotation 넣는 거나 전부 가능은 함!
-- `\{$0 + $1}` -> arg를 아예 안 받는 형태! 극단적 간결함이 있지만, type annotation 넣는게 불가능해짐...
-- `(a, b) => a + b` -> javascript style
-- `lambda a, b: a + b` -> Python style
-- `|a, b| a + b` -> Rust style
-- `[](int a, int b) { return a + b }` -> C++ style
-  - capture할 값들을 전부 입력해줘야함!
-  - 아무리 못해도 이거보단 나을 듯?
-- `\(a, b) => a + b` -> 이건 ㅇㄸ?
-  - 괄호 안에다가 `parse_func_arg_defs` 그대로 쓸 수 있음
-  - 뒷부분 parsing도 쉬움! ambiguity는 programmer가 parenthesis로 해결할 문제!!
 
 # 4. Keyword Arguments
 

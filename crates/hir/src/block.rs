@@ -38,7 +38,7 @@ impl Block {
         }
 
         for func in ast_block.funcs.iter() {
-            match Func::from_ast(func, session) {
+            match Func::from_ast(func, session, false /* is_from_lambda */) {
                 Ok(f) => {
                     funcs.push(f);
                 },

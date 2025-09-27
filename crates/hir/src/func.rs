@@ -11,6 +11,7 @@ pub struct Func {
     pub name_span: Span,
     pub args: Vec<FuncArgDef>,
     pub value: Expr,
+    pub is_from_lambda: bool,
     pub foreign_names: HashSet<(InternedString, Span)>,
 }
 
@@ -29,7 +30,11 @@ pub struct CallArg {
 }
 
 impl Func {
-    pub fn from_ast(ast_func: &ast::Func, session: &mut Session) -> Result<Func, ()> {
+    pub fn from_ast(
+        ast_func: &ast::Func,
+        session: &mut Session,
+        is_from_lambda: bool,
+    ) -> Result<Func, ()> {
         let mut has_error = false;
 
         // `session.foreign_names` was collecting foreign names in the outer function. But now
@@ -89,6 +94,7 @@ impl Func {
                 name_span: ast_func.name_span,
                 args,
                 value: value.unwrap(),
+                is_from_lambda,
                 foreign_names,
             })
         }
