@@ -58,6 +58,7 @@ pub enum Expr {
         args: Vec<FuncArgDef>,
         r#type: Box<Option<Expr>>,
         value: Box<Expr>,
+        group_span: Span,
     },
     InfixOp {
         op: InfixOp,
@@ -75,6 +76,20 @@ impl Expr {
             Expr::String { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             _ => todo!(),
+        }
+    }
+
+    pub fn block_or_expr(block: Block) -> Expr {
+        if block.lets.is_empty() && block.funcs.is_empty() &&
+            block.structs.is_empty() && block.enums.is_empty() &&
+            block.modules.is_empty() && block.uses.is_empty() &&
+            block.value.is_some()
+        {
+            block.value.unwrap()
+        }
+
+        else {
+            Expr::Block(block)
         }
     }
 }
@@ -123,6 +138,7 @@ impl<'t> Tokens<'t> {
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
                 Delim::Lambda => {
+                    let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
                     let args = tokens.parse_func_arg_defs()?;
                     self.cursor += 1;
@@ -143,6 +159,7 @@ impl<'t> Tokens<'t> {
                         args,
                         r#type: Box::new(r#type),
                         value: Box::new(value),
+                        group_span: span,
                     }
                 },
                 Delim::Parenthesis => {

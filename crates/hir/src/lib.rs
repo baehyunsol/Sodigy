@@ -31,8 +31,12 @@ pub(crate) use name::{NameOrigin, Namespace, NamespaceKind};
 impl Session {
     /// Errors and warnings are stored in the session.
     pub fn lower(&mut self, ast_block: &ast::Block) -> Result<Block, ()> {
-        Block::from_ast(ast_block, self)
+        let mut block = Block::from_ast(ast_block, self)?;
 
-        // TODO: find all lambda functions and convert them to normal functions
+        for lambda_func in self.lambda_funcs.drain(..) {
+            block.funcs.push(lambda_func);
+        }
+
+        Ok(block)
     }
 }

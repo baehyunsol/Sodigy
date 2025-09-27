@@ -3,7 +3,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
@@ -85,24 +85,37 @@ impl Expr {
                     _ => Err(()),
                 }
             },
-            ast::Expr::Lambda { args, r#type, value } => {
+            ast::Expr::Lambda { args, r#type, value, group_span } => {
+                let span = group_span.begin();
+                let name = name_lambda_function(span);
+
                 // TODO
                 //   1. How do I name the anonymous function?
                 //   2. What do I do with the anonymous function?
                 //   3. How do I register the new function to session?
                 //   4. I have to identify anonymous functions, how?
                 //   5. If I give a gara-name to the anonymous function, it has to be added to session.foreign_names.
-                let anonymous_func = ast::Func {
+                let func = ast::Func {
                     keyword_span: Span::None,
-                    name_span: Span::None,
+                    name,
+                    name_span: span,
                     args: args.clone(),
                     r#type: r#type.as_ref().clone(),
                     value: value.as_ref().clone(),
                     attribute: ast::Attribute::new(),
                 };
 
-                match Func::from_ast(&anonymous_func, session) {
-                    Ok(func) => {},
+                match Func::from_ast(&func, session) {
+                    Ok(func) => {
+                        session.foreign_names.insert((name, span));
+                        session.lambda_funcs.push(func);
+                        Ok(Expr::Identifier {
+                            id: name,
+                            span,
+                            def_span: span,
+                            origin: NameOrigin::Foreign,
+                        })
+                    },
                     Err(()) => Err(()),
                 }
             },
@@ -122,4 +135,11 @@ impl Expr {
             _ => panic!("TODO: {e:?}"),
         }
     }
+}
+
+fn name_lambda_function(_span: Span) -> InternedString {
+    // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
+    // TODO: But I want some kinda unique identifier for debugging.
+    // NOTE: It has to be a short-interned-string (less than 16 characters) otherwise I have to create an intern_string_map in HirSession.
+    intern_string(b"lambda_func")
 }

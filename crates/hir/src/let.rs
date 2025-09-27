@@ -1,17 +1,44 @@
 use crate::{Expr, Session};
 use sodigy_parse as ast;
+use sodigy_span::Span;
+use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Let {
+    pub keyword_span: Span,
+    pub name: InternedString,
+    pub name_span: Span,
+    pub r#type: Option<Expr>,
     pub value: Expr,
 }
 
 impl Let {
     pub fn from_ast(ast_let: &ast::Let, session: &mut Session) -> Result<Let, ()> {
-        let value = Expr::from_ast(&ast_let.value, session)?;
+        let mut has_error = false;
+        let mut r#type = None;
+
+        if let Some(ast_type) = &ast_let.r#type {
+            match Expr::from_ast(ast_type, session) {
+                Ok(ty) => {
+                    r#type = Some(ty);
+                },
+                Err(_) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        let value = match Expr::from_ast(&ast_let.value, session) {
+            Ok(value) => Some(value),
+            Err(_) => None,
+        };
 
         Ok(Let {
-            value,
+            keyword_span: ast_let.keyword_span,
+            name: ast_let.name,
+            name_span: ast_let.name_span,
+            r#type,
+            value: value.unwrap(),
         })
     }
 }

@@ -44,6 +44,17 @@ impl Span {
         }
     }
 
+    pub fn begin(&self) -> Self {
+        match self {
+            Span::Range { file, start, .. } => Span::Range {
+                file: *file,
+                start: *start,
+                end: *start + 1,
+            },
+            _ => todo!(),
+        }
+    }
+
     pub fn end(&self) -> Self {
         match self {
             Span::File(file) | Span::Eof(file) => Span::Eof(*file),
