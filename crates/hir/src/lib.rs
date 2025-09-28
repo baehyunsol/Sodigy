@@ -23,7 +23,7 @@ mod r#struct;
 pub use block::Block;
 pub use r#enum::Enum;
 pub use expr::Expr;
-pub use func::{CallArg, Func, FuncOrigin};
+pub use func::{CallArg, Func, FuncArgDef, FuncOrigin};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use pattern::Pattern;

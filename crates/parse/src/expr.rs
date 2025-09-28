@@ -194,8 +194,9 @@ impl<'t> Tokens<'t> {
                     }
                 },
                 Delim::Brace => {
+                    let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
-                    let block = tokens.parse_block(false /* top_level */)?;
+                    let block = tokens.parse_block(false /* top_level */, span)?;
                     self.cursor += 1;
 
                     Expr::Block(block)

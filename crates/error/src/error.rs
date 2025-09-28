@@ -70,4 +70,9 @@ pub enum ErrorKind {
 
     // TODO: suggest similar names
     UndefinedName(InternedString),
+
+    KeywordArgumentRepeated(InternedString),
+
+    // TODO: suggest similar names
+    InvalidKeywordArgument(InternedString),
 }

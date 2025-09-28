@@ -7,9 +7,11 @@ use crate::{
 };
 use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_parse as ast;
+use sodigy_span::Span;
 
 #[derive(Clone, Debug)]
 pub struct Block {
+    pub group_span: Span,
     pub lets: Vec<Let>,
     pub value: Box<Option<Expr>>,
 }
@@ -74,6 +76,7 @@ impl Block {
 
         else {
             Ok(Block {
+                group_span: ast_block.group_span,
                 lets,
                 value: Box::new(value),
             })

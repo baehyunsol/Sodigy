@@ -71,7 +71,7 @@ impl<'t> Tokens<'t> {
             span: true_value_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
         let mut true_value_tokens = Tokens::new(true_value_tokens, true_value_span.end());
-        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */)?));
+        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, *true_value_span)?));
 
         let (else_span, false_value) = match self.peek2() {
             (
@@ -87,8 +87,9 @@ impl<'t> Tokens<'t> {
                 Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens: false_value_tokens }, span: span2 }),
             ) => {
                 let span1 = *span1;
+                let span2 = *span2;
                 let mut false_value_tokens = Tokens::new(false_value_tokens, span2.end());
-                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */)?);
+                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, span2)?);
                 self.cursor += 2;
                 (span1, Box::new(false_value))
             },

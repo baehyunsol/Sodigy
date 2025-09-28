@@ -18,6 +18,7 @@ use sodigy_token::{ErrorToken, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {
+    pub group_span: Span,
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
@@ -56,6 +57,7 @@ impl<'t> Tokens<'t> {
         // also, there's a heuristic for top-level blocks: it continues parsing even
         // though there's an error so that it can find more errors
         top_level: bool,
+        group_span: Span,
     ) -> Result<Block, Vec<Error>> {
         let mut errors = vec![];
         let mut lets = vec![];
@@ -215,6 +217,7 @@ impl<'t> Tokens<'t> {
 
         if errors.is_empty() {
             Ok(Block {
+                group_span,
                 lets,
                 funcs,
                 structs,

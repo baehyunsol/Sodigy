@@ -1,4 +1,5 @@
 use sodigy_error::Error;
+use sodigy_file::File;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
@@ -29,9 +30,12 @@ pub use r#struct::{Struct, StructInitField};
 pub(crate) use tokens::Tokens;
 pub use r#use::Use;
 
-pub fn parse(tokens: &[Token]) -> Result<Block, Vec<Error>> {
+pub fn parse(tokens: &[Token], file: File) -> Result<Block, Vec<Error>> {
     let mut tokens = Tokens::new(tokens, tokens.last().map(|t| t.span.end()).unwrap_or(Span::None));
-    let block = tokens.parse_block(true /* top-level */)?;
+    let block = tokens.parse_block(
+        true, // top-level
+        Span::file(file),
+    )?;
 
     block.check(true /* top_level */)?;
     Ok(block)

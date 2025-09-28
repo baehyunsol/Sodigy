@@ -16,17 +16,17 @@ pub struct Func {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub args: Vec<FuncArgDef>,
+    pub args: Vec<FuncArgDef<Expr>>,
     pub value: Expr,
     pub origin: FuncOrigin,
     pub foreign_names: HashSet<(InternedString, Span)>,
 }
 
 #[derive(Clone, Debug)]
-pub struct FuncArgDef {
+pub struct FuncArgDef<Type> {
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Expr>,
+    pub r#type: Option<Type>,
 
     // `fn foo(x = 3, y = bar()) = ...;` is lowered to
     // `let foo_default_x = 3; let foo_default_y = bar(); fn foo(x = foo_default_x, y = foo_default_y) = ...;`
@@ -118,8 +118,8 @@ impl Func {
     }
 }
 
-impl FuncArgDef {
-    pub fn from_ast(ast_arg: &ast::FuncArgDef, session: &mut Session) -> Result<FuncArgDef, ()> {
+impl FuncArgDef<Expr> {
+    pub fn from_ast(ast_arg: &ast::FuncArgDef, session: &mut Session) -> Result<FuncArgDef<Expr>, ()> {
         let mut r#type = None;
         let mut default_value = None;
         let mut has_error = false;

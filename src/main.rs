@@ -54,8 +54,27 @@ fn main() {
     // println!("{ast_block:?}");
 
     let mut hir_session = sodigy_hir::Session::new();
-    let hir_block = hir_session.lower(&ast_block).unwrap();
-    // println!("{hir_block:?}");
+
+    if let Err(()) = hir_session.lower(&ast_block) {
+        for error in hir_session.errors.iter() {
+            eprintln!(
+                "{:?}\n{}\n",
+                error.kind,
+                sodigy_error::render_span(
+                    &bytes,
+                    error.span,
+                    error.extra_span,
+                    sodigy_error::RenderSpanOption {
+                        max_width: 88,
+                        max_height: 10,
+                        color: true,
+                    },
+                ),
+            );
+        }
+
+        return;
+    }
 
     // TODO: inter-file hir analysis
 
