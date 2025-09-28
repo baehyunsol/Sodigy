@@ -22,6 +22,18 @@ function arg 갖고도 unused name warning을 해야함! 이거랑 같이 해? �
 
 더 좋지만 복잡한 idea: unused function arg도 걍 삭제해버리면 되거든? 걔를 삭제하고 나서 block name counting을 하면 더 효율적일 수도 있음. 근데 func arg를 삭제한 다음에 block name counting을 하면 unused name warning이 헷갈릴 수 있음 (사용자 입장에선 used처럼 보이는데 unused로 셀 수도 있으니...)
 
+conditional/unconditional 세는게 생각보다 빡셈
+
+1. 어떤 block A의 conditional value X와 unconditional value Y가 있다고 하자
+2. X 안에 있는 block B에 대해서,
+  - B에서 정의한 let: 얘가 unused가 될지 아직 모르기 때문에 분석 불가. B의 value가 얘를 conditional 하게 호출하는지도 확인해야함! 만약에 B의 value가 얘를 conditional 하게도 호출하고 unconditional하게도 호출하면 어떻게 세야함?? 
+  - B의 value에 있는 conditional value:
+  - B의 value에 있는 unconditional value:
+3. Y 안에 있는 block C에 대해서,
+  - C에서 정의한 let: 얘가 unused가 될지 아직 모르기 때문에 분석 불가. C의 value가 얘를 conditional 하게 호출하는지도 확인해야함! 만약에 C의 value가 얘를 conditional 하게도 호출하고 unconditional하게도 호출하면 어떻게 세야함?? 
+  - C의 value에 있는 conditional value:
+  - C의 value에 있는 unconditional value:
+
 # 6. Generics
 
 1. funcs

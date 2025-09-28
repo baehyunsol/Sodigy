@@ -1,46 +1,11 @@
 use crate::Session;
+use sodigy_name_analysis::{
+    NameOrigin,
+    NamespaceKind,
+};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::{HashMap, HashSet};
-
-pub struct Namespace {
-    pub kind: NamespaceKind,
-    pub names: HashMap<InternedString, Span>,
-}
-
-impl Namespace {
-    pub fn new(kind: NamespaceKind, names: HashMap<InternedString, Span>) -> Self {
-        Namespace { kind, names }
-    }
-}
-
-pub enum NamespaceKind {
-    FuncArg,
-    Block,  // declarations in a block
-    Local,  // anything other than those
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct IdentWithOrigin {
-    pub id: InternedString,
-    pub span: Span,
-    pub origin: NameOrigin,
-
-    // It's used to uniquely identify the identifiers.
-    pub def_span: Span,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum NameOrigin {
-    // If funcs are nested, only the inner-most function counts.
-    FuncArg {
-        index: usize,
-    },
-    // Local value that's declared inside the same function (inner-most).
-    Local,
-    // If this identifier is not declared inside the same function, it's Foreign.
-    Foreign,
-}
+use std::collections::HashSet;
 
 impl Session {
     pub fn find_origin(&self, id: InternedString) -> Option<(NameOrigin, Span)> {
@@ -52,13 +17,13 @@ impl Session {
                 let mut is_local = true;
 
                 for namespace in self.name_stack.iter().rev() {
-                    if let Some(def_span) = namespace.names.get(&id) {
+                    if let Some((def_span, name_kind)) = namespace.names.get(&id) {
                         if is_local {
-                            return Some((NameOrigin::Local, *def_span));
+                            return Some((NameOrigin::Local { kind: *name_kind }, *def_span));
                         }
 
                         else {
-                            return Some((NameOrigin::Foreign, *def_span));
+                            return Some((NameOrigin::Foreign { kind: *name_kind }, *def_span));
                         }
                     }
 
@@ -78,7 +43,7 @@ impl Session {
     pub fn update_foreign_names(&mut self, foreign_names: &HashSet<(InternedString, Span)>) {
         for (id, def_span) in foreign_names.iter() {
             match self.find_origin(*id) {
-                Some((NameOrigin::Foreign, ds)) => {
+                Some((NameOrigin::Foreign { .. }, ds)) => {
                     assert_eq!(*def_span, ds);
                     self.foreign_names.insert((*id, *def_span));
                 },

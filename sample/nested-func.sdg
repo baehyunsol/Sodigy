@@ -1,11 +1,11 @@
-func bar() = 1000;
+fn bar() = 1000;
 
 @test.eq(1703)
 let x = {
     let k = bar();
-    func foo(x: Int, y: Int) = {
+    fn foo(x: Int, y: Int) = {
         let w = x + y;
-        func bar(y: Int, z: Int) = x + y + z + w + k;
+        fn bar(y: Int, z: Int) = x + y + z + w + k;
 
         bar(x, y) + 3
     };

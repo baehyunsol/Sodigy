@@ -15,6 +15,7 @@ pub enum InfixOp {
     Leq,
     Neq,
     Geq,
+    Index,
 }
 
 impl TryFrom<Punct> for InfixOp {

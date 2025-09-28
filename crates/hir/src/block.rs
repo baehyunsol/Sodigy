@@ -2,10 +2,9 @@ use crate::{
     Expr,
     Func,
     Let,
-    Namespace,
-    NamespaceKind,
     Session,
 };
+use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_parse as ast;
 
 #[derive(Clone, Debug)]
@@ -24,7 +23,7 @@ impl Block {
         let mut value = None;
         let mut has_error = false;
 
-        session.name_stack.push(Namespace::new(NamespaceKind::Block, ast_block.iter_names().collect()));
+        session.name_stack.push(Namespace::new(NamespaceKind::Block, ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2))).collect()));
 
         for r#let in ast_block.lets.iter() {
             match Let::from_ast(r#let, session) {

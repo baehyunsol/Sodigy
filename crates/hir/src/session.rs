@@ -1,5 +1,6 @@
-use crate::{Func, Namespace};
+use crate::Func;
 use sodigy_error::Error;
+use sodigy_name_analysis::Namespace;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};

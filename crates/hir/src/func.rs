@@ -1,4 +1,5 @@
-use crate::{Expr, Namespace, NamespaceKind, Session};
+use crate::{Expr, Session};
+use sodigy_name_analysis::{NameKind, Namespace, NamespaceKind};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -47,7 +48,7 @@ impl Func {
 
         for (index, arg) in ast_func.args.iter().enumerate() {
             func_args.insert(arg.name, (index, arg.name_span));
-            curr_stack.insert(arg.name, arg.name_span);
+            curr_stack.insert(arg.name, (arg.name_span, NameKind::FuncArg));
         }
 
         std::mem::swap(&mut func_args, &mut session.curr_func_args);

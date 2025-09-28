@@ -2,12 +2,11 @@ use crate::{
     Block,
     CallArg,
     Func,
-    IdentWithOrigin,
     If,
-    NameOrigin,
     Session,
 };
 use sodigy_error::{Error, ErrorKind};
+use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -39,7 +38,7 @@ impl Expr {
         match e {
             ast::Expr::Identifier { id, span } => match session.find_origin(*id) {
                 Some((origin, def_span)) => {
-                    if let NameOrigin::Foreign = origin {
+                    if let NameOrigin::Foreign { .. } = origin {
                         session.foreign_names.insert((*id, def_span));
                     }
 
@@ -114,7 +113,9 @@ impl Expr {
                             id: name,
                             span,
                             def_span: span,
-                            origin: NameOrigin::Foreign,
+                            origin: NameOrigin::Foreign {
+                                kind: NameKind::Func,
+                            },
                         }))
                     },
                     Err(()) => Err(()),

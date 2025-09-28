@@ -11,6 +11,7 @@ use crate::{
 };
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
+use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{ErrorToken, TokenKind};
@@ -32,17 +33,17 @@ pub struct Block {
 
 impl Block {
     // hir will use this function.
-    pub fn iter_names(&self) -> impl Iterator<Item = (InternedString, Span)> {
-        self.lets.iter().map(|l| (l.name, l.name_span)).chain(
-            self.funcs.iter().map(|f| (f.name, f.name_span))
+    pub fn iter_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+        self.lets.iter().map(|l| (l.name, l.name_span, NameKind::Let)).chain(
+            self.funcs.iter().map(|f| (f.name, f.name_span, NameKind::Func))
         ).chain(
-            self.structs.iter().map(|s| (s.name, s.name_span))
+            self.structs.iter().map(|s| (s.name, s.name_span, NameKind::Struct))
         ).chain(
-            self.enums.iter().map(|e| (e.name, e.name_span))
+            self.enums.iter().map(|e| (e.name, e.name_span, NameKind::Enum))
         ).chain(
-            self.modules.iter().map(|m| (m.name, m.name_span))
+            self.modules.iter().map(|m| (m.name, m.name_span, NameKind::Module))
         ).chain(
-            self.uses.iter().map(|u| (u.name, u.name_span))
+            self.uses.iter().map(|u| (u.name, u.name_span, NameKind::Use))
         )
     }
 }
@@ -96,7 +97,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Func)) => match self.parse_func() {
+                Some(TokenKind::Keyword(Keyword::Fn)) => match self.parse_func() {
                     Ok(mut func) => {
                         func.attribute = attribute;
                         funcs.push(func);
@@ -233,7 +234,7 @@ impl<'t> Tokens<'t> {
     fn march_until_top_level_statement(&mut self) {
         loop {
             match self.peek().map(|t| &t.kind) {
-                Some(TokenKind::Keyword(Keyword::Let | Keyword::Func | Keyword::Struct | Keyword::Enum)) => {
+                Some(TokenKind::Keyword(Keyword::Let | Keyword::Fn | Keyword::Struct | Keyword::Enum)) => {
                     return;
                 },
                 Some(_) => {

@@ -41,6 +41,10 @@ pub enum Expr {
         elements: Vec<Expr>,
         group_span: Span,
     },
+    List {
+        elements: Vec<Expr>,
+        group_span: Span,
+    },
     StructInit {
         r#struct: Box<Expr>,
         fields: Vec<StructInitField>,
@@ -196,7 +200,16 @@ impl<'t> Tokens<'t> {
 
                     Expr::Block(block)
                 },
-                Delim::Bracket => todo!(),
+                Delim::Bracket => {
+                    let span = *span;
+                    let mut tokens = Tokens::new(tokens, span.end());
+                    let exprs = tokens.parse_comma_separated_expr()?;
+
+                    Expr::List {
+                        elements: exprs,
+                        group_span: span,
+                    }
+                },
             },
             Some(t) => panic!("TODO: {t:?}"),
             None => {
@@ -326,7 +339,23 @@ impl<'t> Tokens<'t> {
                             }
                         },
                         // index
-                        Delim::Bracket => todo!(),
+                        Delim::Bracket => {
+                            let (l_bp, _) = infix_binding_power(InfixOp::Index);
+
+                            if l_bp < min_bp {
+                                break;
+                            }
+
+                            let mut tokens = Tokens::new(tokens, span.end());
+                            let rhs = tokens.parse_expr()?;
+                            self.cursor += 1;
+                            lhs = Expr::InfixOp {
+                                op: InfixOp::Index,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                            };
+                            continue;
+                        },
                     }
                 },
                 Some(Token {
@@ -435,6 +464,7 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Lt | InfixOp::Gt | InfixOp::Leq | InfixOp::Geq => (COMP, COMP + 1),
         InfixOp::Eq | InfixOp::Neq => (COMP_EQ, COMP_EQ + 1),
         InfixOp::Shl | InfixOp::Shr => (SHIFT, SHIFT + 1),
+        InfixOp::Index => (INDEX, INDEX + 1),
     }
 }
 

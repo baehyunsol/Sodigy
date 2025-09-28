@@ -1,0 +1,8 @@
+[package]
+name = "sodigy-name-analysis"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-span = { version = "0.1.0", path = "../span" }
+sodigy-string = { version = "0.1.0", path = "../string" }

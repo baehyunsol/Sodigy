@@ -1,0 +1,18 @@
+fn adder(x) = \(y) => x + y;
+
+@test.eq(7)
+let foo = adder(3)(4);
+
+@test.eq(10)
+let bar = adder(5)(5);
+
+@test.eq(20)
+let baz = {
+    let adders = [
+        adder(5),
+        adder(10),
+        adder(15),
+    ];
+
+    adders[1](10)
+};

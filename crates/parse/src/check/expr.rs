@@ -32,7 +32,8 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::Tuple { elements, .. } => {
+            Expr::Tuple { elements, .. } |
+            Expr::List { elements, .. } => {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
@@ -165,7 +166,6 @@ impl Expr {
                     Err(errors)
                 }
             },
-            _ => panic!("TODO: {self:?}"),
         }
     }
 }

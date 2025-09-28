@@ -957,7 +957,7 @@ impl Session {
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
                         b"let" => TokenKind::Keyword(Keyword::Let),
-                        b"func" => TokenKind::Keyword(Keyword::Func),
+                        b"fn" => TokenKind::Keyword(Keyword::Fn),
                         b"struct" => TokenKind::Keyword(Keyword::Struct),
                         b"enum" => TokenKind::Keyword(Keyword::Enum),
                         b"module" => TokenKind::Keyword(Keyword::Module),

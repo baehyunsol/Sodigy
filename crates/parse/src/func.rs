@@ -32,10 +32,10 @@ pub struct CallArg {
 }
 
 impl<'t> Tokens<'t> {
-    // `func foo(x) = 3;`
-    // `func bar(x: Int, y: Int): Int = x + y;`
+    // `fn foo(x) = 3;`
+    // `fn bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Func))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
 
         let arg_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;

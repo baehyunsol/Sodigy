@@ -23,11 +23,8 @@ pub use expr::Expr;
 pub use func::{CallArg, Func};
 pub use r#if::If;
 pub use r#let::Let;
-pub use name::IdentWithOrigin;
 pub use pattern::Pattern;
 pub use session::Session;
-
-pub(crate) use name::{NameOrigin, Namespace, NamespaceKind};
 
 impl Session {
     /// Errors and warnings are stored in the session.
