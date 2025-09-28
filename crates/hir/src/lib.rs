@@ -10,6 +10,7 @@ use sodigy_parse as ast;
 // You first run the entire hir pass, then you have to check `session.errors` and `session.warnings`.
 
 mod block;
+mod r#enum;
 mod expr;
 mod func;
 mod r#if;
@@ -17,24 +18,27 @@ mod r#let;
 mod name;
 mod pattern;
 mod session;
+mod r#struct;
 
 pub use block::Block;
+pub use r#enum::Enum;
 pub use expr::Expr;
-pub use func::{CallArg, Func};
+pub use func::{CallArg, Func, FuncOrigin};
 pub use r#if::If;
-pub use r#let::Let;
+pub use r#let::{Let, LetOrigin};
 pub use pattern::Pattern;
 pub use session::Session;
+pub use r#struct::Struct;
 
 impl Session {
     /// Errors and warnings are stored in the session.
-    pub fn lower(&mut self, ast_block: &ast::Block) -> Result<Block, ()> {
-        let mut block = Block::from_ast(ast_block, self)?;
+    pub fn lower(&mut self, ast_block: &ast::Block) -> Result<(), ()> {
+        let mut top_level_block = Block::from_ast(ast_block, self, true /* is_top_level */)?;
 
-        for lambda_func in self.lambda_funcs.drain(..) {
-            block.funcs.push(lambda_func);
+        for r#let in top_level_block.lets.drain(..) {
+            self.lets.push(r#let);
         }
 
-        Ok(block)
+        Ok(())
     }
 }

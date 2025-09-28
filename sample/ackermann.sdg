@@ -4,7 +4,7 @@ fn ackermann(m: Int, n: Int): Int = {
     } else if n == 0 {
         ackermann(m - 1, 1)
     } else {
-        ackermann(m, ackermann(m + 1, n))
+        ackermann(m - 1, ackermann(m, n - 1))
     }
 };
 
@@ -15,7 +15,7 @@ fn ackermann1(m: Int, n: Int): Int = {
     } else if n == 0 {
         ackermann1(m - 1, 1)
     } else {
-        ackermann2(m, ackermann3(m + 1, n))
+        ackermann2(m - 1, ackermann3(m, n - 1))
     }
 };
 
@@ -25,7 +25,7 @@ fn ackermann2(m: Int, n: Int): Int = {
     } else if n == 0 {
         ackermann2(m - 1, 1)
     } else {
-        ackermann3(m, ackermann1(m + 1, n))
+        ackermann3(m - 1, ackermann1(m, n - 1))
     }
 };
 
@@ -35,6 +35,21 @@ fn ackermann3(m: Int, n: Int): Int = {
     } else if n == 0 {
         ackermann3(m - 1, 1)
     } else {
-        ackermann1(m, ackermann2(m + 1, n))
+        ackermann1(m - 1, ackermann2(m, n - 1))
     }
 };
+
+@test.eq([[1, 2, 3, 4], [5, 6, 7, 8]])  // TODO: find the real value
+let test_values = [
+    [
+        ackermann(1, 1),
+        ackermann1(1, 1),
+        ackermann2(1, 1),
+        ackermann3(1, 1),
+    ], [
+        ackermann(2, 1),
+        ackermann1(2, 1),
+        ackermann2(2, 1),
+        ackermann3(2, 1),
+    ],
+];

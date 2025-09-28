@@ -1,6 +1,7 @@
 use crate::{
     Expr,
     Func,
+    FuncOrigin,
     Let,
     Session,
 };
@@ -10,23 +11,23 @@ use sodigy_parse as ast;
 #[derive(Clone, Debug)]
 pub struct Block {
     pub lets: Vec<Let>,
-    pub funcs: Vec<Func>,
-
-    // top-level block doesn't have a value
     pub value: Box<Option<Expr>>,
 }
 
 impl Block {
-    pub fn from_ast(ast_block: &ast::Block, session: &mut Session) -> Result<Block, ()> {
+    pub fn from_ast(
+        ast_block: &ast::Block,
+        session: &mut Session,
+        top_level: bool,
+    ) -> Result<Block, ()> {
         let mut lets = vec![];
-        let mut funcs = vec![];
         let mut value = None;
         let mut has_error = false;
 
         session.name_stack.push(Namespace::new(NamespaceKind::Block, ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2))).collect()));
 
         for r#let in ast_block.lets.iter() {
-            match Let::from_ast(r#let, session) {
+            match Let::from_ast(r#let, session, top_level) {
                 Ok(l) => {
                     lets.push(l);
                 },
@@ -36,10 +37,17 @@ impl Block {
             }
         }
 
+        let func_origin = if top_level {
+            FuncOrigin::TopLevel
+        } else {
+            FuncOrigin::Inline
+        };
+
+        // All the function declarations are stored in the top-level block.
         for func in ast_block.funcs.iter() {
-            match Func::from_ast(func, session, false /* is_from_lambda */) {
+            match Func::from_ast(func, session, func_origin) {
                 Ok(f) => {
-                    funcs.push(f);
+                    session.funcs.push(f);
                 },
                 Err(_) => {
                     has_error = true;
@@ -67,7 +75,6 @@ impl Block {
         else {
             Ok(Block {
                 lets,
-                funcs,
                 value: Box::new(value),
             })
         }

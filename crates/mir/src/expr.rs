@@ -65,6 +65,8 @@ impl Expr {
             },
 
             // TODO: these have to be `mir::Expr::Call`, but how?
+            hir::Expr::Tuple { elements, .. } => todo!(),
+            hir::Expr::List { elements, .. } => todo!(),
             hir::Expr::InfixOp { op, lhs, rhs } => todo!(),
         }
     }

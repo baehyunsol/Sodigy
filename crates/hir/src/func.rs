@@ -1,5 +1,11 @@
-use crate::{Expr, Session};
-use sodigy_name_analysis::{NameKind, Namespace, NamespaceKind};
+use crate::{Expr, Let, LetOrigin, Session};
+use sodigy_name_analysis::{
+    IdentWithOrigin,
+    Namespace,
+    NamespaceKind,
+    NameKind,
+    NameOrigin,
+};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -12,7 +18,7 @@ pub struct Func {
     pub name_span: Span,
     pub args: Vec<FuncArgDef>,
     pub value: Expr,
-    pub is_from_lambda: bool,
+    pub origin: FuncOrigin,
     pub foreign_names: HashSet<(InternedString, Span)>,
 }
 
@@ -21,7 +27,17 @@ pub struct FuncArgDef {
     pub name: InternedString,
     pub name_span: Span,
     pub r#type: Option<Expr>,
-    pub default_value: Option<Expr>,
+
+    // `fn foo(x = 3, y = bar()) = ...;` is lowered to
+    // `let foo_default_x = 3; let foo_default_y = bar(); fn foo(x = foo_default_x, y = foo_default_y) = ...;`
+    pub default_value: Option<IdentWithOrigin>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FuncOrigin {
+    TopLevel,
+    Inline,  // `fn` keyword in an inline block
+    Lambda,
 }
 
 #[derive(Clone, Debug)]
@@ -34,7 +50,7 @@ impl Func {
     pub fn from_ast(
         ast_func: &ast::Func,
         session: &mut Session,
-        is_from_lambda: bool,
+        origin: FuncOrigin,
     ) -> Result<Func, ()> {
         let mut has_error = false;
 
@@ -95,7 +111,7 @@ impl Func {
                 name_span: ast_func.name_span,
                 args,
                 value: value.unwrap(),
-                is_from_lambda,
+                origin,
                 foreign_names,
             })
         }
@@ -122,7 +138,22 @@ impl FuncArgDef {
         if let Some(ast_default_value) = &ast_arg.default_value {
             match Expr::from_ast(ast_default_value, session) {
                 Ok(v) => {
-                    default_value = Some(v);
+                    session.lets.push(Let {
+                        keyword_span: Span::None,
+                        name: ast_arg.name,
+                        name_span: ast_arg.name_span,
+                        r#type: r#type.clone(),
+                        value: v,
+                        origin: LetOrigin::FuncDefaultValue,
+                    });
+                    default_value = Some(IdentWithOrigin {
+                        id: ast_arg.name,
+                        span: ast_arg.name_span,
+                        origin: NameOrigin::Local {
+                            kind: NameKind::Let,
+                        },
+                        def_span: ast_arg.name_span,
+                    });
                 },
                 Err(_) => {
                     has_error = false;

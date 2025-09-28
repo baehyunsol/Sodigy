@@ -10,10 +10,22 @@ pub struct Let {
     pub name_span: Span,
     pub r#type: Option<Expr>,
     pub value: Expr,
+    pub origin: LetOrigin,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum LetOrigin {
+    TopLevel,
+    Inline,  // `let` keyword in an inline block
+    FuncDefaultValue,
 }
 
 impl Let {
-    pub fn from_ast(ast_let: &ast::Let, session: &mut Session) -> Result<Let, ()> {
+    pub fn from_ast(
+        ast_let: &ast::Let,
+        session: &mut Session,
+        top_level: bool,
+    ) -> Result<Let, ()> {
         let mut has_error = false;
         let mut r#type = None;
 
@@ -47,6 +59,11 @@ impl Let {
                 name_span: ast_let.name_span,
                 r#type,
                 value: value.unwrap(),
+                origin: if top_level {
+                    LetOrigin::TopLevel
+                } else {
+                    LetOrigin::Inline
+                },
             })
         }
     }

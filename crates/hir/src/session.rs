@@ -1,4 +1,4 @@
-use crate::Func;
+use crate::{Enum, Func, Let, Struct};
 use sodigy_error::Error;
 use sodigy_name_analysis::Namespace;
 use sodigy_span::Span;
@@ -10,10 +10,13 @@ pub struct Session {
     pub name_stack: Vec<Namespace>,
     pub foreign_names: HashSet<(InternedString, Span)>,
 
-    // When it finds a lambda function while lowering expressions,
-    // it converts the lambda function to a normal function and store here.
-    // The functions will later moved to the top-level block.
-    pub lambda_funcs: Vec<Func>,
+    // Top-level declarations are stored here.
+    // Also, many inline declarations are stored here (so that inline blocks get simpler).
+    pub lets: Vec<Let>,
+    pub funcs: Vec<Func>,
+    pub structs: Vec<Struct>,
+    pub enums: Vec<Enum>,
+
     pub errors: Vec<Error>,
 }
 
@@ -23,7 +26,10 @@ impl Session {
             curr_func_args: HashMap::new(),
             name_stack: vec![],
             foreign_names: HashSet::new(),
-            lambda_funcs: vec![],
+            lets: vec![],
+            funcs: vec![],
+            structs: vec![],
+            enums: vec![],
             errors: vec![],
         }
     }

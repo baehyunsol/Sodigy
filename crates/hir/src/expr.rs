@@ -2,6 +2,7 @@ use crate::{
     Block,
     CallArg,
     Func,
+    FuncOrigin,
     If,
     Session,
 };
@@ -25,6 +26,14 @@ pub enum Expr {
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
+    },
+    Tuple {
+        elements: Vec<Expr>,
+        group_span: Span,
+    },
+    List {
+        elements: Vec<Expr>,
+        group_span: Span,
     },
     InfixOp {
         op: InfixOp,
@@ -60,7 +69,7 @@ impl Expr {
             },
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
-            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session)?)),
+            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
             ast::Expr::Call { func, args } => {
                 let func = Expr::from_ast(func, session);
                 let mut new_args = Vec::with_capacity(args.len());
@@ -85,6 +94,42 @@ impl Expr {
                     _ => Err(()),
                 }
             },
+            ast::Expr::Tuple { elements, group_span } |
+            ast::Expr::List { elements, group_span } => {
+                let is_tuple = matches!(e, ast::Expr::Tuple { .. });
+                let group_span = *group_span;
+                let mut has_error = false;
+                let mut new_elements = Vec::with_capacity(elements.len());
+
+                for element in elements.iter() {
+                    match Expr::from_ast(element, session) {
+                        Ok(element) => {
+                            new_elements.push(element);
+                        },
+                        Err(_) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else if is_tuple {
+                    Ok(Expr::Tuple {
+                        elements: new_elements,
+                        group_span,
+                    })
+                }
+
+                else {
+                    Ok(Expr::List {
+                        elements: new_elements,
+                        group_span,
+                    })
+                }
+            },
             ast::Expr::Lambda { args, r#type, value, group_span } => {
                 let span = group_span.begin();
                 let name = name_lambda_function(span);
@@ -105,10 +150,10 @@ impl Expr {
                     attribute: ast::Attribute::new(),
                 };
 
-                match Func::from_ast(&func, session, true /* is_from_lambda */) {
+                match Func::from_ast(&func, session, FuncOrigin::Lambda) {
                     Ok(func) => {
                         session.foreign_names.insert((name, span));
-                        session.lambda_funcs.push(func);
+                        session.funcs.push(func);
                         Ok(Expr::Identifier(IdentWithOrigin {
                             id: name,
                             span,

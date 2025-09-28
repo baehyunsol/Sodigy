@@ -55,5 +55,11 @@ fn main() {
 
     let mut hir_session = sodigy_hir::Session::new();
     let hir_block = hir_session.lower(&ast_block).unwrap();
-    println!("{hir_block:?}");
+    // println!("{hir_block:?}");
+
+    // TODO: inter-file hir analysis
+
+    let mut mir_session = sodigy_mir::Session::new();
+    let mir_block = mir_session.lower(&hir_block).unwrap();
+    // println!("{mir_block:?}");
 }
