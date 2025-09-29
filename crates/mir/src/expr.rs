@@ -4,6 +4,7 @@ use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
+use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -23,10 +24,28 @@ pub enum Expr {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Callable {
     // There must be `HashMap<Span, Func>` somewhere
-    Static(Span),
+    Static {
+        def_span: Span,
+        span: Span,
+    },
+
+    // It's a functor and can only be evaluated at runtime.
+    Dynamic(Box<Expr>),
+
+    // Infix operations before type inference. For example, `+` in `3 + 4` is first
+    // lowered to a generic-addition, then after the compiler finds out that the both operands are
+    // integer, it's lowered to integer-addition.
+    GenericInfixOp {
+        op: InfixOp,
+        span: Span,
+    },
+
+    ListInit {
+        group_span: Span,
+    },
 }
 
 impl Expr {
@@ -37,14 +56,17 @@ impl Expr {
                 n: *n,
                 span: *span,
             }),
-            hir::Expr::If(r#if) => todo!(),
+            hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
+                Ok(r#if) => Ok(Expr::If(r#if)),
+                Err(()) => Err(()),
+            },
             hir::Expr::Block(block) => match Block::from_hir(block, session) {
                 Ok(block) => Ok(Expr::Block(block)),
-                Err(_) => Err(()),
+                Err(()) => Err(()),
             },
             hir::Expr::Call {
                 func,
-                args,
+                args: hir_args,
             } => {
                 let mut has_error = false;
                 let mut def_span = None;
@@ -55,21 +77,33 @@ impl Expr {
                         NameOrigin::Foreign { kind } => match kind {
                             NameKind::Func => {
                                 def_span = Some(id.def_span);
-                                Callable::Static(id.def_span)
+                                Callable::Static {
+                                    def_span: id.def_span,
+                                    span: id.span,
+                                }
                             },
-                            _ => todo!(),
+                            // The programmer defines a functor using `let` keyword
+                            // and calling it. In this case, we have to dynamically call the
+                            // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
+                            NameKind::Let => {
+                                def_span = Some(id.def_span);
+                                Callable::Dynamic(Box::new(Expr::Identifier(id)))
+                            },
+                            _ => panic!("TODO: {kind:?}"),
                         },
                         NameOrigin::FuncArg { .. } => todo!(),
                     },
                     Ok(id) => todo!(),
-                    Err(_) => {
+                    Err(()) => {
                         has_error = true;
                         todo!()
                     },
                 };
 
-                let args = match def_span {
-                    Some(def_span) => match session.func_args.get(&def_span) {
+                // If we know `def_span` and the `def_span` is in `func_shapes`,
+                // we know the exact definition of the function, and can process keyword arguments and default values.
+                let mut mir_args = match def_span {
+                    Some(def_span) => match session.func_shapes.get(&def_span) {
                         Some(arg_defs) => {
                             let arg_defs = arg_defs.to_vec();
                             let mut mir_args: Vec<Option<Expr>> = vec![None; arg_defs.len()];
@@ -80,8 +114,8 @@ impl Expr {
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
 
-                            for arg in args.iter() {
-                                match arg.keyword {
+                            for hir_arg in hir_args.iter() {
+                                match hir_arg.keyword {
                                     Some((keyword, keyword_span)) => {
                                         let mut arg_index = None;
 
@@ -107,11 +141,11 @@ impl Expr {
                                                     });
                                                 }
 
-                                                match Expr::from_hir(&arg.arg, session) {
+                                                match Expr::from_hir(&hir_arg.arg, session) {
                                                     Ok(arg) => {
                                                         mir_args[i] = Some(arg);
                                                     },
-                                                    Err(_) => {
+                                                    Err(()) => {
                                                         has_error = true;
                                                     },
                                                 }
@@ -129,11 +163,11 @@ impl Expr {
                                         }
                                     },
                                     None => {
-                                        match Expr::from_hir(&arg.arg, session) {
+                                        match Expr::from_hir(&hir_arg.arg, session) {
                                             Ok(arg) => {
                                                 mir_args[positional_arg_cursor] = Some(arg);
                                             },
-                                            Err(_) => {
+                                            Err(()) => {
                                                 has_error = true;
                                             },
                                         }
@@ -143,14 +177,65 @@ impl Expr {
                                 }
                             }
 
-                            // TODO: if any of `mir_args` is None, it's an error
-                            //       but I have to come up with a nice way to generate helpful error messages
-                            mir_args.into_iter().map(|arg| arg.unwrap()).collect()
+                            for i in 0..arg_defs.len() {
+                                match (&mir_args[i], &arg_defs[i].default_value) {
+                                    (None, Some(default_value)) => {
+                                        mir_args[i] = Some(Expr::Identifier(*default_value));
+                                    },
+                                    _ => {},
+                                }
+                            }
+
+                            let mut result = Vec::with_capacity(mir_args.len());
+
+                            for mir_arg in mir_args.into_iter() {
+                                if let Some(mir_arg) = mir_arg {
+                                    result.push(mir_arg);
+                                }
+
+                                // If mir_arg is None, that's a compile error, but we're not raising an error yet.
+                                // We'll raise an error after type-check/inference, so that we can add more information to the error message.
+                            }
+
+                            Some(result)
                         },
-                        None => todo!(),
+                        None => None,
                     },
-                    None => todo!(),
+                    None => None,
                 };
+
+                // If we cannot access the exact definition of the func,
+                // we can only process positional arguments and cannot do anything with the default values.
+                if mir_args.is_none() {
+                    mir_args = {
+                        let mut result = Vec::with_capacity(hir_args.len());
+
+                        for hir_arg in hir_args.iter() {
+                            match hir_arg.keyword {
+                                Some((_, keyword_span)) => {
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::KeywordArgumentNotAllowed,
+                                        span: keyword_span,
+                                        ..Error::default()
+                                    });
+                                    has_error = true;
+                                },
+                                None => match Expr::from_hir(&hir_arg.arg, session) {
+                                    Ok(arg) => {
+                                        result.push(arg);
+                                    },
+                                    Err(()) => {
+                                        has_error = true;
+                                    },
+                                },
+                            }
+                        }
+
+                        Some(result)
+                    };
+                }
+
+                let args = mir_args.unwrap();
 
                 if has_error {
                     Err(())
@@ -161,10 +246,50 @@ impl Expr {
                 }
             },
 
-            // TODO: these have to be `mir::Expr::Call`, but how?
             hir::Expr::Tuple { elements, .. } => todo!(),
-            hir::Expr::List { elements, .. } => todo!(),
-            hir::Expr::InfixOp { op, lhs, rhs } => todo!(),
+            hir::Expr::List { elements, group_span } => {
+                let mut mir_elements = Vec::with_capacity(elements.len());
+                let mut has_error = false;
+
+                for element in elements.iter() {
+                    match Expr::from_hir(element, session) {
+                        Ok(element) => {
+                            mir_elements.push(element);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Expr::Call {
+                        func: Callable::ListInit {
+                            group_span: *group_span,
+                        },
+                        args: mir_elements,
+                    })
+                }
+            },
+            hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
+                match (
+                    Expr::from_hir(lhs, session),
+                    Expr::from_hir(rhs, session),
+                ) {
+                    (Ok(lhs), Ok(rhs)) => Ok(Expr::Call {
+                        func: Callable::GenericInfixOp {
+                            op: *op,
+                            span: *op_span,
+                        },
+                        args: vec![lhs, rhs],
+                    }),
+                    _ => Err(()),
+                }
+            },
         }
     }
 
@@ -173,10 +298,13 @@ impl Expr {
         match self {
             Expr::Identifier(id) => id.span,
             Expr::Number { span, .. } => *span,
-            Expr::If(r#if) => r#if.keyword_span,
+            Expr::If(r#if) => r#if.if_span,
             Expr::Block(block) => block.group_span,
             Expr::Call { func, .. } => match func {
-                Callable::Static(span) => *span,
+                Callable::Static { span, .. } |
+                Callable::GenericInfixOp { span, .. } => *span,
+                Callable::Dynamic(expr) => expr.error_span(),
+                Callable::ListInit { group_span, .. } => *group_span,
             },
         }
     }

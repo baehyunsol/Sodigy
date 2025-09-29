@@ -72,6 +72,7 @@ pub enum ErrorKind {
     UndefinedName(InternedString),
 
     KeywordArgumentRepeated(InternedString),
+    KeywordArgumentNotAllowed,
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),

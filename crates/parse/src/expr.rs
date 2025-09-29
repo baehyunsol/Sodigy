@@ -66,6 +66,7 @@ pub enum Expr {
     },
     InfixOp {
         op: InfixOp,
+        op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -205,6 +206,7 @@ impl<'t> Tokens<'t> {
                     let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
                     let exprs = tokens.parse_comma_separated_expr()?;
+                    self.cursor += 1;
 
                     Expr::List {
                         elements: exprs,
@@ -268,6 +270,7 @@ impl<'t> Tokens<'t> {
                             let rhs = self.pratt_parse(r_bp)?;
                             lhs = Expr::InfixOp {
                                 op,
+                                op_span: punct_span,
                                 lhs: Box::new(lhs),
                                 rhs: Box::new(rhs),
                             };
@@ -352,6 +355,7 @@ impl<'t> Tokens<'t> {
                             self.cursor += 1;
                             lhs = Expr::InfixOp {
                                 op: InfixOp::Index,
+                                op_span: span,
                                 lhs: Box::new(lhs),
                                 rhs: Box::new(rhs),
                             };

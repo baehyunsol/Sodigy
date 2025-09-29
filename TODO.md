@@ -1,3 +1,156 @@
+# 11. Byte Code (Or LIR)
+
+### 1. block
+
+```sodigy
+{
+    let eager = foo(3, 4);
+    let lazy = bar(3, 4);
+
+    // this is tail call
+    eager + lazy
+}
+```
+
+```c
+// uninitialized state of `lazy`
+local1.push(nullptr);
+
+// eval `eager`
+r1.push(3);
+r2.push(4);
+call_stack.push(s1);
+goto foo;
+label: s1
+call_stack.pop();
+r1.pop();
+r2.pop();
+r1.push(ret);
+
+// eval `lazy`, if it has to
+jump_if_init(local1, s2);
+r1.push(3);
+r2.push(4);
+call_stack.push(s3);
+goto bar;
+label: s3
+call_stack.pop();
+r1.pop();
+r2.pop();
+local1.assign(ret);
+
+label: s2
+r2.push(local1);
+
+local1.pop();
+// this doesn't push to call_stack because it's a tail call
+goto add;
+```
+
+### 2. if
+
+```sodigy
+// `x` and `y` are at `r3` and `r4`
+// this `if` is tail-call
+if foo(x, y) { bar(3, 4) } else { baz }
+```
+
+```c
+r1.push(r3);
+r2.push(r4);
+call_stack.push(s1);
+goto foo;
+label: s1
+call_stack.pop();
+r1.pop();
+r2.pop();
+r1.push(ret);
+
+branch(r1, s2, s3);
+label: s2
+r1.pop();
+r1.push(3);
+r2.push(4);
+call_stack.push(s4);
+goto bar;
+label: s4
+call_stack.pop();
+r1.pop();
+r2.pop();
+goto call_stack.peek();
+
+label: s3
+r1.pop();
+ret.push(baz);
+goto call_stack.peek();
+```
+
+### 3. if, with assignment
+
+```sodigy
+// This is a tail-call
+if pat Some($x) = foo(3, 4) { bar(x) } else { baz };
+```
+
+```c
+// place for `x`
+local1.push(nullptr);
+
+r1.push(3);
+r2.push(4);
+call_stack.push(s1);
+goto foo;
+label: s1
+call_stack.pop();
+r1.pop();
+r2.pop();
+local1.assign(ret);
+
+r1.push(local1);
+call_stack.push(s2);
+goto is_some;
+label: s2
+call_stack.pop();
+r1.pop();
+r1.push(ret);
+
+branch(r1, s3, s4);
+label: s3
+r1.pop();
+r1.push(local1);
+local1.pop();
+goto bar;  // this is a tail call
+
+label: s4
+r1.push(baz);
+local1.pop();
+goto call_stack.peek();
+```
+
+# 10. func arg errors
+
+1. positional arg만 있는 경우
+  - expected 5, got 4
+    - 뭐가 missing인지 찾을 수 있음??
+    - default value가 있으면 머리 아픔...
+  - expected 5, got 6
+  - expected 5, got 5, but there's a type error
+
+# 9. Type checks and inferences
+
+1. inference를 먼저 하고 check를 해야겠네?
+2. inference나 check를 하려면 `mir::Type`이 필요함. 근데 `mir::Type`을 만드려면 inference가 필요한 거 아님??
+3. type check/inference는 inter-file로 해야함. 근데 지금 mir은 per-file로 할 계획이잖아? 그럼 안되지 않음..??
+  - 하려면, inter-file hir을 만들면서 type check/inference에 필요한 정보를 미리 다 모아두고, mir은 per-file로 해야함.
+
+일단 type을 어떻게 구현할지부터 정해야함!
+
+1. first-class object
+  - 완전 expr처럼 다루는 거임!
+2. compiler built-in
+  - 이건 좀 애매... custom struct도 처리해야하잖아?
+3. 아니면... mir 끝난 다음에 type 처리해도 되는 거 아님??
+
 # 8. Linear type system
 
 한 block에서, 각 name에 대해서

@@ -6,6 +6,7 @@ use crate::{
     Session,
 };
 use sodigy_name_analysis::{Namespace, NamespaceKind};
+use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 
@@ -13,7 +14,7 @@ use sodigy_span::Span;
 pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
-    pub value: Box<Option<Expr>>,
+    pub value: Box<Expr>,
 }
 
 impl Block {
@@ -23,7 +24,13 @@ impl Block {
         top_level: bool,
     ) -> Result<Block, ()> {
         let mut lets = vec![];
-        let mut value = None;
+
+        // It's just a dummy value. No one's gonna use this.
+        let mut value = Expr::Number {
+            n: InternedNumber::zero(),
+            span: Span::None,
+        };
+
         let mut has_error = false;
 
         session.name_stack.push(Namespace::new(NamespaceKind::Block, ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2))).collect()));
@@ -57,10 +64,13 @@ impl Block {
             }
         }
 
+        // If `ast_block.value` is None, that means the block is top-level.
+        // An ast_block can be top-level or inline, but an hir_block is always an inline block.
+        // If it's a top-level block, `HirSession::lower` will do proper handlings, so this function doesn't have to worry about anything.
         if let Some(ast_value) = ast_block.value.as_ref() {
             match Expr::from_ast(ast_value, session) {
                 Ok(v) => {
-                    value = Some(v);
+                    value = v;
                 },
                 Err(_) => {
                     has_error = true;

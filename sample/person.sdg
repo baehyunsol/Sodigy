@@ -6,10 +6,13 @@ struct Person = {
 
 fn get_old(p: Person): Person = p `age (p.age + 1);
 
+@test.eq(Person {
+    name: "Bae",
+    age: 26,
+    is_rustacean: True,
+})
 let old_bae: Person = get_old(Person {
     name: "Bae",
     age: 25,
     is_rustacean: True,
 });
-
-// TODO: assert_eq!(old_bae.age, 26)

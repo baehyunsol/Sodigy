@@ -4,7 +4,4 @@ let y = 4;
 @test.eq((10, 20, 30), 60)
 fn add(x, y, z) = x + y + z;
 
-// TODO: I'm not sure how Sodigy should interact with the outside world.
-//       I'm not sure whether `main` function is the best way.
-//       For now, it evaluates the value and dumps it to stdout
 fn main() = add(10, 20, 30);

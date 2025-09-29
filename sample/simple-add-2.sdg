@@ -1,0 +1,6 @@
+fn adder(x, y = 10) = x + y;
+
+fn main() = [
+    adder(40, 50),
+    adder(20),
+];

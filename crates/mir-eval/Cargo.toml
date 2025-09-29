@@ -1,11 +1,11 @@
 [package]
-name = "sodigy-mir"
+name = "sodigy-mir-eval"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 sodigy-error = { version = "0.1.0", path = "../error" }
-sodigy-hir = { version = "0.1.0", path = "../hir" }
+sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-number = { version = "0.1.0", path = "../number" }
 sodigy-span = { version = "0.1.0", path = "../span" }

@@ -37,6 +37,7 @@ pub enum Expr {
     },
     InfixOp {
         op: InfixOp,
+        op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -166,13 +167,14 @@ impl Expr {
                     Err(()) => Err(()),
                 }
             },
-            ast::Expr::InfixOp { op, lhs, rhs } => {
+            ast::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_ast(lhs, session),
                     Expr::from_ast(rhs, session),
                 ) {
                     (Ok(lhs), Ok(rhs)) => Ok(Expr::InfixOp {
                         op: *op,
+                        op_span: *op_span,
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
                     }),

@@ -1,18 +1,34 @@
-use crate::Type;
+use crate::{Func, Let, Type};
 use sodigy_error::Error;
 use sodigy_hir::{self as hir, FuncArgDef};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
 pub struct Session {
-    pub func_args: HashMap<Span, Vec<FuncArgDef<Type>>>,
+    pub func_shapes: HashMap<Span, Vec<FuncArgDef<()>>>,
+    pub lets: Vec<Let>,
+    pub funcs: Vec<Func>,
     pub errors: Vec<Error>,
 }
 
 impl Session {
     pub fn from_hir_session(hir_session: &hir::Session) -> Session {
         Session {
-            func_args: todo!(),
+            func_shapes: hir_session.funcs.iter().map(
+                |func| (
+                    func.name_span,
+                    func.args.iter().map(
+                        |arg| FuncArgDef {
+                            name: arg.name,
+                            name_span: arg.name_span,
+                            r#type: None,
+                            default_value: arg.default_value,
+                        }
+                    ).collect(),
+                )
+            ).collect(),
+            lets: vec![],
+            funcs: vec![],
             errors: vec![],
         }
     }
