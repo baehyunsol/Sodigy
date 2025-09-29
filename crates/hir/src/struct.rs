@@ -7,10 +7,10 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub fields: Vec<StructField>,
+    pub fields: Vec<StructField<Expr>>,
 }
 
-pub type StructField = FuncArgDef<Expr>;
+pub type StructField<T> = FuncArgDef<T>;
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {

@@ -17,6 +17,7 @@ mod r#if;
 mod r#let;
 mod name;
 mod pattern;
+mod prelude;
 mod session;
 mod r#struct;
 
@@ -28,7 +29,9 @@ pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use pattern::Pattern;
 pub use session::Session;
-pub use r#struct::{Struct, StructInitField};
+pub use r#struct::{Struct, StructField, StructInitField};
+
+pub(crate) use prelude::PRELUDES;
 
 impl Session {
     /// Errors and warnings are stored in the session.

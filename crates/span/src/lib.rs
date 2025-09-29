@@ -1,4 +1,5 @@
 use sodigy_file::File;
+use sodigy_string::InternedString;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {
@@ -13,6 +14,7 @@ pub enum Span {
         end: usize,
     },
     Eof(File),
+    Prelude(InternedString),
     None,
 }
 
@@ -64,6 +66,7 @@ impl Span {
                 end: *end,
             },
             Span::None => Span::None,
+            Span::Prelude(_) => unreachable!(),
         }
     }
 }

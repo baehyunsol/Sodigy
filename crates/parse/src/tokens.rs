@@ -82,6 +82,7 @@ impl<'t> Tokens<'t> {
                 span: self.span_end,
                 ..Error::default()
             },
+            Span::Prelude(_) => unreachable!(),
         }
     }
 

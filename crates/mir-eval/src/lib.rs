@@ -124,6 +124,7 @@ fn eval(
                     },
                     _ => todo!(),
                 },
+                Callable::StructInit { def_span, .. } => todo!(),
                 Callable::Dynamic(expr) => {
                     let functor = eval(expr, funcs, lets, stack)?;
 
@@ -183,7 +184,6 @@ fn eval(
                         _ => panic!("TODO: {op:?}"),
                     }
                 },
-                _ => panic!("TODO: {func:?}"),
             }
         },
         _ => panic!("TODO: {expr:?}"),

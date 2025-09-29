@@ -38,6 +38,10 @@ pub enum Callable {
         def_span: Span,
         span: Span,
     },
+    StructInit {
+        def_span: Span,
+        span: Span,
+    },
 
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
@@ -287,7 +291,105 @@ impl Expr {
                     })
                 }
             },
-            hir::Expr::StructInit { r#struct, fields, group_span } => todo!(),
+            hir::Expr::StructInit { r#struct, fields: hir_fields, group_span } => {
+                let group_span = *group_span;
+                let mut has_error = false;
+                let (def_span, span) = match Expr::from_hir(r#struct, session) {
+                    Ok(Expr::Identifier(id)) => (id.def_span, id.span),
+                    Ok(id) => todo!(),
+                    Err(()) => {
+                        has_error = true;
+                        todo!()
+                    },
+                };
+
+                match session.struct_shapes.get(&def_span) {
+                    Some(field_defs) => {
+                        let field_defs = field_defs.clone();
+                        let mut mir_fields = vec![None; hir_fields.len()];
+                        let mut name_spans = vec![None; hir_fields.len()];
+
+                        for hir_field in hir_fields.iter() {
+                            let mut field_index = None;
+
+                            for (i, field_def) in field_defs.iter().enumerate() {
+                                if field_def.name == hir_field.name {
+                                    field_index = Some(i);
+                                    break;
+                                }
+                            }
+
+                            match field_index {
+                                Some(i) => {
+                                    if let Some(mir_field) = &mir_fields[i] {
+                                        session.errors.push(Error {
+                                            kind: ErrorKind::StructFieldRepeated(hir_field.name),
+                                            span: hir_field.name_span,
+                                            extra_span: name_spans[i],
+                                            ..Error::default()
+                                        });
+                                    }
+
+                                    match Expr::from_hir(&hir_field.value, session) {
+                                        Ok(field) => {
+                                            mir_fields[i] = Some(field);
+                                        },
+                                        Err(()) => {
+                                            has_error = true;
+                                        },
+                                    }
+
+                                    name_spans[i] = Some(hir_field.name_span);
+                                },
+                                None => {
+                                    has_error = true;
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::InvalidStructField(hir_field.name),
+                                        span: hir_field.name_span,
+                                        ..Error::default()
+                                    });
+                                },
+                            }
+                        }
+
+                        for i in 0..field_defs.len() {
+                            match (&mir_fields[i], &field_defs[i].default_value) {
+                                (None, Some(default_value)) => {
+                                    mir_fields[i] = Some(Expr::Identifier(*default_value));
+                                },
+                                _ => {},
+                            }
+                        }
+
+                        let mut mir_fields_unwrapped = Vec::with_capacity(mir_fields.len());
+
+                        for (i, mir_field) in mir_fields.into_iter().enumerate() {
+                            match mir_field {
+                                Some(mir_field) => {
+                                    mir_fields_unwrapped.push(mir_field);
+                                },
+                                None => {
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::MissingStructField(field_defs[i].name),
+                                        span: group_span,
+                                        extra_span: Some(field_defs[i].name_span),
+                                        ..Error::default()
+                                    });
+                                },
+                            }
+                        }
+
+                        Ok(Expr::Call {
+                            func: Callable::StructInit {
+                                def_span,
+                                span,
+                            },
+                            args: mir_fields_unwrapped,
+                        })
+                    },
+                    None => todo!(),
+                }
+            },
             hir::Expr::Path { lhs, fields } => todo!(),
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
@@ -317,6 +419,7 @@ impl Expr {
             Expr::Block(block) => block.group_span,
             Expr::Call { func, .. } => match func {
                 Callable::Static { span, .. } |
+                Callable::StructInit { span, .. } |
                 Callable::GenericInfixOp { span, .. } => *span,
                 Callable::Dynamic(expr) => expr.error_span(),
                 Callable::ListInit { group_span, .. } => *group_span,

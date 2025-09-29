@@ -76,4 +76,10 @@ pub enum ErrorKind {
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),
+
+    StructFieldRepeated(InternedString),
+    MissingStructField(InternedString),
+
+    // TODO: suggest similar name
+    InvalidStructField(InternedString),
 }

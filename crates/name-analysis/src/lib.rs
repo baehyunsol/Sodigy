@@ -14,6 +14,7 @@ impl Namespace {
 }
 
 pub enum NamespaceKind {
+    Prelude,
     FuncArg,
     Block,  // declarations in a block
     Local,  // anything other than those

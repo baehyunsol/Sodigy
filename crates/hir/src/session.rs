@@ -1,8 +1,8 @@
-use crate::{Enum, Func, Let, Struct};
+use crate::{Enum, Func, Let, PRELUDES, Struct};
 use sodigy_error::Error;
-use sodigy_name_analysis::Namespace;
+use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::{HashMap, HashSet};
 
 pub struct Session {
@@ -22,9 +22,22 @@ pub struct Session {
 
 impl Session {
     pub fn new() -> Self {
+        let prelude_namespace = Namespace {
+            kind: NamespaceKind::Prelude,
+            names: PRELUDES.iter().map(
+                |(name, kind)| (
+                    intern_string(name),
+                    (
+                        Span::Prelude(intern_string(name)),
+                        *kind,
+                    ),
+                )
+            ).collect(),
+        };
+
         Session {
             curr_func_args: HashMap::new(),
-            name_stack: vec![],
+            name_stack: vec![prelude_namespace],
             foreign_names: HashSet::new(),
             lets: vec![],
             funcs: vec![],
