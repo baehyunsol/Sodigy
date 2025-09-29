@@ -19,6 +19,8 @@ pub struct Func {
     pub args: Vec<FuncArgDef<Expr>>,
     pub value: Expr,
     pub origin: FuncOrigin,
+
+    // We have to distinguish closures and lambda functions
     pub foreign_names: HashSet<(InternedString, Span)>,
 }
 

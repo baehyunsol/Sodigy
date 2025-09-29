@@ -1,3 +1,72 @@
+# 13. prelude
+
+어느 시점에 집어넣어야 하나...
+
+1. hir에서 `NameOrigin` 찾는 시점에 이미 있어야 함
+  - Namespace 맨 위에 넣어주고 시작하면 됨!
+  - span은 `Span::Prelude`로 주자!
+2. mir에서도 `Span::Prelude` 보고 걔의 shape를 알 수 있어야 함!
+  - MirSession에다가 `Map<Span, Shape>` 넣어줘야 함!
+
+# 12. How to infer type
+
+```sodigy
+let x = foo(3, 4);
+let foo = \(x, y) => x + y;
+
+let y = x;
+```
+
+일단 `x`와 `foo`, `y`에 type annotation이 없지? 쟤넬 전부 type variable로 만듦. `x: HasToBeInfered(0)`, `foo: Func((HasToBeInfered(1), HasToBeInfered(2)), HasToBeInfered(3))`, `y: HasToBeInfered(4)`
+
+위 식에서 type variable 간의 등식을 몇개 만들 수 있지?
+
+예를 들어서
+
+- `HasToBeInfered(0) = HasToBeInfered(3)`
+  - foo의 return type과 x의 type이 동일하니까
+- `HasToBeInfered(1) = Int`
+  - foo의 첫번째 input으로 `3`이 들어갔으니까
+- `HasToBeInfered(2) = Int`
+  - foo의 첫번째 input으로 `4`가 들어갔으니까
+- `HasToBeInfered(4) = HasToBeInfered(0)`
+  - `y = x`이니까
+
+근데... `HasToBeInfered(3) = Int`라고 하려면 `3 + 4`의 return type과 `HasToBeInfered(3)`이 동일하다는 거를 알아야하는데...
+
+와 여기서 generic 들어가면 엄청 빡센 거 아님??
+
+여기서 type check까지 다 해버리면 안되나?? 그래도 될 거 같은데!!
+
+```sodigy
+let foo = \() => Some(100);
+let x = if pat Some($n) = foo() { bar(n) } else { baz };
+let y = x + 1;
+```
+
+- `foo: Func((), HasToBeInfered(0))`
+- `x: HasToBeInfered(1)`
+- `$n: HasToBeInfered(2)`
+  - 얘는 type annotation이 붙을 자리가 없지만 그래도 infer를 해야함.
+  - 모든 name의 type을 다 알아야하거든...
+- `y: HasToBeInfered(3)`
+- `bar: Func((HasToBeInfered(4),), HasToBeInfered(5))`
+- `baz: HasToBeInfered(6)`
+
+- `HasToBeInfered(0) = Option(Int)`
+- `Option(HasToBeInfered(2)) = HasToBeInfered(0)`
+- `HasToBeInfered(4) = HasToBeInfered(2)`
+- `HasToBeInfered(5) = HasToBeInfered(6)`
+- `HasToBeInfered(6) = HasToBeInfered(1)`
+
+이런 식으로 하면 다 될 거 같은데...
+
+type infer를 어느 단위로 해야함?? function 안에서만 하면 충분하겠지?
+
+생각해보니까 function 안에서 하면 부족함. 위에서도 `bar`의 type을 모르니까 `HasToBeInfered`를 주잖아? 그럼 결국에는 `bar`의 type과 현재 function의 type을 동시에 추론해야하는데...
+
+그럼 모든 type을 한번에 추론해?? 그게 가능해?? 모든 type을 한번에 추론하는 거는 per-file로 못함!!
+
 # 11. Byte Code (Or LIR)
 
 ### 1. block
@@ -150,6 +219,20 @@ goto call_stack.peek();
 2. compiler built-in
   - 이건 좀 애매... custom struct도 처리해야하잖아?
 3. 아니면... mir 끝난 다음에 type 처리해도 되는 거 아님??
+
+---
+
+types
+
+1. Type check 가능 iff 모든 type annotation이 있음
+  - 모든 type annotation이 있으면 모든 expr에 대해서 recursive하게 type check를 한 다음에, actual type과 annotated type을 비교하면 됨!!
+2. Type annotation이 있어야할 자리에 없으면 그 부분을 infer 해야함
+  - 다른 부분은 infer 안해도 됨
+  - infer하는 방법은 위에 적어놨음
+
+즉, let하고 func, struct, enum에 달려야하는 모든 annotation을 다 채워주면 됨.
+
+Type annotation (user-provided), type annotation (infered), actual type (of the value) 이렇게 3개를 구분해야함. actual type은 2가지임: numeric literal처럼 명백하거나, identifier처럼 type annotation을 참고해야하거나
 
 # 8. Linear type system
 

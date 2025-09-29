@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 pub struct Session {
     pub func_shapes: HashMap<Span, Vec<FuncArgDef<()>>>,
+    // pub struct_shapes: HashMap<Span, Vec<StructField<()>>>,
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub errors: Vec<Error>,

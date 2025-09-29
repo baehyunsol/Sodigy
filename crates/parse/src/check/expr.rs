@@ -53,6 +53,7 @@ impl Expr {
             Expr::StructInit {
                 r#struct,
                 fields,
+                ..
             } => {
                 let mut errors = vec![];
 

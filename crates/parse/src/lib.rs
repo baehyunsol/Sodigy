@@ -20,7 +20,7 @@ mod r#use;
 pub use attribute::{Attribute, Decorator, DocComment};
 pub use block::Block;
 pub use r#enum::Enum;
-pub use expr::Expr;
+pub use expr::{Expr, Field};
 pub use func::{CallArg, Func, FuncArgDef};
 pub use r#if::If;
 pub use r#let::Let;

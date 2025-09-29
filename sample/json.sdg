@@ -1,0 +1,36 @@
+enum Value = {
+    Int(Int),
+    String(String),
+    Bool(Bool),
+    List(List(Value)),
+    Map(Map(String, Value)),
+    Null,
+};
+
+struct Error = {
+    span: Span,
+};
+
+enum ParseState = {
+    Init,
+    Integer,
+};
+
+fn parse(s: String): Result(Value, Error) = parse_worker(
+    s,
+    state = ParseState.Init,
+);
+
+fn parse_worker(s: String, state: ParseState): Result(Value, Error) = match state {
+    ParseState.Init => match s.get(0) {
+        '0'..='9' => todo(),
+        '"' => todo(),
+        't' | 'f' | 'n' => match s {
+            r"true.*" => todo(),
+            r"false.*" => todo(),
+            r"null.*" => todo(),
+        },
+        '[' => todo(),
+        '{' => todo(),
+    },
+};

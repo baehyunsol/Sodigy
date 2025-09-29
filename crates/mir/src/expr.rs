@@ -4,6 +4,7 @@ use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
@@ -11,6 +12,12 @@ pub enum Expr {
     Identifier(IdentWithOrigin),
     Number {
         n: InternedNumber,
+        span: Span,
+    },
+    // Ideally, we can create `Callable::StringInit`, but that'd struggle with long strings.
+    String {
+        binary: bool,
+        s: InternedString,
         span: Span,
     },
     If(If),
@@ -54,6 +61,11 @@ impl Expr {
             hir::Expr::Identifier(id) => Ok(Expr::Identifier(*id)),
             hir::Expr::Number { n, span } => Ok(Expr::Number {
                 n: *n,
+                span: *span,
+            }),
+            hir::Expr::String { binary, s, span } => Ok(Expr::String {
+                binary: *binary,
+                s: *s,
                 span: *span,
             }),
             hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
@@ -275,6 +287,8 @@ impl Expr {
                     })
                 }
             },
+            hir::Expr::StructInit { r#struct, fields, group_span } => todo!(),
+            hir::Expr::Path { lhs, fields } => todo!(),
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_hir(lhs, session),
@@ -297,7 +311,8 @@ impl Expr {
     pub fn error_span(&self) -> Span {
         match self {
             Expr::Identifier(id) => id.span,
-            Expr::Number { span, .. } => *span,
+            Expr::Number { span, .. } |
+            Expr::String { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Block(block) => block.group_span,
             Expr::Call { func, .. } => match func {

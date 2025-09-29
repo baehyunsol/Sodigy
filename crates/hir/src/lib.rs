@@ -28,7 +28,7 @@ pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use pattern::Pattern;
 pub use session::Session;
-pub use r#struct::Struct;
+pub use r#struct::{Struct, StructInitField};
 
 impl Session {
     /// Errors and warnings are stored in the session.

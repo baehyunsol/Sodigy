@@ -4,6 +4,7 @@ use crate::{
     FuncOrigin,
     Let,
     Session,
+    Struct,
 };
 use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_number::InternedNumber;
@@ -40,7 +41,7 @@ impl Block {
                 Ok(l) => {
                     lets.push(l);
                 },
-                Err(_) => {
+                Err(()) => {
                     has_error = true;
                 },
             }
@@ -58,7 +59,19 @@ impl Block {
                 Ok(f) => {
                     session.funcs.push(f);
                 },
-                Err(_) => {
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        // All the struct declarations are stored in the top-level block.
+        for r#struct in ast_block.structs.iter() {
+            match Struct::from_ast(r#struct, session) {
+                Ok(s) => {
+                    session.structs.push(s);
+                },
+                Err(()) => {
                     has_error = true;
                 },
             }
@@ -72,7 +85,7 @@ impl Block {
                 Ok(v) => {
                     value = v;
                 },
-                Err(_) => {
+                Err(()) => {
                     has_error = true;
                 },
             }

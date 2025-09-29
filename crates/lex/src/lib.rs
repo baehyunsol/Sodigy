@@ -160,6 +160,8 @@ impl Session {
                     self.halt_with_error = true;
                 },
                 (Some(b'0'), Some(b'.'), _) => {
+                    self.buffer1.clear();
+                    self.buffer1.push(b'0');
                     self.buffer2.clear();
                     self.token_start = self.cursor + self.offset;
                     self.state = LexState::Fraction;

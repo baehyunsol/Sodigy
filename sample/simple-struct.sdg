@@ -1,0 +1,30 @@
+struct Person = {
+    name: String,
+    age: Int,
+    is_rustacean: Bool,
+};
+
+let bae = Person {
+    name: "Bae",
+    age: 26,
+    is_rustacean: True,
+};
+
+@test.eq("Bae")
+let bae_name = bae.name;
+
+@test.eq(26)
+let bae_age = bae.age;
+
+@test.eq(True)
+let bae_is_rustacean = bae.is_rustacean;
+
+fn main() = {
+    let bae = Person {
+        name: "Bae",
+        age: 26,
+        is_rustacean: True,
+    };
+
+    bae.name
+};

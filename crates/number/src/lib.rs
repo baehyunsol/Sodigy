@@ -73,7 +73,7 @@ pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber 
                     17.. => todo!(),
                 }
             },
-            Err(_) => todo!(),
+            Err(_) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
         },
         (Base::Octal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
             Ok(n) => InternedNumber::SmallInteger(n),
