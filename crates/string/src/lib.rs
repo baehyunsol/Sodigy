@@ -2,7 +2,7 @@ mod fmt;
 
 // 0 A A A A A A A   ... (15 bytes actual data)
 // 1 B B B B B B B   B B B B B B B B   B B B B B B B B   B B B B B B B B   ... (12 bytes hash value)
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct InternedString(pub u128);
 
 impl InternedString {

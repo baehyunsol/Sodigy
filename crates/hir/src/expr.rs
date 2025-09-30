@@ -51,6 +51,11 @@ pub enum Expr {
         lhs: Box<Expr>,
         fields: Vec<Field>,
     },
+    FieldModifier {
+        fields: Vec<(InternedString, Span)>,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
     InfixOp {
         op: InfixOp,
         op_span: Span,
@@ -62,12 +67,8 @@ pub enum Expr {
 impl Expr {
     pub fn from_ast(e: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
         match e {
-            ast::Expr::Identifier { id, span } => match session.find_origin(*id) {
+            ast::Expr::Identifier { id, span } => match session.find_origin_and_count_usage(*id) {
                 Some((origin, def_span)) => {
-                    if let NameOrigin::Foreign { .. } = origin {
-                        session.foreign_names.insert((*id, def_span));
-                    }
-
                     Ok(Expr::Identifier(IdentWithOrigin {
                         id: *id,
                         span: *span,
@@ -191,16 +192,21 @@ impl Expr {
                 }),
                 Err(()) => Err(()),
             },
+            ast::Expr::FieldModifier { fields, lhs, rhs } => match (
+                Expr::from_ast(lhs, session),
+                Expr::from_ast(rhs, session),
+            ) {
+                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldModifier {
+                    fields: fields.clone(),
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }),
+                _ => Err(()),
+            },
             ast::Expr::Lambda { args, r#type, value, group_span } => {
                 let span = group_span.begin();
                 let name = name_lambda_function(span);
 
-                // TODO
-                //   1. How do I name the anonymous function?
-                //   2. What do I do with the anonymous function?
-                //   3. How do I register the new function to session?
-                //   4. I have to identify anonymous functions, how?
-                //   5. If I give a gara-name to the anonymous function, it has to be added to session.foreign_names.
                 let func = ast::Func {
                     keyword_span: Span::None,
                     name,
@@ -213,7 +219,6 @@ impl Expr {
 
                 match Func::from_ast(&func, session, FuncOrigin::Lambda) {
                     Ok(func) => {
-                        session.foreign_names.insert((name, span));
                         session.funcs.push(func);
                         Ok(Expr::Identifier(IdentWithOrigin {
                             id: name,

@@ -6,6 +6,7 @@ use crate::{
     Session,
     Struct,
 };
+use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
@@ -34,7 +35,9 @@ impl Block {
 
         let mut has_error = false;
 
-        session.name_stack.push(Namespace::new(NamespaceKind::Block, ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2))).collect()));
+        session.name_stack.push(Namespace::Block {
+            names: ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2, 0))).collect(),
+        });
 
         for r#let in ast_block.lets.iter() {
             match Let::from_ast(r#let, session, top_level) {
@@ -91,7 +94,20 @@ impl Block {
             }
         }
 
-        session.name_stack.pop();
+        let Some(Namespace::Block { names }) = session.name_stack.pop() else { unreachable!() };
+
+        // TODO:
+        //    inline-block: always warn unused names
+        //    top-level-block: only warn unused `use`s
+        for (name, (span, _, count)) in names.iter() {
+            if *count == 0 {
+                session.warnings.push(Warning {
+                    kind: WarningKind::UnusedName(*name),
+                    span: *span,
+                    ..Warning::default()
+                });
+            }
+        }
 
         if has_error {
             Err(())

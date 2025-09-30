@@ -5,6 +5,7 @@ use ragit_fs::{
     remove_dir_all,
     write_string,
 };
+use sodigy_error::{Error, ErrorLevel};
 use sodigy_file::File;
 
 // gara test code
@@ -22,48 +23,20 @@ fn main() {
     let tokens = match sodigy_lex::lex_gara(bytes.clone()) {
         Ok(tokens) => tokens,
         Err(errors) => {
-            for error in errors.iter() {
-                eprintln!(
-                    "{:?}\n{}\n",
-                    error.kind,
-                    sodigy_error::render_span(
-                        &bytes,
-                        error.span,
-                        error.extra_span,
-                        sodigy_error::RenderSpanOption {
-                            max_width: 88,
-                            max_height: 10,
-                            color: true,
-                        },
-                    ),
-                );
-            }
-
+            eprintln!("{}", render_errors(&bytes, errors));
             return;
         },
     };
-    // println!("{tokens:?}");
+    write_string(
+        "sample/target/tokens.rs",
+        &prettify(&format!("{tokens:?}")),
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
 
     let ast_block = match sodigy_parse::parse(&tokens, file) {
         Ok(ast_block) => ast_block,
         Err(errors) => {
-            for error in errors.iter() {
-                eprintln!(
-                    "{:?}\n{}\n",
-                    error.kind,
-                    sodigy_error::render_span(
-                        &bytes,
-                        error.span,
-                        error.extra_span,
-                        sodigy_error::RenderSpanOption {
-                            max_width: 88,
-                            max_height: 10,
-                            color: true,
-                        },
-                    ),
-                );
-            }
-
+            eprintln!("{}", render_errors(&bytes, errors));
             return;
         },
     };
@@ -75,24 +48,16 @@ fn main() {
 
     let mut hir_session = sodigy_hir::Session::new();
 
-    if let Err(()) = hir_session.lower(&ast_block) {
-        for error in hir_session.errors.iter() {
-            eprintln!(
-                "{:?}\n{}\n",
-                error.kind,
-                sodigy_error::render_span(
-                    &bytes,
-                    error.span,
-                    error.extra_span,
-                    sodigy_error::RenderSpanOption {
-                        max_width: 88,
-                        max_height: 10,
-                        color: true,
-                    },
-                ),
-            );
-        }
+    let has_error = hir_session.lower(&ast_block).is_err();
+    eprintln!("{}", render_errors(
+        &bytes,
+        vec![
+            hir_session.errors.clone(),
+            hir_session.warnings.clone(),
+        ].concat(),
+    ));
 
+    if has_error {
         return;
     }
 
@@ -111,6 +76,13 @@ fn main() {
     // TODO: inter-file hir analysis
 
     let mir_session = sodigy_mir::lower(&hir_session);
+    eprintln!("{}", render_errors(
+        &bytes,
+        vec![
+            mir_session.errors.clone(),
+            // mir_session.warnings.clone(),
+        ].concat(),
+    ));
 
     write_string(
         "sample/target/mir.rs",
@@ -132,4 +104,35 @@ fn prettify(s: &str) -> String {
     let mut c = hgp::Context::new(s.as_bytes().to_vec());
     c.step_all();
     String::from_utf8_lossy(c.output()).to_string()
+}
+
+fn render_errors(bytes: &[u8], mut errors: Vec<Error>) -> String {
+    errors.sort_by_key(|e| (e.span, e.extra_span));
+    // warnings come before errors
+    errors.sort_by_key(
+        |e| match ErrorLevel::from_error_kind(&e.kind) {
+            ErrorLevel::Warning => 0,
+            ErrorLevel::Error => 1,
+        }
+    );
+    let mut buffer = vec![];
+
+    for error in errors.iter() {
+        buffer.push(format!(
+            "{:?}\n{}\n\n",
+            error.kind,
+            sodigy_error::render_span(
+                bytes,
+                error.span,
+                error.extra_span,
+                sodigy_error::RenderSpanOption {
+                    max_width: 88,
+                    max_height: 10,
+                    color: true,
+                },
+            ),
+        ));
+    }
+
+    buffer.concat()
 }

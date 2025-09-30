@@ -3,6 +3,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
+use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
@@ -22,6 +23,15 @@ pub enum Expr {
     },
     If(If),
     Block(Block),
+    Path {
+        lhs: Box<Expr>,
+        fields: Vec<Field>,
+    },
+    FieldModifier {
+        fields: Vec<(InternedString, Span)>,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
     Call {
         func: Callable,
         args: Vec<Expr>,
@@ -109,7 +119,7 @@ impl Expr {
                         },
                         NameOrigin::FuncArg { .. } => todo!(),
                     },
-                    Ok(id) => todo!(),
+                    Ok(func) => Callable::Dynamic(Box::new(func)),
                     Err(()) => {
                         has_error = true;
                         todo!()
@@ -375,22 +385,46 @@ impl Expr {
                                         extra_span: Some(field_defs[i].name_span),
                                         ..Error::default()
                                     });
+                                    has_error = true;
                                 },
                             }
                         }
 
-                        Ok(Expr::Call {
-                            func: Callable::StructInit {
-                                def_span,
-                                span,
-                            },
-                            args: mir_fields_unwrapped,
-                        })
+                        if has_error {
+                            Err(())
+                        }
+
+                        else {
+                            Ok(Expr::Call {
+                                func: Callable::StructInit {
+                                    def_span,
+                                    span,
+                                },
+                                args: mir_fields_unwrapped,
+                            })
+                        }
                     },
                     None => todo!(),
                 }
             },
-            hir::Expr::Path { lhs, fields } => todo!(),
+            hir::Expr::Path { lhs, fields } => match Expr::from_hir(lhs, session) {
+                Ok(lhs) => Ok(Expr::Path {
+                    lhs: Box::new(lhs),
+                    fields: fields.clone(),
+                }),
+                Err(()) => Err(()),
+            },
+            hir::Expr::FieldModifier { fields, lhs, rhs } => match (
+                Expr::from_hir(lhs, session),
+                Expr::from_hir(rhs, session),
+            ) {
+                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldModifier {
+                    fields: fields.clone(),
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }),
+                _ => Err(()),
+            },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_hir(lhs, session),
@@ -417,6 +451,17 @@ impl Expr {
             Expr::String { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Block(block) => block.group_span,
+            // Let's hope it doesn't panic...
+            Expr::Path { fields, .. } => fields[0].dot_span().unwrap(),
+            Expr::FieldModifier { fields, .. } => {
+                let mut merged_span = fields[0].1;
+
+                for (_, span) in fields.iter() {
+                    merged_span = merged_span.merge(*span);
+                }
+
+                merged_span
+            },
             Expr::Call { func, .. } => match func {
                 Callable::Static { span, .. } |
                 Callable::StructInit { span, .. } |

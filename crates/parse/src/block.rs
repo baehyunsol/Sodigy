@@ -14,7 +14,7 @@ use sodigy_keyword::Keyword;
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{ErrorToken, TokenKind};
+use sodigy_token::{ErrorToken, Punct, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -174,6 +174,15 @@ impl<'t> Tokens<'t> {
                 Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
                 Some(t) => {
                     if top_level {
+                        let extra_message = match t {
+                            // There's a very weird edge case: If the tokens are `<Decorator> -> <DocComment> -> <Semicolon> -> <Expr>`,
+                            // you'll see this error message with the semicolon.
+                            TokenKind::Punct(Punct::Semicolon) if !attribute.decorators.is_empty() => Some(String::from(
+                                "Don't put a semicolon after a decorator."
+                            )),
+                            _ => None,
+                        };
+
                         errors.push(Error {
                             kind: ErrorKind::UnexpectedToken {
                                 expected: ErrorToken::Declaration,
@@ -185,9 +194,24 @@ impl<'t> Tokens<'t> {
                         return Err(errors);
                     }
 
-                    if !attribute.is_empty() {
-                        // TODO: raise error
-                        todo!()
+                    if let Some(doc_comment) = &attribute.doc_comment {
+                        errors.push(Error {
+                            kind: ErrorKind::DocCommentNotAllowed,
+                            span: doc_comment.span,
+                            extra_message: Some(String::from("You can't add a document for an expression.")),
+                            ..Error::default()
+                        });
+                        return Err(errors);
+                    }
+
+                    if let Some(decorator) = attribute.decorators.get(0) {
+                        errors.push(Error {
+                            kind: ErrorKind::DecoratorNotAllowed,
+                            span: decorator.name_span,
+                            extra_message: Some(String::from("You can't decorate an expression.")),
+                            ..Error::default()
+                        });
+                        return Err(errors);
                     }
 
                     match self.parse_expr() {

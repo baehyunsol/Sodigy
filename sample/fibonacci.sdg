@@ -1,3 +1,5 @@
+@test.eq((9,), 55)
+@test.eq((12,), 233)
 fn fibonacci(n: Int): Int = if n < 2 {
     1
 } else {
@@ -6,13 +8,5 @@ fn fibonacci(n: Int): Int = if n < 2 {
 
 let fibonacci_lambda = \(n) => if n < 2 { 1 } else { fibonacci_lambda(n - 1) + fibonacci_lambda(n - 2) };
 
-@test.true
-let x = fibonacci(12) == fibonacci_lambda(12);
-
 @test.eq(55)
-let fibo_test = fibonacci(9);
-
-fn main() = [
-    fibonacci(9),
-    fibonacci_lambda(9),
-];
+let fibo_test = fibonacci_lambda(9);

@@ -1,6 +1,5 @@
 // Very experimental mir evaluation
 
-use sodigy_error::Error;
 use sodigy_mir::{self as mir, Callable, Expr};
 use sodigy_name_analysis::NameOrigin;
 use sodigy_number::InternedNumber;
@@ -9,9 +8,11 @@ use sodigy_string::intern_string;
 use sodigy_token::InfixOp;
 use std::collections::HashMap;
 
+mod error;
 mod stack;
 mod value;
 
+pub use error::Error;
 pub use stack::Stack;
 pub use value::Value;
 
@@ -71,22 +72,52 @@ fn eval(
                 // in `funcs`. So we just have to turn this into a dynamic functor.
                 None => match funcs.get(&id.def_span) {
                     Some(_) => Ok(Value::Functor(id.def_span)),
-                    None => todo!(),
+                    None => {
+                        for block in stack.block.iter().rev() {
+                            if let Some(value) = block.get(&id.def_span) {
+                                return Ok(value.clone());
+                            }
+                        }
+
+                        Err(Error::UndefinedName(id.id))
+                    },
                 },
             },
         },
         Expr::Number { n, .. } => Ok(Value::Number(*n)),
         Expr::Block(block) => {
-            for r#let in block.lets.iter() {
-                todo!()
+            let mut block_defs = HashMap::with_capacity(block.lets.len());
+
+            // Ideally, I have to draw a dependency graph and init values in that order.
+            // But I'm too lazy to do that...
+            for _ in 0..3 {
+                stack.block.push(block_defs.clone());
+
+                for r#let in block.lets.iter() {
+                    if !block_defs.contains_key(&r#let.name_span) {
+                        if let Ok(value) = eval(
+                            &r#let.value,
+                            funcs,
+                            lets,
+                            stack,
+                        ) {
+                            block_defs.insert(r#let.name_span, value);
+                        }
+                    }
+                }
+
+                stack.block.pop();
             }
 
-            Ok(eval(
+            stack.block.push(block_defs);
+            let r = eval(
                 &block.value,
                 funcs,
                 lets,
                 stack,
-            )?)
+            );
+            stack.block.pop();
+            Ok(r?)
         },
         Expr::If(r#if) => {
             let cond = eval(&r#if.cond, funcs, lets, stack)?;
@@ -118,9 +149,9 @@ fn eval(
                 Callable::Static { def_span, .. } => match funcs.get(def_span) {
                     Some(func) => {
                         stack.func_args.push(arg_values);
-                        let r = eval(&func.value, funcs, lets, stack)?;
+                        let r = eval(&func.value, funcs, lets, stack);
                         stack.func_args.pop();
-                        Ok(r)
+                        Ok(r?)
                     },
                     _ => todo!(),
                 },
@@ -132,9 +163,9 @@ fn eval(
                         Value::Functor(def_span) => match funcs.get(&def_span) {
                             Some(func) => {
                                 stack.func_args.push(arg_values);
-                                let r = eval(&func.value, funcs, lets, stack)?;
+                                let r = eval(&func.value, funcs, lets, stack);
                                 stack.func_args.pop();
-                                Ok(r)
+                                Ok(r?)
                             },
                             None => todo!(),
                         },
@@ -178,6 +209,16 @@ fn eval(
                             (Value::Number(n), Value::Number(m)) => match (n, m) {
                                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Bool(*n == *m)),
                                 _ => todo!(),
+                            },
+                            _ => todo!(),
+                        },
+                        InfixOp::Index => match (lhs, rhs) {
+                            (Value::List(elements), Value::Number(InternedNumber::SmallInteger(n))) => match usize::try_from(*n) {
+                                Ok(n) => match elements.get(n) {
+                                    Some(element) => Ok(element.clone()),
+                                    None => Err(Error::IndexError(n as i64)),
+                                },
+                                Err(_) => Err(Error::IndexError(*n)),
                             },
                             _ => todo!(),
                         },

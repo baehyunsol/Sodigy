@@ -1,17 +1,26 @@
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-pub struct Namespace {
-    pub kind: NamespaceKind,
-    pub names: HashMap<InternedString, (Span, NameKind)>,
+pub enum Namespace {
+    FuncArg {
+        names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
+        index: HashMap<InternedString, usize>,
+    },
+    Block {
+        names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
+    },
+    FuncDef {
+        name: InternedString,
+        foreign_names: HashSet<(InternedString, Span /* def_span */)>,
+    },
 }
 
-impl Namespace {
-    pub fn new(kind: NamespaceKind, names: HashMap<InternedString, (Span, NameKind)>) -> Self {
-        Namespace { kind, names }
-    }
-}
+// impl Namespace {
+//     pub fn new(kind: NamespaceKind, names: HashMap<InternedString, (Span, NameKind)>) -> Self {
+//         Namespace { kind, names }
+//     }
+// }
 
 pub enum NamespaceKind {
     Prelude,

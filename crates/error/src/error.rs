@@ -55,6 +55,8 @@ pub enum ErrorKind {
         expected: ErrorToken,
     },
     DocCommentForNothing,
+    DocCommentNotAllowed,
+    DecoratorNotAllowed,
     BlockWithoutValue,
     StructWithoutField,
     EmptyCurlyBraceBlock,
@@ -82,4 +84,7 @@ pub enum ErrorKind {
 
     // TODO: suggest similar name
     InvalidStructField(InternedString),
+
+    // --- warnings from here ---
+    UnusedName(InternedString),
 }

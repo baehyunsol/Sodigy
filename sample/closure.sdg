@@ -1,0 +1,23 @@
+// It's not a closure, but it'd be difficult for the compiler to know that.
+let fibonacci = {
+    let ONE = 1;
+    let TWO = 2;
+
+    \(x) => if x < TWO { ONE } else { fibonacci(x - 1) + fibonacci(x - 2) }
+};
+
+@test.eq(55)
+let fibonacci_test = [
+    fibonacci(9),
+];
+
+fn main() = fibonacci(9) + closure(20);
+
+fn closure(x) = {
+    let y = x + 1;
+
+    \(z) => x + y + z
+};
+
+@test.eq(41)
+let closure_test = closure(10)(20);

@@ -1,0 +1,14 @@
+fn foo(): Option(Int) = None;
+
+@test.eq(2)
+fn unused_if_pat_bind() = {
+    if pat Some($x) = foo() { 1 } else { 2 }
+};
+
+@test.eq(2)
+fn unused_match_bind() = match foo() {
+    Some($x) => { 1 },
+    None => { 2 },
+};
+
+// TODO: make a test runner that checks this file generates warnings

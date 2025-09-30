@@ -1,3 +1,115 @@
+# 20. test bench
+
+지금은 `main` 만들어서 일일이 실행하고 있지? 얘네를 얼른 `@test`로 바꿔야함!
+
+```
+@test.eq((10, 20), 30)
+fn adder(x, y) = x + y;
+
+@test.eq(50)
+let value = adder(20, 30);
+```
+
+becomes
+
+```
+// for all elements, it prints the message to stderr if the result is False
+let assertions: List((Bool, String)) = [
+    {
+        let arg = (10, 20);
+        // 여기가 문제: `._0`과 `._1`이 있다는 걸 알려면 `arg: (Int, Int)`라는 사실을 알아내야함...
+        // 나머지는 단순 ast 조작으로 구현 가능!
+        // 아니면... compiler built-in function을 만들어서 `call(adder, arg)`처럼 쓸까? 흠...
+        let result = adder(arg._0, arg._1);
+        let expected = 30;
+
+        // 함수 이름이나 span도 적어주면 더 좋을 듯?
+        (result == expected, f"Input: {arg:?}, Expected: {expected:?}, Got: {result:?}")
+    }, {
+        let result = value;
+        let expected = 50;
+
+        // 상수 이름이나 span도 적어주면 더 좋을 듯?
+        (result == expected, f"Expected: {expected:?}, Got: {result:?}")
+    },
+];
+```
+
+# 19. cycle-checks in `let` values
+
+```sodigy
+// 이건 당연히 안됨! cycle-checker가 걸러내야함
+let x = y;
+let y = x;
+
+// 이건 되어야 하는데... 구현이 쉽지 않음 ㅠㅠ
+// 그냥 하지말라고 할까??
+let f1 = \(x) => if x < 2 { 1 } else { f2(x - 1) + f2(x - 2) };
+let f2 = \(x) => if x < 2 { 1 } else { f1(x - 1) + f1(x - 2) };
+
+// f1, f2랑 동일한 구조인데 얘는 됨.
+fn f3(x) = if x < 2 { 1 } else { f4(x - 1) + f4(x - 2) };
+fn f4(x) = if x < 2 { 1 } else { f3(x - 1) + f3(x - 2) };
+
+// 조금 더 뇌절을 한 버전, 따지고 보면 얘네는 closure가 아니거든? 근데 closure가 아니라는 걸 알기가 쉽지 않음...
+let f5 = {
+    let ONE = 1;
+    let TWO = 2;
+
+    \(x) => if x < TWO { ONE } else { f6(x - ONE) + f6(x - TWO) }
+};
+let f6 = {
+    let ONE = 1;
+    let TWO = 2;
+
+    \(x) => if x < TWO { ONE } else { f5(x - ONE) + f5(x - TWO) }
+};
+```
+
+아...
+
+# 18. negative index
+
+`a[-1]`을 하면 맨 마지막 element를 주기
+
+1. a에 element가 20개인데 `a[-200]`를 하면 10바퀴 돌아? 아니면 `[-20]` 밑으로는 다 error?
+2. `a[2..10]`은 slice로 할 거잖아, 그럼 `a[2..-1]`도 돼?
+  - 근데 `2..-1`은 그자체로 runtime error 아냐? 아닌가...
+  - Rust에서 `.get(10..2)`로 하니까 `None` 나옴. 즉, `10..2` 자체는 문제가 없음!
+
+# 17. (un)intern_string
+
+intern은 context-free여서 상관이 없음...
+unintern을 하려면 `HashMap<InternedString, String>`이 있어야함!
+
+1. 이거를 Session이 계속 들고 있어? 그건 좀 비효율적...
+2. 이거를 파일에 적어두고 그때그때 꺼내서 쓰기?
+  - 파일 위치를 session들한테 알려줘야 하는데? config스러운 거를 만들어서 계속 들고다녀야할 듯?
+  - 병렬로 돌아갈테니 lock 걸어야 할 듯?
+  - 근데, string이 무지무지하게 길 수도 있잖아? 그럼 또 나눠??
+    - 0..=15 글자: InternedString에 바로 저장
+    - 16..=4095 글자: 파일에 바로 저장
+    - 4096.. 글자: 파일에는 포인터만 저장되고 딴 파일을 열면 거기에 들어있음 ㅋㅋㅋ
+    - ㅋㅋㅋㅋ 이거 너무 뇌절 아님??
+
+# 16. span across files
+
+지금은 single file이니까 상관이 없지만, span 안에서 각 파일을 나타낼 방법을 좀 더 고민해봐야함!
+
+1. 한번에 여러 파일을 컴파일하는 경우
+  - 여러 파일을 전부 cli로 넣어줘? 아니면 `mod` 보고 얘가 알아서 찾아?
+  - 
+2. incremental compilation을 하면 hir을 저장해야함. 그때 hir의 span도 저장될텐데, ...
+3. package manager를 만든다고 치면, hir은 컴파일된 상태로 배포를 할 거지? 그럼 이 안에 있는 span은 어떻게 하려구...
+
+# 15. name bindings and decorators
+
+Name bindings in patterns use `@` character, and so do decorators. But the problem is that the lexer treats `(b'@', b'a'..=b'z')` as a single token (decorator token). So the pattern parser has to be aware of this.
+
+# 14. error vs warning
+
+지금 `struct Error`랑 `struct Warning`이랑 너무 비슷한데 차라리 하나로 통일하고 error인지 warning인지 구분하는 flag만 추가할까...
+
 # 13. prelude
 
 어느 시점에 집어넣어야 하나...
@@ -17,7 +129,7 @@ let foo = \(x, y) => x + y;
 let y = x;
 ```
 
-일단 `x`와 `foo`, `y`에 type annotation이 없지? 쟤넬 전부 type variable로 만듦. `x: HasToBeInfered(0)`, `foo: Func((HasToBeInfered(1), HasToBeInfered(2)), HasToBeInfered(3))`, `y: HasToBeInfered(4)`
+일단 `x`와 `foo`, `y`에 type annotation이 없지? 쟤넬 전부 type variable로 만듦. `x: HasToBeInfered(0)`, `foo: Fn((HasToBeInfered(1), HasToBeInfered(2)), HasToBeInfered(3))`, `y: HasToBeInfered(4)`
 
 위 식에서 type variable 간의 등식을 몇개 만들 수 있지?
 
@@ -44,13 +156,13 @@ let x = if pat Some($n) = foo() { bar(n) } else { baz };
 let y = x + 1;
 ```
 
-- `foo: Func((), HasToBeInfered(0))`
+- `foo: Fn((), HasToBeInfered(0))`
 - `x: HasToBeInfered(1)`
 - `$n: HasToBeInfered(2)`
   - 얘는 type annotation이 붙을 자리가 없지만 그래도 infer를 해야함.
   - 모든 name의 type을 다 알아야하거든...
 - `y: HasToBeInfered(3)`
-- `bar: Func((HasToBeInfered(4),), HasToBeInfered(5))`
+- `bar: Fn((HasToBeInfered(4),), HasToBeInfered(5))`
 - `baz: HasToBeInfered(6)`
 
 - `HasToBeInfered(0) = Option(Int)`
@@ -66,6 +178,28 @@ type infer를 어느 단위로 해야함?? function 안에서만 하면 충분�
 생각해보니까 function 안에서 하면 부족함. 위에서도 `bar`의 type을 모르니까 `HasToBeInfered`를 주잖아? 그럼 결국에는 `bar`의 type과 현재 function의 type을 동시에 추론해야하는데...
 
 그럼 모든 type을 한번에 추론해?? 그게 가능해?? 모든 type을 한번에 추론하는 거는 per-file로 못함!!
+
+Type variable 만들 때 span 사용하자!
+
+생각해보니까 generic도 해야함... `List(T)`에서 `map: Fn((Fn((T,), U),), List(U))` 아님? 이렇게 쓰니까 `Fn` type annotation 너무 못생겼음... 그래서 rust에서 아예 별도 문법을 쓰는건가 ㅠㅠ
+
+```sodigy
+fn map(l: List(T), f: Fn((T,), U)): List(U) = {
+    let x = l[0];
+    let xu = f(x);
+
+    if l.is_empty() { [] } else { [xu] ++ map(l[1..], f) }
+};
+```
+
+이게 골때리네...
+
+- `x: HasToBeInfered(0)`
+- `xu: HasToBeInfered(1)`
+- `HasToBeInfered(0) = T` (`l[0]` 보고 추론)
+  - `List(T)`에다가 `Index(Int)` 하면 `T` 나온다는 것도 자동으로 넣기 힘들텐데...
+- `HasToBeInfered(0) = T` (`f(x)` 보고 추론)
+- `HasToBeInfered(1) = U`
 
 # 11. Byte Code (Or LIR)
 
@@ -291,57 +425,21 @@ struct GenericSomething(T) = {
 나중에 이렇게 수정하려면 많이 복잡할까?
 일단, angle bracket은 안 쓰고 싶음. 걔네는 group으로 안 잡혀서 parsing이 빡셈 ㅠㅠ
 
+그럼 func generic은 어떻게 씀?? 처음에는 `fn foo(l: List(T), T: Type)`처럼 쓰려고 했는데, 이러면 `T`를 생략을 못하는데? 그렇다고 `T`에다가 default value 주기도 애매... 주면 뭐로 줄 건데?? 그럼 `fn(T) foo(l: List(T))`처럼 쓸까? 이렇게 하려면 struct랑 enum도 keyword에다가 generic 붙여야 함!
+
 # 4. Keyword Arguments
 
-Keyword arguments are necessary, especially if I want a declarative language.
+현재 구현
 
-1. Default values
-  - Syntax is straigtforward: `func foo(x: Int = 3, y: Int = 4): Int = x + y;`
-  - Since sodigy is purely functional, we don't have to worry about values and references like Python.
-2. Mixing keyword arguments and positional arguments
+1. 함수 정의: default value 사용 가능. 다만, default value를 쓰기 시작하면 그 뒤의 모든 arg에 전부 default value를 붙여야 함 (Python과 동일)
+2. 함수 호출: keyword arg 사용 가능. 다만, keyword arg를 쓰기 시작하면 그 뒤의 모든 arg에 전부 keyword를 붙여야 함 (Python과 동일)
+  - positional arg 먼저 다 처리하고, keyword arg 다 처리하고, 그 다음에 남은 arg 중에서 default value 있는 애들 넣고, 그래도 처리 못하는 arg 있으면 error 던짐
+3. functor: default value도 없고 keyword arg도 없음.
+  - compile time에 파악 불가능한 함수에 keyword arg를 쓰면 무조건 error
+4. function to functor
+  - `Fn((Int, Int), Int)` 자리에 `fn foo(x: Int, y: Int, z: Int = 5): Int`를 넣는 경우, `\(x: Int, y: Int): Int => foo(x, y, 5)`로 자동으로 바꾸기...??
 
-func에다가 이걸 할 거면 struct field에도 default value 되게 하자! default value가 되면 type annotation이 optional해짐!!
-
-1. 함수 정의할 때, default value 주기 시작하면 그 뒤로 전부 다 줘야함!
-2. 함수 호출할 때, keyword arg 쓰기 시작하면 그 뒤로 전부 다 keyword arg여야함!
-
-근데 이러면... type 검사 엄청 빡세지지 않음??
-
-|   call \ definition    |        static (A)      | dynamic, but trackable (B)  |    dynamic (C)    |
-|------------------------|------------------------|-----------------------------|-------------------|
-| none                   |
-| only positional        |
-| only keywords          |
-| positional + keywords  |
-
-- A: `func`로 정의됐고, 이름 그대로 호출해서 추적 가능
-- B: `\()`로 정의됐지만 정의와 호출이 바로 붙어있어서 쉽게 추적 가능
-- C: `x: Func((Int, Int), Int)`로 한 다음에 `x()`를 한 경우
-
----
-
-결정을 해야함
-
-1. 아주 명확한 경우에만 keyword arg & default value를 허용하고 (위 표에서 A), 나머지는 전부 type error 처리
-2. keyword arg와 default value까지 처리할 수 있는 type system을 만들기!!
-  - `x: Func((x: Int = 3, y: Int = 4), Int)`로 하면... 아 저렇게 쓰면 parsing 불가능 ㅠㅠ
-  - `x: Func((Arg(name="x", type=Int, default=3), Arg(name="y", type=Int, default=4)), Int)` 이러면 되긴 함ㅋㅋㅋ
-    - 와 저거 어떻게 구현하냐...
-
----
-
-1. function이 됐든 lambda가 됐든 comp-time에 정의를 찾을 수 있는 경우
-  - 어떻게든 찾아서 keyword arg랑 default value 적용하기
-2. 정의를 찾는게 불가능하고 `f: Func((Int, Int), Int)`의 정보만 있는 경우
-  - `f()`를 할 때는 keyword arg 허용 안하고 무조건 `(Int, Int)`를 기대함 (당연히 default value 같은 것도 없음)
-  - `f = foo`를 할 때는 `foo`를 최대한 `Func((Int, Int), Int)`에 맞추기
-    - 예를 들어서 `func foo(x: Int, y: Int, z: Int = 5)`를 `f`에 집어넣으면 `z=5`로 고정해버리면 되지? 그럼 고정하는 거지...
-
-ㅋㅋㅋ 너무 복잡한데?
-
-# 3. DocComments and Decorators
-
-1.
+1, 2, 3은 구현했고 4는 아직 미정
 
 # 1. Complete Rewrite!!
 

@@ -1,6 +1,8 @@
 use sodigy_file::File;
 use sodigy_string::InternedString;
 
+mod cmp;
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {
     // When a span has something to do with this file, but we cannot tell the exact location.

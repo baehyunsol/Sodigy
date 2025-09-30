@@ -1,8 +1,4 @@
-use sodigy_span::Span;
+use crate::{Error, ErrorKind};
 
-pub struct Warning {
-    kind: WarningKind,
-    span: Span,
-}
-
-pub enum WarningKind {}
+pub type Warning = Error;
+pub type WarningKind = ErrorKind;

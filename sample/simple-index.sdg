@@ -1,0 +1,4 @@
+let arr = [100, 200, 300, 400];
+
+@test.eq(arr[0] * 2)
+let indexed = arr[1];

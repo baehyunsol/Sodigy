@@ -1,0 +1,7 @@
+@test.eq(400)
+fn block() = {
+    let x = 100;
+    let y = 200;
+    let z = x + y;
+    z + 100
+};

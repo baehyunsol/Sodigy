@@ -1,4 +1,5 @@
 use crate::{Expr, Let, LetOrigin, Session};
+use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     Namespace,
@@ -55,22 +56,22 @@ impl Func {
         origin: FuncOrigin,
     ) -> Result<Func, ()> {
         let mut has_error = false;
-
-        // `session.foreign_names` was collecting foreign names in the outer function. But now
-        // it has to collect foreign names in the inner function.
-        let mut foreign_names = HashSet::new();
-        std::mem::swap(&mut foreign_names, &mut session.foreign_names);
-
-        let mut func_args = HashMap::new();
         let mut curr_stack = HashMap::new();
+        let mut arg_index = HashMap::new();
 
         for (index, arg) in ast_func.args.iter().enumerate() {
-            func_args.insert(arg.name, (index, arg.name_span));
-            curr_stack.insert(arg.name, (arg.name_span, NameKind::FuncArg));
+            curr_stack.insert(arg.name, (arg.name_span, NameKind::FuncArg, 0));
+            arg_index.insert(arg.name, index);
         }
 
-        std::mem::swap(&mut func_args, &mut session.curr_func_args);
-        session.name_stack.push(Namespace::new(NamespaceKind::FuncArg, curr_stack));
+        session.name_stack.push(Namespace::FuncDef {
+            name: ast_func.name,
+            foreign_names: HashSet::new(),
+        });
+        session.name_stack.push(Namespace::FuncArg {
+            names: curr_stack,
+            index: arg_index,
+        });
 
         let mut args = Vec::with_capacity(ast_func.args.len());
 
@@ -92,15 +93,19 @@ impl Func {
                 None
             },
         };
+        let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
-        std::mem::swap(&mut func_args, &mut session.curr_func_args);
-        session.name_stack.pop();
+        for (name, (span, _, count)) in names.iter() {
+            if *count == 0 {
+                session.warnings.push(Warning {
+                    kind: WarningKind::UnusedName(*name),
+                    span: *span,
+                    ..Warning::default()
+                });
+            }
+        }
 
-        // After swapping, `foreign_names` has the foreign names in the current function.
-        // We have to update `session.foreign_names` with the values in `foreign_names` that
-        // are foreign to the outer function.
-        std::mem::swap(&mut foreign_names, &mut session.foreign_names);
-        session.update_foreign_names(&foreign_names);
+        let Some(Namespace::FuncDef { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if has_error {
             Err(())

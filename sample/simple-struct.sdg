@@ -19,7 +19,8 @@ let bae_age = bae.age;
 @test.eq(True)
 let bae_is_rustacean = bae.is_rustacean;
 
-fn main() = {
+@test.eq((), "Bae")
+fn another_bae() = {
     let bae = Person {
         name: "Bae",
         age: 26,

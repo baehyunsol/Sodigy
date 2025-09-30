@@ -106,6 +106,7 @@ pub enum Field {
     Name {
         name: InternedString,
         span: Span,
+        dot_span: Span,
     },
 
     /// In `let pat (_, $x) = foo()`, `$x` is `Index(1)` of `foo()`.
@@ -114,6 +115,15 @@ pub enum Field {
 
     /// In `let pat (_, _, $x @ .., _, _, _) = foo()`, `$x` is `Range(2, -3)` of `foo()`.
     Range(i64, i64),
+}
+
+impl Field {
+    pub fn dot_span(&self) -> Option<Span> {
+        match self {
+            Field::Name { dot_span, .. } => Some(*dot_span),
+            Field::Index(_) | Field::Range(_, _) => None,
+        }
+    }
 }
 
 impl<'t> Tokens<'t> {
@@ -254,6 +264,7 @@ impl<'t> Tokens<'t> {
                             field: Field::Name {
                                 name,
                                 span: name_span,
+                                dot_span: punct_span,
                             },
                         };
                         continue;

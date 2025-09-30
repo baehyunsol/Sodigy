@@ -11,6 +11,8 @@ pub struct Let {
     pub r#type: Option<Expr>,
     pub value: Expr,
     pub origin: LetOrigin,
+
+    // TODO: It has to track foreign names, like `Func`, so that we can draw a dependency graph between `let` values.
 }
 
 #[derive(Clone, Copy, Debug)]

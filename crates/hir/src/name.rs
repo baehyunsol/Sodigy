@@ -1,6 +1,7 @@
 use crate::Session;
 use sodigy_name_analysis::{
     NameOrigin,
+    Namespace,
     NamespaceKind,
 };
 use sodigy_span::Span;
@@ -8,47 +9,56 @@ use sodigy_string::InternedString;
 use std::collections::HashSet;
 
 impl Session {
-    pub fn find_origin(&self, id: InternedString) -> Option<(NameOrigin, Span)> {
-        match self.curr_func_args.get(&id) {
-            Some((index, def_span)) => Some((NameOrigin::FuncArg { index: *index }, *def_span)),
-            None => {
-                // If it hasn't met `NamespaceKind::FuncArg`, it's still inside the function,
-                // so all the names are local.
-                let mut is_local = true;
+    pub fn find_origin_and_count_usage(&mut self, id: InternedString) -> Option<(NameOrigin, Span)> {
+        let mut is_local = true;
+        let mut stack_index = None;
+        let mut result = None;
 
-                for namespace in self.name_stack.iter().rev() {
-                    if let Some((def_span, name_kind)) = namespace.names.get(&id) {
+        for (i, namespace) in self.name_stack.iter_mut().rev().enumerate() {
+            match namespace {
+                Namespace::FuncArg { names, index } if is_local => match names.get_mut(&id) {
+                    Some((def_span, _, count)) => {
+                        result = Some((NameOrigin::FuncArg { index: *index.get(&id).unwrap() }, *def_span));
+                        stack_index = Some(i);
+                        *count += 1;
+                        break;
+                    },
+                    None => {},
+                },
+                Namespace::FuncArg { names, .. } |
+                Namespace::Block { names } => match names.get_mut(&id) {
+                    Some((def_span, name_kind, count)) => {
                         if is_local {
-                            return Some((NameOrigin::Local { kind: *name_kind }, *def_span));
+                            result = Some((NameOrigin::Local { kind: *name_kind }, *def_span));
                         }
 
                         else {
-                            return Some((NameOrigin::Foreign { kind: *name_kind }, *def_span));
+                            result = Some((NameOrigin::Foreign { kind: *name_kind }, *def_span));
                         }
-                    }
 
-                    if let NamespaceKind::FuncArg = namespace.kind {
-                        is_local = false;
+                        stack_index = Some(i);
+                        *count += 1;
+                        break;
+                    },
+                    None => {},
+                },
+                Namespace::FuncDef { .. } => {
+                    is_local = false;
+                },
+            }
+        }
+
+        match (result, stack_index) {
+            (Some(result), Some(stack_index)) => {
+                for namespace in self.name_stack.iter_mut().rev().take(stack_index) {
+                    if let Namespace::FuncDef { foreign_names, .. } = namespace {
+                        foreign_names.insert((id, result.1));
                     }
                 }
 
-                None
+                Some(result)
             },
-        }
-    }
-
-    // `foreign_names` are collected by an inner function. So, some names might be foreign
-    // to the inner function but not foreign to the outer function. It collects the names that
-    // are foreign to both the inner and the outer function.
-    pub fn update_foreign_names(&mut self, foreign_names: &HashSet<(InternedString, Span)>) {
-        for (id, def_span) in foreign_names.iter() {
-            match self.find_origin(*id) {
-                Some((NameOrigin::Foreign { .. }, ds)) => {
-                    assert_eq!(*def_span, ds);
-                    self.foreign_names.insert((*id, *def_span));
-                },
-                _ => {},
-            }
+            _ => None,
         }
     }
 }

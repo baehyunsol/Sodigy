@@ -346,7 +346,7 @@ impl Session {
                     });
                     self.cursor += 1;
                 },
-                (Some(_), _, _) => todo!(),
+                (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
                 (None, _, _) => {
                     if let Some((delim, span)) = self.group_stack.pop() {
                         self.errors.push(Error {
