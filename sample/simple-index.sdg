@@ -1,4 +1,11 @@
-let arr = [100, 200, 300, 400];
+let arr1 = [100, 200, 300, 400];
+let arr2: [Int] = [20, 30, 40];
 
-@test.eq(arr[0] * 2)
-let indexed = arr[1];
+@test.eq(arr1[0] * 2)
+let indexed = arr1[1];
+
+@test.eq(20)
+let indexed2 = arr2[0];
+
+@test.eq(None)
+let indexed3: Option<Int> = arr2.get(10);

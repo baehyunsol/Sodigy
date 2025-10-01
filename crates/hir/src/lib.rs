@@ -20,6 +20,7 @@ mod pattern;
 mod prelude;
 mod session;
 mod r#struct;
+mod r#type;
 
 pub use block::Block;
 pub use r#enum::Enum;
@@ -30,6 +31,7 @@ pub use r#let::{Let, LetOrigin};
 pub use pattern::Pattern;
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
+pub use r#type::Type;
 
 pub(crate) use prelude::PRELUDES;
 

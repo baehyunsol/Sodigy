@@ -1,4 +1,10 @@
-use crate::{Attribute, Expr, Tokens};
+use crate::{
+    Attribute,
+    Expr,
+    GenericDef,
+    Tokens,
+    Type,
+};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -10,8 +16,9 @@ pub struct Func {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
+    pub generics: Vec<GenericDef>,
     pub args: Vec<FuncArgDef>,
-    pub r#type: Option<Expr>,
+    pub r#type: Option<Type>,
     pub value: Expr,
     pub attribute: Attribute,
 }
@@ -20,7 +27,7 @@ pub struct Func {
 pub struct FuncArgDef {
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Expr>,
+    pub r#type: Option<Type>,
     pub default_value: Option<Expr>,
     pub attribute: Attribute,
 }
@@ -37,6 +44,13 @@ impl<'t> Tokens<'t> {
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
+        let mut generics = vec![];
+
+        if let Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }) = self.peek() {
+            self.cursor += 1;
+            generics = self.parse_generic_defs()?;
+            self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+        }
 
         let arg_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
         let arg_tokens_inner = match &arg_tokens.kind {
@@ -49,7 +63,7 @@ impl<'t> Tokens<'t> {
         let r#type = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
                 self.cursor += 1;
-                Some(self.parse_expr()?)
+                Some(self.parse_type()?)
             },
             _ => None,
         };
@@ -62,6 +76,7 @@ impl<'t> Tokens<'t> {
             keyword_span,
             name,
             name_span,
+            generics,
             args,
             r#type,
             value,
@@ -97,7 +112,7 @@ impl<'t> Tokens<'t> {
                         }
 
                         self.cursor += 1;
-                        r#type = Some(self.parse_expr()?);
+                        r#type = Some(self.parse_type()?);
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), span }) => {

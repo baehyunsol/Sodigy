@@ -1,4 +1,4 @@
-use crate::{Expr, Let, LetOrigin, Session};
+use crate::{Expr, Let, LetOrigin, Session, Type};
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
     IdentWithOrigin,
@@ -7,7 +7,7 @@ use sodigy_name_analysis::{
     NameKind,
     NameOrigin,
 };
-use sodigy_parse as ast;
+use sodigy_parse::{self as ast, GenericDef};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
@@ -17,7 +17,9 @@ pub struct Func {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub args: Vec<FuncArgDef<Expr>>,
+    pub generics: Vec<GenericDef>,
+    pub args: Vec<FuncArgDef<Type>>,
+    pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
 
@@ -86,6 +88,19 @@ impl Func {
             }
         }
 
+        let mut r#type = None;
+
+        if let Some(ast_type) = &ast_func.r#type {
+            match Type::from_ast(&ast_type, session) {
+                Ok(ty) => {
+                    r#type = Some(ty);
+                },
+                Err(_) => {
+                    has_error = true;
+                },
+            }
+        }
+
         let value = match Expr::from_ast(&ast_func.value, session) {
             Ok(v) => Some(v),
             Err(_) => {
@@ -116,7 +131,9 @@ impl Func {
                 keyword_span: ast_func.keyword_span,
                 name: ast_func.name,
                 name_span: ast_func.name_span,
+                generics: ast_func.generics.clone(),
                 args,
+                r#type,
                 value: value.unwrap(),
                 origin,
                 foreign_names,
@@ -125,14 +142,14 @@ impl Func {
     }
 }
 
-impl FuncArgDef<Expr> {
-    pub fn from_ast(ast_arg: &ast::FuncArgDef, session: &mut Session) -> Result<FuncArgDef<Expr>, ()> {
+impl FuncArgDef<Type> {
+    pub fn from_ast(ast_arg: &ast::FuncArgDef, session: &mut Session) -> Result<FuncArgDef<Type>, ()> {
         let mut r#type = None;
         let mut default_value = None;
         let mut has_error = false;
 
         if let Some(ast_type) = &ast_arg.r#type {
-            match Expr::from_ast(ast_type, session) {
+            match Type::from_ast(ast_type, session) {
                 Ok(t) => {
                     r#type = Some(t);
                 },

@@ -1,4 +1,12 @@
-use crate::{Block, CallArg, FuncArgDef, If, StructInitField, Tokens};
+use crate::{
+    Block,
+    CallArg,
+    FuncArgDef,
+    If,
+    StructInitField,
+    Tokens,
+    Type,
+};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_number::InternedNumber;
@@ -61,7 +69,7 @@ pub enum Expr {
     },
     Lambda {
         args: Vec<FuncArgDef>,
-        r#type: Box<Option<Expr>>,
+        r#type: Box<Option<Type>>,
         value: Box<Expr>,
         group_span: Span,
     },
@@ -163,7 +171,7 @@ impl<'t> Tokens<'t> {
                     match self.peek() {
                         Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }) => {
                             self.cursor += 1;
-                            r#type = Some(self.parse_expr()?);
+                            r#type = Some(self.parse_type()?);
                         },
                         _ => {},
                     }

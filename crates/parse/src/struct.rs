@@ -1,4 +1,10 @@
-use crate::{Attribute, Expr, FuncArgDef, Tokens};
+use crate::{
+    Attribute,
+    Expr,
+    FuncArgDef,
+    GenericDef,
+    Tokens,
+};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -10,6 +16,7 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
+    pub generics: Vec<GenericDef>,
     pub fields: Vec<StructField>,
     pub attribute: Attribute,
 }
@@ -27,6 +34,14 @@ impl<'t> Tokens<'t> {
     pub fn parse_struct(&mut self) -> Result<Struct, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
+        let mut generics = vec![];
+
+        if let Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }) = self.peek() {
+            self.cursor += 1;
+            generics = self.parse_generic_defs()?;
+            self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+        }
+
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
 
         let Token {
@@ -44,6 +59,7 @@ impl<'t> Tokens<'t> {
             keyword_span,
             name,
             name_span,
+            generics,
             fields,
             attribute: Attribute::new(),
         })

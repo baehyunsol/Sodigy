@@ -14,6 +14,7 @@ mod r#let;
 mod module;
 mod pattern;
 mod r#struct;
+mod r#type;
 mod r#use;
 
 pub(crate) fn check_call_args(args: &[CallArg]) -> Result<(), Vec<Error>> {

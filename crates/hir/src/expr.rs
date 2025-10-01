@@ -211,6 +211,7 @@ impl Expr {
                     keyword_span: Span::None,
                     name,
                     name_span: span,
+                    generics: vec![],
                     args: args.clone(),
                     r#type: r#type.as_ref().clone(),
                     value: value.as_ref().clone(),

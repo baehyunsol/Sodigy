@@ -4,6 +4,26 @@ In Sodigy, everything is a block. A block consists of zero or more declarations 
 
 A block is wrapped by curly braces. A file is also a giant block, but it's not wrapped in curly braces.
 
+## Structs
+
+Unlike Rust, it has `=` and `;`. That's because it's a declaration.
+
+```
+struct Person = {
+    name: String,
+    age: Int,
+};
+```
+
+You can also declare a generic struct.
+
+```
+struct Message<T> = {
+    id: Int,
+    content: T,
+};
+```
+
 ## Decorators
 
 A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:

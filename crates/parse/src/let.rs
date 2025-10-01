@@ -1,4 +1,4 @@
-use crate::{Attribute, Expr, Tokens};
+use crate::{Attribute, Expr, Tokens, Type};
 use sodigy_error::Error;
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -10,7 +10,7 @@ pub struct Let {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Expr>,
+    pub r#type: Option<Type>,
     pub value: Expr,
     pub attribute: Attribute,
 }
@@ -23,7 +23,7 @@ impl<'t> Tokens<'t> {
         let r#type = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
                 self.cursor += 1;
-                Some(self.parse_expr()?)
+                Some(self.parse_type()?)
             },
             _ => None,
         };

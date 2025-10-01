@@ -6,6 +6,9 @@ let foo = adder(3)(4);
 @test.eq(10)
 let bar = adder(5)(5);
 
+// TODO: `adder()` is not just a functor, it's a closure. do we need to annotate it in the signature?
+let type_signature_test: Fn<(Int): Int> = adder(4);
+
 @test.eq(20)
 let baz = {
     let adders = [

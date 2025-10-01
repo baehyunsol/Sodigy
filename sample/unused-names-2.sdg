@@ -1,4 +1,4 @@
-fn foo(): Option(Int) = None;
+fn foo(): Option<Int> = None;
 
 @test.eq(2)
 fn unused_if_pat_bind() = {

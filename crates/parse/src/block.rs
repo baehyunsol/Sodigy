@@ -189,6 +189,7 @@ impl<'t> Tokens<'t> {
                                 got: t.into(),
                             },
                             span: self.peek().unwrap().span,
+                            extra_message,
                             ..Error::default()
                         });
                         return Err(errors);

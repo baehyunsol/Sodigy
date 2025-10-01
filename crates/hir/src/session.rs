@@ -2,8 +2,7 @@ use crate::{Enum, Func, Let, PRELUDES, Struct};
 use sodigy_error::{Error, Warning};
 use sodigy_name_analysis::{Namespace, NamespaceKind};
 use sodigy_span::Span;
-use sodigy_string::{InternedString, intern_string};
-use std::collections::{HashMap, HashSet};
+use sodigy_string::intern_string;
 
 pub struct Session {
     pub name_stack: Vec<Namespace>,

@@ -1,4 +1,4 @@
-use crate::{Expr, FuncArgDef, Session};
+use crate::{Expr, FuncArgDef, Session, Type};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -7,7 +7,7 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub fields: Vec<StructField<Expr>>,
+    pub fields: Vec<StructField<Type>>,
 }
 
 pub type StructField<T> = FuncArgDef<T>;

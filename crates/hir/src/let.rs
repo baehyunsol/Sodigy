@@ -1,4 +1,4 @@
-use crate::{Expr, Session};
+use crate::{Expr, Session, Type};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -8,7 +8,7 @@ pub struct Let {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Expr>,
+    pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: LetOrigin,
 
@@ -32,7 +32,7 @@ impl Let {
         let mut r#type = None;
 
         if let Some(ast_type) = &ast_let.r#type {
-            match Expr::from_ast(ast_type, session) {
+            match Type::from_ast(ast_type, session) {
                 Ok(ty) => {
                     r#type = Some(ty);
                 },

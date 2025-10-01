@@ -15,6 +15,7 @@ mod module;
 mod pattern;
 mod r#struct;
 mod tokens;
+mod r#type;
 mod r#use;
 
 pub use attribute::{Attribute, Decorator, DocComment};
@@ -28,6 +29,7 @@ pub use module::Module;
 pub use pattern::Pattern;
 pub use r#struct::{Struct, StructInitField};
 pub(crate) use tokens::Tokens;
+pub use r#type::{GenericDef, Type};
 pub use r#use::Use;
 
 pub fn parse(tokens: &[Token], file: File) -> Result<Block, Vec<Error>> {

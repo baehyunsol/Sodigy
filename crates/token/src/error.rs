@@ -4,6 +4,7 @@ use sodigy_keyword::Keyword;
 // TokenKind for error variants
 #[derive(Clone, Debug)]
 pub enum ErrorToken {
+    Nothing,
     Any,
     Character(u8),  // specific character
     Char,  // any character (in a character literal)
@@ -12,10 +13,12 @@ pub enum ErrorToken {
     Group(Delim),
     Identifier,
     Number,
+    TypeAnnotation,
     Declaration,
     Expr,
     Block,
     ColonOrComma,
+    CommaOrGt,
 }
 
 impl From<&TokenKind> for ErrorToken {
