@@ -7,6 +7,10 @@ pub enum Namespace {
         names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
         index: HashMap<InternedString, usize>,
     },
+    Generic {
+        names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
+        index: HashMap<InternedString, usize>,
+    },
     Block {
         names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
     },
@@ -25,6 +29,7 @@ pub enum Namespace {
 pub enum NamespaceKind {
     Prelude,
     FuncArg,
+    Generic,
     Block,  // declarations in a block
     Local,  // anything other than those
 }
@@ -43,6 +48,10 @@ pub struct IdentWithOrigin {
 pub enum NameOrigin {
     // If funcs are nested, only the inner-most function counts.
     FuncArg {
+        index: usize,
+    },
+    // If funcs are nested, only the inner-most function counts.
+    Generic {
         index: usize,
     },
     // Local value that's declared inside the same function (inner-most).
@@ -64,4 +73,5 @@ pub enum NameKind {
     Module,
     Use,
     FuncArg,
+    Generic,
 }

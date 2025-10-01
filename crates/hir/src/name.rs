@@ -15,10 +15,19 @@ impl Session {
         let mut result = None;
 
         for (i, namespace) in self.name_stack.iter_mut().rev().enumerate() {
+            let is_generic = matches!(namespace, Namespace::Generic { .. });
+
             match namespace {
-                Namespace::FuncArg { names, index } if is_local => match names.get_mut(&id) {
+                Namespace::FuncArg { names, index } |
+                Namespace::Generic { names, index } if is_local => match names.get_mut(&id) {
                     Some((def_span, _, count)) => {
-                        result = Some((NameOrigin::FuncArg { index: *index.get(&id).unwrap() }, *def_span));
+                        let index = *index.get(&id).unwrap();
+                        let span = *def_span;
+                        result = if is_generic {
+                            Some((NameOrigin::Generic { index }, span))
+                        } else {
+                            Some((NameOrigin::FuncArg { index }, span))
+                        };
                         stack_index = Some(i);
                         *count += 1;
                         break;
@@ -26,6 +35,7 @@ impl Session {
                     None => {},
                 },
                 Namespace::FuncArg { names, .. } |
+                Namespace::Generic { names, .. } |
                 Namespace::Block { names } => match names.get_mut(&id) {
                     Some((def_span, name_kind, count)) => {
                         if is_local {

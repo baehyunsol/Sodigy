@@ -118,6 +118,7 @@ impl Expr {
                             _ => panic!("TODO: {kind:?}"),
                         },
                         NameOrigin::FuncArg { .. } => todo!(),
+                        NameOrigin::Generic { .. } => unreachable!(),
                     },
                     Ok(func) => Callable::Dynamic(Box::new(func)),
                     Err(()) => {

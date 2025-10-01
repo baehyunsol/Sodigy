@@ -64,6 +64,7 @@ fn eval(
     match expr {
         Expr::Identifier(id) => match id.origin {
             NameOrigin::FuncArg { index, .. } => Ok(stack.func_args.last().unwrap()[index].clone()),
+            NameOrigin::Generic { .. } => todo!(),
             NameOrigin::Local { .. } |
             NameOrigin::Foreign { .. } => match lets.get(&id.def_span) {
                 Some(value) => Ok(value.clone()),

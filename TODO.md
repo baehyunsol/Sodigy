@@ -470,6 +470,8 @@ goto call_stack.peek();
 
 # 8. Linear type system
 
+hir에서 count를 했으니 0번/1번/여러번은 이미 구분이 되잖아? 이거 hir에 표시해두자!
+
 한 block에서, 각 name에 대해서
 
 1. 몇번 쓰였는지 확인

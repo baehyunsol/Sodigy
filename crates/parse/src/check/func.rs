@@ -15,6 +15,24 @@ impl Func {
 
         let mut must_have_default_value = false;
 
+        for generic in self.generics.iter() {
+            match span_by_name.entry(generic.name) {
+                Entry::Occupied(e) => {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: generic.name,
+                        },
+                        span: generic.name_span,
+                        extra_span: Some(*e.get()),
+                        ..Error::default()
+                    });
+                },
+                Entry::Vacant(e) => {
+                    e.insert(generic.name_span);
+                },
+            }
+        }
+
         for arg in self.args.iter() {
             if must_have_default_value && arg.default_value.is_none() {
                 errors.push(Error {

@@ -5,7 +5,10 @@ use sodigy_string::InternedString;
 use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
-pub struct GenericDef;
+pub struct GenericDef {
+    pub name: InternedString,
+    pub name_span: Span,
+}
 
 impl<'t> Tokens<'t> {
     pub fn parse_generic_def(&mut self) -> Result<GenericDef, Vec<Error>> {

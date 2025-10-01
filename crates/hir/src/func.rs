@@ -58,12 +58,19 @@ impl Func {
         origin: FuncOrigin,
     ) -> Result<Func, ()> {
         let mut has_error = false;
-        let mut curr_stack = HashMap::new();
-        let mut arg_index = HashMap::new();
+        let mut func_arg_names = HashMap::new();
+        let mut func_arg_index = HashMap::new();
+        let mut generic_names = HashMap::new();
+        let mut generic_index = HashMap::new();
 
         for (index, arg) in ast_func.args.iter().enumerate() {
-            curr_stack.insert(arg.name, (arg.name_span, NameKind::FuncArg, 0));
-            arg_index.insert(arg.name, index);
+            func_arg_names.insert(arg.name, (arg.name_span, NameKind::FuncArg, 0));
+            func_arg_index.insert(arg.name, index);
+        }
+
+        for (index, generic) in ast_func.generics.iter().enumerate() {
+            generic_names.insert(generic.name, (generic.name_span, NameKind::FuncArg, 0));
+            generic_index.insert(generic.name, index);
         }
 
         session.name_stack.push(Namespace::FuncDef {
@@ -71,8 +78,12 @@ impl Func {
             foreign_names: HashSet::new(),
         });
         session.name_stack.push(Namespace::FuncArg {
-            names: curr_stack,
-            index: arg_index,
+            names: func_arg_names,
+            index: func_arg_index,
+        });
+        session.name_stack.push(Namespace::Generic {
+            names: generic_names,
+            index: generic_index,
         });
 
         let mut args = Vec::with_capacity(ast_func.args.len());
@@ -108,6 +119,18 @@ impl Func {
                 None
             },
         };
+        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
+
+        for (name, (span, _, count)) in names.iter() {
+            if *count == 0 {
+                session.warnings.push(Warning {
+                    kind: WarningKind::UnusedName(*name),
+                    span: *span,
+                    ..Warning::default()
+                });
+            }
+        }
+
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (span, _, count)) in names.iter() {
