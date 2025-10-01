@@ -5,18 +5,25 @@ use crate::{
     Let,
     Session,
     Struct,
+    UseCount,
 };
 use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{Namespace, NamespaceKind};
+use sodigy_name_analysis::{NameKind, Namespace};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub value: Box<Expr>,
+
+    // It only counts names in `lets`.
+    // It's later used for optimization.
+    pub use_counts: HashMap<InternedString, UseCount>,
 }
 
 impl Block {
@@ -94,12 +101,23 @@ impl Block {
             }
         }
 
+        let mut use_counts = HashMap::new();
         let Some(Namespace::Block { names }) = session.name_stack.pop() else { unreachable!() };
 
         // TODO:
         //    inline-block: always warn unused names
         //    top-level-block: only warn unused `use`s
-        for (name, (span, _, count)) in names.iter() {
+        for (name, (span, kind, count)) in names.iter() {
+            if let NameKind::Let = kind {
+                let use_count = match *count {
+                    0 => UseCount::None,
+                    1 => UseCount::Once,
+                    2.. => UseCount::Multiple,
+                };
+
+                use_counts.insert(*name, use_count);
+            }
+
             if *count == 0 {
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName(*name),
@@ -118,6 +136,7 @@ impl Block {
                 group_span: ast_block.group_span,
                 lets,
                 value: Box::new(value),
+                use_counts,
             })
         }
     }

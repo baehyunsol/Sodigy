@@ -1,9 +1,15 @@
-use crate::{Expr, Let, LetOrigin, Session, Type};
+use crate::{
+    Expr,
+    Let,
+    LetOrigin,
+    Session,
+    Type,
+    UseCount,
+};
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     Namespace,
-    NamespaceKind,
     NameKind,
     NameOrigin,
 };
@@ -25,6 +31,10 @@ pub struct Func {
 
     // We have to distinguish closures and lambda functions
     pub foreign_names: HashSet<(InternedString, Span)>,
+
+    // It only counts `args`.
+    // It's later used for optimization.
+    pub use_counts: HashMap<InternedString, UseCount>,
 }
 
 #[derive(Clone, Debug)]
@@ -131,9 +141,17 @@ impl Func {
             }
         }
 
+        let mut use_counts = HashMap::new();
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (span, _, count)) in names.iter() {
+            let use_count = match *count {
+                0 => UseCount::None,
+                1 => UseCount::Once,
+                2.. => UseCount::Multiple,
+            };
+            use_counts.insert(*name, use_count);
+
             if *count == 0 {
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName(*name),
@@ -160,6 +178,7 @@ impl Func {
                 value: value.unwrap(),
                 origin,
                 foreign_names,
+                use_counts,
             })
         }
     }

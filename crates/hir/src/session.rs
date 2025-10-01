@@ -1,6 +1,6 @@
 use crate::{Enum, Func, Let, PRELUDES, Struct};
 use sodigy_error::{Error, Warning};
-use sodigy_name_analysis::{Namespace, NamespaceKind};
+use sodigy_name_analysis::Namespace;
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 

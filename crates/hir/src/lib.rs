@@ -47,3 +47,10 @@ impl Session {
         Ok(())
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub enum UseCount {
+    None,
+    Once,
+    Multiple,
+}

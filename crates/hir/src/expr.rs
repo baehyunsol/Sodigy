@@ -247,7 +247,6 @@ impl Expr {
                     _ => Err(()),
                 }
             },
-            _ => panic!("TODO: {e:?}"),
         }
     }
 }

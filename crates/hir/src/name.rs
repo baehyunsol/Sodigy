@@ -2,11 +2,9 @@ use crate::Session;
 use sodigy_name_analysis::{
     NameOrigin,
     Namespace,
-    NamespaceKind,
 };
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::HashSet;
 
 impl Session {
     pub fn find_origin_and_count_usage(&mut self, id: InternedString) -> Option<(NameOrigin, Span)> {
