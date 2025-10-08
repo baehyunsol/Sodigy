@@ -1,4 +1,5 @@
 use crate::{ErrorKind, WarningKind};
+use sodigy_span::Color;
 
 // TODO: maybe more levels?
 pub enum ErrorLevel {
@@ -42,7 +43,14 @@ impl ErrorLevel {
             ErrorKind::StructFieldRepeated(_) |
             ErrorKind::MissingStructField(_) |
             ErrorKind::InvalidStructField(_) => ErrorLevel::Error,
-            WarningKind::UnusedName(_) => ErrorLevel::Warning,
+            WarningKind::UnusedName { .. } => ErrorLevel::Warning,
+        }
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            ErrorLevel::Error => Color::Red,
+            ErrorLevel::Warning => Color::Yellow,
         }
     }
 }

@@ -2,6 +2,9 @@ use sodigy_file::File;
 use sodigy_string::InternedString;
 
 mod cmp;
+mod render;
+
+pub use render::{Color, ColorOption, RenderSpanOption, render_span};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {

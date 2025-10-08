@@ -2,13 +2,11 @@ use sodigy_span::Span;
 
 mod kind;
 mod level;
-mod render;
 mod token;
 mod warning;
 
 pub use kind::ErrorKind;
 pub use level::ErrorLevel;
-pub use render::{RenderSpanOption, render_span};
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};
 

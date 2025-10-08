@@ -23,7 +23,7 @@ fn main() {
     let tokens = match sodigy_lex::lex_gara(bytes.clone()) {
         Ok(tokens) => tokens,
         Err(errors) => {
-            eprintln!("{}", render_errors(&bytes, errors));
+            eprintln!("{}", render_errors(&args[1], &bytes, errors));
             return;
         },
     };
@@ -36,7 +36,7 @@ fn main() {
     let ast_block = match sodigy_parse::parse(&tokens, file) {
         Ok(ast_block) => ast_block,
         Err(errors) => {
-            eprintln!("{}", render_errors(&bytes, errors));
+            eprintln!("{}", render_errors(&args[1], &bytes, errors));
             return;
         },
     };
@@ -50,6 +50,7 @@ fn main() {
 
     let has_error = hir_session.lower(&ast_block).is_err();
     eprintln!("{}", render_errors(
+        &args[1],
         &bytes,
         vec![
             hir_session.errors.clone(),
@@ -77,6 +78,7 @@ fn main() {
 
     let mir_session = sodigy_mir::lower(&hir_session);
     eprintln!("{}", render_errors(
+        &args[1],
         &bytes,
         vec![
             mir_session.errors.clone(),
@@ -106,7 +108,7 @@ fn prettify(s: &str) -> String {
     String::from_utf8_lossy(c.output()).to_string()
 }
 
-fn render_errors(bytes: &[u8], mut errors: Vec<Error>) -> String {
+fn render_errors(file_name: &str, bytes: &[u8], mut errors: Vec<Error>) -> String {
     errors.sort_by_key(|e| (e.span, e.extra_span));
     // warnings come before errors
     errors.sort_by_key(
@@ -118,17 +120,28 @@ fn render_errors(bytes: &[u8], mut errors: Vec<Error>) -> String {
     let mut buffer = vec![];
 
     for error in errors.iter() {
+        let level = ErrorLevel::from_error_kind(&error.kind);
+        let title = match level {
+            ErrorLevel::Warning => level.color().render_fg("warning"),
+            ErrorLevel::Error => level.color().render_fg("error"),
+        };
+
         buffer.push(format!(
-            "{:?}\n{}\n\n",
-            error.kind,
-            sodigy_error::render_span(
+            "{title}: {}\n{}\n\n",
+            error.kind.render(),
+            sodigy_span::render_span(
+                file_name,
                 bytes,
                 error.span,
                 error.extra_span,
-                sodigy_error::RenderSpanOption {
+                sodigy_span::RenderSpanOption {
                     max_width: 88,
                     max_height: 10,
-                    color: true,
+                    render_source: true,
+                    color: Some(sodigy_span::ColorOption {
+                        primary: level.color(),
+                        secondary: sodigy_span::Color::Green,
+                    }),
                 },
             ),
         ));

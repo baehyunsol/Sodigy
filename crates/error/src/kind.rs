@@ -1,5 +1,8 @@
 use crate::ErrorToken;
+use sodigy_name_analysis::NameKind;
 use sodigy_string::InternedString;
+
+mod render;
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
@@ -61,5 +64,8 @@ pub enum ErrorKind {
     InvalidStructField(InternedString),
 
     // --- warnings from here ---
-    UnusedName(InternedString),
+    UnusedName {
+        name: InternedString,
+        kind: NameKind,
+    },
 }

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 sodigy-keyword = { version = "0.1.0", path = "../keyword" }
+sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }
