@@ -11,6 +11,7 @@ mod expr;
 mod func;
 mod r#if;
 mod r#let;
+mod r#match;
 mod module;
 mod pattern;
 mod r#struct;

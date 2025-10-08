@@ -3,6 +3,7 @@ use crate::{
     CallArg,
     FuncArgDef,
     If,
+    Match,
     StructInitField,
     Tokens,
     Type,
@@ -39,6 +40,7 @@ pub enum Expr {
         span: Span,
     },
     If(If),
+    Match(Match),
     Block(Block),
     Call {
         func: Box<Expr>,
@@ -116,11 +118,11 @@ pub enum Field {
         dot_span: Span,
     },
 
-    /// In `let pat (_, $x) = foo()`, `$x` is `Index(1)` of `foo()`.
-    /// In `let pat (_, _, .., $x) = foo()`, `$x` is `Index(-1)` of `foo()`.
+    /// In `let pat (_, x) = foo()`, `x` is `Index(1)` of `foo()`.
+    /// In `let pat (_, _, .., x) = foo()`, `x` is `Index(-1)` of `foo()`.
     Index(i64),
 
-    /// In `let pat (_, _, $x @ .., _, _, _) = foo()`, `$x` is `Range(2, -3)` of `foo()`.
+    /// In `let pat (_, _, x @ .., _, _, _) = foo()`, `x` is `Range(2, -3)` of `foo()`.
     Range(i64, i64),
 }
 
@@ -159,6 +161,7 @@ impl<'t> Tokens<'t> {
                 Expr::String { binary, s, span }
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
+            Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
                 Delim::Lambda => {
                     let span = *span;

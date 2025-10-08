@@ -1,11 +1,14 @@
 use crate::Tokens;
 use sodigy_error::Error;
+use sodigy_number::InternedNumber;
 
 #[derive(Clone, Debug)]
-pub struct Pattern;
+pub enum Pattern {
+    Number(InternedNumber),
+}
 
 impl<'t> Tokens<'t> {
     pub fn parse_pattern(&mut self) -> Result<Pattern, Vec<Error>> {
-        todo!()
+        panic!("TODO: {:?}", self.tokens)
     }
 }

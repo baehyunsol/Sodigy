@@ -65,8 +65,8 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn from_ast(e: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
-        match e {
+    pub fn from_ast(ast_expr: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
+        match ast_expr {
             ast::Expr::Identifier { id, span } => match session.find_origin_and_count_usage(*id) {
                 Some((origin, def_span)) => {
                     Ok(Expr::Identifier(IdentWithOrigin {
@@ -88,6 +88,7 @@ impl Expr {
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
+            ast::Expr::Match(r#match) => todo!(),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
             ast::Expr::Call { func, args } => {
                 let func = Expr::from_ast(func, session);
@@ -115,7 +116,7 @@ impl Expr {
             },
             ast::Expr::Tuple { elements, group_span } |
             ast::Expr::List { elements, group_span } => {
-                let is_tuple = matches!(e, ast::Expr::Tuple { .. });
+                let is_tuple = matches!(ast_expr, ast::Expr::Tuple { .. });
                 let group_span = *group_span;
                 let mut has_error = false;
                 let mut new_elements = Vec::with_capacity(elements.len());

@@ -21,6 +21,12 @@ impl InternedNumber {
     }
 }
 
+impl From<u32> for InternedNumber {
+    fn from(n: u32) -> InternedNumber {
+        InternedNumber::SmallInteger(n as i64)
+    }
+}
+
 /// Lexer must guarantee that it's parse-able.
 pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber {
     match (base, frac.len()) {

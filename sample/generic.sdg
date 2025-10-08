@@ -1,0 +1,15 @@
+fn first<T>(ls: [T]): T = ls[0];
+
+fn second<T, U>(tuple: (T, U)): U = tuple._1;
+
+@test.eq(0)
+let first_int = first([0, 1, 2]);
+
+@test.eq("zero")
+let first_string = first(["zero", "one", "two"]);
+
+@test.eq(1)
+let second_int = second(("zero", 1));
+
+@test.eq("one")
+let second_string = second((0, "one"));

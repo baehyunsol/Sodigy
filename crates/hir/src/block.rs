@@ -120,7 +120,10 @@ impl Block {
 
             if *count == 0 {
                 session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName(*name),
+                    kind: WarningKind::UnusedName {
+                        name: *name,
+                        kind: *kind,
+                    },
                     span: *span,
                     ..Warning::default()
                 });

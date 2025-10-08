@@ -12,7 +12,7 @@ pub struct If {
     pub if_span: Span,
 
     pub cond: Box<Expr>,
-    pub pattern: Option<Pattern>,  // `if pat Some(($x, _)) = foo() { x + 1 }`
+    pub pattern: Option<Pattern>,  // `if pat Some((x, _)) = foo() { x + 1 }`
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.

@@ -131,10 +131,13 @@ impl Func {
         };
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
-        for (name, (span, _, count)) in names.iter() {
+        for (name, (span, kind, count)) in names.iter() {
             if *count == 0 {
                 session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName(*name),
+                    kind: WarningKind::UnusedName {
+                        name: *name,
+                        kind: *kind,
+                    },
                     span: *span,
                     ..Warning::default()
                 });
@@ -144,7 +147,7 @@ impl Func {
         let mut use_counts = HashMap::new();
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
-        for (name, (span, _, count)) in names.iter() {
+        for (name, (span, kind, count)) in names.iter() {
             let use_count = match *count {
                 0 => UseCount::None,
                 1 => UseCount::Once,
@@ -154,7 +157,10 @@ impl Func {
 
             if *count == 0 {
                 session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName(*name),
+                    kind: WarningKind::UnusedName {
+                        name: *name,
+                        kind: *kind,
+                    },
                     span: *span,
                     ..Warning::default()
                 });

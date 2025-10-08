@@ -12,11 +12,55 @@ pub struct GenericDef {
 
 impl<'t> Tokens<'t> {
     pub fn parse_generic_def(&mut self) -> Result<GenericDef, Vec<Error>> {
-        todo!()
+        let (name, name_span) = self.pop_name_and_span()?;
+        Ok(GenericDef {
+            name,
+            name_span,
+        })
     }
 
     pub fn parse_generic_defs(&mut self) -> Result<Vec<GenericDef>, Vec<Error>> {
-        todo!()
+        let mut generics = vec![];
+
+        loop {
+            let generic = self.parse_generic_def()?;
+            generics.push(generic);
+
+            match self.peek2() {
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Gt), .. }),
+                ) => {
+                    self.cursor += 1;
+                    return Ok(generics);
+                },
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
+                    _,
+                ) => {
+                    self.cursor += 1;
+                },
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::Gt), .. }),
+                    _,
+                ) => {
+                    return Ok(generics);
+                },
+                (Some(t), _) => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::CommaOrGt,
+                            got: (&t.kind).into(),
+                        },
+                        span: t.span,
+                        ..Error::default()
+                    }]);
+                },
+                (None, _) => {
+                    return Err(vec![self.unexpected_end(ErrorToken::CommaOrGt)]);
+                },
+            }
+        }
     }
 }
 

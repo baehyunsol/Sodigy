@@ -272,7 +272,6 @@ impl Expr {
                     Ok(Expr::Call { func, args })
                 }
             },
-
             hir::Expr::Tuple { elements, .. } => todo!(),
             hir::Expr::List { elements, group_span } => {
                 let mut mir_elements = Vec::with_capacity(elements.len());

@@ -12,6 +12,7 @@ impl Expr {
             Expr::Number { .. } |
             Expr::String { .. } => Ok(()),
             Expr::If(r#if) => r#if.check(),
+            Expr::Match(r#match) => r#match.check(),
             Expr::Block(block) => block.check(false /* top_level */),
             Expr::Call { func, args } => {
                 let mut errors = vec![];

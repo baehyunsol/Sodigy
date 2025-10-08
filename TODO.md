@@ -193,7 +193,7 @@ fn map(ns: [T], f) = {
 // - `TypeVar(7) = List(T)`
 
 let foo = \() => Some(100);
-let x = if pat Some($n) = foo() { bar(n) } else { baz };
+let x = if pat Some(n) = foo() { bar(n) } else { baz };
 let y = x + 1;
 
 // 1. type annotation이 있어야하는 자리에 type annotation이 없으면 추가하고 시작
@@ -436,7 +436,7 @@ goto call_stack.peek();
 
 ```sodigy
 // This is a tail-call
-if pat Some($x) = foo(3, 4) { bar(x) } else { baz };
+if pat Some(x) = foo(3, 4) { bar(x) } else { baz };
 ```
 
 ```c

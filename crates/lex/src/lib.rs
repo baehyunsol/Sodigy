@@ -146,6 +146,18 @@ impl Session {
                     self.state = LexState::Decorator;
                     self.cursor += 2;
                 },
+                // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`
+                (Some(x @ b'0'..=b'9'), Some(b'.'), Some(b'.')) => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::Number(InternedNumber::from((*x - b'0') as u32)),
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                    });
+                    self.cursor += 1;
+                },
                 (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => todo!(),
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'), _) => {
                     self.errors.push(Error {
@@ -345,6 +357,12 @@ impl Session {
                         ),
                     });
                     self.cursor += 1;
+                },
+                // It's either a non-ascii identifier or an error.
+                (Some(192..), _, _) => {
+                    self.buffer1.clear();
+                    self.token_start = self.cursor + self.offset;
+                    self.state = LexState::Identifier;
                 },
                 (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
                 (None, _, _) => {
@@ -665,6 +683,7 @@ impl Session {
                 self.input_buffer.get(self.cursor + 2),
             ) {
                 (Some(b'"'), _, _) if quote_count == 1 => {
+                    // TODO: make sure that it's a valid utf-8
                     let interned = self.intern_string();
 
                     self.tokens.push(Token {
@@ -951,10 +970,45 @@ impl Session {
                     self.halt_with_error = true;
                 },
             },
-            LexState::Identifier => match self.input_buffer.get(self.cursor) {
-                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
+            LexState::Identifier => match (
+                self.input_buffer.get(self.cursor),
+                self.input_buffer.get(self.cursor + 1),
+                self.input_buffer.get(self.cursor + 2),
+                self.input_buffer.get(self.cursor + 3),
+            ) {
+                (Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')), _, _, _) => {
                     self.buffer1.push(*x);
                     self.cursor += 1;
+                },
+                (Some(x @ 192..=223), Some(y @ 128..=191), _, _) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.cursor += 2;
+                },
+                (Some(x @ 224..=239), Some(y @ 128..=191), Some(z @ 128..=191), _) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.buffer1.push(*z);
+                    self.cursor += 3;
+                },
+                (Some(x @ 240..=247), Some(y @ 128..=191), Some(z @ 128..=191), Some(w @ 128..=191)) => {
+                    self.buffer1.push(*x);
+                    self.buffer1.push(*y);
+                    self.buffer1.push(*z);
+                    self.buffer1.push(*w);
+                    self.cursor += 4;
+                },
+                (Some(128..), _, _, _) => {
+                    self.errors.push(Error {
+                        kind: ErrorKind::InvalidUtf8,
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 1 + self.offset,
+                        ),
+                        ..Error::default()
+                    });
+                    self.halt_with_error = true;
                 },
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
@@ -969,6 +1023,36 @@ impl Session {
                         b"pat" => TokenKind::Keyword(Keyword::Pat),
                         b"match" => TokenKind::Keyword(Keyword::Match),
                         _ => {
+                            // Lexer already checked that it's a valid utf8.
+                            let identifier = String::from_utf8_lossy(self.buffer1.as_slice());
+
+                            for ch in identifier.chars() {
+                                match ch {
+                                    // Allowed characters in an identifer
+                                    // ascii
+                                    '0'..='9' | 'a'..='z' | 'A'..='Z' | '_' |
+                                    // CJK
+                                    '㐀'..='鿿' | 'ぁ'..='ゖ' | 'ァ'..='ヺ' | '가'..='힣' |
+                                    // https://www.unicode.org/Public/emoji/1.0//emoji-data.txt
+                                    '☀'..='❤' | '🌀'..='🙏' | '🚀'..='🛼' | '🤌'..='🫸' => {},
+                                    _ => {
+                                        self.errors.push(Error {
+                                            kind: ErrorKind::InvalidCharacterInIdentifier(ch),
+
+                                            // It'd be lovely to calc the exact span of the character, but I'm too lazy to do that.
+                                            span: Span::range(
+                                                self.file,
+                                                self.token_start,
+                                                self.token_start + 1,
+                                            ),
+                                            ..Error::default()
+                                        });
+                                        self.halt_with_error = true;
+                                        break;
+                                    },
+                                }
+                            }
+
                             let interned = self.intern_string();
                             TokenKind::Identifier(interned)
                         },
