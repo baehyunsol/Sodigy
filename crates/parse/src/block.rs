@@ -9,12 +9,12 @@ use crate::{
     Tokens,
     Use,
 };
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_keyword::Keyword;
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{ErrorToken, Punct, TokenKind};
+use sodigy_token::{Punct, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {

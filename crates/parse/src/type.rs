@@ -1,8 +1,8 @@
 use crate::Tokens;
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct GenericDef {

@@ -1,10 +1,10 @@
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
 use sodigy_keyword::Keyword;
 use sodigy_number::{Base, InternedNumber, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Delim, ErrorToken, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Punct, Token, TokenKind};
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {

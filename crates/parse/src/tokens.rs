@@ -1,7 +1,7 @@
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{ErrorToken, Token, TokenKind};
+use sodigy_token::{Token, TokenKind};
 
 pub struct Tokens<'t> {
     pub(crate) tokens: &'t [Token],

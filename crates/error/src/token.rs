@@ -1,5 +1,5 @@
-use crate::{Delim, Punct, TokenKind};
 use sodigy_keyword::Keyword;
+use sodigy_token::{Delim, Punct, TokenKind};
 
 // TokenKind for error variants
 #[derive(Clone, Debug)]

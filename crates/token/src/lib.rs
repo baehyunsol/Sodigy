@@ -4,12 +4,10 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 mod delim;
-mod error;
 mod op;
 mod punct;
 
 pub use delim::Delim;
-pub use error::ErrorToken;
 pub use op::{InfixOp, PostfixOp, PrefixOp};
 pub use punct::Punct;
 

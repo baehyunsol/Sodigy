@@ -1,3 +1,18 @@
+# 24. tuple struct
+
+```rust
+struct Point = (Number, Number);
+```
+
+# 23. dotdot in struct init
+
+```rust
+Person {
+  name: "Bae",
+  ..Person.default()
+}
+```
+
 # 22. Type annotation 추가 수정
 
 1. Functors: `Fn<(u32): u32>`
