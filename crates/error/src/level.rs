@@ -36,6 +36,8 @@ impl ErrorLevel {
             ErrorKind::PositionalArgAfterKeywordArg |
             ErrorKind::NonDefaultValueAfterDefaultValue |
             ErrorKind::CannotDeclareInlineModule |
+            ErrorKind::InclusiveRangeWithNoEnd |
+            ErrorKind::AstPatternTypeError |
             ErrorKind::CannotBindName(_) |
             ErrorKind::CannotAnnotateType |
             ErrorKind::NameCollision { .. } |

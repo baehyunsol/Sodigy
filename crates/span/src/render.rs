@@ -138,7 +138,7 @@ pub fn render_span(
         };
         let (left, right) = match (left, right) {
             (_, r) if r < option.max_width - 20 => (0, option.max_width - 10),
-            _ => (right - option.max_width + 20, right + 5),
+            _ => (right + 20 - option.max_width, right + 10),
         };
 
         render_span_worker(

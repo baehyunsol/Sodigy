@@ -25,7 +25,7 @@ impl MatchBranch {
     pub fn check(&self) -> Result<(), Vec<Error>> {
         self.pattern.check(
             /* allow type annotation: */ false,
-            /* check name collision: */ true,
+            /* is_inner_pattern: */ false,
         )
     }
 }

@@ -140,7 +140,7 @@ impl Session {
                 // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`
                 (Some(x @ b'0'..=b'9'), Some(b'.'), Some(b'.')) => {
                     self.tokens.push(Token {
-                        kind: TokenKind::Number(InternedNumber::from((*x - b'0') as u32)),
+                        kind: TokenKind::Number(InternedNumber::from_u32((*x - b'0') as u32, true /* is_integer */)),
                         span: Span::range(
                             self.file,
                             self.cursor + self.offset,
@@ -172,7 +172,7 @@ impl Session {
                 },
                 (Some(b'0'), _, _) => {
                     self.tokens.push(Token {
-                        kind: TokenKind::Number(InternedNumber::zero()),
+                        kind: TokenKind::Number(InternedNumber::from_u32(0, true /* is_integer */)),
                         span: Span::range(
                             self.file,
                             self.cursor + self.offset,
@@ -285,6 +285,18 @@ impl Session {
                         });
                         self.halt_with_error = true;
                     },
+                },
+                // This is the only 3-character punct in the current spec
+                (Some(b'.'), Some(b'.'), Some(b'=')) => {
+                    self.tokens.push(Token {
+                        kind: TokenKind::Punct(Punct::DotDotEq),
+                        span: Span::range(
+                            self.file,
+                            self.cursor + self.offset,
+                            self.cursor + 3 + self.offset,
+                        ),
+                    });
+                    self.cursor += 3;
                 },
                 (
                     Some(x @ (b'!' | b'+' | b'-' | b'.' | b'<' | b'=' | b'>')),
@@ -1126,7 +1138,7 @@ impl Session {
                     },
                 },
                 Some(_) | None => {
-                    let interned = intern_number(base, &self.buffer1, &self.buffer2);
+                    let interned = intern_number(base, &self.buffer1, &self.buffer2, true /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1150,7 +1162,7 @@ impl Session {
                 Some(b'e' | b'E') => todo!(),
                 Some(_) | None => {
                     // At this point, `Base` must be Decimal. (otherwise lex error)
-                    let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2);
+                    let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, false /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),

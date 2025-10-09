@@ -42,6 +42,8 @@ pub enum ErrorKind {
     PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue,
     CannotDeclareInlineModule,
+    InclusiveRangeWithNoEnd,
+    AstPatternTypeError,  // TODO: more context?
 
     // Syntax errors in patterns
     CannotBindName(InternedString),

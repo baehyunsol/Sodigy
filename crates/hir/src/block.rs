@@ -36,7 +36,7 @@ impl Block {
 
         // It's just a dummy value. No one's gonna use this.
         let mut value = Expr::Number {
-            n: InternedNumber::zero(),
+            n: InternedNumber::from_u32(0, true),
             span: Span::None,
         };
 

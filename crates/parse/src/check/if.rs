@@ -11,8 +11,8 @@ impl If {
 
         if let Some(pattern) = &self.pattern {
             if let Err(e) = pattern.check(
-                /* allow type annotation: */ false,
-                /* check name collision: */ true,
+                /* allow_type_annotation: */ false,
+                /* is_inner_pattern: */ false,
             ) {
                 errors.extend(e);
             }

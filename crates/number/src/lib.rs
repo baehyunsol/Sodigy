@@ -3,11 +3,17 @@ mod fmt;
 
 pub use base::Base;
 
-/// A number literal `1` becomes `InternedNumber::SmallInteger(1)`, not `InternedNumber::SmallRatio`
-/// because the goal of interning the number is to remember the value, not the literal. It's lexer's
-/// responsibility to remember the original literal.
 #[derive(Clone, Copy)]
-pub enum InternedNumber {
+pub struct InternedNumber {
+    pub value: InternedNumberValue,
+
+    // It remembers the original literal.
+    // For example, `1.0` and `1` has the same `value` but different `is_integer`.
+    pub is_integer: bool,
+}
+
+#[derive(Clone, Copy)]
+enum InternedNumberValue {
     SmallInteger(i64),
     SmallRatio {
         numer: i64,
@@ -16,27 +22,43 @@ pub enum InternedNumber {
 }
 
 impl InternedNumber {
-    pub fn zero() -> Self {
-        InternedNumber::SmallInteger(0)
+    pub fn from_u32(n: u32, is_integer: bool) -> Self {
+        InternedNumber {
+            value: InternedNumberValue::SmallInteger(n as i64),
+            is_integer,
+        }
     }
 }
 
-impl From<u32> for InternedNumber {
-    fn from(n: u32) -> InternedNumber {
-        InternedNumber::SmallInteger(n as i64)
-    }
-}
+// impl From<u32> for InternedNumber {
+//     fn from(n: u32) -> InternedNumber {
+//         InternedNumber::SmallInteger(n as i64)
+//     }
+// }
 
 /// Lexer must guarantee that it's parse-able.
-pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber {
+pub fn intern_number(
+    base: Base,
+    integer: &[u8],
+    frac: &[u8],
+
+    // of the original literal
+    is_integer: bool,
+) -> InternedNumber {
     match (base, frac.len()) {
         (Base::Hexadecimal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 16) {
-            Ok(n) => InternedNumber::SmallInteger(n),
+            Ok(n) => InternedNumber {
+                value: InternedNumberValue::SmallInteger(n),
+                is_integer,
+            },
             Err(_) => todo!(),
         },
         (Base::Hexadecimal, _) => unreachable!(),
         (Base::Decimal, 0) => match String::from_utf8_lossy(integer).parse::<i64>() {
-            Ok(n) => InternedNumber::SmallInteger(n),
+            Ok(n) => InternedNumber {
+                value: InternedNumberValue::SmallInteger(n),
+                is_integer,
+            },
             Err(_) => todo!(),
         },
         (Base::Decimal, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
@@ -51,8 +73,11 @@ pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber 
 
                 match frac_vec.len() {
                     0 => match i64::try_from(int_numer) {
-                        Ok(n) => InternedNumber::SmallInteger(n),
-                        Err(_) => intern_number(base, integer, b""),
+                        Ok(n) => InternedNumber {
+                            value: InternedNumberValue::SmallInteger(n),
+                            is_integer,
+                        },
+                        Err(_) => intern_number(base, integer, b"", is_integer),
                     },
                     1..=16 => {
                         let mut frac_numer = String::from_utf8_lossy(&frac_vec).parse::<u64>().unwrap();
@@ -65,9 +90,12 @@ pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber 
                         match int_numer.checked_mul(frac_denom) {
                             Some(int_numer) => match int_numer.checked_add(frac_numer) {
                                 Some(numer) => match i64::try_from(numer) {
-                                    Ok(numer) => InternedNumber::SmallRatio {
-                                        numer,
-                                        denom: frac_denom,
+                                    Ok(numer) => InternedNumber {
+                                        value: InternedNumberValue::SmallRatio {
+                                            numer,
+                                            denom: frac_denom,
+                                        },
+                                        is_integer,
                                     },
                                     Err(_) => todo!(),
                                 },
@@ -82,12 +110,18 @@ pub fn intern_number(base: Base, integer: &[u8], frac: &[u8]) -> InternedNumber 
             Err(_) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
         },
         (Base::Octal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
-            Ok(n) => InternedNumber::SmallInteger(n),
+            Ok(n) => InternedNumber {
+                value: InternedNumberValue::SmallInteger(n),
+                is_integer,
+            },
             Err(_) => todo!(),
         },
         (Base::Octal, _) => unreachable!(),
         (Base::Binary, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 2) {
-            Ok(n) => InternedNumber::SmallInteger(n),
+            Ok(n) => InternedNumber {
+                value: InternedNumberValue::SmallInteger(n),
+                is_integer,
+            },
             Err(_) => todo!(),
         },
         (Base::Binary, _) => unreachable!(),

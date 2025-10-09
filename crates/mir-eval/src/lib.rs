@@ -174,58 +174,59 @@ fn eval(
                     }
                 },
                 Callable::ListInit { .. } => Ok(Value::List(arg_values)),
-                Callable::GenericInfixOp { op, .. } => {
-                    let (lhs, rhs) = (&arg_values[0], &arg_values[1]);
+                // Callable::GenericInfixOp { op, .. } => {
+                //     let (lhs, rhs) = (&arg_values[0], &arg_values[1]);
 
-                    match op {
-                        InfixOp::Add => match (lhs, rhs) {
-                            (Value::Number(n), Value::Number(m)) => match (n, m) {
-                                (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n + *m))),
-                                _ => todo!(),
-                            },
-                            _ => todo!(),
-                        },
-                        InfixOp::Sub => match (lhs, rhs) {
-                            (Value::Number(n), Value::Number(m)) => match (n, m) {
-                                (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n - *m))),
-                                _ => todo!(),
-                            },
-                            _ => todo!(),
-                        },
-                        InfixOp::Mul => match (lhs, rhs) {
-                            (Value::Number(n), Value::Number(m)) => match (n, m) {
-                                (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n * *m))),
-                                _ => todo!(),
-                            },
-                            _ => todo!(),
-                        },
-                        InfixOp::Lt => match (lhs, rhs) {
-                            (Value::Number(n), Value::Number(m)) => match (n, m) {
-                                (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Bool(*n < *m)),
-                                _ => todo!(),
-                            },
-                            _ => todo!(),
-                        },
-                        InfixOp::Eq => match (lhs, rhs) {
-                            (Value::Number(n), Value::Number(m)) => match (n, m) {
-                                (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Bool(*n == *m)),
-                                _ => todo!(),
-                            },
-                            _ => todo!(),
-                        },
-                        InfixOp::Index => match (lhs, rhs) {
-                            (Value::List(elements), Value::Number(InternedNumber::SmallInteger(n))) => match usize::try_from(*n) {
-                                Ok(n) => match elements.get(n) {
-                                    Some(element) => Ok(element.clone()),
-                                    None => Err(Error::IndexError(n as i64)),
-                                },
-                                Err(_) => Err(Error::IndexError(*n)),
-                            },
-                            _ => todo!(),
-                        },
-                        _ => panic!("TODO: {op:?}"),
-                    }
-                },
+                //     match op {
+                //         InfixOp::Add => match (lhs, rhs) {
+                //             (Value::Number(n), Value::Number(m)) => match (n, m) {
+                //                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n + *m))),
+                //                 _ => todo!(),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         InfixOp::Sub => match (lhs, rhs) {
+                //             (Value::Number(n), Value::Number(m)) => match (n, m) {
+                //                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n - *m))),
+                //                 _ => todo!(),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         InfixOp::Mul => match (lhs, rhs) {
+                //             (Value::Number(n), Value::Number(m)) => match (n, m) {
+                //                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Number(InternedNumber::SmallInteger(*n * *m))),
+                //                 _ => todo!(),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         InfixOp::Lt => match (lhs, rhs) {
+                //             (Value::Number(n), Value::Number(m)) => match (n, m) {
+                //                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Bool(*n < *m)),
+                //                 _ => todo!(),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         InfixOp::Eq => match (lhs, rhs) {
+                //             (Value::Number(n), Value::Number(m)) => match (n, m) {
+                //                 (InternedNumber::SmallInteger(n), InternedNumber::SmallInteger(m)) => Ok(Value::Bool(*n == *m)),
+                //                 _ => todo!(),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         InfixOp::Index => match (lhs, rhs) {
+                //             (Value::List(elements), Value::Number(InternedNumber::SmallInteger(n))) => match usize::try_from(*n) {
+                //                 Ok(n) => match elements.get(n) {
+                //                     Some(element) => Ok(element.clone()),
+                //                     None => Err(Error::IndexError(n as i64)),
+                //                 },
+                //                 Err(_) => Err(Error::IndexError(*n)),
+                //             },
+                //             _ => todo!(),
+                //         },
+                //         _ => panic!("TODO: {op:?}"),
+                //     }
+                // },
+                _ => todo!(),
             }
         },
         _ => panic!("TODO: {expr:?}"),

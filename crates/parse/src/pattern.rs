@@ -74,11 +74,38 @@ pub enum Pattern {
         elements: Vec<FullPattern>,
         group_span: Span,
     },
-    Or(Box<Pattern>, Box<Pattern>),
-    Concat(Box<FullPattern>, Box<FullPattern>),
+    Range {
+        lhs: Option<Box<Pattern>>,
+        rhs: Option<Box<Pattern>>,
+        op_span: Span,
+        is_inclusive: bool,
+    },
+    Or {
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
+    Concat {
+        lhs: Box<FullPattern>,
+        rhs: Box<FullPattern>,
+        op_span: Span,
+    },
 }
 
 impl Pattern {
+    pub fn error_span(&self) -> Span {
+        match self {
+            Pattern::Number { span, .. } |
+            Pattern::Identifier { span, .. } |
+            Pattern::Wildcard(span) |
+            Pattern::Tuple { group_span: span, .. } |
+            Pattern::List { group_span: span, .. } |
+            Pattern::Range { op_span: span, .. } |
+            Pattern::Or { op_span: span, .. } |
+            Pattern::Concat { op_span: span, .. } => *span,
+        }
+    }
+
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             Pattern::Number { .. } |
@@ -94,11 +121,24 @@ impl Pattern {
 
                 result
             },
-            Pattern::Or(lhs, rhs) => vec![
+            Pattern::Range { lhs, rhs, .. } => {
+                let mut result = vec![];
+
+                if let Some(lhs) = lhs {
+                    result.extend(lhs.bound_names());
+                }
+
+                if let Some(rhs) = rhs {
+                    result.extend(rhs.bound_names());
+                }
+
+                result
+            },
+            Pattern::Or { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),
             ].concat(),
-            Pattern::Concat(lhs, rhs) => vec![
+            Pattern::Concat { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),
             ].concat(),
@@ -159,7 +199,8 @@ impl<'t> Tokens<'t> {
         };
 
         match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Concat), .. }) => {
+            Some(Token { kind: TokenKind::Punct(Punct::Concat), span }) => {
+                let op_span = *span;
                 self.cursor += 1;
                 let rhs = self.parse_full_pattern()?;
 
@@ -168,10 +209,11 @@ impl<'t> Tokens<'t> {
                     name: None,
                     name_span: None,
                     r#type: None,
-                    pattern: Pattern::Concat(
-                        Box::new(lhs),
-                        Box::new(rhs),
-                    ),
+                    pattern: Pattern::Concat {
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                        op_span,
+                    },
                 })
             },
             _ => Ok(lhs),
@@ -219,7 +261,9 @@ impl<'t> Tokens<'t> {
             (
                 Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim, tokens }, span: span2 }),
-            ) => todo!(),
+            ) => match *delim {
+                _ => todo!(),
+            },
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
@@ -295,13 +339,41 @@ impl<'t> Tokens<'t> {
                 self.cursor += 1;
                 Pattern::Number { n, span }
             },
+            // `..3`
+            (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => todo!(),
             (t1, t2) => panic!("TODO: ({t1:?}, {t2:?})"),
         };
 
         match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Or), .. }) => todo!(),
-            Some(Token { kind: TokenKind::Punct(Punct::DotDot), .. }) => todo!(),
-            Some(Token { kind: TokenKind::Punct(Punct::DotDotEq), .. }) => todo!(),
+            Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }) => {
+                let op_span = *span;
+                let is_inclusive = matches!(p, Punct::DotDotEq);
+                self.cursor += 1;
+                let prev_cursor = self.cursor;
+
+                match self.parse_pattern() {
+                    Ok(rhs) => {
+                        return Ok(Pattern::Range {
+                            lhs: Some(Box::new(pattern)),
+                            rhs: Some(Box::new(rhs)),
+                            op_span,
+                            is_inclusive,
+                        });
+                    },
+                    // TODO: it assumes that it's an open-ended range if it cannot parse rhs.
+                    //       but maybe there's an rhs with a syntax error. In such case, it has to return this error.
+                    Err(_) => {
+                        self.cursor = prev_cursor;
+                        return Ok(Pattern::Range {
+                            lhs: Some(Box::new(pattern)),
+                            rhs: None,
+                            op_span,
+                            is_inclusive,
+                        });
+                    },
+                }
+            },
             _ => {},
         }
 
