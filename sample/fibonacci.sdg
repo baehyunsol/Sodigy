@@ -1,14 +1,14 @@
 @test.eq((9,), 55)
 @test.eq((12,), 233)
-fn fibonacci(n: Int): Int = match n {
-    0..2 => 1,
+fn fibonacci(n: Int) -> Int = match n {
+    0 | 1 => 1,
     2.. => fibonacci(n - 1) + fibonacci(n - 2),
     _ => panic("negative fibonacci"),
 };
 
 @test.eq((9,), 55)
 @test.eq((12,), 233)
-fn fibonacci_if(n: Int): Int = if n < 2 {
+fn fibonacci_if(n: Int) -> Int = if n < 2 {
     1
 } else {
     fibonacci_if(n - 1) + fibonacci_if(n - 2)

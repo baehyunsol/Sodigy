@@ -287,13 +287,14 @@ impl Session {
                     },
                 },
                 (
-                    Some(x @ (b'!' | b'+' | b'.' | b'<' | b'=' | b'>')),
+                    Some(x @ (b'!' | b'+' | b'-' | b'.' | b'<' | b'=' | b'>')),
                     Some(y @ (b'+' | b'.' | b'<' | b'=' | b'>')),
                     _,
                 ) => {
                     let punct = match (x, y) {
                         (b'!', b'=') => Some(Punct::Neq),
                         (b'+', b'+') => Some(Punct::Concat),
+                        (b'-', b'>') => Some(Punct::ReturnType),
                         (b'.', b'.') => Some(Punct::DotDot),
                         (b'<', b'<') => Some(Punct::Shl),
                         (b'<', b'=') => Some(Punct::Leq),
@@ -342,7 +343,8 @@ impl Session {
                     b'!' | b'#' | b'$' | b'%' | b'&' |
                     b'*' | b'+' | b',' | b'-' | b'.' |
                     b'/' | b':' | b';' | b'<' | b'=' |
-                    b'>' | b'?' | b'@' | b'^' | b'~'
+                    b'>' | b'?' | b'@' | b'^' | b'|' |
+                    b'~'
                 )), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Punct((*x).into()),

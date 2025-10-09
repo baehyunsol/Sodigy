@@ -4,7 +4,7 @@ struct Person = {
     is_rustacean: Bool,
 };
 
-fn get_old(p: Person): Person = p `age (p.age + 1);
+fn get_old(p: Person) -> Person = p `age (p.age + 1);
 
 @test.eq(Person {
     name: "Bae",

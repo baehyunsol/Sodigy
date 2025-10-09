@@ -28,6 +28,7 @@ pub enum Punct {
     DotDot,  // ".."
     DotDotEq,  // "..="
     Arrow,  // "=>"
+    ReturnType,  // "->"
 }
 
 impl From<u8> for Punct {

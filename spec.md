@@ -34,8 +34,8 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
 ## Pattern matching
 
 1. `match foo() { (0..3, _) => 1, (x, y) => x + y }`
-2. `let pat (x, y) = foo();`
-3. `if pat (0..3, _) = foo() { 1 } else { 0 }`
+2. `let (x, y) = foo();`
+3. `if let (0..3, _) = foo() { 1 } else { 0 }`
 
 ### Patterns
 
@@ -78,7 +78,7 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
 ## Lambda Functions
 
 - `\(a, b) => a + b`
-- `\(a: Int, b: Int): Int => a + b`
+- `\(a: Int, b: Int) -> Int => a + b`
 
 ## Literals
 
@@ -105,4 +105,4 @@ Syntactically, type annotations are always optional. It won't throw any syntax e
 
 - `Int`: built-in integer type
 - `List<Int>`: built-in list type, it has 1 argument
-- `Fn<(Int, Int): Int>`: a function that takes 2 integers and returns 1 integer
+- `Fn(Int, Int) -> Int`: a function that takes 2 integers and returns 1 integer

@@ -22,8 +22,7 @@ impl TryFrom<Punct> for PostfixOp {
             Punct::And | Punct::Or | Punct::AndAnd | Punct::OrOr |
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |
-            Punct::Concat |
-            Punct::Arrow => Err(()),
+            Punct::Concat | Punct::Arrow | Punct::ReturnType => Err(()),
         }
     }
 }

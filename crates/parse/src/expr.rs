@@ -415,10 +415,10 @@ impl<'t> Tokens<'t> {
                     };
                     continue;
                 },
+                Some(t) => panic!("TODO: {t:?}"),
                 None => {
                     return Ok(lhs);
                 },
-                t => panic!("TODO: {t:?}"),
             }
         }
 

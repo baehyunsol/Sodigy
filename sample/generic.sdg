@@ -1,6 +1,6 @@
-fn first<T>(ls: [T]): T = ls[0];
+fn first<T>(ls: [T]) -> T = ls[0];
 
-fn second<T, U>(tuple: (T, U)): U = tuple._1;
+fn second<T, U>(tuple: (T, U)) -> U = tuple._1;
 
 @test.eq(0)
 let first_int = first([0, 1, 2]);

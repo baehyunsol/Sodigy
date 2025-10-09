@@ -42,13 +42,17 @@ impl Type {
             ast::Type::List { r#type, group_span } => {
                 // TODO: I want it to be const-evaled
                 let list_id = intern_string(b"List");
-
-                Ok(Type::Identifier(IdentWithOrigin {
+                let list_type = Type::Identifier(IdentWithOrigin {
                     id: list_id,
                     span: *group_span,
                     origin: NameOrigin::Foreign { kind: NameKind::Struct },
                     def_span: Span::Prelude(list_id),
-                }))
+                });
+
+                Ok(Type::Generic {
+                    r#type: Box::new(list_type),
+                    types: vec![Type::from_ast(r#type, session)?],
+                })
             },
             ast::Type::Tuple { types: ast_types, group_span } => {
                 let mut types = Vec::with_capacity(ast_types.len());

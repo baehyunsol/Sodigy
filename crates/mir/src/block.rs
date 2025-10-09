@@ -1,4 +1,4 @@
-use crate::{Expr, Func, Let, Session};
+use crate::{Expr, Let, Session};
 use sodigy_hir as hir;
 use sodigy_span::Span;
 

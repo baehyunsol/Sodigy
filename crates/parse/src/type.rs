@@ -83,7 +83,7 @@ pub enum Type {
         r#type: Box<Type>,
         group_span: Span,
     },
-    Func {  // Fn<(Int, Int): Int>
+    Func {  // Fn(Int, Int) -> Int
         // It's either `Type::Identifier` or `Type::Path`.
         // It's very likely to be `Type::Identifier("Fn")`
         r#type: Box<Type>,
@@ -129,30 +129,18 @@ impl<'t> Tokens<'t> {
                             Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }),
                         ) => {
                             path.push((*id, *span));
+                            let types = self.parse_types(StopAt::AngleBracket)?;
+                            self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
 
-                            match self.try_parse_fn_type() {
-                                Some(Ok((args, r#return))) => {
-                                    self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
-                                    return Ok(Type::Func {
-                                        r#type: Box::new(Type::Path(path)),
-                                        args,
-                                        r#return: Box::new(r#return),
-                                    });
-                                },
-                                Some(Err(e)) => {
-                                    return Err(e);
-                                },
-                                None => {
-                                    let types = self.parse_types(StopAt::AngleBracket)?;
-                                    self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
-
-                                    return Ok(Type::Generic {
-                                        r#type: Box::new(Type::Path(path)),
-                                        types,
-                                    });
-                                },
-                            }
+                            return Ok(Type::Generic {
+                                r#type: Box::new(Type::Path(path)),
+                                types,
+                            });
                         },
+                        (
+                            Some(Token { kind: TokenKind::Identifier(id), span }),
+                            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
+                        ) => todo!(),  // maybe func
                         (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                             path.push((*id, *span));
                             self.cursor += 1;
@@ -170,28 +158,35 @@ impl<'t> Tokens<'t> {
                 let (id, span) = (*id, *span);
                 self.cursor += 2;
 
-                match self.try_parse_fn_type() {
-                    Some(Ok((args, r#return))) => {
-                        self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
-                        Ok(Type::Func {
-                            r#type: Box::new(Type::Identifier { id, span }),
-                            args,
-                            r#return: Box::new(r#return),
-                        })
-                    },
-                    Some(Err(e)) => {
-                        return Err(e);
-                    },
-                    None => {
-                        let types = self.parse_types(StopAt::AngleBracket)?;
-                        self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+                let types = self.parse_types(StopAt::AngleBracket)?;
+                self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
 
-                        Ok(Type::Generic {
-                            r#type: Box::new(Type::Identifier { id, span }),
-                            types,
-                        })
-                    },
-                }
+                Ok(Type::Generic {
+                    r#type: Box::new(Type::Identifier { id, span }),
+                    types,
+                })
+            },
+            // Fn(Int, Int) -> Int
+            (
+                Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
+            ) => {
+                let (name, name_span) = (*id, *span1);
+                let mut arg_tokens = Tokens::new(tokens, span2.end());
+                let args = arg_tokens.parse_types(StopAt::Eof)?;
+
+                self.cursor += 2;
+                self.match_and_pop(TokenKind::Punct(Punct::ReturnType))?;
+                let r#return = self.parse_type()?;
+
+                Ok(Type::Func {
+                    r#type: Box::new(Type::Identifier {
+                        id: name,
+                        span: name_span,
+                    }),
+                    args,
+                    r#return: Box::new(r#return),
+                })
             },
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);
@@ -343,42 +338,10 @@ impl<'t> Tokens<'t> {
             }
         }
     }
-
-    // It first checks if it looks like fn type signature or not.
-    // If it's not, it's just a generic type signature, so it returns `None`.
-    // If it is, it tries to parse the fn type signature and returns `Some(Ok(_))` or `Some(Err(_))`.
-    // If it's successful, the cursor points to `>`.
-    pub fn try_parse_fn_type(&mut self) -> Option<Result<(Vec<Type>, Type), Vec<Error>>> {
-        match self.peek2() {
-            (
-                Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }),
-                Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
-            ) => {
-                let mut tokens = Tokens::new(tokens, span.end());
-                let args = match tokens.parse_types(StopAt::Eof) {
-                    Ok(args) => args,
-                    Err(e) => {
-                        return Some(Err(e));
-                    },
-                };
-
-                self.cursor += 2;
-                let r#return = match self.parse_type() {
-                    Ok(r#return) => r#return,
-                    Err(e) => {
-                        return Some(Err(e));
-                    },
-                };
-
-                Some(Ok((args, r#return)))
-            },
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
-enum StopAt {
+pub(crate) enum StopAt {
     Eof,
     AngleBracket,
 }

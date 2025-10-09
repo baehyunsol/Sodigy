@@ -44,7 +44,12 @@ impl<'t> Tokens<'t> {
             let pattern = self.parse_full_pattern()?;
 
             let cond = match self.peek() {
-                Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => todo!(),
+                Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {
+                    self.cursor += 1;
+                    let cond = self.parse_expr()?;
+                    self.match_and_pop(TokenKind::Punct(Punct::Arrow))?;
+                    Some(cond)
+                },
                 Some(Token { kind: TokenKind::Punct(Punct::Arrow), .. }) => {
                     self.cursor += 1;
                     None

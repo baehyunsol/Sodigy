@@ -10,7 +10,10 @@ impl If {
         }
 
         if let Some(pattern) = &self.pattern {
-            if let Err(e) = pattern.check() {
+            if let Err(e) = pattern.check(
+                /* allow type annotation: */ false,
+                /* check name collision: */ true,
+            ) {
                 errors.extend(e);
             }
         }

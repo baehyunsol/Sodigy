@@ -61,7 +61,7 @@ impl<'t> Tokens<'t> {
         let args = arg_tokens.parse_func_arg_defs()?;
 
         let r#type = match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
+            Some(Token { kind: TokenKind::Punct(Punct::ReturnType), ..}) => {
                 self.cursor += 1;
                 Some(self.parse_type()?)
             },

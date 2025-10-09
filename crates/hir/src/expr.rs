@@ -180,7 +180,7 @@ impl Expr {
                 }
             },
             ast::Expr::Path { lhs, field } => match Expr::from_ast(lhs, session) {
-                Ok(Expr::Path { lhs, fields: mut fields }) => {
+                Ok(Expr::Path { lhs, mut fields }) => {
                     fields.push(*field);
                     Ok(Expr::Path {
                         lhs,

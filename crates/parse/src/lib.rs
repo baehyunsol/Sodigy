@@ -26,7 +26,7 @@ pub use expr::{Expr, Field};
 pub use func::{CallArg, Func, FuncArgDef};
 pub use r#if::If;
 pub use r#let::Let;
-pub use r#match::Match;
+pub use r#match::{Match, MatchBranch};
 pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use r#struct::{Struct, StructInitField};

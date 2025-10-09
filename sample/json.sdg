@@ -16,12 +16,12 @@ enum ParseState = {
     Integer,
 };
 
-fn parse(s: String): Result<Value, Error> = parse_worker(
+fn parse(s: String) -> Result<Value, Error> = parse_worker(
     s,
     state = ParseState.Init,
 );
 
-fn parse_worker(s: String, state: ParseState): Result<Value, Error> = match state {
+fn parse_worker(s: String, state: ParseState) -> Result<Value, Error> = match state {
     ParseState.Init => match s.get(0) {
         '0'..='9' => todo(),
         '"' => todo(),

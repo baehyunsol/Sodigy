@@ -30,20 +30,6 @@ Person {
 }
 ```
 
-# 22. Type annotation 추가 수정
-
-1. Functors: `Fn<(u32): u32>`
-  - function에서도 return type을 `:`로 쓰니까 여기서도 `:` 쓰자!
-  - 다른 곳에서도 angle bracket 쓰니까 여기서도 angle bracket 쓰자
-  - `(u32)`에는 special parser를 쓸 거기 때문에 trailing comma 없어도 됨!
-2. list: `[T]`
-
-# 21. Type annotation 생략
-
-모든 type annotation은 생략 가능. 단, type-infer가 불가능하면 무조건 compile error
-
-심지어 `fn first<T>(l: [T]): T = l[0];`에서도 생략 가능함. 그대신 이러면 `T`라는 generic도 못씀 (generic이 정의되면 반드시 1번 이상 쓰여야 하거든). 이러면 나중에 type-infer 할 때나 type-check 할 때 error가 나겠지...
-
 # 20. test bench
 
 지금은 `main` 만들어서 일일이 실행하고 있지? 얘네를 얼른 `@test`로 바꿔야함!
@@ -60,7 +46,7 @@ becomes
 
 ```
 // for all elements, it prints the message to stderr if the result is False
-let assertions: List((Bool, String)) = [
+let assertions: [(Bool, String)] = [
     {
         let arg = (10, 20);
         // 여기가 문제: `._0`과 `._1`이 있다는 걸 알려면 `arg: (Int, Int)`라는 사실을 알아내야함...
@@ -150,14 +136,6 @@ unintern을 하려면 `HashMap<InternedString, String>`이 있어야함!
 2. incremental compilation을 하면 hir을 저장해야함. 그때 hir의 span도 저장될텐데, ...
 3. package manager를 만든다고 치면, hir은 컴파일된 상태로 배포를 할 거지? 그럼 이 안에 있는 span은 어떻게 하려구...
 
-# 15. name bindings and decorators
-
-Name bindings in patterns use `@` character, and so do decorators. But the problem is that the lexer treats `(b'@', b'a'..=b'z')` as a single token (decorator token). So the pattern parser has to be aware of this.
-
-# 14. error vs warning
-
-지금 `struct Error`랑 `struct Warning`이랑 너무 비슷한데 차라리 하나로 통일하고 error인지 warning인지 구분하는 flag만 추가할까...
-
 # 13. prelude
 
 어느 시점에 집어넣어야 하나...
@@ -184,7 +162,7 @@ fn map(ns: [T], f) = {
 //
 // 2. f가 callable이라는 걸 확인했으니 arg와 return type에 들어갈 type variable 추가
 //    arg가 1개라는 것도 이 시점에선 셀 수 있음!
-// - `TypeVar(0) = Fn((TypeVar(3),), TypeVar(4))`
+// - `TypeVar(0) = Fn(TypeVar(3)) -> TypeVar(4)`
 //
 // 3. `let nx`의 좌변과 우변을 비교해서 추론
 // - `TypeVar(2) = TypeVar(4)`
@@ -223,7 +201,7 @@ let y = x + 1;
 // - `n: TypeVar(4)`
 //
 // 2. `let foo`의 좌변과 우변을 비교해서 추론
-// - `TypeVar(0) = Fn((), TypeVar(3))`
+// - `TypeVar(0) = Fn() -> TypeVar(3)`
 //
 // 3. `let x`의 우변에 있는 if문 뜯기, 먼저 cond부터
 // - `TypeVar(4) = Option(TypeVar(4))`
@@ -286,7 +264,7 @@ fn first(l) = l[0];
 // 2. 함수 body
 // - `ReturnType(Op(Index), (TypeVar(0), Int)) = TypeVar(1)`
 
-fn foo<T, U>(a: T, b: U): T = a;
+fn foo<T, U>(a: T, b: U) -> T = a;
 let x = foo(100, 200);
 let y = foo::<Int, [_]>(100, []);
 let z = foo(x, y);
@@ -307,7 +285,7 @@ let z = foo(x, y);
 // 4. `let z`의 좌변과 우변을 비교해서 추론
 // TypeVar(2) = ReturnType(Fn(foo), (TypeVar(0),  TypeVar(1)))
 
-fn first<T, U>(ls: [T], b: U): T = ls[0];
+fn first<T, U>(ls: [T], b: U) -> T = ls[0];
 let x = first([100, 200, 300], 100);
 
 // 1. type annotation이 있어야하는 자리에 type annotation이 없으면 추가하고 시작

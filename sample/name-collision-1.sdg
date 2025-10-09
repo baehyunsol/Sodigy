@@ -1,0 +1,7 @@
+let collision1 = 3;
+let collision1 = "x";
+
+fn foo(collision2, x, collision2) = collision2 + x;
+
+let collision3 = 100;
+let (collision3, y) = (1, 2);

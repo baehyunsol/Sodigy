@@ -1,8 +1,8 @@
-fn foo(): Option<Int> = None;
+fn foo() -> Option<Int> = None;
 
 @test.eq(2)
-fn unused_if_pat_bind() = {
-    if pat Some(x) = foo() { 1 } else { 2 }
+fn unused_if_let_bind() = {
+    if let Some(x) = foo() { 1 } else { 2 }
 };
 
 @test.eq(2)

@@ -1,20 +1,20 @@
-fn map<T, U>(ls: [T], f: Fn<(T): U>): [U] = match ls {
+fn map<T, U>(ls: [T], f: Fn(T) -> U) -> [U] = match ls {
     [] => [],
     [x] ++ xs => [f(x)] ++ map(xs, f),
 };
 
-fn filter<T>(ls: [T], f: Fn<(T): Bool>): [T] = match ls {
+fn filter<T>(ls: [T], f: Fn(T) -> Bool) -> [T] = match ls {
     [] => [],
     [x] ++ xs if f(x) => [x] ++ filter(xs, f),
     _ => filter(xs[1..], f),
 };
 
-fn sort<T>(ls: [T]): [T] = match ls {
+fn sort<T>(ls: [T]) -> [T] = match ls {
     [] | [_] => ls,
     _ => sort(filter(ls, \(x) => x < ls[0])) ++ filter(ls, \(x) => x == ls[0]) ++ sort(filter(ls, \(x) => x > ls[0])),
 };
 
-fn rev<T>(ls: [T]): [T] = match ls {
+fn rev<T>(ls: [T]) -> [T] = match ls {
     [] | [_] => ls,
     [x] ++ xs => rev(xs) ++ [x],
 };
