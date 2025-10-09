@@ -191,7 +191,7 @@ impl<'t> Tokens<'t> {
                 Delim::Parenthesis => {
                     let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
-                    let exprs = tokens.parse_comma_separated_expr()?;
+                    let exprs = tokens.parse_exprs()?;
                     let mut is_tuple = exprs.len() != 1;
 
                     // `(a + b)` is just an expression, but `(a + b,)` is a tuple
@@ -226,7 +226,7 @@ impl<'t> Tokens<'t> {
                 Delim::Bracket => {
                     let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
-                    let exprs = tokens.parse_comma_separated_expr()?;
+                    let exprs = tokens.parse_exprs()?;
                     self.cursor += 1;
 
                     Expr::List {
@@ -251,8 +251,8 @@ impl<'t> Tokens<'t> {
                     let punct_span = *span;
 
                     match PostfixOp::try_from(punct) {
-                        // `..` can be both infix and postfix!
-                        Ok(op @ PostfixOp::Range) => todo!(),
+                        // `..` and `..=` can be both infix and postfix!
+                        Ok(op @ PostfixOp::Range { .. }) => todo!(),
                         Ok(op) => todo!(),
                         Err(_) => {
                             // let's try infix
@@ -425,7 +425,7 @@ impl<'t> Tokens<'t> {
         Ok(lhs)
     }
 
-    pub fn parse_comma_separated_expr(&mut self) -> Result<Vec<Expr>, Vec<Error>> {
+    pub fn parse_exprs(&mut self) -> Result<Vec<Expr>, Vec<Error>> {
         let mut exprs = vec![];
 
         if self.peek().is_none() {
@@ -493,6 +493,12 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Eq | InfixOp::Neq => (COMP_EQ, COMP_EQ + 1),
         InfixOp::Shl | InfixOp::Shr => (SHIFT, SHIFT + 1),
         InfixOp::Index => (INDEX, INDEX + 1),
+        InfixOp::Range { .. } => (RANGE, RANGE + 1),
+        InfixOp::Concat => (CONCAT, CONCAT + 1),
+        InfixOp::BitAnd => (BIT_AND, BIT_AND + 1),
+        InfixOp::BitOr => (BIT_OR, BIT_OR + 1),
+        InfixOp::LogicAnd => (LOGIC_AND, LOGIC_AND + 1),
+        InfixOp::LogicOr => (LOGIC_OR, LOGIC_OR + 1),
     }
 }
 
@@ -505,15 +511,14 @@ const NEG: u32 = 27;  // -a
 const MUL: u32 = 25;  // a * b, a / b, a % b
 const ADD: u32 = 23;  // a + b, a - b
 const SHIFT: u32 = 21;  // a << b, a >> b
-const BITWISE_AND: u32 = 19;  // a & b
+const BIT_AND: u32 = 19;  // a & b
 const XOR: u32 = 17;  // a ^ b
-const BITWISE_OR: u32 = 15;  // a | b
+const BIT_OR: u32 = 15;  // a | b
 
-// TODO: Do we need a concat operator?
 // RANGE: a..b, a..=b, a.., ..a
 const CONCAT: u32 = 11; const RANGE: u32 = 11;
 const COMP: u32 = 9;  // a < b, a > b, a <= b, a >= b
 const COMP_EQ: u32 = 7;  // a == b, a != b
 const MODIFY: u32 = 5;  // p `age 32
-const LOGICAL_AND: u32 = 3;  // a && b
-const LOGICAL_OR: u32 = 1;  // a || b
+const LOGIC_AND: u32 = 3;  // a && b
+const LOGIC_OR: u32 = 1;  // a || b

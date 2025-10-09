@@ -16,6 +16,12 @@ pub enum InfixOp {
     Neq,
     Geq,
     Index,
+    Concat,
+    Range { inclusive: bool },
+    BitAnd,
+    BitOr,
+    LogicAnd,
+    LogicOr,
 }
 
 impl TryFrom<Punct> for InfixOp {
@@ -36,10 +42,17 @@ impl TryFrom<Punct> for InfixOp {
             Punct::Leq => Ok(InfixOp::Leq),
             Punct::Neq => Ok(InfixOp::Neq),
             Punct::Geq => Ok(InfixOp::Geq),
+            Punct::And => Ok(InfixOp::BitAnd),
+            Punct::Or => Ok(InfixOp::BitOr),
+            Punct::AndAnd => Ok(InfixOp::LogicAnd),
+            Punct::OrOr => Ok(InfixOp::LogicOr),
+            Punct::Concat => Ok(InfixOp::Concat),
+            Punct::DotDot => Ok(InfixOp::Range { inclusive: false }),
+            Punct::DotDotEq => Ok(InfixOp::Range { inclusive: true }),
             // Do not use a wildcard!
             Punct::Colon | Punct::Semicolon | Punct::Assign |
-            Punct::Comma | Punct::Dot | Punct::QuestionMark |
-            Punct::DotDot | Punct::Arrow => Err(()),
+            Punct::Comma | Punct::Dot | Punct::At |
+            Punct::QuestionMark | Punct::Arrow => Err(()),
         }
     }
 }

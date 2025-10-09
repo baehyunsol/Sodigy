@@ -1,4 +1,4 @@
-use crate::{Expr, Pattern, Tokens};
+use crate::{Expr, FullPattern, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_keyword::Keyword;
 use sodigy_span::Span;
@@ -8,11 +8,11 @@ use sodigy_token::{Delim, Punct, Token, TokenKind};
 // that goes into `false_value`, recursively.
 #[derive(Clone, Debug)]
 pub struct If {
-    // If it's `if pat`, `if_span` is a merged span of `if` and `pat`.
+    // If it's `if let`, `if_span` is a merged span of `if` and `let`.
     pub if_span: Span,
 
     pub cond: Box<Expr>,
-    pub pattern: Option<Pattern>,  // `if pat Some((x, _)) = foo() { x + 1 }`
+    pub pattern: Option<FullPattern>,  // `if let Some((x, _)) = foo() { x + 1 }`
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.
@@ -27,14 +27,14 @@ impl<'t> Tokens<'t> {
         let mut pattern = None;
 
         let (if_span, cond) = match self.peek2() {
-            // if pat PATTERN = COND
+            // if let PATTERN = COND
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), span: span1 }),
-                Some(Token { kind: TokenKind::Keyword(Keyword::Pat), span: span2 }),
+                Some(Token { kind: TokenKind::Keyword(Keyword::Let), span: span2 }),
             ) => {
                 let span = span1.merge(*span2);
                 self.cursor += 2;
-                pattern = Some(self.parse_pattern()?);
+                pattern = Some(self.parse_full_pattern()?);
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
                 (span, self.parse_expr()?)
             },

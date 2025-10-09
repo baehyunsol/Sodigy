@@ -70,15 +70,19 @@ impl<'t> Tokens<'t> {
         let mut decorator_buffer = vec![];
 
         loop {
-            match self.peek() {
-                Some(Token { kind: TokenKind::DocComment(doc), span }) => {
+            match self.peek2() {
+                (Some(Token { kind: TokenKind::DocComment(doc), span }), _) => {
                     doc_comment_buffer.push(DocComment::new(*doc, *span));
                     self.cursor += 1;
                 },
-                Some(Token { kind: TokenKind::Decorator(dec), span }) => {
-                    let mut name = vec![(*dec, *span)];
-                    let mut name_span = *span;
-                    self.cursor += 1;
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::At), span: span1 }),
+                    Some(Token { kind: TokenKind::Identifier(dec), span: span2 }),
+                ) => {
+                    let span = span1.merge(*span2);
+                    let mut name = vec![(*dec, span)];
+                    let mut name_span = span;
+                    self.cursor += 2;
 
                     loop {
                         match self.peek2() {

@@ -8,6 +8,5 @@ pub enum Keyword {
     Use,
     If,
     Else,
-    Pat,
     Match,
 }

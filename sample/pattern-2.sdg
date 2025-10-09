@@ -1,0 +1,14 @@
+let (x, y) = (300, 400);
+
+@test.eq(301)
+let z = x + 1;
+
+struct Person = {
+    name: String,
+    age: Int,
+};
+
+let Person { name: my_name, .. } = Person { name: "Bae", age: 26 };
+
+@test.eq("Bae")
+let z = my_name;

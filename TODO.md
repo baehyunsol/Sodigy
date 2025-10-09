@@ -1,3 +1,20 @@
+# 26. Make it even more Rust-like!!!
+
+Type annotation에서 func return도 그냥 `->` 써버리자! Func도 `Fn(Int, Int) -> Int`로 해버리자!!
+
+# 25. Make it more Rust-like!!
+
+1. Now that name bindings in patterns do not use `$` character, we can treat `let x = 3` like a pattern matching.
+  - That means, we don't need `pat` keyword in `let pat (x, y) = foo();`. Just `let (x, y) = foo();` is enough.
+  - But we still need type annotations. Let's allow annotating types to name bindings (not patterns).
+    - e.g. `let x: Int = 3;`, `let (x: Int, y: String) = foo();`, `x: Int @ 0..5`
+  - In order for name-analysis, we need a full list of name bindings before hir-check.
+    - We either 1) destructure pattern matchings before hir-check, or 2) add `name_bindings` field to `hir::Let` and add special path to hir-check.
+  - When parsing a `let` statement, it always parses a pattern after `let` keyword. It takes a special path if the pattern is just a single name binding (like `let x = 3;` or `let x: Int = 3;`).
+2. Let's completely remove the keyword `pat`: `if let (x, y) = foo() { _ } else { _ }`
+
+Name binding에 `$`를 안 붙이니까 한가지 문제가 생김: `True`랑 `False`에 binding 하려면 `$True`, `$False`를 해야함... Rust는 `true`/`false`가 keyword여서 이런 문제가 없음.
+
 # 24. tuple struct
 
 ```rust
@@ -81,6 +98,8 @@ fn f3(x) = if x < 2 { 1 } else { f4(x - 1) + f4(x - 2) };
 fn f4(x) = if x < 2 { 1 } else { f3(x - 1) + f3(x - 2) };
 
 // 조금 더 뇌절을 한 버전, 따지고 보면 얘네는 closure가 아니거든? 근데 closure가 아니라는 걸 알기가 쉽지 않음...
+// Come to think about it, a `let`-defined value is a constant, which is evaluable at compile time, unless it references a function argument.
+// We can use this fact to distinguish a closure and a lambda.
 let f5 = {
     let ONE = 1;
     let TWO = 2;

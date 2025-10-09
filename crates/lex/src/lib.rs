@@ -62,7 +62,6 @@ enum LexState {
 
     Identifier,
     FieldModifier,
-    Decorator,
     Integer(Base),
     Fraction,
     LineComment,
@@ -136,14 +135,6 @@ impl Session {
 
                     self.token_start = self.cursor + self.offset;
                     self.state = LexState::FieldModifier;
-                    self.cursor += 2;
-                },
-                (Some(b'@'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
-                    self.buffer1.clear();
-                    self.buffer1.push(*y);
-
-                    self.token_start = self.cursor + self.offset;
-                    self.state = LexState::Decorator;
                     self.cursor += 2;
                 },
                 // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`
@@ -295,9 +286,14 @@ impl Session {
                         self.halt_with_error = true;
                     },
                 },
-                (Some(x @ (b'!' | b'.' | b'<' | b'=' | b'>')), Some(y @ (b'.' | b'<' | b'=' | b'>')), _) => {
+                (
+                    Some(x @ (b'!' | b'+' | b'.' | b'<' | b'=' | b'>')),
+                    Some(y @ (b'+' | b'.' | b'<' | b'=' | b'>')),
+                    _,
+                ) => {
                     let punct = match (x, y) {
                         (b'!', b'=') => Some(Punct::Neq),
+                        (b'+', b'+') => Some(Punct::Concat),
                         (b'.', b'.') => Some(Punct::DotDot),
                         (b'<', b'<') => Some(Punct::Shl),
                         (b'<', b'=') => Some(Punct::Leq),
@@ -1020,7 +1016,6 @@ impl Session {
                         b"use" => TokenKind::Keyword(Keyword::Use),
                         b"if" => TokenKind::Keyword(Keyword::If),
                         b"else" => TokenKind::Keyword(Keyword::Else),
-                        b"pat" => TokenKind::Keyword(Keyword::Pat),
                         b"match" => TokenKind::Keyword(Keyword::Match),
                         _ => {
                             // Lexer already checked that it's a valid utf8.
@@ -1079,25 +1074,6 @@ impl Session {
 
                     self.tokens.push(Token {
                         kind: TokenKind::FieldModifier(interned),
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor + self.offset,
-                        ),
-                    });
-                    self.state = LexState::Init;
-                },
-            },
-            LexState::Decorator => match self.input_buffer.get(self.cursor) {
-                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
-                    self.buffer1.push(*x);
-                    self.cursor += 1;
-                },
-                _ => {
-                    let interned = self.intern_string();
-
-                    self.tokens.push(Token {
-                        kind: TokenKind::Decorator(interned),
                         span: Span::range(
                             self.file,
                             self.token_start,

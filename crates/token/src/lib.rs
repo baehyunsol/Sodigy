@@ -32,7 +32,6 @@ pub enum TokenKind {
         ch: char,
     },
     FieldModifier(InternedString),
-    Decorator(InternedString),
     DocComment(InternedString),
     Punct(Punct),
 
@@ -61,8 +60,6 @@ impl TokenKind {
             (TokenKind::Identifier(_), _) => false,
             (TokenKind::Number(_), TokenKind::Number(_)) => true,
             (TokenKind::Number(_), _) => false,
-            (TokenKind::Decorator(_), TokenKind::Decorator(_)) => true,
-            (TokenKind::Decorator(_), _) => false,
             (TokenKind::DocComment(_), TokenKind::DocComment(_)) => true,
             (TokenKind::DocComment(_), _) => false,
             (TokenKind::Punct(a), TokenKind::Punct(b)) => a == b,

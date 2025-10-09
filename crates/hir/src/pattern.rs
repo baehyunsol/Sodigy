@@ -5,7 +5,7 @@ use sodigy_parse as ast;
 pub struct Pattern;
 
 impl Pattern {
-    pub fn from_ast(ast_pattern: &ast::Pattern, session: &mut Session) -> Result<Pattern, ()> {
+    pub fn from_ast(ast_pattern: &ast::FullPattern, session: &mut Session) -> Result<Pattern, ()> {
         todo!()
     }
 }

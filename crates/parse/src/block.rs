@@ -82,10 +82,21 @@ impl<'t> Tokens<'t> {
 
             // FIXME: the same code is repeated multiple times...
             match self.peek().map(|t| &t.kind) {
+                // `parse_let` might return multiple `Let`s because if there's a pattern,
+                // it's destructured to multiple `Let`s.
                 Some(TokenKind::Keyword(Keyword::Let)) => match self.parse_let() {
-                    Ok(mut r#let) => {
-                        r#let.attribute = attribute;
-                        lets.push(r#let);
+                    Ok(mut lets_) => {
+                        match (lets_.len(), attribute.is_empty()) {
+                            (1, _) => {
+                                lets_[0].attribute = attribute;
+                            },
+                            (_, true) => {},
+
+                            // How should I attach attributes to the destructured lets?
+                            (_, false) => todo!(),
+                        }
+
+                        lets.extend(lets_);
                     },
                     Err(e) => {
                         errors.extend(e);

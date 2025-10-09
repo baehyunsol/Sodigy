@@ -13,13 +13,20 @@ pub enum Punct {
     Comma,
     Dot,
     QuestionMark,
+    At,
+    And,  // "&"
+    Or,   // "|"
+    AndAnd,  // "&&"
+    OrOr,    // "||"
     Shl,  // "<<"
     Shr,  // ">>"
     Eq,   // "=="
     Leq,  // "<="
     Neq,  // "!="
     Geq,  // ">="
+    Concat,  // "++"
     DotDot,  // ".."
+    DotDotEq,  // "..="
     Arrow,  // "=>"
 }
 
@@ -39,6 +46,9 @@ impl From<u8> for Punct {
             b'>' => Punct::Gt,
             b'.' => Punct::Dot,
             b'?' => Punct::QuestionMark,
+            b'@' => Punct::At,
+            b'&' => Punct::And,
+            b'|' => Punct::Or,
             _ => panic!("TODO: {:?}", b as char),
         }
     }

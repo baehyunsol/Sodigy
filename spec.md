@@ -41,12 +41,12 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
 
 - Integer patterns
   - `0`
-  - `0..5`, `0..=5`, `0..`, `..5`, `..=5`: a range of integers
-  - `a`: matches any integer and bind name `a`
+  - `0..5`, `0..=5`, `0..`, `..5`, `..=5`: These match a range of integers.
+  - `a`: It matches any integer and bind name `a`.
 - String patterns
-  - `""`: an empty string
-  - `"abc"`: a string literal `"abc"`
-  - `"abc" ++ a ++ "def"`: a string that starts with `"abc"` and ends with `"def"`, and bind name `a` to the slice `[3..-3]` of the string
+  - `""`: It matches an empty string.
+  - `"abc"`: It matches a string literal `"abc"`.
+  - `"abc" ++ a ++ "def"`: It matches a string that starts with `"abc"` and ends with `"def"`, and bind name `a` to the slice `[3..-3]` of the string.
 - Regex patterns
   - A string literal prefixed with `r` (raw string) is treated as a regex pattern.
   - The string must match the entire regex pattern!
@@ -54,18 +54,26 @@ A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct
   - You can also bind names. For example, a pattern `(?<number>\d+)` matches a number and binds name `number` to the matched string.
     - Bound name always has type `Option<String>`. That's because the compiler is not smart enough to infer whether the group is optional or not.
 - List patterns
-  - `[]`: an empty list
-  - `[a, b]`: a list with 2 elements, and bind names `a` and `b` to the elements
-  - `[a] ++ _`: a list with at least 1 element, and bind name `a` to the first element
-  - `[_] ++ a ++ [_]`: a list with at least 2 elements, and bind name `a` to the slice `[1..-1]` of the list
-  - `[1..5, a, _]`: you can use other patterns inside a list pattern
+  - `[]`: It matches an empty list.
+  - `[a, b]`: It matches a list with 2 elements, and bind names `a` and `b` to the elements.
+  - `[a] ++ _`: It matches a list with at least 1 element, and bind name `a` to the first element.
+  - `[_] ++ a ++ [_]`: It matches a list with at least 2 elements, and bind name `a` to the slice `[1..-1]` of the list.
+  - `[1..5, a, _]`: You can use other patterns inside a list pattern.
 - Tuple patterns
-  - `()`: an empty tuple
-  - `(a, b, _)`: a tuple with 3 elements, and bind names `a` and `b` to the first and the second elements
+  - `()`: It matches an empty tuple.
+  - `(a, b, _)`: It matches a tuple with 3 elements, and bind names `a` and `b` to the first and the second elements.
   - You cannot concat (`++`) tuples.
+- Struct patterns
+  - `Person { age: 25..=30, name }`: It matches an instance of `Person` whose age is between 25 and 30 (inclusive), and bind name `name` to the field `name` of the person.
+- Tuple-struct patterns
+  - `Point(x, y)`: It matches any point, and bind name `x` and `y` to its fields.
 - Name bindings
-  - `a @ 0..5`: matches an integer between 0 and 5, and bind name `a`
-  - `a @ [_, _]`: matches a list with 2 elements, and bind name `a`
+  - `a @ 0..5`: It matches an integer between 0 and 5, and bind name `a`.
+  - `a @ [_, _]`: It matches a list with 2 elements, and bind name `a`.
+- Equality checks
+  - `$a`: It matches if the value is equal to `a`. There must be a value named `a` in the name scope.
+  - `[$a] ++ _`: It matches a list whose first element is equal to `a`.
+  - `[b @ $a] ++ _`: It matches a list whose first element is equal to `a`, and bind name `b` to the first element.
 
 ## Lambda Functions
 

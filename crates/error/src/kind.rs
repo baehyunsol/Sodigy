@@ -42,6 +42,11 @@ pub enum ErrorKind {
     PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue,
     CannotDeclareInlineModule,
+
+    // Syntax errors in patterns
+    CannotBindName(InternedString),
+    CannotAnnotateType,
+
     NameCollision {
         name: InternedString,
 
