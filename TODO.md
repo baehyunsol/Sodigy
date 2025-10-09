@@ -1,19 +1,11 @@
-# 26. Make it even more Rust-like!!!
+# 27. 개발 방향
 
-Type annotation에서 func return도 그냥 `->` 써버리자! Func도 `Fn(Int, Int) -> Int`로 해버리자!!
+1. embedding language, interpreter 전부 고려 X. Cargo스러운 compiler만 개발
+  - 즉, 중간 파일을 많이 만들어도 상관없고, 프로세스를 많이 띄워도 상관없음.
 
 # 25. Make it more Rust-like!!
 
-1. Now that name bindings in patterns do not use `$` character, we can treat `let x = 3` like a pattern matching.
-  - That means, we don't need `pat` keyword in `let pat (x, y) = foo();`. Just `let (x, y) = foo();` is enough.
-  - But we still need type annotations. Let's allow annotating types to name bindings (not patterns).
-    - e.g. `let x: Int = 3;`, `let (x: Int, y: String) = foo();`, `x: Int @ 0..5`
-  - In order for name-analysis, we need a full list of name bindings before hir-check.
-    - We either 1) destructure pattern matchings before hir-check, or 2) add `name_bindings` field to `hir::Let` and add special path to hir-check.
-  - When parsing a `let` statement, it always parses a pattern after `let` keyword. It takes a special path if the pattern is just a single name binding (like `let x = 3;` or `let x: Int = 3;`).
-2. Let's completely remove the keyword `pat`: `if let (x, y) = foo() { _ } else { _ }`
-
-Name binding에 `$`를 안 붙이니까 한가지 문제가 생김: `True`랑 `False`에 binding 하려면 `$True`, `$False`를 해야함... Rust는 `true`/`false`가 keyword여서 이런 문제가 없음.
+Name binding에 `$`를 안 붙이니까 한가지 문제가 생김: `True`랑 `False`에 match 하려면 `$True`, `$False`를 해야함... Rust는 `true`/`false`가 keyword여서 이런 문제가 없음.
 
 # 24. tuple struct
 
