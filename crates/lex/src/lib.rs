@@ -1,11 +1,11 @@
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
+use sodigy_fs_api::join;
 use sodigy_keyword::Keyword;
 use sodigy_number::{Base, InternedNumber, intern_number};
 use sodigy_span::Span;
-use sodigy_string::{InternedString, intern_string};
+use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::{Delim, Punct, Token, TokenKind};
-use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {
     pub file: File,
@@ -14,7 +14,8 @@ pub struct Session {
     cursor: usize,
     offset: usize,
     pub tokens: Vec<Token>,
-    string_map: HashMap<InternedString, Vec<u8>>,
+    intern_str_map_dir: String,
+    intern_num_map_dir: String,
     pub errors: Vec<Error>,
 
     group_stack: Vec<(u8, Span)>,  // u8: b']' | b'}' | b')', Span: span of the opening delim
@@ -69,7 +70,7 @@ enum LexState {
     BlockComment,
 }
 
-pub fn lex_gara(input: Vec<u8>) -> Result<Vec<Token>, Vec<Error>> {
+pub fn lex_gara(input: Vec<u8>, intern_map_dir: &str) -> Result<Vec<Token>, Vec<Error>> {
     let mut gara_session = Session {
         file: File::gara(),
         input_buffer: input,
@@ -77,7 +78,8 @@ pub fn lex_gara(input: Vec<u8>) -> Result<Vec<Token>, Vec<Error>> {
         cursor: 0,
         offset: 0,
         tokens: vec![],
-        string_map: HashMap::new(),
+        intern_str_map_dir: join(intern_map_dir, "str").unwrap(),
+        intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
         errors: vec![],
         group_stack: vec![],
         token_start: 0,
@@ -694,7 +696,7 @@ impl Session {
             ) {
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
-                    let interned = self.intern_string();
+                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::String {
@@ -784,7 +786,7 @@ impl Session {
                     self.halt_with_error = true;
                 },
                 (Some(b'"'), _, _, _) if quote_count == 1 => {
-                    let interned = self.intern_string();
+                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
                     self.tokens.push(Token {
                         kind: TokenKind::String {
                             binary,
@@ -1062,7 +1064,7 @@ impl Session {
                                 }
                             }
 
-                            let interned = self.intern_string();
+                            let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
                             TokenKind::Identifier(interned)
                         },
                     };
@@ -1084,7 +1086,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 _ => {
-                    let interned = self.intern_string();
+                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::FieldModifier(interned),
@@ -1189,7 +1191,7 @@ impl Session {
             },
             LexState::DocComment => match self.input_buffer.get(self.cursor) {
                 Some(b'\n') => {
-                    let interned = self.intern_string();
+                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::DocComment(interned),
@@ -1272,7 +1274,7 @@ impl Session {
                         let mut min_indent = usize::MAX;
 
                         for line in doc_comment_buffer.iter() {
-                            let line = self.unintern_string(*line).unwrap().to_vec();
+                            let line = unintern_string(*line, &self.intern_str_map_dir).unwrap().unwrap().to_vec();
                             let indent = line.iter().take_while(|b| **b == b' ').count();
 
                             // If it's an empty line, we should not count its indentation.
@@ -1295,7 +1297,7 @@ impl Session {
 
                         self.buffer1 = lines.join(&(b"\n")[..]);
                         new_tokens.push(Token {
-                            kind: TokenKind::DocComment(self.intern_string()),
+                            kind: TokenKind::DocComment(intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap()),
                             span: doc_comment_span,
                         });
 
@@ -1317,29 +1319,6 @@ impl Session {
     fn try_load_input(&mut self) -> Result<(), Error> {
         // TODO: If there are more contents to load from the file, it loads more contents to `self.input_buffer` and moves `self.offset`.
         Ok(())
-    }
-
-    /// It interns `self.buffer1`. It can't take `self.buffer1` as an input because that would make the borrow checker mad.
-    fn intern_string(&mut self) -> InternedString {
-        let ins = intern_string(&self.buffer1);
-
-        if !ins.is_short_string() {
-            if let Entry::Vacant(e) = self.string_map.entry(ins) {
-                e.insert(self.buffer1.to_vec());
-            }
-        }
-
-        ins
-    }
-
-    fn unintern_string(&self, s: InternedString) -> Option<Vec<u8>> {
-        if let Some(s) = s.try_unintern_short_string() {
-            Some(s)
-        }
-
-        else {
-            self.string_map.get(&s).map(|s| s.to_vec())
-        }
     }
 }
 

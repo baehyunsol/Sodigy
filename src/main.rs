@@ -1,12 +1,13 @@
-use ragit_fs::{
+use sodigy_error::{Error, ErrorLevel};
+use sodigy_file::File;
+use sodigy_fs_api::{
     WriteMode,
     create_dir_all,
     exists,
     remove_dir_all,
+    write_bytes,
     write_string,
 };
-use sodigy_error::{Error, ErrorLevel};
-use sodigy_file::File;
 
 // gara test code
 fn main() {
@@ -15,15 +16,27 @@ fn main() {
     }
 
     create_dir_all("sample/target/").unwrap();
+    create_dir_all("sample/target/intern/str/").unwrap();
+    create_dir_all("sample/target/intern/num/").unwrap();
+    write_bytes(
+        "sample/target/intern/str/lock",
+        b"",
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
+    write_bytes(
+        "sample/target/intern/num/lock",
+        b"",
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
 
     let args = std::env::args().collect::<Vec<String>>();
     let bytes = std::fs::read(&args[1]).unwrap();
     let file = File::gara();
 
-    let tokens = match sodigy_lex::lex_gara(bytes.clone()) {
+    let tokens = match sodigy_lex::lex_gara(bytes.clone(), "sample/target/intern/") {
         Ok(tokens) => tokens,
         Err(errors) => {
-            eprintln!("{}", render_errors(&args[1], &bytes, errors));
+            eprintln!("{}", render_errors(&args[1], &bytes, errors, "sample/target/intern/str/"));
             return;
         },
     };
@@ -36,7 +49,7 @@ fn main() {
     let ast_block = match sodigy_parse::parse(&tokens, file) {
         Ok(ast_block) => ast_block,
         Err(errors) => {
-            eprintln!("{}", render_errors(&args[1], &bytes, errors));
+            eprintln!("{}", render_errors(&args[1], &bytes, errors, "sample/target/intern/str/"));
             return;
         },
     };
@@ -46,7 +59,7 @@ fn main() {
         WriteMode::CreateOrTruncate,
     ).unwrap();
 
-    let mut hir_session = sodigy_hir::Session::new();
+    let mut hir_session = sodigy_hir::Session::new("sample/target/intern/");
 
     let has_error = hir_session.lower(&ast_block).is_err();
     eprintln!("{}", render_errors(
@@ -56,6 +69,7 @@ fn main() {
             hir_session.errors.clone(),
             hir_session.warnings.clone(),
         ].concat(),
+        "sample/target/intern/str/",
     ));
 
     if has_error {
@@ -84,6 +98,7 @@ fn main() {
             mir_session.errors.clone(),
             // mir_session.warnings.clone(),
         ].concat(),
+        "sample/target/intern/str/",
     ));
 
     write_string(
@@ -108,7 +123,12 @@ fn prettify(s: &str) -> String {
     String::from_utf8_lossy(c.output()).to_string()
 }
 
-fn render_errors(file_name: &str, bytes: &[u8], mut errors: Vec<Error>) -> String {
+fn render_errors(
+    file_name: &str,
+    bytes: &[u8],
+    mut errors: Vec<Error>,
+    intern_str_map_dir: &str,
+) -> String {
     errors.sort_by_key(|e| (e.span, e.extra_span));
     // warnings come before errors
     errors.sort_by_key(
@@ -128,7 +148,7 @@ fn render_errors(file_name: &str, bytes: &[u8], mut errors: Vec<Error>) -> Strin
 
         buffer.push(format!(
             "{title}: {}\n{}\n\n",
-            error.kind.render(),
+            error.kind.render(intern_str_map_dir),
             sodigy_span::render_span(
                 file_name,
                 bytes,

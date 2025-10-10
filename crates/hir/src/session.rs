@@ -1,10 +1,13 @@
 use crate::{Enum, Func, Let, PRELUDES, Struct};
 use sodigy_error::{Error, Warning};
+use sodigy_fs_api::join;
 use sodigy_name_analysis::Namespace;
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 
 pub struct Session {
+    pub intern_str_map_dir: String,
+    pub intern_num_map_dir: String,
     pub name_stack: Vec<Namespace>,
 
     // Top-level declarations are stored here.
@@ -19,13 +22,14 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new() -> Self {
+    pub fn new(intern_map_dir: &str) -> Self {
+        let intern_str_map_dir = join(intern_map_dir, "str").unwrap();
         let prelude_namespace = Namespace::Block {
             names: PRELUDES.iter().map(
                 |(name, kind)| (
-                    intern_string(name),
+                    intern_string(name, &intern_str_map_dir).unwrap(),
                     (
-                        Span::Prelude(intern_string(name)),
+                        Span::Prelude(intern_string(name, &intern_str_map_dir).unwrap()),
                         *kind,
                         0,
                     ),
@@ -34,6 +38,8 @@ impl Session {
         };
 
         Session {
+            intern_str_map_dir,
+            intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
             name_stack: vec![prelude_namespace],
             lets: vec![],
             funcs: vec![],

@@ -5,6 +5,8 @@ use sodigy_span::Span;
 use std::collections::HashMap;
 
 pub struct Session {
+    pub intern_str_map_dir: String,
+    pub intern_num_map_dir: String,
     pub func_shapes: HashMap<Span, Vec<FuncArgDef<()>>>,
     pub struct_shapes: HashMap<Span, Vec<StructField<()>>>,
     pub lets: Vec<Let>,
@@ -15,6 +17,8 @@ pub struct Session {
 impl Session {
     pub fn from_hir_session(hir_session: &hir::Session) -> Session {
         Session {
+            intern_str_map_dir: hir_session.intern_str_map_dir.clone(),
+            intern_num_map_dir: hir_session.intern_num_map_dir.clone(),
             func_shapes: hir_session.funcs.iter().map(
                 |func| (
                     func.name_span,

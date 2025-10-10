@@ -13,6 +13,7 @@ TODO: type theory in ncatlab
 - https://github.com/zesterer/tao
 - https://strlen.com/lobster/
 - https://gleam.run
+- https://github.com/morphic-lang/morphic
 
 TODO: agda, koka, idris, purescript, elm, unison, carp, futhark, leo, roc
 TODO: https://github.com/alilleybrinker/langs-in-rust

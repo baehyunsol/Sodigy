@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 sodigy-error = { version = "0.1.0", path = "crates/error" }
 sodigy-file = { version = "0.1.0", path = "crates/file" }
+sodigy-fs-api = { version = "0.1.0", path = "crates/fs-api" }
 sodigy-hir = { version = "0.1.0", path = "crates/hir" }
 sodigy-lex = { version = "0.1.0", path = "crates/lex" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }
@@ -16,4 +17,3 @@ sodigy-string = { version = "0.1.0", path = "crates/string" }
 
 # TODO: replace these with sodigy-based code
 hgp = { version = "0.1.0", path = "../hgp" }
-ragit-fs = "0.4.3"

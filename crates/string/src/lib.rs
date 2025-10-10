@@ -1,4 +1,15 @@
+// In Sodigy compiler, a string (whether it's an identifier or a literal) is
+// always interned to a 16 bytes `InternedString`. If the string is short
+// (less than 16 bytes), length (1 byte) and content is directly encoded to
+// the interned_string. Otherwise, the content is stored in a file and its
+// length and hash is encoded to the interned_string.
+
+use sodigy_fs_api::FileError;
+
 mod fmt;
+mod fs;
+
+use fs::{insert_fs_map, read_fs_map};
 
 // 0 A A A A A A A   ... (15 bytes actual data)
 // 1 B B B B B B B   B B B B B B B B   B B B B B B B B   B B B B B B B B   ... (12 bytes hash value)
@@ -25,8 +36,18 @@ impl InternedString {
         Some(bytes[1..(1 + length)].to_vec())
     }
 
+    pub fn length(&self) -> usize {
+        if self.is_short_string() {
+            (self.0 >> 120) as usize
+        }
+
+        else {
+            (self.0 >> 96) as usize & 0x7fff_ffff
+        }
+    }
+
     pub fn dummy() -> Self {
-        // invalid Interned String
+        // invalid InternedString
         InternedString(0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff)
     }
 
@@ -35,13 +56,19 @@ impl InternedString {
     }
 }
 
-pub fn intern_string(s: &[u8]) -> InternedString {
+pub fn unintern_string(s: InternedString, map_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
+    match s.try_unintern_short_string() {
+        Some(s) => Ok(Some(s)),
+        None => read_fs_map(map_dir, s),
+    }
+}
+
+pub fn intern_string(s: &[u8], map_dir: &str) -> Result<InternedString, FileError> {
     match s.len() {
-        0..15 => intern_short_string(s),
+        0..15 => Ok(intern_short_string(s)),
         15..=2147483647 => {
             let hashed = hash(s);
-
-            InternedString(u128::from_be_bytes([
+            let id = InternedString(u128::from_be_bytes([
                 128 | (s.len() >> 24) as u8,
                 ((s.len() >> 16) & 0xff) as u8,
                 ((s.len() >> 8) & 0xff) as u8,
@@ -58,7 +85,10 @@ pub fn intern_string(s: &[u8]) -> InternedString {
                 ((hashed >> 16) & 0xff) as u8,
                 ((hashed >> 8) & 0xff) as u8,
                 (hashed & 0xff) as u8,
-            ]))
+            ]));
+            insert_fs_map(map_dir, id, s)?;
+
+            Ok(id)
         },
         2147483648.. => todo!(),
     }

@@ -208,7 +208,7 @@ impl Expr {
             },
             ast::Expr::Lambda { args, r#type, value, group_span } => {
                 let span = group_span.begin();
-                let name = name_lambda_function(span);
+                let name = name_lambda_function(span, &session.intern_str_map_dir);
 
                 let func = ast::Func {
                     keyword_span: Span::None,
@@ -254,9 +254,8 @@ impl Expr {
     }
 }
 
-fn name_lambda_function(_span: Span) -> InternedString {
+fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     // TODO: But I want some kinda unique identifier for debugging.
-    // NOTE: It has to be a short-interned-string (less than 16 characters) otherwise I have to create an intern_string_map in HirSession.
-    intern_string(b"lambda_func")
+    intern_string(b"lambda_func", map_dir).unwrap()
 }

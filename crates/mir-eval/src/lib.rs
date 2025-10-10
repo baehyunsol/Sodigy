@@ -41,7 +41,7 @@ pub fn eval_main(
     }
 
     for func in session.funcs.iter() {
-        if func.name == intern_string(b"main") {
+        if func.name == intern_string(b"main", &session.intern_str_map_dir).unwrap() {
             let mut stack = Stack::new();
             return Ok(eval(
                 &func.value,
