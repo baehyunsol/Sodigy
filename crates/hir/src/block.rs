@@ -43,7 +43,7 @@ impl Block {
         let mut has_error = false;
 
         session.name_stack.push(Namespace::Block {
-            names: ast_block.iter_names().map(|(k, v1, v2)| (k, (v1, v2, 0))).collect(),
+            names: ast_block.iter_names(top_level).map(|(k, v1, v2)| (k, (v1, v2, 0))).collect(),
         });
 
         for r#let in ast_block.lets.iter() {
@@ -108,7 +108,7 @@ impl Block {
         //    inline-block: always warn unused names
         //    top-level-block: only warn unused `use`s
         for (name, (span, kind, count)) in names.iter() {
-            if let NameKind::Let = kind {
+            if let NameKind::Let { .. } = kind {
                 let use_count = match *count {
                     0 => UseCount::None,
                     1 => UseCount::Once,

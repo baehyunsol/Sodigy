@@ -34,8 +34,8 @@ pub struct Block {
 
 impl Block {
     // hir will use this function.
-    pub fn iter_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
-        self.lets.iter().map(|l| (l.name, l.name_span, NameKind::Let)).chain(
+    pub fn iter_names(&self, is_top_level: bool) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+        self.lets.iter().map(move |l| (l.name, l.name_span, NameKind::Let { is_top_level })).chain(
             self.funcs.iter().map(|f| (f.name, f.name_span, NameKind::Func))
         ).chain(
             self.structs.iter().map(|s| (s.name, s.name_span, NameKind::Struct))

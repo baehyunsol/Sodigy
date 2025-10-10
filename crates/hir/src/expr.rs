@@ -3,6 +3,7 @@ use crate::{
     CallArg,
     Func,
     FuncOrigin,
+    Match,
     If,
     Session,
     StructInitField,
@@ -28,6 +29,7 @@ pub enum Expr {
         span: Span,
     },
     If(If),
+    Match(Match),
     Block(Block),
     Call {
         func: Box<Expr>,
@@ -88,7 +90,7 @@ impl Expr {
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
-            ast::Expr::Match(r#match) => todo!(),
+            ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
             ast::Expr::Call { func, args } => {
                 let func = Expr::from_ast(func, session);

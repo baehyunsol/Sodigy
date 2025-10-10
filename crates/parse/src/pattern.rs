@@ -26,6 +26,7 @@
 // - FIELD_PATTERN
 //   - IDENT
 //   - IDENT COLON PATTERN
+//   - DOTDOT
 
 use crate::{Tokens, Type};
 use sodigy_error::{Error, ErrorKind};
@@ -66,11 +67,11 @@ pub enum Pattern {
         span: Span,
     },
     Wildcard(Span),
-    Tuple { 
+    Tuple {
         elements: Vec<FullPattern>,
         group_span: Span,
     },
-    List { 
+    List {
         elements: Vec<FullPattern>,
         group_span: Span,
     },
@@ -329,7 +330,7 @@ impl<'t> Tokens<'t> {
                 let mut tokens = Tokens::new(tokens, span.end());
                 let elements = tokens.parse_full_patterns()?;
                 self.cursor += 1;
-                Pattern::List { 
+                Pattern::List {
                     elements,
                     group_span: span,
                 }

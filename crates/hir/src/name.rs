@@ -50,17 +50,18 @@ impl Session {
                     },
                     None => {},
                 },
-                Namespace::FuncDef { .. } => {
+                Namespace::ForeignNameCollector { is_func: true, .. } => {
                     is_local = false;
                 },
+                Namespace::ForeignNameCollector { .. } => {},
             }
         }
 
         match (result, stack_index) {
             (Some(result), Some(stack_index)) => {
                 for namespace in self.name_stack.iter_mut().rev().take(stack_index) {
-                    if let Namespace::FuncDef { foreign_names, .. } = namespace {
-                        foreign_names.insert((id, result.1));
+                    if let Namespace::ForeignNameCollector { foreign_names, .. } = namespace {
+                        foreign_names.insert(id, result);
                     }
                 }
 

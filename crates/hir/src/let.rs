@@ -1,7 +1,9 @@
 use crate::{Expr, Session, Type};
+use sodigy_name_analysis::{NameOrigin, Namespace};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Let {
@@ -12,7 +14,8 @@ pub struct Let {
     pub value: Expr,
     pub origin: LetOrigin,
 
-    // TODO: It has to track foreign names, like `Func`, so that we can draw a dependency graph between `let` values.
+    // We have to do cycle checks.
+    pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -42,6 +45,11 @@ impl Let {
             }
         }
 
+        session.name_stack.push(Namespace::ForeignNameCollector {
+            is_func: false,
+            foreign_names: HashMap::new(),
+        });
+
         let value = match Expr::from_ast(&ast_let.value, session) {
             Ok(value) => Some(value),
             Err(_) => {
@@ -49,6 +57,8 @@ impl Let {
                 None
             },
         };
+
+        let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if has_error {
             Err(())
@@ -66,6 +76,7 @@ impl Let {
                 } else {
                     LetOrigin::Inline
                 },
+                foreign_names,
             })
         }
     }

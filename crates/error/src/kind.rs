@@ -44,10 +44,12 @@ pub enum ErrorKind {
     CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd,
     AstPatternTypeError,  // TODO: more context?
+    InvalidFnType,
 
     // Syntax errors in patterns
     CannotBindName(InternedString),
     CannotAnnotateType,
+    RedundantNameBinding(InternedString, InternedString),
 
     NameCollision {
         name: InternedString,

@@ -85,7 +85,9 @@ pub enum Type {
     },
     Func {  // Fn(Int, Int) -> Int
         // It's either `Type::Identifier` or `Type::Path`.
-        // It's very likely to be `Type::Identifier("Fn")`
+        // It's very likely to be `Type::Identifier("Fn")`.
+        // If it's not `Fn`, it's 99% an error, but I want to throw
+        // errors at later step because that's more helpful to the users.
         r#type: Box<Type>,
         args: Vec<Type>,
         r#return: Box<Type>,

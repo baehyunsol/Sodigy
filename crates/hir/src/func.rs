@@ -16,7 +16,7 @@ use sodigy_name_analysis::{
 use sodigy_parse::{self as ast, GenericDef};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
@@ -30,7 +30,7 @@ pub struct Func {
     pub origin: FuncOrigin,
 
     // We have to distinguish closures and lambda functions
-    pub foreign_names: HashSet<(InternedString, Span)>,
+    pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
 
     // It only counts `args`.
     // It's later used for optimization.
@@ -79,23 +79,22 @@ impl Func {
         }
 
         for (index, generic) in ast_func.generics.iter().enumerate() {
-            generic_names.insert(generic.name, (generic.name_span, NameKind::FuncArg, 0));
+            generic_names.insert(generic.name, (generic.name_span, NameKind::Generic, 0));
             generic_index.insert(generic.name, index);
         }
 
-        session.name_stack.push(Namespace::FuncDef {
-            name: ast_func.name,
-            foreign_names: HashSet::new(),
-        });
-        session.name_stack.push(Namespace::FuncArg {
-            names: func_arg_names,
-            index: func_arg_index,
+        session.name_stack.push(Namespace::ForeignNameCollector {
+            is_func: true,
+            foreign_names: HashMap::new(),
         });
         session.name_stack.push(Namespace::Generic {
             names: generic_names,
             index: generic_index,
         });
 
+        // We have to lower args before pushing args to the name_stack because
+        // 1. Sodigy doesn't allow dependent types.
+        // 2. An arg's default value should not reference other args.
         let mut args = Vec::with_capacity(ast_func.args.len());
 
         for arg in ast_func.args.iter() {
@@ -108,6 +107,11 @@ impl Func {
                 },
             }
         }
+
+        session.name_stack.push(Namespace::FuncArg {
+            names: func_arg_names,
+            index: func_arg_index,
+        });
 
         let mut r#type = None;
 
@@ -129,20 +133,6 @@ impl Func {
                 None
             },
         };
-        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
-
-        for (name, (span, kind, count)) in names.iter() {
-            if *count == 0 {
-                session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName {
-                        name: *name,
-                        kind: *kind,
-                    },
-                    span: *span,
-                    ..Warning::default()
-                });
-            }
-        }
 
         let mut use_counts = HashMap::new();
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
@@ -167,7 +157,22 @@ impl Func {
             }
         }
 
-        let Some(Namespace::FuncDef { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
+        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
+
+        for (name, (span, kind, count)) in names.iter() {
+            if *count == 0 {
+                session.warnings.push(Warning {
+                    kind: WarningKind::UnusedName {
+                        name: *name,
+                        kind: *kind,
+                    },
+                    span: *span,
+                    ..Warning::default()
+                });
+            }
+        }
+
+        let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if has_error {
             Err(())
@@ -208,8 +213,14 @@ impl FuncArgDef<Type> {
         }
 
         if let Some(ast_default_value) = &ast_arg.default_value {
+            session.name_stack.push(Namespace::ForeignNameCollector {
+                is_func: false,
+                foreign_names: HashMap::new(),
+            });
+
             match Expr::from_ast(ast_default_value, session) {
                 Ok(v) => {
+                    let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
                     session.lets.push(Let {
                         keyword_span: Span::None,
                         name: ast_arg.name,
@@ -217,17 +228,20 @@ impl FuncArgDef<Type> {
                         r#type: r#type.clone(),
                         value: v,
                         origin: LetOrigin::FuncDefaultValue,
+                        foreign_names,
                     });
+
                     default_value = Some(IdentWithOrigin {
                         id: ast_arg.name,
                         span: ast_arg.name_span,
                         origin: NameOrigin::Local {
-                            kind: NameKind::Let,
+                            kind: NameKind::Let { is_top_level: false },
                         },
                         def_span: ast_arg.name_span,
                     });
                 },
                 Err(_) => {
+                    session.name_stack.pop();
                     has_error = false;
                 },
             }

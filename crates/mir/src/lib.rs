@@ -6,6 +6,7 @@ mod func;
 mod r#if;
 mod r#let;
 mod session;
+mod r#type;
 
 pub use block::Block;
 pub use expr::{Callable, Expr};
@@ -13,6 +14,7 @@ pub use func::Func;
 pub use r#if::If;
 pub use r#let::Let;
 pub use session::Session;
+pub use r#type::Type;
 
 pub fn lower(hir_session: &hir::Session) -> Session {
     let mut session = Session::from_hir_session(hir_session);
@@ -31,7 +33,3 @@ pub fn lower(hir_session: &hir::Session) -> Session {
 
     session
 }
-
-// TODO
-#[derive(Clone, Debug)]
-pub struct Type;

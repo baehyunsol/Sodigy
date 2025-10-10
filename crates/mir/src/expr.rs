@@ -86,6 +86,7 @@ impl Expr {
                 Ok(r#if) => Ok(Expr::If(r#if)),
                 Err(()) => Err(()),
             },
+            hir::Expr::Match(r#match) => todo!(),
             hir::Expr::Block(block) => match Block::from_hir(block, session) {
                 Ok(block) => Ok(Expr::Block(block)),
                 Err(()) => Err(()),
@@ -111,7 +112,7 @@ impl Expr {
                             // The programmer defines a functor using `let` keyword
                             // and calling it. In this case, we have to dynamically call the
                             // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
-                            NameKind::Let => {
+                            NameKind::Let { .. } => {
                                 def_span = Some(id.def_span);
                                 Callable::Dynamic(Box::new(Expr::Identifier(id)))
                             },

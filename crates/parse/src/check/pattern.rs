@@ -50,6 +50,23 @@ impl FullPattern {
             }
         }
 
+        match self {
+            FullPattern {
+                name: Some(name),
+                name_span: Some(name_span),
+                r#type: _,
+                pattern: Pattern::Identifier { id, span },
+            } => {
+                errors.push(Error {
+                    kind: ErrorKind::RedundantNameBinding(*name, *id),
+                    span: *name_span,
+                    extra_span: Some(*span),
+                    ..Error::default()
+                });
+            },
+            _ => {},
+        }
+
         if let Err(e) = self.pattern.check() {
             errors.extend(e);
         }
@@ -200,7 +217,7 @@ impl Pattern {
                 }
             },
             Pattern::Identifier { .. } |
-            Pattern::Wildcard(_) => Ok(PatternType::Any),
+            Pattern::Wildcard(_) => Ok(PatternType::NotSure),
             Pattern::Tuple { elements, .. } => {
                 let mut types = Vec::with_capacity(elements.len());
                 let mut errors = vec![];
@@ -224,7 +241,28 @@ impl Pattern {
                     Err(errors)
                 }
             },
-            Pattern::List { elements, .. } => todo!(),
+            Pattern::List { elements, .. } => {
+                let mut list_type = PatternType::NotSure;
+
+                for element in elements.iter() {
+                    let element_type = element.pattern.type_check()?;
+
+                    match list_type.more_specific(&element_type) {
+                        Ok(r#type) => {
+                            list_type = r#type;
+                        },
+                        Err(()) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::AstPatternTypeError,
+                                span: element.pattern.error_span(),
+                                ..Error::default()
+                            }]);
+                        },
+                    }
+                }
+
+                Ok(list_type)
+            },
             Pattern::Range { lhs, rhs, .. } => {
                 match (
                     lhs.as_ref().map(|lhs| lhs.type_check()),
@@ -246,11 +284,24 @@ impl Pattern {
                     (_, Some(Err(error))) => Err(error),
 
                     // The parser guarantees that it's unreachable.
-                    (None, None) => Ok(PatternType::Any),
+                    (None, None) => Ok(PatternType::NotSure),
                 }
             },
             Pattern::Or { lhs, rhs, .. } => todo!(),
-            Pattern::Concat { lhs, rhs, .. } => todo!(),
+            Pattern::Concat { lhs, rhs, op_span } => {
+                match (lhs.pattern.type_check(), rhs.pattern.type_check()) {
+                    (Ok(lhs_type), Ok(rhs_type)) => match lhs_type.more_specific(&rhs_type) {
+                        Ok(r#type) => Ok(r#type),
+                        Err(()) => Err(vec![Error {
+                            kind: ErrorKind::AstPatternTypeError,
+                            span: *op_span,
+                            ..Error::default()
+                        }]),
+                    },
+                    (Err(lhs_error), Err(rhs_error)) => Err(vec![lhs_error, rhs_error].concat()),
+                    (Err(e), _) | (_, Err(e)) => Err(e),
+                }
+            },
         }
     }
 }
@@ -260,8 +311,7 @@ impl Pattern {
 // Full type-check will be done by MIR.
 #[derive(Clone, Debug)]
 enum PatternType {
-    // Not known (e.g. name binding, wildcard)
-    Any,
+    NotSure,  // e.g. identifier, wildcard, ...
     Integer,
     Number,
     String,
@@ -275,15 +325,18 @@ enum PatternType {
 impl PatternType {
     pub fn more_specific(&self, other: &PatternType) -> Result<PatternType, ()> {
         match (self, other) {
-            (PatternType::Any, r#type) => Ok(r#type.clone()),
-            (r#type, PatternType::Any) => Ok(r#type.clone()),
+            (PatternType::NotSure, r#type) => Ok(r#type.clone()),
+            (r#type, PatternType::NotSure) => Ok(r#type.clone()),
             (PatternType::Integer, PatternType::Integer) |
             (PatternType::Number, PatternType::Number) |
             (PatternType::String, PatternType::String) |
             (PatternType::BinaryString, PatternType::BinaryString) |
             (PatternType::Regex, PatternType::Regex) |
             (PatternType::Char, PatternType::Char) => Ok(self.clone()),
-            (PatternType::List(type1), PatternType::List(type2)) => todo!(),
+            (PatternType::List(type1), PatternType::List(type2)) => match type1.more_specific(type2) {
+                Ok(r#type) => Ok(PatternType::List(Box::new(r#type))),
+                Err(()) => Err(()),
+            },
             (PatternType::Tuple(elements1), PatternType::Tuple(elements2)) => todo!(),
             _ => Err(()),
         }

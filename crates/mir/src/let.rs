@@ -1,4 +1,4 @@
-use crate::{Expr, Session};
+use crate::{Expr, Session, Type};
 use sodigy_hir as hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -7,19 +7,41 @@ use sodigy_string::InternedString;
 pub struct Let {
     pub name: InternedString,
     pub name_span: Span,
-    // pub r#type: Option<Type>,
+    pub r#type: Option<Type>,
     pub value: Expr,
 }
 
 impl Let {
     pub fn from_hir(hir_let: &hir::Let, session: &mut Session) -> Result<Let, ()> {
-        match Expr::from_hir(&hir_let.value, session) {
-            Ok(value) => Ok(Let {
+        let mut has_error = false;
+        let r#type = match hir_let.r#type.as_ref().map(|r#type| Type::from_hir(r#type, session)) {
+            Some(Ok(r#type)) => Some(r#type),
+            Some(Err(())) => {
+                has_error = true;
+                None
+            },
+            None => None,
+        };
+
+        let value = match Expr::from_hir(&hir_let.value, session) {
+            Ok(value) => Some(value),
+            Err(()) => {
+                has_error = true;
+                None
+            },
+        };
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(Let {
                 name: hir_let.name,
                 name_span: hir_let.name_span,
-                value,
-            }),
-            Err(()) => Err(()),
+                r#type,
+                value: value.unwrap(),
+            })
         }
     }
 }

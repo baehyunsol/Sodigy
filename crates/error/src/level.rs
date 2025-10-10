@@ -38,8 +38,14 @@ impl ErrorLevel {
             ErrorKind::CannotDeclareInlineModule |
             ErrorKind::InclusiveRangeWithNoEnd |
             ErrorKind::AstPatternTypeError |
+            ErrorKind::InvalidFnType |
             ErrorKind::CannotBindName(_) |
             ErrorKind::CannotAnnotateType |
+
+            // Rust treats it as a warning, but Sodigy treats it as an error
+            // because it messes up with some analysis
+            ErrorKind::RedundantNameBinding(_, _) |
+
             ErrorKind::NameCollision { .. } |
             ErrorKind::UndefinedName(_) |
             ErrorKind::KeywordArgumentRepeated(_) |
