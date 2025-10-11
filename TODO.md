@@ -2,6 +2,8 @@
 
 1. embedding language, interpreter 전부 고려 X. Cargo스러운 compiler만 개발
   - 즉, 중간 파일을 많이 만들어도 상관없고, 프로세스를 많이 띄워도 상관없음.
+2. FFI: 일단은 고려안함. 모든 코드는 Sodigy로만 작성됐다고 가정
+3. 메모리 최적화 기준: 4GiB
 
 # 25. Make it more Rust-like!!
 

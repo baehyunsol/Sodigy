@@ -1,3 +1,6 @@
+// NOTE: The lexer loads the entire file to memory. There's no input buffer.
+//       You know, ... it's 21st century! Everything's gonna be fine.
+
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
 use sodigy_fs_api::join;
@@ -9,18 +12,16 @@ use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 pub struct Session {
     pub file: File,
-    input_buffer: Vec<u8>,
+    input_bytes: Vec<u8>,
     state: LexState,
     cursor: usize,
-    offset: usize,
     pub tokens: Vec<Token>,
     intern_str_map_dir: String,
     intern_num_map_dir: String,
-    pub errors: Vec<Error>,
 
     group_stack: Vec<(u8, Span)>,  // u8: b']' | b'}' | b')', Span: span of the opening delim
 
-    // cursor + offset of the start of the current token
+    // offset of the start of the current token
     token_start: usize,
 
     // identifier, integer
@@ -28,11 +29,6 @@ pub struct Session {
 
     // fraction
     buffer2: Vec<u8>,
-
-    // Even though there's an error, it might try to lex further, so that it can find more errors.
-    // If it encounters a non-continuable error, it immediately sets `halt_with_error` and halts.
-    halt_with_error: bool,
-    halt_without_error: bool,
 }
 
 #[derive(Debug)]
@@ -70,54 +66,38 @@ enum LexState {
     BlockComment,
 }
 
-pub fn lex_gara(input: Vec<u8>, intern_map_dir: &str) -> Result<Vec<Token>, Vec<Error>> {
+pub fn lex_gara(input: Vec<u8>, intern_map_dir: &str) -> Result<Vec<Token>, Error> {
     let mut gara_session = Session {
         file: File::gara(),
-        input_buffer: input,
+        input_bytes: input,
         state: LexState::Init,
         cursor: 0,
-        offset: 0,
         tokens: vec![],
         intern_str_map_dir: join(intern_map_dir, "str").unwrap(),
         intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
-        errors: vec![],
         group_stack: vec![],
         token_start: 0,
         buffer1: vec![],
         buffer2: vec![],
-        halt_with_error: false,
-        halt_without_error: false,
     };
 
-    while !gara_session.halt_with_error && !gara_session.halt_without_error {
-        gara_session.step();
+    loop {
+        match gara_session.step() {
+            Ok(true) => { break; },
+            Ok(false) => {},
+            Err(e) => { return Err(e); },
+        }
     }
 
-    if gara_session.errors.is_empty() {
-        gara_session.group_tokens();
-        gara_session.merge_doc_comments();
-        Ok(gara_session.tokens)
-    }
-
-    else {
-        Err(gara_session.errors)
-    }
+    gara_session.group_tokens();
+    gara_session.merge_doc_comments();
+    Ok(gara_session.tokens)
 }
 
 impl Session {
-    fn step(&mut self) {
-        if let Err(e) = self.try_load_input() {
-            self.errors.push(e);
-            self.halt_with_error = true;
-            return;
-        }
-
-        if self.halt_with_error || self.halt_without_error {
-            return;
-        }
-
+    fn step(&mut self) -> Result<bool, Error> {  // returns Ok(true) if it reaches Eof
         match self.state {
-            LexState::Init => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1), self.input_buffer.get(self.cursor + 2)) {
+            LexState::Init => match (self.input_bytes.get(self.cursor), self.input_bytes.get(self.cursor + 1), self.input_bytes.get(self.cursor + 2)) {
                 (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(b'"' | b'\'')) |
                 (Some(b'a'..=b'z'), Some(b'"' | b'\''), _) |
                 (Some(b'"' | b'\''), _, _) => {
@@ -127,7 +107,7 @@ impl Session {
                     self.buffer1.clear();
                     self.buffer1.push(*x);
 
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::Identifier;
                     self.cursor += 1;
                 },
@@ -135,7 +115,7 @@ impl Session {
                     self.buffer1.clear();
                     self.buffer1.push(*y);
 
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::FieldModifier;
                     self.cursor += 2;
                 },
@@ -145,30 +125,29 @@ impl Session {
                         kind: TokenKind::Number(InternedNumber::from_u32((*x - b'0') as u32, true /* is_integer */)),
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                     });
                     self.cursor += 1;
                 },
                 (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => todo!(),
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'), _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
                         span: Span::range(
                             self.file,
-                            self.cursor + 1 + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor + 1,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'0'), Some(b'.'), _) => {
                     self.buffer1.clear();
                     self.buffer1.push(b'0');
                     self.buffer2.clear();
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::Fraction;
                     self.cursor += 2;
                 },
@@ -177,8 +156,8 @@ impl Session {
                         kind: TokenKind::Number(InternedNumber::from_u32(0, true /* is_integer */)),
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                     });
                     self.cursor += 1;
@@ -187,12 +166,12 @@ impl Session {
                     self.buffer1.clear();
                     self.buffer1.push(*x);
 
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::Integer(Base::Decimal);
                     self.cursor += 1;
                 },
                 (Some(b'/'), Some(b'/'), Some(b'/')) => {
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::DocComment;
                     self.cursor += 3;
                 },
@@ -201,7 +180,7 @@ impl Session {
                     self.cursor += 2;
                 },
                 (Some(b'/'), Some(b'*'), _) => {
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::BlockComment;
                     self.cursor += 2;
                 },
@@ -217,8 +196,8 @@ impl Session {
                     };
                     let opening_span = Span::range(
                         self.file,
-                        self.cursor + self.offset,
-                        self.cursor + 1 + self.offset,
+                        self.cursor,
+                        self.cursor + 1,
                     );
                     self.group_stack.push((closing_delim, opening_span));
                     self.tokens.push(Token {
@@ -233,8 +212,8 @@ impl Session {
                 (Some(b'\\'), Some(b'('), _) => {
                     let opening_span = Span::range(
                         self.file,
-                        self.cursor + self.offset,
-                        self.cursor + 2 + self.offset,
+                        self.cursor,
+                        self.cursor + 2,
                     );
                     self.group_stack.push((b')', opening_span));
                     self.tokens.push(Token {
@@ -255,29 +234,28 @@ impl Session {
                             },
                             span: Span::range(
                                 self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                         });
                         self.cursor += 1;
                     },
                     Some((delim, _)) => {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::UnexpectedToken {
                                 expected: ErrorToken::Character(delim),
                                 got: ErrorToken::Character(*x),
                             },
                             span: Span::range(
                                 self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     },
                     None => {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::UnexpectedToken {
                                 expected: ErrorToken::Any,
                                 got: ErrorToken::Character(*x),
@@ -285,7 +263,6 @@ impl Session {
                             span: Span::eof(self.file),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     },
                 },
                 // This is the only 3-character punct in the current spec
@@ -294,8 +271,8 @@ impl Session {
                         kind: TokenKind::Punct(Punct::DotDotEq),
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 3 + self.offset,
+                            self.cursor,
+                            self.cursor + 3,
                         ),
                     });
                     self.cursor += 3;
@@ -325,8 +302,8 @@ impl Session {
                                 kind: TokenKind::Punct(p),
                                 span: Span::range(
                                     self.file,
-                                    self.cursor + self.offset,
-                                    self.cursor + 2 + self.offset,
+                                    self.cursor,
+                                    self.cursor + 2,
                                 ),
                             });
                             self.cursor += 2;
@@ -337,16 +314,16 @@ impl Session {
                                 kind: TokenKind::Punct((*x).into()),
                                 span: Span::range(
                                     self.file,
-                                    self.cursor + self.offset,
-                                    self.cursor + 1 + self.offset,
+                                    self.cursor,
+                                    self.cursor + 1,
                                 ),
                             });
                             self.tokens.push(Token {
                                 kind: TokenKind::Punct((*y).into()),
                                 span: Span::range(
                                     self.file,
-                                    self.cursor + 1 + self.offset,
-                                    self.cursor + 2 + self.offset,
+                                    self.cursor + 1,
+                                    self.cursor + 2,
                                 ),
                             });
                             self.cursor += 2;
@@ -364,8 +341,8 @@ impl Session {
                         kind: TokenKind::Punct((*x).into()),
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                     });
                     self.cursor += 1;
@@ -373,22 +350,21 @@ impl Session {
                 // It's either a non-ascii identifier or an error.
                 (Some(192..), _, _) => {
                     self.buffer1.clear();
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::Identifier;
                 },
                 (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
                 (None, _, _) => {
                     if let Some((delim, span)) = self.group_stack.pop() {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::UnclosedDelimiter(delim),
                             span: span,
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     }
 
                     else {
-                        self.halt_without_error = true;
+                        return Ok(true);
                     }
                 },
             },
@@ -398,10 +374,10 @@ impl Session {
             // r"abc" -> raw string
             // br"abc", rb"abc" -> binary raw string
             // fr"abc", rf"abc" -> formatted raw string
-            LexState::StringPrefix => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1), self.input_buffer.get(self.cursor + 2)) {
+            LexState::StringPrefix => match (self.input_bytes.get(self.cursor), self.input_bytes.get(self.cursor + 1), self.input_bytes.get(self.cursor + 2)) {
                 // Cannot use the same prefix multiple times.
                 (Some(x @ (b'b' | b'f' | b'r')), Some(y @ (b'b' | b'f' | b'r')), Some(z @ (b'"' | b'\''))) if x == y => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: if *z == b'"' {
                             ErrorKind::InvalidStringLiteralPrefix
                         } else {
@@ -409,16 +385,15 @@ impl Session {
                         },
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'b'), Some(b'f'), Some(z @ (b'"' | b'\''))) |
                 (Some(b'f'), Some(b'b'), Some(z @ (b'"' | b'\''))) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: if *z == b'"' {
                             ErrorKind::InvalidStringLiteralPrefix
                         } else {
@@ -426,12 +401,11 @@ impl Session {
                         },
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'b'), Some(b'r'), Some(b'"')) |
                 (Some(b'r'), Some(b'b'), Some(b'"')) => {
@@ -448,22 +422,21 @@ impl Session {
                     let error_span = if *x == b'b' {
                         Span::range(
                             self.file,
-                            self.cursor + 1 + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor + 1,
+                            self.cursor + 2,
                         )
                     } else {
                         Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         )
                     };
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix,
                         span: error_span,
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'f'), Some(b'r'), Some(b'"')) |
                 (Some(b'r'), Some(b'f'), Some(b'"')) => {
@@ -477,16 +450,15 @@ impl Session {
                 // `f` and `r` are both invalid for a char literal
                 (Some(b'f'), Some(b'r'), Some(b'\'')) |
                 (Some(b'r'), Some(b'f'), Some(b'\'')) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(x @ (b'b' | b'f' | b'r')), Some(b'"'), _) => {
                     self.state = LexState::StringInit {
@@ -505,16 +477,15 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'f' | b'r'), Some(b'\''), _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidCharLiteralPrefix,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'"' | b'\''), _, _) => {
                     self.state = LexState::StringInit {
@@ -524,7 +495,7 @@ impl Session {
                     };
                 },
                 (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: if *z == b'"' {
                             ErrorKind::InvalidStringLiteralPrefix
                         } else {
@@ -532,15 +503,14 @@ impl Session {
                         },
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'a'..=b'z'), Some(y @ (b'"' | b'\'')), _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: if *y == b'"' {
                             ErrorKind::InvalidStringLiteralPrefix
                         } else {
@@ -548,38 +518,35 @@ impl Session {
                         },
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 _ => unreachable!(),
             },
             // `LexState::StringInit` doesn't care even if a char literal has multiple characters.
             // `LexState::Char` will throw an error for that.
             LexState::StringInit { binary, format, raw } => match (
-                self.input_buffer.get(self.cursor),
-                self.input_buffer.get(self.cursor + 1),
-                self.input_buffer.get(self.cursor + 2),
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
             ) {
                 (Some(b'"'), Some(b'"'), Some(b'"')) => {
-                    let quote_count = count_quotes(&self.input_buffer, self.cursor).unwrap_or(256);
+                    let quote_count = count_quotes(&self.input_bytes, self.cursor).unwrap_or(256);
 
                     if quote_count % 2 == 0 && quote_count > 254 || quote_count % 2 == 1 && quote_count > 127 {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::TooManyQuotes,
                             span: Span::range(
                                 self.file,
                                 // I don't want to highlight all the quotes... it's *TooMany*Quotes
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
-                        return;
                     }
 
                     match quote_count {
@@ -595,8 +562,8 @@ impl Session {
                                 },
                                 span: Span::range(
                                     self.file,
-                                    self.cursor + self.offset,
-                                    self.cursor + quote_count + self.offset,
+                                    self.cursor,
+                                    self.cursor + quote_count,
                                 ),
                             });
                             self.state = LexState::Init;
@@ -606,21 +573,20 @@ impl Session {
                         // invalid
                         // a string literal must start with an odd number of quotes
                         x if x % 4 == 0 => {
-                            self.errors.push(Error {
+                            return Err(Error {
                                 kind: ErrorKind::WrongNumberOfQuotesInRawStringLiteral,
                                 span: Span::range(
                                     self.file,
-                                    self.cursor + self.offset,
-                                    self.cursor + quote_count + self.offset,
+                                    self.cursor,
+                                    self.cursor + quote_count,
                                 ),
                                 ..Error::default()
                             });
-                            self.halt_with_error = true;
                         },
 
                         // start of a literal
                         _ => {
-                            self.token_start = self.cursor + self.offset;
+                            self.token_start = self.cursor;
 
                             if format {
                                 self.state = LexState::FormattedString {
@@ -652,8 +618,8 @@ impl Session {
                         },
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                     });
                     self.state = LexState::Init;
@@ -661,20 +627,19 @@ impl Session {
                 },
                 // an empty char literal -> error!
                 (Some(b'\''), Some(b'\''), _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::EmptyCharLiteral,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'"'), _, _) => {
                     self.buffer1.clear();
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::String {
                         binary,
                         raw,
@@ -683,16 +648,16 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'\''), _, _) => {
-                    self.token_start = self.cursor + self.offset;
+                    self.token_start = self.cursor;
                     self.state = LexState::Char { binary };
                     self.cursor += 1;
                 },
                 _ => unreachable!(),
             },
             LexState::String { binary, raw: true, quote_count } => match (
-                self.input_buffer.get(self.cursor),
-                self.input_buffer.get(self.cursor + 1),
-                self.input_buffer.get(self.cursor + 2),
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
             ) {
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
@@ -707,7 +672,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
@@ -719,7 +684,7 @@ impl Session {
                     }
 
                     else {
-                        let curr_quote_count = count_quotes(&self.input_buffer, self.cursor).unwrap_or(256);
+                        let curr_quote_count = count_quotes(&self.input_bytes, self.cursor).unwrap_or(256);
 
                         if curr_quote_count >= quote_count {
                             todo!()
@@ -738,7 +703,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (None, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::UnterminatedStringLiteral,
                         span: Span::range(
                             self.file,
@@ -747,14 +712,13 @@ impl Session {
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
             },
             LexState::String { binary, raw: false, quote_count } => match (
-                self.input_buffer.get(self.cursor),
-                self.input_buffer.get(self.cursor + 1),
-                self.input_buffer.get(self.cursor + 2),
-                self.input_buffer.get(self.cursor + 3),
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
+                self.input_bytes.get(self.cursor + 3),
             ) {
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), _, _) => {
@@ -770,20 +734,19 @@ impl Session {
                     self.cursor += 2;
                 },
                 // ascii escape
-                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
+                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
                 // TODO: unicode escape
                 // invalid escape
                 (Some(b'\\'), Some(y), _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidEscape,
                         span: Span::range(
                             self.file,
-                            self.cursor + 1 + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor + 1,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (Some(b'"'), _, _, _) if quote_count == 1 => {
                     let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
@@ -796,7 +759,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + 1 + self.offset,
+                            self.cursor + 1,
                         ),
                     });
                     self.state = LexState::Init;
@@ -827,19 +790,18 @@ impl Session {
                     self.cursor += 4;
                 },
                 (Some(_), _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (None, _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::UnterminatedStringLiteral,
                         span: Span::range(
                             self.file,
@@ -848,18 +810,17 @@ impl Session {
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
             },
             LexState::FormattedString { raw, quote_count } => todo!(),
             // NOTE: empty char literals are already filtered out!
             // NOTE: the cursor is pointing at the first byte of the content (not the quote)
             LexState::Char { binary } => match (
-                self.input_buffer.get(self.cursor),
-                self.input_buffer.get(self.cursor + 1),
-                self.input_buffer.get(self.cursor + 2),
-                self.input_buffer.get(self.cursor + 3),
-                self.input_buffer.get(self.cursor + 4),
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
+                self.input_bytes.get(self.cursor + 3),
+                self.input_bytes.get(self.cursor + 4),
             ) {
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), Some(b'\''), _, _) => {
@@ -878,7 +839,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + 3 + self.offset,
+                            self.cursor + 3,
                         ),
                     });
                     self.state = LexState::Init;
@@ -889,29 +850,27 @@ impl Session {
                 // TODO: unicode escape
                 // invalid escape
                 (Some(b'\\'), Some(_), _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidEscape,
                         span: Span::range(
                             self.file,
-                            self.cursor + 1 + self.offset,
-                            self.cursor + 2 + self.offset,
+                            self.cursor + 1,
+                            self.cursor + 2,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 // invalid char
                 (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidCharLiteral,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 // valid char (utf-8)
                 (Some(x @ 0..=127), Some(b'\''), _, _, _) => match char::from_u32(*x as u32) {
@@ -921,23 +880,22 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start,
-                                self.cursor + 2 + self.offset,
+                                self.cursor + 2,
                             ),
                         });
                         self.state = LexState::Init;
                         self.cursor += 2;
                     },
                     None => {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::InvalidUtf8,
                             span: Span::range(
                                 self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     },
                 },
                 (Some(192..=223), Some(128..=191), Some(b'\''), _, _) => todo!(),
@@ -945,20 +903,19 @@ impl Session {
                 (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => todo!(),
                 // invalid utf-8
                 (Some(128..), _, _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 // etc error (probably multi-character literal)
                 (Some(_), _, _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidCharLiteral,
                         span: Span::range(
                             self.file,
@@ -967,10 +924,9 @@ impl Session {
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 (None, _, _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::UnterminatedCharLiteral,
                         span: Span::range(
                             self.file,
@@ -979,14 +935,13 @@ impl Session {
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
             },
             LexState::Identifier => match (
-                self.input_buffer.get(self.cursor),
-                self.input_buffer.get(self.cursor + 1),
-                self.input_buffer.get(self.cursor + 2),
-                self.input_buffer.get(self.cursor + 3),
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
+                self.input_bytes.get(self.cursor + 3),
             ) {
                 (Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')), _, _, _) => {
                     self.buffer1.push(*x);
@@ -1011,16 +966,15 @@ impl Session {
                     self.cursor += 4;
                 },
                 (Some(128..), _, _, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::InvalidUtf8,
                         span: Span::range(
                             self.file,
-                            self.cursor + self.offset,
-                            self.cursor + 1 + self.offset,
+                            self.cursor,
+                            self.cursor + 1,
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
@@ -1047,7 +1001,7 @@ impl Session {
                                     // https://www.unicode.org/Public/emoji/1.0//emoji-data.txt
                                     '☀'..='❤' | '🌀'..='🙏' | '🚀'..='🛼' | '🤌'..='🫸' => {},
                                     _ => {
-                                        self.errors.push(Error {
+                                        return Err(Error {
                                             kind: ErrorKind::InvalidCharacterInIdentifier(ch),
 
                                             // It'd be lovely to calc the exact span of the character, but I'm too lazy to do that.
@@ -1058,8 +1012,6 @@ impl Session {
                                             ),
                                             ..Error::default()
                                         });
-                                        self.halt_with_error = true;
-                                        break;
                                     },
                                 }
                             }
@@ -1074,13 +1026,13 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
                 },
             },
-            LexState::FieldModifier => match self.input_buffer.get(self.cursor) {
+            LexState::FieldModifier => match self.input_bytes.get(self.cursor) {
                 Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
                     self.buffer1.push(*x);
                     self.cursor += 1;
@@ -1093,25 +1045,24 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
                 },
             },
-            LexState::Integer(base) => match self.input_buffer.get(self.cursor) {
+            LexState::Integer(base) => match self.input_bytes.get(self.cursor) {
                 Some(x @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) => {
                     if !base.is_valid_digit(*x) {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
                             span: Span::range(
                                 self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     }
 
                     self.buffer1.push(*x);
@@ -1127,16 +1078,15 @@ impl Session {
                         self.cursor += 1;
                     },
                     Base::Hexadecimal | Base::Octal | Base::Binary => {
-                        self.errors.push(Error {
+                        return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
                             span: Span::range(
                                 self.file,
-                                self.cursor + self.offset,
-                                self.cursor + 1 + self.offset,
+                                self.cursor,
+                                self.cursor + 1,
                             ),
                             ..Error::default()
                         });
-                        self.halt_with_error = true;
                     },
                 },
                 Some(_) | None => {
@@ -1147,13 +1097,13 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
                 },
             },
-            LexState::Fraction => match self.input_buffer.get(self.cursor) {
+            LexState::Fraction => match self.input_bytes.get(self.cursor) {
                 Some(x @ (b'0'..=b'9')) => {
                     self.buffer2.push(*x);
                     self.cursor += 1;
@@ -1171,13 +1121,13 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
                 },
             },
-            LexState::LineComment => match self.input_buffer.get(self.cursor) {
+            LexState::LineComment => match self.input_bytes.get(self.cursor) {
                 Some(b'\n') => {
                     self.state = LexState::Init;
                     self.cursor += 1;
@@ -1189,7 +1139,7 @@ impl Session {
                     self.state = LexState::Init;
                 },
             },
-            LexState::DocComment => match self.input_buffer.get(self.cursor) {
+            LexState::DocComment => match self.input_bytes.get(self.cursor) {
                 Some(b'\n') => {
                     let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
 
@@ -1198,7 +1148,7 @@ impl Session {
                         span: Span::range(
                             self.file,
                             self.token_start,
-                            self.cursor + self.offset,
+                            self.cursor,
                         ),
                     });
                     self.state = LexState::Init;
@@ -1209,7 +1159,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 None => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::UnexpectedEof {
                             expected: ErrorToken::Declaration,
                         },
@@ -1218,7 +1168,7 @@ impl Session {
                     });
                 },
             },
-            LexState::BlockComment => match (self.input_buffer.get(self.cursor), self.input_buffer.get(self.cursor + 1)) {
+            LexState::BlockComment => match (self.input_bytes.get(self.cursor), self.input_bytes.get(self.cursor + 1)) {
                 (Some(b'*'), Some(b'/')) => {
                     self.state = LexState::Init;
                     self.cursor += 2;
@@ -1227,7 +1177,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (None, _) => {
-                    self.errors.push(Error {
+                    return Err(Error {
                         kind: ErrorKind::UnterminatedBlockComment,
 
                         // opening of the block comment
@@ -1238,10 +1188,11 @@ impl Session {
                         ),
                         ..Error::default()
                     });
-                    self.halt_with_error = true;
                 },
             },
         }
+
+        Ok(false)
     }
 
     fn group_tokens(&mut self) {
@@ -1314,11 +1265,6 @@ impl Session {
         assert!(doc_comment_buffer.is_empty());
 
         self.tokens = new_tokens;
-    }
-
-    fn try_load_input(&mut self) -> Result<(), Error> {
-        // TODO: If there are more contents to load from the file, it loads more contents to `self.input_buffer` and moves `self.offset`.
-        Ok(())
     }
 }
 

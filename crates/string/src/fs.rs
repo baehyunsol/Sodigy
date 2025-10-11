@@ -1,6 +1,7 @@
 use crate::InternedString;
 use sodigy_fs_api::{
     FileError,
+    FileErrorKind,
     WriteMode,
     exists,
     join,
@@ -30,7 +31,7 @@ pub fn insert_fs_map(dir: &str, id: InternedString, s: &[u8]) -> Result<(), File
 
         let mut data = if exists(&path) {
             let bytes = read_bytes(&path)?;
-            decode_fs_map(&bytes)?
+            decode_fs_map(&bytes, &path)?
         } else {
             vec![]
         };
@@ -71,7 +72,7 @@ pub fn read_fs_map(dir: &str, id: InternedString) -> Result<Option<Vec<u8>>, Fil
 
         if exists(&stored_at) {
             let bytes = read_bytes(&stored_at)?;
-            let fs_map = decode_fs_map(&bytes)?;
+            let fs_map = decode_fs_map(&bytes, &stored_at)?;
             let mut result = Ok(None);
 
             for (id_, s) in fs_map.into_iter() {
@@ -105,7 +106,7 @@ fn encode_fs_map(data: &[(u128, Vec<u8>)]) -> Vec<u8> {
     result
 }
 
-fn decode_fs_map(bytes: &[u8]) -> Result<Vec<(u128, Vec<u8>)>, FileError> {
+fn decode_fs_map(bytes: &[u8], path: &str) -> Result<Vec<(u128, Vec<u8>)>, FileError> {
     let mut result = vec![];
     let mut cursor = 0;
 
@@ -121,7 +122,10 @@ fn decode_fs_map(bytes: &[u8]) -> Result<Vec<(u128, Vec<u8>)>, FileError> {
         let s_id = match bytes.get(cursor..(cursor + 12)) {
             Some(id) => id.to_vec(),
             None => {
-                return Err(/* TODO: Error::CorruptedFile */);
+                return Err(FileError {
+                    kind: FileErrorKind::CannotDecodeFsMap,
+                    given_path: Some(path.to_string()),
+                });
             },
         };
         cursor += 12;
@@ -129,7 +133,10 @@ fn decode_fs_map(bytes: &[u8]) -> Result<Vec<(u128, Vec<u8>)>, FileError> {
         let s_content = match bytes.get(cursor..(cursor + s_length)) {
             Some(c) => c.to_vec(),
             None => {
-                return Err(/* TODO: Error::CorruptedFile */);
+                return Err(FileError {
+                    kind: FileErrorKind::CannotDecodeFsMap,
+                    given_path: Some(path.to_string()),
+                });
             },
         };
         cursor += s_length;

@@ -35,8 +35,8 @@ fn main() {
 
     let tokens = match sodigy_lex::lex_gara(bytes.clone(), "sample/target/intern/") {
         Ok(tokens) => tokens,
-        Err(errors) => {
-            eprintln!("{}", render_errors(&args[1], &bytes, errors, "sample/target/intern/str/"));
+        Err(error) => {
+            eprintln!("{}", render_errors(&args[1], &bytes, vec![error], "sample/target/intern/str/"));
             return;
         },
     };
