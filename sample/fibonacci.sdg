@@ -1,20 +1,18 @@
-@test.eq((9,), 55)
-@test.eq((12,), 233)
+assert fibonacci(9) == 55;
+assert fibonacci(12) == 233;
 fn fibonacci(n: Int) -> Int = match n {
     0 | 1 => 1,
     2.. => fibonacci(n - 1) + fibonacci(n - 2),
     _ => panic("negative fibonacci"),
 };
 
-@test.eq((9,), 55)
-@test.eq((12,), 233)
+assert fibonacci_if(9) == 55;
+assert fibonacci_if(12) == 233;
 fn fibonacci_if(n: Int) -> Int = if n < 2 {
     1
 } else {
     fibonacci_if(n - 1) + fibonacci_if(n - 2)
 };
 
+assert fibonacci_lambda(9) == 55;
 let fibonacci_lambda = \(n) => if n < 2 { 1 } else { fibonacci_lambda(n - 1) + fibonacci_lambda(n - 2) };
-
-@test.eq(55)
-let fibo_test = fibonacci_lambda(9);

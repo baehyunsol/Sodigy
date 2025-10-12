@@ -3,6 +3,7 @@ use sodigy_file::File;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
+mod assert;
 mod attribute;
 mod block;
 mod check;
@@ -19,6 +20,7 @@ mod tokens;
 mod r#type;
 mod r#use;
 
+pub use assert::Assert;
 pub use attribute::{Attribute, Decorator, DocComment};
 pub use block::Block;
 pub use r#enum::Enum;

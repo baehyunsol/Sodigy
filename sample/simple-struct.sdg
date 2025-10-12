@@ -4,22 +4,17 @@ struct Person = {
     is_rustacean: Bool,
 };
 
+assert bae.name == "Bae";
+assert bae.age == 26;
+assert bae.is_rustacean == True;
 let bae = Person {
     name: "Bae",
     age: 26,
     is_rustacean: True,
 };
 
-@test.eq("Bae")
-let bae_name = bae.name;
 
-@test.eq(26)
-let bae_age = bae.age;
-
-@test.eq(True)
-let bae_is_rustacean = bae.is_rustacean;
-
-@test.eq((), "Bae")
+assert another_bae == "Bae"
 fn another_bae() = {
     let bae = Person {
         name: "Bae",

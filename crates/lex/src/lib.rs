@@ -982,6 +982,7 @@ impl Session {
                         b"fn" => TokenKind::Keyword(Keyword::Fn),
                         b"struct" => TokenKind::Keyword(Keyword::Struct),
                         b"enum" => TokenKind::Keyword(Keyword::Enum),
+                        b"assert" => TokenKind::Keyword(Keyword::Assert),
                         b"module" => TokenKind::Keyword(Keyword::Module),
                         b"use" => TokenKind::Keyword(Keyword::Use),
                         b"if" => TokenKind::Keyword(Keyword::If),

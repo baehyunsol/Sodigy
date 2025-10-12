@@ -1,6 +1,7 @@
 let global_value = 42;
 
 // TODO: a decorator or a test runner that asserts unused_name_warnings
+assert outer(10, 20, 30) == 882;
 fn outer(x1, x2, x3) = {  // x3 is unused
     let local1 = 100;
     let local2 = 200;
@@ -16,5 +17,3 @@ fn outer(x1, x2, x3) = {  // x3 is unused
 
     x2 + local1 + inner(10, 20, 30)
 };
-
-fn main() = outer(10, 20, 30);

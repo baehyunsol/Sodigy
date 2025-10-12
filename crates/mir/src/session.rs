@@ -1,4 +1,4 @@
-use crate::{Func, Let, Type};
+use crate::{Assert, Func, Let, Type};
 use sodigy_error::Error;
 use sodigy_hir::{self as hir, FuncArgDef, StructField};
 use sodigy_span::Span;
@@ -11,6 +11,7 @@ pub struct Session {
     pub struct_shapes: HashMap<Span, Vec<StructField<()>>>,
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
+    pub asserts: Vec<Assert>,
     pub errors: Vec<Error>,
 }
 
@@ -47,6 +48,7 @@ impl Session {
             ).collect(),
             lets: vec![],
             funcs: vec![],
+            asserts: vec![],
             errors: vec![],
         }
     }

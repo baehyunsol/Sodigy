@@ -1,5 +1,5 @@
 let x = 3;
 let y = 4;
 
-@test.eq((10, 20, 30), 60)
+assert add(10, 20, 30) == 60;
 fn add(x, y, z) = x + y + z;

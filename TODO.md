@@ -1,3 +1,31 @@
+# 28. Test & Assert
+
+1. The current spec must bind assertions to a declaration. I don't like this way. I want assertions to exist on their own.
+2. Roc distinguishes top-level and inline assertions (they call it "expectation").
+  - Top-level assertions are like `#[test]` in Rust.
+  - Inline assertions are like `assert!` in Rust.
+    - It doesn't panic. It just throws an error message to stdout (or stderr, I don't know).
+  - In test mode, top-level assertions are run.
+  - In debug mode, top-level code is run with inline assertions.
+  - In release mode, all the assertions are off.
+3. In Rust, tests are *heavier*. You have to declare a function and annotate it with `#[test]`.
+  - You also have to make use of `#[cfg(test)]`. Otherwise, you'll drown in unused-name warnings.
+4. I like Roc's way.
+  - Add `assert` statement. It looks like `assert foo() == 3;`
+  - When you run `sodigy test`, it runs all the top-level assertions.
+    - Inline assertions are of course enabled.
+    - It is okay for an assertion to panic. The test runner will have no problem running the other assertions.
+    - I want a syntactic sugar for `assert x == y;` form.
+  - In debug build, inline assertions are enabled.
+  - In release build, all the assertions are disabled.
+    - I want some assertions to be enabled in release mode. I need ... decorators!
+  - How about use-analysis? Think `(used_by_expr, used_by_assertions)`
+    - `(0, 1)`: We can safely inline the definition and forget about it. We should not raise an unused-name warning.
+    - `(0, 2..)`: We do nothing here. Don't raise an unused-name warning. But if it's release mode... I want to remove this!
+    - `(1, 1..)`: We cannot inline the definition. But I want to inline this in release mode.
+    - It's even trickier when it comes to lazy/eager analysis.
+      - An asserted value would be 99% eager-evaluated.
+
 # 27. 개발 방향
 
 1. embedding language, interpreter 전부 고려 X. Cargo스러운 compiler만 개발
@@ -101,6 +129,7 @@ let f6 = {
 `a[-1]`을 하면 맨 마지막 element를 주기
 
 1. a에 element가 20개인데 `a[-200]`를 하면 10바퀴 돌아? 아니면 `[-20]` 밑으로는 다 error?
+  - Python throws an error for `a[-200]`.
 2. `a[2..10]`은 slice로 할 거잖아, 그럼 `a[2..-1]`도 돼?
   - 근데 `2..-1`은 그자체로 runtime error 아냐? 아닌가...
   - Rust에서 `.get(10..2)`로 하니까 `None` 나옴. 즉, `10..2` 자체는 문제가 없음!

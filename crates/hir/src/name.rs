@@ -27,7 +27,15 @@ impl Session {
                             Some((NameOrigin::FuncArg { index }, span))
                         };
                         stack_index = Some(i);
-                        *count += 1;
+
+                        if self.is_evaluating_assertion {
+                            count.assert.increment();
+                        }
+
+                        else {
+                            count.expr.increment();
+                        }
+
                         break;
                     },
                     None => {},
@@ -46,7 +54,15 @@ impl Session {
                         }
 
                         stack_index = Some(i);
-                        *count += 1;
+
+                        if self.is_evaluating_assertion {
+                            count.assert.increment();
+                        }
+
+                        else {
+                            count.expr.increment();
+                        }
+
                         break;
                     },
                     None => {},

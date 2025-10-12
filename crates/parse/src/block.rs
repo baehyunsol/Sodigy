@@ -1,4 +1,5 @@
 use crate::{
+    Assert,
     Attribute,
     Enum,
     Expr,
@@ -23,6 +24,7 @@ pub struct Block {
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
+    pub asserts: Vec<Assert>,
 
     // only the top-level block can have modules
     pub modules: Vec<Module>,
@@ -64,6 +66,7 @@ impl<'t> Tokens<'t> {
         let mut funcs = vec![];
         let mut structs = vec![];
         let mut enums = vec![];
+        let mut asserts = vec![];
         let mut modules = vec![];
         let mut uses = vec![];
         let mut value = None;
@@ -148,6 +151,23 @@ impl<'t> Tokens<'t> {
                     Ok(mut r#enum) => {
                         r#enum.attribute = attribute;
                         enums.push(r#enum);
+                    },
+                    Err(e) => {
+                        errors.extend(e);
+
+                        if top_level {
+                            self.march_until_top_level_statement();
+                        }
+
+                        else {
+                            return Err(errors);
+                        }
+                    },
+                },
+                Some(TokenKind::Keyword(Keyword::Assert)) => match self.parse_assert() {
+                    Ok(mut assert) => {
+                        assert.attribute = attribute;
+                        asserts.push(assert);
                     },
                     Err(e) => {
                         errors.extend(e);
@@ -258,6 +278,7 @@ impl<'t> Tokens<'t> {
                 funcs,
                 structs,
                 enums,
+                asserts,
                 modules,
                 uses,
                 value: Box::new(value),

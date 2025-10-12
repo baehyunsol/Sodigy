@@ -19,6 +19,7 @@ pub enum ErrorToken {
     Block,
     ColonOrComma,
     CommaOrGt,
+    ParenthesisOrBrace,
 }
 
 impl From<&TokenKind> for ErrorToken {

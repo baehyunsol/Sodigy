@@ -1,10 +1,10 @@
 let callable = \(a: Int, b: Int) => a + b;
 
-@test.eq(7)
+assert foo == 7;
 let foo = callable(3, 4);
 
 let mutually_callable1 = \(n: Int) => if n < 2 { n * 2 } else { 2 + mutually_callable2(n - 1) };
 let mutually_callable2 = \(n: Int) => if n < 2 { n * 2 } else { 2 + mutually_callable1(n - 1) };
 
-@test.eq(20)
+assert bar == 20;
 let bar = mutually_callable1(10);

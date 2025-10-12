@@ -1,6 +1,6 @@
 fn bar() = 1000;
 
-@test.eq(1703)
+assert x == 1703;
 let x = {
     let k = bar();
     fn foo(x: Int, y: Int) = {

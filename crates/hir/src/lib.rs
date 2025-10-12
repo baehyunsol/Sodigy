@@ -9,6 +9,7 @@ use sodigy_parse as ast;
 // So all the errors and warnings are stored in the session, and the return value doesn't indicate anything about errors (it does, but don't rely on it).
 // You first run the entire hir pass, then you have to check `session.errors` and `session.warnings`.
 
+mod assert;
 mod block;
 mod r#enum;
 mod expr;
@@ -23,6 +24,7 @@ mod session;
 mod r#struct;
 mod r#type;
 
+pub use assert::Assert;
 pub use block::Block;
 pub use r#enum::Enum;
 pub use expr::Expr;
@@ -44,6 +46,10 @@ impl Session {
 
         for r#let in top_level_block.lets.drain(..) {
             self.lets.push(r#let);
+        }
+
+        for assert in top_level_block.asserts.drain(..) {
+            self.asserts.push(assert);
         }
 
         Ok(())

@@ -29,7 +29,7 @@
 //   - DOTDOT
 
 use crate::{Tokens, Type};
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -263,7 +263,18 @@ impl<'t> Tokens<'t> {
                 Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim, tokens }, span: span2 }),
             ) => match *delim {
-                _ => todo!(),
+                Delim::Parenthesis => todo!(),
+                Delim::Brace => todo!(),
+                Delim::Bracket | Delim::Lambda => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::ParenthesisOrBrace,
+                            got: ErrorToken::Group(*delim),
+                        },
+                        span: *span2,
+                        ..Error::default()
+                    }]);
+                },
             },
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);

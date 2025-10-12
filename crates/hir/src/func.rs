@@ -4,7 +4,6 @@ use crate::{
     LetOrigin,
     Session,
     Type,
-    UseCount,
 };
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
@@ -12,6 +11,7 @@ use sodigy_name_analysis::{
     Namespace,
     NameKind,
     NameOrigin,
+    UseCount,
 };
 use sodigy_parse::{self as ast, GenericDef};
 use sodigy_span::Span;
@@ -74,12 +74,12 @@ impl Func {
         let mut generic_index = HashMap::new();
 
         for (index, arg) in ast_func.args.iter().enumerate() {
-            func_arg_names.insert(arg.name, (arg.name_span, NameKind::FuncArg, 0));
+            func_arg_names.insert(arg.name, (arg.name_span, NameKind::FuncArg, UseCount::new()));
             func_arg_index.insert(arg.name, index);
         }
 
         for (index, generic) in ast_func.generics.iter().enumerate() {
-            generic_names.insert(generic.name, (generic.name_span, NameKind::Generic, 0));
+            generic_names.insert(generic.name, (generic.name_span, NameKind::Generic, UseCount::new()));
             generic_index.insert(generic.name, index);
         }
 
@@ -138,14 +138,9 @@ impl Func {
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (span, kind, count)) in names.iter() {
-            let use_count = match *count {
-                0 => UseCount::None,
-                1 => UseCount::Once,
-                2.. => UseCount::Multiple,
-            };
-            use_counts.insert(*name, use_count);
+            use_counts.insert(*name, *count);
 
-            if *count == 0 {
+            if count.is_zero() {
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,
@@ -160,7 +155,7 @@ impl Func {
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (span, kind, count)) in names.iter() {
-            if *count == 0 {
+            if count.is_zero() {
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,

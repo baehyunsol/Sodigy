@@ -106,3 +106,10 @@ Syntactically, type annotations are always optional. It won't throw any syntax e
 - `Int`: built-in integer type
 - `List<Int>`: built-in list type, it has 1 argument
 - `Fn(Int, Int) -> Int`: a function that takes 2 integers and returns 1 integer
+
+## Assertions
+
+```sodigy
+assert two == 2;
+let two = 1 + 1;
+```

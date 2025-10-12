@@ -1,4 +1,4 @@
 let foo = (3, 4);
 
-@test.eq(104)
+assert bar == 104;
 let bar = if let (x @ 0..1, _) = foo { x + 1 } else if let (_, y) = foo { y + 100 } else { 0 };

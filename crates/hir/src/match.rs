@@ -1,6 +1,6 @@
 use crate::{Expr, Pattern, Session};
 use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{NameKind, Namespace};
+use sodigy_name_analysis::{NameKind, Namespace, UseCount};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 
@@ -39,7 +39,9 @@ impl Match {
                     None
                 },
             };
-            let names = ast_branch.pattern.bound_names().iter().map(|(id, span)| (*id, (*span, NameKind::PatternNameBind, 0))).collect();
+            let names = ast_branch.pattern.bound_names().iter().map(
+                |(id, span)| (*id, (*span, NameKind::PatternNameBind, UseCount::new()))
+            ).collect();
 
             session.name_stack.push(Namespace::Pattern { names });
 
@@ -62,7 +64,7 @@ impl Match {
             let Some(Namespace::Pattern { names }) = session.name_stack.pop() else { unreachable!() };
 
             for (name, (span, kind, count)) in names.iter() {
-                if *count == 0 {
+                if count.is_zero() {
                     session.warnings.push(Warning {
                         kind: WarningKind::UnusedName {
                             name: *name,

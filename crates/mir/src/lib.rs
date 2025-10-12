@@ -1,5 +1,6 @@
 use sodigy_hir as hir;
 
+mod assert;
 mod block;
 mod expr;
 mod func;
@@ -8,6 +9,7 @@ mod r#let;
 mod session;
 mod r#type;
 
+pub use assert::Assert;
 pub use block::Block;
 pub use expr::{Callable, Expr};
 pub use func::Func;
@@ -28,6 +30,12 @@ pub fn lower(hir_session: &hir::Session) -> Session {
     for hir_func in hir_session.funcs.iter() {
         if let Ok(func) = Func::from_hir(hir_func, &mut session) {
             session.funcs.push(func);
+        }
+    }
+
+    for hir_assert in hir_session.asserts.iter() {
+        if let Ok(assert) = Assert::from_hir(hir_assert, &mut session) {
+            session.asserts.push(assert);
         }
     }
 

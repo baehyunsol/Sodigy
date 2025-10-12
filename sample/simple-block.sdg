@@ -1,4 +1,4 @@
-@test.eq(400)
+assert block() == 400;
 fn block() = {
     let x = 100;
     let y = 200;

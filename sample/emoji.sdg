@@ -1,5 +1,3 @@
+assert 🦫 == 비버;
 let 🦫 = "beaver";
 let 비버 = "beaver";
-
-@test.true
-fn assert_beaver_eq() = 🦫 == 비버;

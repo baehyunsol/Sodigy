@@ -1,14 +1,14 @@
 use crate::{
+    Assert,
     Expr,
     Func,
     FuncOrigin,
     Let,
     Session,
     Struct,
-    UseCount,
 };
 use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{NameKind, Namespace};
+use sodigy_name_analysis::{NameKind, Namespace, UseCount};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -20,6 +20,7 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub value: Box<Expr>,
+    pub asserts: Vec<Assert>,
 
     // It only counts names in `lets`.
     // It's later used for optimization.
@@ -32,19 +33,31 @@ impl Block {
         session: &mut Session,
         top_level: bool,
     ) -> Result<Block, ()> {
-        let mut lets = vec![];
-
-        // It's just a dummy value. No one's gonna use this.
-        let mut value = Expr::Number {
-            n: InternedNumber::from_u32(0, true),
-            span: Span::None,
-        };
-
         let mut has_error = false;
+        let mut lets = vec![];
+        let mut asserts = vec![];
 
         session.name_stack.push(Namespace::Block {
-            names: ast_block.iter_names(top_level).map(|(k, v1, v2)| (k, (v1, v2, 0))).collect(),
+            names: ast_block.iter_names(top_level).map(
+                |(k, v1, v2)| (k, (v1, v2, UseCount::new()))
+            ).collect(),
         });
+
+        let is_evaluating_assertion_prev = session.is_evaluating_assertion;
+        session.is_evaluating_assertion = true;
+
+        for assert in ast_block.asserts.iter() {
+            match Assert::from_ast(assert, session) {
+                Ok(assert) => {
+                    asserts.push(assert);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        session.is_evaluating_assertion = is_evaluating_assertion_prev;
 
         for r#let in ast_block.lets.iter() {
             match Let::from_ast(r#let, session, top_level) {
@@ -90,16 +103,20 @@ impl Block {
         // If `ast_block.value` is None, that means the block is top-level.
         // An ast_block can be top-level or inline, but an hir_block is always an inline block.
         // If it's a top-level block, `HirSession::lower` will do proper handlings, so this function doesn't have to worry about anything.
-        if let Some(ast_value) = ast_block.value.as_ref() {
-            match Expr::from_ast(ast_value, session) {
-                Ok(v) => {
-                    value = v;
-                },
-                Err(()) => {
-                    has_error = true;
-                },
-            }
-        }
+        let value = match ast_block.value.as_ref().as_ref().map(|value| Expr::from_ast(&value, session)) {
+            Some(Ok(value)) => Some(value),
+            Some(Err(())) => {
+                has_error = true;
+                None
+            },
+            // If `ast_block.value` is None, it's a top-level block.
+            // AST creates a `Block` instance for the top-level block, but HIR doesn't.
+            // So we first use a dummy value. The HIR session will do the cleanup.
+            None => Some(Expr::Number {
+                n: InternedNumber::from_u32(0, true),
+                span: Span::None,
+            }),
+        };
 
         let mut use_counts = HashMap::new();
         let Some(Namespace::Block { names }) = session.name_stack.pop() else { unreachable!() };
@@ -109,16 +126,10 @@ impl Block {
         //    top-level-block: only warn unused `use`s
         for (name, (span, kind, count)) in names.iter() {
             if let NameKind::Let { .. } = kind {
-                let use_count = match *count {
-                    0 => UseCount::None,
-                    1 => UseCount::Once,
-                    2.. => UseCount::Multiple,
-                };
-
-                use_counts.insert(*name, use_count);
+                use_counts.insert(*name, *count);
             }
 
-            if *count == 0 {
+            if count.is_zero() {
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,
@@ -138,7 +149,8 @@ impl Block {
             Ok(Block {
                 group_span: ast_block.group_span,
                 lets,
-                value: Box::new(value),
+                asserts,
+                value: Box::new(value.unwrap()),
                 use_counts,
             })
         }
