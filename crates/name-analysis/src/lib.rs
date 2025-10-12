@@ -18,6 +18,9 @@ pub enum Namespace {
     Block {
         names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
     },
+    Pattern {
+        names: HashMap<InternedString, (Span, NameKind, u32 /* count */)>,
+    },
 }
 
 pub enum NamespaceKind {
@@ -68,4 +71,5 @@ pub enum NameKind {
     Use,
     FuncArg,
     Generic,
+    PatternNameBind,
 }

@@ -45,6 +45,7 @@ pub enum ErrorKind {
     InclusiveRangeWithNoEnd,
     AstPatternTypeError,  // TODO: more context?
     InvalidFnType,
+    EmptyMatchStatement,
 
     // Syntax errors in patterns
     CannotBindName(InternedString),

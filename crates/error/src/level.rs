@@ -39,6 +39,7 @@ impl ErrorLevel {
             ErrorKind::InclusiveRangeWithNoEnd |
             ErrorKind::AstPatternTypeError |
             ErrorKind::InvalidFnType |
+            ErrorKind::EmptyMatchStatement |
             ErrorKind::CannotBindName(_) |
             ErrorKind::CannotAnnotateType |
 

@@ -1,9 +1,17 @@
 use crate::{Match, MatchBranch};
-use sodigy_error::Error;
+use sodigy_error::{Error, ErrorKind};
 
 impl Match {
     pub fn check(&self) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
+
+        if self.branches.is_empty() {
+            errors.push(Error {
+                kind: ErrorKind::EmptyMatchStatement,
+                span: self.keyword_span,
+                ..Error::default()
+            });
+        }
 
         for branch in self.branches.iter() {
             if let Err(e) = branch.check() {

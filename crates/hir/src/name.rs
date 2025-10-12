@@ -34,7 +34,8 @@ impl Session {
                 },
                 Namespace::FuncArg { names, .. } |
                 Namespace::Generic { names, .. } |
-                Namespace::Block { names } => match names.get_mut(&id) {
+                Namespace::Block { names } |
+                Namespace::Pattern { names } => match names.get_mut(&id) {
                     Some((def_span, name_kind, count)) => {
                         if is_local {
                             result = Some((NameOrigin::Local { kind: *name_kind }, *def_span));
