@@ -9,8 +9,8 @@ sodigy-file = { version = "0.1.0", path = "crates/file" }
 sodigy-fs-api = { version = "0.1.0", path = "crates/fs-api" }
 sodigy-hir = { version = "0.1.0", path = "crates/hir" }
 sodigy-lex = { version = "0.1.0", path = "crates/lex" }
+sodigy-lir = { version = "0.1.0", path = "crates/lir" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }
-sodigy-mir-eval= { version = "0.1.0", path = "crates/mir-eval" }
 sodigy-parse = { version = "0.1.0", path = "crates/parse" }
 sodigy-span = { version = "0.1.0", path = "crates/span" }
 sodigy-string = { version = "0.1.0", path = "crates/string" }

@@ -1,4 +1,4 @@
-use crate::{Block, If, Session};
+use crate::{Block, Intrinsic, If, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -15,7 +15,7 @@ pub enum Expr {
         n: InternedNumber,
         span: Span,
     },
-    // Ideally, we can create `Callable::StringInit`, but that'd struggle with long strings.
+    // Ideally, we can create `Callable::StringInit`, but that wouldn't work well with long strings.
     String {
         binary: bool,
         s: InternedString,
@@ -35,9 +35,6 @@ pub enum Expr {
     Call {
         func: Callable,
         args: Vec<Expr>,
-
-        // We have to do tail-call analysis after function inlining!
-        // tail_call: bool,
     },
 }
 
@@ -52,6 +49,10 @@ pub enum Callable {
         def_span: Span,
         span: Span,
     },
+    Intrinsic {
+        intrinsic: Intrinsic,
+        span: Span,
+    },
 
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
@@ -59,6 +60,7 @@ pub enum Callable {
     // Infix operations before type inference. For example, `+` in `3 + 4` is first
     // lowered to a generic-addition, then after the compiler finds out that the both operands are
     // integer, it's lowered to integer-addition.
+    // So, after type-checking, this variant must all be gone.
     GenericInfixOp {
         op: InfixOp,
         span: Span,
@@ -466,6 +468,7 @@ impl Expr {
             Expr::Call { func, .. } => match func {
                 Callable::Static { span, .. } |
                 Callable::StructInit { span, .. } |
+                Callable::Intrinsic { span, .. } |
                 Callable::GenericInfixOp { span, .. } => *span,
                 Callable::Dynamic(expr) => expr.error_span(),
                 Callable::ListInit { group_span, .. } => *group_span,

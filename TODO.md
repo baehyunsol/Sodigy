@@ -1,3 +1,60 @@
+# 30. C Runtime (or Rust/Python/Javascript)
+
+1. There are only 3 primitive types in the runtime: Integer, String and Compound
+  - Integer (arbitrary width)
+    - `[ref_count: int, n1: int, n2: int, ...]`
+  - String
+    - `[ref_count: int, length: Int, ch1: int, ch2: int, ...]`
+  - Compound: List/Tuple/Struct
+    - Tuple/Struct: `[ref_count: int, val1: ptr, val2: pt2, ...]`
+    - List: `[ref_count: int, length: Int, elem1: ptr, elem2: ptr, ...]`
+  - `ptr` points to another sodigy object. It points to `ref_count`.
+  - `Int` is a `ptr` which points to a sodigy integer.
+  - `int` is a primitive integer in the runtime language.
+2. Issues in C
+  - `int` and `ptr` must have the same size.
+  - `ptr`: Real pointer vs Index (an integer)
+    - Pointers have different sizes.
+    - If using index, I have to implement `malloc` and `free`.
+  - 32bit vs 64bit
+    - Pointers are usually 64 bits.
+    - If it's 64 bits, a string would waste too many space.
+    - It's easier to implement arb-integer with 32 bits than 64 bits.
+3. Issues in Rust
+  - There's no `goto` in Rust.
+    - We have to use a gigantic `match` statement... but I hope the rust compiler can optimize this.
+  - It's tricky to manage memory manually in Rust.
+
+# 29. Some optimization
+
+```sodigy
+fn fac(n) = if n < 2 { 1 } else { n * fac(n - 1) };
+
+fn fibo(n) = if n < 2 { 1 } else { fibo(n - 1) + fibo(n - 2) };
+
+fn reverse(ls) = match ls {
+    [] | [_] => ls,
+    [x] ++ rem => reverse(rem) ++ [x],
+};
+```
+
+It's a very very common pattern. Tail-call optimization won't help it because it has to add/prod/concat all the operands in the stack in the end.
+
+1. Condition
+  - The function is recursive.
+  - The function has multiple branches.
+    - A recursive function without branches doesn't terminate. (TODO: Do I have to raise an error if I can detect this?)
+  - The function returns type `T`.
+  - One of its branch is `Op(a: T, b: T)` and `a` and/or `b` is a recursive call to the function.
+  - The operation is associative.
+  - There's exactly 1 kind of operations in the branches.
+2. Optimization
+  - When it's called non-recursively, it initializes `x = Op::<T>::identity()`.
+  - If it reaches a branch which looks like `Op(a: T, b: T)`,
+    - if `a` is a recursion, it passes `&mut x` and tail-calls the recursive function.
+    - if `a` is not a recursion, it doesn't tail-call `a` and applies the operation with `x` and `a`.
+  - If it reaches a branch that has type `T`, it just evaluates the value (not tail-call) and applies the operation to `x`.
+
 # 28. Test & Assert
 
 1. The current spec must bind assertions to a declaration. I don't like this way. I want assertions to exist on their own.
@@ -52,43 +109,6 @@ Person {
 }
 ```
 
-# 20. test bench
-
-지금은 `main` 만들어서 일일이 실행하고 있지? 얘네를 얼른 `@test`로 바꿔야함!
-
-```
-@test.eq((10, 20), 30)
-fn adder(x, y) = x + y;
-
-@test.eq(50)
-let value = adder(20, 30);
-```
-
-becomes
-
-```
-// for all elements, it prints the message to stderr if the result is False
-let assertions: [(Bool, String)] = [
-    {
-        let arg = (10, 20);
-        // 여기가 문제: `._0`과 `._1`이 있다는 걸 알려면 `arg: (Int, Int)`라는 사실을 알아내야함...
-        // 나머지는 단순 ast 조작으로 구현 가능!
-        // 아니면... compiler built-in function을 만들어서 `call(adder, arg)`처럼 쓸까? 흠...
-        let result = adder(arg._0, arg._1);
-        let expected = 30;
-
-        // 함수 이름이나 span도 적어주면 더 좋을 듯?
-        (result == expected, f"Input: {arg:?}, Expected: {expected:?}, Got: {result:?}")
-    }, {
-        let result = value;
-        let expected = 50;
-
-        // 상수 이름이나 span도 적어주면 더 좋을 듯?
-        (result == expected, f"Expected: {expected:?}, Got: {result:?}")
-    },
-];
-```
-
 # 19. cycle-checks in `let` values
 
 ```sodigy
@@ -133,21 +153,6 @@ let f6 = {
 2. `a[2..10]`은 slice로 할 거잖아, 그럼 `a[2..-1]`도 돼?
   - 근데 `2..-1`은 그자체로 runtime error 아냐? 아닌가...
   - Rust에서 `.get(10..2)`로 하니까 `None` 나옴. 즉, `10..2` 자체는 문제가 없음!
-
-# 17. (un)intern_string
-
-intern은 context-free여서 상관이 없음...
-unintern을 하려면 `HashMap<InternedString, String>`이 있어야함!
-
-1. 이거를 Session이 계속 들고 있어? 그건 좀 비효율적...
-2. 이거를 파일에 적어두고 그때그때 꺼내서 쓰기?
-  - 파일 위치를 session들한테 알려줘야 하는데? config스러운 거를 만들어서 계속 들고다녀야할 듯?
-  - 병렬로 돌아갈테니 lock 걸어야 할 듯?
-  - 근데, string이 무지무지하게 길 수도 있잖아? 그럼 또 나눠??
-    - 0..=15 글자: InternedString에 바로 저장
-    - 16..=4095 글자: 파일에 바로 저장
-    - 4096.. 글자: 파일에는 포인터만 저장되고 딴 파일을 열면 거기에 들어있음 ㅋㅋㅋ
-    - ㅋㅋㅋㅋ 이거 너무 뇌절 아님??
 
 # 16. span across files
 
@@ -380,36 +385,38 @@ issues
 ```
 
 ```c
+// local1 -> eager
+// local2 -> lazy
 // uninitialized state of `lazy`
-local1.push(nullptr);
+local2.push(nullptr);
 
 // eval `eager`
 r1.push(3);
 r2.push(4);
 call_stack.push(s1);
 goto foo;
-label: s1
+label: s1;
 call_stack.pop();
-r1.pop();
-r2.pop();
-r1.push(ret);
+local1.push(ret);
 
 // eval `lazy`, if it has to
-jump_if_init(local1, s2);
+jump_if_init(local2, s2);
 r1.push(3);
 r2.push(4);
 call_stack.push(s3);
 goto bar;
-label: s3
+label: s3;
 call_stack.pop();
-r1.pop();
-r2.pop();
-local1.assign(ret);
+local2.assign(ret);
 
-label: s2
-r2.push(local1);
+label: s2;
+r1.push(local1);
+r2.push(local2);
 
+// It has to pop all the local values before it returns;
 local1.pop();
+local2.pop();
+
 // this doesn't push to call_stack because it's a tail call
 goto add;
 ```
@@ -417,38 +424,44 @@ goto add;
 ### 2. if
 
 ```sodigy
-// `x` and `y` are at `r3` and `r4`
-// this `if` is tail-call
-if foo(x, y) { bar(3, 4) } else { baz }
+fn whatever(x, y) = if foo(x, y) { bar(3, 4) } else { baz };
 ```
 
 ```c
-r1.push(r3);
-r2.push(r4);
+// The callee is responsible for popping `r`, so that we can implement tail-call.
+// The callee is not responsible for popping `call_stack`, so that we can implement tail-call.
+
+// x
+local1.push(r1);
+r1.pop();
+
+// y
+local2.push(r2);
+r2.pop();
+
+r1.push(local1);
+r2.push(local2);
 call_stack.push(s1);
 goto foo;
-label: s1
+label: s1;
 call_stack.pop();
-r1.pop();
-r2.pop();
-r1.push(ret);
 
-branch(r1, s2, s3);
-label: s2
-r1.pop();
+branch(ret, s2, s3);
+label: s2;
 r1.push(3);
 r2.push(4);
 call_stack.push(s4);
 goto bar;
-label: s4
+label: s4;
 call_stack.pop();
-r1.pop();
-r2.pop();
+local1.pop();
+local2.pop();
 goto call_stack.peek();
 
-label: s3
-r1.pop();
+label: s3;
 ret.push(baz);
+local1.pop();
+local2.pop();
 goto call_stack.peek();
 ```
 
@@ -456,34 +469,26 @@ goto call_stack.peek();
 
 ```sodigy
 // This is a tail-call
-if pat Some(x) = foo(3, 4) { bar(x) } else { baz };
+fn f() = if let Some(x) = foo(3, 4) { bar(x) } else { baz };
 ```
 
 ```c
-// place for `x`
-local1.push(nullptr);
-
 r1.push(3);
 r2.push(4);
 call_stack.push(s1);
 goto foo;
-label: s1
+label: s1;
 call_stack.pop();
-r1.pop();
-r2.pop();
-local1.assign(ret);
+local1.push(ret);
 
 r1.push(local1);
 call_stack.push(s2);
 goto is_some;
 label: s2
 call_stack.pop();
-r1.pop();
-r1.push(ret);
 
-branch(r1, s3, s4);
-label: s3
-r1.pop();
+branch(ret, s3, s4);
+label: s3;
 r1.push(local1);
 local1.pop();
 goto bar;  // this is a tail call

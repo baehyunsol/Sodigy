@@ -113,8 +113,19 @@ fn main() {
         WriteMode::CreateOrTruncate,
     ).unwrap();
 
-    let value = sodigy_mir_eval::eval_main(&mir_session).unwrap();
-    println!("{value:?}");
+    let lir_session = sodigy_lir::lower_mir(&mir_session);
+
+    write_string(
+        "sample/target/lir.rs",
+        &prettify(&format!(
+            "{}lets: {:?}, funcs: {:?}{}",
+            "{",
+            lir_session.lets,
+            lir_session.funcs,
+            "}",
+        )),
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
 }
 
 fn prettify(s: &str) -> String {
