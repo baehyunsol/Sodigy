@@ -38,17 +38,6 @@ impl Block {
             }
         }
 
-        for r#let in hir_block.lets.iter() {
-            match Let::from_hir(r#let, session) {
-                Ok(l) => {
-                    lets.push(l);
-                },
-                Err(_) => {
-                    has_error = true;
-                },
-            }
-        }
-
         let value = match Expr::from_hir(&hir_block.value, session) {
             Ok(v) => Some(v),
             Err(_) => {

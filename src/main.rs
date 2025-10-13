@@ -79,10 +79,11 @@ fn main() {
     write_string(
         "sample/target/hir.rs",
         &prettify(&format!(
-            "{}lets: {:?}, funcs: {:?}{}",
+            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
             "{",
             hir_session.lets,
             hir_session.funcs,
+            hir_session.asserts,
             "}",
         )),
         WriteMode::CreateOrTruncate,
@@ -104,26 +105,36 @@ fn main() {
     write_string(
         "sample/target/mir.rs",
         &prettify(&format!(
-            "{}lets: {:?}, funcs: {:?}{}",
+            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
             "{",
             mir_session.lets,
             mir_session.funcs,
+            mir_session.asserts,
             "}",
         )),
         WriteMode::CreateOrTruncate,
     ).unwrap();
 
-    let lir_session = sodigy_lir::lower_mir(&mir_session);
+    let mut lir_session = sodigy_lir::lower_mir(&mir_session);
 
     write_string(
         "sample/target/lir.rs",
         &prettify(&format!(
-            "{}lets: {:?}, funcs: {:?}{}",
+            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
             "{",
             lir_session.lets,
             lir_session.funcs,
+            lir_session.asserts,
             "}",
         )),
+        WriteMode::CreateOrTruncate,
+    ).unwrap();
+
+    lir_session.make_labels_static();
+    let bytecode = lir_session.into_labeled_bytecode();
+    write_string(
+        "sample/target/bytecode.rs",
+        &prettify(&format!("{bytecode:?}")),
         WriteMode::CreateOrTruncate,
     ).unwrap();
 }

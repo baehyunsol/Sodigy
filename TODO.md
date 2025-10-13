@@ -1,3 +1,60 @@
+# 33. flatten lir bytecode
+
+1. 모든 label에 static id를 부여해야함
+2. Label 별로 분리해야함
+  - `Label(x), Push(A), Push(B), Label(y), Pop(A), Label(z), Push(C)`가 있는 경우 이걸 `x: (Push(A), Push(B), Goto(y)), y: (Pop(A), Goto(z)), ..`로 분리해야함!
+    - 아니지 그냥 `x: (Push(A), Push(B), Pop(A), Push(C), ...), y: (Pop(A), Push(C), ...)` 이런 식으로 해도 되지... 이러면 코드는 더 길어지지만 jump가 줄어듦!
+  - unconditional jump 뒤에는 반드시 `Label`이 오거나 아무것도 안 와야함
+3. entry point
+  - test:
+  - bin:
+  - lib:
+
+# 32. Removing reference counts
+
+https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
+
+언제 하지..?? 이걸 하려면 `inc_rc`, `dec_rc` 명령어를 lir에 노출시켜야 하나? 그러면 다른 optimization (#31)이 힘들어짐.
+
+사용처:
+
+1. rc가 1일 경우, in-place mutation을 할 수 있음!
+  - intrinsic만 적용시키면 됨
+2. value의 lifetime 내내 rc가 1일 경우, rc랑 관련된 모든 코드를 날려버리고 바로 drop하면 됨
+
+lir까지 다 완성된 다음에 이 분석을 해도됨: alloc을 하는 명령어들 (struct init, list init, ...), rc를 증가시키는 명령어들 (push), rc를 감소시키는 명령어들 (pop)을 전부 추적 가능하기 때문에... 적당히 symbolic execution 하면 될 듯?? 말이 쉽지 ㅠㅠ
+
+# 31. LIR Optimization idea
+
+현재 실행 중인 함수를 f라고 하자. f의 첫번째 arg를 (if exists) x라고 하자. `xBC`는 `0 or more bytecodes`를 나타냄!
+
+1. f의 arg의 개수가 N개인데, f 안에서 함수 호출할 때 arg를 N개 미만으로 사용할 경우 (예시에서는 N=1로 가정)
+  - 원래는 `copy r0 to local0 -> pop r0 -> xBC -> pop local0`인데 `xBC -> pop r0`로 최적화 가능!
+    - 단, `xBC`에서 `r0`를 push/pop하면 안됨.
+    - 단, `xBC`에서 `local0`를 사용하는 부분을 찾아서 전부 `r0`를 사용하도록 바꿔야 함.
+  - 여기서 핵심은 `copy r0 to something`을 없애는 거임... 얼마나 wild하게 최적화가 가능하려나?
+  - 아니면 symbolic execution을 해버려도 됨!
+2. recursive call의 경우, local_i -> r_i -> local_i로 옮기는 것보다 local_i에 그대로 두는게 더 나은 경우도 있음!
+  - f가 recursive하다고 치면, f_recursion라는 함수를 새로 만드는 거임!
+  - 다른 함수가 f를 부를 때는 f를 그대로 쓰고, f가 f를 부를 때는 f_recursion을 사용
+  - f_recursion은 arg가 local_i에 담겨있다고 생각할 거임
+  - 생각보다 효과가 별로 없으려나..??
+3. f가 g를 호출하는데 g의 첫번째 arg가 x인 경우
+  - 원래는 `copy r0 to local0 -> pop r0 -> xBC -> copy local0 to r0 -> call g -> pop r0`인데 `copy r0 to local0 -> xBC -> call g -> pop r0`로 최적화 가능!
+    - 단, `xBC`에서 `r0`를 push/pop하면 안됨.
+    - `xBC`에서 `local0`를 한번도 안 쓰면 `xBC -> call g -> pop r0`도 가능
+4. f 안에서 const나 identifier를 읽는 경우 (`x2`를 읽어서 `local3`에 쓴다고 치자)
+  - const: `push const to return -> push return to local3`인데 `push const to local3` 해버리고 싶음...
+  - identifier: `push x2 to return -> push return to local3`인데 `push x2 to local3` 해버리고 싶음...
+  - 위에서 local_i/r_i의 push/pop을 분석하는 것과는 조금 다름. `return`은 stack이 아니기 때문!
+5. 간단한 Intrinsic을 실행하는 경우 (let's say IntegerAdd and move the result to `local3`)
+  - `eval r0 -> eval r1 -> push call stack -> call IntegerAdd -> pop call stack -> copy ret to local3`
+  - runtime에서 이걸 inline 해버리면: `eval r0 -> eval r1 -> add r0 and r1 and push the result to local3 -> pop r0 -> pop r1`
+  - 이걸 lir로 표현할 수는 없나... 그냥 intrinsic은 무조건 inline으로 처리할까? 즉, intrinsic 건드릴 때는 call stack 안 건드리고, r_i를 바로 사용한 다음에 pop 해버리는 거지...
+    - 이게 맞을 듯? 아무리 비싼 intrinsic이더라도 결국에는 runtime의 callstack을 사용하지, sodigy의 callstack은 건드릴 필요없음!
+6. 최적화할 때 추가로 필요한 정보
+  - `push r0 -> xBC -> pop r0`를 한다고 치자, 그럼 `xBC`에서 `r0`를 필요로하는지 궁금하겠지? 근데 `call g`라고만 돼 있으면 `r0`를 읽는지 안 읽는지 알 방법이 없음. 결국 `g`가 어느 register를 읽는지를 알아야함. 이거를 1) 거대한 map을 만들어놓고 그때그때 확인한다 vs 2) Bytecode 안에다가 어딘가에 적어둔다.
+
 # 30. C Runtime (or Rust/Python/Javascript)
 
 1. There are only 3 primitive types in the runtime: Integer, String and Compound

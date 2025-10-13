@@ -1,0 +1,9 @@
+[package]
+name = "sodigy-backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-lir = { version = "0.1.0", path = "../lir" }
+sodigy-mir = { version = "0.1.0", path = "../mir" }
+sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }

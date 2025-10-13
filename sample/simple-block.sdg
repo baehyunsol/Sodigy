@@ -1,7 +1,16 @@
-assert block() == 400;
-fn block() = {
+assert block1 == 400;
+let block1 = {
     let x = 100;
     let y = 200;
     let z = x + y;
     z + 100
+};
+
+assert block2(100) == 500;
+fn block2(n) = {
+    let x = n;
+    let y = x + x;
+    let z = x + x;
+
+    x + y + z
 };
