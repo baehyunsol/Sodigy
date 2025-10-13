@@ -137,6 +137,16 @@ fn main() {
         &prettify(&format!("{bytecode:?}")),
         WriteMode::CreateOrTruncate,
     ).unwrap();
+
+    sodigy_backend::python_code_gen(
+        "sample/target/run.py",
+        &bytecode,
+        &lir_session,
+        &sodigy_backend::CodeGenConfig {
+            intern_str_map_dir: String::from("sample/target/intern/str/"),
+            label_help_comment: true,
+        },
+    ).unwrap();
 }
 
 fn prettify(s: &str) -> String {

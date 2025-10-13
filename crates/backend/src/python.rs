@@ -12,21 +12,53 @@ use sodigy_lir::{
     Register,
 };
 use sodigy_mir::Intrinsic;
+use sodigy_number::{InternedNumber, InternedNumberValue};
+use sodigy_span::Span;
+use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 pub fn python_code_gen(
     output_path: &str,
-    bytecode: HashMap<u32, Vec<Bytecode>>,
+    bytecode: &HashMap<u32, Vec<Bytecode>>,
     session: &lir::Session,
     config: &CodeGenConfig,
 ) -> Result<(), FileError> {
     let mut lines = vec![];
     let mut indent;
+    let mut help_comment_map = HashMap::new();
+
+    if config.label_help_comment {
+        for func in session.funcs.iter() {
+            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap_or(b"???".to_vec()))));
+        }
+
+        for r#let in session.lets.iter() {
+            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap_or(b"???".to_vec()))));
+        }
+
+        for assert in session.asserts.iter() {
+            help_comment_map.insert(assert.label_id.unwrap(), String::from("assertion"));
+        }
+    }
+
+    lines.push(String::from("cs=[]"));
+    lines.push(String::from("const={}"));
+
+    for i in 0..10 {
+        lines.push(format!("l{i}=[]"));
+        lines.push(format!("c{i}=[]"));
+    }
+
     lines.push(String::from("while True:"));
 
     for (i, (id, bytecode)) in bytecode.iter().enumerate() {
         indent = "    ";
-        lines.push(format!("{indent}{}if s == {id}:", if i == 0 { "" } else { "el" }));
+
+        if let Some(comment) = help_comment_map.get(id) {
+            lines.push(format!("{indent}# {comment}"));
+        }
+
+        lines.push(format!("{indent}{}if l=={id}:", if i == 0 { "" } else { "el" }));
 
         for b in bytecode.iter() {
             indent = "        ";
@@ -43,17 +75,21 @@ pub fn python_code_gen(
                     Register::Return => {
                         lines.push(format!("{indent}ret={}", peek(src)));
                     },
-                    Register::Const(span) => todo!(),
+                    Register::Const(_) => {
+                        lines.push(format!("{indent}{}={}", place(dst), peek(src)));
+                    },
                 },
                 Bytecode::PushConst { value, dst } => match dst {
                     Register::Local(_) |
                     Register::Call(_) => {
-                        lines.push(format!("{indent}{}.append({})", place(dst), py_value(value)));
+                        lines.push(format!("{indent}{}.append({})", place(dst), py_value(value, &config.intern_str_map_dir)));
                     },
                     Register::Return => {
-                        lines.push(format!("{indent}ret={}", py_value(value)));
+                        lines.push(format!("{indent}ret={}", py_value(value, &config.intern_str_map_dir)));
                     },
-                    Register::Const(span) => todo!(),
+                    Register::Const(_) => {
+                        lines.push(format!("{indent}{}={}", place(dst), py_value(value, &config.intern_str_map_dir)));
+                    },
                 },
                 Bytecode::Pop(src) => match src {
                     Register::Local(_) |
@@ -73,7 +109,7 @@ pub fn python_code_gen(
                 },
                 Bytecode::Goto(label) => match label {
                     Label::Static(n) => {
-                        lines.push(format!("{indent}s={n}"));
+                        lines.push(format!("{indent}l={n}"));
                         lines.push(format!("{indent}continue"));
                     },
                     _ => unreachable!(),
@@ -82,14 +118,24 @@ pub fn python_code_gen(
                     Intrinsic::IntegerAdd => {
                         lines.push(format!("{indent}ret=c0[-1]+c1[-1]"));
                     },
+                    Intrinsic::IntegerSub => {
+                        lines.push(format!("{indent}ret=c0[-1]-c1[-1]"));
+                    },
                     Intrinsic::IntegerEq => {
                         lines.push(format!("{indent}ret=c0[-1]==c1[-1]"));
+                    },
+                    Intrinsic::IntegerLt => {
+                        lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
                     },
                 },
                 Bytecode::Label(_) => unreachable!(),
                 Bytecode::Return => {
-                    lines.push(format!("{indent}s=cs[-1]"));
+                    lines.push(format!("{indent}l=cs[-1]"));
                     lines.push(format!("{indent}continue"));
+                },
+                Bytecode::JumpIf { value: reg, label } | Bytecode::JumpIfInit { reg, label } => {
+                    let Label::Static(n) = label else { unreachable!() };
+                    lines.push(format!("{indent}if {}: l={n}", peek(reg)));
                 },
             }
         }
@@ -109,7 +155,7 @@ fn place(r: &Register) -> String {
         Register::Call(n @ 0..=9) => format!("c{n}"),
         Register::Call(n) => format!("crs[{}]", *n - 10),
         Register::Return => String::from("ret"),
-        Register::Const(span) => todo!(),
+        Register::Const(span) => format!("const[{:?}]", hash_span(span)),
     }
 }
 
@@ -120,17 +166,29 @@ fn peek(r: &Register) -> String {
         Register::Call(n @ 0..=9) => format!("c{n}[-1]"),
         Register::Call(n) => format!("crs[{}][-1]", *n - 10),
         Register::Return => String::from("ret"),
-        Register::Const(span) => todo!(),
+        Register::Const(span) => format!("const.get({:?},None)", hash_span(span)),
     }
 }
 
-fn py_value(v: &Const) -> String {
+fn py_value(v: &Const, dictionary: &str) -> String {
     match v {
         Const::String(s) => format!(
             "{:?}",
-            // TODO
-            String::from_utf8_lossy(&s.try_unintern_short_string().unwrap_or(b"???".to_vec())),
+            String::from_utf8_lossy(&unintern_string(*s, dictionary).unwrap().unwrap_or(b"???".to_vec())),
         ),
-        Const::Number(n) => todo!(),
+        Const::Number(InternedNumber { value, is_integer }) => match value {
+            InternedNumberValue::SmallInteger(n) => match is_integer {
+                true => format!("{n}"),
+                false => format!("{n}.0"),
+            },
+            InternedNumberValue::SmallRatio { denom, numer } => format!("{numer}/{denom}"),
+        },
+    }
+}
+
+fn hash_span(s: &Span) -> String {
+    match s {
+        Span::Range { file: _, start, end } => format!("_|{start}|{end}"),
+        _ => todo!(),
     }
 }

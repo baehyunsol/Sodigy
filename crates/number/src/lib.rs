@@ -13,7 +13,7 @@ pub struct InternedNumber {
 }
 
 #[derive(Clone, Copy)]
-enum InternedNumberValue {
+pub enum InternedNumberValue {
     SmallInteger(i64),
     SmallRatio {
         numer: i64,

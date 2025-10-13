@@ -127,7 +127,9 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                     let intrinsic = match func {
                         Callable::GenericInfixOp { op, .. } => match op {
                             InfixOp::Add => Intrinsic::IntegerAdd,
+                            InfixOp::Sub => Intrinsic::IntegerSub,
                             InfixOp::Eq => Intrinsic::IntegerEq,
+                            InfixOp::Lt => Intrinsic::IntegerLt,
                             _ => panic!("TODO: {op:?}"),
                         },
                         Callable::Intrinsic { intrinsic, .. } => *intrinsic,
