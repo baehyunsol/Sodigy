@@ -135,7 +135,9 @@ pub fn python_code_gen(
                 },
                 Bytecode::JumpIf { value: reg, label } | Bytecode::JumpIfInit { reg, label } => {
                     let Label::Static(n) = label else { unreachable!() };
-                    lines.push(format!("{indent}if {}: l={n}", peek(reg)));
+                    lines.push(format!("{indent}if {}:", peek(reg)));
+                    lines.push(format!("{indent}    l={n}"));
+                    lines.push(format!("{indent}    continue"));
                 },
             }
         }
