@@ -1,4 +1,4 @@
-use crate::CodeGenConfig;
+use crate::{CodeGenConfig, CodeGenMode};
 use sodigy_fs_api::{
     FileError,
     WriteMode,
@@ -25,15 +25,23 @@ pub fn python_code_gen(
 ) -> Result<(), FileError> {
     let mut lines = vec![];
     let mut indent;
+    let mut main_func_label = None;
     let mut help_comment_map = HashMap::new();
 
     if config.label_help_comment {
         for func in session.funcs.iter() {
-            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap())));
+            let func_name = unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap();
+            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
+
+            // TODO: what if there's an inline function named "main"? Do I have to restrict this? maybe...
+            if func_name == b"main" {
+                main_func_label = Some(func.label_id.unwrap());
+            }
         }
 
         for r#let in session.lets.iter() {
-            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap())));
+            let let_name = unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap();
+            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&let_name)));
         }
 
         for assert in session.asserts.iter() {
@@ -41,18 +49,23 @@ pub fn python_code_gen(
         }
     }
 
-    lines.push(String::from("cs=[]"));
-    lines.push(String::from("const={}"));
+    indent = " ".repeat(0);
+    lines.push(format!("{indent}def run(l):"));
 
+    indent = " ".repeat(4);
+    lines.push(format!("{indent}cs=[]"));
+    lines.push(format!("{indent}const={}", "{}"));
+
+    // TODO: count how many registers are used and initialize the exact number of registers
     for i in 0..10 {
-        lines.push(format!("l{i}=[]"));
-        lines.push(format!("c{i}=[]"));
+        lines.push(format!("{indent}l{i}=[]"));
+        lines.push(format!("{indent}c{i}=[]"));
     }
 
-    lines.push(String::from("while True:"));
+    lines.push(format!("{indent}while True:"));
 
     for (i, (id, bytecode)) in bytecode.iter().enumerate() {
-        indent = "    ";
+        indent = " ".repeat(8);
 
         if let Some(comment) = help_comment_map.get(id) {
             lines.push(format!("{indent}# {comment}"));
@@ -61,12 +74,9 @@ pub fn python_code_gen(
         lines.push(format!("{indent}{}if l=={id}:", if i == 0 { "" } else { "el" }));
 
         for b in bytecode.iter() {
-            indent = "        ";
+            indent = " ".repeat(12);
 
             match b {
-                // c0.append(l0[-1]);
-                // c0.append(ret);
-                // ret = l0[-1]
                 Bytecode::Push { src, dst } => match dst {
                     Register::Local(_) |
                     Register::Call(_) => {
@@ -131,12 +141,10 @@ pub fn python_code_gen(
                         lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
                     },
                     Intrinsic::Panic => {
-                        lines.push(format!("{indent}import sys"));
-                        lines.push(format!("{indent}sys.exit(1)"));
+                        lines.push(format!("{indent}raise Exception"));
                     },
                     Intrinsic::Exit => {
-                        lines.push(format!("{indent}import sys"));
-                        lines.push(format!("{indent}sys.exit(0)"));
+                        lines.push(format!("{indent}return"));
                     },
                     Intrinsic::Print => {
                         lines.push(format!("{indent}print(c0[-1],end='')"));
@@ -159,6 +167,18 @@ pub fn python_code_gen(
                 },
             }
         }
+    }
+
+    match config.mode {
+        CodeGenMode::Test => todo!(),
+        CodeGenMode::Bin => {
+            lines.push(format!("try:"));
+            lines.push(format!("    run({})", main_func_label.unwrap()));
+            lines.push(format!("except:"));
+            lines.push(format!("    import sys"));
+            lines.push(format!("    sys.exit(1)"));
+        },
+        CodeGenMode::Lib => todo!(),
     }
 
     write_string(
@@ -207,6 +227,7 @@ fn py_value(v: &Const, dictionary: &str) -> String {
     }
 }
 
+// TODO
 fn hash_span(s: &Span) -> String {
     match s {
         Span::Range { file: _, start, end } => format!("_|{start}|{end}"),

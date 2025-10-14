@@ -7,17 +7,19 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
+    pub name: Option<InternedString>,
     pub keyword_span: Span,
     pub value: Expr,
-    pub attribute: AssertAttribute,
+
+    // By default, assertions are enabled only in debug profile.
+    // If it has `@always` decorator, it's always enabled.
+    pub always: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct AssertAttribute {
     pub name: Option<InternedString>,
 
-    // By default, assertions are enabled only in debug profile.
-    // If it has `@always` decorator, it's always enabled.
     pub always: bool,
 }
 
@@ -61,9 +63,10 @@ impl Assert {
 
         else {
             Ok(Assert {
+                name: attribute.name,
                 keyword_span: ast_assert.keyword_span,
                 value: value.unwrap(),
-                attribute,
+                always: attribute.always,
             })
         }
     }

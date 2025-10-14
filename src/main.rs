@@ -149,6 +149,7 @@ fn main() -> Result<(), ()> {
         &sodigy_backend::CodeGenConfig {
             intern_str_map_dir: String::from("sample/target/intern/str/"),
             label_help_comment: true,
+            mode: sodigy_backend::CodeGenMode::Test,
         },
     ).unwrap();
 

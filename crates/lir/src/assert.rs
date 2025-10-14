@@ -1,16 +1,17 @@
 use crate::{
     Bytecode,
     Const,
-    Label,
     Register,
     Session,
     lower_mir_expr,
 };
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
+    pub name: Option<InternedString>,
     pub keyword_span: Span,
 
     // When you evaluate this it might 1) eprint error and panic (if the assertion is False) or 2) do nothing.
@@ -49,6 +50,7 @@ impl Assert {
         }
 
         Assert {
+            name: mir_assert.name,
             keyword_span: mir_assert.keyword_span,
             bytecode,
             label_id: None,
