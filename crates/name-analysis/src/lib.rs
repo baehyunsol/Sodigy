@@ -76,33 +76,24 @@ pub enum NameKind {
 
 // The compiler has to count how many times each name is used for various reasons.
 // For example, if a name is never used, it throws a warning and remove the definition.
-// Assertions make the problem tricky, because an assertion may or may not be removed
-// according to compiler options. So we count the numbers separately.
+// Since some names are used in debug-only context (e.g. tests / assertions), we have to
+// treat them differently
 #[derive(Clone, Copy, Debug)]
 pub struct UseCount {
-    pub assert: Counter,
-
-    // everything other than assertions
-    pub expr: Counter,
+    pub always: Counter,
+    pub debug_only: Counter,
 }
 
 impl UseCount {
     pub fn new() -> Self {
         UseCount {
-            assert: Counter::Never,
-            expr: Counter::Never,
+            always: Counter::Never,
+            debug_only: Counter::Never,
         }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        matches!(
-            self,
-            UseCount { assert: Counter::Never, expr: Counter::Never },
-        )
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Counter {
     Never,
     Once,

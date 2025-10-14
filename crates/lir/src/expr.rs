@@ -1,4 +1,11 @@
-use crate::{Bytecode, Const, Label, Register, Session};
+use crate::{
+    Assert,
+    Bytecode,
+    Const,
+    Label,
+    Register,
+    Session,
+};
 use sodigy_mir::{self as mir, Callable, Intrinsic};
 use sodigy_name_analysis::{
     NameKind,
@@ -61,6 +68,17 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                 bytecode.push(Bytecode::Return);
             }
         },
+        mir::Expr::String { s, binary, .. } => {
+            bytecode.push(Bytecode::PushConst {
+                value: Const::String { s: *s, binary: *binary },
+                dst: Register::Return,
+            });
+
+            if is_tail_call {
+                session.pop_all_locals(bytecode);
+                bytecode.push(Bytecode::Return);
+            }
+        },
         mir::Expr::If(mir::If { cond, true_value, false_value, .. }) => {
             let eval_true_value = session.get_tmp_label();
             let return_expr = session.get_tmp_label();
@@ -80,7 +98,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
             lower_mir_expr(true_value, session, bytecode, is_tail_call);
             bytecode.push(Bytecode::Label(return_expr));
         },
-        mir::Expr::Block(mir::Block { lets, value, .. }) => {
+        mir::Expr::Block(mir::Block { lets, asserts, value, .. }) => {
             // TODO: it assumes that there's no dependency between `let` statements and
             //       everything is eager-evaluated.
             for r#let in lets.iter() {
@@ -90,6 +108,13 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                     src: Register::Return,
                     dst,
                 });
+            }
+
+            // TODO: when we have clear rules for lazy-evaluating let statements (and dependencies),
+            //       we might have to modify this
+            for assert in asserts.iter() {
+                let assert = Assert::from_mir(assert, session, false /* is_top_level */);
+                bytecode.extend(assert.bytecode);
             }
 
             lower_mir_expr(value, session, bytecode, is_tail_call);

@@ -10,7 +10,7 @@ use sodigy_fs_api::{
 };
 
 // gara test code
-fn main() {
+fn main() -> Result<(), ()> {
     if exists("sample/target/") {
         remove_dir_all("sample/target").unwrap();
     }
@@ -37,7 +37,7 @@ fn main() {
         Ok(tokens) => tokens,
         Err(error) => {
             eprintln!("{}", render_errors(&args[1], &bytes, vec![error], "sample/target/intern/str/"));
-            return;
+            return Err(());
         },
     };
     write_string(
@@ -50,7 +50,7 @@ fn main() {
         Ok(ast_block) => ast_block,
         Err(errors) => {
             eprintln!("{}", render_errors(&args[1], &bytes, errors, "sample/target/intern/str/"));
-            return;
+            return Err(());
         },
     };
     write_string(
@@ -73,7 +73,7 @@ fn main() {
     ));
 
     if has_error {
-        return;
+        return Err(());
     }
 
     write_string(
@@ -101,6 +101,10 @@ fn main() {
         ].concat(),
         "sample/target/intern/str/",
     ));
+
+    if !mir_session.errors.is_empty() {
+        return Err(());
+    }
 
     write_string(
         "sample/target/mir.rs",
@@ -147,6 +151,8 @@ fn main() {
             label_help_comment: true,
         },
     ).unwrap();
+
+    Ok(())
 }
 
 fn prettify(s: &str) -> String {
@@ -177,9 +183,14 @@ fn render_errors(
             ErrorLevel::Warning => level.color().render_fg("warning"),
             ErrorLevel::Error => level.color().render_fg("error"),
         };
+        let note = if let Some(message) = &error.extra_message {
+            format!("\nnote: {message}")
+        } else {
+            String::new()
+        };
 
         buffer.push(format!(
-            "{title}: {}\n{}\n\n",
+            "{title}: {}{note}\n{}\n\n",
             error.kind.render(intern_str_map_dir),
             sodigy_span::render_span(
                 file_name,

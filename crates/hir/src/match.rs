@@ -1,6 +1,11 @@
 use crate::{Expr, Pattern, Session};
 use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{NameKind, Namespace, UseCount};
+use sodigy_name_analysis::{
+    Counter,
+    NameKind,
+    Namespace,
+    UseCount,
+};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 
@@ -64,13 +69,20 @@ impl Match {
             let Some(Namespace::Pattern { names }) = session.name_stack.pop() else { unreachable!() };
 
             for (name, (span, kind, count)) in names.iter() {
-                if count.is_zero() {
+                if count.always == Counter::Never {
+                    let mut extra_message = None;
+
+                    if count.debug_only != Counter::Never {
+                        extra_message = Some(String::from("This value is only used in debug mode."));
+                    }
+
                     session.warnings.push(Warning {
                         kind: WarningKind::UnusedName {
                             name: *name,
                             kind: *kind,
                         },
                         span: *span,
+                        extra_message,
                         ..Warning::default()
                     });
                 }

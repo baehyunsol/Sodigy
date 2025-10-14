@@ -28,12 +28,12 @@ impl Session {
                         };
                         stack_index = Some(i);
 
-                        if self.is_evaluating_assertion {
-                            count.assert.increment();
+                        if self.is_in_debug_only_context {
+                            count.debug_only.increment();
                         }
 
                         else {
-                            count.expr.increment();
+                            count.always.increment();
                         }
 
                         break;
@@ -55,12 +55,12 @@ impl Session {
 
                         stack_index = Some(i);
 
-                        if self.is_evaluating_assertion {
-                            count.assert.increment();
+                        if self.is_in_debug_only_context {
+                            count.debug_only.increment();
                         }
 
                         else {
-                            count.expr.increment();
+                            count.always.increment();
                         }
 
                         break;

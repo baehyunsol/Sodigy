@@ -1,14 +1,49 @@
-# 33. flatten lir bytecode
+# 34. Errors, Panics and Crashes
 
-1. 모든 label에 static id를 부여해야함
-2. Label 별로 분리해야함
-  - `Label(x), Push(A), Push(B), Label(y), Pop(A), Label(z), Push(C)`가 있는 경우 이걸 `x: (Push(A), Push(B), Goto(y)), y: (Pop(A), Goto(z)), ..`로 분리해야함!
-    - 아니지 그냥 `x: (Push(A), Push(B), Pop(A), Push(C), ...), y: (Pop(A), Push(C), ...)` 이런 식으로 해도 되지... 이러면 코드는 더 길어지지만 jump가 줄어듦!
-  - unconditional jump 뒤에는 반드시 `Label`이 오거나 아무것도 안 와야함
-3. entry point
-  - test:
-  - bin:
-  - lib:
+1. Errors: `Result<T, E>`
+2. Panics: `panic(msg: String) -> !`
+  - It's impossible to catch a panic.
+  - It prints the message to stderr and terminates the process with a non-zero code.
+  - Printing a span...??
+    - Or... a stacktrace?
+    - Stacktrace를 만드려면 runtime을 수정해야하고, 그럼 모든 runtime을 똑같이 구현해야함! 귀찮쓰...
+3. Crashes: OOM, Stack overflow, ...
+  - 사실 stack overflow도 panic으로 구현하는게 가능함. stack에 뭐 넣을 때마다 크기 검사하는 거임. 그러면 프로그램이 무지 느려지겠지?? ㅋㅋㅋ
+
+모든 예외는 1이나 2를 통해야함. Runtime이 자체적으로 예외를 발생시키는 건 안됨. 예를 들어서 integer division을 한다? divisor가 0인지 아닌지를 Sodigy가 판단을 하고 Sodigy가 panic을 해야함. Python이 ZeroDivisionError를 내는 건 안됨!
+
+Intrinsic 안에서는 safety check를 하지말고, 전부 Sodigy로 구현하자! 예를 들면,
+
+```
+// Division
+fn div(a: Int, b: Int) -> Int = match b {
+    0 => panic("Zero Division Error"),
+    _ => Intrinsic.IntegerDiv(a, b),
+};
+
+// Array Index
+fn index<T>(ls: [T], i: Int) -> T = match i {
+    i if 0 <= i && i < ls.len() => Intrinsic.Index(ls, i),
+    i if -ls.len() <= i => Intrinsic.Index(ls, ls.len() + i),
+    _ => panic("Index Error"),
+};
+
+// Integer Overflow
+// 이게 젤 애매, 이건 runtime마다 다를텐데 Sodigy로 구현을 할 수가 있음??
+// Runtime 수준에서 구현하려면 panic을 호출하는게 엄청 빡셈.
+// 아니면 이건 ㅇㄸ? overflow 가능한 버전과 불가능한 버전을 둘다 만들어두고
+// runtime이 둘 중에 하나 고르도록 하는 거임!
+//
+// 이것도 좀 별로다. `IntegerMulChecked` 구현하는 건 좀 뇌절같은데...
+fn mul(a: Int, b: Int) -> Int = match Intrinsic.IntegerMulChecked(a, b) {
+    Some(x) => x,
+    None => panic!("Integer Overflow Error"),
+};
+```
+
+이래야 최적화가 더 잘되지 않을까??
+
+아니면, runtime이 자체적으로 예외를 내는 거를 허용하되, 예외 내는 방식을 정해둘까? 예를 들어서, Sodigy에서 stacktrace 만드는 옵션을 켜면 runtime이 예외를 낼 때도 sodigy stacktrace를 보여줘야하는 거임!
 
 # 32. Removing reference counts
 
@@ -114,31 +149,44 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 
 # 28. Test & Assert
 
-1. The current spec must bind assertions to a declaration. I don't like this way. I want assertions to exist on their own.
-2. Roc distinguishes top-level and inline assertions (they call it "expectation").
-  - Top-level assertions are like `#[test]` in Rust.
-  - Inline assertions are like `assert!` in Rust.
-    - It doesn't panic. It just throws an error message to stdout (or stderr, I don't know).
-  - In test mode, top-level assertions are run.
-  - In debug mode, top-level code is run with inline assertions.
-  - In release mode, all the assertions are off.
-3. In Rust, tests are *heavier*. You have to declare a function and annotate it with `#[test]`.
-  - You also have to make use of `#[cfg(test)]`. Otherwise, you'll drown in unused-name warnings.
-4. I like Roc's way.
-  - Add `assert` statement. It looks like `assert foo() == 3;`
-  - When you run `sodigy test`, it runs all the top-level assertions.
-    - Inline assertions are of course enabled.
-    - It is okay for an assertion to panic. The test runner will have no problem running the other assertions.
-    - I want a syntactic sugar for `assert x == y;` form.
-  - In debug build, inline assertions are enabled.
-  - In release build, all the assertions are disabled.
-    - I want some assertions to be enabled in release mode. I need ... decorators!
-  - How about use-analysis? Think `(used_by_expr, used_by_assertions)`
-    - `(0, 1)`: We can safely inline the definition and forget about it. We should not raise an unused-name warning.
-    - `(0, 2..)`: We do nothing here. Don't raise an unused-name warning. But if it's release mode... I want to remove this!
-    - `(1, 1..)`: We cannot inline the definition. But I want to inline this in release mode.
-    - It's even trickier when it comes to lazy/eager analysis.
-      - An asserted value would be 99% eager-evaluated.
+1. Top-level assertions
+  - It's like `#[test]` in Rust.
+  - In test mode, it checks all the assertions.
+    - How do we implement the test runner? If we implement it in Sodigy, it cannot handle panics.
+  - Lowering assertions: `assert x == y;` into `if x == y { True } else { panic() };`
+    - Who is responsible for this lowering? Anyone, even AST can do this.
+      - But I prefer doing it after type-checking
+      - lir will do this -> 지금은 eval 해서 boolean 값을 `Register::Return`에 넣고 `Bytecode::Return`을 호출하는데, 이걸 바꾸자. eval 해서 panic 하거나, 아무일도 없거나 (레지스터도 다 원상복구)
+        - 이렇게 하면, inline assertion이든 top-level assertion이든 그냥 bytecode 그대로 읽으면 됨!!
+    - Panic message: name (if exists), span (row/col), span (rendered), values (if possible)
+    - I prefer panicking when the assertion is failed, then returning False because
+      - there's no way to check the value of inline assertions
+      - an erroneous test might panic, so we have to somehow catch it anyway
+2. Inline assertions
+  - It's like `assert!` in Rust.
+  - In release mode, inline assertions are disabled.
+3. Name-analysis: We have to tweak some logic.
+  - If a name is only used by assertions, but not by expressions, we raise an unused name warning.
+    - But we add an extra help message here, saying that the name is only used in debug mode.
+    - How about adding `@unused` decorator?
+      - Just being curious here,,, is it okay to use a name that's decorated with `@unused`?
+      - How about `@allow(unused)`?
+        - well... currently the parser uses expr_parser to parse the arguments of a decorator. But the hir's expr_parser won't allow the identifier `unused`. There are a few ways to fix this:
+        - First, we can implement a separate parser for decorators. But then we have to write parser for each decorator. That'd be huge!
+          - Hir has to do this. If we choose a right timing, it can access to defined names (if it has to), and use undefined names (if it wants to).
+        - Second, we can add `unused` to namespace (only when parsing decorators).
+        - Third, we can use `@allow("unused")` syntax.
+  - If a name is used by expressions only once, and multiple time by assertions, we inline the name anyway. For example, `{ let x = foo() + 1; assert x > 0; assert x > 1; [x] }` becomes `{ let x = foo() + 1; assert x > 0; assert x > 1; [foo() + 1] }`.
+    - We need a lot of tweaks here...
+    - `let x` statement is removed in release mode, but not in debug mode.
+4. Assertions that are enabled in release mode.
+  - How about `@always` decorator?
+  - The compiler treats such assertions like an expression, not an assertion.
+  - How about top-level assertions? If a top-level assertion is to be always asserted, when does it assert?
+5. Syntactic sugar for `assert x == y;`
+  - 이게 실패하면 lhs와 rhs를 확인해야함...
+  - 근데 syntax 기준으로 뜯어내는 거는 너무 더러운데... ㅜㅜ 이건 마치 `==`를 syntactic sugar로 쓰겠다는 발상이잖아 ㅋㅋㅋ
+6. Naming assertions: `@name("fibo_assert")`.
 
 # 27. 개발 방향
 

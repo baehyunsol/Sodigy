@@ -8,7 +8,12 @@ use crate::{
     Struct,
 };
 use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{NameKind, Namespace, UseCount};
+use sodigy_name_analysis::{
+    Counter,
+    NameKind,
+    Namespace,
+    UseCount,
+};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -31,20 +36,17 @@ impl Block {
     pub fn from_ast(
         ast_block: &ast::Block,
         session: &mut Session,
-        top_level: bool,
+        is_top_level: bool,
     ) -> Result<Block, ()> {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
 
         session.name_stack.push(Namespace::Block {
-            names: ast_block.iter_names(top_level).map(
+            names: ast_block.iter_names(is_top_level).map(
                 |(k, v1, v2)| (k, (v1, v2, UseCount::new()))
             ).collect(),
         });
-
-        let is_evaluating_assertion_prev = session.is_evaluating_assertion;
-        session.is_evaluating_assertion = true;
 
         for assert in ast_block.asserts.iter() {
             match Assert::from_ast(assert, session) {
@@ -57,10 +59,8 @@ impl Block {
             }
         }
 
-        session.is_evaluating_assertion = is_evaluating_assertion_prev;
-
         for r#let in ast_block.lets.iter() {
-            match Let::from_ast(r#let, session, top_level) {
+            match Let::from_ast(r#let, session, is_top_level) {
                 Ok(l) => {
                     lets.push(l);
                 },
@@ -70,7 +70,7 @@ impl Block {
             }
         }
 
-        let func_origin = if top_level {
+        let func_origin = if is_top_level {
             FuncOrigin::TopLevel
         } else {
             FuncOrigin::Inline
@@ -124,18 +124,26 @@ impl Block {
         // TODO:
         //    inline-block: always warn unused names
         //    top-level-block: only warn unused `use`s
+        //    how about debug-only names in top-level?
         for (name, (span, kind, count)) in names.iter() {
             if let NameKind::Let { .. } = kind {
                 use_counts.insert(*name, *count);
             }
 
-            if count.is_zero() {
+            if count.always == Counter::Never {
+                let mut extra_message = None;
+
+                if count.debug_only != Counter::Never {
+                    extra_message = Some(String::from("This value is only used in debug mode."));
+                }
+
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,
                         kind: *kind,
                     },
                     span: *span,
+                    extra_message,
                     ..Warning::default()
                 });
             }

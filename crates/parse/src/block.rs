@@ -166,6 +166,15 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Assert)) => match self.parse_assert() {
                     Ok(mut assert) => {
+                        if let Some(doc_comment) = &attribute.doc_comment {
+                            errors.push(Error {
+                                kind: ErrorKind::DocCommentNotAllowed,
+                                span: assert.keyword_span,
+                                extra_span: Some(doc_comment.0[0].marker_span),
+                                ..Error::default()
+                            });
+                        }
+
                         assert.attribute = attribute;
                         asserts.push(assert);
                     },
@@ -229,7 +238,7 @@ impl<'t> Tokens<'t> {
                     if let Some(doc_comment) = &attribute.doc_comment {
                         errors.push(Error {
                             kind: ErrorKind::DocCommentNotAllowed,
-                            span: doc_comment.span,
+                            span: doc_comment.0[0].marker_span,
                             extra_message: Some(String::from("You can't add a document for an expression.")),
                             ..Error::default()
                         });

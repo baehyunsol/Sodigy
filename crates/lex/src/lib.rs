@@ -90,7 +90,6 @@ pub fn lex_gara(input: Vec<u8>, intern_map_dir: &str) -> Result<Vec<Token>, Erro
     }
 
     gara_session.group_tokens();
-    gara_session.merge_doc_comments();
     Ok(gara_session.tokens)
 }
 
@@ -1198,74 +1197,6 @@ impl Session {
 
     fn group_tokens(&mut self) {
         self.tokens = group_tokens_recursive(&self.tokens);
-    }
-
-    fn merge_doc_comments(&mut self) {
-        let mut new_tokens = vec![];
-        let mut doc_comment_buffer = vec![];
-        let mut doc_comment_span = Span::None;
-
-        // I can't use `self.tokens.iter` because that will prevent me from calling `self.intern_string`.
-        for i in 0..self.tokens.len() {
-            let token = self.tokens[i].clone();
-
-            match &token.kind {
-                TokenKind::DocComment(line) => {
-                    if doc_comment_buffer.is_empty() {
-                        doc_comment_span = token.span;
-                    } else {
-                        doc_comment_span = doc_comment_span.merge(token.span);
-                    }
-
-                    doc_comment_buffer.push(*line);
-                },
-                _ => {
-                    if !doc_comment_buffer.is_empty() {
-                        // If all the lines are N characters indented, it ignores the N characters indentation.
-                        let mut lines = Vec::with_capacity(doc_comment_buffer.len());
-                        let mut min_indent = usize::MAX;
-
-                        for line in doc_comment_buffer.iter() {
-                            let line = unintern_string(*line, &self.intern_str_map_dir).unwrap().unwrap().to_vec();
-                            let indent = line.iter().take_while(|b| **b == b' ').count();
-
-                            // If it's an empty line, we should not count its indentation.
-                            if indent < line.len() {
-                                min_indent = min_indent.min(indent);
-                            }
-
-                            lines.push(line);
-                        }
-
-                        if min_indent > 0 {
-                            lines = lines.iter().map(
-                                |line| if line.len() >= min_indent {
-                                    line.iter().skip(min_indent).map(|b| *b).collect::<Vec<_>>()
-                                } else {
-                                    line.to_vec()
-                                }
-                            ).collect();
-                        }
-
-                        self.buffer1 = lines.join(&(b"\n")[..]);
-                        new_tokens.push(Token {
-                            kind: TokenKind::DocComment(intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap()),
-                            span: doc_comment_span,
-                        });
-
-                        doc_comment_buffer.clear();
-                        doc_comment_span = Span::None;
-                    }
-
-                    new_tokens.push(token);
-                },
-            }
-        }
-
-        // lexer guarantees that `Vec<Token>` never ends with `DocComment`.
-        assert!(doc_comment_buffer.is_empty());
-
-        self.tokens = new_tokens;
     }
 }
 

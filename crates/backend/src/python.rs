@@ -29,11 +29,11 @@ pub fn python_code_gen(
 
     if config.label_help_comment {
         for func in session.funcs.iter() {
-            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap_or(b"???".to_vec()))));
+            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap())));
         }
 
         for r#let in session.lets.iter() {
-            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap_or(b"???".to_vec()))));
+            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap())));
         }
 
         for assert in session.asserts.iter() {
@@ -121,11 +121,29 @@ pub fn python_code_gen(
                     Intrinsic::IntegerSub => {
                         lines.push(format!("{indent}ret=c0[-1]-c1[-1]"));
                     },
+                    Intrinsic::IntegerDiv => {
+                        lines.push(format!("{indent}ret=c0[-1]//c1[-1]"));
+                    },
                     Intrinsic::IntegerEq => {
                         lines.push(format!("{indent}ret=c0[-1]==c1[-1]"));
                     },
                     Intrinsic::IntegerLt => {
                         lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
+                    },
+                    Intrinsic::Panic => {
+                        lines.push(format!("{indent}import sys"));
+                        lines.push(format!("{indent}sys.exit(1)"));
+                    },
+                    Intrinsic::Exit => {
+                        lines.push(format!("{indent}import sys"));
+                        lines.push(format!("{indent}sys.exit(0)"));
+                    },
+                    Intrinsic::Print => {
+                        lines.push(format!("{indent}print(c0[-1],end='')"));
+                    },
+                    Intrinsic::EPrint => {
+                        lines.push(format!("{indent}import sys"));
+                        lines.push(format!("{indent}print(c0[-1],file=sys.stderr,end='')"));
                     },
                 },
                 Bytecode::Label(_) => unreachable!(),
@@ -174,9 +192,10 @@ fn peek(r: &Register) -> String {
 
 fn py_value(v: &Const, dictionary: &str) -> String {
     match v {
-        Const::String(s) => format!(
+        Const::String { s, binary: true } => todo!(),
+        Const::String { s, binary: false } => format!(
             "{:?}",
-            String::from_utf8_lossy(&unintern_string(*s, dictionary).unwrap().unwrap_or(b"???".to_vec())),
+            String::from_utf8_lossy(&unintern_string(*s, dictionary).unwrap().unwrap()),
         ),
         Const::Number(InternedNumber { value, is_integer }) => match value {
             InternedNumberValue::SmallInteger(n) => match is_integer {

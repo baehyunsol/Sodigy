@@ -46,6 +46,11 @@ pub enum ErrorKind {
     AstPatternTypeError,  // TODO: more context?
     InvalidFnType,
     EmptyMatchStatement,
+    RedundantDecorator(InternedString),
+
+    // TODO: suggest similar names
+    // TODO: tell what it's trying to decorator
+    InvalidDecorator(InternedString),
 
     // Syntax errors in patterns
     CannotBindName(InternedString),

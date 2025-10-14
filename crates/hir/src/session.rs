@@ -9,7 +9,7 @@ pub struct Session {
     pub intern_str_map_dir: String,
     pub intern_num_map_dir: String,
     pub name_stack: Vec<Namespace>,
-    pub is_evaluating_assertion: bool,
+    pub is_in_debug_only_context: bool,
 
     // Top-level declarations are stored here.
     // Also, many inline declarations are stored here (so that inline blocks get simpler).
@@ -43,7 +43,7 @@ impl Session {
             intern_str_map_dir,
             intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
             name_stack: vec![prelude_namespace],
-            is_evaluating_assertion: false,
+            is_in_debug_only_context: false,
             lets: vec![],
             funcs: vec![],
             structs: vec![],

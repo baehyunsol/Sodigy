@@ -7,6 +7,7 @@ use crate::{
 };
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
+    Counter,
     IdentWithOrigin,
     Namespace,
     NameKind,
@@ -140,13 +141,20 @@ impl Func {
         for (name, (span, kind, count)) in names.iter() {
             use_counts.insert(*name, *count);
 
-            if count.is_zero() {
+            if count.always == Counter::Never {
+                let mut extra_message = None;
+
+                if count.debug_only != Counter::Never {
+                    extra_message = Some(String::from("This value is only used in debug mode."));
+                }
+
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,
                         kind: *kind,
                     },
                     span: *span,
+                    extra_message,
                     ..Warning::default()
                 });
             }
@@ -155,13 +163,20 @@ impl Func {
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (span, kind, count)) in names.iter() {
-            if count.is_zero() {
+            if count.always == Counter::Never {
+                let mut extra_message = None;
+
+                if count.debug_only != Counter::Never {
+                    extra_message = Some(String::from("This value is only used in debug mode."));
+                }
+
                 session.warnings.push(Warning {
                     kind: WarningKind::UnusedName {
                         name: *name,
                         kind: *kind,
                     },
                     span: *span,
+                    extra_message,
                     ..Warning::default()
                 });
             }

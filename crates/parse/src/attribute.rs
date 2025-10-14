@@ -24,14 +24,36 @@ impl Attribute {
 }
 
 #[derive(Clone, Debug)]
-pub struct DocComment {
-    pub content: InternedString,
-    pub span: Span,
-}
+pub struct DocComment(pub Vec<DocCommentLine>);
 
 impl DocComment {
-    pub fn new(content: InternedString, span: Span) -> Self {
-        DocComment { content, span }
+    pub fn new(lines: Vec<DocCommentLine>) -> Self {
+        DocComment(lines)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct DocCommentLine {
+    pub content: InternedString,
+    pub content_span: Span,
+    pub marker_span: Span,
+}
+
+impl DocCommentLine {
+    pub fn new(content: InternedString, entire_span: Span) -> Self {
+        let (marker_span, content_span) = match entire_span {
+            Span::Range { file, start, end } if start + 3 <= end => (
+                Span::Range { file, start, end: start + 3 },
+                Span::Range { file, start: start + 3, end },
+            ),
+            _ => unreachable!(),
+        };
+
+        DocCommentLine {
+            content,
+            content_span,
+            marker_span,
+        }
     }
 }
 
@@ -72,7 +94,7 @@ impl<'t> Tokens<'t> {
         loop {
             match self.peek2() {
                 (Some(Token { kind: TokenKind::DocComment(doc), span }), _) => {
-                    doc_comment_buffer.push(DocComment::new(*doc, *span));
+                    doc_comment_buffer.push(DocCommentLine::new(*doc, *span));
                     self.cursor += 1;
                 },
                 (
@@ -125,15 +147,7 @@ impl<'t> Tokens<'t> {
         if errors.is_empty() {
             let doc_comment = match doc_comment_buffer.len() {
                 0 => None,
-                1 => Some(doc_comment_buffer[0].clone()),
-                _ => {
-                    errors.push(Error {
-                        kind: ErrorKind::DocCommentForNothing,
-                        span: doc_comment_buffer[0].span,
-                        ..Error::default()
-                    });
-                    return Err(errors);
-                },
+                _ => Some(DocComment::new(doc_comment_buffer)),
             };
 
             Ok(Attribute {

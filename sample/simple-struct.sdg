@@ -13,8 +13,7 @@ let bae = Person {
     is_rustacean: True,
 };
 
-
-assert another_bae == "Bae"
+assert another_bae == "Bae";
 fn another_bae() = {
     let bae = Person {
         name: "Bae",

@@ -44,7 +44,6 @@ pub enum Bytecode {
 impl Bytecode {
     pub fn is_unconditional_jump(&self) -> bool {
         match self {
-            // Do not use wildcard!
             Bytecode::Goto(_) |
             Bytecode::Return => true,
             Bytecode::Push { .. } |
@@ -52,10 +51,20 @@ impl Bytecode {
             Bytecode::Pop(_) |
             Bytecode::PopCallStack |
             Bytecode::PushCallStack(_) |
-            Bytecode::Intrinsic(_) |
             Bytecode::Label(_) |
             Bytecode::JumpIf { .. } |
             Bytecode::JumpIfInit { .. } => false,
+            Bytecode::Intrinsic(intrinsic) => match intrinsic {
+                Intrinsic::Panic |
+                Intrinsic::Exit => true,
+                Intrinsic::IntegerAdd |
+                Intrinsic::IntegerSub |
+                Intrinsic::IntegerDiv |
+                Intrinsic::IntegerEq |
+                Intrinsic::IntegerLt |
+                Intrinsic::Print |
+                Intrinsic::EPrint => false,
+            },
         }
     }
 }

@@ -56,7 +56,10 @@ pub enum Label {
 #[derive(Clone, Copy, Debug)]
 pub enum Const {
     Number(InternedNumber),
-    String(InternedString),
+    String {
+        binary: bool,
+        s: InternedString,
+    },
 }
 
 // It doesn't call `session.make_labels_static`. Backend has to do that.
@@ -74,7 +77,7 @@ pub fn lower_mir(mir_session: &sodigy_mir::Session) -> Session {
     }
 
     for assert in mir_session.asserts.iter() {
-        let assert = Assert::from_mir(assert, &mut session);
+        let assert = Assert::from_mir(assert, &mut session, true /* is_top_level */);
         session.asserts.push(assert);
     }
 

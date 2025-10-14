@@ -40,6 +40,8 @@ impl ErrorLevel {
             ErrorKind::AstPatternTypeError |
             ErrorKind::InvalidFnType |
             ErrorKind::EmptyMatchStatement |
+            ErrorKind::RedundantDecorator(_) |
+            ErrorKind::InvalidDecorator(_) |
             ErrorKind::CannotBindName(_) |
             ErrorKind::CannotAnnotateType |
 
