@@ -170,7 +170,21 @@ pub fn python_code_gen(
     }
 
     match config.mode {
-        CodeGenMode::Test => todo!(),
+        CodeGenMode::Test => {
+            lines.push(format!("success=[]"));
+            lines.push(format!("failure=[]"));
+
+            // TODO: what about inf-loop?
+            for assert in session.asserts.iter() {
+                lines.push(format!("try:"));
+                lines.push(format!("    run({})", assert.label_id.unwrap()));
+                lines.push(format!("    success.append({:?})", "name"));   // TODO: get name of the assertion
+                lines.push(format!("except:"));
+                lines.push(format!("    failure.append({:?})", "name"));   // TODO: get name of the assertion
+            }
+
+            lines.push(format!("print(\"fail:\", len(failure), \"success:\", len(success))"));  // TODO: better result
+        },
         CodeGenMode::Bin => {
             lines.push(format!("try:"));
             lines.push(format!("    run({})", main_func_label.unwrap()));
