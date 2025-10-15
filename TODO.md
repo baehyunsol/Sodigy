@@ -11,6 +11,10 @@
     - 된다고 할까? 구현은 가능하잖아? 속도가 느리면 책임은 프로그래머가 지는 거지
   - empty map도 가능: `if let {} = map {}`이랑 `if map.is_empty() {}`랑 동일! `if let`으로 하니까 이상한데 `match`에서는 쓸만할 듯?
   - length가 1이면 이런 것도 되지 않음? `if let { _: single_value } = map {}`
+3. Python style map syntax 추가하면 안됨? `{ "name": name }`
+  - 이거 하면 curly brace 쓰는 문법이 3개나 돼버림 ㅠㅠ struct-init, block, map...
+  - struct-init을 없애버릴까?
+    - struct-init을 parenthesis로 쓰는 것도 괜찮을 거 같기는 한데, 그럼 struct pattern이 애매해짐 ㅠㅠ
 
 # 39. func default values
 
