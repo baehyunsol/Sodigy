@@ -28,7 +28,7 @@ impl Session {
                         };
                         stack_index = Some(i);
 
-                        if self.is_in_debug_only_context {
+                        if self.is_in_debug_context {
                             count.debug_only.increment();
                         }
 
@@ -55,7 +55,7 @@ impl Session {
 
                         stack_index = Some(i);
 
-                        if self.is_in_debug_only_context {
+                        if self.is_in_debug_context {
                             count.debug_only.increment();
                         }
 

@@ -16,9 +16,9 @@ impl TryFrom<Punct> for PostfixOp {
             Punct::QuestionMark => Ok(PostfixOp::QuestionMark),
             // Do not use a wildcard!
             Punct::Add | Punct::Sub | Punct::Mul |
-            Punct::Div | Punct::Rem | Punct::Colon |
-            Punct::Semicolon | Punct::Lt | Punct::Assign |
-            Punct::Gt | Punct::Comma | Punct::Dot | Punct::At |
+            Punct::Div | Punct::Rem | Punct::Colon | Punct::Semicolon |
+            Punct::Lt | Punct::Assign | Punct::Gt |
+            Punct::Comma | Punct::Dot | Punct::At | Punct::Dollar |
             Punct::And | Punct::Or | Punct::AndAnd | Punct::OrOr |
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |

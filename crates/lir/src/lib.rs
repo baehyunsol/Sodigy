@@ -22,13 +22,17 @@ pub use session::Session;
 // The callee may use `Local(i)` registers if it needs extra registers.
 // Popping `Call(i)` is callee's responsibility because otherwise we cannot
 // implement tail-call. And that's why we need `Local(i)` in some cases.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Register {
-    // These are stacks
+    // These are stacks.
+    // `Local(i)` and `Local(j)` are different stacks if `i != j`.
     Local(u32),
     Call(u32),
 
-    // These are not stacks
+    // The compiler treats it like a stack, but the runtime doesn't have to.
+    // If you're implementing a runtime, when you see `Bytecode::Pop(Register::Return)`,
+    // you don't have to pop anything. You just have to decrement the reference count of
+    // the value in `Register::Return`.
     Return,
 
     // Usually, it points to a top-level `let` statement.

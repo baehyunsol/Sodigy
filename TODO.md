@@ -1,3 +1,129 @@
+# 40. Map
+
+1. In Sodigy vs Builtin
+  - Sodigy로 짜면 10배는 느릴 듯 ㅋㅋㅋ
+  - builtin 사용하면 언어마다 명세가 조금씩 달라서 애먹을 듯
+    - 예를 들어서, 모든 함수가 pure해야하지만 (당연히 backend가 달라도 결과가 같아야함), edge case가 엄청 많을 듯?
+2. pattern matching for maps?
+  - `if let { "name": name } = map {}`
+  - 괜찮을 거 같긴한데? ㅋㅋㅋ
+  - 그대신 key 자리에 const만 가능함. `{ r"\d+": number }` 이런 거 안됨
+    - 된다고 할까? 구현은 가능하잖아? 속도가 느리면 책임은 프로그래머가 지는 거지
+  - empty map도 가능: `if let {} = map {}`이랑 `if map.is_empty() {}`랑 동일! `if let`으로 하니까 이상한데 `match`에서는 쓸만할 듯?
+  - length가 1이면 이런 것도 되지 않음? `if let { _: single_value } = map {}`
+
+# 39. func default values
+
+```
+fn add(x, y=10) = x + y;
+```
+
+`10`을 `let y = 10`으로 빼버리는 것까지는 좋은데... 지금은 무작정 `let`을 top-level로 보내고 있거든? `let` 하고 `fn` 하고 똑같은 level에 있도록 해야함! 그래야 name scope가 똑같으니까 생각할게 적을 듯...
+
+# 38. More on memory
+
+1. dec_rc를 한 다음에 destructor를 호출하려면... 현재 보고 있는 값이 Integer/String인지 Compound인지 알아야 함!
+  - 만약 Compound라면 element는 몇개인지, 각 element의 type은 뭔지도 알아야 함...
+2. ref-count 분석을 했다고 치자... 그래서 뭘 할 수 있지? 어차피 다 heap에 올라가면 이득이 거의 없는 거 아님??
+  - 즉, heap-allocation을 아예 피하는 방법을 찾아야함, how?
+3. in-place mutation -> bytecode로 어떻게 표현? ref_count는??
+  - 지금은 그냥 `Register::Call(0)`에다가 struct 두고 `Register::Call(1)`에다가 index 두고 `Register::Call(2)`에다가 value 둔 다음에 `Intrinsic::Update` 해야겠지?
+  - 그럼 `Intrinsic::Update`가 새로운 struct 만들고, 기존 field 복사하고 (update할 field 빼고) (이때 inc_rc도 하고), value도 복사하고 (이때 inc_rc)도 하고, 이거 끝나면 `Register::Call(_)`에 있는 값들 pop하면서 dec_rc도 함.
+  - in-place로 하려면 새로운 struct 만드는대신 기존 struct를 inc_rc 하고, 기존 field는 건드리지 말고, value는 복사해서 inc_rc하고, 덮어씌워지는 값은 dec_rc 하고, 그럼 됨!
+    - 조금 더 싸네
+  - 근데, Sodigy에 cyclic reference가 없는 이유가 in-place mutation이 없기 때문이잖아, 이 최적화를 하면 cycle이 생길 수도 있는 거 아님??
+
+# 37. debug function
+
+- 단순 print문이나 log문으로 디버깅하기 -> 필수!
+- Sodigy로 서버를 만들면 log를 엄청 남겨야하는데? -> 필..수?
+
+1. `fn debug<T>(v: T, pre: String = "", post: String = "") -> T;`
+  - `v`의 값을 출력하고, `v`를 그대로 반환
+  - 앞뒤에 추가로 문자열 붙일 수 있음!!
+  - 문제점
+    - 어느 시점에 호출될지를 정할 수 없음
+    - 사용되지 않는 값은 출력이 불가능.
+2. `echo` statement
+  - 당연히 debug-mode에만 작동
+  - 인수를 그대로 출력
+  - 문제점
+    - statement를 추가하는 거 자체가 별로임
+    - debug-mode에만 작동된다는 걸 납득 못하는 사람들이 많을 듯
+    - 그냥 print문 대용으로 쓰려고 할 듯
+3. breakpoint를 걸 수 있게 할까?
+  - 그럼 debugger가 필요한데...
+4. 함수 로그 찍는 decorator를 만들까?
+  - 진입할 때 arg 전부 다 보여주고, 빠져나올 때 결과값도 보여줌 -> 이러면 tail-call을 못하는데??
+
+일단은 보류하고 (아직은 debugging이 필요할 정도로 긴 Sodigy 코드를 못 짬), Sodigy 코드를 많이 짜고 나서 그때 생각할까?
+
+# 36. Impure IO
+
+지금 생각한 거는,
+
+```
+fn main(world: World) -> World = match foo() {
+    $whatever => main(
+        world
+            .print("Hello, World!")
+            .write_string("file.txt", "Hello, World!")
+    ),
+    _ => world.quit(),
+};
+```
+
+이런 식으로 하는 거임. 모든 impure function은 `world`를 통해서만 호출 가능. `main`에서 나가는 순간 `world`에 붙어있는 impure action을 다 처리함. `main`을 recursive하게 호출함으로써 impure action의 결과를 사용할 수도 있음. `World`는 `main`에서만 사용 가능.
+
+근데 이러면 action의 결과를 어떻게 읽어?
+
+# 35. CLI
+
+Rust를 이용해서 sodigyc (rustc에 대응)를 만들고, Sodigy를 이용해서 가제 (cargo에 대응)를 만듦. 단, sodigyc로도 대부분의 작업이 가능.
+
+예를 들어서, `sodigyc run fibonacci.sdg`를 하면 지가 알아서 임시 폴더 만들어서 컴파일하고, 임시폴더 삭제한 다음에, 결과물 실행. 이러려면 Rust로 구현된 bytecode interpreter가 필요!!
+
+sodigyc:
+
+1. Input: code, hir, mir, bytecode (run-only)
+  - Specify vs Infer
+  - hir이나 mir을 주려면 interned_string은 어떻게 함?
+    - hir로 serialize 할 때 unintern 하기
+    - intern map도 같이 주기
+  - bytecode에 무슨 정보가 더 필요할까? test-harness 만들 때 필요한 정보도 다 들어있어야겠지?
+2. Output: hir, mir, bytecode/python/c/rust
+3. Action: compile, run (bytecode), compile and run
+4. Intermediate result: tmp and remove, tmp, specific
+  - interned_string_map
+  - interned_number_map
+  - hir for inter-file analysis
+  - mir for inter-file analysis
+5. Backend: Python/C/Rust/Bytecode
+6. Profile: Test/Debug/Release
+
+```
+# multi-file은 일단은 생각하지 않음!
+sodigy build <code> [-o | --output <file=out.ext>] [--backend <rust|python|c|bytecode>] [-O | --release | --test]
+sodigy build-hir <code> [-o | --output <file=out.hir>] [--ir <dir>]
+sodigy build-mir <hir> [-o | --output <file=out.mir>]
+sodigy build-bytecode <mir> [-o | --output <file=out.ext>] [--backend <rust|python|c|bytecode>] [-O | --release | --test]
+
+# always bytecode backend (so that the compiler can run this)
+sodigy run <code> [-O | --release]  # it's just `sodigy build --backend=bytecode` + `sodigy interpret`
+sodigy test <code>
+
+sodigy interpret <bytecode> [--test]
+```
+
+가제:
+
+1. Input: `src/` and `sodigy.toml`
+2. Output: Bytecode/Python/C/Rust
+3. Action: compile, run, compile and run
+4. Intermediate result: `target/`
+5. Backend: Python/C/Rust/Bytecode
+6. Profile: Test/Debug/Release
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`
@@ -182,11 +308,32 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 4. Assertions that are enabled in release mode.
   - How about `@always` decorator?
   - The compiler treats such assertions like an expression, not an assertion.
-  - How about top-level assertions? If a top-level assertion is to be always asserted, when does it assert?
+  - If a top-level assertion is decorated with `@always`, it's asserted before entering the main function.
+    - It's ignored in test-context.
 5. Syntactic sugar for `assert x == y;`
   - 이게 실패하면 lhs와 rhs를 확인해야함...
   - 근데 syntax 기준으로 뜯어내는 거는 너무 더러운데... ㅜㅜ 이건 마치 `==`를 syntactic sugar로 쓰겠다는 발상이잖아 ㅋㅋㅋ
+  - 아니면 좀 덜 sugarly하게 할까? 그냥 모든 expr에 대해서 다 inspect 하는 거임 ㅋㅋㅋ
+    - value가 `Call { func: Callable, args: Vec<Expr> }`인 경우, `func`랑 `args`를 dump (infix_op도 다 여기에 잡힘)
+    - value가 `Block { lets: Vec<Let>, value: Expr }`인 경우, `lets`를 dump (expr만), `value`는 dump할 필요없음 (당연히 False일테니)
+    - value가 `if { cond: Expr, .. }`인 경우, `cond`를 dump, `value`는 dump할 필요없음 (당연히 False일테니)
+    - value가 `match { value: Expr, .. }`인 경우, `value`를 dump하고 어느 branch에 걸렸는지도 dump
 6. Naming assertions: `@name("fibo_assert")`.
+7. Test 결과를 runtime이 compiler한테 다시 전달하면 compiler가 span 꾸며서 dump하기... 괜찮은 듯!
+  - 지금은 test 돌리면 runtime에서 알아서 모든 test 돌리고 결과물 즉시 출력하게 돼 있거든? 이러지말고,
+  - 1, runtime에다가 label id를 주면 runtime이 그 label을 실행하도록 code gen
+  - 2, compiler가 runtime한테 label을 하나씩 줌.
+  - 3, runtime의 exit code를 보고 실패/성공을 판단
+  - 4, compiler가 결과물을 출력
+    - 이러면 결과물을 출력하는 코드를 하나만 짜도 됨.
+    - 이러면 span까지 같이 보여줄 수 있음!!
+      - 사실 top-level assertion은 span이 필요가 없고, inline assertion의 span이 더 중요함. 근데 inline assertion은 span을 바로 출력하는게 좀 빡셈... inline assertion이 error message를 잘 만들어서 던지면 compiler가 그걸 읽고 regex로 뜯어서 span을 찾아낸 다음에 render 해야함...
+  - 문제: rust로 구현된 interpreter는 이게 되는데, Python 구현체는 즉시 호출이 불가능 (하거나 힘듦).
+    - Python이나 javascript는 어찌저찌 한다고 쳐봐 (python path를 넘겨주는 거지), C는 어케할 건데?
+    - 생각하면 할수록, runtime이 알아서 테스트 돌리고 끝나야함...ㅜㅜ
+    - `cargo test` 해보니까 얘도 큰 binary 만들어서 그거 한번 돌리고 끝남. 출력도 다 이 안에서 하고, panic도 지가 알아서 잡는 듯?
+    - 애초에 backend가 여러개인게 문제임!! 그냥 rust나 Python으로만 구현하고 다른 backend는 나중에 생각해야함...
+    - if we can catch panics, we can implement the test harness completely in bytecode...
 
 # 27. 개발 방향
 
@@ -213,6 +360,10 @@ Person {
   ..Person.default()
 }
 ```
+
+하는 김에 `Person { name: name }`을 `Person { name }`으로 쓰는 syntax sugar도 만들고 싶음.
+
+얘네 하려면 한가지 문제가, 지금은 `{ IDENT COLON .? }`를 확인해서 struct_init인지 block인지 구분하거든? 이게 더이상 안 먹히게 됨. 이게 안 먹히면 `if IDENT { .? }`를 보고 뒤의 group이 true_value인지 struct_init인지 판단할 수가 없음... Rust도 동일한 문제가 있거든? 그래서 얘네는 무조건 true_value로 취급해버림. 만약에 저 위치에 struct_init을 쓰고 싶으면 무조건 괄호로 묶어야함 ㅋㅋ 걍 따라하자 ㅋㅋ
 
 # 19. cycle-checks in `let` values
 

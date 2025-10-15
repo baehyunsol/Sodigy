@@ -12,7 +12,7 @@
 //   - (IDENT (DOT IDENT)*)? TUPLE_PATTERN
 //   - LIST_PATTERN
 //   - OPEN_PAREN PATTERN CLOSE_PAREN
-//   - PATTERN (DOTDOT | DOTDOT_EQ) PATTERN
+//   - PATTERN? (DOTDOT | DOTDOT_EQ) PATTERN
 //   - PATTERN OR PATTERN
 //   - FULL_PATTERN CONCAT FULL_PATTERN
 // - TUPLE_PATTERN
@@ -66,7 +66,19 @@ pub enum Pattern {
         id: InternedString,
         span: Span,
     },
+    Path(Vec<(InternedString, Span)>),
     Wildcard(Span),
+    Struct {
+        r#struct: Vec<(InternedString, Span)>,
+        fields: Vec<StructFieldPattern>,
+        dot_dot: bool,
+        group_span: Span,
+    },
+    TupleStruct {
+        r#struct: Vec<(InternedString, Span)>,
+        elements: Vec<FullPattern>,
+        group_span: Span,
+    },
     Tuple {
         elements: Vec<FullPattern>,
         group_span: Span,
@@ -93,6 +105,13 @@ pub enum Pattern {
     },
 }
 
+#[derive(Clone, Debug)]
+pub struct StructFieldPattern {
+    pub name: InternedString,
+    pub span: Span,
+    pub pattern: FullPattern,
+}
+
 impl Pattern {
     pub fn error_span(&self) -> Span {
         match self {
@@ -104,24 +123,30 @@ impl Pattern {
             Pattern::Range { op_span: span, .. } |
             Pattern::Or { op_span: span, .. } |
             Pattern::Concat { op_span: span, .. } => *span,
+            Pattern::Path(path) |
+            Pattern::Struct { r#struct: path, .. } |
+            Pattern::TupleStruct { r#struct: path, .. } => {
+                let mut result = path[0].1;
+
+                for (_, span) in path.iter() {
+                    result = result.merge(*span);
+                }
+
+                result
+            },
         }
     }
 
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             Pattern::Number { .. } |
-            Pattern::Wildcard(_) => vec![],
+            Pattern::Wildcard(_) |
+            Pattern::Path(_) => vec![],
             Pattern::Identifier { id, span } => vec![(*id, *span)],
+            Pattern::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
+            Pattern::TupleStruct { elements, .. } |
             Pattern::Tuple { elements, .. } |
-            Pattern::List { elements, .. } => {
-                let mut result = vec![];
-
-                for e in elements.iter() {
-                    result.extend(e.bound_names());
-                }
-
-                result
-            },
+            Pattern::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
             Pattern::Range { lhs, rhs, .. } => {
                 let mut result = vec![];
 
@@ -352,7 +377,19 @@ impl<'t> Tokens<'t> {
                 Pattern::Number { n, span }
             },
             // `..3`
-            (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => todo!(),
+            (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
+                let op_span = *span;
+                let is_inclusive = matches!(p, Punct::DotDotEq);
+                self.cursor += 1;
+
+                let rhs = self.parse_pattern()?;
+                Pattern::Range {
+                    lhs: None,
+                    rhs: Some(Box::new(rhs)),
+                    op_span,
+                    is_inclusive,
+                }
+            },
             (t1, t2) => panic!("TODO: ({t1:?}, {t2:?})"),
         };
 
@@ -362,28 +399,25 @@ impl<'t> Tokens<'t> {
                 let op_span = *span;
                 let is_inclusive = matches!(p, Punct::DotDotEq);
                 self.cursor += 1;
-                let prev_cursor = self.cursor;
 
-                match self.parse_pattern() {
-                    Ok(rhs) => {
-                        return Ok(Pattern::Range {
-                            lhs: Some(Box::new(pattern)),
-                            rhs: Some(Box::new(rhs)),
-                            op_span,
-                            is_inclusive,
-                        });
-                    },
-                    // TODO: it assumes that it's an open-ended range if it cannot parse rhs.
-                    //       but maybe there's an rhs with a syntax error. In such case, it has to return this error.
-                    Err(_) => {
-                        self.cursor = prev_cursor;
-                        return Ok(Pattern::Range {
-                            lhs: Some(Box::new(pattern)),
-                            rhs: None,
-                            op_span,
-                            is_inclusive,
-                        });
-                    },
+                if let Some(true) = self.peek().map(|t| t.pattern_begin()) {
+                    let rhs = self.parse_pattern()?;
+
+                    return Ok(Pattern::Range {
+                        lhs: Some(Box::new(pattern)),
+                        rhs: Some(Box::new(rhs)),
+                        op_span,
+                        is_inclusive,
+                    });
+                }
+
+                else {
+                    return Ok(Pattern::Range {
+                        lhs: Some(Box::new(pattern)),
+                        rhs: None,
+                        op_span,
+                        is_inclusive,
+                    });
                 }
             },
             _ => {},

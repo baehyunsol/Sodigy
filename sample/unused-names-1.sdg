@@ -17,3 +17,6 @@ fn outer(x1, x2, x3) = {  // x3 is unused
 
     x2 + local1 + inner(10, 20, 30)
 };
+
+// x is used, y is unused.
+assert { let x = 3; let y = 4; x == 3 };

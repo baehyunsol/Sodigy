@@ -51,7 +51,7 @@ impl TryFrom<Punct> for InfixOp {
             Punct::DotDotEq => Ok(InfixOp::Range { inclusive: true }),
             // Do not use a wildcard!
             Punct::Colon | Punct::Semicolon | Punct::Assign |
-            Punct::Comma | Punct::Dot | Punct::At |
+            Punct::Comma | Punct::Dot | Punct::At | Punct::Dollar |
             Punct::QuestionMark | Punct::Arrow | Punct::ReturnType => Err(()),
         }
     }

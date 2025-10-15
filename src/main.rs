@@ -8,6 +8,8 @@ use sodigy_fs_api::{
     write_bytes,
     write_string,
 };
+use sodigy_string::unintern_string;
+use std::collections::HashMap;
 
 // gara test code
 fn main() -> Result<(), ()> {
@@ -152,6 +154,34 @@ fn main() -> Result<(), ()> {
             mode: sodigy_backend::CodeGenMode::Test,
         },
     ).unwrap();
+
+    // let mut asserts = HashMap::new();
+    // let mut anon_index = 0;
+
+    // for assert in lir_session.asserts.iter() {
+    //     let assert_name = match assert.name {
+    //         Some(name) => String::from_utf8_lossy(&unintern_string(name, "sample/target/intern/str/").unwrap().unwrap()).to_string(),
+    //         None => {
+    //             anon_index += 1;
+    //             format!("anonymous-{anon_index}")
+    //         },
+    //     };
+
+    //     asserts.insert(assert_name, assert.label_id.unwrap());
+    // }
+
+    // for (name, label) in asserts.iter() {
+    //     let mut heap = sodigy_backend::Heap::new();
+
+    //     match sodigy_backend::interpret(
+    //         &bytecode,
+    //         &mut heap,
+    //         *label,
+    //     ) {
+    //         Ok(()) => todo!(),
+    //         Err(_) => todo!(),
+    //     }
+    // }
 
     Ok(())
 }

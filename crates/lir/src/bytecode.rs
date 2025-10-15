@@ -3,6 +3,7 @@ use sodigy_mir::Intrinsic;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Bytecode {
+    // It peeks a value from `src` and pushes that to `dst`.
     Push {
         src: Register,
         dst: Register,
@@ -22,13 +23,14 @@ pub enum Bytecode {
     // the result at `Register::Return`.
     Intrinsic(Intrinsic),
 
-    // creates a label
+    // After calling `into_labeled_bytecode`, `Bytecode::Label` must all be gone.
     Label(Label),
 
     // goto(call_stack.peek());
     // It doesn't pop `call_stack`.
     Return,
 
+    // It's guaranteed that `value` has type `Bool`.
     JumpIf {
         value: Register,
         label: Label,
@@ -59,8 +61,10 @@ impl Bytecode {
                 Intrinsic::Exit => true,
                 Intrinsic::IntegerAdd |
                 Intrinsic::IntegerSub |
+                Intrinsic::IntegerMul |
                 Intrinsic::IntegerDiv |
                 Intrinsic::IntegerEq |
+                Intrinsic::IntegerGt |
                 Intrinsic::IntegerLt |
                 Intrinsic::Print |
                 Intrinsic::EPrint => false,

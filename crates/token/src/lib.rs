@@ -17,6 +17,13 @@ pub struct Token {
     pub span: Span,
 }
 
+impl Token {
+    // A token that can be a beginning of a pattern.
+    pub fn pattern_begin(&self) -> bool {
+        self.kind.pattern_begin()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum TokenKind {
     Keyword(Keyword),
@@ -67,6 +74,36 @@ impl TokenKind {
             (TokenKind::Group { delim: a, .. }, TokenKind::Group { delim: b, .. }) => a == b,
             (TokenKind::Group { .. }, _) => false,
             _ => todo!(),
+        }
+    }
+
+    // A token that can be a beginning of a pattern.
+    pub fn pattern_begin(&self) -> bool {
+        match self {
+            TokenKind::Identifier(_) |
+            TokenKind::Number(_) |
+            TokenKind::String { .. } |
+            TokenKind::Char { .. } => true,
+
+            TokenKind::Keyword(_) |
+            TokenKind::FieldModifier(_) |
+            TokenKind::DocComment(_) |
+            TokenKind::GroupDelim { delim: None, .. } => false,
+
+            TokenKind::Punct(p) => match p {
+                Punct::Dollar |
+                Punct::DotDot |
+                Punct::DotDotEq => true,
+                _ => false,
+            },
+
+            TokenKind::GroupDelim { delim: Some(delim), .. } |
+            TokenKind::Group { delim, .. } => match delim {
+                Delim::Parenthesis |
+                Delim::Bracket => true,
+                Delim::Brace |
+                Delim::Lambda => false,
+            },
         }
     }
 }

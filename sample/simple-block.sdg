@@ -1,4 +1,5 @@
 assert block1 == 400;
+assert block1 + block1 == 800;
 let block1 = {
     let x = 100;
     let y = 200;

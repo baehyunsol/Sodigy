@@ -69,7 +69,8 @@ impl Match {
             let Some(Namespace::Pattern { names }) = session.name_stack.pop() else { unreachable!() };
 
             for (name, (span, kind, count)) in names.iter() {
-                if count.always == Counter::Never {
+                if (!session.is_in_debug_context && count.always == Counter::Never) ||
+                    (session.is_in_debug_context && count.debug_only == Counter::Never) {
                     let mut extra_message = None;
 
                     if count.debug_only != Counter::Never {

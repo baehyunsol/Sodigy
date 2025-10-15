@@ -40,7 +40,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
 
                         Register::Const(id.def_span)
                     },
-                    NameOrigin::Foreign { .. } => todo!(),
+                    NameOrigin::Foreign { .. } => panic!("TODO: {id:?}"),
 
                     // Otherwise, it's a local value, so it must be at `session.local_registers`.
                     _ => unreachable!(),
@@ -87,6 +87,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                 value: Register::Return,
                 label: eval_true_value,
             });
+            bytecode.push(Bytecode::Pop(Register::Return));
 
             // If it `is_tail_call`, it'll exit after evaluating `false_value`,
             // so we don't have to care about it.
@@ -95,6 +96,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
             bytecode.push(Bytecode::Goto(return_expr));
 
             bytecode.push(Bytecode::Label(eval_true_value));
+            bytecode.push(Bytecode::Pop(Register::Return));
             lower_mir_expr(true_value, session, bytecode, is_tail_call);
             bytecode.push(Bytecode::Label(return_expr));
         },
@@ -108,6 +110,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                     src: Register::Return,
                     dst,
                 });
+                bytecode.push(Bytecode::Pop(Register::Return));
             }
 
             // TODO: when we have clear rules for lazy-evaluating let statements (and dependencies),
@@ -126,6 +129,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                     src: Register::Return,
                     dst: Register::Call(i as u32),
                 });
+                bytecode.push(Bytecode::Pop(Register::Return));
             }
 
             match func {

@@ -5,13 +5,18 @@
 pub enum Intrinsic {
     // pure
     // `Fn(Int, Int) -> Int`
-    // It must panic if there's an overflow.
+    // The compiler assumes that there's no integer overflow.
     IntegerAdd,
 
     // pure
     // `Fn(Int, Int) -> Int`
-    // It must panic if there's an overflow.
+    // The compiler assumes that there's no integer overflow.
     IntegerSub,
+
+    // pure
+    // `Fn(Int, Int) -> Int`
+    // The compiler assumes that there's no integer overflow.
+    IntegerMul,
 
     // pure
     // `Fn(Int, Int) -> Int`
@@ -21,6 +26,10 @@ pub enum Intrinsic {
     // pure
     // `Fn(Int, Int) -> Bool`
     IntegerEq,
+
+    // pure
+    // `Fn(Int, Int) -> Bool`
+    IntegerGt,
 
     // pure
     // `Fn(Int, Int) -> Bool`

@@ -27,6 +27,7 @@ pub fn python_code_gen(
     let mut indent;
     let mut main_func_label = None;
     let mut help_comment_map = HashMap::new();
+    let capture_output = matches!(config.mode, CodeGenMode::Test);
 
     if config.label_help_comment {
         for func in session.funcs.iter() {
@@ -50,9 +51,20 @@ pub fn python_code_gen(
     }
 
     indent = " ".repeat(0);
-    lines.push(format!("{indent}def run(l):"));
+
+    if capture_output {
+        lines.push(format!("{indent}stdout=[]"));
+        lines.push(format!("{indent}stderr=[]"));
+    }
+
+    lines.push(format!("{indent}def run(l):"));  // returns True if there's no error
 
     indent = " ".repeat(4);
+
+    if capture_output {
+        lines.push(format!("{indent}global stdout, stderr"));
+    }
+
     lines.push(format!("{indent}cs=[]"));
     lines.push(format!("{indent}const={}", "{}"));
 
@@ -106,6 +118,9 @@ pub fn python_code_gen(
                     Register::Call(_) => {
                         lines.push(format!("{indent}{}.pop()", place(src)));
                     },
+                    Register::Return => {
+                        // there's nothing to do because Python will take care of the reference count
+                    },
                     _ => unreachable!(),
                 },
                 Bytecode::PushCallStack(label) => match label {
@@ -131,27 +146,45 @@ pub fn python_code_gen(
                     Intrinsic::IntegerSub => {
                         lines.push(format!("{indent}ret=c0[-1]-c1[-1]"));
                     },
+                    Intrinsic::IntegerMul => {
+                        lines.push(format!("{indent}ret=c0[-1]*c1[-1]"));
+                    },
                     Intrinsic::IntegerDiv => {
                         lines.push(format!("{indent}ret=c0[-1]//c1[-1]"));
                     },
                     Intrinsic::IntegerEq => {
                         lines.push(format!("{indent}ret=c0[-1]==c1[-1]"));
                     },
+                    Intrinsic::IntegerGt => {
+                        lines.push(format!("{indent}ret=c0[-1]>c1[-1]"));
+                    },
                     Intrinsic::IntegerLt => {
                         lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
                     },
                     Intrinsic::Panic => {
-                        lines.push(format!("{indent}raise Exception"));
+                        lines.push(format!("{indent}return False"));
                     },
                     Intrinsic::Exit => {
-                        lines.push(format!("{indent}return"));
+                        lines.push(format!("{indent}return True"));
                     },
                     Intrinsic::Print => {
-                        lines.push(format!("{indent}print(c0[-1],end='')"));
+                        if capture_output {
+                            lines.push(format!("{indent}stdout.append(c0[-1])"));
+                        }
+
+                        else {
+                            lines.push(format!("{indent}print(c0[-1],end='')"));
+                        }
                     },
                     Intrinsic::EPrint => {
-                        lines.push(format!("{indent}import sys"));
-                        lines.push(format!("{indent}print(c0[-1],file=sys.stderr,end='')"));
+                        if capture_output {
+                            lines.push(format!("{indent}stderr.append(str(c0[-1]))"));
+                        }
+
+                        else {
+                            lines.push(format!("{indent}import sys"));
+                            lines.push(format!("{indent}print(c0[-1],file=sys.stderr,end='')"));
+                        }
                     },
                 },
                 Bytecode::Label(_) => unreachable!(),
@@ -171,28 +204,42 @@ pub fn python_code_gen(
 
     match config.mode {
         CodeGenMode::Test => {
-            lines.push(format!("success=[]"));
-            lines.push(format!("failure=[]"));
+            let mut anon_index = 0;
+            lines.push(String::from("s,f=0,0"));
+            lines.push(String::from("stderr_map={}"));
 
-            // TODO: what about inf-loop?
             for assert in session.asserts.iter() {
-                lines.push(format!("try:"));
-                lines.push(format!("    run({})", assert.label_id.unwrap()));
-                lines.push(format!("    success.append({:?})", "name"));   // TODO: get name of the assertion
-                lines.push(format!("except:"));
-                lines.push(format!("    failure.append({:?})", "name"));   // TODO: get name of the assertion
+                let assert_name = match assert.name {
+                    Some(name) => String::from_utf8_lossy(&unintern_string(name, &config.intern_str_map_dir).unwrap().unwrap()).to_string(),
+                    None => {
+                        anon_index += 1;
+                        format!("anonymous_assertion_{anon_index}")
+                    },
+                };
+                lines.push(format!("stdout,stderr=[],[]"));
+                lines.push(format!("if run({}):", assert.label_id.unwrap()));
+                lines.push(format!("    s+=1"));
+                lines.push(format!("    print({assert_name:?}+': \\033[32mPass\\033[0m')"));
+                lines.push(format!("else:"));
+                lines.push(format!("    f+=1"));
+                lines.push(format!("    print({assert_name:?}+': \\033[31mFail\\033[0m')"));
+                lines.push(format!("    stderr_map[{assert_name:?}]=''.join(stderr)"));
             }
 
-            lines.push(format!("print(\"fail:\", len(failure), \"success:\", len(success))"));  // TODO: better result
+            lines.push(String::from("print()"));
+            lines.push(String::from("if f>0:"));
+            lines.push(String::from("    for name,stderr in stderr_map.items():"));
+            lines.push(String::from("        print(f'---- {name} stderr ----')"));
+            lines.push(String::from("        print(stderr)"));
+            lines.push(String::from("    print()"));
+            lines.push(String::from("print(f'passed: {s}, failed: {f}')"));
+            lines.push(String::from("if f>0:"));
+            lines.push(String::from("    import sys"));
+            lines.push(String::from("    sys.exit(1)"));
         },
-        CodeGenMode::Bin => {
-            lines.push(format!("try:"));
-            lines.push(format!("    run({})", main_func_label.unwrap()));
-            lines.push(format!("except:"));
-            lines.push(format!("    import sys"));
-            lines.push(format!("    sys.exit(1)"));
+        CodeGenMode::Binary => {
+            lines.push(format!("run({})", main_func_label.unwrap()));
         },
-        CodeGenMode::Lib => todo!(),
     }
 
     write_string(

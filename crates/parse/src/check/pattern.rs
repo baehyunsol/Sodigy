@@ -86,7 +86,30 @@ impl Pattern {
         match self {
             Pattern::Number { .. } |
             Pattern::Identifier { .. } |
+            Pattern::Path(_) |
             Pattern::Wildcard(_) => Ok(()),
+            Pattern::Struct { fields, .. } => {
+                // There maybe name collisions in the fields, but AST doesn't care about that.
+                let mut errors = vec![];
+
+                for field in fields.iter() {
+                    if let Err(e) = field.pattern.check(
+                        /* allow type annotation: */ false,
+                        /* is_inner_pattern: */ true,
+                    ) {
+                        errors.extend(e);
+                    }
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Pattern::TupleStruct { elements, .. } |
             Pattern::Tuple { elements, .. } |
             Pattern::List { elements, .. } => {
                 let mut errors = vec![];
@@ -217,7 +240,26 @@ impl Pattern {
                 }
             },
             Pattern::Identifier { .. } |
-            Pattern::Wildcard(_) => Ok(PatternType::NotSure),
+            Pattern::Wildcard(_) |
+            Pattern::Path(_) => Ok(PatternType::NotSure),
+            Pattern::Struct { fields, .. } => {
+                let mut errors = vec![];
+
+                for field in fields.iter() {
+                    if let Err(e) = field.pattern.pattern.type_check() {
+                        errors.extend(e);
+                    }
+                }
+
+                if errors.is_empty() {
+                    Ok(PatternType::NotSure)
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Pattern::TupleStruct { elements, .. } |
             Pattern::Tuple { elements, .. } => {
                 let mut types = Vec::with_capacity(elements.len());
                 let mut errors = vec![];

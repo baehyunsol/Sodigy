@@ -8,6 +8,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct Assert {
     pub name: Option<InternedString>,
+    pub note: Option<InternedString>,
     pub keyword_span: Span,
     pub value: Expr,
 
@@ -19,7 +20,7 @@ pub struct Assert {
 #[derive(Clone, Debug)]
 pub struct AssertAttribute {
     pub name: Option<InternedString>,
-
+    pub note: Option<InternedString>,
     pub always: bool,
 }
 
@@ -27,6 +28,7 @@ impl Default for AssertAttribute {
     fn default() -> Self {
         AssertAttribute {
             name: None,
+            note: None,
             always: false,
         }
     }
@@ -44,8 +46,8 @@ impl Assert {
             },
         };
 
-        let is_in_debug_only_context_prev = session.is_in_debug_only_context;
-        session.is_in_debug_only_context = !attribute.always;
+        let is_in_debug_context_prev = session.is_in_debug_context;
+        session.is_in_debug_context = !attribute.always;
 
         let value = match Expr::from_ast(&ast_assert.value, session) {
             Ok(value) => Some(value),
@@ -55,7 +57,7 @@ impl Assert {
             },
         };
 
-        session.is_in_debug_only_context = is_in_debug_only_context_prev;
+        session.is_in_debug_context = is_in_debug_context_prev;
 
         if has_error {
             Err(())
@@ -64,6 +66,7 @@ impl Assert {
         else {
             Ok(Assert {
                 name: attribute.name,
+                note: attribute.note,
                 keyword_span: ast_assert.keyword_span,
                 value: value.unwrap(),
                 always: attribute.always,
@@ -79,6 +82,7 @@ impl AssertAttribute {
         assert_span: Span,
     ) -> Result<AssertAttribute, ()> {
         let mut name = None;
+        let mut note = None;
         let mut always = false;
         let mut has_error = false;
 
@@ -117,6 +121,20 @@ impl AssertAttribute {
                     name_span_map.insert(d_name, name_span);
                     todo!();
                 },
+                Some(d) if d == b"note" => {
+                    if note.is_some() {
+                        has_error = true;
+                        session.errors.push(Error {
+                            kind: ErrorKind::RedundantDecorator(d_name),
+                            span: name_span,
+                            extra_span: Some(*name_span_map.get(&d_name).unwrap()),
+                            ..Error::default()
+                        });
+                    }
+
+                    name_span_map.insert(d_name, name_span);
+                    todo!();
+                },
                 _ => {
                     has_error = true;
                     session.errors.push(Error {
@@ -135,6 +153,7 @@ impl AssertAttribute {
         else {
             Ok(AssertAttribute {
                 name,
+                note,
                 always,
             })
         }

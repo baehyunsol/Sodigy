@@ -130,7 +130,8 @@ impl Block {
                 use_counts.insert(*name, *count);
             }
 
-            if count.always == Counter::Never {
+            if (!session.is_in_debug_context && count.always == Counter::Never) ||
+                (session.is_in_debug_context && count.debug_only == Counter::Never) {
                 let mut extra_message = None;
 
                 if count.debug_only != Counter::Never {

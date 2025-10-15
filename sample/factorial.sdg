@@ -1,0 +1,16 @@
+assert factorial(5) == 120;
+assert factorial(6) == 720;
+assert factorial(7) == 5040;
+fn factorial(n: Int) -> Int = match n {
+    ..2 => 1,
+    _ => n * factorial(n - 1),
+};
+
+assert factorial_if(5) == 120;
+assert factorial_if(6) == 720;
+assert factorial_if(7) == 5040;
+fn factorial_if(n: Int) -> Int = if n < 2 {
+    1
+} else {
+    n * factorial_if(n - 1)
+};

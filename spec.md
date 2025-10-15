@@ -112,4 +112,27 @@ Syntactically, type annotations are always optional. It won't throw any syntax e
 ```sodigy
 assert two == 2;
 let two = 1 + 1;
+
+// By default, assertions are only enabled in debug-mode.
+// With `@always` decorator, it's always enabled.
+@always
+assert 1 + 1 == 2;
+
+// `@name` and `@note` will improve readability of the test result.
+@name("add_test")
+@note("It makes sure that `add` function is correct")
+assert add(1, 1) == 2;
+fn add(x: Int, y: Int): Int = x + y;
 ```
+
+## IO (and impure functions)
+
+### panic
+
+```
+fn panic(message: String);
+```
+
+`panic` is the only impure function that can be used anywhere in Sodigy. It prints the error message to stderr and the process is terminated with a non-zero exit code.
+
+You can NEVER catch a panic. `panic` is impure, but catching a `panic` is even more impure.

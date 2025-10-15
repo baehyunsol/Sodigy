@@ -14,6 +14,7 @@ pub enum Punct {
     Dot,
     QuestionMark,
     At,
+    Dollar,
     And,  // "&"
     Or,   // "|"
     AndAnd,  // "&&"
@@ -48,6 +49,7 @@ impl From<u8> for Punct {
             b'.' => Punct::Dot,
             b'?' => Punct::QuestionMark,
             b'@' => Punct::At,
+            b'$' => Punct::Dollar,
             b'&' => Punct::And,
             b'|' => Punct::Or,
             _ => panic!("TODO: {:?}", b as char),
