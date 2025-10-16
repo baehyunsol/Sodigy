@@ -329,7 +329,20 @@ impl Pattern {
                     (None, None) => Ok(PatternType::NotSure),
                 }
             },
-            Pattern::Or { lhs, rhs, .. } => todo!(),
+            Pattern::Or { lhs, rhs, op_span } => {
+                match (lhs.type_check(), rhs.type_check()) {
+                    (Ok(lhs_type), Ok(rhs_type)) => match lhs_type.more_specific(&rhs_type) {
+                        Ok(r#type) => Ok(r#type),
+                        Err(()) => Err(vec![Error {
+                            kind: ErrorKind::AstPatternTypeError,
+                            span: *op_span,
+                            ..Error::default()
+                        }]),
+                    },
+                    (Err(lhs_error), Err(rhs_error)) => Err(vec![lhs_error, rhs_error].concat()),
+                    (Err(e), _) | (_, Err(e)) => Err(e),
+                }
+            },
             Pattern::Concat { lhs, rhs, op_span } => {
                 match (lhs.pattern.type_check(), rhs.pattern.type_check()) {
                     (Ok(lhs_type), Ok(rhs_type)) => match lhs_type.more_specific(&rhs_type) {

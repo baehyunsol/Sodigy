@@ -49,6 +49,9 @@ pub enum Callable {
         def_span: Span,
         span: Span,
     },
+    ListInit {
+        group_span: Span,
+    },
     Intrinsic {
         intrinsic: Intrinsic,
         span: Span,
@@ -65,10 +68,6 @@ pub enum Callable {
         op: InfixOp,
         span: Span,
     },
-
-    ListInit {
-        group_span: Span,
-    },
 }
 
 impl Expr {
@@ -84,6 +83,10 @@ impl Expr {
                 s: *s,
                 span: *span,
             }),
+
+            // TODO: declare `mir::Expr::Char` vs `mir::Expr::Call { char_init, ch }`
+            hir::Expr::Char { binary, ch, span } => todo!(),
+
             hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
                 Ok(r#if) => Ok(Expr::If(r#if)),
                 Err(()) => Err(()),
@@ -112,7 +115,7 @@ impl Expr {
                                 }
                             },
                             // The programmer defines a functor using `let` keyword
-                            // and calling it. In this case, we have to dynamically call the
+                            // and calls it. In this case, we have to dynamically call the
                             // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
                             NameKind::Let { .. } => {
                                 def_span = Some(id.def_span);

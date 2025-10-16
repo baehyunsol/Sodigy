@@ -64,6 +64,7 @@ pub fn interpret(
                     let ptr = match value {
                         Const::Number(n) => todo!(),
                         Const::String { s, binary } => todo!(),
+                        Const::Compound(n) => todo!(),
                     };
 
                     match dst {
@@ -173,6 +174,7 @@ pub fn interpret(
                         curr_label = *n;
                     }
                 },
+                _ => todo!(),
             }
         }
     }

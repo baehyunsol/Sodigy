@@ -39,6 +39,13 @@ pub enum Expr {
         // it includes quotes
         span: Span,
     },
+    Char {
+        binary: bool,
+        ch: u32,
+
+        // it includes quotes
+        span: Span,
+    },
     If(If),
     Match(Match),
     Block(Block),
@@ -88,7 +95,8 @@ impl Expr {
         match self {
             Expr::Identifier { span, .. } |
             Expr::Number { span, .. } |
-            Expr::String { span, .. } => *span,
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             _ => todo!(),
         }
@@ -159,6 +167,11 @@ impl<'t> Tokens<'t> {
                 let (binary, s, span) = (*binary, *s, *span);
                 self.cursor += 1;
                 Expr::String { binary, s, span }
+            },
+            Some(Token { kind: TokenKind::Char { binary, ch, .. }, span }) => {
+                let (binary, ch, span) = (*binary, *ch, *span);
+                self.cursor += 1;
+                Expr::Char { binary, ch, span }
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
             Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),

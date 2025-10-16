@@ -13,6 +13,7 @@ pub enum ErrorToken {
     Group(Delim),
     Identifier,
     Number,
+    String,
     TypeAnnotation,
     Declaration,
     Expr,

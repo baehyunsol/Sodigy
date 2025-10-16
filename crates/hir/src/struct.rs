@@ -20,12 +20,16 @@ pub struct StructInitField {
 }
 
 impl Struct {
-    pub fn from_ast(ast_struct: &ast::Struct, session: &mut Session) -> Result<Struct, ()> {
+    pub fn from_ast(
+        ast_struct: &ast::Struct,
+        session: &mut Session,
+        is_top_level: bool,
+    ) -> Result<Struct, ()> {
         let mut fields = Vec::with_capacity(ast_struct.fields.len());
         let mut has_error = false;
 
         for field in ast_struct.fields.iter() {
-            match StructField::from_ast(field, session) {
+            match StructField::from_ast(field, session, is_top_level) {
                 Ok(field) => {
                     fields.push(field);
                 },

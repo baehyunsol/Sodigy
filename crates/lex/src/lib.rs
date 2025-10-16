@@ -66,9 +66,13 @@ enum LexState {
     BlockComment,
 }
 
-pub fn lex_gara(input: Vec<u8>, intern_map_dir: &str) -> Result<Vec<Token>, Error> {
+pub fn lex(
+    file: File,
+    input: Vec<u8>,
+    intern_map_dir: &str,
+) -> Result<Vec<Token>, Error> {
     let mut gara_session = Session {
-        file: File::gara(),
+        file,
         input_bytes: input,
         state: LexState::Init,
         cursor: 0,
@@ -834,7 +838,7 @@ impl Session {
                         _ => unreachable!(),
                     };
                     self.tokens.push(Token {
-                        kind: TokenKind::Char { binary, ch },
+                        kind: TokenKind::Char { binary, ch: ch as u32 },
                         span: Span::range(
                             self.file,
                             self.token_start,
@@ -872,34 +876,62 @@ impl Session {
                     });
                 },
                 // valid char (utf-8)
-                (Some(x @ 0..=127), Some(b'\''), _, _, _) => match char::from_u32(*x as u32) {
-                    Some(ch) => {
-                        self.tokens.push(Token {
-                            kind: TokenKind::Char { binary, ch },
-                            span: Span::range(
-                                self.file,
-                                self.token_start,
-                                self.cursor + 2,
-                            ),
-                        });
-                        self.state = LexState::Init;
-                        self.cursor += 2;
-                    },
-                    None => {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidUtf8,
-                            span: Span::range(
-                                self.file,
-                                self.cursor,
-                                self.cursor + 1,
-                            ),
-                            ..Error::default()
-                        });
-                    },
+                (Some(0..=127), Some(b'\''), _, _, _) |
+                (Some(192..=223), Some(128..=191), Some(b'\''), _, _) |
+                (Some(224..=239), Some(128..=191), Some(128..=191), Some(b'\''), _) |
+                (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => {
+                    let (n, l) = match (
+                        self.input_bytes.get(self.cursor),
+                        self.input_bytes.get(self.cursor + 1),
+                        self.input_bytes.get(self.cursor + 2),
+                        self.input_bytes.get(self.cursor + 3),
+                    ) {
+                        (Some(x @ 0..=127), _, _, _) => (
+                            *x as u32,
+                            1,
+                        ),
+                        (Some(x @ 192..=223), Some(y @ 128..=191), _, _) => (
+                            ((*x as u32 - 192) << 6) | (*y as u32 - 128),
+                            2,
+                        ),
+                        (Some(x @ 224..=239), Some(y @ 128..=191), Some(z @ 128..=191), _) => (
+                            ((*x as u32 - 224) << 12) | ((*y as u32 - 128) << 6) | (*z as u32 - 128),
+                            3,
+                        ),
+                        (Some(x @ 240..=247), Some(y @ 128..=191), Some(z @ 128..=191), Some(w @ 128..=191)) => (
+                            ((*x as u32 - 240) << 18) | ((*y as u32 - 128) << 12) | ((*z as u32 - 128) << 6) | (*w as u32 - 128),
+                            4,
+                        ),
+                        _ => unreachable!(),
+                    };
+
+                    match char::from_u32(n) {
+                        Some(_) => {
+                            self.tokens.push(Token {
+                                kind: TokenKind::Char { binary, ch: n },
+                                span: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor + l + 1,
+                                ),
+                            });
+                            self.state = LexState::Init;
+                            self.cursor += l + 1;
+                        },
+                        None => {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidUtf8,
+                                // It points to the quote character because it doesn't know which byte is erroneous.
+                                span: Span::range(
+                                    self.file,
+                                    self.cursor,
+                                    self.cursor + 1,
+                                ),
+                                ..Error::default()
+                            });
+                        },
+                    }
                 },
-                (Some(192..=223), Some(128..=191), Some(b'\''), _, _) => todo!(),
-                (Some(224..=239), Some(128..=191), Some(128..=191), Some(b'\''), _) => todo!(),
-                (Some(240..=247), Some(128..=191), Some(128..=191), Some(128..=191), Some(b'\'')) => todo!(),
                 // invalid utf-8
                 (Some(128..), _, _, _, _) => {
                     return Err(Error {

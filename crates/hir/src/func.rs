@@ -67,6 +67,7 @@ impl Func {
         ast_func: &ast::Func,
         session: &mut Session,
         origin: FuncOrigin,
+        is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
         let mut func_arg_names = HashMap::new();
@@ -99,7 +100,7 @@ impl Func {
         let mut args = Vec::with_capacity(ast_func.args.len());
 
         for arg in ast_func.args.iter() {
-            match FuncArgDef::from_ast(arg, session) {
+            match FuncArgDef::from_ast(arg, session, is_top_level) {
                 Ok(arg) => {
                     args.push(arg);
                 },
@@ -208,7 +209,13 @@ impl Func {
 }
 
 impl FuncArgDef<Type> {
-    pub fn from_ast(ast_arg: &ast::FuncArgDef, session: &mut Session) -> Result<FuncArgDef<Type>, ()> {
+    pub fn from_ast(
+        ast_arg: &ast::FuncArgDef,
+        session: &mut Session,
+
+        // whether the function or the function-like object is defined in the top-level block
+        is_top_level: bool,
+    ) -> Result<FuncArgDef<Type>, ()> {
         let mut r#type = None;
         let mut default_value = None;
         let mut has_error = false;
@@ -233,7 +240,7 @@ impl FuncArgDef<Type> {
             match Expr::from_ast(ast_default_value, session) {
                 Ok(v) => {
                     let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
-                    session.lets.push(Let {
+                    session.push_func_default_value(Let {
                         keyword_span: Span::None,
                         name: ast_arg.name,
                         name_span: ast_arg.name_span,
@@ -247,7 +254,7 @@ impl FuncArgDef<Type> {
                         id: ast_arg.name,
                         span: ast_arg.name_span,
                         origin: NameOrigin::Local {
-                            kind: NameKind::Let { is_top_level: false },
+                            kind: NameKind::Let { is_top_level },
                         },
                         def_span: ast_arg.name_span,
                     });

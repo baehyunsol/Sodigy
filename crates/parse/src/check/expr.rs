@@ -10,7 +10,8 @@ impl Expr {
         match self {
             Expr::Identifier { .. } |
             Expr::Number { .. } |
-            Expr::String { .. } => Ok(()),
+            Expr::String { .. } |
+            Expr::Char { .. } => Ok(()),
             Expr::If(r#if) => r#if.check(),
             Expr::Match(r#match) => r#match.check(),
             Expr::Block(block) => block.check(false /* top_level */),

@@ -7,9 +7,3 @@ pub enum File {
     // Later, when the compiler has to do inter-file analysis, the compiler gives different `File` to the spans.
     Single,
 }
-
-impl File {
-    pub fn gara() -> Self {
-        File::Single
-    }
-}

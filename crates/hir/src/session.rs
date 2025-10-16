@@ -10,6 +10,13 @@ pub struct Session {
     pub intern_num_map_dir: String,
     pub name_stack: Vec<Namespace>,
 
+    // `func_default_values.last()` has the default values of functions
+    // in the current block.
+    // If it enters a new block, it pushes `vec![]` to `func_default_values`.
+    // When it leaves a block, it pops `let` statements from `func_default_values`
+    // and pushes them to the current block.
+    pub func_default_values: Vec<Vec<Let>>,
+
     // The expr/func/block it's lowering only exists in debug context.
     pub is_in_debug_context: bool,
 
@@ -45,6 +52,7 @@ impl Session {
             intern_str_map_dir,
             intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
             name_stack: vec![prelude_namespace],
+            func_default_values: vec![],
             is_in_debug_context: false,
             lets: vec![],
             funcs: vec![],
@@ -54,5 +62,9 @@ impl Session {
             errors: vec![],
             warnings: vec![],
         }
+    }
+
+    pub fn push_func_default_value(&mut self, default_value: Let) {
+        self.func_default_values.last_mut().unwrap().push(default_value);
     }
 }

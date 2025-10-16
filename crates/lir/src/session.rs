@@ -176,13 +176,14 @@ fn make_labels_static(bytecode: &mut Vec<Bytecode>, map: &HashMap<Span, u32>, of
 
                 *label = new_label;
             },
-            // Don't use wildcard!
             Bytecode::Push { .. } |
             Bytecode::PushConst { .. } |
             Bytecode::Pop(_) |
             Bytecode::PopCallStack |
             Bytecode::Intrinsic(_) |
-            Bytecode::Return => {},
+            Bytecode::Return |
+            Bytecode::UpdateCompound { .. } |
+            Bytecode::ReadCompound { .. } => {},
         }
     }
 }

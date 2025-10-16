@@ -53,7 +53,7 @@ pub enum ErrorKind {
     InvalidDecorator(InternedString),
 
     // Syntax errors in patterns
-    CannotBindName(InternedString),
+    CannotBindNameToAnotherName(InternedString),
     CannotAnnotateType,
     RedundantNameBinding(InternedString, InternedString),
 
@@ -72,6 +72,17 @@ pub enum ErrorKind {
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),
+
+    // TODO: We need more helpful error variants
+    //       e.g. if we know the types, we can guess which argument is missing, or surplus, or in different order
+    MissingArgument {
+        expected: usize,
+        got: usize,
+    },
+    UnexpectedArgument {
+        expected: usize,
+        got: usize,
+    },
 
     StructFieldRepeated(InternedString),
     MissingStructField(InternedString),

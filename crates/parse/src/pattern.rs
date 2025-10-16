@@ -14,6 +14,7 @@
 //   - OPEN_PAREN PATTERN CLOSE_PAREN
 //   - PATTERN? (DOTDOT | DOTDOT_EQ) PATTERN
 //   - PATTERN OR PATTERN
+//     - You cannot bind name like `a @ 0 | b @ 1`, but you can do `a @ (0 | 1)` or `(a @ 0, 1) | (a @ 2, 3)`.
 //   - FULL_PATTERN CONCAT FULL_PATTERN
 // - TUPLE_PATTERN
 //   - OPEN_PAREN CLOSE_PAREN
@@ -279,7 +280,7 @@ impl<'t> Tokens<'t> {
     }
 
     pub fn parse_pattern(&mut self) -> Result<Pattern, Vec<Error>> {
-        let pattern = match self.peek2() {
+        let lhs = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Identifier(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
@@ -338,7 +339,7 @@ impl<'t> Tokens<'t> {
 
                     if let (Some(name), Some(name_span)) = (elements[0].name, elements[0].name_span) {
                         errors.push(Error {
-                            kind: ErrorKind::CannotBindName(name),
+                            kind: ErrorKind::CannotBindNameToAnotherName(name),
                             span: name_span,
                             ..Error::default()
                         });
@@ -394,7 +395,17 @@ impl<'t> Tokens<'t> {
         };
 
         match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Or), .. }) => todo!(),
+            Some(Token { kind: TokenKind::Punct(Punct::Or), span }) => {
+                let op_span = *span;
+                self.cursor += 1;
+
+                let rhs = self.parse_pattern()?;
+                Ok(Pattern::Or {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    op_span,
+                })
+            },
             Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }) => {
                 let op_span = *span;
                 let is_inclusive = matches!(p, Punct::DotDotEq);
@@ -403,26 +414,24 @@ impl<'t> Tokens<'t> {
                 if let Some(true) = self.peek().map(|t| t.pattern_begin()) {
                     let rhs = self.parse_pattern()?;
 
-                    return Ok(Pattern::Range {
-                        lhs: Some(Box::new(pattern)),
+                    Ok(Pattern::Range {
+                        lhs: Some(Box::new(lhs)),
                         rhs: Some(Box::new(rhs)),
                         op_span,
                         is_inclusive,
-                    });
+                    })
                 }
 
                 else {
-                    return Ok(Pattern::Range {
-                        lhs: Some(Box::new(pattern)),
+                    Ok(Pattern::Range {
+                        lhs: Some(Box::new(lhs)),
                         rhs: None,
                         op_span,
                         is_inclusive,
-                    });
+                    })
                 }
             },
-            _ => {},
+            _ => Ok(lhs),
         }
-
-        Ok(pattern)
     }
 }

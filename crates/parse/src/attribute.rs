@@ -1,5 +1,5 @@
 use crate::{CallArg, Tokens};
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, Punct, Token, TokenKind};
@@ -64,14 +64,21 @@ pub struct Decorator {
 
     // `@public` and `@public()` are different!
     pub args: Option<Vec<CallArg>>,
+    pub arg_group_span: Option<Span>,
 }
 
 impl Decorator {
-    pub fn new_with_args(name: Vec<(InternedString, Span)>, name_span: Span, args: Vec<CallArg>) -> Self {
+    pub fn new_with_args(
+        name: Vec<(InternedString, Span)>,
+        name_span: Span,
+        args: Vec<CallArg>,
+        arg_group_span: Span,
+    ) -> Self {
         Decorator {
             name,
             name_span,
             args: Some(args),
+            arg_group_span: Some(arg_group_span),
         }
     }
 
@@ -80,6 +87,7 @@ impl Decorator {
             name,
             name_span,
             args: None,
+            arg_group_span: None,
         }
     }
 }
@@ -117,11 +125,12 @@ impl<'t> Tokens<'t> {
                                 self.cursor += 2;
                             },
                             (Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }), _) => {
+                                let group_span = *span;
                                 let mut tokens = Tokens::new(tokens, span.end());
 
                                 match tokens.parse_call_args() {
                                     Ok(args) => {
-                                        decorator_buffer.push(Decorator::new_with_args(name, name_span, args));
+                                        decorator_buffer.push(Decorator::new_with_args(name, name_span, args, group_span));
                                     },
                                     Err(e) => {
                                         errors.extend(e);

@@ -42,7 +42,7 @@ impl ErrorLevel {
             ErrorKind::EmptyMatchStatement |
             ErrorKind::RedundantDecorator(_) |
             ErrorKind::InvalidDecorator(_) |
-            ErrorKind::CannotBindName(_) |
+            ErrorKind::CannotBindNameToAnotherName(_) |
             ErrorKind::CannotAnnotateType |
 
             // Rust treats it as a warning, but Sodigy treats it as an error
@@ -54,6 +54,8 @@ impl ErrorLevel {
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |
             ErrorKind::InvalidKeywordArgument(_) |
+            ErrorKind::MissingArgument { .. } |
+            ErrorKind::UnexpectedArgument { .. } |
             ErrorKind::StructFieldRepeated(_) |
             ErrorKind::MissingStructField(_) |
             ErrorKind::InvalidStructField(_) => ErrorLevel::Error,

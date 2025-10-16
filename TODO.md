@@ -107,9 +107,10 @@ sodigyc:
 
 ```
 # multi-file은 일단은 생각하지 않음!
+# 근데 `build`라는 용어 쓰는게 맞나... `compile`이 나을 듯?
 sodigy build <code> [-o | --output <file=out.ext>] [--backend <rust|python|c|bytecode>] [-O | --release | --test]
 sodigy build-hir <code> [-o | --output <file=out.hir>] [--ir <dir>]
-sodigy build-mir <hir> [-o | --output <file=out.mir>]
+sodigy build-mir <hir> [-o | --output <file=out.mir>] [--ir <dir>]
 sodigy build-bytecode <mir> [-o | --output <file=out.ext>] [--backend <rust|python|c|bytecode>] [-O | --release | --test]
 
 # always bytecode backend (so that the compiler can run this)
@@ -153,21 +154,10 @@ fn div(a: Int, b: Int) -> Int = match b {
 
 // Array Index
 fn index<T>(ls: [T], i: Int) -> T = match i {
-    i if 0 <= i && i < ls.len() => Intrinsic.Index(ls, i),
-    i if -ls.len() <= i => Intrinsic.Index(ls, ls.len() + i),
+    // It has to add 1 to `i`, because the first place of the compound value is for the length of the list.
+    i if 0 <= i && i < ls.len() => Builtin.UpdateCompound(ls, i + 1),
+    i if -ls.len() <= i => Builtin.UpdateCompound(ls, ls.len() + i + 1),
     _ => panic("Index Error"),
-};
-
-// Integer Overflow
-// 이게 젤 애매, 이건 runtime마다 다를텐데 Sodigy로 구현을 할 수가 있음??
-// Runtime 수준에서 구현하려면 panic을 호출하는게 엄청 빡셈.
-// 아니면 이건 ㅇㄸ? overflow 가능한 버전과 불가능한 버전을 둘다 만들어두고
-// runtime이 둘 중에 하나 고르도록 하는 거임!
-//
-// 이것도 좀 별로다. `IntegerMulChecked` 구현하는 건 좀 뇌절같은데...
-fn mul(a: Int, b: Int) -> Int = match Intrinsic.IntegerMulChecked(a, b) {
-    Some(x) => x,
-    None => panic!("Integer Overflow Error"),
 };
 ```
 
@@ -630,135 +620,6 @@ issues
   - type infer를 per-file로 할 수 있음? 이게 되면 병렬처리가 가능
   - 자료구조들을 싹다 memory에 올리는게 항상 가능할까?
 
-# 11. Byte Code (Or LIR)
-
-### 1. block
-
-```sodigy
-{
-    let eager = foo(3, 4);
-    let lazy = bar(3, 4);
-
-    // this is tail call
-    eager + lazy
-}
-```
-
-```c
-// local1 -> eager
-// local2 -> lazy
-// uninitialized state of `lazy`
-local2.push(nullptr);
-
-// eval `eager`
-r1.push(3);
-r2.push(4);
-call_stack.push(s1);
-goto foo;
-label: s1;
-call_stack.pop();
-local1.push(ret);
-
-// eval `lazy`, if it has to
-jump_if_init(local2, s2);
-r1.push(3);
-r2.push(4);
-call_stack.push(s3);
-goto bar;
-label: s3;
-call_stack.pop();
-local2.assign(ret);
-
-label: s2;
-r1.push(local1);
-r2.push(local2);
-
-// It has to pop all the local values before it returns;
-local1.pop();
-local2.pop();
-
-// this doesn't push to call_stack because it's a tail call
-goto add;
-```
-
-### 2. if
-
-```sodigy
-fn whatever(x, y) = if foo(x, y) { bar(3, 4) } else { baz };
-```
-
-```c
-// The callee is responsible for popping `r`, so that we can implement tail-call.
-// The callee is not responsible for popping `call_stack`, so that we can implement tail-call.
-
-// x
-local1.push(r1);
-r1.pop();
-
-// y
-local2.push(r2);
-r2.pop();
-
-r1.push(local1);
-r2.push(local2);
-call_stack.push(s1);
-goto foo;
-label: s1;
-call_stack.pop();
-
-branch(ret, s2, s3);
-label: s2;
-r1.push(3);
-r2.push(4);
-call_stack.push(s4);
-goto bar;
-label: s4;
-call_stack.pop();
-local1.pop();
-local2.pop();
-goto call_stack.peek();
-
-label: s3;
-ret.push(baz);
-local1.pop();
-local2.pop();
-goto call_stack.peek();
-```
-
-### 3. if, with assignment
-
-```sodigy
-// This is a tail-call
-fn f() = if let Some(x) = foo(3, 4) { bar(x) } else { baz };
-```
-
-```c
-r1.push(3);
-r2.push(4);
-call_stack.push(s1);
-goto foo;
-label: s1;
-call_stack.pop();
-local1.push(ret);
-
-r1.push(local1);
-call_stack.push(s2);
-goto is_some;
-label: s2
-call_stack.pop();
-
-branch(ret, s3, s4);
-label: s3;
-r1.push(local1);
-local1.pop();
-goto bar;  // this is a tail call
-
-label: s4
-r1.push(baz);
-local1.pop();
-goto call_stack.peek();
-```
-
 # 10. func arg errors
 
 1. positional arg만 있는 경우
@@ -816,6 +677,7 @@ conditional/unconditional 세는게 생각보다 빡셈
 4. call: `collect::<Map<_, [_]>>()`
   - `_` notation도 일단은 허용?? ㅇㅇ 그러자
   - 걍 `::<` 자체를 하나의 operator로 묶어버릴까?
+  - Rust는 path operator가 `::`이니까 turbo fish가 `::<_>`인게 말이 되는데, Sodigy에서는 `.<_>`로 하는게 맞지 않음??
 
 Angle bracket 다루는게 불편하겠지만 어쩔 수 없음! 일단은 turbo fish operator가 있으니까 어찌저찌 구현은 될 듯?
 
@@ -832,17 +694,3 @@ Angle bracket 다루는게 불편하겠지만 어쩔 수 없음! 일단은 turbo
   - `Fn<(Int, Int): Int>` 자리에 `fn foo(x: Int, y: Int, z: Int = 5): Int`를 넣는 경우, `\(x: Int, y: Int): Int => foo(x, y, 5)`로 자동으로 바꾸기...??
 
 1, 2, 3은 구현했고 4는 아직 미정
-
-# 1. Complete Rewrite!!
-
-Let's make it 1) simple enough that I can implement and 2) complicated enough that I don't get bored.
-
-1. Type system
-  - No type classes, no generics, and very simple type inference.
-  - Type classes and generics are all, if exist, compiler-built-in.
-2. Purely functional
-3. Block-based
-  - A block consists of zero or more declarations (scoped) and one expression.
-  - A block is wrapped in curly braces.
-  - A block is a valid expression.
-  - Entire code-base is a block (curly braces are omitted). If expressions and match branches also use blocks.

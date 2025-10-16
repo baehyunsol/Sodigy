@@ -42,6 +42,7 @@ impl Block {
         let mut lets = vec![];
         let mut asserts = vec![];
 
+        session.func_default_values.push(vec![]);
         session.name_stack.push(Namespace::Block {
             names: ast_block.iter_names(is_top_level).map(
                 |(k, v1, v2)| (k, (v1, v2, UseCount::new()))
@@ -78,7 +79,7 @@ impl Block {
 
         // All the function declarations are stored in the top-level block.
         for func in ast_block.funcs.iter() {
-            match Func::from_ast(func, session, func_origin) {
+            match Func::from_ast(func, session, func_origin, is_top_level) {
                 Ok(f) => {
                     session.funcs.push(f);
                 },
@@ -90,7 +91,7 @@ impl Block {
 
         // All the struct declarations are stored in the top-level block.
         for r#struct in ast_block.structs.iter() {
-            match Struct::from_ast(r#struct, session) {
+            match Struct::from_ast(r#struct, session, is_top_level) {
                 Ok(s) => {
                     session.structs.push(s);
                 },
@@ -148,6 +149,10 @@ impl Block {
                     ..Warning::default()
                 });
             }
+        }
+
+        for func_default_value in session.func_default_values.pop().unwrap() {
+            lets.push(func_default_value);
         }
 
         if has_error {

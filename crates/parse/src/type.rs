@@ -1,4 +1,4 @@
-use crate::Tokens;
+use crate::{Field, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -66,24 +66,28 @@ impl<'t> Tokens<'t> {
 
 #[derive(Clone, Debug)]
 pub enum Type {
-    Identifier {  // Int
+    Identifier {  // `Int`, `String`, `Bool`
         id: InternedString,
         span: Span,
     },
-    Path(Vec<(InternedString, Span)>),  // module_name.struct_name
-    Generic {  // Message<T>, Result<[Int], Error>
+    Path {  // `module_name.StructName`
+        id: InternedString,
+        id_span: Span,
+        fields: Vec<Field>,
+    },
+    Generic {  // `Message<T>`, `Result<[Int], Error>`
         r#type: Box<Type>,  // either `Type::Identifier` or `Type::Path`
         types: Vec<Type>,
     },
-    Tuple {  // (Int, Int)
+    Tuple {  // `(Int, Int)`
         types: Vec<Type>,
         group_span: Span,
     },
-    List {  // [Int]
+    List {  // `[Int]`
         r#type: Box<Type>,
         group_span: Span,
     },
-    Func {  // Fn(Int, Int) -> Int
+    Func {  // `Fn(Int, Int) -> Int`
         // It's either `Type::Identifier` or `Type::Path`.
         // It's very likely to be `Type::Identifier("Fn")`.
         // If it's not `Fn`, it's 99% an error, but I want to throw
@@ -98,7 +102,10 @@ impl Type {
     pub fn error_span(&self) -> Span {
         match self {
             Type::Identifier { span, .. } => *span,
-            Type::Path(names) => names[0].1,
+            Type::Path { fields, .. } => match fields.get(0) {
+                Some(Field::Name { dot_span, .. }) => *dot_span,
+                _ => unreachable!(),
+            },
             Type::Generic { r#types, .. } => r#types[0].error_span(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
@@ -112,18 +119,20 @@ impl<'t> Tokens<'t> {
         match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Identifier(id), span }),
-                Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
+                Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
             ) => {
                 let mut path = vec![(*id, *span)];
+                let mut dot_spans = vec![*dot_span];
                 self.cursor += 2;
 
                 loop {
                     match self.peek2() {
                         (
                             Some(Token { kind: TokenKind::Identifier(id), span }),
-                            Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
+                            Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
                         ) => {
                             path.push((*id, *span));
+                            dot_spans.push(*dot_span);
                             self.cursor += 2;
                         },
                         (
@@ -135,7 +144,17 @@ impl<'t> Tokens<'t> {
                             self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
 
                             return Ok(Type::Generic {
-                                r#type: Box::new(Type::Path(path)),
+                                r#type: Box::new(Type::Path {
+                                    id: path[0].0,
+                                    id_span: path[0].1,
+                                    fields: path[1..].iter().zip(dot_spans.iter()).map(
+                                        |((id, id_span), dot_span)| Field::Name {
+                                            name: *id,
+                                            span: *id_span,
+                                            dot_span: *dot_span,
+                                        },
+                                    ).collect(),
+                                }),
                                 types,
                             });
                         },
@@ -146,7 +165,17 @@ impl<'t> Tokens<'t> {
                         (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                             path.push((*id, *span));
                             self.cursor += 1;
-                            return Ok(Type::Path(path));
+                            return Ok(Type::Path {
+                                id: path[0].0,
+                                id_span: path[0].1,
+                                fields: path[1..].iter().zip(dot_spans.iter()).map(
+                                    |((id, id_span), dot_span)| Field::Name {
+                                        name: *id,
+                                        span: *id_span,
+                                        dot_span: *dot_span,
+                                    },
+                                ).collect(),
+                            });
                         },
                         (Some(_), _) => todo!(),
                         (None, _) => todo!(),

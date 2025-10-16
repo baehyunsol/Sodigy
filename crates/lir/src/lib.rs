@@ -57,6 +57,9 @@ pub enum Label {
     Static(u32),
 }
 
+// There are only 3 types of values in Sodigy Runtime.
+// Number, String: scalar values. the runtime can implement in however way they want.
+// Compound: it consists of 0 or more scalar or compound values.
 #[derive(Clone, Copy, Debug)]
 pub enum Const {
     Number(InternedNumber),
@@ -64,6 +67,30 @@ pub enum Const {
         binary: bool,
         s: InternedString,
     },
+
+    // `Compound(n)` is a compound value with `n` values inside.
+    // It doesn't initialize the inner values. You have to initialize
+    // it with `Bytecode::UpdateCompound`. The compiler will never generate
+    // a code that reads an uninitialized value.
+    Compound(u32),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Offset {
+    Static(u32),
+    Dynamic(Register),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ConstOrRegister {
+    Const(Const),
+    Register(Register),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum InPlaceOrRegister {
+    InPlace,
+    Register(Register),
 }
 
 // It doesn't call `session.make_labels_static`. Backend has to do that.

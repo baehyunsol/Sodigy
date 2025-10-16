@@ -1,4 +1,11 @@
-use crate::{Const, Label, Register};
+use crate::{
+    Const,
+    ConstOrRegister,
+    InPlaceOrRegister,
+    Label,
+    Offset,
+    Register,
+};
 use sodigy_mir::Intrinsic;
 
 #[derive(Clone, Copy, Debug)]
@@ -41,6 +48,30 @@ pub enum Bytecode {
         reg: Register,
         label: Label,
     },
+
+    UpdateCompound {
+        // the compound value
+        src: Register,
+
+        // an integer (nth element of the compound value)
+        offset: Offset,
+
+        // it'll be a new member of the compound
+        value: ConstOrRegister,
+
+        // where to store the updated compound value
+        dst: InPlaceOrRegister,
+    },
+    ReadCompound {
+        // the compound value
+        src: Register,
+
+        // an integer (nth element of the compound value)
+        offset: Offset,
+
+        // where to store the read value
+        dst: Register,
+    },
 }
 
 impl Bytecode {
@@ -55,7 +86,9 @@ impl Bytecode {
             Bytecode::PushCallStack(_) |
             Bytecode::Label(_) |
             Bytecode::JumpIf { .. } |
-            Bytecode::JumpIfInit { .. } => false,
+            Bytecode::JumpIfInit { .. } |
+            Bytecode::UpdateCompound { .. } |
+            Bytecode::ReadCompound { .. } => false,
             Bytecode::Intrinsic(intrinsic) => match intrinsic {
                 Intrinsic::Panic |
                 Intrinsic::Exit => true,

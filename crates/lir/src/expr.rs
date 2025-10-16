@@ -2,7 +2,10 @@ use crate::{
     Assert,
     Bytecode,
     Const,
+    ConstOrRegister,
+    InPlaceOrRegister,
     Label,
+    Offset,
     Register,
     Session,
 };
@@ -11,6 +14,7 @@ use sodigy_name_analysis::{
     NameKind,
     NameOrigin,
 };
+use sodigy_number::InternedNumber;
 use sodigy_token::InfixOp;
 
 // It pushes the expr to `Register::Return`.
@@ -149,22 +153,100 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
                         bytecode.push(Bytecode::PopCallStack);
                     }
                 },
+                // The first element is the length of the list.
+                Callable::ListInit { .. } => {
+                    bytecode.push(Bytecode::PushConst {
+                        value: Const::Compound(args.len() as u32 + 1),
+                        dst: Register::Return,
+                    });
+
+                    bytecode.push(Bytecode::UpdateCompound {
+                        src: Register::Return,
+                        offset: Offset::Static(0),
+                        value: ConstOrRegister::Const(Const::Number(InternedNumber::from_u32(args.len() as u32, true /* is_integer */))),
+                        dst: InPlaceOrRegister::InPlace,
+                    });
+
+                    for i in 0..args.len() {
+                        bytecode.push(Bytecode::UpdateCompound {
+                            src: Register::Return,
+                            offset: Offset::Static(i as u32 + 1),
+                            value: ConstOrRegister::Register(Register::Call(i as u32)),
+                            dst: InPlaceOrRegister::InPlace,
+                        });
+                        bytecode.push(Bytecode::Pop(Register::Call(i as u32)));
+                    }
+
+                    if is_tail_call {
+                        session.pop_all_locals(bytecode);
+                        bytecode.push(Bytecode::Return);
+                    }
+                },
                 // If type-check was successful, `Callable::GenericInfixOp` is unreachable.
-                // I'm doing this for debugging.
-                Callable::GenericInfixOp { .. } |
-                Callable::Intrinsic { .. } => {
-                    let intrinsic = match func {
-                        Callable::GenericInfixOp { op, .. } => match op {
+                // But the type-checker isn't complete yet. I'm doing this for debugging.
+                Callable::GenericInfixOp { op, .. } => match op {
+                    InfixOp::Add |
+                    InfixOp::Sub |
+                    InfixOp::Mul |
+                    InfixOp::Div |
+                    InfixOp::Eq |
+                    InfixOp::Gt |
+                    InfixOp::Lt => {
+                        let intrinsic = match op {
                             InfixOp::Add => Intrinsic::IntegerAdd,
                             InfixOp::Sub => Intrinsic::IntegerSub,
+                            InfixOp::Mul => Intrinsic::IntegerMul,
+                            InfixOp::Div => Intrinsic::IntegerDiv,
                             InfixOp::Eq => Intrinsic::IntegerEq,
+                            InfixOp::Gt => Intrinsic::IntegerGt,
                             InfixOp::Lt => Intrinsic::IntegerLt,
                             _ => panic!("TODO: {op:?}"),
-                        },
-                        Callable::Intrinsic { intrinsic, .. } => *intrinsic,
-                        _ => unreachable!(),
-                    };
-                    bytecode.push(Bytecode::Intrinsic(intrinsic));
+                        };
+                        bytecode.push(Bytecode::Intrinsic(intrinsic));
+
+                        for i in 0..args.len() {
+                            bytecode.push(Bytecode::Pop(Register::Call(i as u32)));
+                        }
+
+                        if is_tail_call {
+                            session.pop_all_locals(bytecode);
+                            bytecode.push(Bytecode::Return);
+                        }
+                    },
+                    // Call(0): list, Call(1): index
+                    // It has to read `index + 1` because `ls[0]` is for the length of the list
+                    InfixOp::Index => {
+                        bytecode.push(Bytecode::PushConst {
+                            value: Const::Number(InternedNumber::from_u32(1, true)),
+                            dst: Register::Call(0),
+                        });
+                        bytecode.push(Bytecode::Intrinsic(Intrinsic::IntegerAdd));
+                        bytecode.push(Bytecode::Pop(Register::Call(0)));
+                        bytecode.push(Bytecode::Pop(Register::Call(1)));
+                        bytecode.push(Bytecode::Push {
+                            src: Register::Return,
+                            dst: Register::Call(1),
+                        });
+
+                        bytecode.push(Bytecode::ReadCompound {
+                            src: Register::Call(0),
+                            offset: Offset::Dynamic(Register::Call(1)),
+                            dst: Register::Return,
+                        });
+
+                        for i in 0..args.len() {
+                            bytecode.push(Bytecode::Pop(Register::Call(i as u32)));
+                        }
+
+                        if is_tail_call {
+                            session.pop_all_locals(bytecode);
+                            bytecode.push(Bytecode::Return);
+                        }
+                    },
+                    _ => panic!("TODO: {op:?}"),
+                },
+                Callable::Intrinsic { intrinsic, .. } => {
+                    bytecode.push(Bytecode::Intrinsic(*intrinsic));
 
                     for i in 0..args.len() {
                         bytecode.push(Bytecode::Pop(Register::Call(i as u32)));

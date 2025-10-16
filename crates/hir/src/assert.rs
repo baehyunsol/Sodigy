@@ -1,6 +1,6 @@
 use crate::{Expr, Session};
-use sodigy_error::{Error, ErrorKind};
-use sodigy_parse as ast;
+use sodigy_error::{Error, ErrorKind, ErrorToken};
+use sodigy_parse::{self as ast, CallArg};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -107,8 +107,8 @@ impl AssertAttribute {
                     always = true;
                     name_span_map.insert(d_name, name_span);
                 },
-                Some(d) if d == b"name" => {
-                    if name.is_some() {
+                Some(d) if d == b"name" || d == b"note" => {
+                    if d == b"name" && name.is_some() || d == b"note" && note.is_some() {
                         has_error = true;
                         session.errors.push(Error {
                             kind: ErrorKind::RedundantDecorator(d_name),
@@ -119,21 +119,78 @@ impl AssertAttribute {
                     }
 
                     name_span_map.insert(d_name, name_span);
-                    todo!();
-                },
-                Some(d) if d == b"note" => {
-                    if note.is_some() {
-                        has_error = true;
-                        session.errors.push(Error {
-                            kind: ErrorKind::RedundantDecorator(d_name),
-                            span: name_span,
-                            extra_span: Some(*name_span_map.get(&d_name).unwrap()),
-                            ..Error::default()
-                        });
+                    let mut d_arg = None;
+
+                    match &decorator.args {
+                        Some(args) => {
+                            match args.get(0) {
+                                Some(CallArg { keyword: Some((k, span)), .. }) => {
+                                    has_error = true;
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::InvalidKeywordArgument(*k),
+                                        span: *span,
+                                        ..Error::default()
+                                    });
+                                },
+                                Some(CallArg { arg: ast::Expr::String { s, binary: false, .. }, .. }) => {
+                                    d_arg = Some(*s);
+                                },
+                                Some(CallArg { arg, .. }) => {
+                                    has_error = true;
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::UnexpectedToken {
+                                            expected: ErrorToken::String,
+                                            got: ErrorToken::Expr,
+                                        },
+                                        span: arg.error_span(),
+                                        ..Error::default()
+                                    });
+                                },
+                                None => {
+                                    has_error = true;
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::MissingArgument {
+                                            expected: 1,
+                                            got: 0,
+                                        },
+                                        span: decorator.arg_group_span.unwrap().end(),
+                                        ..Error::default()
+                                    });
+                                },
+                            }
+
+                            if args.len() > 1 {
+                                has_error = true;
+                                session.errors.push(Error {
+                                    kind: ErrorKind::UnexpectedArgument {
+                                        expected: 1,
+                                        got: args.len(),
+                                    },
+                                    span: args[1].arg.error_span(),
+                                    ..Error::default()
+                                });
+                            }
+                        },
+                        None => {
+                            has_error = true;
+                            session.errors.push(Error {
+                                kind: ErrorKind::MissingArgument {
+                                    expected: 1,
+                                    got: 0,
+                                },
+                                span: name_span,
+                                ..Error::default()
+                            });
+                        },
                     }
 
-                    name_span_map.insert(d_name, name_span);
-                    todo!();
+                    if d == b"name" {
+                        name = d_arg;
+                    }
+
+                    else {
+                        note = d_arg;
+                    }
                 },
                 _ => {
                     has_error = true;

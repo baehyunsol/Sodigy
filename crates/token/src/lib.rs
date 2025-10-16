@@ -36,7 +36,7 @@ pub enum TokenKind {
     },
     Char {
         binary: bool,
-        ch: char,
+        ch: u32,
     },
     FieldModifier(InternedString),
     DocComment(InternedString),

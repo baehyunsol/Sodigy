@@ -8,7 +8,10 @@ use sodigy_lir::{
     self as lir,
     Bytecode,
     Const,
+    ConstOrRegister,
+    InPlaceOrRegister,
     Label,
+    Offset,
     Register,
 };
 use sodigy_mir::Intrinsic;
@@ -50,14 +53,16 @@ pub fn python_code_gen(
         }
     }
 
-    indent = " ".repeat(0);
+    // TODO: make it configurable
+    lines.push(String::from("def deepcopy(v):"));
+    lines.push(String::from("    return eval(str(v))"));
 
     if capture_output {
-        lines.push(format!("{indent}stdout=[]"));
-        lines.push(format!("{indent}stderr=[]"));
+        lines.push(format!("stdout=[]"));
+        lines.push(format!("stderr=[]"));
     }
 
-    lines.push(format!("{indent}def run(l):"));  // returns True if there's no error
+    lines.push(format!("def run(l):"));  // returns True if there's no error
 
     indent = " ".repeat(4);
 
@@ -198,6 +203,72 @@ pub fn python_code_gen(
                     lines.push(format!("{indent}    l={n}"));
                     lines.push(format!("{indent}    continue"));
                 },
+                Bytecode::UpdateCompound {
+                    src,
+                    offset,
+                    value,
+                    dst,
+                } => {
+                    let offset = match offset {
+                        Offset::Static(n) => n.to_string(),
+                        Offset::Dynamic(r) => peek(r),
+                    };
+                    let value = match value {
+                        ConstOrRegister::Const(v) => py_value(v, &config.intern_str_map_dir),
+                        ConstOrRegister::Register(r) => peek(r),
+                    };
+
+                    match dst {
+                        InPlaceOrRegister::InPlace => {
+                            lines.push(format!("{indent}tmp={}", peek(src)));
+                        },
+                        InPlaceOrRegister::Register(_) => {
+                            lines.push(format!("{indent}tmp=deepcopy({})", peek(src)));
+                        },
+                    }
+
+                    lines.push(format!("{indent}tmp[{offset}]={value}"));
+
+                    if let InPlaceOrRegister::Register(dst) = dst {
+                        match dst {
+                            Register::Local(_) |
+                            Register::Call(_) => {
+                                lines.push(format!("{indent}{}.append(tmp)", place(dst)));
+                            },
+                            Register::Return => {
+                                lines.push(format!("{indent}ret=tmp"));
+                            },
+                            Register::Const(_) => {
+                                lines.push(format!("{indent}{}=tmp", place(dst)));
+                            },
+                        }
+                    }
+                },
+                Bytecode::ReadCompound {
+                    src,
+                    offset,
+                    dst,
+                } => {
+                    let offset = match offset {
+                        Offset::Static(n) => n.to_string(),
+                        Offset::Dynamic(r) => peek(r),
+                    };
+                    lines.push(format!("{indent}tmp={}", peek(src)));
+                    lines.push(format!("{indent}tmp=deepcopy(tmp[{offset}])"));
+
+                    match dst {
+                        Register::Local(_) |
+                        Register::Call(_) => {
+                            lines.push(format!("{indent}{}.append(tmp)", place(dst)));
+                        },
+                        Register::Return => {
+                            lines.push(format!("{indent}ret=tmp"));
+                        },
+                        Register::Const(_) => {
+                            lines.push(format!("{indent}{}=tmp", place(dst)));
+                        },
+                    }
+                },
             }
         }
     }
@@ -285,6 +356,7 @@ fn py_value(v: &Const, dictionary: &str) -> String {
             },
             InternedNumberValue::SmallRatio { denom, numer } => format!("{numer}/{denom}"),
         },
+        Const::Compound(n) => format!("[None for _ in range({n})]"),
     }
 }
 

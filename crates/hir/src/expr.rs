@@ -28,6 +28,11 @@ pub enum Expr {
         s: InternedString,
         span: Span,
     },
+    Char {
+        binary: bool,
+        ch: u32,
+        span: Span,
+    },
     If(If),
     Match(Match),
     Block(Block),
@@ -89,6 +94,7 @@ impl Expr {
             },
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
+            ast::Expr::Char { binary, ch, span } => Ok(Expr::Char { binary: *binary, ch: *ch, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
             ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
@@ -221,7 +227,10 @@ impl Expr {
                     attribute: ast::Attribute::new(),
                 };
 
-                match Func::from_ast(&func, session, FuncOrigin::Lambda) {
+                // TODO: the compiler never treats a lambda function as a top-level function...
+                //       I made this choice because it's difficult to track whether it's top-level or not.
+                //       I'm not sure whether it's the correct way to do this.
+                match Func::from_ast(&func, session, FuncOrigin::Lambda, false /* is_top_level */) {
                     Ok(func) => {
                         session.funcs.push(func);
                         Ok(Expr::Identifier(IdentWithOrigin {

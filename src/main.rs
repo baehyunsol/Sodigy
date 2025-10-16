@@ -1,9 +1,11 @@
+use sodigy::{Command, parse_args};
 use sodigy_error::{Error, ErrorLevel};
 use sodigy_file::File;
 use sodigy_fs_api::{
     WriteMode,
     create_dir_all,
     exists,
+    join,
     remove_dir_all,
     write_bytes,
     write_string,
@@ -11,179 +13,143 @@ use sodigy_fs_api::{
 use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
-// gara test code
 fn main() -> Result<(), ()> {
-    if exists("sample/target/") {
-        remove_dir_all("sample/target").unwrap();
-    }
+    let args = std::env::args().collect::<Vec<_>>();
 
-    create_dir_all("sample/target/").unwrap();
-    create_dir_all("sample/target/intern/str/").unwrap();
-    create_dir_all("sample/target/intern/num/").unwrap();
-    write_bytes(
-        "sample/target/intern/str/lock",
-        b"",
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-    write_bytes(
-        "sample/target/intern/num/lock",
-        b"",
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
+    match parse_args(&args) {
+        Ok(commands) => {
+            for command in commands.into_iter() {
+                match command {
+                    // TODO: there are too many `unwrap`s
+                    // TODO: each pass looks slightly different
+                    Command::Compile {
+                        input_path,
+                        input_kind,
+                        intermediate_dir,
+                        output_path,
+                        output_kind,
+                        backend,
+                        profile,
+                    } => {
+                        let intern_str_map_dir = join(&intermediate_dir, "str").unwrap();
+                        let intern_num_map_dir = join(&intermediate_dir, "num").unwrap();
 
-    let args = std::env::args().collect::<Vec<String>>();
-    let bytes = std::fs::read(&args[1]).unwrap();
-    let file = File::gara();
+                        if !exists(&intern_str_map_dir) {
+                            create_dir_all(&intern_str_map_dir).unwrap();
+                        }
 
-    let tokens = match sodigy_lex::lex_gara(bytes.clone(), "sample/target/intern/") {
-        Ok(tokens) => tokens,
-        Err(error) => {
-            eprintln!("{}", render_errors(&args[1], &bytes, vec![error], "sample/target/intern/str/"));
-            return Err(());
+                        if !exists(&intern_num_map_dir) {
+                            create_dir_all(&intern_num_map_dir).unwrap();
+                        }
+
+                        write_bytes(
+                            &join(&intern_str_map_dir, "lock").unwrap(),
+                            b"",
+                            WriteMode::CreateOrTruncate,
+                        ).unwrap();
+
+                        write_bytes(
+                            &join(&intern_num_map_dir, "lock").unwrap(),
+                            b"",
+                            WriteMode::CreateOrTruncate,
+                        ).unwrap();
+
+                        let bytes = match std::fs::read(&input_path) {
+                            Ok(bytes) => bytes,
+                            _ => todo!(),
+                        };
+                        let file = File::Single;
+
+                        let tokens = match sodigy_lex::lex(
+                            file,
+                            bytes.clone(),  // TODO: don't clone this
+                            &intern_str_map_dir,
+                        ) {
+                            Ok(tokens) => tokens,
+                            Err(error) => {
+                                eprintln!("{}", render_errors(&input_path, &bytes, vec![error], &intern_str_map_dir));
+                                return Err(());
+                            },
+                        };
+
+                        let ast = match sodigy_parse::parse(&tokens, file) {
+                            Ok(ast) => ast,
+                            Err(errors) => {
+                                eprintln!("{}", render_errors(&input_path, &bytes, errors, &intern_str_map_dir));
+                                return Err(());
+                            },
+                        };
+
+                        let mut hir_session = sodigy_hir::Session::new(&intern_str_map_dir);
+                        let has_error = hir_session.lower(&ast).is_err();
+                        eprintln!("{}", render_errors(
+                            &args[1],
+                            &bytes,
+                            vec![
+                                hir_session.errors.clone(),
+                                hir_session.warnings.clone(),
+                            ].concat(),
+                            &intern_str_map_dir,
+                        ));
+
+                        if has_error {
+                            return Err(());
+                        }
+
+                        // TODO: inter-file hir analysis
+
+                        let mir_session = sodigy_mir::lower(&hir_session);
+                        eprintln!("{}", render_errors(
+                            &args[1],
+                            &bytes,
+                            vec![
+                                mir_session.errors.clone(),
+                                // mir_session.warnings.clone(),
+                            ].concat(),
+                            &intern_str_map_dir,
+                        ));
+
+                        if !mir_session.errors.is_empty() {
+                            return Err(());
+                        }
+
+                        let mut lir_session = sodigy_lir::lower_mir(&mir_session);
+                        lir_session.make_labels_static();
+                        let bytecode = lir_session.into_labeled_bytecode();
+
+                        sodigy_backend::python_code_gen(
+                            &output_path,
+                            &bytecode,
+                            &lir_session,
+                            &sodigy_backend::CodeGenConfig {
+                                intern_str_map_dir,
+                                label_help_comment: true,
+                                mode: profile.into(),
+                            },
+                        ).unwrap();
+                    },
+                    Command::Interpret {
+                        bytecode_path,
+                    } => {},
+                    Command::Help(doc) => {},
+                }
+            }
+
+            Ok(())
         },
-    };
-    write_string(
-        "sample/target/tokens.rs",
-        &prettify(&format!("{tokens:?}")),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
+        Err(e) => {
+            let message = e.kind.render();
 
-    let ast_block = match sodigy_parse::parse(&tokens, file) {
-        Ok(ast_block) => ast_block,
-        Err(errors) => {
-            eprintln!("{}", render_errors(&args[1], &bytes, errors, "sample/target/intern/str/"));
-            return Err(());
+            eprintln!("cli error: {message}{}",
+                if let Some(span) = e.span {
+                    format!("\n\n{}", ragit_cli::underline_span(&span))
+                } else {
+                    String::new()
+                },
+            );
+            Err(())
         },
-    };
-    write_string(
-        "sample/target/ast.rs",
-        &prettify(&format!("{ast_block:?}")),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    let mut hir_session = sodigy_hir::Session::new("sample/target/intern/");
-
-    let has_error = hir_session.lower(&ast_block).is_err();
-    eprintln!("{}", render_errors(
-        &args[1],
-        &bytes,
-        vec![
-            hir_session.errors.clone(),
-            hir_session.warnings.clone(),
-        ].concat(),
-        "sample/target/intern/str/",
-    ));
-
-    if has_error {
-        return Err(());
     }
-
-    write_string(
-        "sample/target/hir.rs",
-        &prettify(&format!(
-            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
-            "{",
-            hir_session.lets,
-            hir_session.funcs,
-            hir_session.asserts,
-            "}",
-        )),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    // TODO: inter-file hir analysis
-
-    let mir_session = sodigy_mir::lower(&hir_session);
-    eprintln!("{}", render_errors(
-        &args[1],
-        &bytes,
-        vec![
-            mir_session.errors.clone(),
-            // mir_session.warnings.clone(),
-        ].concat(),
-        "sample/target/intern/str/",
-    ));
-
-    if !mir_session.errors.is_empty() {
-        return Err(());
-    }
-
-    write_string(
-        "sample/target/mir.rs",
-        &prettify(&format!(
-            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
-            "{",
-            mir_session.lets,
-            mir_session.funcs,
-            mir_session.asserts,
-            "}",
-        )),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    let mut lir_session = sodigy_lir::lower_mir(&mir_session);
-
-    write_string(
-        "sample/target/lir.rs",
-        &prettify(&format!(
-            "Session {}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
-            "{",
-            lir_session.lets,
-            lir_session.funcs,
-            lir_session.asserts,
-            "}",
-        )),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    lir_session.make_labels_static();
-    let bytecode = lir_session.into_labeled_bytecode();
-    write_string(
-        "sample/target/bytecode.rs",
-        &prettify(&format!("{bytecode:?}")),
-        WriteMode::CreateOrTruncate,
-    ).unwrap();
-
-    sodigy_backend::python_code_gen(
-        "sample/target/run.py",
-        &bytecode,
-        &lir_session,
-        &sodigy_backend::CodeGenConfig {
-            intern_str_map_dir: String::from("sample/target/intern/str/"),
-            label_help_comment: true,
-            mode: sodigy_backend::CodeGenMode::Test,
-        },
-    ).unwrap();
-
-    // let mut asserts = HashMap::new();
-    // let mut anon_index = 0;
-
-    // for assert in lir_session.asserts.iter() {
-    //     let assert_name = match assert.name {
-    //         Some(name) => String::from_utf8_lossy(&unintern_string(name, "sample/target/intern/str/").unwrap().unwrap()).to_string(),
-    //         None => {
-    //             anon_index += 1;
-    //             format!("anonymous-{anon_index}")
-    //         },
-    //     };
-
-    //     asserts.insert(assert_name, assert.label_id.unwrap());
-    // }
-
-    // for (name, label) in asserts.iter() {
-    //     let mut heap = sodigy_backend::Heap::new();
-
-    //     match sodigy_backend::interpret(
-    //         &bytecode,
-    //         &mut heap,
-    //         *label,
-    //     ) {
-    //         Ok(()) => todo!(),
-    //         Err(_) => todo!(),
-    //     }
-    // }
-
-    Ok(())
 }
 
 fn prettify(s: &str) -> String {

@@ -1,13 +1,17 @@
 use crate::Session;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_parse as ast;
+use sodigy_parse::{self as ast, Field};
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 
 #[derive(Clone, Debug)]
 pub enum Type {
     Identifier(IdentWithOrigin),
+    Path {
+        id: IdentWithOrigin,
+        fields: Vec<Field>,
+    },
     Generic {
         r#type: Box<Type>,
         types: Vec<Type>,
@@ -38,6 +42,27 @@ impl Type {
                     session.errors.push(Error {
                         kind: ErrorKind::UndefinedName(*id),
                         span: *span,
+                        ..Error::default()
+                    });
+                    Err(())
+                },
+            },
+            ast::Type::Path { id, id_span, fields } => match session.find_origin_and_count_usage(*id) {
+                Some((origin, def_span)) => {
+                    Ok(Type::Path {
+                        id: IdentWithOrigin {
+                            id: *id,
+                            span: *id_span,
+                            origin,
+                            def_span,
+                        },
+                        fields: fields.clone(),
+                    })
+                },
+                None => {
+                    session.errors.push(Error {
+                        kind: ErrorKind::UndefinedName(*id),
+                        span: *id_span,
                         ..Error::default()
                     });
                     Err(())
@@ -183,7 +208,6 @@ impl Type {
                     })
                 }
             },
-            _ => panic!("TODO: {ast_type:?}"),
         }
     }
 }
