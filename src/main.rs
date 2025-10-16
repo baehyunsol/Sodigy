@@ -1,4 +1,4 @@
-use sodigy::{Command, parse_args};
+use sodigy::{Command, FileOrMemory, parse_args};
 use sodigy_error::{Error, ErrorLevel};
 use sodigy_file::File;
 use sodigy_fs_api::{
@@ -26,6 +26,7 @@ fn main() -> Result<(), ()> {
                         input_path,
                         input_kind,
                         intermediate_dir,
+                        reuse_ir,
                         output_path,
                         output_kind,
                         backend,
@@ -33,6 +34,7 @@ fn main() -> Result<(), ()> {
                     } => {
                         let intern_str_map_dir = join(&intermediate_dir, "str").unwrap();
                         let intern_num_map_dir = join(&intermediate_dir, "num").unwrap();
+                        let FileOrMemory::File(output_path) = output_path else { unreachable!() };
 
                         if !exists(&intern_str_map_dir) {
                             create_dir_all(&intern_str_map_dir).unwrap();

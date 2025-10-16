@@ -2,15 +2,16 @@ use sodigy_backend::CodeGenMode;
 
 mod cli;
 
-pub use cli::{Command, parse_args};
+pub use cli::{Command, FileOrMemory, parse_args};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IrKind {
     Code,
     Ast,
     Hir,
     Mir,
     Bytecode,
+    TranspiledCode,
 }
 
 #[derive(Clone, Copy, Debug)]
