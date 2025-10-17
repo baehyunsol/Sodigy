@@ -22,6 +22,9 @@ impl ErrorLevel {
             ErrorKind::EmptyCharLiteral |
             ErrorKind::UnterminatedBlockComment |
             ErrorKind::InvalidUtf8 |
+            ErrorKind::InvalidUnicodeCharacter |
+            ErrorKind::InvalidUnicodeEscape |
+            ErrorKind::UnmatchedGroup { .. } |
             ErrorKind::TooManyQuotes |
             ErrorKind::UnclosedDelimiter(_) |
             ErrorKind::UnexpectedToken { .. } |

@@ -2,12 +2,12 @@ use crate::{Assert, Enum, Func, Let, PRELUDES, Struct};
 use sodigy_error::{Error, Warning};
 use sodigy_fs_api::join;
 use sodigy_name_analysis::{Namespace, UseCount};
+use sodigy_parse::Session as ParseSession;
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 
 pub struct Session {
-    pub intern_str_map_dir: String,
-    pub intern_num_map_dir: String,
+    pub intermediate_dir: String,
     pub name_stack: Vec<Namespace>,
 
     // `func_default_values.last()` has the default values of functions
@@ -33,14 +33,13 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(intern_map_dir: &str) -> Self {
-        let intern_str_map_dir = join(intern_map_dir, "str").unwrap();
+    pub fn from_parse_session(parse_session: &ParseSession) -> Self {
         let prelude_namespace = Namespace::Block {
             names: PRELUDES.iter().map(
                 |(name, kind)| (
-                    intern_string(name, &intern_str_map_dir).unwrap(),
+                    intern_string(name, &parse_session.intermediate_dir).unwrap(),
                     (
-                        Span::Prelude(intern_string(name, &intern_str_map_dir).unwrap()),
+                        Span::Prelude(intern_string(name, &parse_session.intermediate_dir).unwrap()),
                         *kind,
                         UseCount::new(),
                     ),
@@ -49,8 +48,7 @@ impl Session {
         };
 
         Session {
-            intern_str_map_dir,
-            intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
+            intermediate_dir: parse_session.intermediate_dir.to_string(),
             name_stack: vec![prelude_namespace],
             func_default_values: vec![],
             is_in_debug_context: false,
@@ -59,8 +57,8 @@ impl Session {
             structs: vec![],
             enums: vec![],
             asserts: vec![],
-            errors: vec![],
-            warnings: vec![],
+            errors: parse_session.errors.clone(),
+            warnings: parse_session.warnings.clone(),
         }
     }
 

@@ -4,7 +4,7 @@
 // the interned_string. Otherwise, the content is stored in a file and its
 // length and hash is encoded to the interned_string.
 
-use sodigy_fs_api::FileError;
+use sodigy_fs_api::{FileError, join};
 
 mod fmt;
 mod fs;
@@ -56,14 +56,17 @@ impl InternedString {
     }
 }
 
-pub fn unintern_string(s: InternedString, map_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
+pub fn unintern_string(s: InternedString, intermediate_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
     match s.try_unintern_short_string() {
         Some(s) => Ok(Some(s)),
-        None => read_fs_map(map_dir, s),
+        None => {
+            let map_dir = join(intermediate_dir, "str")?;
+            read_fs_map(&map_dir, s)
+        },
     }
 }
 
-pub fn intern_string(s: &[u8], map_dir: &str) -> Result<InternedString, FileError> {
+pub fn intern_string(s: &[u8], intermediate_dir: &str) -> Result<InternedString, FileError> {
     match s.len() {
         0..15 => Ok(intern_short_string(s)),
         15..=2147483647 => {
@@ -86,7 +89,8 @@ pub fn intern_string(s: &[u8], map_dir: &str) -> Result<InternedString, FileErro
                 ((hashed >> 8) & 0xff) as u8,
                 (hashed & 0xff) as u8,
             ]));
-            insert_fs_map(map_dir, id, s)?;
+            let map_dir = join(intermediate_dir, "str")?;
+            insert_fs_map(&map_dir, id, s)?;
 
             Ok(id)
         },

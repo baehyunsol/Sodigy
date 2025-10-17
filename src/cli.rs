@@ -8,6 +8,9 @@ use ragit_cli::{
 
 #[derive(Clone, Debug)]
 pub enum Command {
+    InitIrDir {
+        intermediate_dir: String,
+    },
     Compile {
         input_path: String,
         input_kind: IrKind,
@@ -79,16 +82,21 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 }.to_string(),
             };
 
-            Ok(vec![Command::Compile {
-                input_path,
-                input_kind: IrKind::Code,
-                intermediate_dir,
-                reuse_ir,
-                output_path: FileOrMemory::File(output_path),
-                output_kind: IrKind::TranspiledCode,
-                backend,
-                profile,
-            }])
+            Ok(vec![
+                Command::InitIrDir {
+                    intermediate_dir: intermediate_dir.clone(),
+                },
+                Command::Compile {
+                    input_path,
+                    input_kind: IrKind::Code,
+                    intermediate_dir,
+                    reuse_ir,
+                    output_path: FileOrMemory::File(output_path),
+                    output_kind: IrKind::TranspiledCode,
+                    backend,
+                    profile,
+                },
+            ])
         },
         Some("compile-hir") => todo!(),
         Some("run") => {
@@ -111,6 +119,9 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
             };
 
             Ok(vec![
+                Command::InitIrDir {
+                    intermediate_dir: intermediate_dir.clone(),
+                },
                 Command::Compile {
                     input_path,
                     input_kind: IrKind::Code,

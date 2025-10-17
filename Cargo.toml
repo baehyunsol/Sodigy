@@ -13,6 +13,7 @@ sodigy-lex = { version = "0.1.0", path = "crates/lex" }
 sodigy-lir = { version = "0.1.0", path = "crates/lir" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }
 sodigy-parse = { version = "0.1.0", path = "crates/parse" }
+sodigy-session = { version = "0.1.0", path = "crates/session" }
 sodigy-span = { version = "0.1.0", path = "crates/span" }
 sodigy-string = { version = "0.1.0", path = "crates/string" }
 

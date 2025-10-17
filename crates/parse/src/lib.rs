@@ -1,5 +1,6 @@
 use sodigy_error::Error;
 use sodigy_file::File;
+use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
@@ -15,6 +16,7 @@ mod r#let;
 mod r#match;
 mod module;
 mod pattern;
+mod session;
 mod r#struct;
 mod tokens;
 mod r#type;
@@ -31,18 +33,31 @@ pub use r#let::Let;
 pub use r#match::{Match, MatchBranch};
 pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
+pub use session::Session;
 pub use r#struct::{Struct, StructInitField};
 pub(crate) use tokens::Tokens;
 pub use r#type::{GenericDef, Type};
 pub use r#use::Use;
 
-pub fn parse(tokens: &[Token], file: File) -> Result<Block, Vec<Error>> {
-    let mut tokens = Tokens::new(tokens, tokens.last().map(|t| t.span.end()).unwrap_or(Span::None));
-    let block = tokens.parse_block(
+pub fn parse(lex_session: LexSession) -> Session {
+    let mut session = Session::from_lex_session(&lex_session);
+    let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
+    let mut tokens = Tokens::new(&lex_session.tokens, last_span);
+    let mut ast = match tokens.parse_block(
         true, // top-level
-        Span::file(file),
-    )?;
+        Span::file(session.file),
+    ) {
+        Ok(ast) => ast,
+        Err(errors) => {
+            session.errors = errors;
+            return session;
+        },
+    };
 
-    block.check(true /* top_level */)?;
-    Ok(block)
+    if let Err(errors) = ast.check(true /* top_level */) {
+        session.errors = errors;
+    }
+
+    session.ast = ast;
+    session
 }

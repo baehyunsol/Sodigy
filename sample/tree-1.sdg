@@ -1,0 +1,124 @@
+struct Node = {
+    hash: Int,
+    key: K,
+    value: V,
+    left_child: Option<Node<K, V>>,
+    right_child: Option<Node<K, V>>,
+};
+
+fn get<K, V>(head: Node<K, V>, key: K) -> Option<V> = {
+    if head.key == key { head.value }
+
+    else {
+        let hash = key.hash();
+
+        if hash < head.hash {
+            if let Some(left) = head.left_child {
+                get(left, key)
+            }
+
+            else {
+                None
+            }
+        }
+
+        else {
+            if let Some(right) = head.right_child {
+                get(right, key)
+            }
+
+            else {
+                None
+            }
+        }
+    }
+};
+
+fn insert<K, V>(head: Node<K, V>, key: K, value: V) -> (Node<K, V>, Option<V>) = {
+    if head.key == key {
+        (
+            head `value value,
+            Some(head.value),
+        )
+    }
+
+    else {
+        let hash = key.hash();
+
+        if hash < head.hash {
+            if let Some(left) = head.left_child {
+                insert(left, key, value)
+            }
+
+            else {
+                (
+                    // TODO: I want a Rust-like syntax where I can shorten `hash: hash` to `hash`.
+                    head `left_child Node {
+                        hash: hash,
+                        key: key,
+                        value: value,
+                        left_child: None,
+                        right_child: None,
+                    },
+                    None,
+                )
+            }
+        }
+
+        else {
+            if let Some(right) = head.right_child {
+                insert(right, key, value)
+            }
+
+            else {
+                (
+                    head `right_child Node {
+                        hash: hash,
+                        key: key,
+                        value: value,
+                        left_child: None,
+                        right_child: None,
+                    },
+                    None,
+                )
+            }
+        }
+    }
+};
+
+fn remove<K, V>(head: Node<K, V>, key: K) -> (Node<K, V>, Option<V>) = {
+    if head.key == key {
+        panic("TODO")
+    }
+
+    else {
+        let hash = key.hash();
+
+        if hash < head.hash {
+            if let Some(left) = head.left_child {
+                delete(left, key)
+            }
+
+            else {
+                (head, None)
+            }
+        }
+
+        else {
+            if let Some(right) = head.right_child {
+                delete(right, key)
+            }
+
+            else {
+                (head, None)
+            }
+        }
+    }
+};
+
+fn length<K, V>(head: Node<K, V>) -> Int = match (head.left_child, head.right_child) {
+    (Some(left), Some(right)) => 1 + length(left) + length(right),
+    (Some(left), None) => 1 + length(left),
+    (None, Some(right)) => 1 + length(right),
+    (None, None) => 1,
+};

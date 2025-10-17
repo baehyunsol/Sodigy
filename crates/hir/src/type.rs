@@ -103,7 +103,7 @@ impl Type {
             },
             ast::Type::List { r#type, group_span } => {
                 // TODO: I want it to be const-evaled
-                let list_id = intern_string(b"List", &session.intern_str_map_dir).unwrap();
+                let list_id = intern_string(b"List", &session.intermediate_dir).unwrap();
                 let list_type = Type::Identifier(IdentWithOrigin {
                     id: list_id,
                     span: *group_span,

@@ -214,7 +214,7 @@ impl Expr {
             },
             ast::Expr::Lambda { args, r#type, value, group_span } => {
                 let span = group_span.begin();
-                let name = name_lambda_function(span, &session.intern_str_map_dir);
+                let name = name_lambda_function(span, &session.intermediate_dir);
 
                 let func = ast::Func {
                     keyword_span: Span::None,

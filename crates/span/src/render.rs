@@ -30,9 +30,7 @@ struct Line {
 //        - it shows 3 characters before the first character of the span and 3 characters after the last character of the span!
 //     2. the identifier in the error message is not truncated (hence the terminal is laggy)
 
-// TODO: It's just PoC.
 pub fn render_span(
-    // TODO: `(file_name, bytes)` can be replaced with `file: File`
     file_name: &str,
     bytes: &[u8],
     span: Span,

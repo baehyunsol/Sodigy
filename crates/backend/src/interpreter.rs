@@ -1,5 +1,4 @@
 use sodigy_lir::{
-    self as lir,
     Bytecode,
     Const,
     Label,

@@ -93,8 +93,7 @@ pub enum InPlaceOrRegister {
     Register(Register),
 }
 
-// It doesn't call `session.make_labels_static`. Backend has to do that.
-pub fn lower_mir(mir_session: &sodigy_mir::Session) -> Session {
+pub fn lower(mir_session: sodigy_mir::Session) -> Session {
     let mut session = Session::new();
 
     for func in mir_session.funcs.iter() {
@@ -112,5 +111,6 @@ pub fn lower_mir(mir_session: &sodigy_mir::Session) -> Session {
         session.asserts.push(assert);
     }
 
+    session.make_labels_static();
     session
 }

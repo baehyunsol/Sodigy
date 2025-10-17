@@ -1,25 +1,24 @@
 use crate::{Assert, Func, Let, Type};
-use sodigy_error::Error;
+use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, StructField};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
 pub struct Session {
-    pub intern_str_map_dir: String,
-    pub intern_num_map_dir: String,
+    pub intermediate_dir: String,
     pub func_shapes: HashMap<Span, Vec<FuncArgDef<()>>>,
     pub struct_shapes: HashMap<Span, Vec<StructField<()>>>,
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub asserts: Vec<Assert>,
     pub errors: Vec<Error>,
+    pub warnings: Vec<Warning>,
 }
 
 impl Session {
     pub fn from_hir_session(hir_session: &hir::Session) -> Session {
         Session {
-            intern_str_map_dir: hir_session.intern_str_map_dir.clone(),
-            intern_num_map_dir: hir_session.intern_num_map_dir.clone(),
+            intermediate_dir: hir_session.intermediate_dir.clone(),
             func_shapes: hir_session.funcs.iter().map(
                 |func| (
                     func.name_span,
@@ -49,7 +48,8 @@ impl Session {
             lets: vec![],
             funcs: vec![],
             asserts: vec![],
-            errors: vec![],
+            errors: hir_session.errors.clone(),
+            warnings: hir_session.warnings.clone(),
         }
     }
 }

@@ -1,4 +1,4 @@
-use sodigy_hir as hir;
+use sodigy_hir::Session as HirSession;
 
 mod assert;
 mod block;
@@ -20,8 +20,8 @@ pub use r#let::Let;
 pub use session::Session;
 pub use r#type::Type;
 
-pub fn lower(hir_session: &hir::Session) -> Session {
-    let mut session = Session::from_hir_session(hir_session);
+pub fn lower(hir_session: HirSession) -> Session {
+    let mut session = Session::from_hir_session(&hir_session);
 
     for hir_let in hir_session.lets.iter() {
         if let Ok(r#let) = Let::from_hir(hir_let, &mut session) {

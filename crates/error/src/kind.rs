@@ -18,6 +18,12 @@ pub enum ErrorKind {
     EmptyCharLiteral,
     UnterminatedBlockComment,
     InvalidUtf8,
+    InvalidUnicodeCharacter,
+    InvalidUnicodeEscape,
+    UnmatchedGroup {
+        expected: u8,
+        got: u8,
+    },
 
     // You can use up to 127 quotes for opening or 254 quotes (open 127 + close 127) consecutively.
     TooManyQuotes,

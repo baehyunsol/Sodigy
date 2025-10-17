@@ -74,4 +74,15 @@ impl Span {
             Span::Prelude(_) => unreachable!(),
         }
     }
+
+    pub fn get_file(&self) -> Option<File> {
+        match self {
+            Span::File(file) |
+            Span::Eof(file) |
+            Span::Range { file, .. } => Some(*file),
+
+            // TODO: maybe File::Prelude?
+            Span::None | Span::Prelude(_) => None,
+        }
+    }
 }

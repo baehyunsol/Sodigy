@@ -1,7 +1,7 @@
 #[derive(Clone, Debug)]
 pub struct CodeGenConfig {
     // You need this when you call `unintern_string`.
-    pub intern_str_map_dir: String,
+    pub intermediate_dir: String,
 
     // If it's set, it adds comments to the generated code.
     pub label_help_comment: bool,

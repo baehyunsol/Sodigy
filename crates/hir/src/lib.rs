@@ -1,4 +1,4 @@
-use sodigy_parse as ast;
+use sodigy_parse::Session as ParseSession;
 
 // In sodigy_lex and sodigy_parse, the functions return `Result<T, Vec<Error>>`, and errors are handled by `?` operator.
 // That means
@@ -39,21 +39,28 @@ pub use r#type::Type;
 
 pub(crate) use prelude::PRELUDES;
 
-impl Session {
-    /// Errors and warnings are stored in the session.
-    pub fn lower(&mut self, ast_block: &ast::Block) -> Result<(), ()> {
-        let mut top_level_block = Block::from_ast(ast_block, self, true /* is_top_level */)?;
+pub fn lower(parse_session: ParseSession) -> Session {
+    let mut session = Session::from_parse_session(&parse_session);
+    let mut top_level_block = match Block::from_ast(
+        &parse_session.ast,
+        &mut session,
+        true, // is_top_level
+    ) {
+        Ok(block) => block,
+        Err(()) => {
+            return session;
+        },
+    };
 
-        for r#let in top_level_block.lets.drain(..) {
-            self.lets.push(r#let);
-        }
-
-        for assert in top_level_block.asserts.drain(..) {
-            self.asserts.push(assert);
-        }
-
-        Ok(())
+    for r#let in top_level_block.lets.drain(..) {
+        session.lets.push(r#let);
     }
+
+    for assert in top_level_block.asserts.drain(..) {
+        session.asserts.push(assert);
+    }
+
+    session
 }
 
 #[derive(Clone, Copy, Debug)]

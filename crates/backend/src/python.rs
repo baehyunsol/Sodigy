@@ -34,7 +34,7 @@ pub fn python_code_gen(
 
     if config.label_help_comment {
         for func in session.funcs.iter() {
-            let func_name = unintern_string(func.name, &config.intern_str_map_dir).unwrap().unwrap();
+            let func_name = unintern_string(func.name, &config.intermediate_dir).unwrap().unwrap();
             help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
 
             // TODO: what if there's an inline function named "main"? Do I have to restrict this? maybe...
@@ -44,7 +44,7 @@ pub fn python_code_gen(
         }
 
         for r#let in session.lets.iter() {
-            let let_name = unintern_string(r#let.name, &config.intern_str_map_dir).unwrap().unwrap();
+            let let_name = unintern_string(r#let.name, &config.intermediate_dir).unwrap().unwrap();
             help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&let_name)));
         }
 
@@ -109,13 +109,13 @@ pub fn python_code_gen(
                 Bytecode::PushConst { value, dst } => match dst {
                     Register::Local(_) |
                     Register::Call(_) => {
-                        lines.push(format!("{indent}{}.append({})", place(dst), py_value(value, &config.intern_str_map_dir)));
+                        lines.push(format!("{indent}{}.append({})", place(dst), py_value(value, &config.intermediate_dir)));
                     },
                     Register::Return => {
-                        lines.push(format!("{indent}ret={}", py_value(value, &config.intern_str_map_dir)));
+                        lines.push(format!("{indent}ret={}", py_value(value, &config.intermediate_dir)));
                     },
                     Register::Const(_) => {
-                        lines.push(format!("{indent}{}={}", place(dst), py_value(value, &config.intern_str_map_dir)));
+                        lines.push(format!("{indent}{}={}", place(dst), py_value(value, &config.intermediate_dir)));
                     },
                 },
                 Bytecode::Pop(src) => match src {
@@ -214,7 +214,7 @@ pub fn python_code_gen(
                         Offset::Dynamic(r) => peek(r),
                     };
                     let value = match value {
-                        ConstOrRegister::Const(v) => py_value(v, &config.intern_str_map_dir),
+                        ConstOrRegister::Const(v) => py_value(v, &config.intermediate_dir),
                         ConstOrRegister::Register(r) => peek(r),
                     };
 
@@ -281,7 +281,7 @@ pub fn python_code_gen(
 
             for assert in session.asserts.iter() {
                 let assert_name = match assert.name {
-                    Some(name) => String::from_utf8_lossy(&unintern_string(name, &config.intern_str_map_dir).unwrap().unwrap()).to_string(),
+                    Some(name) => String::from_utf8_lossy(&unintern_string(name, &config.intermediate_dir).unwrap().unwrap()).to_string(),
                     None => {
                         anon_index += 1;
                         format!("anonymous_assertion_{anon_index}")
@@ -342,12 +342,12 @@ fn peek(r: &Register) -> String {
     }
 }
 
-fn py_value(v: &Const, dictionary: &str) -> String {
+fn py_value(v: &Const, intermediate_dir: &str) -> String {
     match v {
         Const::String { s, binary: true } => todo!(),
         Const::String { s, binary: false } => format!(
             "{:?}",
-            String::from_utf8_lossy(&unintern_string(*s, dictionary).unwrap().unwrap()),
+            String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()),
         ),
         Const::Number(InternedNumber { value, is_integer }) => match value {
             InternedNumberValue::SmallInteger(n) => match is_integer {

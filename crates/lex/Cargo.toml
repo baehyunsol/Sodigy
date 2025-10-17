@@ -9,6 +9,7 @@ sodigy-file = { version = "0.1.0", path = "../file" }
 sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
 sodigy-keyword = { version = "0.1.0", path = "../keyword" }
 sodigy-number = { version = "0.1.0", path = "../number" }
+sodigy-session = { version = "0.1.0", path = "../session" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }

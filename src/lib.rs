@@ -7,7 +7,7 @@ pub use cli::{Command, FileOrMemory, parse_args};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IrKind {
     Code,
-    Ast,
+    // Ast,
     Hir,
     Mir,
     Bytecode,

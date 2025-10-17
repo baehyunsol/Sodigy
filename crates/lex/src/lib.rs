@@ -3,36 +3,18 @@
 
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
-use sodigy_fs_api::join;
 use sodigy_keyword::Keyword;
 use sodigy_number::{Base, InternedNumber, intern_number};
 use sodigy_span::Span;
-use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Punct, Token, TokenKind};
 
-pub struct Session {
-    pub file: File,
-    input_bytes: Vec<u8>,
-    state: LexState,
-    cursor: usize,
-    pub tokens: Vec<Token>,
-    intern_str_map_dir: String,
-    intern_num_map_dir: String,
+mod session;
 
-    group_stack: Vec<(u8, Span)>,  // u8: b']' | b'}' | b')', Span: span of the opening delim
-
-    // offset of the start of the current token
-    token_start: usize,
-
-    // identifier, integer
-    buffer1: Vec<u8>,
-
-    // fraction
-    buffer2: Vec<u8>,
-}
+pub use session::Session;
 
 #[derive(Debug)]
-enum LexState {
+pub(crate) enum LexState {
     Init,
 
     // `StringPrefix` first parses prefix `b`, `f` or `r` before the literal
@@ -69,32 +51,39 @@ enum LexState {
 pub fn lex(
     file: File,
     input: Vec<u8>,
-    intern_map_dir: &str,
-) -> Result<Vec<Token>, Error> {
-    let mut gara_session = Session {
+    intermediate_dir: String,
+) -> Session {
+    let mut session = Session {
         file,
         input_bytes: input,
         state: LexState::Init,
         cursor: 0,
         tokens: vec![],
-        intern_str_map_dir: join(intern_map_dir, "str").unwrap(),
-        intern_num_map_dir: join(intern_map_dir, "num").unwrap(),
+        intermediate_dir,
         group_stack: vec![],
         token_start: 0,
         buffer1: vec![],
         buffer2: vec![],
+        errors: vec![],
+        warnings: vec![],
     };
 
     loop {
-        match gara_session.step() {
+        match session.step() {
             Ok(true) => { break; },
             Ok(false) => {},
-            Err(e) => { return Err(e); },
+            Err(e) => {
+                session.errors.push(e);
+                break;
+            },
         }
     }
 
-    gara_session.group_tokens();
-    Ok(gara_session.tokens)
+    if !session.errors.is_empty() {
+        session.group_tokens();
+    }
+
+    session
 }
 
 impl Session {
@@ -245,9 +234,9 @@ impl Session {
                     },
                     Some((delim, _)) => {
                         return Err(Error {
-                            kind: ErrorKind::UnexpectedToken {
-                                expected: ErrorToken::Character(delim),
-                                got: ErrorToken::Character(*x),
+                            kind: ErrorKind::UnmatchedGroup {
+                                expected: delim,
+                                got: *x,
                             },
                             span: Span::range(
                                 self.file,
@@ -557,12 +546,19 @@ impl Session {
                         // for example, if double-quote appears 6 times,
                         // the first 3 starts the literal and the last 3 ends the literal
                         x if x % 4 == 2 => {
-                            self.tokens.push(Token {
-                                kind: TokenKind::String {
+                            let token_kind = if format {
+                                // TokenKind::FormattedString {}
+                                todo!()
+                            } else {
+                                TokenKind::String {
                                     binary,
                                     raw,
                                     s: InternedString::empty(),
-                                },
+                                }
+                            };
+
+                            self.tokens.push(Token {
+                                kind: token_kind,
                                 span: Span::range(
                                     self.file,
                                     self.cursor,
@@ -613,12 +609,18 @@ impl Session {
                 },
                 // an empty string literal
                 (Some(b'"'), Some(b'"'), _) => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::String {
+                    let token_kind = if format {
+                        // TokenKind::FormattedString {}
+                        todo!()
+                    } else {
+                        TokenKind::String {
                             binary,
                             raw,
                             s: InternedString::empty(),
-                        },
+                        }
+                    };
+                    self.tokens.push(Token {
+                        kind: token_kind,
                         span: Span::range(
                             self.file,
                             self.cursor,
@@ -643,11 +645,22 @@ impl Session {
                 (Some(b'"'), _, _) => {
                     self.buffer1.clear();
                     self.token_start = self.cursor;
-                    self.state = LexState::String {
-                        binary,
-                        raw,
-                        quote_count: 1,
-                    };
+
+                    if format {
+                        self.state = LexState::FormattedString {
+                            raw,
+                            quote_count: 1,
+                        };
+                    }
+
+                    else {
+                        self.state = LexState::String {
+                            binary,
+                            raw,
+                            quote_count: 1,
+                        };
+                    }
+
                     self.cursor += 1;
                 },
                 (Some(b'\''), _, _) => {
@@ -664,7 +677,7 @@ impl Session {
             ) {
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
-                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::String {
@@ -752,7 +765,7 @@ impl Session {
                     });
                 },
                 (Some(b'"'), _, _, _) if quote_count == 1 => {
-                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
                     self.tokens.push(Token {
                         kind: TokenKind::String {
                             binary,
@@ -849,8 +862,98 @@ impl Session {
                     self.cursor += 3;
                 },
                 // ascii escape
-                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(b'\'')) => todo!(),
-                // TODO: unicode escape
+                // Well, it can exceed the ascii range, ... but who cares?
+                (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(b'\'')) => {
+                    let n1 = match *z {
+                        b'0'..=b'9' => z - b'0',
+                        b'a'..=b'f' => z - b'a' + 10,
+                        b'A'..=b'F' => z - b'A' + 10,
+                        _ => unreachable!(),
+                    } as u32;
+                    let n2 = match *w {
+                        b'0'..=b'9' => w - b'0',
+                        b'a'..=b'f' => w - b'a' + 10,
+                        b'A'..=b'F' => w - b'A' + 10,
+                        _ => unreachable!(),
+                    } as u32;
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::Char { binary, ch: n1 * 16 + n2 },
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor + 5,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                    self.cursor += 5;
+                },
+                (Some(b'\\'), Some(b'u'), Some(b'{'), _, _) => {
+                    let escape_start = self.cursor;
+                    self.cursor += 3;
+                    let mut n = 0;
+
+                    loop {
+                        match self.input_bytes.get(self.cursor) {
+                            Some(x @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) => {
+                                let x = match *x {
+                                    b'0'..=b'9' => x - b'0',
+                                    b'a'..=b'f' => x - b'a' + 10,
+                                    b'A'..=b'F' => x - b'A' + 10,
+                                    _ => unreachable!(),
+                                } as u32;
+
+                                n <<= 4;
+                                n |= x;
+                                self.cursor += 1;
+
+                                if n > 0x10ffff {
+                                    return Err(Error {
+                                        kind: ErrorKind::InvalidUnicodeCharacter,
+                                        span: Span::range(
+                                            self.file,
+                                            escape_start,
+                                            escape_start + 1,
+                                        ),
+                                        ..Error::default()
+                                    });
+                                }
+                            },
+                            Some(b'}') => {
+                                self.cursor += 1;
+                                break;
+                            },
+                            Some(_) => {
+                                return Err(Error {
+                                    kind: ErrorKind::InvalidUnicodeEscape,
+                                    span: Span::range(
+                                        self.file,
+                                        self.cursor,
+                                        self.cursor + 1,
+                                    ),
+                                    ..Error::default()
+                                });
+                            },
+                            None => {
+                                return Err(Error {
+                                    kind: ErrorKind::UnclosedDelimiter(b'}'),
+                                    span: Span::eof(self.file),
+                                    ..Error::default()
+                                });
+                            },
+                        }
+                    }
+
+                    self.state = LexState::Init;
+                    self.tokens.push(Token {
+                        kind: TokenKind::Char { binary, ch: n },
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor,
+                        ),
+                    });
+                },
                 // invalid escape
                 (Some(b'\\'), Some(_), _, _, _) => {
                     return Err(Error {
@@ -1048,7 +1151,7 @@ impl Session {
                                 }
                             }
 
-                            let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
+                            let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
                             TokenKind::Identifier(interned)
                         },
                     };
@@ -1070,7 +1173,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 _ => {
-                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::FieldModifier(interned),
@@ -1173,7 +1276,7 @@ impl Session {
             },
             LexState::DocComment => match self.input_bytes.get(self.cursor) {
                 Some(b'\n') => {
-                    let interned = intern_string(&self.buffer1, &self.intern_str_map_dir).unwrap();
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
                         kind: TokenKind::DocComment(interned),
@@ -1190,6 +1293,11 @@ impl Session {
                     self.buffer1.push(*x);
                     self.cursor += 1;
                 },
+                // TODO: I don't like this implementation
+                //       In this case, the DocComment itself is valid, but it's an error because the
+                //       DocComment is not attached to anything.
+                //       My original idea was "lexer should guarantee that there's no dangling DocComment at the end",
+                //       but the lexer shouldn't throw this kind of error.
                 None => {
                     return Err(Error {
                         kind: ErrorKind::UnexpectedEof {
