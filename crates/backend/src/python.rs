@@ -21,11 +21,10 @@ use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 pub fn python_code_gen(
-    output_path: &str,
     bytecode: &HashMap<u32, Vec<Bytecode>>,
     session: &lir::Session,
     config: &CodeGenConfig,
-) -> Result<(), FileError> {
+) -> Result<Vec<u8>, FileError> {
     let mut lines = vec![];
     let mut indent;
     let mut main_func_label = None;
@@ -34,7 +33,7 @@ pub fn python_code_gen(
 
     if config.label_help_comment {
         for func in session.funcs.iter() {
-            let func_name = unintern_string(func.name, &config.intermediate_dir).unwrap().unwrap();
+            let func_name = unintern_string(func.name, &config.intermediate_dir)?.unwrap();
             help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
 
             // TODO: what if there's an inline function named "main"? Do I have to restrict this? maybe...
@@ -44,7 +43,7 @@ pub fn python_code_gen(
         }
 
         for r#let in session.lets.iter() {
-            let let_name = unintern_string(r#let.name, &config.intermediate_dir).unwrap().unwrap();
+            let let_name = unintern_string(r#let.name, &config.intermediate_dir)?.unwrap();
             help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&let_name)));
         }
 
@@ -313,11 +312,7 @@ pub fn python_code_gen(
         },
     }
 
-    write_string(
-        output_path,
-        &lines.join("\n"),
-        WriteMode::CreateOrTruncate,
-    )
+    Ok(lines.join("\n").into_bytes())
 }
 
 fn place(r: &Register) -> String {
@@ -347,6 +342,7 @@ fn py_value(v: &Const, intermediate_dir: &str) -> String {
         Const::String { s, binary: true } => todo!(),
         Const::String { s, binary: false } => format!(
             "{:?}",
+            // TODO: escape string
             String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()),
         ),
         Const::Number(InternedNumber { value, is_integer }) => match value {

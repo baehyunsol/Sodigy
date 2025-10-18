@@ -94,7 +94,7 @@ pub enum InPlaceOrRegister {
 }
 
 pub fn lower(mir_session: sodigy_mir::Session) -> Session {
-    let mut session = Session::new();
+    let mut session = Session::from_mir_session(&mir_session);
 
     for func in mir_session.funcs.iter() {
         let func = Func::from_mir(func, &mut session);

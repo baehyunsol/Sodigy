@@ -3,6 +3,7 @@ use sodigy_error::{Error, Warning};
 use sodigy_fs_api::join;
 use sodigy_name_analysis::{Namespace, UseCount};
 use sodigy_parse::Session as ParseSession;
+use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 
@@ -64,5 +65,19 @@ impl Session {
 
     pub fn push_func_default_value(&mut self, default_value: Let) {
         self.func_default_values.last_mut().unwrap().push(default_value);
+    }
+}
+
+impl SodigySession for Session {
+    fn get_errors(&self) -> &[Error] {
+        &self.errors
+    }
+
+    fn get_warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    fn get_intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
     }
 }

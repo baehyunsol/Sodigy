@@ -1,6 +1,7 @@
 use crate::{Assert, Func, Let, Type};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, StructField};
+use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -51,5 +52,19 @@ impl Session {
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
         }
+    }
+}
+
+impl SodigySession for Session {
+    fn get_errors(&self) -> &[Error] {
+        &self.errors
+    }
+
+    fn get_warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    fn get_intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
     }
 }

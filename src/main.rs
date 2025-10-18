@@ -1,4 +1,4 @@
-use sodigy::{Command, FileOrMemory, parse_args};
+use sodigy::{Backend, Command, FileOrMemory, parse_args};
 use sodigy_file::File;
 use sodigy_fs_api::{
     FileError,
@@ -12,6 +12,7 @@ use sodigy_session::Session;
 
 fn main() -> Result<(), ()> {
     let args = std::env::args().collect::<Vec<_>>();
+    let mut compile_result = None;
 
     match parse_args(&args) {
         Ok(commands) => {
@@ -22,6 +23,10 @@ fn main() -> Result<(), ()> {
                     } => if let Err(e) = init_ir_dir(&intermediate_dir) {
                         return Err(());
                     },
+                    // TODO: there are too many unwraps
+                    // TODO: It assumes that `input_kind` is always `IrKind::Code` and
+                    //       `output_kind` is always `IrKind::TranspiledCode` because
+                    //       the other variants are not implemented yet.
                     Command::Compile {
                         input_path,
                         input_kind,
@@ -39,37 +44,54 @@ fn main() -> Result<(), ()> {
                         // FIXME: the current implementation can only compile single-file projects.
                         let file = File::Single;
 
-                        // TODO: if a session is erroneous, dump errors and quit
-                        // TODO: always dump warnings
                         let lex_session = sodigy_lex::lex(
                             file,
                             bytes,
                             intermediate_dir.clone(),
                         );
-                        lex_session.error_or_continue()?;
+                        lex_session.continue_or_dump_errors()?;
                         let parse_session = sodigy_parse::parse(lex_session);
-                        parse_session.error_or_continue()?;
+                        parse_session.continue_or_dump_errors()?;
                         let hir_session = sodigy_hir::lower(parse_session);
-                        hir_session.error_or_continue()?;
-                        // TODO: inter-file hir analysis (name-resolution)
-                        let mir_session = sodigy_mir::lower(hir_session);
-                        mir_session.error_or_continue()?;
-                        // TODO: inter-file mir analysis (type-check)
-                        let lir_session = sodigy_lir::lower(mir_session);
-                        lir_session.error_or_continue()?;
-                        let bytecode = lir_session.into_labeled_bytecode();
+                        hir_session.continue_or_dump_errors()?;
 
-                        let FileOrMemory::File(output_path) = output_path else { unreachable!() };
-                        sodigy_backend::python_code_gen(
-                            &output_path,
-                            &bytecode,
-                            &lir_session,
-                            &sodigy_backend::CodeGenConfig {
-                                intermediate_dir,
-                                label_help_comment: true,
-                                mode: profile.into(),
+                        // TODO: inter-file hir analysis (name-resolution)
+
+                        let mir_session = sodigy_mir::lower(hir_session);
+                        mir_session.continue_or_dump_errors()?;
+
+                        // TODO: inter-file mir analysis (type-check)
+
+                        let lir_session = sodigy_lir::lower(mir_session);
+                        lir_session.continue_or_dump_errors()?;
+                        let bytecode = lir_session.into_labeled_bytecode();
+                        lir_session.dump_warnings();
+
+                        let result = match backend {
+                            Backend::Python => sodigy_backend::python_code_gen(
+                                &bytecode,
+                                &lir_session,
+                                &sodigy_backend::CodeGenConfig {
+                                    intermediate_dir,
+                                    label_help_comment: true,
+                                    mode: profile.into(),
+                                },
+                            ).unwrap(),
+                            _ => todo!(),
+                        };
+
+                        match output_path {
+                            FileOrMemory::File(path) => {
+                                write_bytes(
+                                    &path,
+                                    &result,
+                                    WriteMode::CreateOrTruncate,
+                                ).unwrap();
                             },
-                        ).unwrap();
+                            FileOrMemory::Memory => {
+                                compile_result = Some(result);
+                            },
+                        }
                     },
                     Command::Interpret {
                         bytecode_path,

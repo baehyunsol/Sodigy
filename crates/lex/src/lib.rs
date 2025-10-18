@@ -79,7 +79,7 @@ pub fn lex(
         }
     }
 
-    if !session.errors.is_empty() {
+    if session.errors.is_empty() {
         session.group_tokens();
     }
 

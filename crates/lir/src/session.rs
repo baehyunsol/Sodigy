@@ -1,8 +1,12 @@
 use crate::{Assert, Bytecode, Func, Label, Let, Register};
+use sodigy_error::{Error, Warning};
+use sodigy_session::Session as SodigySession;
+use sodigy_mir as mir;
 use sodigy_span::Span;
 use std::collections::{HashMap, HashSet};
 
 pub struct Session {
+    pub intermediate_dir: String,
     pub func_arg_count: usize,
 
     // for creating tmp labels
@@ -14,17 +18,22 @@ pub struct Session {
     pub funcs: Vec<Func>,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
+    pub errors: Vec<Error>,
+    pub warnings: Vec<Warning>,
 }
 
 impl Session {
-    pub fn new() -> Self {
+    pub fn from_mir_session(mir_session: &mir::Session) -> Self {
         Session {
+            intermediate_dir: mir_session.intermediate_dir.to_string(),
             func_arg_count: 0,
             label_counter: 0,
             local_registers: HashMap::new(),
             funcs: vec![],
             lets: vec![],
             asserts: vec![],
+            errors: mir_session.errors.clone(),
+            warnings: mir_session.warnings.clone(),
         }
     }
 
@@ -185,5 +194,19 @@ fn make_labels_static(bytecode: &mut Vec<Bytecode>, map: &HashMap<Span, u32>, of
             Bytecode::UpdateCompound { .. } |
             Bytecode::ReadCompound { .. } => {},
         }
+    }
+}
+
+impl SodigySession for Session {
+    fn get_errors(&self) -> &[Error] {
+        &self.errors
+    }
+
+    fn get_warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    fn get_intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
     }
 }

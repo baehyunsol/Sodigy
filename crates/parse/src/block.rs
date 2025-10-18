@@ -35,6 +35,22 @@ pub struct Block {
 }
 
 impl Block {
+    // It may or may not be a valid `Block`.
+    // This is only for unintialized or erroneous `Session`.
+    pub fn dummy() -> Self {
+        Block {
+            group_span: Span::None,
+            lets: vec![],
+            funcs: vec![],
+            structs: vec![],
+            enums: vec![],
+            asserts: vec![],
+            modules: vec![],
+            uses: vec![],
+            value: Box::new(None),
+        }
+    }
+
     // hir will use this function.
     pub fn iter_names(&self, is_top_level: bool) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
         self.lets.iter().map(move |l| (l.name, l.name_span, NameKind::Let { is_top_level })).chain(

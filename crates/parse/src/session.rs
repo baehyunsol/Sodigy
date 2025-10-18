@@ -16,7 +16,7 @@ impl Session {
     pub fn from_lex_session(lex_session: &LexSession) -> Self {
         Session {
             file: lex_session.file,
-            ast: todo!(),  // What's the default value? Should it be `Option<Block>`?
+            ast: Block::dummy(),
             intermediate_dir: lex_session.intermediate_dir.to_string(),
             errors: lex_session.errors.clone(),
             warnings: lex_session.warnings.clone(),

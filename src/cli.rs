@@ -59,7 +59,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 Some("rust") => Backend::Rust,
                 Some("python") => Backend::Python,
                 Some("bytecode") => Backend::Bytecode,
-                None => Backend::C,  // default
+                None => Backend::Python,  // default
                 _ => unreachable!(),
             };
             let reuse_ir = parsed_args.get_flag(0).is_some();
@@ -103,7 +103,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--ir", ArgType::String)
                 .optional_flag(&["--reuse-ir"])
-                .optional_flag(&["--release", "--test"])
+                .optional_flag(&["--release"])
                 .alias("-O", "--release")
                 .args(ArgType::String, ArgCount::Exact(1))  // input path
                 .parse(&args, 2)?;
@@ -113,7 +113,6 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
             let reuse_ir = parsed_args.get_flag(0).is_some();
             let profile = match parsed_args.get_flag(1).as_ref().map(|f| f.as_str()) {
                 Some("--release") => Profile::Release,
-                Some("--test") => Profile::Test,
                 None => Profile::Debug,
                 _ => unreachable!(),
             };
@@ -131,6 +130,36 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     output_kind: IrKind::Bytecode,
                     backend: Backend::Bytecode,
                     profile,
+                },
+                Command::Interpret {
+                    bytecode_path: FileOrMemory::Memory,
+                },
+            ])
+        },
+        Some("test") => {
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--ir", ArgType::String)
+                .optional_flag(&["--reuse-ir"])
+                .args(ArgType::String, ArgCount::Exact(1))  // input path
+                .parse(&args, 2)?;
+
+            let input_path = parsed_args.get_args_exact(1)?[0].to_string();
+            let intermediate_dir = parsed_args.arg_flags.get("--ir").map(|p| p.to_string()).unwrap_or_else(|| String::from("__sodigy_cache__"));
+            let reuse_ir = parsed_args.get_flag(0).is_some();
+
+            Ok(vec![
+                Command::InitIrDir {
+                    intermediate_dir: intermediate_dir.clone(),
+                },
+                Command::Compile {
+                    input_path,
+                    input_kind: IrKind::Code,
+                    intermediate_dir,
+                    reuse_ir,
+                    output_path: FileOrMemory::Memory,
+                    output_kind: IrKind::Bytecode,
+                    backend: Backend::Bytecode,
+                    profile: Profile::Test,
                 },
                 Command::Interpret {
                     bytecode_path: FileOrMemory::Memory,
