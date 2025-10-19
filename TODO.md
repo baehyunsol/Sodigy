@@ -1,3 +1,34 @@
+# 42. Bytecodes
+
+A plural form is `bytecodes` -> fix all!!
+
+# 41. String & Char & Int & Bytes
+
+Conclusion
+
+1. You can easily cast a `Char` to an `Int`, but they're different.
+  - Internally, they're the same. Casting a `Char` to an `Int` is a nop, and casting an `Int` to a `Char` does a bound check.
+2. In Sodigy programmer's perspective, `String` is just an alias for `[Char]`.
+  - But the runtime treats them differently. Since the compiler can perfectly inference all the types, it emits different bytecode.
+3. `b'_'` has `Byte` type. You can easily cast a `Byte` to an `Int`, but they're different.
+  - Internally, they're the same. Casting a `Byte` to an `Int` is a nop, and casting an `Int` to a `Byte` does a bound check.
+  - If it's a multibyte literal, it's a compile error.
+4. `Bytes` is like `String`. `Bytes` is just an alias for `[Byte]`, but the runtime distinguishes them.
+
+---
+
+I guess we need a radical change in the runtime...
+
+Runtime has 2 types: scalar vs compound
+
+1. `scalar` is a type that can be represented in 32 bits (`Byte`, `Char`).
+2. `compound` is a compound value of 0 or more scalar or compound values. It's reference-counted.
+3. `List`, `Tuple` and `Struct` are all just compound types. An element of a compound type can be a scalar or a compound.
+4. String is just `[Char]`.
+5. An arbitrary width integer is also just a compound type.
+  - Each scalar value can only be accessed by the runtime, and it represents a digit.
+6. Issue: in order for the runtime to free allocated memory, it has to know whether a value is scalar or compound. But who stores such information?
+
 # 40. Map
 
 1. In Sodigy vs Builtin
@@ -358,6 +389,8 @@ Person {
 하는 김에 `Person { name: name }`을 `Person { name }`으로 쓰는 syntax sugar도 만들고 싶음.
 
 얘네 하려면 한가지 문제가, 지금은 `{ IDENT COLON .? }`를 확인해서 struct_init인지 block인지 구분하거든? 이게 더이상 안 먹히게 됨. 이게 안 먹히면 `if IDENT { .? }`를 보고 뒤의 group이 true_value인지 struct_init인지 판단할 수가 없음... Rust도 동일한 문제가 있거든? 그래서 얘네는 무조건 true_value로 취급해버림. 만약에 저 위치에 struct_init을 쓰고 싶으면 무조건 괄호로 묶어야함 ㅋㅋ 걍 따라하자 ㅋㅋ
+
+I found that rustc also has an issue. I opend it hahaha: [issue](https://github.com/rust-lang/rust/issues/147877).
 
 # 19. cycle-checks in `let` values
 

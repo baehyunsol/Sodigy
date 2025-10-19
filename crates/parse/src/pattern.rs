@@ -111,6 +111,7 @@ pub struct StructFieldPattern {
     pub name: InternedString,
     pub span: Span,
     pub pattern: FullPattern,
+    pub is_shorthand: bool,
 }
 
 impl Pattern {

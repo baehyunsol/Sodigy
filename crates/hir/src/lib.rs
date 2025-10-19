@@ -32,7 +32,7 @@ pub use func::{CallArg, Func, FuncArgDef, FuncOrigin};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::Match;
-pub use pattern::Pattern;
+pub use pattern::{FullPattern, Pattern};
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
 pub use r#type::Type;

@@ -1,4 +1,4 @@
-use crate::{Expr, Pattern, Session};
+use crate::{Expr, FullPattern, Session};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 
@@ -6,7 +6,7 @@ use sodigy_span::Span;
 pub struct If {
     pub if_span: Span,
     pub cond: Box<Expr>,
-    pub pattern: Option<Pattern>,
+    pub pattern: Option<FullPattern>,
     pub else_span: Span,
     pub true_value: Box<Expr>,
     pub false_value: Box<Expr>,
@@ -26,7 +26,7 @@ impl If {
         };
 
         let pattern = match &ast_if.pattern {
-            Some(pattern) => match Pattern::from_ast(pattern, session) {
+            Some(pattern) => match FullPattern::from_ast(pattern, session) {
                 Ok(pattern) => Some(pattern),
                 Err(_) => {
                     return Err(());
