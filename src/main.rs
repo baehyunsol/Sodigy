@@ -153,6 +153,7 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
         create_dir_all(&intern_num_map_dir)?;
     }
 
+    File::clear_cache(0 /* project id */, intermediate_dir)?;
     Ok(())
 }
 

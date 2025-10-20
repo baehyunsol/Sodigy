@@ -34,6 +34,23 @@ pub struct File {
 }
 
 impl File {
+    pub fn clear_cache(project_id: u32, intermediate_dir: &str) -> Result<(), FileError> {
+        let lock_file_path = join(
+            intermediate_dir,
+            &format!("file_map_{project_id}_lock"),
+        )?;
+        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+
+        let file_map_path = join(
+            intermediate_dir,
+            &format!("files_{project_id}"),
+        )?;
+        write_bytes(&file_map_path, b"", WriteMode::CreateOrTruncate)?;
+        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        Ok(())
+    }
+
     pub fn register(
         project_id: u32,
 
@@ -98,7 +115,7 @@ impl File {
         write_bytes(
             &join(
                 intermediate_dir,
-                &format!("file_{project_id}"),
+                &format!("files_{project_id}"),
             )?,
             &file_map,
             WriteMode::CreateOrTruncate,
