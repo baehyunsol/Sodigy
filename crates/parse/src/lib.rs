@@ -1,8 +1,5 @@
-use sodigy_error::Error;
-use sodigy_file::File;
 use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
-use sodigy_token::Token;
 
 mod assert;
 mod attribute;
@@ -43,7 +40,7 @@ pub fn parse(lex_session: LexSession) -> Session {
     let mut session = Session::from_lex_session(&lex_session);
     let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
     let mut tokens = Tokens::new(&lex_session.tokens, last_span);
-    let mut ast = match tokens.parse_block(
+    let ast = match tokens.parse_block(
         true, // top-level
         Span::file(session.file),
     ) {

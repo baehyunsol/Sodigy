@@ -61,6 +61,7 @@ pub fn interpret(
                 },
                 Bytecode::PushConst { value, dst } => {
                     let ptr = match value {
+                        Const::Scalar(n) => todo!(),
                         Const::Number(n) => todo!(),
                         Const::String { s, binary } => todo!(),
                         Const::Compound(n) => todo!(),

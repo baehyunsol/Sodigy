@@ -1,4 +1,10 @@
-use sodigy::{Backend, Command, FileOrMemory, parse_args};
+use sodigy::{
+    Backend,
+    Command,
+    FileOrMemory,
+    Profile,
+    parse_args,
+};
 use sodigy_file::File;
 use sodigy_fs_api::{
     FileError,
@@ -21,6 +27,7 @@ fn main() -> Result<(), ()> {
                     Command::InitIrDir {
                         intermediate_dir,
                     } => if let Err(e) = init_ir_dir(&intermediate_dir) {
+                        eprintln!("{e:?}");
                         return Err(());
                     },
                     // TODO: there are too many unwraps
@@ -41,8 +48,12 @@ fn main() -> Result<(), ()> {
                             Ok(bytes) => bytes,
                             _ => todo!(),
                         };
-                        // FIXME: the current implementation can only compile single-file projects.
-                        let file = File::Single;
+                        let file = File::register(
+                            0,  // project_id
+                            &input_path,
+                            "todo",  // normalized_path
+                            &intermediate_dir,
+                        ).unwrap();
 
                         let lex_session = sodigy_lex::lex(
                             file,
@@ -67,35 +78,48 @@ fn main() -> Result<(), ()> {
                         let bytecode = lir_session.into_labeled_bytecode();
                         lir_session.dump_warnings();
 
-                        let result = match backend {
-                            Backend::Python => sodigy_backend::python_code_gen(
-                                &bytecode,
-                                &lir_session,
-                                &sodigy_backend::CodeGenConfig {
-                                    intermediate_dir,
-                                    label_help_comment: true,
-                                    mode: profile.into(),
-                                },
-                            ).unwrap(),
-                            _ => todo!(),
-                        };
-
                         match output_path {
                             FileOrMemory::File(path) => {
+                                let result = match backend {
+                                    Backend::Python => sodigy_backend::python_code_gen(
+                                        &bytecode,
+                                        &lir_session,
+                                        &sodigy_backend::CodeGenConfig {
+                                            intermediate_dir,
+                                            label_help_comment: true,
+                                            mode: profile.into(),
+                                        },
+                                    ).unwrap(),
+                                    _ => todo!(),
+                                };
                                 write_bytes(
                                     &path,
                                     &result,
                                     WriteMode::CreateOrTruncate,
                                 ).unwrap();
                             },
-                            FileOrMemory::Memory => {
-                                compile_result = Some(result);
+                            FileOrMemory::Memory => match backend {
+                                Backend::Bytecode => {
+                                    compile_result = Some(bytecode);
+                                },
+                                _ => unreachable!(),
                             },
                         }
                     },
                     Command::Interpret {
                         bytecode_path,
-                    } => {},
+                        profile,
+                    } => match bytecode_path {
+                        FileOrMemory::File(path) => todo!(),
+                        FileOrMemory::Memory => {
+                            let compile_result = compile_result.as_ref().unwrap();
+
+                            match profile {
+                                Profile::Test => {},
+                                _ => {},
+                            }
+                        },
+                    },
                     Command::Help(doc) => {},
                 }
             }
@@ -129,17 +153,6 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
         create_dir_all(&intern_num_map_dir)?;
     }
 
-    write_bytes(
-        &join(&intern_str_map_dir, "lock")?,
-        b"",
-        WriteMode::CreateOrTruncate,
-    )?;
-
-    write_bytes(
-        &join(&intern_num_map_dir, "lock")?,
-        b"",
-        WriteMode::CreateOrTruncate,
-    )?;
     Ok(())
 }
 

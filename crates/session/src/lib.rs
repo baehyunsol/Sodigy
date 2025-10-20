@@ -53,15 +53,18 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
             curr_file = error.span.get_file();
 
             if let Some(file) = curr_file {
-                curr_file_name = file.get_name();
-                bytes = match file.read_bytes() {
-                    Ok(bytes) => bytes,
-                    Err(_) => {
+                let (f, b) = match (
+                    file.get_path(intermediate_dir),
+                    file.read_bytes(intermediate_dir),
+                ) {
+                    (Ok(Some(file_name)), Ok(Some(bytes))) => (file_name, bytes),
+                    _ => {
                         curr_file = None;
-                        curr_file_name = String::new();
-                        vec![]
+                        (String::new(), vec![])
                     },
                 };
+                curr_file_name = f;
+                bytes = b;
             }
 
             else {

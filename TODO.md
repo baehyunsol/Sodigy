@@ -1,3 +1,7 @@
+# 43. Locks
+
+interned_string이든 file이든 작업하기 전에 lock 걸고 하고 있음. 지금은 lock 파일이랑 작업 파일이랑 별개거든? 그냥 작업 파일에 lock 걸고 작업한 다음에 풀면 되는 거 아님??
+
 # 42. Bytecodes
 
 A plural form is `bytecodes` -> fix all!!
@@ -24,10 +28,16 @@ Runtime has 2 types: scalar vs compound
 1. `scalar` is a type that can be represented in 32 bits (`Byte`, `Char`).
 2. `compound` is a compound value of 0 or more scalar or compound values. It's reference-counted.
 3. `List`, `Tuple` and `Struct` are all just compound types. An element of a compound type can be a scalar or a compound.
-4. String is just `[Char]`.
+4. String is just `[Char]` and `Bytes` is just `[Byte]`.
 5. An arbitrary width integer is also just a compound type.
   - Each scalar value can only be accessed by the runtime, and it represents a digit.
 6. Issue: in order for the runtime to free allocated memory, it has to know whether a value is scalar or compound. But who stores such information?
+  - The bytecodes must inform the runtime how to free the memory.
+  - There are only 3 cases:
+    - It's scalar, so there's no need to free.
+    - It's compound, and it has to drop all the elements.
+    - It's compound, and some elements are scalar and the others are compound.
+    - Oh, it has to be recursive... hence infinite cases!
 
 # 40. Map
 
@@ -67,6 +77,12 @@ fn add(x, y=10) = x + y;
   - in-place로 하려면 새로운 struct 만드는대신 기존 struct를 inc_rc 하고, 기존 field는 건드리지 말고, value는 복사해서 inc_rc하고, 덮어씌워지는 값은 dec_rc 하고, 그럼 됨!
     - 조금 더 싸네
   - 근데, Sodigy에 cyclic reference가 없는 이유가 in-place mutation이 없기 때문이잖아, 이 최적화를 하면 cycle이 생길 수도 있는 거 아님??
+    - 생각해보니까 될 듯... 이거 어케 막지? type 보고 cycle이 가능한 경우에는 in-place mutation을 꺼야 함!
+
+Canceling reference count isn't a big deal. The big deals are
+
+1. In-place mutations.
+2. Turning `match (x, y, z) { (0, 1, 2) => _ }` into `let e1 = x; let e2 = y; let e3 = z; if x == 0 && y == 1 && z == 2 { _ }`.
 
 # 37. debug function
 

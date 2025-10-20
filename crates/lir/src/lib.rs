@@ -57,16 +57,34 @@ pub enum Label {
     Static(u32),
 }
 
-// There are only 3 types of values in Sodigy Runtime.
-// Number, String: scalar values. the runtime can implement in however way they want.
-// Compound: it consists of 0 or more scalar or compound values.
+// There are only 2 types of values in sodigy runtime: scalar and compound.
+// Scalar values are always 32 bits. They're not reference-counted.
+// In Sodigy, there are only 2 primitive types that are scalar: `Byte` and `Char`.
+// A compound value consists of 0 or more scalar or compoudn values. They're reference counted.
+// In Sodigy, everything other than `Byte` and `Char` are compound.
+// Some notes on compound values:
+//     - Integers have arbitrary widths. Sodigy compiler knows that integers are reference-counted,
+//       but doesn't care how it's implemented. It doesn't even care whether it's compound or not,
+//       because it won't do `UpdateCompound` or `ReadCompound` with integers.
+//     - A list with N elements is a compound value with N+1 elements. The first element
+//       is an integer (Sodigy integer, not a scalar one), which is the length of the list.
+//       The other elements are the elements of the list.
+//       - TODO: why Sodigy integer? That's expensive!
+//     - A string is just `[Char]`.
+//     - There's nothing special about tuples and structs.
+//     - TODO: enums...
 #[derive(Clone, Copy, Debug)]
 pub enum Const {
-    Number(InternedNumber),
+    Scalar(u32),
+
+    // These are just compound values, but are here for optimization.
+    // Imagine you're initializing a string literal with 10000 characters.
+    // You don't want to generate `UpdateCompound` 10000 times, right?
     String {
         binary: bool,
         s: InternedString,
     },
+    Number(InternedNumber),
 
     // `Compound(n)` is a compound value with `n` values inside.
     // It doesn't initialize the inner values. You have to initialize

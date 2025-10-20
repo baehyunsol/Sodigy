@@ -450,7 +450,7 @@ impl FileError {
             FileErrorKind::OsStrErr(os_str) => format!(
                 "error converting os_str: `{os_str:?}`"
             ),
-            FileErrorKind::CannotDecodeFsMap => format!(
+            FileErrorKind::CannotDecodeFile => format!(
                 "cannot decode file: `{path}`",
             ),
         }
@@ -477,8 +477,8 @@ pub enum FileErrorKind {
     Unknown(String),
     OsStrErr(OsString),
 
-    // For interned_string and interned_number
-    CannotDecodeFsMap,
+    // For interned_string, interned_number and some other data structures in the intermediate_dir
+    CannotDecodeFile,
 }
 
 // I need a random number generator, but I don't want to add an external dependency.

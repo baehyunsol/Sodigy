@@ -1,0 +1,39 @@
+enum Nat = {
+    Zero,
+    Succ(Nat),
+};
+
+fn add(n: Nat, m: Nat) -> Nat = match n {
+    Nat::Zero => m,
+    Nat::Succ(p) => Nat::Succ(add(p, m)),
+};
+
+fn mul(n: Nat, m: Nat) -> Nat = match n {
+    Nat::Zero => Nat::Zero,
+    Nat::Succ(p) => add(mul(p, m), m),
+};
+
+fn eq(n: Nat, m: Nat) -> Nat = match (n, m) {
+    (Nat::Zero, Nat::Zero) => True,
+    (Nat::Zero, _) => False,
+    (_, Nat::Zero) => False,
+    (Nat::Succ(np), Nat::Succ(mp)) => eq(np, mp),
+};
+
+fn to_int(n: Nat) -> Int = match n {
+    Nat::Zero => 0,
+    Nat::Succ(p) => to_int(p) + 1,
+};
+
+fn from_int(n: Int) -> Nat = match n {
+    0 => Nat::Zero,
+    _ => Nat::Succ(from_int(n - 1)),
+};
+
+let five = from_int(5);
+let six = from_int(6);
+let eleven = from_int(11);
+let thirty = from_int(30);
+
+assert mul(five, six) == thiry;
+assert add(five, six) == eleven;

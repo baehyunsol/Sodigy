@@ -12,7 +12,7 @@ use std::fs::File;
 
 pub fn insert_fs_map(dir: &str, id: InternedString, s: &[u8]) -> Result<(), FileError> {
     let lock_file_path = join(dir, "lock")?;
-    let lock_file = File::open(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+    let lock_file = File::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
     lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
     // large strings are stored in a separate file
@@ -51,7 +51,7 @@ pub fn insert_fs_map(dir: &str, id: InternedString, s: &[u8]) -> Result<(), File
 // giving an invalid `id` is not an `Err()`, it's `Ok(None)`.
 pub fn read_fs_map(dir: &str, id: InternedString) -> Result<Option<Vec<u8>>, FileError> {
     let lock_file_path = join(dir, "lock")?;
-    let lock_file = File::open(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+    let lock_file = File::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
     lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
     let result = if id.length() >= 256 {
@@ -123,7 +123,7 @@ fn decode_fs_map(bytes: &[u8], path: &str) -> Result<Vec<(u128, Vec<u8>)>, FileE
             Some(id) => id.to_vec(),
             None => {
                 return Err(FileError {
-                    kind: FileErrorKind::CannotDecodeFsMap,
+                    kind: FileErrorKind::CannotDecodeFile,
                     given_path: Some(path.to_string()),
                 });
             },
@@ -134,7 +134,7 @@ fn decode_fs_map(bytes: &[u8], path: &str) -> Result<Vec<(u128, Vec<u8>)>, FileE
             Some(c) => c.to_vec(),
             None => {
                 return Err(FileError {
-                    kind: FileErrorKind::CannotDecodeFsMap,
+                    kind: FileErrorKind::CannotDecodeFile,
                     given_path: Some(path.to_string()),
                 });
             },

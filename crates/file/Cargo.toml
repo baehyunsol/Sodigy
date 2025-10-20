@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
+sodigy-string = { version = "0.1.0", path = "../string" }

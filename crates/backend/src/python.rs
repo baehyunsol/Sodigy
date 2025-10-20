@@ -339,12 +339,35 @@ fn peek(r: &Register) -> String {
 
 fn py_value(v: &Const, intermediate_dir: &str) -> String {
     match v {
-        Const::String { s, binary: true } => todo!(),
-        Const::String { s, binary: false } => format!(
-            "{:?}",
-            // TODO: escape string
-            String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()),
-        ),
+        Const::Scalar(n) => format!("{n}"),
+        Const::String { s, binary } => {
+            let s = unintern_string(*s, intermediate_dir).unwrap().unwrap();
+
+            if *binary {
+                format!(
+                    "[{}{}]",
+                    s.len(),
+                    s.iter().map(
+                        |b| format!(",{b}")
+                    ).collect::<Vec<_>>().concat(),
+                )
+            }
+
+            else {
+                // TODO: does the compiler guarantee that it's a valid utf-8?
+                let s = String::from_utf8_lossy(&s).to_string();
+
+                // FIXME: it's counting `.chars()` twice, but I'm too lazy
+                //        to write an optimized code
+                format!(
+                    "[{}{}]",
+                    s.chars().count(),
+                    s.chars().map(
+                        |c| format!(",{}", c as u32)
+                    ).collect::<Vec<_>>().concat(),
+                )
+            }
+        },
         Const::Number(InternedNumber { value, is_integer }) => match value {
             InternedNumberValue::SmallInteger(n) => match is_integer {
                 true => format!("{n}"),

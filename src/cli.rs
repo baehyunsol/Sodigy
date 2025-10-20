@@ -23,6 +23,11 @@ pub enum Command {
     },
     Interpret {
         bytecode_path: FileOrMemory,
+
+        // It's either `Test` or not.
+        // The bytecode will tell you where the tests are, if exist, and where the
+        // main function is, if exists. But it won't tell you how to optimize itself.
+        profile: Profile,
     },
     Help(String),
 }
@@ -133,6 +138,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 },
                 Command::Interpret {
                     bytecode_path: FileOrMemory::Memory,
+                    profile,
                 },
             ])
         },
@@ -163,6 +169,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 },
                 Command::Interpret {
                     bytecode_path: FileOrMemory::Memory,
+                    profile: Profile::Test,
                 },
             ])
         },

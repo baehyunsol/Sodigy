@@ -14,7 +14,7 @@ use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_keyword::Keyword;
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Punct, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -74,7 +74,7 @@ impl<'t> Tokens<'t> {
         // top-level block doesn't have a value
         // also, there's a heuristic for top-level blocks: it continues parsing even
         // though there's an error so that it can find more errors
-        top_level: bool,
+        is_top_level: bool,
         group_span: Span,
     ) -> Result<Block, Vec<Error>> {
         let mut errors = vec![];
@@ -86,6 +86,10 @@ impl<'t> Tokens<'t> {
         let mut modules = vec![];
         let mut uses = vec![];
         let mut value = None;
+
+        // we don't need an intermediate_dir for a short string
+        let main_func_name = intern_string(b"main", "").unwrap();
+        let mut main_func_span = None;
 
         loop {
             let attribute = match self.collect_attribute() {
@@ -120,7 +124,7 @@ impl<'t> Tokens<'t> {
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -131,13 +135,17 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Fn)) => match self.parse_func() {
                     Ok(mut func) => {
+                        if is_top_level && func.name == main_func_name {
+                            main_func_span = Some(func.name_span);
+                        }
+
                         func.attribute = attribute;
                         funcs.push(func);
                     },
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -154,7 +162,7 @@ impl<'t> Tokens<'t> {
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -171,7 +179,7 @@ impl<'t> Tokens<'t> {
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -197,7 +205,7 @@ impl<'t> Tokens<'t> {
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -218,7 +226,7 @@ impl<'t> Tokens<'t> {
                     Err(e) => {
                         errors.extend(e);
 
-                        if top_level {
+                        if is_top_level {
                             self.march_until_top_level_statement();
                         }
 
@@ -229,7 +237,7 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
                 Some(t) => {
-                    if top_level {
+                    if is_top_level {
                         let extra_message = match t {
                             // There's a very weird edge case: If the tokens are `<Decorator> -> <DocComment> -> <Semicolon> -> <Expr>`,
                             // you'll see this error message with the semicolon.
@@ -288,7 +296,7 @@ impl<'t> Tokens<'t> {
             }
         }
 
-        if !top_level && value.is_none() {
+        if !is_top_level && value.is_none() {
             errors.push(Error {
                 kind: ErrorKind::BlockWithoutValue,
                 span: self.span_end,
