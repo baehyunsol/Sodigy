@@ -1,6 +1,7 @@
 use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
 
+mod alias;
 mod assert;
 mod attribute;
 mod block;
@@ -19,6 +20,7 @@ mod tokens;
 mod r#type;
 mod r#use;
 
+pub use alias::Alias;
 pub use assert::Assert;
 pub use attribute::{Attribute, Decorator, DocComment};
 pub use block::Block;

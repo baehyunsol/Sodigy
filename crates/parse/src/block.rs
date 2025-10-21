@@ -1,4 +1,5 @@
 use crate::{
+    Alias,
     Assert,
     Attribute,
     Enum,
@@ -11,11 +12,10 @@ use crate::{
     Use,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_keyword::Keyword;
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Punct, TokenKind};
+use sodigy_token::{Keyword, Punct, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -25,6 +25,7 @@ pub struct Block {
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
     pub asserts: Vec<Assert>,
+    pub aliases: Vec<Alias>,
 
     // only the top-level block can have modules
     pub modules: Vec<Module>,
@@ -45,6 +46,7 @@ impl Block {
             structs: vec![],
             enums: vec![],
             asserts: vec![],
+            aliases: vec![],
             modules: vec![],
             uses: vec![],
             value: Box::new(None),
@@ -59,6 +61,8 @@ impl Block {
             self.structs.iter().map(|s| (s.name, s.name_span, NameKind::Struct))
         ).chain(
             self.enums.iter().map(|e| (e.name, e.name_span, NameKind::Enum))
+        ).chain(
+            self.aliases.iter().map(|a| (a.name, a.name_span, NameKind::Alias))
         ).chain(
             self.modules.iter().map(|m| (m.name, m.name_span, NameKind::Module))
         ).chain(
@@ -83,6 +87,7 @@ impl<'t> Tokens<'t> {
         let mut structs = vec![];
         let mut enums = vec![];
         let mut asserts = vec![];
+        let mut aliases = vec![];
         let mut modules = vec![];
         let mut uses = vec![];
         let mut value = None;
@@ -214,6 +219,23 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
+                Some(TokenKind::Keyword(Keyword::Type)) => match self. parse_alias() {
+                    Ok(mut alias) => {
+                        alias.attribute = attribute;
+                        aliases.push(alias);
+                    },
+                    Err(e) => {
+                        errors.extend(e);
+
+                        if is_top_level {
+                            self.march_until_top_level_statement();
+                        }
+
+                        else {
+                            return Err(errors);
+                        }
+                    },
+                },
                 Some(TokenKind::Keyword(Keyword::Module)) => match self.parse_module() {
                     Ok(module) => {
                         if !attribute.is_empty() {
@@ -312,6 +334,7 @@ impl<'t> Tokens<'t> {
                 structs,
                 enums,
                 asserts,
+                aliases,
                 modules,
                 uses,
                 value: Box::new(value),
@@ -327,7 +350,11 @@ impl<'t> Tokens<'t> {
     fn march_until_top_level_statement(&mut self) {
         loop {
             match self.peek().map(|t| &t.kind) {
-                Some(TokenKind::Keyword(Keyword::Let | Keyword::Fn | Keyword::Struct | Keyword::Enum)) => {
+                Some(TokenKind::Keyword(
+                    Keyword::Let | Keyword::Fn |
+                    Keyword::Struct | Keyword::Enum |
+                    Keyword::Type | Keyword::Assert
+                )) => {
                     return;
                 },
                 Some(_) => {

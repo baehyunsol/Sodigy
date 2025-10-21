@@ -1,0 +1,9 @@
+fn map1(ns: [T], f) = {
+    let nx = f(ns[0]);
+
+    if ns == [] { [] } else { [nx] ++ map(ns[1..], f) }
+};
+
+fn first(ns) = if ns == [] { 0 } else { ns[0] };
+
+fn fibo(n) = if n < 2 { 1 } else { fibo(n - 1) + fibo(n - 2) };

@@ -5,6 +5,7 @@ pub enum Keyword {
     Struct,
     Enum,
     Assert,
+    Type,
     Module,
     Use,
     If,

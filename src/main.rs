@@ -66,13 +66,12 @@ fn main() -> Result<(), ()> {
                         let hir_session = sodigy_hir::lower(parse_session);
                         hir_session.continue_or_dump_errors()?;
 
-                        // TODO: inter-file hir analysis (name-resolution)
+                        // TODO: inter-file hir analysis (name-resolution and applying type-aliases)
 
                         let mir_session = sodigy_mir::lower(hir_session);
                         mir_session.continue_or_dump_errors()?;
-
-                        // TODO: inter-file mir analysis (type-check)
-
+                        let mir_session = sodigy_mir_type::infer_and_check(mir_session);
+                        mir_session.continue_or_dump_errors()?;
                         let lir_session = sodigy_lir::lower(mir_session);
                         lir_session.continue_or_dump_errors()?;
                         let bytecode = lir_session.into_labeled_bytecode();

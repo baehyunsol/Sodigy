@@ -1,8 +1,7 @@
 use crate::{Attribute, Expr, Tokens};
 use sodigy_error::Error;
-use sodigy_keyword::Keyword;
 use sodigy_span::Span;
-use sodigy_token::{Punct, TokenKind};
+use sodigy_token::{Keyword, Punct, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Assert {

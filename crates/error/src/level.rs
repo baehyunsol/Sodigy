@@ -53,6 +53,7 @@ impl ErrorLevel {
             ErrorKind::RedundantNameBinding(_, _) |
 
             ErrorKind::NameCollision { .. } |
+            ErrorKind::CyclicDefinition |
             ErrorKind::UndefinedName(_) |
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |
@@ -61,7 +62,9 @@ impl ErrorLevel {
             ErrorKind::UnexpectedArgument { .. } |
             ErrorKind::StructFieldRepeated(_) |
             ErrorKind::MissingStructField(_) |
-            ErrorKind::InvalidStructField(_) => ErrorLevel::Error,
+            ErrorKind::InvalidStructField(_) |
+            ErrorKind::DependentTypeNotAllowed |
+            ErrorKind::CannotInferType => ErrorLevel::Error,
             WarningKind::UnusedName { .. } => ErrorLevel::Warning,
         }
     }

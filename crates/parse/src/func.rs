@@ -6,10 +6,9 @@ use crate::{
     Type,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_keyword::Keyword;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Func {

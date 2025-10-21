@@ -22,6 +22,7 @@ pub enum Pattern {
         id: InternedString,
         span: Span,
     },
+    Wildcard(Span),
     Tuple {
         elements: Vec<FullPattern>,
         group_span: Span,
@@ -71,6 +72,7 @@ impl Pattern {
         match ast_pattern {
             ast::Pattern::Number { n, span } => Ok(Pattern::Number { n: *n, span: *span }),
             ast::Pattern::Identifier { id, span } => Ok(Pattern::Identifier { id: *id, span: *span }),
+            ast::Pattern::Wildcard(span) => Ok(Pattern::Wildcard(*span)),
             ast::Pattern::Tuple { elements: ast_elements, group_span } |
             ast::Pattern::List { elements: ast_elements, group_span } => {
                 let is_tuple = matches!(ast_pattern, ast::Pattern::Tuple { .. });

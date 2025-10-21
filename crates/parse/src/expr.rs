@@ -9,13 +9,13 @@ use crate::{
     Type,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_keyword::Keyword;
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{
     Delim,
     InfixOp,
+    Keyword,
     PostfixOp,
     Punct,
     Token,

@@ -67,6 +67,7 @@ pub enum NameKind {
     Func,
     Struct,
     Enum,
+    Alias,
     Module,
     Use,
     FuncArg,

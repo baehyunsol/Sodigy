@@ -1,9 +1,8 @@
 use crate::{Attribute, Expr, Tokens, Type};
 use sodigy_error::Error;
-use sodigy_keyword::Keyword;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Punct, Token, TokenKind};
+use sodigy_token::{Keyword, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Let {

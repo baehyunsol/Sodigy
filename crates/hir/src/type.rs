@@ -14,7 +14,8 @@ pub enum Type {
     },
     Generic {
         r#type: Box<Type>,
-        types: Vec<Type>,
+        args: Vec<Type>,
+        group_span: Span,
     },
     Tuple {
         types: Vec<Type>,
@@ -24,6 +25,7 @@ pub enum Type {
         args: Vec<Type>,
         r#return: Box<Type>,
     },
+    Wildcard(Span),
 }
 
 impl Type {
@@ -68,9 +70,9 @@ impl Type {
                     Err(())
                 },
             },
-            ast::Type::Generic { r#type, types: ast_types } => {
+            ast::Type::Generic { r#type, args: ast_args, group_span } => {
                 let mut has_error = false;
-                let mut types = Vec::with_capacity(ast_types.len());
+                let mut args = Vec::with_capacity(ast_args.len());
                 let r#type = match Type::from_ast(r#type, session) {
                     Ok(r#type) => Some(r#type),
                     Err(()) => {
@@ -79,10 +81,10 @@ impl Type {
                     },
                 };
 
-                for ast_type in ast_types.iter() {
-                    match Type::from_ast(ast_type, session) {
-                        Ok(r#type) => {
-                            types.push(r#type);
+                for ast_arg in ast_args.iter() {
+                    match Type::from_ast(ast_arg, session) {
+                        Ok(arg) => {
+                            args.push(arg);
                         },
                         Err(()) => {
                             has_error = true;
@@ -97,7 +99,8 @@ impl Type {
                 else {
                     Ok(Type::Generic {
                         r#type: Box::new(r#type.unwrap()),
-                        types,
+                        args,
+                        group_span: *group_span,
                     })
                 }
             },
@@ -113,7 +116,8 @@ impl Type {
 
                 Ok(Type::Generic {
                     r#type: Box::new(list_type),
-                    types: vec![Type::from_ast(r#type, session)?],
+                    args: vec![Type::from_ast(r#type, session)?],
+                    group_span: *group_span,
                 })
             },
             ast::Type::Tuple { types: ast_types, group_span } => {
@@ -208,6 +212,7 @@ impl Type {
                     })
                 }
             },
+            ast::Type::Wildcard(span) => Ok(Type::Wildcard(*span)),
         }
     }
 }

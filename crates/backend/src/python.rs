@@ -1,9 +1,5 @@
 use crate::{CodeGenConfig, CodeGenMode};
-use sodigy_fs_api::{
-    FileError,
-    WriteMode,
-    write_string,
-};
+use sodigy_fs_api::FileError;
 use sodigy_lir::{
     self as lir,
     Bytecode,

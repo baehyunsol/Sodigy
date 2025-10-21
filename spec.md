@@ -24,6 +24,22 @@ struct Message<T> = {
 };
 ```
 
+## Enums
+
+```
+enum Option<T> = {
+    Some(T),
+    None,
+};
+```
+
+## Type aliases
+
+```
+type String = [Char];
+type EmptyResult<E> = Result<(), E>;
+```
+
 ## Decorators
 
 A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:

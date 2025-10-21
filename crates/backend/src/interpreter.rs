@@ -60,8 +60,8 @@ pub fn interpret(
                     }
                 },
                 Bytecode::PushConst { value, dst } => {
-                    let ptr = match value {
-                        Const::Scalar(n) => todo!(),
+                    let value = match value {
+                        Const::Scalar(n) => *n,
                         Const::Number(n) => todo!(),
                         Const::String { s, binary } => todo!(),
                         Const::Compound(n) => todo!(),
@@ -71,17 +71,17 @@ pub fn interpret(
                         Register::Local(_) |
                         Register::Call(_) => match stacks.entry(*dst) {
                             Entry::Occupied(mut stack) => {
-                                stack.get_mut().push(ptr);
+                                stack.get_mut().push(value);
                             },
                             Entry::Vacant(e) => {
-                                e.insert(vec![ptr]);
+                                e.insert(vec![value]);
                             },
                         },
                         Register::Return => {
-                            ret = ptr;
+                            ret = value;
                         },
                         Register::Const(c) => {
-                            consts.insert(*c, ptr);
+                            consts.insert(*c, value);
                         },
                     }
                 },

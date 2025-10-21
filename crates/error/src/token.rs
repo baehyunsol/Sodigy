@@ -1,5 +1,4 @@
-use sodigy_keyword::Keyword;
-use sodigy_token::{Delim, Punct, TokenKind};
+use sodigy_token::{Delim, Keyword, Punct, TokenKind};
 
 // TokenKind for error variants
 #[derive(Clone, Debug)]
@@ -20,6 +19,7 @@ pub enum ErrorToken {
     Block,
     ColonOrComma,
     CommaOrGt,
+    AssignOrLt,
     ParenthesisOrBrace,
 }
 

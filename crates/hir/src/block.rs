@@ -1,4 +1,5 @@
 use crate::{
+    Alias,
     Assert,
     Expr,
     Func,
@@ -7,7 +8,7 @@ use crate::{
     Session,
     Struct,
 };
-use sodigy_error::{Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_name_analysis::{
     Counter,
     NameKind,
@@ -18,14 +19,14 @@ use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug)]
 pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
-    pub value: Box<Expr>,
     pub asserts: Vec<Assert>,
+    pub value: Box<Expr>,
 
     // It only counts names in `lets`.
     // It's later used for optimization.
@@ -41,6 +42,11 @@ impl Block {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
+
+        let mut let_cycle_check_vertices = ast_block.lets.iter().map(|r#let| r#let.name_span).collect::<HashSet<_>>();
+        let mut let_cycle_check_edges = HashMap::new();
+        let alias_cycle_check_vertices = ast_block.aliases.iter().map(|alias| alias.name_span).collect::<HashSet<_>>();
+        let mut alias_cycle_check_edges = HashMap::new();
 
         session.func_default_values.push(vec![]);
         session.name_stack.push(Namespace::Block {
@@ -62,8 +68,16 @@ impl Block {
 
         for r#let in ast_block.lets.iter() {
             match Let::from_ast(r#let, session, is_top_level) {
-                Ok(l) => {
-                    lets.push(l);
+                Ok(r#let) => {
+                    let_cycle_check_edges.insert(
+                        r#let.name_span,
+                        r#let.foreign_names.iter().filter(
+                            |(_, (_, span))| let_cycle_check_vertices.contains(span)
+                        ).map(
+                            |(_, (_, span))| *span
+                        ).collect(),
+                    );
+                    lets.push(r#let);
                 },
                 Err(()) => {
                     has_error = true;
@@ -80,8 +94,8 @@ impl Block {
         // All the function declarations are stored in the top-level block.
         for func in ast_block.funcs.iter() {
             match Func::from_ast(func, session, func_origin, is_top_level) {
-                Ok(f) => {
-                    session.funcs.push(f);
+                Ok(func) => {
+                    session.funcs.push(func);
                 },
                 Err(()) => {
                     has_error = true;
@@ -92,8 +106,28 @@ impl Block {
         // All the struct declarations are stored in the top-level block.
         for r#struct in ast_block.structs.iter() {
             match Struct::from_ast(r#struct, session, is_top_level) {
-                Ok(s) => {
-                    session.structs.push(s);
+                Ok(r#struct) => {
+                    session.structs.push(r#struct);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        // All the aliases are stored in the top-level block.
+        for alias in ast_block.aliases.iter() {
+            match Alias::from_ast(alias, session) {
+                Ok(alias) => {
+                    alias_cycle_check_edges.insert(
+                        alias.name_span,
+                        alias.foreign_names.iter().filter(
+                            |(_, (_, span))| alias_cycle_check_vertices.contains(span)
+                        ).map(
+                            |(_, (_, span))| *span
+                        ).collect(),
+                    );
+                    session.aliases.push(alias);
                 },
                 Err(()) => {
                     has_error = true;
@@ -152,7 +186,42 @@ impl Block {
         }
 
         for func_default_value in session.func_default_values.pop().unwrap() {
+            let_cycle_check_vertices.insert(func_default_value.name_span);
+            let_cycle_check_edges.insert(
+                func_default_value.name_span,
+                func_default_value.foreign_names.iter().filter(
+                    |(_, (_, span))| let_cycle_check_vertices.contains(span)
+                ).map(
+                    |(_, (_, span))| *span
+                ).collect(),
+            );
             lets.push(func_default_value);
+        }
+
+        if let Some(cycle) = find_cycle(
+            let_cycle_check_vertices.into_iter().collect(),
+            let_cycle_check_edges,
+        ) {
+            has_error = true;
+            session.errors.push(Error {
+                kind: ErrorKind::CyclicDefinition,
+                span: cycle[0],
+                extra_span: cycle.get(1).map(|c| *c),
+                ..Error::default()
+            });
+        }
+
+        if let Some(cycle) = find_cycle(
+            alias_cycle_check_vertices.into_iter().collect(),
+            alias_cycle_check_edges,
+        ) {
+            has_error = true;
+            session.errors.push(Error {
+                kind: ErrorKind::CyclicDefinition,
+                span: cycle[0],
+                extra_span: cycle.get(1).map(|c| *c),
+                ..Error::default()
+            });
         }
 
         if has_error {
@@ -169,4 +238,67 @@ impl Block {
             })
         }
     }
+}
+
+// VIBE NOTE: this function's drafted by Perplexity (I'm not sure which model it was),
+//            and modified by me.
+// If it finds a cycle, it immediately exits. The result has all the vertices of the cycle.
+fn find_cycle(
+    vertices: Vec<Span>,
+    edges: HashMap<Span, Vec<Span>>,
+) -> Option<Vec<Span>> {
+    fn dfs(
+        node: Span,
+        edges: &HashMap<Span, Vec<Span>>,
+        visited: &mut HashSet<Span>,
+        stack: &mut Vec<Span>,
+        on_stack: &mut HashSet<Span>,
+    ) -> Option<Vec<Span>> {
+        visited.insert(node);
+        stack.push(node);
+        on_stack.insert(node);
+
+        if let Some(neighbors) = edges.get(&node) {
+            for neighbor in neighbors.iter() {
+                if *neighbor == node {
+                    return Some(vec![node]);  // self-cycle
+                }
+
+                if !visited.contains(neighbor) {
+                    if let Some(cycle) = dfs(
+                        *neighbor,
+                        edges,
+                        visited,
+                        stack,
+                        on_stack,
+                    ) {
+                        return Some(cycle);
+                    }
+                }
+
+                else if on_stack.contains(neighbor) {
+                    let index = stack.iter().rposition(|node| node == neighbor).unwrap();
+                    return Some(stack[index..].to_vec());
+                }
+            }
+        }
+
+        on_stack.remove(&node);
+        stack.pop().unwrap();
+        None
+    }
+
+    let mut visited = HashSet::new();
+    let mut stack = vec![];
+    let mut on_stack = HashSet::new();
+
+    for vertex in vertices.iter() {
+        if !visited.contains(vertex) {
+            if let Some(cycle) = dfs(*vertex, &edges, &mut visited, &mut stack, &mut on_stack) {
+                return Some(cycle);
+            }
+        }
+    }
+
+    None
 }

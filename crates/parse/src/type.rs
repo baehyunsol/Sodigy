@@ -66,24 +66,30 @@ impl<'t> Tokens<'t> {
 
 #[derive(Clone, Debug)]
 pub enum Type {
-    Identifier {  // `Int`, `String`, `Bool`
+    // `Int`, `String`, `Bool`, `T` in `fn foo<T>()`
+    Identifier {
         id: InternedString,
         span: Span,
     },
-    Path {  // `module_name.StructName`
+    // `module_name.StructName`
+    Path {
         id: InternedString,
         id_span: Span,
         fields: Vec<Field>,
     },
-    Generic {  // `Message<T>`, `Result<[Int], Error>`
+    // `Message<T>`, `Result<[Int], Error>`
+    Generic {
         r#type: Box<Type>,  // either `Type::Identifier` or `Type::Path`
-        types: Vec<Type>,
+        args: Vec<Type>,
+        group_span: Span,
     },
-    Tuple {  // `(Int, Int)`
+    // `(Int, Int)`
+    Tuple {
         types: Vec<Type>,
         group_span: Span,
     },
-    List {  // `[Int]`
+    // `[Int]`
+    List {
         r#type: Box<Type>,
         group_span: Span,
     },
@@ -96,17 +102,21 @@ pub enum Type {
         args: Vec<Type>,
         r#return: Box<Type>,
     },
+    // `_` in `[_]`
+    // It'll be infered, if possible.
+    Wildcard(Span),
 }
 
 impl Type {
     pub fn error_span(&self) -> Span {
         match self {
-            Type::Identifier { span, .. } => *span,
+            Type::Identifier { span, .. } |
+            Type::Wildcard(span) => *span,
             Type::Path { fields, .. } => match fields.get(0) {
                 Some(Field::Name { dot_span, .. }) => *dot_span,
                 _ => unreachable!(),
             },
-            Type::Generic { r#types, .. } => r#types[0].error_span(),
+            Type::Generic { args, .. } => args[0].error_span(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
             Type::Func { r#type, .. } => r#type.error_span(),
@@ -136,12 +146,13 @@ impl<'t> Tokens<'t> {
                             self.cursor += 2;
                         },
                         (
-                            Some(Token { kind: TokenKind::Identifier(id), span }),
-                            Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }),
+                            Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                            Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
                         ) => {
-                            path.push((*id, *span));
-                            let types = self.parse_types(StopAt::AngleBracket)?;
-                            self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+                            let group_span_start = *span2;
+                            path.push((*id, *span1));
+                            let args = self.parse_types(StopAt::AngleBracket)?;
+                            let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                             return Ok(Type::Generic {
                                 r#type: Box::new(Type::Path {
@@ -155,7 +166,8 @@ impl<'t> Tokens<'t> {
                                         },
                                     ).collect(),
                                 }),
-                                types,
+                                args,
+                                group_span: group_span_start.merge(group_span_end),
                             });
                         },
                         (
@@ -183,18 +195,20 @@ impl<'t> Tokens<'t> {
                 }
             },
             (
-                Some(Token { kind: TokenKind::Identifier(id), span }),
-                Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }),
+                Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
             ) => {
-                let (id, span) = (*id, *span);
+                let group_span_start = *span2;
+                let (id, span) = (*id, *span1);
                 self.cursor += 2;
 
-                let types = self.parse_types(StopAt::AngleBracket)?;
-                self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+                let args = self.parse_types(StopAt::AngleBracket)?;
+                let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                 Ok(Type::Generic {
                     r#type: Box::new(Type::Identifier { id, span }),
-                    types,
+                    args,
+                    group_span: group_span_start.merge(group_span_end),
                 })
             },
             // Fn(Int, Int) -> Int
@@ -222,7 +236,11 @@ impl<'t> Tokens<'t> {
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
-                Ok(Type::Identifier { id, span })
+
+                match id.try_unintern_short_string() {
+                    Some(id) if id == b"_" => Ok(Type::Wildcard(span)),
+                    _ => Ok(Type::Identifier { id, span }),
+                }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
                 let group_span = *span;
@@ -231,11 +249,20 @@ impl<'t> Tokens<'t> {
 
                 let result = match delim {
                     Delim::Parenthesis => {
-                        let types = tokens.parse_types(StopAt::Eof)?;
-                        Ok(Type::Tuple {
-                            types,
-                            group_span,
-                        })
+                        if tokens.is_empty() {
+                            Ok(Type::Tuple {
+                                types: vec![],
+                                group_span,
+                            })
+                        }
+
+                        else {
+                            let types = tokens.parse_types(StopAt::Eof)?;
+                            Ok(Type::Tuple {
+                                types,
+                                group_span,
+                            })
+                        }
                     },
                     Delim::Bracket => {
                         let r#type = tokens.parse_types(StopAt::Eof)?;
@@ -270,7 +297,7 @@ impl<'t> Tokens<'t> {
                 self.cursor += 1;
                 result
             },
-            _ => todo!(),
+            ts => panic!("TODO: {ts:?}"),
         }
     }
 

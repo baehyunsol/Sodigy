@@ -69,6 +69,7 @@ pub enum ErrorKind {
         // TODO
         // context: NameCollisionContext,
     },
+    CyclicDefinition,
 
     // TODO: suggest similar names
     UndefinedName(InternedString),
@@ -95,6 +96,9 @@ pub enum ErrorKind {
 
     // TODO: suggest similar name
     InvalidStructField(InternedString),
+
+    DependentTypeNotAllowed,
+    CannotInferType,
 
     // --- warnings from here ---
     UnusedName {

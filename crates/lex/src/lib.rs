@@ -3,11 +3,10 @@
 
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
-use sodigy_keyword::Keyword;
 use sodigy_number::{Base, InternedNumber, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Delim, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
 mod session;
 
@@ -1117,6 +1116,7 @@ impl Session {
                         b"struct" => TokenKind::Keyword(Keyword::Struct),
                         b"enum" => TokenKind::Keyword(Keyword::Enum),
                         b"assert" => TokenKind::Keyword(Keyword::Assert),
+                        b"type" => TokenKind::Keyword(Keyword::Type),
                         b"module" => TokenKind::Keyword(Keyword::Module),
                         b"use" => TokenKind::Keyword(Keyword::Use),
                         b"if" => TokenKind::Keyword(Keyword::If),

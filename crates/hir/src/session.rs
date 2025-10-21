@@ -1,6 +1,13 @@
-use crate::{Assert, Enum, Func, Let, PRELUDES, Struct};
+use crate::{
+    Alias,
+    Assert,
+    Enum,
+    Func,
+    Let,
+    PRELUDES,
+    Struct,
+};
 use sodigy_error::{Error, Warning};
-use sodigy_fs_api::join;
 use sodigy_name_analysis::{Namespace, UseCount};
 use sodigy_parse::Session as ParseSession;
 use sodigy_session::Session as SodigySession;
@@ -27,6 +34,7 @@ pub struct Session {
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
+    pub aliases: Vec<Alias>,
     pub asserts: Vec<Assert>,
 
     pub errors: Vec<Error>,
@@ -57,6 +65,7 @@ impl Session {
             funcs: vec![],
             structs: vec![],
             enums: vec![],
+            aliases: vec![],
             asserts: vec![],
             errors: parse_session.errors.clone(),
             warnings: parse_session.warnings.clone(),

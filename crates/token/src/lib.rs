@@ -1,13 +1,14 @@
-use sodigy_keyword::Keyword;
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 mod delim;
+mod keyword;
 mod op;
 mod punct;
 
 pub use delim::Delim;
+pub use keyword::Keyword;
 pub use op::{InfixOp, PostfixOp, PrefixOp};
 pub use punct::Punct;
 

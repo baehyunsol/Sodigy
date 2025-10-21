@@ -104,7 +104,7 @@ impl Func {
                 Ok(arg) => {
                     args.push(arg);
                 },
-                Err(_) => {
+                Err(()) => {
                     has_error = true;
                 },
             }
@@ -122,7 +122,7 @@ impl Func {
                 Ok(ty) => {
                     r#type = Some(ty);
                 },
-                Err(_) => {
+                Err(()) => {
                     has_error = true;
                 },
             }
@@ -130,7 +130,7 @@ impl Func {
 
         let value = match Expr::from_ast(&ast_func.value, session) {
             Ok(v) => Some(v),
-            Err(_) => {
+            Err(()) => {
                 has_error = true;
                 None
             },
@@ -225,7 +225,7 @@ impl FuncArgDef<Type> {
                 Ok(t) => {
                     r#type = Some(t);
                 },
-                Err(_) => {
+                Err(()) => {
                     has_error = false;
                 },
             }
@@ -259,7 +259,7 @@ impl FuncArgDef<Type> {
                         def_span: ast_arg.name_span,
                     });
                 },
-                Err(_) => {
+                Err(()) => {
                     session.name_stack.pop();
                     has_error = false;
                 },

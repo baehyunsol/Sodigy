@@ -9,6 +9,7 @@ use sodigy_parse::Session as ParseSession;
 // So all the errors and warnings are stored in the session, and the return value doesn't indicate anything about errors (it does, but don't rely on it).
 // You first run the entire hir pass, then you have to check `session.errors` and `session.warnings`.
 
+mod alias;
 mod assert;
 mod block;
 mod r#enum;
@@ -24,6 +25,7 @@ mod session;
 mod r#struct;
 mod r#type;
 
+pub use alias::Alias;
 pub use assert::Assert;
 pub use block::Block;
 pub use r#enum::Enum;

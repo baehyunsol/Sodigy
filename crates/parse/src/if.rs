@@ -1,8 +1,7 @@
 use crate::{Expr, FullPattern, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_keyword::Keyword;
 use sodigy_span::Span;
-use sodigy_token::{Delim, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
 // If there's an `else if` branch,
 // that goes into `false_value`, recursively.

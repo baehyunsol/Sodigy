@@ -25,9 +25,9 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
             let src = match session.local_registers.get(&id.def_span) {
                 Some(src) => *src,
                 None => match id.origin {
-                    // If a top-level statement references another top-level `let` statement,
-                    // this branch is reached.
-                    NameOrigin::Local { kind: NameKind::Let { is_top_level: true } } => {
+                    // top-level `let` statements are always lazily evaluated.
+                    NameOrigin::Local { kind: NameKind::Let { is_top_level: true } } |
+                    NameOrigin::Foreign { kind: NameKind::Let { is_top_level: true } } => {
                         let return_from_const = session.get_tmp_label();
                         let const_is_already_init = session.get_tmp_label();
                         // NOTE: top-level `let` statements are always lazy-evaluated.

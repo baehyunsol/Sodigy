@@ -1,0 +1,12 @@
+let x = y + 1;
+let y = x + 1;
+
+// This is also a cyclic definition, but the compiler cannot catch this.
+// Instead, it'll cause an infinite recursion at runtime.
+let foo = bar();
+fn bar(x=foo) = x;
+
+type NonSense = [NonSense];
+
+type MutualNonSense1 = [MutualNonSense2];
+type MutualNonSense2 = [MutualNonSense1];
