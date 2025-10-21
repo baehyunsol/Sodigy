@@ -5,7 +5,7 @@ mod preludes;
 mod solver;
 
 pub(crate) use error::TypeError;
-use solver::Solver;
+use solver::{Solver, TypeSolve};
 
 pub fn infer_and_check(mut session: Session) -> Session {
     for func in session.funcs.iter() {
@@ -27,9 +27,88 @@ pub fn infer_and_check(mut session: Session) -> Session {
     }
 
     let mut solver = Solver::new();
+    let mut has_error = false;
 
     for func in session.funcs.iter() {
-        solver.infer_expr(&func.value, &mut session.types);
+        let infered_type = match solver.infer_expr(&func.value, &mut session.types) {
+            Ok(r#type) => r#type,
+
+            // convert `e` to `Error` and break
+            // we should not do any more inference if there's an error
+            Err(e) => todo!(),
+        };
+
+        // TODO: It's always `Some(_)` because I just inserted it
+        if let Some(annotated_type) = session.types.get(&func.name_span) {
+            if infered_type.has_variable() {
+                // deal with the borrow checker
+                let annotated_type = annotated_type.clone();
+
+                if let Err(e) = solver.unify(
+                    &infered_type,
+                    &annotated_type,
+                    &mut session.types,
+                ) {
+                    // convert `e` to `Error` and break
+                    // we should not do any more inference if there's an error
+                    todo!()
+                }
+            }
+        }
+
+        else {
+            if let Err(e) = solver.unify(
+                &Type::Var(func.name_span),
+                &infered_type,
+                &mut session.types,
+            ) {
+                // convert `e` to `Error` and break
+                // we should not do any more inference if there's an error
+                todo!()
+            }
+        }
+    }
+
+    if !has_error {
+        for r#let in session.lets.iter() {
+            let infered_type = match solver.infer_expr(&r#let.value, &mut session.types) {
+                Ok(r#type) => r#type,
+
+                // convert `e` to `Error` and break
+                // we should not do any more inference if there's an error
+                Err(e) => todo!(),
+            };
+
+            // TODO: It's always `Some(_)` because I just inserted it
+            if let Some(annotated_type) = session.types.get(&r#let.name_span) {
+                if infered_type.has_variable() {
+                    // deal with the borrow checker
+                    let annotated_type = annotated_type.clone();
+
+                    if let Err(e) = solver.unify(
+                        &infered_type,
+                        &annotated_type,
+                        &mut session.types,
+                    ) {
+                        // convert `e` to `Error` and break
+                        // we should not do any more inference if there's an error
+                        todo!()
+                    }
+                }
+            }
+
+            else {
+                if let Err(e) = solver.unify(
+                    &Type::Var(r#let.name_span),
+                    &infered_type,
+                    &mut session.types,
+                ) {
+                    // convert `e` to `Error` and break
+                    // we should not do any more inference if there's an error
+                    todo!()
+                }
+            }
+        }
     }
 
     session

@@ -97,7 +97,7 @@ impl Solver {
     }
 }
 
-trait TypeSolve {
+pub(crate) trait TypeSolve {
     fn has_variable(&self) -> bool;
 }
 
