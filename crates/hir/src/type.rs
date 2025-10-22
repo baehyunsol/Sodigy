@@ -12,7 +12,7 @@ pub enum Type {
         id: IdentWithOrigin,
         fields: Vec<Field>,
     },
-    Generic {
+    Param {
         r#type: Box<Type>,
         args: Vec<Type>,
         group_span: Span,
@@ -22,6 +22,7 @@ pub enum Type {
         group_span: Span,
     },
     Func {
+        fn_span: Span,
         args: Vec<Type>,
         r#return: Box<Type>,
     },
@@ -70,7 +71,7 @@ impl Type {
                     Err(())
                 },
             },
-            ast::Type::Generic { r#type, args: ast_args, group_span } => {
+            ast::Type::Param { r#type, args: ast_args, group_span } => {
                 let mut has_error = false;
                 let mut args = Vec::with_capacity(ast_args.len());
                 let r#type = match Type::from_ast(r#type, session) {
@@ -97,7 +98,7 @@ impl Type {
                 }
 
                 else {
-                    Ok(Type::Generic {
+                    Ok(Type::Param {
                         r#type: Box::new(r#type.unwrap()),
                         args,
                         group_span: *group_span,
@@ -114,7 +115,7 @@ impl Type {
                     def_span: Span::Prelude(list_id),
                 });
 
-                Ok(Type::Generic {
+                Ok(Type::Param {
                     r#type: Box::new(list_type),
                     args: vec![Type::from_ast(r#type, session)?],
                     group_span: *group_span,
@@ -147,6 +148,7 @@ impl Type {
                 }
             },
             ast::Type::Func { r#type, args: ast_args, r#return: ast_return } => {
+                let mut fn_span = Span::None;
                 let mut has_error = false;
                 let mut has_wrong_identifier = false;
                 let mut args = Vec::with_capacity(ast_args.len());
@@ -155,7 +157,9 @@ impl Type {
                     Ok(func) => match func {
                         Type::Identifier(id) => match id.def_span {
                             Span::Prelude(f) => match f.try_unintern_short_string() {
-                                Some(f) if f == b"Fn" => {},
+                                Some(f) if f == b"Fn" => {
+                                    fn_span = id.span;
+                                },
                                 _ => {
                                     has_wrong_identifier = true;
                                 },
@@ -207,12 +211,45 @@ impl Type {
 
                 else {
                     Ok(Type::Func {
+                        fn_span,
                         args,
                         r#return: Box::new(r#return.unwrap()),
                     })
                 }
             },
             ast::Type::Wildcard(span) => Ok(Type::Wildcard(*span)),
+        }
+    }
+
+    // Error messages will use this span.
+    pub fn error_span(&self) -> Span {
+        match self {
+            Type::Identifier(id) => id.span,
+            Type::Path { id, fields } => {
+                let mut span = id.span;
+
+                for field in fields.iter() {
+                    if let Field::Name { span: field_span, .. } = field {
+                        span = span.merge(*field_span);
+                    }
+                }
+
+                span
+            },
+            Type::Param { r#type, group_span, .. } => {
+                r#type.error_span().merge(*group_span)
+            },
+            Type::Tuple { group_span, .. } => *group_span,
+            Type::Func { fn_span, args, r#return } => {
+                let mut span = *fn_span;
+
+                for arg in args.iter() {
+                    span = span.merge(arg.error_span());
+                }
+
+                span.merge(r#return.error_span())
+            },
+            Type::Wildcard(span) => *span,
         }
     }
 }

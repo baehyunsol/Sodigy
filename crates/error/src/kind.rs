@@ -69,7 +69,8 @@ pub enum ErrorKind {
         // TODO
         // context: NameCollisionContext,
     },
-    CyclicDefinition,
+    CyclicLet,
+    CyclicAlias,
 
     // TODO: suggest similar names
     UndefinedName(InternedString),

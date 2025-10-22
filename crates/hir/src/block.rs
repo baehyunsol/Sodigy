@@ -198,13 +198,15 @@ impl Block {
             lets.push(func_default_value);
         }
 
+        // TODO: maybe list the names in the cycle?
+        //       in order to do that `extra_span` has to be `Vec<Span>`, not `Option<Span>`
         if let Some(cycle) = find_cycle(
             let_cycle_check_vertices.into_iter().collect(),
             let_cycle_check_edges,
         ) {
             has_error = true;
             session.errors.push(Error {
-                kind: ErrorKind::CyclicDefinition,
+                kind: ErrorKind::CyclicLet,
                 span: cycle[0],
                 extra_span: cycle.get(1).map(|c| *c),
                 ..Error::default()
@@ -217,7 +219,7 @@ impl Block {
         ) {
             has_error = true;
             session.errors.push(Error {
-                kind: ErrorKind::CyclicDefinition,
+                kind: ErrorKind::CyclicAlias,
                 span: cycle[0],
                 extra_span: cycle.get(1).map(|c| *c),
                 ..Error::default()

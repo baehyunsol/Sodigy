@@ -53,7 +53,8 @@ impl ErrorLevel {
             ErrorKind::RedundantNameBinding(_, _) |
 
             ErrorKind::NameCollision { .. } |
-            ErrorKind::CyclicDefinition |
+            ErrorKind::CyclicLet |
+            ErrorKind::CyclicAlias |
             ErrorKind::UndefinedName(_) |
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |

@@ -16,8 +16,8 @@ pub enum Type {
     Unit(Span /* group_span */),
 
     // Option<Int>, Option<T>, Option<Option<Int>>, ...
-    // Tuple also has this type: `Generic { type: Unit, args: [..] }`
-    Generic {
+    // Tuple also has this type: `Param { type: Unit, args: [..] }`
+    Param {
         r#type: Box<Type>,  // `Option`
         args: Vec<Type>,    // `[T]`
         group_span: Span,
@@ -26,6 +26,26 @@ pub enum Type {
     // If a type annotation is missing, it creates a type variable.
     // The type variables will be infered.
     Var(Span /* def_span */),
+
+    // It's also a type variable.
+    //
+    // ```
+    // fn first<T>(ls: [T]) -> T = ls[0];
+    // fn foo(ns: [Int]) = first(ns);
+    // fn bar(ss: [String]) = first(ss);
+    // ```
+    //
+    // `first` in `foo` has type `Fn([Int]) -> Int`, while
+    // `first` in `bar` has type `Fn([String]) -> String`.
+    // In order to infer this, we need a variable that represents
+    // each instance of `T` in the invocations of `first`.
+    GenericInstance {
+        // span of `first` in `fn foo(ns) = first(ns);`
+        call: Span,
+
+        // span of `T` in `fn first<T>`
+        generic: Span,
+    },
 }
 
 impl Type {
@@ -50,7 +70,7 @@ impl Type {
                 },
             },
             hir::Type::Path { .. } => todo!(),
-            hir::Type::Generic { r#type, args: hir_args, group_span } => {
+            hir::Type::Param { r#type, args: hir_args, group_span } => {
                 let mut has_error = false;
                 let r#type = match Type::from_hir(r#type, session) {
                     Ok(r#type) => Some(r#type),
@@ -77,7 +97,7 @@ impl Type {
                 }
 
                 else {
-                    Ok(Type::Generic {
+                    Ok(Type::Param {
                         r#type: Box::new(r#type.unwrap()),
                         args,
                         group_span: *group_span,
@@ -107,7 +127,7 @@ impl Type {
                     }
 
                     else {
-                        Ok(Type::Generic {
+                        Ok(Type::Param {
                             r#type: Box::new(Type::Unit(*group_span)),
                             args,
                             group_span: *group_span,

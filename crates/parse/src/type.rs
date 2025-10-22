@@ -78,7 +78,7 @@ pub enum Type {
         fields: Vec<Field>,
     },
     // `Message<T>`, `Result<[Int], Error>`
-    Generic {
+    Param {
         r#type: Box<Type>,  // either `Type::Identifier` or `Type::Path`
         args: Vec<Type>,
         group_span: Span,
@@ -116,7 +116,7 @@ impl Type {
                 Some(Field::Name { dot_span, .. }) => *dot_span,
                 _ => unreachable!(),
             },
-            Type::Generic { args, .. } => args[0].error_span(),
+            Type::Param { args, .. } => args[0].error_span(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
             Type::Func { r#type, .. } => r#type.error_span(),
@@ -154,7 +154,7 @@ impl<'t> Tokens<'t> {
                             let args = self.parse_types(StopAt::AngleBracket)?;
                             let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
-                            return Ok(Type::Generic {
+                            return Ok(Type::Param {
                                 r#type: Box::new(Type::Path {
                                     id: path[0].0,
                                     id_span: path[0].1,
@@ -205,7 +205,7 @@ impl<'t> Tokens<'t> {
                 let args = self.parse_types(StopAt::AngleBracket)?;
                 let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
-                Ok(Type::Generic {
+                Ok(Type::Param {
                     r#type: Box::new(Type::Identifier { id, span }),
                     args,
                     group_span: group_span_start.merge(group_span_end),

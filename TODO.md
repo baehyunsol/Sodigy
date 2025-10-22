@@ -1,4 +1,44 @@
-# 47. 
+# 48. Compiler & Sodigy std
+
+Compiler가 Sodigy std를 직접 참조해야할 일이 아주 많음
+
+1. preludes in hir
+  - `Int`를 보고 name-error가 안 나려면 이게 정의돼 있다고 알려줘야함.
+2. primitive types in mir
+  - `3`을 보고 `Int`라고 하려면 `Int`에 대한 정보 혹은 정의가 어딘가에 있어야 함.
+3. operators to functions
+  - `a[0]`을 곧바로 `UpdateCompound`로 번역하는게 아니고, std에 정의된 다른 함수로 번역한 다음 그 함수에서 `UpdateCompound`를 호출
+
+Sodigy std에만 있는 특별한 능력들도 필요
+
+1. std 안에서는 intrinsic을 직접 호출할 일이 많음. 예를 들어서 `index`는 아래처럼 정의됨.
+  - `fn index<T>(ls: [T], i: Int) -> T = if _ { update_compound(ls, i + 1) } else if _ { update_compound(ls, i + ls.len() + 1) } else { panic() }`
+2. 만약 `Int`나 `Byte`같은 걸 std에서 정의한다고 치면, 이걸 Sodigy로 표현할 방법이 없음
+  - Rust는 `i32` 같은 애들은 완전 built-in이어서 정의도 없음
+  - Rust code 뒤져보면 `#[rustc_intrinsic] fn atomic_load();` 이렇게 생긴 애들 있음. body는 없고 signature만 있음. std 안에서만 쓸 수 있대!
+
+지금 `+` operator를 구현하는 type들의 목록도 정리해둬야 하는데, 그걸 sodigy로 하려면 type class syntax가 필요함! 아직 택도 없는데 ㅠㅠ
+
+# 47. More on type system
+
+1. infer랑 check를 같이 하는게 맞을 듯??
+2. type-check error는 multi-throw가 가능해야함
+3. type-infer error는 multi-throw가... 가능한가?
+  - x가 실제로는 Int이고, 많은 곳에서 Int처럼 사용
+  - 어딘가의 실수로 인해 x를 String으로 추론해버림
+  - 그럼 정상적으로 x를 사용하는 모든 곳이 error인데?? that doesn't make sense...
+4. subtyping을 할 거임?? subtyping이 필요한가??
+  - subtyping 어디에 쓰는 건지 Perplexity한테 물어봄:
+    - Java에서 class와 super class 간의 관계를 표현할 때
+    - Typescript에서 어떤 struct가 `{name: string, age: number}`의 field를 가지면, 저 field를 갖는 모든 struct는 쟤의 super-type임
+    - Rust에서: lifetime 계산할 때만
+    - OCaml에서: `[A]` is a subtype of `[A | B]` -> 얘네는 enum이 없나?
+      - 근데 생각해보면 이게 enum보다 나은 점도 있음.
+      - Rust에서는 `[A]`를 `[AorB]`한테 주려면 boxing을 한번 해야하는데 OCaml에서는 그냥 주면 되잖아?
+    - 그럼 우리는 subtyping이 필요없음!!
+5. generic type하고 concrete generic하고 구분해야함.
+  - `fn foo<T>(x: T) -> T`가 있다고 치자, 그럼 `foo` 안에서 사용되는 `x`는 generic한 `T`를 가져야함
+  - 하지만 `fn bar() = foo(3)` 안에 있는 `foo`의 `T`는 concrete한 type을 가짐!!
 
 # 46. `include_str!`
 

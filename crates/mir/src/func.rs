@@ -8,6 +8,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub args: Vec<FuncArgDef<()>>,
+    pub type_annotation_span: Option<Span>,
     pub value: Expr,
 }
 
@@ -15,6 +16,7 @@ impl Func {
     pub fn from_hir(hir_func: &hir::Func, session: &mut Session) -> Result<Func, ()> {
         let mut has_error = false;
         let mut args = Vec::with_capacity(hir_func.args.len());
+        let type_annotation_span = hir_func.r#type.as_ref().map(|t| t.error_span());
 
         for hir_arg in hir_func.args.iter() {
             match hir_arg.r#type.as_ref().map(|r#type| Type::from_hir(r#type, session)) {
@@ -63,6 +65,7 @@ impl Func {
                 name: hir_func.name,
                 name_span: hir_func.name_span,
                 args,
+                type_annotation_span,
                 value: value.unwrap(),
             })
         }

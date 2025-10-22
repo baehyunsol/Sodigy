@@ -7,12 +7,15 @@ use sodigy_string::InternedString;
 pub struct Let {
     pub name: InternedString,
     pub name_span: Span,
+    pub type_annotation_span: Option<Span>,
     pub value: Expr,
 }
 
 impl Let {
     pub fn from_hir(hir_let: &hir::Let, session: &mut Session) -> Result<Let, ()> {
         let mut has_error = false;
+        let type_annotation_span = hir_let.r#type.as_ref().map(|t| t.error_span());
+
         match hir_let.r#type.as_ref().map(|r#type| Type::from_hir(r#type, session)) {
             Some(Ok(r#type)) => {
                 session.types.insert(hir_let.name_span, r#type);
@@ -39,6 +42,7 @@ impl Let {
             Ok(Let {
                 name: hir_let.name,
                 name_span: hir_let.name_span,
+                type_annotation_span,
                 value: value.unwrap(),
             })
         }

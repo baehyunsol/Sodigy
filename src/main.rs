@@ -70,7 +70,7 @@ fn main() -> Result<(), ()> {
 
                         let mir_session = sodigy_mir::lower(hir_session);
                         mir_session.continue_or_dump_errors()?;
-                        let mir_session = sodigy_mir_type::infer_and_check(mir_session);
+                        let mir_session = sodigy_mir_type::solve(mir_session);
                         mir_session.continue_or_dump_errors()?;
                         let lir_session = sodigy_lir::lower(mir_session);
                         lir_session.continue_or_dump_errors()?;
