@@ -1,4 +1,4 @@
-use crate::{Block, Intrinsic, If, Session};
+use crate::{Block, Intrinsic, If, Session, Type};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -35,6 +35,10 @@ pub enum Expr {
     Call {
         func: Callable,
         args: Vec<Expr>,
+
+        // If it's a generic function, def_spans of its generics (T, U, ...)
+        // are stored here so that `mir_type::Solver::solve_expr` can use.
+        generic_defs: Vec<Span>,
     },
 }
 
@@ -102,6 +106,7 @@ impl Expr {
             } => {
                 let mut has_error = false;
                 let mut def_span = None;
+                let mut generic_defs = vec![];
 
                 let func = match Expr::from_hir(func, session) {
                     Ok(Expr::Identifier(id)) => match id.origin {
@@ -137,7 +142,20 @@ impl Expr {
                 // we know the exact definition of the function, and can process keyword arguments and default values.
                 let mut mir_args = match def_span {
                     Some(def_span) => match session.func_shapes.get(&def_span) {
-                        Some(arg_defs) => {
+                        Some((arg_defs, generic_defs_)) => {
+                            if !generic_defs_.is_empty() {
+                                for generic_def in generic_defs_.iter() {
+                                    session.generic_instances.insert(
+                                        (func.error_span(), generic_def.name_span),
+                                        Type::GenericInstance {
+                                            call: func.error_span(),
+                                            generic: generic_def.name_span,
+                                        },
+                                    );
+                                    generic_defs.push(generic_def.name_span);
+                                }
+                            }
+
                             let arg_defs = arg_defs.to_vec();
                             let mut mir_args: Vec<Option<Expr>> = vec![None; arg_defs.len()];
 
@@ -275,7 +293,7 @@ impl Expr {
                 }
 
                 else {
-                    Ok(Expr::Call { func, args })
+                    Ok(Expr::Call { func, args, generic_defs })
                 }
             },
             hir::Expr::Tuple { elements, .. } => todo!(),
@@ -304,6 +322,9 @@ impl Expr {
                             group_span: *group_span,
                         },
                         args: mir_elements,
+
+                        // TODO: do we need this?
+                        generic_defs: vec![],
                     })
                 }
             },
@@ -407,6 +428,7 @@ impl Expr {
                                     span,
                                 },
                                 args: mir_fields_unwrapped,
+                                generic_defs: todo!(),
                             })
                         }
                     },
@@ -442,6 +464,9 @@ impl Expr {
                             span: *op_span,
                         },
                         args: vec![lhs, rhs],
+
+                        // It is generic, but the compiler treats it specially, so we don't need the defs.
+                        generic_defs: vec![],
                     }),
                     _ => Err(()),
                 }
@@ -476,6 +501,20 @@ impl Expr {
                 Callable::Dynamic(expr) => expr.error_span(),
                 Callable::ListInit { group_span, .. } => *group_span,
             },
+        }
+    }
+}
+
+impl Callable {
+    // span for error messages
+    pub fn error_span(&self) -> Span {
+        match self {
+            Callable::Static { span, .. } |
+            Callable::StructInit { span, .. } |
+            Callable::ListInit { group_span: span } |
+            Callable::Intrinsic { span, .. } |
+            Callable::GenericInfixOp { span, .. } => *span,
+            Callable::Dynamic(expr) => expr.error_span(),
         }
     }
 }

@@ -1,0 +1,3 @@
+fn id(x: Int) -> Int = id(x);
+fn id_generic<T>(x: T) -> T = id_generic(x);
+fn id_no_annotation(x) = id_no_annotation(x);

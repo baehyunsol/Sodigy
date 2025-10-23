@@ -22,12 +22,13 @@ impl Solver {
         &mut self,
         expr: &Expr,
         types: &mut HashMap<Span, Type>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> Result<Type, ()> {
         match expr {
             Expr::Identifier(id) => match types.get(&id.def_span) {
                 Some(r#type) => Ok(r#type.clone()),
                 None => {
-                    self.add_type_var(id.def_span, Some(id.id));
+                    self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
                     Ok(Type::Var {
                         def_span: id.def_span,
                         is_return: false,
@@ -43,7 +44,7 @@ impl Solver {
                 false => Ok(Type::Static(Span::Prelude(self.preludes[STRING]))),
             },
             Expr::If(r#if) => {
-                let cond_type = self.solve_expr(r#if.cond.as_ref(), types)?;
+                let cond_type = self.solve_expr(r#if.cond.as_ref(), types, generic_instances)?;
 
                 match cond_type {
                     Type::Static(Span::Prelude(s)) if s == self.preludes[BOOL] => {},  // okay
@@ -52,6 +53,7 @@ impl Solver {
                             &Type::Static(Span::Prelude(self.preludes[BOOL])),
                             &cond_type,
                             types,
+                            generic_instances,
                             r#if.cond.error_span(),
                             None,
                             ErrorContext::IfConditionBool,
@@ -60,14 +62,15 @@ impl Solver {
                 }
 
                 match (
-                    self.solve_expr(r#if.true_value.as_ref(), types),
-                    self.solve_expr(r#if.false_value.as_ref(), types),
+                    self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
+                    self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
                 ) {
                     (Ok(true_type), Ok(false_type)) => {
                         self.equal(
                             &true_type,
                             &false_type,
                             types,
+                            generic_instances,
                             r#if.true_value.error_span(),
                             Some(r#if.false_value.error_span()),
                             ErrorContext::IfValueEqual,
@@ -81,18 +84,18 @@ impl Solver {
                 let mut has_error = false;
 
                 for r#let in block.lets.iter() {
-                    if let Err(()) = self.solve_let(r#let, types) {
+                    if let Err(()) = self.solve_let(r#let, types, generic_instances) {
                         has_error = true;
                     }
                 }
 
                 for assert in block.asserts.iter() {
-                    if let Err(()) = self.solve_assert(assert, types) {
+                    if let Err(()) = self.solve_assert(assert, types, generic_instances) {
                         has_error = true;
                     }
                 }
 
-                self.solve_expr(block.value.as_ref(), types)
+                self.solve_expr(block.value.as_ref(), types, generic_instances)
             },
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
             // The number of `args` is correct. Mir checked that.
@@ -112,12 +115,12 @@ impl Solver {
             //      - if there are 0 match: type error
             //      - if there are exactly 1 match: we can solve this!
             //      - if there are multiple matches... we need another form of a type-variable.. :(
-            Expr::Call { func, args } => {
+            Expr::Call { func, args, generic_defs } if generic_defs.is_empty() => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for arg in args.iter() {
-                    match self.solve_expr(arg, types) {
+                    match self.solve_expr(arg, types, generic_instances) {
                         Ok(arg_type) => {
                             arg_types.push(arg_type);
                         },
@@ -147,6 +150,7 @@ impl Solver {
                                     arg_def,
                                     &arg_types[i],
                                     types,
+                                    generic_instances,
                                     args[i].error_span(),
                                     Some(span),
                                     ErrorContext::FuncArgs,
@@ -158,36 +162,50 @@ impl Solver {
                         Some(_) => todo!(),
                         None => todo!(),
                     },
-                    Callable::ListInit { .. } => {
+                    Callable::ListInit { group_span } => {
+                        // We can treat a list initialization (`[1, 2, 3]`) like calling a
+                        // function with variadic arguments (`list.init(1, 2, 3)`).
+                        // Here, `list.init` is a generic function `fn init<T>(args) -> [T]`.
+                        // Then, an empty initialization is like calling a generic function
+                        // but we don't know its generic yet.
                         if arg_types.is_empty() {
-                            // How are we gonna represent an empty list?
-                            todo!()
+                            Ok(Type::Param {
+                                r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
+                                args: vec![Type::GenericInstance { call: *group_span, generic: Span::None }],
+
+                                // this is for the type annotation, hence None
+                                group_span: Span::None,
+                            })
                         }
 
-                        for i in 1..arg_types.len() {
-                            let _ = self.equal(
-                                &arg_types[0],
-                                &arg_types[i],
-                                types,
-                                args[i].error_span(),
-                                Some(args[0].error_span()),
-                                ErrorContext::ListElementEqual,
-                            );
+                        else {
+                            for i in 1..arg_types.len() {
+                                let _ = self.equal(
+                                    &arg_types[0],
+                                    &arg_types[i],
+                                    types,
+                                    generic_instances,
+                                    args[i].error_span(),
+                                    Some(args[0].error_span()),
+                                    ErrorContext::ListElementEqual,
+                                );
+                            }
+
+                            Ok(Type::Param {
+                                r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
+                                args: arg_types.drain(0..1).collect(),
+
+                                // this is for the type annotation, hence None
+                                group_span: Span::None,
+                            })
                         }
-
-                        Ok(Type::Param {
-                            r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
-                            args: arg_types.drain(0..1).collect(),
-
-                            // this is for the type annotation, hence None
-                            group_span: Span::None,
-                        })
                     },
                     Callable::GenericInfixOp { op: InfixOp::Eq, span } => {
                         let _ = self.equal(
                             &arg_types[0],
                             &arg_types[1],
                             types,
+                            generic_instances,
                             args[1].error_span(),
                             Some(args[0].error_span()),
                             ErrorContext::EqValueEqual,
@@ -232,6 +250,7 @@ impl Solver {
                                         &candidate[i],
                                         &arg_types[i],
                                         types,
+                                        generic_instances,
                                         args[i].error_span(),
                                         None,
                                         ErrorContext::None,  // TODO: do we need an error-context for this?

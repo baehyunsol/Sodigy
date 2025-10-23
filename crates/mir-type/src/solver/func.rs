@@ -6,8 +6,13 @@ use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Solver {
-    pub fn solve_func(&mut self, func: &Func, types: &mut HashMap<Span, Type>) -> Result<Type, ()> {
-        let infered_type = self.solve_expr(&func.value, types)?;
+    pub fn solve_func(
+        &mut self,
+        func: &Func,
+        types: &mut HashMap<Span, Type>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
+    ) -> Result<Type, ()> {
+        let infered_type = self.solve_expr(&func.value, types, generic_instances)?;
         let (
             annotated_type,
             error_span,
@@ -16,8 +21,8 @@ impl Solver {
         ) = match types.get(&func.name_span) {
             Some(f @ Type::Func { r#return, .. }) => {
                 for def_span in f.get_type_vars() {
-                    self.add_type_var(def_span, Some(func.name));
-                    self.add_type_var_ref(def_span, func.name_span);
+                    self.add_type_var(def_span.clone(), Some(func.name));
+                    self.add_type_var_ref(def_span, Type::Var { def_span: func.name_span, is_return: true });
                 }
 
                 (
@@ -37,6 +42,7 @@ impl Solver {
             &annotated_type,
             &infered_type,
             types,
+            generic_instances,
             error_span,
             extra_error_span,
             context,

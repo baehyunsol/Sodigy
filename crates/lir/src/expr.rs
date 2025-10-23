@@ -126,7 +126,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecode: &mu
 
             lower_mir_expr(value, session, bytecode, is_tail_call);
         },
-        mir::Expr::Call { func, args } => {
+        mir::Expr::Call { func, args, .. } => {
             for (i, arg) in args.iter().enumerate() {
                 lower_mir_expr(arg, session, bytecode, false /* is_tail_call */);
                 bytecode.push(Bytecode::Push {

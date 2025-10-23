@@ -4,7 +4,9 @@ use sodigy_hir as hir;
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 
-#[derive(Clone, Debug)]
+// `Eq` and `PartialEq` are only for type vars.
+// For comparison, use `Solver::equal()` method.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
     // Int
     Static(Span /* def_span of `Int` */),
@@ -161,7 +163,7 @@ impl Type {
         }
     }
 
-    pub fn get_type_vars(&self) -> Vec<Span> {
+    pub fn get_type_vars(&self) -> Vec<Type> {
         match self {
             Type::Static(_) |
             Type::GenericDef(_) |
@@ -176,12 +178,11 @@ impl Type {
 
                 result
             },
-            Type::Var { def_span, .. } => vec![*def_span],
-            Type::GenericInstance { .. } => todo!(),
+            Type::Var { .. } | Type::GenericInstance { .. } => vec![self.clone()],
         }
     }
 
-    pub fn substitute(&mut self, type_var: Span, r#type: &Type) {
+    pub fn substitute(&mut self, type_var: &Type, r#type: &Type) {
         match self {
             Type::Static(_) |
             Type::GenericDef(_) |
@@ -201,11 +202,11 @@ impl Type {
 
                 t.substitute(type_var, r#type);
             },
-            Type::Var { def_span, .. } if *def_span == type_var => {
-                *self = r#type.clone();
+            Type::Var { .. } | Type::GenericInstance { .. } => {
+                if self == type_var {
+                    *self = r#type.clone();
+                }
             },
-            Type::Var { .. } => {},
-            Type::GenericInstance { .. } => todo!(),
         }
     }
 }

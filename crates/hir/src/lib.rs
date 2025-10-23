@@ -39,6 +39,8 @@ pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
 pub use r#type::Type;
 
+pub use sodigy_parse::GenericDef;
+
 pub(crate) use prelude::PRELUDES;
 
 pub fn lower(parse_session: ParseSession) -> Session {
