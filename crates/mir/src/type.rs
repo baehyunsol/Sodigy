@@ -180,4 +180,32 @@ impl Type {
             Type::GenericInstance { .. } => todo!(),
         }
     }
+
+    pub fn substitute(&mut self, type_var: Span, r#type: &Type) {
+        match self {
+            Type::Static(_) |
+            Type::GenericDef(_) |
+            Type::Unit(_) => {},
+            Type::Param {
+                r#type: t,
+                args,
+                ..
+            } | Type::Func {
+                r#return: t,
+                args,
+                ..
+            } => {
+                for arg in args.iter_mut() {
+                    arg.substitute(type_var, r#type);
+                }
+
+                t.substitute(type_var, r#type);
+            },
+            Type::Var { def_span, .. } if *def_span == type_var => {
+                *self = r#type.clone();
+            },
+            Type::Var { .. } => {},
+            Type::GenericInstance { .. } => todo!(),
+        }
+    }
 }

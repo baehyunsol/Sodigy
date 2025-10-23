@@ -27,7 +27,7 @@ impl Solver {
             Expr::Identifier(id) => match types.get(&id.def_span) {
                 Some(r#type) => Ok(r#type.clone()),
                 None => {
-                    self.add_type_variable(id.def_span, Some(id.id));
+                    self.add_type_var(id.def_span, Some(id.id));
                     Ok(Type::Var {
                         def_span: id.def_span,
                         is_return: false,

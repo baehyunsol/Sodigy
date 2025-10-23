@@ -51,7 +51,10 @@ fn main() -> Result<(), ()> {
                         let file = File::register(
                             0,  // project_id
                             &input_path,
-                            "todo",  // normalized_path
+
+                            // TODO: It's `normalized_path`, but I'm too lazy to normalize the path.
+                            &input_path,
+
                             &intermediate_dir,
                         ).unwrap();
 

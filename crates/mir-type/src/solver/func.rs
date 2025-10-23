@@ -3,7 +3,7 @@ use crate::Type;
 use crate::error::ErrorContext;
 use sodigy_mir::Func;
 use sodigy_span::Span;
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 
 impl Solver {
     pub fn solve_func(&mut self, func: &Func, types: &mut HashMap<Span, Type>) -> Result<Type, ()> {
@@ -16,7 +16,8 @@ impl Solver {
         ) = match types.get(&func.name_span) {
             Some(f @ Type::Func { r#return, .. }) => {
                 for def_span in f.get_type_vars() {
-                    self.add_type_variable(def_span, Some(func.name));
+                    self.add_type_var(def_span, Some(func.name));
+                    self.add_type_var_ref(def_span, func.name_span);
                 }
 
                 (

@@ -15,7 +15,7 @@ impl Solver {
             context,
         ) = match types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
-                self.add_type_variable(r#let.name_span, Some(r#let.name));
+                self.add_type_var(r#let.name_span, Some(r#let.name));
                 (
                     Type::Var {
                         def_span: r#let.name_span,

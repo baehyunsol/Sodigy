@@ -45,6 +45,7 @@ pub enum ErrorContext {
     ListElementEqual,
     FuncArgs,
     EqValueEqual,
+    Deep,
 
     // If there's nothing special about the context,
     // or the error kind tells everything about the context.
@@ -62,6 +63,7 @@ impl ErrorContext {
             ErrorContext::ListElementEqual => Some("All elements of a list must have the same type."),
             ErrorContext::FuncArgs => Some("Arguments of this function are incorrect."),
             ErrorContext::EqValueEqual => Some("Lhs and rhs of `==` operator must have the same type."),
+            ErrorContext::Deep => Some("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location."),
             ErrorContext::None => None,
         }
     }
