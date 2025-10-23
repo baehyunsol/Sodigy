@@ -258,10 +258,26 @@ impl<'t> Tokens<'t> {
 
                         else {
                             let types = tokens.parse_types(StopAt::Eof)?;
-                            Ok(Type::Tuple {
-                                types,
-                                group_span,
-                            })
+                            let mut is_tuple = types.len() != 1;
+
+                            // `(Int)` is just an integer type, but `(Int,)` is a tuple type
+                            if types.len() == 1 && matches!(
+                                tokens.last(),
+                                Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
+                            ) {
+                                is_tuple = true;
+                            }
+
+                            if is_tuple {
+                                Ok(Type::Tuple {
+                                    types,
+                                    group_span,
+                                })
+                            }
+
+                            else {
+                                Ok(types[0].clone())
+                            }
                         }
                     },
                     Delim::Bracket => {

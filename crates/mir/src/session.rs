@@ -15,12 +15,16 @@ pub struct Session {
 
     // It's `def_span -> type_annotation` map.
     // It has type information of *every* name in the code.
-    // If you query a def_span of a function, it'll give you the return type of the function.
+    // If you query a def_span of a function, it'll give you something like `Fn(Int, Int) -> Int`.
     //
     // If first collects the type annotations, then the type-infer engine will infer the
     // missing type annotations.
     // Then the type-checker will check if all the annotations are correct.
     pub types: HashMap<Span, Type>,
+
+    // We need this when we create error messages.
+    // This is really expensive to initialize, so think twice before you init this.
+    pub span_string_map: HashMap<Span, String>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
@@ -60,9 +64,15 @@ impl Session {
             funcs: vec![],
             asserts: vec![],
             types: HashMap::new(),
+            span_string_map: HashMap::new(),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
         }
+    }
+
+    pub fn init_span_string_map(&mut self) {
+        // TODO: as of now, there're no structs and enums in MirSession, so the error messages don't need this function.
+        //       I'll implement this function when I need this
     }
 }
 

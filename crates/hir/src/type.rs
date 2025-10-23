@@ -154,23 +154,16 @@ impl Type {
                 let mut args = Vec::with_capacity(ast_args.len());
 
                 match Type::from_ast(r#type, session) {
-                    Ok(func) => match func {
-                        Type::Identifier(id) => match id.def_span {
-                            Span::Prelude(f) => match f.try_unintern_short_string() {
-                                Some(f) if f == b"Fn" => {
-                                    fn_span = id.span;
-                                },
-                                _ => {
-                                    has_wrong_identifier = true;
-                                },
-                            },
-                            _ => {
-                                has_wrong_identifier = true;
-                            },
+                    Ok(Type::Identifier(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
+                        Some(f) if f == b"Fn" => {
+                            fn_span = span;
                         },
                         _ => {
                             has_wrong_identifier = true;
                         },
+                    },
+                    Ok(_) => {
+                        has_wrong_identifier = true;
                     },
                     Err(()) => {
                         has_error = true;

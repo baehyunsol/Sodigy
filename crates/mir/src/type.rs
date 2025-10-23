@@ -15,17 +15,33 @@ pub enum Type {
     // ()
     Unit(Span /* group_span */),
 
-    // Option<Int>, Option<T>, Option<Option<Int>>, ...
+    // Result<Int, String>, Result<T, U>, Option<Result<Int, String>>, ...
     // Tuple also has this type: `Param { type: Unit, args: [..] }`
     Param {
-        r#type: Box<Type>,  // `Option`
-        args: Vec<Type>,    // `[T]`
+        r#type: Box<Type>,  // `Result`
+        args: Vec<Type>,    // `[Int, String]`
         group_span: Span,
+    },
+
+    Func {
+        fn_span: Span,
+        args: Vec<Type>,
+        r#return: Box<Type>,
     },
 
     // If a type annotation is missing, it creates a type variable.
     // The type variables will be infered.
-    Var(Span /* def_span */),
+    Var {
+        // If a type annotation of a definition with `def_span` is missing,
+        // its type is `Type::Var { def_span }`.
+        def_span: Span,
+
+        // If `is_return` is false, `types.get(def_span)` will give you `Type::Var { def_span }`
+        // If `is_return` is true, `types.get(def_span)`
+        //     will give you `Type::Func { args: [..], return: Type::Var { def_span } }`
+        // You have to be careful when you update `types`.
+        is_return: bool,
+    },
 
     // It's also a type variable.
     //
@@ -138,7 +154,30 @@ impl Type {
             hir::Type::Func { .. } => todo!(),
 
             // it has to be infered
-            hir::Type::Wildcard(span) => Ok(Type::Var(*span)),
+            hir::Type::Wildcard(span) => Ok(Type::Var {
+                def_span: *span,
+                is_return: false,
+            }),
+        }
+    }
+
+    pub fn get_type_vars(&self) -> Vec<Span> {
+        match self {
+            Type::Static(_) |
+            Type::GenericDef(_) |
+            Type::Unit(_) => vec![],
+            Type::Param { r#type: t, args, .. } |
+            Type::Func { r#return: t, args, .. } => {
+                let mut result = t.get_type_vars();
+
+                for arg in args.iter() {
+                    result.extend(arg.get_type_vars());
+                }
+
+                result
+            },
+            Type::Var { def_span, .. } => vec![*def_span],
+            Type::GenericInstance { .. } => todo!(),
         }
     }
 }

@@ -1,13 +1,25 @@
-use crate::{Expr, Type};
+use crate::Type;
 use crate::error::{ErrorContext, TypeError, TypeErrorKind};
 use crate::preludes::*;
-use sodigy_mir::Callable;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
+
+mod assert;
+mod expr;
+mod func;
+mod r#let;
 
 pub struct Solver {
+    // Whenever `types.get(span)` returns `None`, it creates a type variable
+    // and inserts the `span` to this hash set. It's later used to check
+    // if all the type variables are infered.
+    // If the type variable is from a type annotation and a name is bound to
+    // the type annotation, it also collects the name: that'd be helpful when
+    // creating error messages.
+    pub type_vars: HashMap<Span, Option<InternedString>>,
+
     pub preludes: Vec<InternedString>,
     pub infix_op_type_signatures: HashMap<InfixOp, Vec<Vec<Type>>>,
     pub errors: Vec<TypeError>,
@@ -32,171 +44,49 @@ impl Solver {
         ].into_iter().collect();
 
         Solver {
+            type_vars: HashMap::new(),
             preludes,
             infix_op_type_signatures,
             errors: vec![],
         }
     }
 
-    // FIXME: there are A LOT OF heap allocations
-    //
-    // It can solve type of any expression, but the result maybe `Type::Var`.
-    // If it finds new type equations while solving, it adds them to `type_equations`.
-    //
-    // It tries to find as many errors as possible before it returns.
-    // Sometimes, it can solve the expr even though there's an error.
-    // For example, `if 3 { 0 } else { 1 }` has an error, but its type
-    // is definitely an integer. In this case, it pushes the error to the
-    // solver and returns `Ok(Int)`.
-    pub fn solve_expr(
-        &mut self,
-        expr: &Expr,
-        types: &mut HashMap<Span, Type>,
-    ) -> Result<Type, ()> {
-        match expr {
-            Expr::Identifier(id) => match types.get(&id.def_span) {
-                Some(r#type) => Ok(r#type.clone()),
-                None => Ok(Type::Var(id.def_span)),
-            },
-            Expr::Number { n, .. } => match n.is_integer {
-                true => Ok(Type::Static(Span::Prelude(self.preludes[INT]))),
-                false => Ok(Type::Static(Span::Prelude(self.preludes[NUMBER]))),
-            },
-            Expr::String { binary, .. } => match *binary {
-                true => Ok(Type::Static(Span::Prelude(self.preludes[BYTES]))),
-                false => Ok(Type::Static(Span::Prelude(self.preludes[STRING]))),
-            },
-            Expr::If(r#if) => {
-                let cond_type = self.solve_expr(r#if.cond.as_ref(), types)?;
+    pub fn check_all_types_infered(&mut self, types: &HashMap<Span, Type>) {
+        for (def_span, id) in self.type_vars.iter() {
+            match types.get(def_span) {
+                None | Some(Type::Var { .. }) => {
+                    self.errors.push(TypeError {
+                        kind: TypeErrorKind::CannotInferType { id: *id },
+                        span: *def_span,
+                        extra_span: None,
+                        context: ErrorContext::None,
+                    });
+                },
+                Some(t) => {
+                    let type_vars = t.get_type_vars();
 
-                match cond_type {
-                    Type::Static(Span::Prelude(s)) if s == self.preludes[BOOL] => {},  // okay
-                    _ => {
-                        let _ = self.equal(
-                            &Type::Static(Span::Prelude(self.preludes[BOOL])),
-                            &cond_type,
-                            types,
-                            r#if.cond.error_span(),
-                            None,
-                            ErrorContext::IfConditionBool,
-                        );
-                    },
-                }
-
-                match (
-                    self.solve_expr(r#if.true_value.as_ref(), types),
-                    self.solve_expr(r#if.false_value.as_ref(), types),
-                ) {
-                    (Ok(true_type), Ok(false_type)) => {
-                        self.equal(
-                            &true_type,
-                            &false_type,
-                            types,
-                            r#if.true_value.error_span(),
-                            Some(r#if.false_value.error_span()),
-                            ErrorContext::IfValueEqual,
-                        )?;
-                        Ok(true_type)
-                    },
-                    _ => Err(()),
-                }
-            },
-            // The number of `args` is correct. Mir checked that.
-            // ---- draft ----
-            // 1. we can solve types of args, whether it's concrete or variable
-            // 2. if callable is...
-            //    - a function without generic
-            //      - every arg must have a concrete type, so is the return type
-            //      - it calls `equal` for all args, and returns the return type
-            //    - a generic function
-            //      - it first converts `Generic` to `GenericInstance` and does what
-            //        a non-generic function does
-            //    - an operator
-            //      - it lists all the possible type signatures of the operator
-            //        - todo: what if it's generic? I guess we have to use `GenericInstance` here
-            //      - it finds applicable candidates in the list
-            //      - if there are 0 match: type error
-            //      - if there are exactly 1 match: we can solve this!
-            //      - if there are multiple matches... we need another form of a type-variable.. :(
-            Expr::Call { func, args } => match func {
-                Callable::GenericInfixOp { op, span } => {
-                    let mut has_error = false;
-                    let mut arg_types = Vec::with_capacity(args.len());
-
-                    for arg in args.iter() {
-                        match self.solve_expr(arg, types) {
-                            Ok(arg_type) => {
-                                arg_types.push(arg_type);
-                            },
-                            Err(()) => {
-                                has_error = true;
-                            },
-                        }
-                    }
-
-                    if has_error {
-                        return Err(());
-                    }
-
-                    let type_signatures = self.get_possible_type_signatures(*op);
-                    let mut candidates = vec![];
-
-                    for type_signature in type_signatures.iter() {
-                        if applicable(
-                            type_signature,
-                            &arg_types,
-                        ) {
-                            candidates.push(type_signature);
-                        }
-                    }
-
-                    // Let's say `op` is `Op::Add`.
-                    // Then the type signatures would be `[[Int, Int, Int], [Number, Number, Number], ... (and maybe more) ...]`.
-                    // `candidates` filters out type signatures that are not compatible with `arg_types`.
-                    match candidates.len() {
-                        0 => {
-                            self.errors.push(TypeError {
-                                kind: TypeErrorKind::InfixOpNotApplicable {
-                                    op: *op,
-                                    arg_types,
-                                },
-                                span: *span,
-                                extra_span: None,
-                                context: ErrorContext::None,
-                            });
-                            Err(())
-                        },
-                        1 => {
-                            let candidate = candidates[0].clone();
-                            let mut has_error = false;
-
-                            for i in 0..arg_types.len() {
-                                if let Err(()) = self.equal(
-                                    &candidate[i],
-                                    &arg_types[i],
-                                    types,
-                                    args[i].error_span(),
-                                    None,
-                                    ErrorContext::None,  // TODO: do we need an error-context for this?
-                                ) {
-                                    has_error = true;
-                                }
-                            }
-
-                            if has_error {
-                                Err(())
-                            }
-
-                            else {
-                                Ok(candidate.last().unwrap().clone())
-                            }
-                        },
-                        2.. => todo!(),
+                    if !type_vars.is_empty() {
+                        self.errors.push(TypeError {
+                            kind: TypeErrorKind::PartiallyInferedType { id: *id, r#type: t.clone() },
+                            span: *def_span,
+                            extra_span: None,
+                            context: ErrorContext::None,
+                        });
                     }
                 },
-                _ => panic!("TODO: {func:?}"),
+            }
+        }
+    }
+
+    pub fn add_type_variable(&mut self, def_span: Span, id: Option<InternedString>) {
+        match self.type_vars.entry(def_span) {
+            Entry::Occupied(mut e) if id.is_some() => {
+                *e.get_mut() = id;
             },
-            _ => todo!(),
+            Entry::Vacant(e) => {
+                e.insert(id);
+            },
+            _ => {},
         }
     }
 
@@ -240,14 +130,30 @@ impl Solver {
                 }
             },
             (
-                Type::Var(var),
+                Type::Var { def_span, is_return: false },
                 concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
             ) | (
                 concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
-                Type::Var(var),
+                Type::Var { def_span, is_return: false },
             ) => {
-                types.insert(*var, concrete.clone());
-                self.substitute(*var, concrete, types)
+                types.insert(*def_span, concrete.clone());
+                self.substitute(*def_span, concrete, types)
+            },
+            (
+                Type::Var { def_span, is_return: true },
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+            ) | (
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+                Type::Var { def_span, is_return: true },
+            ) => {
+                match types.get_mut(def_span) {
+                    Some(Type::Func { r#return, .. }) => {
+                        *r#return = Box::new(concrete.clone());
+                    },
+                    _ => unreachable!(),
+                }
+
+                self.substitute(*def_span, concrete, types)
             },
             (
                 Type::GenericDef(_),
@@ -266,7 +172,7 @@ impl Solver {
                 });
                 Err(())
             },
-            _ => todo!(),
+            _ => panic!("TODO: {:?}", (lhs, rhs)),
         }
     }
 
@@ -278,32 +184,4 @@ impl Solver {
     fn get_possible_type_signatures(&self, op: InfixOp) -> &[Vec<Type>] {
         self.infix_op_type_signatures.get(&op).unwrap()
     }
-}
-
-// `type_signature.len() == arg_types.len() + 1` because the last element of
-// `type_signature` is the return type.
-fn applicable(
-    type_signature: &[Type],
-    arg_types: &[Type],
-) -> bool {
-    assert_eq!(type_signature.len(), arg_types.len() + 1);
-
-    for i in 0..arg_types.len() {
-        // TODO: there must be an error in this match statement.
-        match (
-            &type_signature[i],
-            &arg_types[i],
-        ) {
-            (_, Type::Var(_) | Type::GenericInstance { .. }) => {},
-            (Type::Static(s1), Type::Static(s2)) if *s1 == *s2 => {},
-            (Type::Unit(_), Type::Unit(_)) => {},
-            (Type::Param { .. }, _) |
-            (_, Type::Param { .. }) => todo!(),
-            _ => {
-                return false;
-            },
-        }
-    }
-
-    true
 }

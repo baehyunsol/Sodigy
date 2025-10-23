@@ -65,7 +65,9 @@ impl ErrorLevel {
             ErrorKind::MissingStructField(_) |
             ErrorKind::InvalidStructField(_) |
             ErrorKind::DependentTypeNotAllowed |
-            ErrorKind::CannotInferType => ErrorLevel::Error,
+            ErrorKind::UnexpectedType { .. } |
+            ErrorKind::CannotInferType { .. } |
+            ErrorKind::PartiallyInferedType { .. } => ErrorLevel::Error,
             WarningKind::UnusedName { .. } => ErrorLevel::Warning,
         }
     }

@@ -5,90 +5,34 @@ mod error;
 mod preludes;
 mod solver;
 
-pub use error::{ErrorContext, TypeError, TypeErrorKind};
+pub use error::{ErrorContext, RenderTypeError, TypeError, TypeErrorKind};
 use solver::Solver;
 
 pub fn solve(mut session: Session) -> Session {
     let mut solver = Solver::new();
 
     for func in session.funcs.iter() {
-        let infered_type = match solver.solve_expr(&func.value, &mut session.types) {
-            Ok(r#type) => r#type,
-            Err(()) => {
-                continue;
-            },
-        };
-
-        let (
-            annotated_type,
-            error_span,
-            extra_error_span,
-            context,
-        ) = match session.types.get(&func.name_span) {
-            None | Some(Type::Var(_)) => (
-                Type::Var(func.name_span),
-                func.value.error_span(),
-                None,
-                ErrorContext::InferTypeAnnotation,
-            ),
-            Some(annotated_type) => (
-                annotated_type.clone(),
-                func.value.error_span(),
-                func.type_annotation_span,
-                ErrorContext::VerifyTypeAnnotation,
-            ),
-        };
-
-        let _ = solver.equal(
-            &annotated_type,
-            &infered_type,
-            &mut session.types,
-            error_span,
-            extra_error_span,
-            context,
-        );
+        let _ = solver.solve_func(func, &mut session.types);
     }
 
     for r#let in session.lets.iter() {
-        let infered_type = match solver.solve_expr(&r#let.value, &mut session.types) {
-            Ok(r#type) => r#type,
-            Err(()) => {
-                continue;
-            },
-        };
-
-        let (
-            annotated_type,
-            error_span,
-            extra_error_span,
-            context,
-        ) = match session.types.get(&r#let.name_span) {
-            None | Some(Type::Var(_)) => (
-                Type::Var(r#let.name_span),
-                r#let.value.error_span(),
-                None,
-                ErrorContext::InferTypeAnnotation,
-            ),
-            Some(annotated_type) => (
-                annotated_type.clone(),
-                r#let.value.error_span(),
-                r#let.type_annotation_span,
-                ErrorContext::VerifyTypeAnnotation,
-            ),
-        };
-
-        let _ = solver.equal(
-            &annotated_type,
-            &infered_type,
-            &mut session.types,
-            error_span,
-            extra_error_span,
-            context,
-        );
+        let _ = solver.solve_let(r#let, &mut session.types);
     }
 
-    for error in solver.errors.into_iter() {
-        todo!();
+    for assert in session.asserts.iter() {
+        let _ = solver.solve_assert(assert, &mut session.types);
+    }
+
+    solver.check_all_types_infered(&session.types);
+
+    // In order to create error messages, we have to convert spans to strings.
+    // But that's very expensive operation, so we initialize this map only when there's an error.
+    if !solver.errors.is_empty() {
+        session.init_span_string_map();
+    }
+
+    for error in solver.errors.iter() {
+        session.errors.push(session.type_error_to_general_error(error));
     }
 
     session
