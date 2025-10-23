@@ -1,3 +1,16 @@
+# 50. generic functions
+
+`fn foo<T>(x: T) -> T`가 있고 `fn bar()` 안에서 `foo`를 호출한다고 치자.
+
+1. `foo`를 monomorphize 하지 않고도 `bar`의 type check는 다 할 수 있음. type check를 하고 나니 `foo.<Int>()`가 발견됐다고 치자.
+2. 아직 `foo.<Int>()`를 만든 적이 있는지 확인. 이미 만들어졌으면, 그냥 넘어가면 됨.
+3. 아직 없다면, `foo.<Int>()`를 만든 뒤, 새로 만들어진 함수 안에서 type-check
+  - type-check 할 때 이 함수 하나에 대해서만 해야함!!
+  - 이 함수를 type-check를 하면서 에러가 발견된다면, `bar`에 있는 call-site의 span까지 같이 에러 메시지에 보여줘야함.
+  - `bar`에서 `foo`를 호출하는데 그 과정에서 `Fn(Int) -> Int`로 추론이 됐다는 거랑 `foo.<Int>()`를 type-check하는 과정에서 나온 에러라는 거를 유저한테 알려줘야함!!!
+
+type check가 전부 다 끝났으면, 다시 mir을 전체 순회하면서 `foo<T>()`를 호출하는 부분을 monomorphize된 함수들로 교체해주면 됨 (span을 전부 다 아니까 가능!)
+
 # 49. even more on type system
 
 1. 생각해보니까 subtyping이 필요함... never type이 있거든 ㅠㅠ
