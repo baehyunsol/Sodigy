@@ -1,0 +1,3 @@
+assert add3(25, 25, 25, 25) == 100;
+assert add3(25, 25) == 50;
+fn add3(x, y, z) = x + y + z;

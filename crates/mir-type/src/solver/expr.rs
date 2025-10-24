@@ -98,7 +98,6 @@ impl Solver {
                 self.solve_expr(block.value.as_ref(), types, generic_instances)
             },
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
-            // The number of `args` is correct. Mir checked that.
             // ---- draft ----
             // 1. we can solve types of args
             // 2. if callable is...
@@ -115,7 +114,7 @@ impl Solver {
             //      - if there are 0 match: type error
             //      - if there are exactly 1 match: we can solve this!
             //      - if there are multiple matches... we need another form of a type-variable.. :(
-            Expr::Call { func, args, generic_defs } if generic_defs.is_empty() => {
+            Expr::Call { func, args, generic_defs, given_keyword_arguments } if generic_defs.is_empty() => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -145,16 +144,34 @@ impl Solver {
                             let return_type: Type = *r#return.clone();
                             let span = *span;
 
-                            for (i, arg_def) in arg_defs.iter().enumerate() {
-                                let _ = self.equal(
-                                    arg_def,
-                                    &arg_types[i],
-                                    types,
-                                    generic_instances,
-                                    args[i].error_span(),
-                                    Some(span),
-                                    ErrorContext::FuncArgs,
-                                );
+                            // It doesn't check arg types if there are wrong number of args.
+                            // Whether or not there're type errors with args, it returns the return type.
+                            if arg_types.len() != arg_defs.len() {
+                                self.errors.push(TypeError {
+                                    kind: TypeErrorKind::WrongNumberOfArguments {
+                                        expected: arg_defs,
+                                        got: arg_types,
+                                        given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                        arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
+                                    },
+                                    span: func.error_span(),
+                                    extra_span: None,
+                                    context: ErrorContext::FuncArgs,
+                                });
+                            }
+
+                            else {
+                                for (i, arg_def) in arg_defs.iter().enumerate() {
+                                    let _ = self.equal(
+                                        arg_def,
+                                        &arg_types[i],
+                                        types,
+                                        generic_instances,
+                                        args[i].error_span(),
+                                        Some(span),
+                                        ErrorContext::FuncArgs,
+                                    );
+                                }
                             }
 
                             Ok(return_type)
@@ -169,9 +186,12 @@ impl Solver {
                         // Then, an empty initialization is like calling a generic function
                         // but we don't know its generic yet.
                         if arg_types.is_empty() {
+                            let type_var = Type::GenericInstance { call: *group_span, generic: Span::None };
+                            self.add_type_var(type_var.clone(), None);
+
                             Ok(Type::Param {
                                 r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
-                                args: vec![Type::GenericInstance { call: *group_span, generic: Span::None }],
+                                args: vec![type_var],
 
                                 // this is for the type annotation, hence None
                                 group_span: Span::None,
@@ -198,6 +218,63 @@ impl Solver {
                                 // this is for the type annotation, hence None
                                 group_span: Span::None,
                             })
+                        }
+                    },
+                    Callable::Dynamic(func) => {
+                        let func_type = self.solve_expr(func, types, generic_instances)?;
+
+                        match func_type {
+                            // TODO: What if there's a callable `Type::Static()` or `Type::Param {}`?
+                            Type::Static(_) | Type::Unit(_) | Type::Param { .. } => {
+                                self.errors.push(TypeError {
+                                    kind: TypeErrorKind::NotCallable {
+                                        r#type: func_type.clone(),
+                                    },
+                                    span: func.error_span(),
+                                    extra_span: None,
+                                    context: ErrorContext::None,
+                                });
+                                return Err(());
+                            },
+
+                            // Some generics are callable.
+                            // I have to add a constraint.
+                            Type::GenericDef(_) => todo!(),
+
+                            Type::Func { args: arg_defs, r#return, .. } => {
+                                // It doesn't check arg types if there are wrong number of args.
+                                // Whether or not there're type errors with args, it returns the return type.
+                                if arg_types.len() != arg_defs.len() {
+                                    self.errors.push(TypeError {
+                                        kind: TypeErrorKind::WrongNumberOfArguments {
+                                            expected: arg_defs,
+                                            got: arg_types,
+                                            given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                            arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
+                                        },
+                                        span: func.error_span(),
+                                        extra_span: None,
+                                        context: ErrorContext::None,
+                                    });
+                                }
+
+                                else {
+                                    for i in 0..arg_defs.len() {
+                                        let _ = self.equal(
+                                            &arg_defs[i],
+                                            &arg_types[i],
+                                            types,
+                                            generic_instances,
+                                            args[i].error_span(),
+                                            None,
+                                            ErrorContext::FuncArgs,
+                                        );
+                                    }
+                                }
+
+                                Ok(*r#return.clone())
+                            },
+                            _ => todo!(),
                         }
                     },
                     Callable::GenericInfixOp { op: InfixOp::Eq, span } => {
@@ -232,7 +309,7 @@ impl Solver {
                         match candidates.len() {
                             0 => {
                                 self.errors.push(TypeError {
-                                    kind: TypeErrorKind::InfixOpNotApplicable {
+                                    kind: TypeErrorKind::CannotApplyInfixOp {
                                         op: *op,
                                         arg_types,
                                     },

@@ -27,6 +27,7 @@ pub enum Type {
 
     Func {
         fn_span: Span,
+        group_span: Span,
         args: Vec<Type>,
         r#return: Box<Type>,
     },
@@ -153,7 +154,41 @@ impl Type {
                     }
                 }
             },
-            hir::Type::Func { .. } => todo!(),
+            hir::Type::Func { fn_span, group_span, args: hir_args, r#return } => {
+                let mut has_error = false;
+                let r#return = match Type::from_hir(r#return, session) {
+                    Ok(r#type) => Some(r#type),
+                    Err(()) => {
+                        has_error = true;
+                        None
+                    },
+                };
+                let mut args = Vec::with_capacity(hir_args.len());
+
+                for hir_arg in hir_args.iter() {
+                    match Type::from_hir(hir_arg, session) {
+                        Ok(arg) => {
+                            args.push(arg);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Type::Func {
+                        fn_span: *fn_span,
+                        group_span: *group_span,
+                        args,
+                        r#return: Box::new(r#return.unwrap()),
+                    })
+                }
+            },
 
             // it has to be infered
             hir::Type::Wildcard(span) => Ok(Type::Var {

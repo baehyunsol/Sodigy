@@ -19,6 +19,18 @@ pub enum TypeErrorKind {
         expected: Type,
         got: Type,
     },
+    // Since it's a very common error, the compiler tries to
+    // give an as helpful error message as possible
+    WrongNumberOfArguments {
+        expected: Vec<Type>,
+        got: Vec<Type>,
+
+        // It has type `Vec<(keyword: InternedString, n: usize)>` where
+        // `n`th argument of `got` has keyword `keyword`.
+        given_keyword_arguments: Vec<(InternedString, usize)>,
+
+        arg_spans: Vec<Span>,
+    },
     CannotInferType {
         id: Option<InternedString>,
     },
@@ -26,13 +38,20 @@ pub enum TypeErrorKind {
         id: Option<InternedString>,
         r#type: Type,
     },
-    InfixOpNotApplicable {
+    CannotInferGenericType {
+        generic_def_span: Span,
+    },
+    PartiallyInferedGenericType {
+        generic_def_span: Span,
+        r#type: Type,
+    },
+    CannotApplyInfixOp {
         op: InfixOp,
         arg_types: Vec<Type>,
     },
-
-    // `fn foo<T>() -> T = 3;` is `GenericIsNotGeneric { got: Int }`
-    GenericIsNotGeneric { got: Type },
+    NotCallable {
+        r#type: Type,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -72,7 +91,7 @@ impl ErrorContext {
 pub trait RenderTypeError {
     fn type_error_to_general_error(&self, error: &TypeError) -> Error;
     fn render_type(&self, r#type: &Type) -> String;
-    fn span_to_string(&self, span: Span) -> String;
+    fn span_to_string(&self, span: Span) -> Option<String>;
 }
 
 impl RenderTypeError for MirSession {
@@ -85,11 +104,38 @@ impl RenderTypeError for MirSession {
                 expected: self.render_type(expected),
                 got: self.render_type(got),
             },
+            TypeErrorKind::WrongNumberOfArguments {
+                expected,
+                got,
+                given_keyword_arguments,
+                arg_spans,
+            } => {
+                // With those information, we can guess which argument is missing (or unnecessary)
+                //
+                // 1. If the user has used keyword arguments, that cannot be a missing or an unnecessary argument.
+                //    We have to filter them out.
+                // 2. TODO: we have to check whether an argument is provided by the user or a default value.
+                //    If it's a default value, that cannot be a missing or an unnecessary argument. We have to filter them out.
+                // 3. try to substitute type variables in `expected` and `got`.
+                //    - those fields are captured when this error's created
+                //    - there might be updates in the type variables
+                // 4. TODO: then what?
+                todo!()
+            },
             TypeErrorKind::CannotInferType { id } => ErrorKind::CannotInferType { id: *id },
             TypeErrorKind::PartiallyInferedType {
                 id,
                 r#type,
             } => ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type) },
+            TypeErrorKind::CannotInferGenericType { generic_def_span } => ErrorKind::CannotInferGenericType { id: self.span_to_string(*generic_def_span) },
+            TypeErrorKind::PartiallyInferedGenericType {
+                generic_def_span,
+                r#type,
+            } => ErrorKind::PartiallyInferedGenericType { id: self.span_to_string(*generic_def_span), r#type: self.render_type(r#type) },
+            TypeErrorKind::CannotApplyInfixOp { op, arg_types } => ErrorKind::CannotApplyInfixOp {
+                op: *op,
+                arg_types: arg_types.iter().map(|t| self.render_type(t)).collect(),
+            },
             _ => todo!(),
         };
 
@@ -103,7 +149,7 @@ impl RenderTypeError for MirSession {
 
     fn render_type(&self, r#type: &Type) -> String {
         match r#type {
-            Type::Static(span) | Type::GenericDef(span) => self.span_to_string(*span),
+            Type::Static(span) | Type::GenericDef(span) => self.span_to_string(*span).unwrap_or_else(|| String::from("????")),
             Type::Unit(_) => String::from("()"),
             Type::Param {
                 r#type,
@@ -134,12 +180,17 @@ impl RenderTypeError for MirSession {
         }
     }
 
-    fn span_to_string(&self, span: Span) -> String {
+    fn span_to_string(&self, span: Span) -> Option<String> {
         match span {
-            Span::Prelude(p) => {
-                let p = unintern_string(p, &self.intermediate_dir).unwrap_or(None).unwrap_or(b"????".to_vec());
-                String::from_utf8_lossy(&p).to_string()
+            Span::Prelude(p) => match unintern_string(p, &self.intermediate_dir) {
+                Ok(Some(p)) => Some(String::from_utf8_lossy(&p).to_string()),
+                _ => None,
             },
+            Span::Range { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
+                Some(Some(s)) => Some(String::from_utf8_lossy(s).to_string()),
+                _ => None,
+            },
+            Span::None => None,
             _ => todo!(),
         }
     }

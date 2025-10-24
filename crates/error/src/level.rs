@@ -67,7 +67,10 @@ impl ErrorLevel {
             ErrorKind::DependentTypeNotAllowed |
             ErrorKind::UnexpectedType { .. } |
             ErrorKind::CannotInferType { .. } |
-            ErrorKind::PartiallyInferedType { .. } => ErrorLevel::Error,
+            ErrorKind::PartiallyInferedType { .. } |
+            ErrorKind::CannotInferGenericType { .. } |
+            ErrorKind::PartiallyInferedGenericType { .. } |
+            ErrorKind::CannotApplyInfixOp { .. } => ErrorLevel::Error,
             WarningKind::UnusedName { .. } => ErrorLevel::Warning,
         }
     }

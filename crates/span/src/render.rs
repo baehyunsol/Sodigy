@@ -1,15 +1,22 @@
 use crate::Span;
+use sodigy_file::File;
+use std::collections::hash_map::{Entry, HashMap};
 
 mod color;
+mod session;
 
 pub use color::Color;
+pub use session::Session as RenderSpanSession;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct RenderSpanOption {
     pub max_height: usize,
     pub max_width: usize,
     pub render_source: bool,
     pub color: Option<ColorOption>,
+
+    // It it's none, it uses 2 newline characters.
+    pub group_delim: Option<(String, Color)>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -30,21 +37,94 @@ struct Line {
 //        - it shows 3 characters before the first character of the span and 3 characters after the last character of the span!
 //     2. the identifier in the error message is not truncated (hence the terminal is laggy)
 
-pub fn render_span(
-    file_name: &str,
-    bytes: &[u8],
-    span: Span,
-    extra_span: Option<Span>,
-    option: RenderSpanOption,
+// Some spans are close to each other, some are far, some are even in different files.
+// It first decides which spans to group together, render each groups, and joins them.
+// It returns an empty string if there's nothing to render.
+pub fn render_spans(
+    spans: Vec<Span>,
+    option: &RenderSpanOption,
+    session: &mut RenderSpanSession,
 ) -> String {
-    let extra_span = extra_span.unwrap_or(Span::None);
+    if spans.is_empty() {
+        return String::new();
+    }
+
+    let mut spans_by_file: HashMap<File, Vec<(Span, (usize, usize, usize, usize))>> = HashMap::new();
+    let mut files_with_empty_rects = HashMap::new();
+
+    for span in spans.iter() {
+        let Some(file) = span.get_file() else { continue };
+        let Some(rect) = session.get_rect(*span) else {
+            files_with_empty_rects.insert(file, *span);
+            continue;
+        };
+
+        match spans_by_file.entry(file) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().push((*span, rect));
+            },
+            Entry::Vacant(e) => {
+                e.insert(vec![(*span, rect)]);
+            },
+        }
+    }
+
+    // TODO: sort groups
+    //       1. by importance
+    //       2. by file name and span
+    let mut groups = Vec::with_capacity(spans_by_file.len());
+
+    for span in files_with_empty_rects.values() {
+        groups.push(render_close_spans(vec![*span], option, session));
+    }
+
+    for (file, spans) in spans_by_file.into_iter() {
+        match spans.len() {
+            0 => {},
+            1 => {
+                groups.push(render_close_spans(vec![spans[0].0], option, session));
+            },
+            // TODO: I have to group close spans... but I'm too lazy to do that
+            2.. => todo!(),
+        }
+    }
+
+    groups = groups.into_iter().filter(|g| !g.is_empty()).collect();
+    let delim = option.group_delim.as_ref().map(|(delim, color)| color.render_fg(delim)).unwrap_or_else(|| String::from("\n\n"));
+    groups.join(&delim)
+}
+
+// It assumes that all the spans are close together, and tries to render all spans in a single window.
+// It returns an empty string if there's nothing to render.
+fn render_close_spans(
+    spans: Vec<Span>,
+    option: &RenderSpanOption,
+    session: &mut RenderSpanSession,
+) -> String {
     let (primary_color, secondary_color) = match &option.color {
         Some(ColorOption { primary, secondary }) => (*primary, *secondary),
         None => (Color::None, Color::None),
     };
 
-    if bytes.is_empty() || span == Span::None && extra_span == Span::None {
-        todo!("nothing to render");
+    let file_name = session.get_path(spans[0]);
+    let bytes = session.get_bytes(spans[0]);
+
+    if let (Some(file_name), None) = (&file_name, &bytes) {
+        return format!(
+            "{}: {file_name}",
+            secondary_color.render_fg("src"),
+        );
+    }
+
+    else if let (None, None) = (&file_name, &bytes) {
+        return String::new();
+    }
+
+    let file_name = file_name.unwrap();
+    let bytes = bytes.unwrap();
+
+    if bytes.is_empty() || spans.iter().all(|span| span.get_file().is_none()) {
+        return String::new();
     }
 
     let mut row = 0;
@@ -66,14 +146,14 @@ pub fn render_span(
     for (i, b) in bytes.iter().enumerate() {
         let mut curr_byte_color = None;
 
-        for s in [span, extra_span] {
+        for s in spans.iter() {
             match s {
                 Span::Range { start, end, .. } => {
-                    if i == start || i + 1 == end {
+                    if i == *start || i + 1 == *end {
                         important_points.push((row, col));
                     }
 
-                    if start <= i && i < end {
+                    if *start <= i && i < *end {
                         top = top.min(row);
                         bottom = bottom.max(row);
                         left = left.min(col);
@@ -128,7 +208,7 @@ pub fn render_span(
     let (width, height) = (right - left + 1, bottom - top + 1);
 
     // TODO: when comparing `width`, `height` and `max_width`, `max_height`, it has to count the context (padding)
-    let rendered_span = if width < option.max_width && height < option.max_height {
+    let rendered_span = {
         let (top, bottom) = match (top, bottom) {
             (0, _) => (0, 2),
             (1, _) => (0, 3),
@@ -145,19 +225,6 @@ pub fn render_span(
             primary_color,
             secondary_color,
         )
-    }
-
-    else {
-        // Let's create a rect that includes important rects
-        let important_rects: Vec<(usize, usize, usize, usize)> = important_points.into_iter().map(
-            |(row, col)| (
-                row.max(2) - 2,
-                row + 2,
-                col.max(5) - 5,
-                col + 5,
-            )
-        ).collect();
-        panic!("{:?}", (top, bottom, left, right))
     };
 
     let rendered_source = if option.render_source {

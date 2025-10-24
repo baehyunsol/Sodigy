@@ -38,7 +38,7 @@ impl Assert {
     pub fn from_ast(ast_assert: &ast::Assert, session: &mut Session) -> Result<Assert, ()> {
         let mut has_error = false;
 
-        let attribute = match AssertAttribute::from_ast(&ast_assert.attribute, session, ast_assert.keyword_span) {
+        let attribute = match AssertAttribute::from_ast(&ast_assert.attribute, session) {
             Ok(attribute) => attribute,
             Err(()) => {
                 has_error = true;
@@ -79,7 +79,6 @@ impl AssertAttribute {
     pub fn from_ast(
         ast_attribute: &ast::Attribute,
         session: &mut Session,
-        assert_span: Span,
     ) -> Result<AssertAttribute, ()> {
         let mut name = None;
         let mut note = None;

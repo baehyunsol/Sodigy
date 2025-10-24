@@ -39,6 +39,11 @@ pub enum Expr {
         // If it's a generic function, def_spans of its generics (T, U, ...)
         // are stored here so that `mir_type::Solver::solve_expr` can use.
         generic_defs: Vec<Span>,
+
+        // It helps generating error messages.
+        // It has type `Vec<(keyword: InternedString, n: usize)>` where
+        // nth argument in `args` has keyword `keyword`.
+        given_keyword_arguments: Vec<(InternedString, usize)>,
     },
 }
 
@@ -52,6 +57,9 @@ pub enum Callable {
     StructInit {
         def_span: Span,
         span: Span,
+    },
+    TupleInit {
+        group_span: Span,
     },
     ListInit {
         group_span: Span,
@@ -107,6 +115,7 @@ impl Expr {
                 let mut has_error = false;
                 let mut def_span = None;
                 let mut generic_defs = vec![];
+                let mut given_keyword_arguments = vec![];
 
                 let func = match Expr::from_hir(func, session) {
                     Ok(Expr::Identifier(id)) => match id.origin {
@@ -157,10 +166,10 @@ impl Expr {
                             }
 
                             let arg_defs = arg_defs.to_vec();
-                            let mut mir_args: Vec<Option<Expr>> = vec![None; arg_defs.len()];
+                            let mut mir_args: Vec<Option<Expr>> = vec![None; arg_defs.len().max(hir_args.len())];
 
                             // used for error messages
-                            let mut keyword_spans = vec![None; arg_defs.len()];
+                            let mut given_keyword_arguments_ = vec![None; arg_defs.len().max(hir_args.len())];
 
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
@@ -170,6 +179,7 @@ impl Expr {
                                     Some((keyword, keyword_span)) => {
                                         let mut arg_index = None;
 
+                                        // It's O(n), but n is very small
                                         for (i, arg_def) in arg_defs.iter().enumerate() {
                                             if arg_def.name == keyword {
                                                 arg_index = Some(i);
@@ -183,7 +193,7 @@ impl Expr {
                                                     session.errors.push(Error {
                                                         kind: ErrorKind::KeywordArgumentRepeated(keyword),
                                                         span: keyword_span,
-                                                        extra_span: if let Some(span) = &keyword_spans[i] {
+                                                        extra_span: if let Some((_, span)) = &given_keyword_arguments_[i] {
                                                             Some(*span)
                                                         } else {
                                                             Some(mir_arg.error_span())
@@ -201,7 +211,7 @@ impl Expr {
                                                     },
                                                 }
 
-                                                keyword_spans[i] = Some(keyword_span)
+                                                given_keyword_arguments_[i] = Some((keyword, keyword_span));
                                             },
                                             None => {
                                                 session.errors.push(Error {
@@ -238,16 +248,22 @@ impl Expr {
                             }
 
                             let mut result = Vec::with_capacity(mir_args.len());
+                            let mut g = Vec::with_capacity(mir_args.len());
 
-                            for mir_arg in mir_args.into_iter() {
+                            for (i, mir_arg) in mir_args.into_iter().enumerate() {
                                 if let Some(mir_arg) = mir_arg {
                                     result.push(mir_arg);
+
+                                    if let Some((keyword, _)) = given_keyword_arguments_[i] {
+                                        g.push((keyword, result.len() - 1));
+                                    }
                                 }
 
                                 // If mir_arg is None, that's a compile error, but we're not raising an error yet.
                                 // We'll raise an error after type-check/inference, so that we can add more information to the error message.
                             }
 
+                            given_keyword_arguments = g;
                             Some(result)
                         },
                         None => None,
@@ -293,13 +309,14 @@ impl Expr {
                 }
 
                 else {
-                    Ok(Expr::Call { func, args, generic_defs })
+                    Ok(Expr::Call { func, args, generic_defs, given_keyword_arguments })
                 }
             },
-            hir::Expr::Tuple { elements, .. } => todo!(),
-            hir::Expr::List { elements, group_span } => {
-                let mut mir_elements = Vec::with_capacity(elements.len());
+            hir::Expr::List { elements, group_span } |
+            hir::Expr::Tuple { elements, group_span } => {
                 let mut has_error = false;
+                let mut mir_elements = Vec::with_capacity(elements.len());
+                let is_tuple = matches!(hir_expr, hir::Expr::Tuple { .. });
 
                 for element in elements.iter() {
                     match Expr::from_hir(element, session) {
@@ -317,14 +334,18 @@ impl Expr {
                 }
 
                 else {
+                    let func = if is_tuple {
+                        Callable::TupleInit { group_span: *group_span }
+                    } else {
+                        Callable::ListInit { group_span: *group_span }
+                    };
                     Ok(Expr::Call {
-                        func: Callable::ListInit {
-                            group_span: *group_span,
-                        },
+                        func,
                         args: mir_elements,
 
-                        // TODO: do we need this?
+                        // TODO: do we have to treat it like a generic function?
                         generic_defs: vec![],
+                        given_keyword_arguments: vec![],
                     })
                 }
             },
@@ -339,9 +360,23 @@ impl Expr {
                         todo!()
                     },
                 };
+                let mut generic_defs = vec![];
 
                 match session.struct_shapes.get(&def_span) {
-                    Some(field_defs) => {
+                    Some((field_defs, generic_defs_)) => {
+                        if !generic_defs_.is_empty() {
+                            for generic_def in generic_defs_.iter() {
+                                session.generic_instances.insert(
+                                    (r#struct.error_span(), generic_def.name_span),
+                                    Type::GenericInstance {
+                                        call: r#struct.error_span(),
+                                        generic: generic_def.name_span,
+                                    },
+                                );
+                                generic_defs.push(generic_def.name_span);
+                            }
+                        }
+
                         let field_defs = field_defs.clone();
                         let mut mir_fields = vec![None; hir_fields.len()];
                         let mut name_spans = vec![None; hir_fields.len()];
@@ -428,7 +463,8 @@ impl Expr {
                                     span,
                                 },
                                 args: mir_fields_unwrapped,
-                                generic_defs: todo!(),
+                                generic_defs,
+                                given_keyword_arguments: vec![],
                             })
                         }
                     },
@@ -467,6 +503,7 @@ impl Expr {
 
                         // It is generic, but the compiler treats it specially, so we don't need the defs.
                         generic_defs: vec![],
+                        given_keyword_arguments: vec![],
                     }),
                     _ => Err(()),
                 }
@@ -493,14 +530,7 @@ impl Expr {
 
                 merged_span
             },
-            Expr::Call { func, .. } => match func {
-                Callable::Static { span, .. } |
-                Callable::StructInit { span, .. } |
-                Callable::Intrinsic { span, .. } |
-                Callable::GenericInfixOp { span, .. } => *span,
-                Callable::Dynamic(expr) => expr.error_span(),
-                Callable::ListInit { group_span, .. } => *group_span,
-            },
+            Expr::Call { func, .. } => func.error_span(),
         }
     }
 }
@@ -511,6 +541,7 @@ impl Callable {
         match self {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
+            Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } |
             Callable::Intrinsic { span, .. } |
             Callable::GenericInfixOp { span, .. } => *span,

@@ -1,15 +1,62 @@
+# 52. More helpful error messages
+
+1. extra_span
+  - 지금은 `Option<Span>`인데 `Vec<Span>`이면 더 좋을 듯?
+2. spans from multiple files
+  - span과 def_span을 함께 보여주면 좋을 때가 많음, 근데 걔네가 다른 파일에 있을 수도 있잖아?
+  - span이 여러 파일에 걸친 error message도 만들어야 함
+3. span vs extra span
+  - 지금은 둘을 구분없이 밑줄치고 있는데, 구분이 있으면 좋지 않을까
+  - 사실 구분이 필요할 때도 있고 아닐 때도 있음. 예를 들어서 cyclic let의 경우 모든 이름들이 동등하게 중요한데, type error에서는 type annotation과 expr을 구분하는게 도움됨.
+4. add message to spans
+  - 밑줄에다가 "this is the type annotation"이라고 바로 적어주면 더 도움될텐데..!!
+
+이걸 다 정리하면
+
+현재 구현: `span: Span, extra_span: Option<Span>` vs 새 구현: `spans: Vec<ErrorSpan>`
+
+```rs
+struct ErrorSpan {
+    span: Span,
+    auxiliary: bool,
+    message: Option<String>,
+}
+```
+
+으로 하고, 여기에 추가로 multi-file span까지!!
+
+# 51. Number type
+
+10분 정도 고민하고 Sodigy-Ratio로 결정을 내림. 고민 과정은 걍 지웠음 ㅋㅋ
+
+- 결정 이유
+  1. runtime-impl을 하려면 intrinsic을 엄청나게 많이 추가해야하고, 그럼 backend 추가하는게 엄청 빡세짐
+  2. sodigy-impl을 하면 compiler 최적화가 가능 (그래봤자 runtime-impl보다는 느리겠지만...)
+  3. float를 쓰면 0.1 + 0.2해서 0.3이 안되잖아? 난 그건 절대 안됨!!
+- potential issues
+  1. how do we deal with irrational numbers?
+    - 지금 생각으로는... `if numer.len() > limit && denom.len() > limit { ratio.cut() }` 해버리자!
+  2. We might need low-level operations (e.g. how many scalars does this integer use?)
+    - 사실 이거 없어도 구현은 가능... 나중에 생각하자!
+  3. range
+    - 어차피 cut을 할 거면 그냥 arbitrary size로 해도 되는 거 아님??
+
 # 50. generic functions
 
-`fn foo<T>(x: T) -> T`가 있고 `fn bar()` 안에서 `foo`를 호출한다고 치자.
+```
+fn foo<T>(x) = { .. };
+fn bar(..) = baz(foo.<Int>(..), ..);
+```
 
-1. `foo`를 monomorphize 하지 않고도 `bar`의 type check는 다 할 수 있음. type check를 하고 나니 `foo.<Int>()`가 발견됐다고 치자.
-2. 아직 `foo.<Int>()`를 만든 적이 있는지 확인. 이미 만들어졌으면, 그냥 넘어가면 됨.
-3. 아직 없다면, `foo.<Int>()`를 만든 뒤, 새로 만들어진 함수 안에서 type-check
-  - type-check 할 때 이 함수 하나에 대해서만 해야함!!
-  - 이 함수를 type-check를 하면서 에러가 발견된다면, `bar`에 있는 call-site의 span까지 같이 에러 메시지에 보여줘야함.
-  - `bar`에서 `foo`를 호출하는데 그 과정에서 `Fn(Int) -> Int`로 추론이 됐다는 거랑 `foo.<Int>()`를 type-check하는 과정에서 나온 에러라는 거를 유저한테 알려줘야함!!!
-
-type check가 전부 다 끝났으면, 다시 mir을 전체 순회하면서 `foo<T>()`를 호출하는 부분을 monomorphize된 함수들로 교체해주면 됨 (span을 전부 다 아니까 가능!)
+- 일단 `foo` 그자체만 갖고 type-check를 하셈. `Type::GenericDef` 있으니까 type equation은 전부 만들 수 있음.
+  - 사실 전부 못 만듦. `fn foo<T>(x: T, y, z) = x.do_something(y, z);`이면 `.do_something`에 대한 정보가 아예 없어서 다른 추론도 막힘.
+  - 아니면 ``fn foo<T>(x: T, y) = x `field y;``같은 예시도 생각해볼 수 있음!!
+  - 아니면 `fn foo<Person>(x: Person) -> Int = x.age;`도 있고...
+  - 이걸 해결하려면 constraint를 아주 정교하게 만들거나, 중간 type-var를 엄청 만들거나 해야함
+    - 중간 type-var를 만든다고 치면은, `T = Int`일 때와 `T = String`일 때의 중간 type-var들을 분리해야하는데, 그것도 빡셈
+- `foo`를 type-check하면 `T`에 대한 constraint가 쌓임.
+- 나중에 `foo.<Int>`를 발견했지? 그럼 `T = Int`를 한 다음에 `T`에 붙은 constraint를 전부 만족시킬 수 있는지 확인함.
+- 만족이 되면 `foo.<Int>` instance를 만드는 거고, 그렇지 않으면 에러를 내야함. 에러 메시지를 만들 때는 `bar` 안에 있는 `foo.<Int>`의 invocation을 콕 찝어줘야함.
 
 # 49. even more on type system
 

@@ -261,6 +261,15 @@ impl Expr {
             },
         }
     }
+
+    pub fn error_span(&self) -> Span {
+        match self {
+            Expr::Identifier(IdentWithOrigin { span, .. }) |
+            Expr::Number { span, .. } |
+            Expr::String { span, .. } => *span,
+            _ => todo!(),
+        }
+    }
 }
 
 fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {

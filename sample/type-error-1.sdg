@@ -1,2 +1,3 @@
 let x: Int = "";
 let y = if 3 { 0 } else { "" };
+let empty_list = [];

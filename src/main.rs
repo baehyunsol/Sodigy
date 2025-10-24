@@ -39,6 +39,7 @@ fn main() -> Result<(), ()> {
                         input_kind,
                         intermediate_dir,
                         reuse_ir,
+                        dump_type_info,
                         output_path,
                         output_kind,
                         backend,
@@ -73,8 +74,13 @@ fn main() -> Result<(), ()> {
 
                         let mir_session = sodigy_mir::lower(hir_session);
                         mir_session.continue_or_dump_errors()?;
-                        let mir_session = sodigy_mir_type::solve(mir_session);
+                        let (mut mir_session, solver) = sodigy_mir_type::solve(mir_session);
                         mir_session.continue_or_dump_errors()?;
+
+                        if dump_type_info {
+                            sodigy_mir_type::dump(&mut mir_session, &solver);
+                        }
+
                         let lir_session = sodigy_lir::lower(mir_session);
                         lir_session.continue_or_dump_errors()?;
                         let bytecode = lir_session.into_labeled_bytecode();

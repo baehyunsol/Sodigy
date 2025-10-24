@@ -99,6 +99,10 @@ pub enum Type {
         // If it's not `Fn`, it's 99% an error, but I want to throw
         // errors at later step because that's more helpful to the users.
         r#type: Box<Type>,
+
+        // of `(Int, Int)`
+        group_span: Span,
+
         args: Vec<Type>,
         r#return: Box<Type>,
     },
@@ -217,6 +221,7 @@ impl<'t> Tokens<'t> {
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
             ) => {
                 let (name, name_span) = (*id, *span1);
+                let group_span = *span2;
                 let mut arg_tokens = Tokens::new(tokens, span2.end());
                 let args = arg_tokens.parse_types(StopAt::Eof)?;
 
@@ -229,6 +234,7 @@ impl<'t> Tokens<'t> {
                         id: name,
                         span: name_span,
                     }),
+                    group_span,
                     args,
                     r#return: Box::new(r#return),
                 })

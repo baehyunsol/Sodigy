@@ -23,6 +23,7 @@ pub enum Type {
     },
     Func {
         fn_span: Span,
+        group_span: Span,
         args: Vec<Type>,
         r#return: Box<Type>,
     },
@@ -147,7 +148,7 @@ impl Type {
                     })
                 }
             },
-            ast::Type::Func { r#type, args: ast_args, r#return: ast_return } => {
+            ast::Type::Func { r#type, group_span, args: ast_args, r#return: ast_return } => {
                 let mut fn_span = Span::None;
                 let mut has_error = false;
                 let mut has_wrong_identifier = false;
@@ -205,6 +206,7 @@ impl Type {
                 else {
                     Ok(Type::Func {
                         fn_span,
+                        group_span: *group_span,
                         args,
                         r#return: Box::new(r#return.unwrap()),
                     })
@@ -233,13 +235,9 @@ impl Type {
                 r#type.error_span().merge(*group_span)
             },
             Type::Tuple { group_span, .. } => *group_span,
-            Type::Func { fn_span, args, r#return } => {
+            Type::Func { fn_span, group_span, args, r#return } => {
                 let mut span = *fn_span;
-
-                for arg in args.iter() {
-                    span = span.merge(arg.error_span());
-                }
-
+                span = span.merge(*group_span);
                 span.merge(r#return.error_span())
             },
             Type::Wildcard(span) => *span,

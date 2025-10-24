@@ -4,7 +4,13 @@ use sodigy_string::InternedString;
 mod cmp;
 mod render;
 
-pub use render::{Color, ColorOption, RenderSpanOption, render_span};
+pub use render::{
+    Color,
+    ColorOption,
+    RenderSpanOption,
+    RenderSpanSession,
+    render_spans,
+};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {

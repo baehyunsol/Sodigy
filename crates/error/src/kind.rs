@@ -1,6 +1,7 @@
 use crate::ErrorToken;
 use sodigy_name_analysis::NameKind;
 use sodigy_string::InternedString;
+use sodigy_token::InfixOp;
 
 mod render;
 
@@ -113,6 +114,17 @@ pub enum ErrorKind {
     PartiallyInferedType {
         id: Option<InternedString>,
         r#type: String,
+    },
+    CannotInferGenericType {
+        id: Option<String>,
+    },
+    PartiallyInferedGenericType {
+        id: Option<String>,
+        r#type: String,
+    },
+    CannotApplyInfixOp {
+        op: InfixOp,
+        arg_types: Vec<String>,
     },
 
     // --- warnings from here ---

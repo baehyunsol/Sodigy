@@ -1,4 +1,11 @@
 use sodigy_error::{Error, ErrorLevel, Warning};
+use sodigy_span::{
+    Color,
+    ColorOption,
+    RenderSpanOption,
+    RenderSpanSession,
+    render_spans,
+};
 
 pub trait Session {
     fn get_errors(&self) -> &[Error];
@@ -44,35 +51,9 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
         }
     );
     let mut stderr = vec![];
-    let mut bytes = vec![];
-    let mut curr_file = None;
-    let mut curr_file_name = String::new();
+    let mut session = RenderSpanSession::new(intermediate_dir);
 
     for error in errors.iter() {
-        if error.span.get_file() != curr_file {
-            curr_file = error.span.get_file();
-
-            if let Some(file) = curr_file {
-                let (f, b) = match (
-                    file.get_path(intermediate_dir),
-                    file.read_bytes(intermediate_dir),
-                ) {
-                    (Ok(Some(file_name)), Ok(Some(bytes))) => (file_name, bytes),
-                    _ => {
-                        curr_file = None;
-                        (String::new(), vec![])
-                    },
-                };
-                curr_file_name = f;
-                bytes = b;
-            }
-
-            else {
-                curr_file_name = String::new();
-                bytes = vec![];
-            }
-        }
-
         let level = ErrorLevel::from_error_kind(&error.kind);
         let title = match level {
             ErrorLevel::Warning => level.color().render_fg("warning"),
@@ -83,25 +64,20 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
         } else {
             String::new()
         };
-        let rendered_span = if curr_file.is_some() {
-            format!("\n{}", sodigy_span::render_span(
-                &curr_file_name,
-                &bytes,
-                error.span,
-                error.extra_span,
-                sodigy_span::RenderSpanOption {
-                    max_width: 88,
-                    max_height: 10,
-                    render_source: true,
-                    color: Some(sodigy_span::ColorOption {
-                        primary: level.color(),
-                        secondary: sodigy_span::Color::Green,
-                    }),
-                },
-            ))
-        } else {
-            String::new()
-        };
+        let rendered_span = format!("\n{}", render_spans(
+            std::iter::once(error.span).chain(error.extra_span).collect(),
+            &RenderSpanOption {
+                max_width: 88,
+                max_height: 10,
+                render_source: true,
+                color: Some(ColorOption {
+                    primary: level.color(),
+                    secondary: Color::Green,
+                }),
+                group_delim: None,
+            },
+            &mut session,
+        ));
 
         stderr.push(format!(
             "{title}: {}{note}{rendered_span}\n\n",

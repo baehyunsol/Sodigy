@@ -1,4 +1,4 @@
-use crate::{Expr, FuncArgDef, Session, Type};
+use crate::{Expr, FuncArgDef, GenericDef, Session, Type};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -7,6 +7,7 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
+    pub generics: Vec<GenericDef>,
     pub fields: Vec<StructField<Type>>,
 }
 
@@ -48,6 +49,7 @@ impl Struct {
                 keyword_span: ast_struct.keyword_span,
                 name: ast_struct.name,
                 name_span: ast_struct.name_span,
+                generics: ast_struct.generics.clone(),
                 fields,
             })
         }

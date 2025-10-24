@@ -3,12 +3,13 @@ use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, GenericDef, StructField};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
+use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 pub struct Session {
     pub intermediate_dir: String,
     pub func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>,
-    pub struct_shapes: HashMap<Span, Vec<StructField<()>>>,
+    pub struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>,
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub asserts: Vec<Assert>,
@@ -29,7 +30,7 @@ pub struct Session {
 
     // We need this when we create error messages.
     // This is really expensive to initialize, so think twice before you init this.
-    pub span_string_map: HashMap<Span, String>,
+    pub span_string_map: Option<HashMap<Span, Vec<u8>>>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
@@ -58,14 +59,17 @@ impl Session {
             struct_shapes: hir_session.structs.iter().map(
                 |r#struct| (
                     r#struct.name_span,
-                    r#struct.fields.iter().map(
-                        |field| StructField {
-                            name: field.name,
-                            name_span: field.name_span,
-                            r#type: None,
-                            default_value: field.default_value,
-                        }
-                    ).collect(),
+                    (
+                        r#struct.fields.iter().map(
+                            |field| StructField {
+                                name: field.name,
+                                name_span: field.name_span,
+                                r#type: None,
+                                default_value: field.default_value,
+                            }
+                        ).collect(),
+                        r#struct.generics.clone(),
+                    ),
                 )
             ).collect(),
             lets: vec![],
@@ -73,15 +77,26 @@ impl Session {
             asserts: vec![],
             types: HashMap::new(),
             generic_instances: HashMap::new(),
-            span_string_map: HashMap::new(),
+            span_string_map: Some(HashMap::new()),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
         }
     }
 
     pub fn init_span_string_map(&mut self) {
-        // TODO: as of now, there're no structs and enums in MirSession, so the error messages don't need this function.
-        //       I'll implement this function when I need this
+        if self.span_string_map.is_some() {
+            return;
+        }
+
+        let mut result = HashMap::new();
+
+        for r#let in self.lets.iter() {
+            if let Ok(Some(name)) = unintern_string(r#let.name, &self.intermediate_dir) {
+                result.insert(r#let.name_span, name);
+            }
+        }
+
+        self.span_string_map = Some(result);
     }
 }
 

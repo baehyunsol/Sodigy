@@ -1,5 +1,5 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncArgDef};
+use sodigy_hir::{self as hir, FuncArgDef, GenericDef};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -7,6 +7,7 @@ use sodigy_string::InternedString;
 pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
+    pub generics: Vec<GenericDef>,
     pub args: Vec<FuncArgDef<()>>,
     pub type_annotation_span: Option<Span>,
     pub value: Expr,
@@ -58,8 +59,9 @@ impl Func {
                 session.types.insert(
                     hir_func.name_span,
                     Type::Func {
-                        // This is for `Fn` identifier in the type annotation, not the `fn` keyword!
+                        // These spans are for type annotations, but there's no type annotation here!
                         fn_span: Span::None,
+                        group_span: Span::None,
                         args: arg_types,
                         r#return: Box::new(r#type),
                     },
@@ -69,8 +71,9 @@ impl Func {
                 session.types.insert(
                     hir_func.name_span,
                     Type::Func {
-                        // This is for `Fn` identifier in the type annotation, not the `fn` keyword!
+                        // These spans are for type annotations, but there's no type annotation here!
                         fn_span: Span::None,
+                        group_span: Span::None,
                         args: arg_types,
                         r#return: Box::new(Type::Var {
                             def_span: hir_func.name_span,
@@ -92,6 +95,7 @@ impl Func {
             Ok(Func {
                 name: hir_func.name,
                 name_span: hir_func.name_span,
+                generics: hir_func.generics.to_vec(),
                 args,
                 type_annotation_span,
                 value: value.unwrap(),

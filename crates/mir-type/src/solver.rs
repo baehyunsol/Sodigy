@@ -33,6 +33,12 @@ pub struct Solver {
     // If a type variable references itself, that should not be included in the Vec<Span>.
     pub type_var_refs: HashMap<Type, Vec<Type>>,
 
+    // When it solves a generic function, say `foo<T>`, it treats `T` like a concrete type.
+    // It first solves unknown types in the function, and collects constraints of `T`.
+    // For example, if it sees a type equation `T = Int`, it inserts `Int` to the constraints of `T`.
+    // Later, it checks if instances of `foo` all satisfies the constraints.
+    pub generic_constraints: HashMap<Span, Vec<Type>>,
+
     pub preludes: Vec<InternedString>,
     pub infix_op_type_signatures: HashMap<InfixOp, Vec<Vec<Type>>>,
     pub errors: Vec<TypeError>,
@@ -43,6 +49,7 @@ impl Solver {
         let preludes = get_preludes();
 
         // TODO: better way to manage this list?
+        // TODO: how does it represent an index operator? it's generic...
         let infix_op_type_signatures = vec![
             (
                 InfixOp::Add,
@@ -51,6 +58,15 @@ impl Solver {
                         Type::Static(Span::Prelude(preludes[INT])),
                         Type::Static(Span::Prelude(preludes[INT])),
                         Type::Static(Span::Prelude(preludes[INT])),
+                    ],
+                ],
+            ), (
+                InfixOp::Mul,
+                vec![
+                    vec![
+                        Type::Static(Span::Prelude(preludes[INT])),
+                        Type::Static(Span::Prelude(preludes[INT])),
+                        Type::Static(Span::Prelude(preludes[BOOL])),
                     ],
                 ],
             ), (
@@ -77,6 +93,7 @@ impl Solver {
         Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
+            generic_constraints: HashMap::new(),
             preludes,
             infix_op_type_signatures,
             errors: vec![],
@@ -91,7 +108,7 @@ impl Solver {
         for (type_var, id) in self.type_vars.iter() {
             match type_var {
                 Type::Var { def_span, .. } => match types.get(def_span) {
-                    None | Some(Type::Var { .. }) => {
+                    None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
                         self.errors.push(TypeError {
                             kind: TypeErrorKind::CannotInferType { id: *id },
                             span: *def_span,
@@ -113,15 +130,34 @@ impl Solver {
                     },
                 },
                 Type::GenericInstance { call, generic } => match generic_instances.get(&(*call, *generic)) {
-                    _ => todo!(),
+                    None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        self.errors.push(TypeError {
+                            kind: TypeErrorKind::CannotInferGenericType { generic_def_span: *generic },
+                            span: *call,
+                            extra_span: None,
+                            context: ErrorContext::None,
+                        });
+                    },
+                    Some(t) => {
+                        let type_vars = t.get_type_vars();
+
+                        if !type_vars.is_empty() {
+                            self.errors.push(TypeError {
+                                kind: TypeErrorKind::PartiallyInferedGenericType { generic_def_span: *generic, r#type: t.clone() },
+                                span: *call,
+                                extra_span: None,
+                                context: ErrorContext::None,
+                            });
+                        }
+                    },
                 },
                 _ => unreachable!(),
             }
         }
     }
 
-    pub fn add_type_var(&mut self, def_span: Type, id: Option<InternedString>) {
-        match self.type_vars.entry(def_span) {
+    pub fn add_type_var(&mut self, type_var: Type, id: Option<InternedString>) {
+        match self.type_vars.entry(type_var) {
             Entry::Occupied(mut e) if id.is_some() => {
                 *e.get_mut() = id;
             },
@@ -147,6 +183,19 @@ impl Solver {
                     e.insert(vec![referent]);
                 },
             }
+        }
+    }
+
+    pub fn add_generic_constraint(&mut self, generic_def_span: Span, r#type: &Type) {
+        let r#type = r#type.clone();
+
+        match self.generic_constraints.entry(generic_def_span) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().push(r#type);
+            },
+            Entry::Vacant(e) => {
+                e.insert(vec![r#type]);
+            },
         }
     }
 
@@ -190,11 +239,62 @@ impl Solver {
                     Err(())
                 }
             },
+            (Type::Param { r#type: t1, args: args1, .. }, Type::Param { r#type: t2, args: args2, .. }) |
+            (Type::Func { r#return: t1, args: args1, .. }, Type::Func { r#return: t2, args: args2, .. }) => {
+                if let Err(()) = self.equal(t1, t2, types, generic_instances, span, extra_span, context) {
+                    Err(())
+                }
+
+                else if args1.len() != args2.len() {
+                    self.errors.push(TypeError {
+                        kind: TypeErrorKind::UnexpectedType {
+                            expected: lhs.clone(),
+                            got: rhs.clone(),
+                        },
+                        span,
+                        extra_span,
+                        context,
+                    });
+                    Err(())
+                }
+
+                else {
+                    let mut has_error = false;
+
+                    for i in 0..args1.len() {
+                        // TODO: let's say we want to check expressions `foo` and `bar` have the same type.
+                        //       let's say `foo` has type `Result<Int, Int>` and `bar` has type `Result<Int, String>`.
+                        //       it'd underline `foo` and `bar`, and say "expected `Int`, got `String`".
+                        //       I want the error message to be "expected `Result<Int, Int>`, got `Result<Int, String>`".
+                        if let Err(()) = self.equal(
+                            &args1[i],
+                            &args2[i],
+                            types,
+                            generic_instances,
+                            span,
+                            extra_span,
+
+                            // TODO: we definitely need a new kind of ErrorContext for this
+                            ErrorContext::None,
+                        ) {
+                            has_error = true;
+                        }
+                    }
+
+                    if has_error {
+                        Err(())
+                    }
+
+                    else {
+                        Ok(())
+                    }
+                }
+            },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::GenericDef(_)),
             ) | (
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::GenericDef(_)),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 if *is_return {
@@ -294,25 +394,15 @@ impl Solver {
                     Ok(())
                 }
             },
-            // TODO: is this really an error?
-            //       what if the programmer is using some kinda very complicated type class
-            //       but the compiler is so smart that it just figures out there's only one candidate?
-            (
-                Type::GenericDef(_),
-                concrete @ (Type::Static(_) | Type::Unit(_)),
-            ) | (
-                concrete @ (Type::Static(_) | Type::Unit(_)),
-                Type::GenericDef(_),
-            ) => {
-                self.errors.push(TypeError {
-                    kind: TypeErrorKind::GenericIsNotGeneric {
-                        got: concrete.clone(),
-                    },
-                    span,
-                    extra_span,
-                    context,
-                });
-                Err(())
+            (t1 @ Type::GenericDef(g1), t2 @ Type::GenericDef(g2)) => {
+                self.add_generic_constraint(*g1, t2);
+                self.add_generic_constraint(*g2, t1);
+                Ok(())
+            },
+            (Type::GenericDef(generic), constraint) |
+            (constraint, Type::GenericDef(generic)) => {
+                self.add_generic_constraint(*generic, constraint);
+                Ok(())
             },
             _ => panic!("TODO: {:?}", (lhs, rhs)),
         }
@@ -371,6 +461,9 @@ impl Solver {
     }
 
     fn get_possible_type_signatures(&self, op: InfixOp) -> &[Vec<Type>] {
-        self.infix_op_type_signatures.get(&op).unwrap()
+        match self.infix_op_type_signatures.get(&op) {
+            Some(tys) => tys,
+            None => panic!("TODO: type signatures for {op:?}"),
+        }
     }
 }
