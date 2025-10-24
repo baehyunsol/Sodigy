@@ -1,4 +1,4 @@
-use sodigy_span::Span;
+use sodigy_span::RenderableSpan;
 
 mod kind;
 mod level;
@@ -13,10 +13,11 @@ pub use warning::{Warning, WarningKind};
 #[derive(Clone, Debug)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub span: Span,
 
-    // Some errors have multiple spans (e.g. name collision)
-    pub extra_span: Option<Span>,
+    // errors are sorted by e.spans[0].span
+    // the span renderer will try to render non-auxiliary spans first
+    pub spans: Vec<RenderableSpan>,
+
     pub extra_message: Option<String>,
 }
 
@@ -25,10 +26,7 @@ impl Default for Error {
         Error {
             // please don't use this value
             kind: ErrorKind::InvalidUtf8,
-            span: Span::None,
-
-            // default is for these fields
-            extra_span: None,
+            spans: vec![],
             extra_message: None,
         }
     }

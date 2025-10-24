@@ -25,6 +25,19 @@ struct ErrorSpan {
 
 으로 하고, 여기에 추가로 multi-file span까지!!
 
+I don't think using arrows is a good idea. How about using labels?
+
+```
+let not_an_integer = "";
+
+fn foo(x): Int = not_an_integer;
+           ^^^   ^^^^^^^^^^^^^^
+           (1)   (2)
+
+(1): According to type annotation, it has to be `Int`.
+(2): This value has type `String`.
+```
+
 # 51. Number type
 
 10분 정도 고민하고 Sodigy-Ratio로 결정을 내림. 고민 과정은 걍 지웠음 ㅋㅋ

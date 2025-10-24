@@ -9,6 +9,7 @@ pub use render::{
     ColorOption,
     RenderSpanOption,
     RenderSpanSession,
+    RenderableSpan,
     render_spans,
 };
 

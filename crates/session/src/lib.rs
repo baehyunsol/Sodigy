@@ -4,6 +4,7 @@ use sodigy_span::{
     ColorOption,
     RenderSpanOption,
     RenderSpanSession,
+    Span,
     render_spans,
 };
 
@@ -42,7 +43,7 @@ pub trait Session {
 }
 
 fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
-    errors.sort_by_key(|e| (e.span, e.extra_span));
+    errors.sort_by_key(|e| e.spans.get(0).map(|s| s.span).unwrap_or(Span::None));
     // warnings come before errors
     errors.sort_by_key(
         |e| match ErrorLevel::from_error_kind(&e.kind) {
@@ -65,14 +66,15 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
             String::new()
         };
         let rendered_span = format!("\n{}", render_spans(
-            std::iter::once(error.span).chain(error.extra_span).collect(),
+            &error.spans,
             &RenderSpanOption {
                 max_width: 88,
                 max_height: 10,
                 render_source: true,
                 color: Some(ColorOption {
                     primary: level.color(),
-                    secondary: Color::Green,
+                    auxiliary: Color::Blue,
+                    info: Color::Green,
                 }),
                 group_delim: None,
             },

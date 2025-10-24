@@ -292,9 +292,9 @@ impl Solver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::GenericDef(_)),
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
             ) | (
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::GenericDef(_)),
+                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 if *is_return {

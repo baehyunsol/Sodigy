@@ -107,7 +107,8 @@ pub fn dump(session: &mut Session, solver: &Solver) {
                     render_source: true,
                     color: Some(ColorOption {
                         primary: Color::Blue,
-                        secondary: Color::Green,
+                        auxiliary: Color::Blue,
+                        info: Color::Green,
                     }),
                     group_delim: None,
                 },
