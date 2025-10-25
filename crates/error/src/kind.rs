@@ -70,8 +70,12 @@ pub enum ErrorKind {
         // TODO
         // context: NameCollisionContext,
     },
-    CyclicLet,
-    CyclicAlias,
+    CyclicLet {
+        names: Vec<InternedString>,
+    },
+    CyclicAlias {
+        names: Vec<InternedString>,
+    },
 
     // TODO: suggest similar names
     UndefinedName(InternedString),

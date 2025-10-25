@@ -37,7 +37,7 @@ impl<'t> Tokens<'t> {
                         expected: (&token).into(),
                         got: (&t.kind).into(),
                     },
-                    span: t.span,
+                    spans: t.span.simple_error(),
                     ..Error::default()
                 }]);
             },
@@ -59,7 +59,7 @@ impl<'t> Tokens<'t> {
                     expected: ErrorToken::Identifier,
                     got: (&t.kind).into(),
                 },
-                span: t.span,
+                spans: t.span.simple_error(),
                 ..Error::default()
             }]),
             None => Err(vec![self.unexpected_end(ErrorToken::Identifier)]),
@@ -72,14 +72,14 @@ impl<'t> Tokens<'t> {
                 kind: ErrorKind::UnexpectedEof {
                     expected: expected_token,
                 },
-                span: self.span_end,
+                spans: self.span_end.simple_error(),
                 ..Error::default()
             },
             Span::Range { .. } => Error {
                 kind: ErrorKind::UnexpectedEog {
                     expected: expected_token,
                 },
-                span: self.span_end,
+                spans: self.span_end.simple_error(),
                 ..Error::default()
             },
             Span::Prelude(_) => unreachable!(),

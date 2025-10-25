@@ -52,7 +52,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::CommaOrGt,
                             got: (&t.kind).into(),
                         },
-                        span: t.span,
+                        spans: t.span.simple_error(),
                         ..Error::default()
                     }]);
                 },
@@ -295,7 +295,7 @@ impl<'t> Tokens<'t> {
                                     expected: ErrorToken::Nothing,
                                     got: ErrorToken::TypeAnnotation,
                                 },
-                                span: unexpected_type_annotation.error_span(),
+                                spans: unexpected_type_annotation.error_span().simple_error(),
                                 ..Error::default()
                             }]);
                         }
@@ -311,7 +311,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::TypeAnnotation,
                             got: ErrorToken::Group(d),
                         },
-                        span: group_span,
+                        spans: group_span.simple_error(),
                         ..Error::default()
                     }]),
                 };
@@ -350,7 +350,7 @@ impl<'t> Tokens<'t> {
                                 expected: expected_token,
                                 got: ErrorToken::Punct(Punct::Gt),
                             },
-                            span: *span,
+                            spans: span.simple_error(),
                             ..Error::default()
                         }]);
                     },
@@ -368,7 +368,7 @@ impl<'t> Tokens<'t> {
                             kind: ErrorKind::UnexpectedEof {
                                 expected: expected_token,
                             },
-                            span: self.span_end,
+                            spans: self.span_end.simple_error(),
                             ..Error::default()
                         }]);
                     },
@@ -383,7 +383,7 @@ impl<'t> Tokens<'t> {
                                 expected: expected_token,
                                 got: ErrorToken::Punct(Punct::Gt),
                             },
-                            span: *span,
+                            spans: span.simple_error(),
                             ..Error::default()
                         }]);
                     },
@@ -397,7 +397,7 @@ impl<'t> Tokens<'t> {
                             expected: expected_token,
                             got: (&t.kind).into(),
                         },
-                        span: t.span,
+                        spans: t.span.simple_error(),
                         ..Error::default()
                     }]);
                 },
@@ -410,7 +410,7 @@ impl<'t> Tokens<'t> {
                             kind: ErrorKind::UnexpectedEof {
                                 expected: expected_token,
                             },
-                            span: self.span_end,
+                            spans: self.span_end.simple_error(),
                             ..Error::default()
                         }]);
                     },

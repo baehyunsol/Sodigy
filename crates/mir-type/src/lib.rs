@@ -5,6 +5,7 @@ use sodigy_span::{
     ColorOption,
     RenderSpanOption,
     RenderSpanSession,
+    RenderableSpan,
     render_spans,
 };
 use sodigy_string::unintern_string;
@@ -13,7 +14,7 @@ mod error;
 mod preludes;
 mod solver;
 
-pub use error::{ErrorContext, RenderTypeError, TypeError, TypeErrorKind};
+pub use error::{ErrorContext, RenderTypeError, TypeError};
 use solver::Solver;
 
 pub fn solve(mut session: Session) -> (Session, Solver) {
@@ -100,7 +101,11 @@ pub fn dump(session: &mut Session, solver: &Solver) {
             String::from_utf8_lossy(&id.unwrap_or(b"????".to_vec())).to_string(),
             session.render_type(&r#type),
             render_spans(
-                vec![span],
+                &[RenderableSpan {
+                    span,
+                    auxiliary: false,
+                    note: None,
+                }],
                 &RenderSpanOption {
                     max_width: 88,
                     max_height: 10,

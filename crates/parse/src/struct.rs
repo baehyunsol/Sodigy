@@ -93,7 +93,7 @@ impl<'t> Tokens<'t> {
             (None, None) => {
                 return Some(Err(vec![Error {
                     kind: ErrorKind::EmptyCurlyBraceBlock,
-                    span: self.span_end,
+                    spans: self.span_end.simple_error(),
                     ..Error::default()
                 }]));
             },
@@ -132,7 +132,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::Identifier,
                             got: (&t.kind).into(),
                         },
-                        span: t.span,
+                        spans: t.span.simple_error(),
                         ..Error::default()
                     }]);
                 },

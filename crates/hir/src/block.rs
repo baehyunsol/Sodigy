@@ -17,7 +17,7 @@ use sodigy_name_analysis::{
 };
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
@@ -43,10 +43,14 @@ impl Block {
         let mut lets = vec![];
         let mut asserts = vec![];
 
-        let mut let_cycle_check_vertices = ast_block.lets.iter().map(|r#let| r#let.name_span).collect::<HashSet<_>>();
-        let mut let_cycle_check_edges = HashMap::new();
-        let alias_cycle_check_vertices = ast_block.aliases.iter().map(|alias| alias.name_span).collect::<HashSet<_>>();
-        let mut alias_cycle_check_edges = HashMap::new();
+        let mut let_cycle_check_vertices: HashSet<Span> = ast_block.lets.iter().map(
+            |r#let| r#let.name_span
+        ).collect();
+        let mut let_cycle_check_edges: HashMap<Span, Vec<Span>> = HashMap::new();
+        let alias_cycle_check_vertices: HashSet<Span> = ast_block.aliases.iter().map(
+            |alias| alias.name_span
+        ).collect();
+        let mut alias_cycle_check_edges: HashMap<Span, Vec<Span>> = HashMap::new();
 
         session.func_default_values.push(vec![]);
         session.name_stack.push(Namespace::Block {
@@ -167,10 +171,10 @@ impl Block {
 
             if (!session.is_in_debug_context && count.always == Counter::Never) ||
                 (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                let mut extra_message = None;
+                let mut note = None;
 
                 if count.debug_only != Counter::Never {
-                    extra_message = Some(String::from("This value is only used in debug mode."));
+                    note = Some(String::from("This value is only used in debug mode."));
                 }
 
                 session.warnings.push(Warning {
@@ -178,9 +182,8 @@ impl Block {
                         name: *name,
                         kind: *kind,
                     },
-                    span: *span,
-                    extra_message,
-                    ..Warning::default()
+                    spans: span.simple_error(),
+                    note,
                 });
             }
         }
@@ -198,31 +201,53 @@ impl Block {
             lets.push(func_default_value);
         }
 
-        // TODO: maybe list the names in the cycle?
-        //       in order to do that `extra_span` has to be `Vec<Span>`, not `Option<Span>`
+        // TOOD: It only underlines the definitions of the names.
+        //       I want it to underline the actual uses of the names.
         if let Some(cycle) = find_cycle(
             let_cycle_check_vertices.into_iter().collect(),
             let_cycle_check_edges,
         ) {
+            let span_to_name: HashMap<Span, InternedString> = lets.iter().map(
+                |r#let| (r#let.name_span, r#let.name)
+            ).collect();
             has_error = true;
             session.errors.push(Error {
-                kind: ErrorKind::CyclicLet,
-                span: cycle[0],
-                extra_span: cycle.get(1).map(|c| *c),
-                ..Error::default()
+                kind: ErrorKind::CyclicLet {
+                    names: cycle.iter().map(|span| *span_to_name.get(span).unwrap()).collect(),
+                },
+                spans: cycle.iter().map(
+                    |span| RenderableSpan {
+                        span: *span,
+                        auxiliary: false,
+                        note: None,
+                    }
+                ).collect(),
+                note: None,
             });
         }
 
+        // TOOD: It only underlines the definitions of the names.
+        //       I want it to underline the actual uses of the names.
         if let Some(cycle) = find_cycle(
             alias_cycle_check_vertices.into_iter().collect(),
             alias_cycle_check_edges,
         ) {
+            let span_to_name: HashMap<Span, InternedString> = ast_block.aliases.iter().map(
+                |alias| (alias.name_span, alias.name)
+            ).collect();
             has_error = true;
             session.errors.push(Error {
-                kind: ErrorKind::CyclicAlias,
-                span: cycle[0],
-                extra_span: cycle.get(1).map(|c| *c),
-                ..Error::default()
+                kind: ErrorKind::CyclicAlias {
+                    names: cycle.iter().map(|span| *span_to_name.get(span).unwrap()).collect(),
+                },
+                spans: cycle.iter().map(
+                    |span| RenderableSpan {
+                        span: *span,
+                        auxiliary: false,
+                        note: None,
+                    }
+                ).collect(),
+                note: None,
             });
         }
 

@@ -45,8 +45,8 @@ impl Type {
                 None => {
                     session.errors.push(Error {
                         kind: ErrorKind::UndefinedName(*id),
-                        span: *span,
-                        ..Error::default()
+                        spans: span.simple_error(),
+                        note: None,
                     });
                     Err(())
                 },
@@ -66,8 +66,8 @@ impl Type {
                 None => {
                     session.errors.push(Error {
                         kind: ErrorKind::UndefinedName(*id),
-                        span: *id_span,
-                        ..Error::default()
+                        spans: id_span.simple_error(),
+                        note: None,
                     });
                     Err(())
                 },
@@ -174,8 +174,8 @@ impl Type {
                 if has_wrong_identifier {
                     session.errors.push(Error {
                         kind: ErrorKind::InvalidFnType,
-                        span: r#type.error_span(),
-                        ..Error::default()
+                        spans: r#type.error_span().simple_error(),
+                        note: None,
                     });
                     has_error = true;
                 }
@@ -235,7 +235,7 @@ impl Type {
                 r#type.error_span().merge(*group_span)
             },
             Type::Tuple { group_span, .. } => *group_span,
-            Type::Func { fn_span, group_span, args, r#return } => {
+            Type::Func { fn_span, group_span, r#return, .. } => {
                 let mut span = *fn_span;
                 span = span.merge(*group_span);
                 span.merge(r#return.error_span())

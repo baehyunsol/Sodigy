@@ -1,3 +1,9 @@
+# 53. `pub` keyword
+
+Same as Rust
+
+Attribute parser can handle this. Make sure to break immediately after parsing `pub` keyword!
+
 # 52. More helpful error messages
 
 1. extra_span

@@ -1,5 +1,5 @@
 use crate::Type;
-use crate::error::{ErrorContext, TypeError, TypeErrorKind};
+use crate::error::{ErrorContext, TypeError};
 use crate::preludes::*;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -109,45 +109,28 @@ impl Solver {
             match type_var {
                 Type::Var { def_span, .. } => match types.get(def_span) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
-                        self.errors.push(TypeError {
-                            kind: TypeErrorKind::CannotInferType { id: *id },
+                        self.errors.push(TypeError::CannotInferType {
+                            id: *id,
                             span: *def_span,
-                            extra_span: None,
-                            context: ErrorContext::None,
                         });
                     },
                     Some(t) => {
                         let type_vars = t.get_type_vars();
     
                         if !type_vars.is_empty() {
-                            self.errors.push(TypeError {
-                                kind: TypeErrorKind::PartiallyInferedType { id: *id, r#type: t.clone() },
-                                span: *def_span,
-                                extra_span: None,
-                                context: ErrorContext::None,
-                            });
+                            self.errors.push(TypeError::PartiallyInferedType { id: *id, span: *def_span, r#type: t.clone() });
                         }
                     },
                 },
                 Type::GenericInstance { call, generic } => match generic_instances.get(&(*call, *generic)) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
-                        self.errors.push(TypeError {
-                            kind: TypeErrorKind::CannotInferGenericType { generic_def_span: *generic },
-                            span: *call,
-                            extra_span: None,
-                            context: ErrorContext::None,
-                        });
+                        self.errors.push(TypeError::CannotInferGenericType { call: *call, generic: *generic });
                     },
                     Some(t) => {
                         let type_vars = t.get_type_vars();
 
                         if !type_vars.is_empty() {
-                            self.errors.push(TypeError {
-                                kind: TypeErrorKind::PartiallyInferedGenericType { generic_def_span: *generic, r#type: t.clone() },
-                                span: *call,
-                                extra_span: None,
-                                context: ErrorContext::None,
-                            });
+                            self.errors.push(TypeError::PartiallyInferedGenericType { call: *call, generic: *generic, r#type: t.clone() });
                         }
                     },
                 },
@@ -199,8 +182,8 @@ impl Solver {
         }
     }
 
-    // It first checks whether `lhs` and `rhs` are equal. There's no subtyping in Sodigy.
-    // If either operand is a type variable, it gets a new type equation.
+    // It first checks whether `lhs` and `rhs` are equal. There's no subtyping in Sodigy. (TODO: there is)
+    // If either operand is a type variable, it creates a new type equation.
     // It tries to solve the type equation. If it solves, it updates `types` and `self.`
     // If it finds non-sense while solving, it pushes the error to `self.errors` and returns `Err(())`.
     pub fn equal(
@@ -214,9 +197,13 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
 
+        // If it's checking a type argument (`Int` in `Option<Int>`), it doesn't
+        // generate an error message, and its caller will.
+        is_checking_argument: bool,
+
         // for helpful error messages
-        span: Span,
-        extra_span: Option<Span>,
+        lhs_span: Option<Span>,
+        rhs_span: Option<Span>,
         context: ErrorContext,
     ) -> Result<(), ()> {
         match (lhs, rhs) {
@@ -227,34 +214,53 @@ impl Solver {
                 }
 
                 else {
-                    self.errors.push(TypeError {
-                        kind: TypeErrorKind::UnexpectedType {
+                    if !is_checking_argument {
+                        self.errors.push(TypeError::UnexpectedType {
                             expected: lhs.clone(),
+                            expected_span: lhs_span,
                             got: rhs.clone(),
-                        },
-                        span,
-                        extra_span,
-                        context,
-                    });
+                            got_span: rhs_span,
+                            context,
+                        });
+                    }
+
                     Err(())
                 }
             },
             (Type::Param { r#type: t1, args: args1, .. }, Type::Param { r#type: t2, args: args2, .. }) |
             (Type::Func { r#return: t1, args: args1, .. }, Type::Func { r#return: t2, args: args2, .. }) => {
-                if let Err(()) = self.equal(t1, t2, types, generic_instances, span, extra_span, context) {
+                if let Err(()) = self.equal(
+                    t1,
+                    t2,
+                    types,
+                    generic_instances,
+                    true,  // is_checking_argument
+                    None,
+                    None,
+                    context,
+                ) {
+                    if !is_checking_argument {
+                        self.errors.push(TypeError::UnexpectedType {
+                            expected: lhs.clone(),
+                            expected_span: lhs_span,
+                            got: rhs.clone(),
+                            got_span: rhs_span,
+                            context,
+                        });
+                    }
                     Err(())
                 }
 
                 else if args1.len() != args2.len() {
-                    self.errors.push(TypeError {
-                        kind: TypeErrorKind::UnexpectedType {
+                    if !is_checking_argument {
+                        self.errors.push(TypeError::UnexpectedType {
                             expected: lhs.clone(),
+                            expected_span: lhs_span,
                             got: rhs.clone(),
-                        },
-                        span,
-                        extra_span,
-                        context,
-                    });
+                            got_span: rhs_span,
+                            context,
+                        });
+                    }
                     Err(())
                 }
 
@@ -262,21 +268,25 @@ impl Solver {
                     let mut has_error = false;
 
                     for i in 0..args1.len() {
-                        // TODO: let's say we want to check expressions `foo` and `bar` have the same type.
-                        //       let's say `foo` has type `Result<Int, Int>` and `bar` has type `Result<Int, String>`.
-                        //       it'd underline `foo` and `bar`, and say "expected `Int`, got `String`".
-                        //       I want the error message to be "expected `Result<Int, Int>`, got `Result<Int, String>`".
                         if let Err(()) = self.equal(
                             &args1[i],
                             &args2[i],
                             types,
                             generic_instances,
-                            span,
-                            extra_span,
-
-                            // TODO: we definitely need a new kind of ErrorContext for this
+                            true,  // is_checking_argument
+                            None,
+                            None,
                             ErrorContext::None,
                         ) {
+                            if !is_checking_argument {
+                                self.errors.push(TypeError::UnexpectedType {
+                                    expected: lhs.clone(),
+                                    expected_span: lhs_span,
+                                    got: rhs.clone(),
+                                    got_span: rhs_span,
+                                    context,
+                                });
+                            }
                             has_error = true;
                         }
                     }
@@ -310,7 +320,8 @@ impl Solver {
                     types.insert(*def_span, concrete.clone());
                 }
 
-                self.substitute(type_var, concrete, types, generic_instances)
+                self.substitute(type_var, concrete, types, generic_instances);
+                Ok(())
             },
             (
                 type_var @ Type::Var { def_span, is_return },
@@ -335,16 +346,16 @@ impl Solver {
                         types.insert(*def_span, maybe_concrete.clone());
                     }
 
-                    self.substitute(type_var, maybe_concrete, types, generic_instances)
+                    self.substitute(type_var, maybe_concrete, types, generic_instances);
                 }
 
                 else {
                     for ref_type_var in ref_type_vars.into_iter() {
                         self.add_type_var_ref(ref_type_var, type_var.clone());
                     }
-
-                    Ok(())
                 }
+
+                Ok(())
             },
             (Type::Var { def_span: v1, .. }, Type::Var { def_span: v2, .. }) if *v1 == *v2 => {
                 // nop
@@ -365,8 +376,9 @@ impl Solver {
                         rhs,
                         types,
                         generic_instances,
-                        span,
-                        extra_span,
+                        is_checking_argument,
+                        lhs_span,
+                        rhs_span,
                         ErrorContext::Deep,
                     )
                 }
@@ -378,8 +390,9 @@ impl Solver {
                         &type2,
                         types,
                         generic_instances,
-                        span,
-                        extra_span,
+                        is_checking_argument,
+                        lhs_span,
+                        rhs_span,
                         ErrorContext::Deep,
                     )
                 }
@@ -414,7 +427,7 @@ impl Solver {
         r#type: &Type,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
-    ) -> Result<(), ()> {
+    ) {
         let ref_types = self.type_var_refs.get(&type_var).map(|refs| refs.to_vec()).unwrap_or(vec![]);
         let mut newly_completed_type_vars = vec![];
 
@@ -450,14 +463,12 @@ impl Solver {
             match type_var {
                 Type::Var { def_span, .. } => {
                     let r#type = types.get(def_span).unwrap().clone();
-                    self.substitute(type_var, &r#type, types, generic_instances)?;
+                    self.substitute(type_var, &r#type, types, generic_instances);
                 },
                 Type::GenericInstance { call, generic } => todo!(),
                 _ => unreachable!(),
             }
         }
-
-        Ok(())
     }
 
     fn get_possible_type_signatures(&self, op: InfixOp) -> &[Vec<Type>] {

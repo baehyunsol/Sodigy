@@ -85,7 +85,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::Punct(Punct::Comma),
                             got: (&t.kind).into(),
                         },
-                        span: t.span,
+                        spans: t.span.simple_error(),
                         ..Error::default()
                     }]);
                 },

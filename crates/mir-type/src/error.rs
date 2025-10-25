@@ -1,23 +1,18 @@
 use crate::Type;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_mir::Session as MirSession;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
-pub struct TypeError {
-    pub kind: TypeErrorKind,
-    pub span: Span,
-    pub extra_span: Option<Span>,
-    pub context: ErrorContext,
-}
-
-#[derive(Clone, Debug)]
-pub enum TypeErrorKind {
+pub enum TypeError {
     UnexpectedType {
         expected: Type,
+        expected_span: Option<Span>,
         got: Type,
+        got_span: Option<Span>,
+        context: ErrorContext,
     },
     // Since it's a very common error, the compiler tries to
     // give an as helpful error message as possible
@@ -29,28 +24,35 @@ pub enum TypeErrorKind {
         // `n`th argument of `got` has keyword `keyword`.
         given_keyword_arguments: Vec<(InternedString, usize)>,
 
+        func_span: Span,
         arg_spans: Vec<Span>,
     },
     CannotInferType {
         id: Option<InternedString>,
+        span: Span,
     },
     PartiallyInferedType {
         id: Option<InternedString>,
+        span: Span,
         r#type: Type,
     },
     CannotInferGenericType {
-        generic_def_span: Span,
+        call: Span,
+        generic: Span,
     },
     PartiallyInferedGenericType {
-        generic_def_span: Span,
+        call: Span,
+        generic: Span,
         r#type: Type,
     },
     CannotApplyInfixOp {
         op: InfixOp,
+        op_span: Span,
         arg_types: Vec<Type>,
     },
     NotCallable {
         r#type: Type,
+        func_span: Span,
     },
 }
 
@@ -72,7 +74,7 @@ pub enum ErrorContext {
 }
 
 impl ErrorContext {
-    pub fn message(&self) -> Option<&'static str> {
+    pub fn note(&self) -> Option<&'static str> {
         match self {
             ErrorContext::AssertConditionBool => Some("An assertion must be a boolean."),
             ErrorContext::IfConditionBool => Some("A condition of an `if` expression must be a boolean."),
@@ -96,18 +98,48 @@ pub trait RenderTypeError {
 
 impl RenderTypeError for MirSession {
     fn type_error_to_general_error(&self, error: &TypeError) -> Error {
-        let error_kind = match &error.kind {
-            TypeErrorKind::UnexpectedType {
+        match error {
+            TypeError::UnexpectedType {
                 expected,
+                expected_span,
                 got,
-            } => ErrorKind::UnexpectedType {
-                expected: self.render_type(expected),
-                got: self.render_type(got),
+                got_span,
+                context,
+            } => {
+                let mut spans = vec![];
+                let expected_type = self.render_type(expected);
+                let got_type = self.render_type(got);
+
+                if let Some(span) = *expected_span {
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: true,
+                        note: Some(format!("This value has type `{expected_type}`.")),
+                    });
+                }
+
+                if let Some(span) = *got_span {
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: false,
+                        note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::UnexpectedType {
+                        expected: expected_type,
+                        got: got_type,
+                    },
+                    spans,
+                    note: context.note().map(|s| s.to_string()),
+                }
             },
-            TypeErrorKind::WrongNumberOfArguments {
+            TypeError::WrongNumberOfArguments {
                 expected,
                 got,
                 given_keyword_arguments,
+                func_span,
                 arg_spans,
             } => {
                 // With those information, we can guess which argument is missing (or unnecessary)
@@ -122,28 +154,46 @@ impl RenderTypeError for MirSession {
                 // 4. TODO: then what?
                 todo!()
             },
-            TypeErrorKind::CannotInferType { id } => ErrorKind::CannotInferType { id: *id },
-            TypeErrorKind::PartiallyInferedType {
+            TypeError::CannotInferType { id, span } => Error {
+                kind: ErrorKind::CannotInferType { id: *id },
+                spans: span.simple_error(),
+                note: None,
+            },
+            TypeError::PartiallyInferedType {
                 id,
+                span,
                 r#type,
-            } => ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type) },
-            TypeErrorKind::CannotInferGenericType { generic_def_span } => ErrorKind::CannotInferGenericType { id: self.span_to_string(*generic_def_span) },
-            TypeErrorKind::PartiallyInferedGenericType {
-                generic_def_span,
+            } => Error {
+                kind: ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type) },
+                spans: span.simple_error(),
+                note: None,
+            },
+            TypeError::CannotInferGenericType { call, generic } => Error {
+                kind: ErrorKind::CannotInferGenericType { id: self.span_to_string(*generic) },
+                spans: todo!(),
+                note: None,
+            },
+            TypeError::PartiallyInferedGenericType {
+                call,
+                generic,
                 r#type,
-            } => ErrorKind::PartiallyInferedGenericType { id: self.span_to_string(*generic_def_span), r#type: self.render_type(r#type) },
-            TypeErrorKind::CannotApplyInfixOp { op, arg_types } => ErrorKind::CannotApplyInfixOp {
-                op: *op,
-                arg_types: arg_types.iter().map(|t| self.render_type(t)).collect(),
+            } => Error {
+                kind: ErrorKind::PartiallyInferedGenericType {
+                    id: self.span_to_string(*generic),
+                    r#type: self.render_type(r#type),
+                },
+                spans: todo!(),
+                note: None,
+            },
+            TypeError::CannotApplyInfixOp { op, op_span, arg_types } => Error {
+                kind: ErrorKind::CannotApplyInfixOp {
+                    op: *op,
+                    arg_types: arg_types.iter().map(|t| self.render_type(t)).collect(),
+                },
+                spans: op_span.simple_error(),
+                note: None,
             },
             _ => todo!(),
-        };
-
-        Error {
-            kind: error_kind,
-            span: error.span,
-            extra_span: error.extra_span,
-            extra_message: error.context.message().map(|s| s.to_string()),
         }
     }
 

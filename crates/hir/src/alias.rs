@@ -1,4 +1,4 @@
-use crate::{Type, Session};
+use crate::{GenericDef, Type, Session};
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{Counter, Namespace, NameKind, NameOrigin, UseCount};
 use sodigy_parse as ast;
@@ -10,7 +10,7 @@ pub struct Alias {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub args: Vec<(InternedString, Span)>,
+    pub generics: Vec<GenericDef>,
     pub r#type: Type,
 
     // We have to do cycle checks.
@@ -20,12 +20,12 @@ pub struct Alias {
 impl Alias {
     pub fn from_ast(ast_alias: &ast::Alias, session: &mut Session) -> Result<Alias, ()> {
         let mut has_error = false;
-        let mut arg_names = HashMap::new();
-        let mut arg_index = HashMap::new();
+        let mut generic_names = HashMap::new();
+        let mut generic_index = HashMap::new();
 
-        for (index, (name, name_span)) in ast_alias.args.iter().enumerate() {
-            arg_names.insert(*name, (*name_span, NameKind::Generic, UseCount::new()));
-            arg_index.insert(*name, index);
+        for (index, GenericDef { name, name_span }) in ast_alias.generics.iter().enumerate() {
+            generic_names.insert(*name, (*name_span, NameKind::Generic, UseCount::new()));
+            generic_index.insert(*name, index);
         }
 
         session.name_stack.push(Namespace::ForeignNameCollector {
@@ -33,8 +33,8 @@ impl Alias {
             foreign_names: HashMap::new(),
         });
         session.name_stack.push(Namespace::Generic {
-            names: arg_names,
-            index: arg_index,
+            names: generic_names,
+            index: generic_index,
         });
 
         let r#type = match Type::from_ast(&ast_alias.r#type, session) {
@@ -56,8 +56,8 @@ impl Alias {
                         name: *name,
                         kind: *kind,
                     },
-                    span: *span,
-                    ..Warning::default()
+                    spans: span.simple_error(),
+                    note: None,
                 });
             }
         }
@@ -73,7 +73,7 @@ impl Alias {
                 keyword_span: ast_alias.keyword_span,
                 name: ast_alias.name,
                 name_span: ast_alias.name_span,
-                args: ast_alias.args.clone(),
+                generics: ast_alias.generics.clone(),
                 r#type: r#type.unwrap(),
                 foreign_names,
             })

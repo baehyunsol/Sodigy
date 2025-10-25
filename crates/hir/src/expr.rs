@@ -86,8 +86,8 @@ impl Expr {
                 None => {
                     session.errors.push(Error {
                         kind: ErrorKind::UndefinedName(*id),
-                        span: *span,
-                        ..Error::default()
+                        spans: span.simple_error(),
+                        note: None,
                     });
                     Err(())
                 },

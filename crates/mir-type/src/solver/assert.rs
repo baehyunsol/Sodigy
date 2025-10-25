@@ -21,8 +21,9 @@ impl Solver {
                 &assertion_type,
                 types,
                 generic_instances,
-                assert.value.error_span(),
-                Some(assert.keyword_span),
+                false,
+                None,
+                Some(assert.value.error_span()),
                 ErrorContext::AssertConditionBool,
             ),
         }

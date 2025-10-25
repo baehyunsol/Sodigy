@@ -1,6 +1,6 @@
 use crate::{Expr, FullPattern, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
 // If there's an `else if` branch,
@@ -52,7 +52,7 @@ impl<'t> Tokens<'t> {
                         expected: ErrorToken::Keyword(Keyword::If),
                         got: (&t1.kind).into(),
                     },
-                    span: t1.span,
+                    spans: t1.span.simple_error(),
                     ..Error::default()
                 }]);
             },
@@ -101,7 +101,7 @@ impl<'t> Tokens<'t> {
                         expected: ErrorToken::Block,
                         got: (&t2.kind).into(),
                     },
-                    span: t2.span,
+                    spans: t2.span.simple_error(),
                     ..Error::default()
                 }]);
             },
@@ -117,7 +117,18 @@ impl<'t> Tokens<'t> {
                         expected: ErrorToken::Keyword(Keyword::Else),
                         got: (&t1.kind).into(),
                     },
-                    span: t1.span,
+                    spans: vec![
+                        RenderableSpan {
+                            span: t1.span,
+                            auxiliary: false,
+                            note: None,
+                        },
+                        RenderableSpan {
+                            span: if_span,
+                            auxiliary: true,
+                            note: Some(String::from("This `if` expression doesn't have a matching `else` expression.")),
+                        },
+                    ],
                     ..Error::default()
                 }]);
             },

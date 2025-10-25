@@ -71,10 +71,10 @@ impl Match {
             for (name, (span, kind, count)) in names.iter() {
                 if (!session.is_in_debug_context && count.always == Counter::Never) ||
                     (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                    let mut extra_message = None;
+                    let mut note = None;
 
                     if count.debug_only != Counter::Never {
-                        extra_message = Some(String::from("This value is only used in debug mode."));
+                        note = Some(String::from("This value is only used in debug mode."));
                     }
 
                     session.warnings.push(Warning {
@@ -82,9 +82,8 @@ impl Match {
                             name: *name,
                             kind: *kind,
                         },
-                        span: *span,
-                        extra_message,
-                        ..Warning::default()
+                        spans: span.simple_error(),
+                        note,
                     });
                 }
             }

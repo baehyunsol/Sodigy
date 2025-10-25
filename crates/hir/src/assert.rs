@@ -1,9 +1,9 @@
 use crate::{Expr, Session};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_parse::{self as ast, CallArg};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Assert {
@@ -86,10 +86,19 @@ impl AssertAttribute {
         let mut has_error = false;
 
         // Used for error messages.
-        let mut name_span_map = HashMap::new();
+        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
         for decorator in ast_attribute.decorators.iter() {
             let (d_name, name_span) = decorator.name[0];
+
+            match spans_by_name.entry(d_name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(name_span);
+                },
+                Entry::Vacant(e) => {
+                    e.insert(vec![name_span]);
+                },
+            }
 
             match d_name.try_unintern_short_string() {
                 Some(d) if d == b"always" => {
@@ -97,27 +106,35 @@ impl AssertAttribute {
                         has_error = true;
                         session.errors.push(Error {
                             kind: ErrorKind::RedundantDecorator(d_name),
-                            span: name_span,
-                            extra_span: Some(*name_span_map.get(&d_name).unwrap()),
-                            ..Error::default()
+                            spans: spans_by_name.get(&d_name).unwrap_or(&vec![]).iter().map(
+                                |span| RenderableSpan {
+                                    span: *span,
+                                    auxiliary: false,
+                                    note: None,
+                                }
+                            ).collect(),
+                            note: None,
                         });
                     }
 
                     always = true;
-                    name_span_map.insert(d_name, name_span);
                 },
                 Some(d) if d == b"name" || d == b"note" => {
                     if d == b"name" && name.is_some() || d == b"note" && note.is_some() {
                         has_error = true;
                         session.errors.push(Error {
                             kind: ErrorKind::RedundantDecorator(d_name),
-                            span: name_span,
-                            extra_span: Some(*name_span_map.get(&d_name).unwrap()),
-                            ..Error::default()
+                            spans: spans_by_name.get(&d_name).unwrap_or(&vec![]).iter().map(
+                                |span| RenderableSpan {
+                                    span: *span,
+                                    auxiliary: false,
+                                    note: None,
+                                }
+                            ).collect(),
+                            note: None,
                         });
                     }
 
-                    name_span_map.insert(d_name, name_span);
                     let mut d_arg = None;
 
                     match &decorator.args {
@@ -127,8 +144,8 @@ impl AssertAttribute {
                                     has_error = true;
                                     session.errors.push(Error {
                                         kind: ErrorKind::InvalidKeywordArgument(*k),
-                                        span: *span,
-                                        ..Error::default()
+                                        spans: span.simple_error(),
+                                        note: None,
                                     });
                                 },
                                 Some(CallArg { arg: ast::Expr::String { s, binary: false, .. }, .. }) => {
@@ -141,8 +158,8 @@ impl AssertAttribute {
                                             expected: ErrorToken::String,
                                             got: ErrorToken::Expr,
                                         },
-                                        span: arg.error_span(),
-                                        ..Error::default()
+                                        spans: arg.error_span().simple_error(),
+                                        note: None,
                                     });
                                 },
                                 None => {
@@ -152,8 +169,8 @@ impl AssertAttribute {
                                             expected: 1,
                                             got: 0,
                                         },
-                                        span: decorator.arg_group_span.unwrap().end(),
-                                        ..Error::default()
+                                        spans: decorator.arg_group_span.unwrap().end().simple_error(),
+                                        note: None,
                                     });
                                 },
                             }
@@ -165,8 +182,8 @@ impl AssertAttribute {
                                         expected: 1,
                                         got: args.len(),
                                     },
-                                    span: args[1].arg.error_span(),
-                                    ..Error::default()
+                                    spans: args[1].arg.error_span().simple_error(),
+                                    note: None,
                                 });
                             }
                         },
@@ -177,8 +194,8 @@ impl AssertAttribute {
                                     expected: 1,
                                     got: 0,
                                 },
-                                span: name_span,
-                                ..Error::default()
+                                spans: name_span.simple_error(),
+                                note: None,
                             });
                         },
                     }
@@ -195,8 +212,8 @@ impl AssertAttribute {
                     has_error = true;
                     session.errors.push(Error {
                         kind: ErrorKind::InvalidDecorator(d_name),
-                        span: name_span,
-                        ..Error::default()
+                        spans: name_span.simple_error(),
+                        note: None,
                     });
                 },
             }

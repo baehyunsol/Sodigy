@@ -12,7 +12,7 @@ pub use session::Session as RenderSpanSession;
 pub struct RenderableSpan {
     pub span: Span,
     pub auxiliary: bool,
-    pub message: Option<String>,
+    pub note: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -36,7 +36,7 @@ pub struct ColorOption {
 struct Line {
     content: Vec<u8>,
     colors: Vec<Option<Color>>,  // of underline
-    messages: Vec<(usize, String)>,  // (index, message)
+    notes: Vec<(usize, String)>,  // (index, note)
 }
 
 // NOTE: In rust, when an identifier is very very long,
@@ -78,8 +78,8 @@ pub fn render_spans(
     }
 
     // TODO: sort groups
-    //       1. by importance
-    //       2. by file name and span
+    //       1. a group with non-auxiliary spans has to come before auxiliary-only group
+    //       2. if there are ties, they're ordered by y-position
     let mut groups = Vec::with_capacity(spans_by_file.len());
 
     for span in files_with_empty_rects.values() {
@@ -155,7 +155,7 @@ fn render_close_spans(
     let mut lines = vec![];
     let mut curr_bytes = vec![];
     let mut curr_colors = vec![];
-    let mut curr_messages = vec![];
+    let mut curr_notes = vec![];
 
     // In order to underline every character in the span, this rect has to be rendered.
     // Coordinates are inclusive!
@@ -167,8 +167,8 @@ fn render_close_spans(
         for s in spans.iter() {
             match s.span {
                 Span::Range { start, end, .. } => {
-                    if i == start && s.message.is_some() {
-                        curr_messages.push((col, s.message.clone().unwrap()));
+                    if i == start && s.note.is_some() {
+                        curr_notes.push((col, s.note.clone().unwrap()));
                     }
 
                     if start <= i && i < end {
@@ -193,11 +193,11 @@ fn render_close_spans(
                 lines.push(Line {
                     content: curr_bytes,
                     colors: curr_colors,
-                    messages: curr_messages,
+                    notes: curr_notes,
                 });
                 curr_bytes = vec![];
                 curr_colors = vec![];
-                curr_messages = vec![];
+                curr_notes = vec![];
                 row += 1;
                 col = 0;
             },
@@ -218,7 +218,7 @@ fn render_close_spans(
         lines.push(Line {
             content: curr_bytes,
             colors: curr_colors,
-            messages: curr_messages,
+            notes: curr_notes,
         });
     }
 
@@ -316,7 +316,7 @@ fn render_span_worker(
             ));
         }
 
-        // TODO: add labels and write messages underneath
+        // TODO: add labels and write notes underneath
         //
         // 1. when the labels are far from each other
         //         ^^^        ^^^
@@ -335,7 +335,7 @@ fn render_span_worker(
         //         |
         //         *--(0)
         //
-        if !line.messages.is_empty() {
+        if !line.notes.is_empty() {
             let mut labels = vec![];
             let mut max_depth = 1;
             struct Label {
@@ -344,8 +344,8 @@ fn render_span_worker(
                 pub asterisk: bool,
             }
 
-            // messages are always sorted by x
-            for (i, (x, _)) in line.messages.iter().enumerate() {
+            // notes are always sorted by x
+            for (i, (x, _)) in line.notes.iter().enumerate() {
                 let x = *x;
 
                 match labels.last_mut() {
@@ -360,7 +360,7 @@ fn render_span_worker(
                         labels.push(Label { depth: 1, x, asterisk: true });
                     },
                     None => {
-                        labels.push(Label { depth: 1, x, asterisk: i == 0 });
+                        labels.push(Label { depth: 1, x, asterisk: x == 0 });
                     },
                 }
             }
@@ -411,9 +411,9 @@ fn render_span_worker(
             // an empty line for readability
             label_lines.push(vec![]);
 
-            for (i, (_, message)) in line.messages.iter().enumerate() {
-                // TODO: automatically break lines if a message is too long
-                label_lines.push(format!("({i}): {message}").into_bytes());
+            for (i, (_, note)) in line.notes.iter().enumerate() {
+                // TODO: automatically break lines if a note is too long
+                label_lines.push(format!("({i}): {note}").into_bytes());
             }
 
             for line in label_lines.iter() {
@@ -422,7 +422,7 @@ fn render_span_worker(
                     " ".repeat(line_no.len()),
                     info_color.render_fg(&line_bar),
                     " ".repeat(pre_dots.len()),
-                    String::from_utf8_lossy(line).to_string(),
+                    auxiliary_color.render_fg(&String::from_utf8_lossy(line)),
                 ));
             }
         }

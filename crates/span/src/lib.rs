@@ -92,4 +92,14 @@ impl Span {
             Span::None | Span::Prelude(_) => None,
         }
     }
+
+    /// An error takes `Vec<RenderableSpan>` as an input,
+    /// but we're too lazy to instantiate one.
+    pub fn simple_error(&self) -> Vec<RenderableSpan> {
+        vec![RenderableSpan {
+            span: *self,
+            auxiliary: false,
+            note: None,
+        }]
+    }
 }

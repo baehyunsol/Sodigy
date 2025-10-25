@@ -13,8 +13,8 @@ use crate::{
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_name_analysis::NameKind;
-use sodigy_span::Span;
-use sodigy_string::{InternedString, intern_string};
+use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::InternedString;
 use sodigy_token::{Keyword, Punct, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -92,10 +92,6 @@ impl<'t> Tokens<'t> {
         let mut uses = vec![];
         let mut value = None;
 
-        // we don't need an intermediate_dir for a short string
-        let main_func_name = intern_string(b"main", "").unwrap();
-        let mut main_func_span = None;
-
         loop {
             let attribute = match self.collect_attribute() {
                 Ok(attribute) => attribute,
@@ -140,10 +136,6 @@ impl<'t> Tokens<'t> {
                 },
                 Some(TokenKind::Keyword(Keyword::Fn)) => match self.parse_func() {
                     Ok(mut func) => {
-                        if is_top_level && func.name == main_func_name {
-                            main_func_span = Some(func.name_span);
-                        }
-
                         func.attribute = attribute;
                         funcs.push(func);
                     },
@@ -198,9 +190,19 @@ impl<'t> Tokens<'t> {
                         if let Some(doc_comment) = &attribute.doc_comment {
                             errors.push(Error {
                                 kind: ErrorKind::DocCommentNotAllowed,
-                                span: assert.keyword_span,
-                                extra_span: Some(doc_comment.0[0].marker_span),
-                                ..Error::default()
+                                spans: vec![
+                                    RenderableSpan {
+                                        span: assert.keyword_span,
+                                        auxiliary: false,
+                                        note: Some(String::from("This assertion is documented by the doc comment.")),
+                                    },
+                                    RenderableSpan {
+                                        span: doc_comment.0.last().unwrap().marker_span,
+                                        auxiliary: true,
+                                        note: Some(String::from("This doc comment is documenting the assertion.")),
+                                    },
+                                ],
+                                note: Some(String::from("If you want to add a note, use `@note` decorator.")),
                             });
                         }
 
@@ -260,7 +262,7 @@ impl<'t> Tokens<'t> {
                 Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
                 Some(t) => {
                     if is_top_level {
-                        let extra_message = match t {
+                        let note = match t {
                             // There's a very weird edge case: If the tokens are `<Decorator> -> <DocComment> -> <Semicolon> -> <Expr>`,
                             // you'll see this error message with the semicolon.
                             TokenKind::Punct(Punct::Semicolon) if !attribute.decorators.is_empty() => Some(String::from(
@@ -274,9 +276,8 @@ impl<'t> Tokens<'t> {
                                 expected: ErrorToken::Declaration,
                                 got: t.into(),
                             },
-                            span: self.peek().unwrap().span,
-                            extra_message,
-                            ..Error::default()
+                            spans: self.peek().unwrap().span.simple_error(),
+                            note,
                         });
                         return Err(errors);
                     }
@@ -284,8 +285,19 @@ impl<'t> Tokens<'t> {
                     if let Some(doc_comment) = &attribute.doc_comment {
                         errors.push(Error {
                             kind: ErrorKind::DocCommentNotAllowed,
-                            span: doc_comment.0[0].marker_span,
-                            extra_message: Some(String::from("You can't add a document for an expression.")),
+                            spans: vec![
+                                RenderableSpan {
+                                    span: doc_comment.0[0].marker_span,
+                                    auxiliary: false,
+                                    note: Some(String::from("This doc comment is documenting the expression.")),
+                                },
+                                RenderableSpan {
+                                    span: self.peek().unwrap().span.begin(),
+                                    auxiliary: true,
+                                    note: Some(String::from("This expression is documented by the doc comment.")),
+                                },
+                            ],
+                            note: Some(String::from("You can't add a document for an expression.")),
                             ..Error::default()
                         });
                         return Err(errors);
@@ -294,8 +306,19 @@ impl<'t> Tokens<'t> {
                     if let Some(decorator) = attribute.decorators.get(0) {
                         errors.push(Error {
                             kind: ErrorKind::DecoratorNotAllowed,
-                            span: decorator.name_span,
-                            extra_message: Some(String::from("You can't decorate an expression.")),
+                            spans: vec![
+                                RenderableSpan {
+                                    span: decorator.name_span,
+                                    auxiliary: false,
+                                    note: Some(String::from("This decorator is decorating the expression.")),
+                                },
+                                RenderableSpan {
+                                    span: self.peek().unwrap().span.begin(),
+                                    auxiliary: true,
+                                    note: Some(String::from("This expression is decorated by the decorator.")),
+                                },
+                            ],
+                            note: Some(String::from("You can't decorate an expression.")),
                             ..Error::default()
                         });
                         return Err(errors);
@@ -321,8 +344,8 @@ impl<'t> Tokens<'t> {
         if !is_top_level && value.is_none() {
             errors.push(Error {
                 kind: ErrorKind::BlockWithoutValue,
-                span: self.span_end,
-                ..Error::default()
+                spans: self.span_end.simple_error(),
+                note: None,
             });
         }
 

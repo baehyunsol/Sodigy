@@ -22,8 +22,8 @@ impl Solver {
         let span_to_name_map = span_to_name_map.into_iter().collect::<HashMap<_, _>>();
         let (
             annotated_type,
-            error_span,
-            extra_error_span,
+            value_span,
+            annotation_span,
             context,
         ) = match types.get(&func.name_span) {
             Some(f @ Type::Func { r#return, .. }) => {
@@ -51,8 +51,9 @@ impl Solver {
             &infered_type,
             types,
             generic_instances,
-            error_span,
-            extra_error_span,
+            false,
+            annotation_span,
+            Some(value_span),
             context,
         )?;
 

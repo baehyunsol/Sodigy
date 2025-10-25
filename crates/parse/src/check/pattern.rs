@@ -1,5 +1,7 @@
 use crate::{FullPattern, Pattern};
 use sodigy_error::{Error, ErrorKind};
+use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::{InternedString, unintern_string};
 use std::collections::hash_map::{Entry, HashMap};
 
 impl FullPattern {
@@ -17,31 +19,42 @@ impl FullPattern {
             if let Some(r#type) = &self.r#type {
                 errors.push(Error {
                     kind: ErrorKind::CannotAnnotateType,
-                    span: r#type.error_span(),
-                    ..Error::default()
+                    spans: r#type.error_span().simple_error(),
+                    note: None,
                 });
             }
         }
 
         if !is_inner_pattern {
-            let mut name_map = HashMap::new();
+            let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
+            // TODO: it has to treat name bindings in `Pattern::Or` differently
             for (name, name_span) in self.bound_names().iter() {
-                match name_map.entry(*name) {
-                    Entry::Occupied(e) => {
-                        let prev_span = *e.get();
-                        errors.push(Error {
-                            kind: ErrorKind::NameCollision {
-                                name: *name,
-                            },
-                            span: *name_span,
-                            extra_span: Some(prev_span),
-                            ..Error::default()
-                        });
+                match spans_by_name.entry(*name) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push(*name_span);
                     },
                     Entry::Vacant(e) => {
-                        e.insert(*name_span);
+                        e.insert(vec![*name_span]);
                     },
+                }
+            }
+
+            for (name, spans) in spans_by_name.iter() {
+                if spans.len() > 1 {
+                    errors.push(Error {
+                        kind: ErrorKind::NameCollision {
+                            name: *name
+                        },
+                        spans: spans.iter().map(
+                            |span| RenderableSpan {
+                                span: *span,
+                                auxiliary: false,
+                                note: None,
+                            }
+                        ).collect(),
+                        note: None,
+                    });
                 }
             }
 
@@ -57,10 +70,39 @@ impl FullPattern {
                 r#type: _,
                 pattern: Pattern::Identifier { id, span },
             } => {
+                // In order to unintern long string (more than 15 bytes), we need `intermediate_dir: &str`.
+                // Otherwise, we can unintern it locally.
+                // But the problem is that `intermediate_dir` is available at `ParseSession`, and we can't access the session.
+                // So it simply doesn't make a error note if it cannot unintern the name.
+                let note1 = match unintern_string(*name, "") {
+                    Ok(Some(name)) => {
+                        let name = String::from_utf8_lossy(&name);
+                        Some(format!("Name `{name}` is bound to the pattern."))
+                    },
+                    _ => None,
+                };
+                let note2 = match unintern_string(*id, "") {
+                    Ok(Some(name)) => {
+                        let name = String::from_utf8_lossy(&name);
+                        Some(format!("Name `{name}` is bound to the pattern."))
+                    },
+                    _ => None,
+                };
+
                 errors.push(Error {
                     kind: ErrorKind::RedundantNameBinding(*name, *id),
-                    span: *name_span,
-                    extra_span: Some(*span),
+                    spans: vec![
+                        RenderableSpan {
+                            span: *name_span,
+                            auxiliary: false,
+                            note: note1,
+                        },
+                        RenderableSpan {
+                            span: *span,
+                            auxiliary: false,
+                            note: note2,
+                        },
+                    ],
                     ..Error::default()
                 });
             },
@@ -137,7 +179,7 @@ impl Pattern {
                 if *is_inclusive && rhs.is_none() {
                     errors.push(Error {
                         kind: ErrorKind::InclusiveRangeWithNoEnd,
-                        span: *op_span,
+                        spans: op_span.simple_error(),
                         ..Error::default()
                     });
                 }
@@ -154,26 +196,26 @@ impl Pattern {
                     if let Some(error_message) = error_message {
                         errors.push(Error {
                             kind: ErrorKind::AstPatternTypeError,
-                            span: lhs.error_span(),
-                            extra_message: Some(error_message.to_string()),
+                            spans: lhs.error_span().simple_error(),
+                            note: Some(error_message.to_string()),
                             ..Error::default()
                         });
                     }
                 }
 
                 if let Some(rhs) = rhs {
-                    let error_message = match rhs.as_ref() {
+                    let note = match rhs.as_ref() {
                         Pattern::Range { .. } => Some("A range-pattern cannot be an rhs of another range-pattern."),
                         Pattern::Or { .. } => Some("An or-pattern cannot be an rhs of a range-pattern."),
                         Pattern::Concat { .. } => Some("A concat-pattern cannot be an rhs of a range-pattern."),
                         _ => None,
                     };
 
-                    if let Some(error_message) = error_message {
+                    if let Some(note) = note {
                         errors.push(Error {
                             kind: ErrorKind::AstPatternTypeError,
-                            span: rhs.error_span(),
-                            extra_message: Some(error_message.to_string()),
+                            spans: rhs.error_span().simple_error(),
+                            note: Some(note.to_string()),
                             ..Error::default()
                         });
                     }
@@ -232,7 +274,7 @@ impl Pattern {
         match self {
             Pattern::Number { n, .. } => {
                 if n.is_integer {
-                    Ok(PatternType::Integer)
+                    Ok(PatternType::Int)
                 }
 
                 else {
@@ -283,7 +325,7 @@ impl Pattern {
                     Err(errors)
                 }
             },
-            Pattern::List { elements, .. } => {
+            Pattern::List { elements, group_span } => {
                 let mut list_type = PatternType::NotSure;
 
                 for element in elements.iter() {
@@ -296,14 +338,25 @@ impl Pattern {
                         Err(()) => {
                             return Err(vec![Error {
                                 kind: ErrorKind::AstPatternTypeError,
-                                span: element.pattern.error_span(),
-                                ..Error::default()
+                                spans: vec![
+                                    RenderableSpan {
+                                        span: element.pattern.error_span(),
+                                        auxiliary: false,
+                                        note: Some(format!("This has type `{}`.", element_type.render())),
+                                    },
+                                    RenderableSpan {
+                                        span: group_span.begin(),
+                                        auxiliary: true,
+                                        note: Some(format!("This has type `{}`.", PatternType::List(Box::new(list_type)).render())),
+                                    },
+                                ],
+                                note: None,
                             }]);
                         },
                     }
                 }
 
-                Ok(list_type)
+                Ok(PatternType::List(Box::new(list_type)))
             },
             Pattern::Range { lhs, rhs, .. } => {
                 match (
@@ -314,8 +367,18 @@ impl Pattern {
                         Ok(r#type) => Ok(r#type),
                         Err(()) => Err(vec![Error {
                             kind: ErrorKind::AstPatternTypeError,
-                            span: lhs.as_ref().unwrap().error_span(),
-                            extra_span: Some(rhs.as_ref().unwrap().error_span()),
+                            spans: vec![
+                                RenderableSpan {
+                                    span: lhs.as_ref().unwrap().error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", lhs_type.render())),
+                                },
+                                RenderableSpan {
+                                    span: rhs.as_ref().unwrap().error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", rhs_type.render())),
+                                },
+                            ],
                             ..Error::default()
                         }]),
                     },
@@ -329,13 +392,24 @@ impl Pattern {
                     (None, None) => Ok(PatternType::NotSure),
                 }
             },
-            Pattern::Or { lhs, rhs, op_span } => {
+            Pattern::Or { lhs, rhs, .. } => {
                 match (lhs.type_check(), rhs.type_check()) {
                     (Ok(lhs_type), Ok(rhs_type)) => match lhs_type.more_specific(&rhs_type) {
                         Ok(r#type) => Ok(r#type),
                         Err(()) => Err(vec![Error {
                             kind: ErrorKind::AstPatternTypeError,
-                            span: *op_span,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: lhs.error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", lhs_type.render())),
+                                },
+                                RenderableSpan {
+                                    span: rhs.error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", rhs_type.render())),
+                                },
+                            ],
                             ..Error::default()
                         }]),
                     },
@@ -343,13 +417,24 @@ impl Pattern {
                     (Err(e), _) | (_, Err(e)) => Err(e),
                 }
             },
-            Pattern::Concat { lhs, rhs, op_span } => {
+            Pattern::Concat { lhs, rhs, .. } => {
                 match (lhs.pattern.type_check(), rhs.pattern.type_check()) {
                     (Ok(lhs_type), Ok(rhs_type)) => match lhs_type.more_specific(&rhs_type) {
                         Ok(r#type) => Ok(r#type),
                         Err(()) => Err(vec![Error {
                             kind: ErrorKind::AstPatternTypeError,
-                            span: *op_span,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: lhs.error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", lhs_type.render())),
+                                },
+                                RenderableSpan {
+                                    span: rhs.error_span(),
+                                    auxiliary: false,
+                                    note: Some(format!("This has type `{}`.", rhs_type.render())),
+                                },
+                            ],
                             ..Error::default()
                         }]),
                     },
@@ -367,10 +452,10 @@ impl Pattern {
 #[derive(Clone, Debug)]
 enum PatternType {
     NotSure,  // e.g. identifier, wildcard, ...
-    Integer,
+    Int,
     Number,
     String,
-    BinaryString,
+    Bytes,
     Regex,
     Char,
     List(Box<PatternType>),
@@ -382,10 +467,10 @@ impl PatternType {
         match (self, other) {
             (PatternType::NotSure, r#type) => Ok(r#type.clone()),
             (r#type, PatternType::NotSure) => Ok(r#type.clone()),
-            (PatternType::Integer, PatternType::Integer) |
+            (PatternType::Int, PatternType::Int) |
             (PatternType::Number, PatternType::Number) |
             (PatternType::String, PatternType::String) |
-            (PatternType::BinaryString, PatternType::BinaryString) |
+            (PatternType::Bytes, PatternType::Bytes) |
             (PatternType::Regex, PatternType::Regex) |
             (PatternType::Char, PatternType::Char) => Ok(self.clone()),
             (PatternType::List(type1), PatternType::List(type2)) => match type1.more_specific(type2) {
@@ -394,6 +479,29 @@ impl PatternType {
             },
             (PatternType::Tuple(elements1), PatternType::Tuple(elements2)) => todo!(),
             _ => Err(()),
+        }
+    }
+
+    // for error messages
+    pub fn render(&self) -> String {
+        match self {
+            PatternType::NotSure => String::from("_"),
+            PatternType::Int => String::from("Int"),
+            PatternType::Number => String::from("Number"),
+            PatternType::String => String::from("String"),
+            PatternType::Bytes => String::from("Bytes"),
+
+            // TODO: do I need another annotation?
+            PatternType::Regex => String::from("String"),
+
+            PatternType::Char => String::from("Char"),
+            PatternType::List(element) => format!("[{}]", element.render()),
+            PatternType::Tuple(elements) => format!(
+                "({})",
+                elements.iter().map(
+                    |e| e.render()
+                ).collect::<Vec<_>>().join(", "),
+            ),
         }
     }
 }

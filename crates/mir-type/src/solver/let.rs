@@ -15,8 +15,8 @@ impl Solver {
         let infered_type = self.solve_expr(&r#let.value, types, generic_instances)?;
         let (
             annotated_type,
-            error_span,
-            extra_error_span,
+            value_span,
+            annotation_span,
             context,
         ) = match types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
@@ -44,8 +44,9 @@ impl Solver {
             &infered_type,
             types,
             generic_instances,
-            error_span,
-            extra_error_span,
+            false,
+            annotation_span,
+            Some(value_span),
             context,
         )?;
 

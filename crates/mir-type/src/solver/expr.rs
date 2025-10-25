@@ -1,6 +1,6 @@
 use super::Solver;
 use crate::{Expr, Type};
-use crate::error::{ErrorContext, TypeError, TypeErrorKind};
+use crate::error::{ErrorContext, TypeError};
 use crate::preludes::*;
 use sodigy_mir::Callable;
 use sodigy_span::Span;
@@ -54,8 +54,9 @@ impl Solver {
                             &cond_type,
                             types,
                             generic_instances,
-                            r#if.cond.error_span(),
+                            false,
                             None,
+                            Some(r#if.cond.error_span()),
                             ErrorContext::IfConditionBool,
                         );
                     },
@@ -71,7 +72,8 @@ impl Solver {
                             &false_type,
                             types,
                             generic_instances,
-                            r#if.true_value.error_span(),
+                            false,
+                            Some(r#if.true_value.error_span()),
                             Some(r#if.false_value.error_span()),
                             ErrorContext::IfValueEqual,
                         )?;
@@ -147,16 +149,12 @@ impl Solver {
                             // It doesn't check arg types if there are wrong number of args.
                             // Whether or not there're type errors with args, it returns the return type.
                             if arg_types.len() != arg_defs.len() {
-                                self.errors.push(TypeError {
-                                    kind: TypeErrorKind::WrongNumberOfArguments {
-                                        expected: arg_defs,
-                                        got: arg_types,
-                                        given_keyword_arguments: given_keyword_arguments.to_vec(),
-                                        arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
-                                    },
-                                    span: func.error_span(),
-                                    extra_span: None,
-                                    context: ErrorContext::FuncArgs,
+                                self.errors.push(TypeError::WrongNumberOfArguments {
+                                    expected: arg_defs,
+                                    got: arg_types,
+                                    given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                    func_span: func.error_span(),
+                                    arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
                                 });
                             }
 
@@ -167,8 +165,9 @@ impl Solver {
                                         &arg_types[i],
                                         types,
                                         generic_instances,
-                                        args[i].error_span(),
-                                        Some(span),
+                                        false,
+                                        None,
+                                        Some(args[i].error_span()),
                                         ErrorContext::FuncArgs,
                                     );
                                 }
@@ -205,8 +204,9 @@ impl Solver {
                                     &arg_types[i],
                                     types,
                                     generic_instances,
-                                    args[i].error_span(),
+                                    false,
                                     Some(args[0].error_span()),
+                                    Some(args[i].error_span()),
                                     ErrorContext::ListElementEqual,
                                 );
                             }
@@ -226,13 +226,9 @@ impl Solver {
                         match func_type {
                             // TODO: What if there's a callable `Type::Static()` or `Type::Param {}`?
                             Type::Static(_) | Type::Unit(_) | Type::Param { .. } => {
-                                self.errors.push(TypeError {
-                                    kind: TypeErrorKind::NotCallable {
-                                        r#type: func_type.clone(),
-                                    },
-                                    span: func.error_span(),
-                                    extra_span: None,
-                                    context: ErrorContext::None,
+                                self.errors.push(TypeError::NotCallable {
+                                    r#type: func_type.clone(),
+                                    func_span: func.error_span(),
                                 });
                                 return Err(());
                             },
@@ -245,16 +241,12 @@ impl Solver {
                                 // It doesn't check arg types if there are wrong number of args.
                                 // Whether or not there're type errors with args, it returns the return type.
                                 if arg_types.len() != arg_defs.len() {
-                                    self.errors.push(TypeError {
-                                        kind: TypeErrorKind::WrongNumberOfArguments {
-                                            expected: arg_defs,
-                                            got: arg_types,
-                                            given_keyword_arguments: given_keyword_arguments.to_vec(),
-                                            arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
-                                        },
-                                        span: func.error_span(),
-                                        extra_span: None,
-                                        context: ErrorContext::None,
+                                    self.errors.push(TypeError::WrongNumberOfArguments {
+                                        expected: arg_defs,
+                                        got: arg_types,
+                                        given_keyword_arguments: given_keyword_arguments.to_vec(),
+                                        func_span: func.error_span(),
+                                        arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
                                     });
                                 }
 
@@ -265,8 +257,9 @@ impl Solver {
                                             &arg_types[i],
                                             types,
                                             generic_instances,
-                                            args[i].error_span(),
+                                            false,
                                             None,
+                                            Some(args[i].error_span()),
                                             ErrorContext::FuncArgs,
                                         );
                                     }
@@ -283,8 +276,9 @@ impl Solver {
                             &arg_types[1],
                             types,
                             generic_instances,
-                            args[1].error_span(),
+                            false,
                             Some(args[0].error_span()),
+                            Some(args[1].error_span()),
                             ErrorContext::EqValueEqual,
                         );
 
@@ -308,14 +302,10 @@ impl Solver {
                         // `candidates` filters out type signatures that are not compatible with `arg_types`.
                         match candidates.len() {
                             0 => {
-                                self.errors.push(TypeError {
-                                    kind: TypeErrorKind::CannotApplyInfixOp {
-                                        op: *op,
-                                        arg_types,
-                                    },
-                                    span: *span,
-                                    extra_span: None,
-                                    context: ErrorContext::None,
+                                self.errors.push(TypeError::CannotApplyInfixOp {
+                                    op: *op,
+                                    op_span: *span,
+                                    arg_types,
                                 });
                                 Err(())
                             },
@@ -328,8 +318,9 @@ impl Solver {
                                         &arg_types[i],
                                         types,
                                         generic_instances,
-                                        args[i].error_span(),
+                                        false,
                                         None,
+                                        Some(args[i].error_span()),
                                         ErrorContext::None,  // TODO: do we need an error-context for this?
                                     );
                                 }

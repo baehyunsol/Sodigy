@@ -2,7 +2,8 @@ use crate::Session;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{NameKind, NameOrigin};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::unintern_string;
 
 // `Eq` and `PartialEq` are only for type vars.
 // For comparison, use `Solver::equal()` method.
@@ -72,11 +73,22 @@ impl Type {
         match hir_type {
             hir::Type::Identifier(id) => match id.origin {
                 NameOrigin::FuncArg { .. } => {
+                    let arg_name = String::from_utf8_lossy(&unintern_string(id.id, &session.intermediate_dir).unwrap().unwrap()).to_string();
                     session.errors.push(Error {
                         kind: ErrorKind::DependentTypeNotAllowed,
-                        span: id.span,
-                        extra_span: Some(id.def_span),
-                        ..Error::default()
+                        spans: vec![
+                            RenderableSpan {
+                                span: id.span,
+                                auxiliary: false,
+                                note: Some(format!("The type annotation is using the name `{arg_name}`, which is a function argument.")),
+                            },
+                            RenderableSpan {
+                                span: id.def_span,
+                                auxiliary: true,
+                                note: Some(format!("The argument `{arg_name}` is defined here.")),
+                            },
+                        ],
+                        note: None,
                     });
                     Err(())
                 },

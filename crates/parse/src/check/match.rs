@@ -8,7 +8,7 @@ impl Match {
         if self.branches.is_empty() {
             errors.push(Error {
                 kind: ErrorKind::EmptyMatchStatement,
-                span: self.keyword_span,
+                spans: self.keyword_span.simple_error(),
                 ..Error::default()
             });
         }

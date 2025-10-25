@@ -60,8 +60,8 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
             ErrorLevel::Warning => level.color().render_fg("warning"),
             ErrorLevel::Error => level.color().render_fg("error"),
         };
-        let note = if let Some(message) = &error.extra_message {
-            format!("\nnote: {message}")
+        let note = if let Some(note) = &error.note {
+            format!("\nnote: {note}")
         } else {
             String::new()
         };

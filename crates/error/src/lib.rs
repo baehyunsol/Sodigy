@@ -18,7 +18,7 @@ pub struct Error {
     // the span renderer will try to render non-auxiliary spans first
     pub spans: Vec<RenderableSpan>,
 
-    pub extra_message: Option<String>,
+    pub note: Option<String>,
 }
 
 impl Default for Error {
@@ -27,7 +27,17 @@ impl Default for Error {
             // please don't use this value
             kind: ErrorKind::InvalidUtf8,
             spans: vec![],
-            extra_message: None,
+            note: None,
         }
+    }
+}
+
+// I defined it here because it's usually for error messages.
+pub fn to_ordinal(n: usize) -> String {
+    match n {
+        _ if n % 10 == 1 && n != 11 => format!("{n}st"),
+        _ if n % 10 == 2 && n != 12 => format!("{n}nd"),
+        _ if n % 10 == 3 && n != 13 => format!("{n}rd"),
+        _ => format!("{n}th"),
     }
 }

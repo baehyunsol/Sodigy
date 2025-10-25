@@ -1,34 +1,35 @@
 use crate::Block;
 use sodigy_error::{Error, ErrorKind};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
     pub fn check(&self, top_level: bool) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
-        let mut span_by_name: HashMap<InternedString, Span> = HashMap::new();
+
+        // name collision check
+        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+
+        // for error messages
+        let mut let_spans = HashSet::new();
 
         for r#let in self.lets.iter() {
             if let Err(e) = r#let.check() {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(r#let.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: r#let.name,
-                        },
-                        span: r#let.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(r#let.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(r#let.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(r#let.name_span);
+                    e.insert(vec![r#let.name_span]);
                 },
             }
+
+            let_spans.insert(r#let.name_span);
         }
 
         for func in self.funcs.iter() {
@@ -36,19 +37,12 @@ impl Block {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(func.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: func.name,
-                        },
-                        span: func.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(func.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(func.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(func.name_span);
+                    e.insert(vec![func.name_span]);
                 },
             }
         }
@@ -58,19 +52,12 @@ impl Block {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(r#struct.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: r#struct.name,
-                        },
-                        span: r#struct.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(r#struct.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(r#struct.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(r#struct.name_span);
+                    e.insert(vec![r#struct.name_span]);
                 },
             }
         }
@@ -80,19 +67,12 @@ impl Block {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(r#enum.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: r#enum.name,
-                        },
-                        span: r#enum.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(r#enum.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(r#enum.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(r#enum.name_span);
+                    e.insert(vec![r#enum.name_span]);
                 },
             }
         }
@@ -101,7 +81,7 @@ impl Block {
             if !top_level {
                 errors.push(Error {
                     kind: ErrorKind::CannotDeclareInlineModule,
-                    span: module.keyword_span,
+                    spans: module.keyword_span.simple_error(),
                     ..Error::default()
                 });
             }
@@ -110,19 +90,12 @@ impl Block {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(module.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: module.name,
-                        },
-                        span: module.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(module.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(module.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(module.name_span);
+                    e.insert(vec![module.name_span]);
                 },
             }
         }
@@ -132,20 +105,37 @@ impl Block {
                 errors.extend(e);
             }
 
-            match span_by_name.entry(r#use.name) {
-                Entry::Occupied(e) => {
-                    errors.push(Error {
-                        kind: ErrorKind::NameCollision {
-                            name: r#use.name,
-                        },
-                        span: r#use.name_span,
-                        extra_span: Some(*e.get()),
-                        ..Error::default()
-                    });
+            match spans_by_name.entry(r#use.name) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(r#use.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(r#use.name_span);
+                    e.insert(vec![r#use.name_span]);
                 },
+            }
+        }
+
+        for (name, spans) in spans_by_name.iter() {
+            if spans.len() > 1 {
+                let note = if spans.iter().all(|span| let_spans.contains(span)) {
+                    Some(String::from("You cannot shadow names in Sodigy."))
+                } else {
+                    None
+                };
+
+                errors.push(Error {
+                    kind: ErrorKind::NameCollision {
+                        name: *name,
+                    },
+                    spans: spans.iter().map(
+                        |span| RenderableSpan {
+                            span: *span,
+                            auxiliary: false,
+                            note: None,
+                        }
+                    ).collect(),
+                    note,
+                });
             }
         }
 

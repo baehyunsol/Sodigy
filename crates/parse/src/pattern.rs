@@ -55,6 +55,16 @@ impl FullPattern {
         result.extend(self.pattern.bound_names());
         result
     }
+
+    pub fn error_span(&self) -> Span {
+        if let Some(name_span) = self.name_span {
+            name_span.merge(self.pattern.error_span())
+        }
+
+        else {
+            self.pattern.error_span()
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -139,6 +149,7 @@ impl Pattern {
         }
     }
 
+    // TODO: name bindings in `Pattern::Or` have to be treated specially
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             Pattern::Number { .. } |
@@ -298,7 +309,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::ParenthesisOrBrace,
                             got: ErrorToken::Group(*delim),
                         },
-                        span: *span2,
+                        spans: span2.simple_error(),
                         ..Error::default()
                     }]);
                 },
@@ -341,7 +352,7 @@ impl<'t> Tokens<'t> {
                     if let (Some(name), Some(name_span)) = (elements[0].name, elements[0].name_span) {
                         errors.push(Error {
                             kind: ErrorKind::CannotBindNameToAnotherName(name),
-                            span: name_span,
+                            spans: name_span.simple_error(),
                             ..Error::default()
                         });
                     }
@@ -349,7 +360,7 @@ impl<'t> Tokens<'t> {
                     if let Some(r#type) = &elements[0].r#type {
                         errors.push(Error {
                             kind: ErrorKind::CannotAnnotateType,
-                            span: r#type.error_span(),
+                            spans: r#type.error_span().simple_error(),
                             ..Error::default()
                         });
                     }

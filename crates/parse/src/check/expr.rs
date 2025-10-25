@@ -1,7 +1,7 @@
 use super::check_call_args;
 use crate::Expr;
 use sodigy_error::{Error, ErrorKind};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -94,15 +94,28 @@ impl Expr {
             },
             Expr::Lambda { args, r#type, value, .. } => {
                 let mut errors = vec![];
-                let mut span_by_name: HashMap<InternedString, Span> = HashMap::new();
-                let mut must_have_default_value = false;
+                let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+
+                // for error messages
+                let mut span_of_arg_with_default_value = None;
 
                 for arg in args.iter() {
-                    if must_have_default_value && arg.default_value.is_none() {
+                    if let Some(span) = span_of_arg_with_default_value && arg.default_value.is_none() {
                         errors.push(Error {
                             kind: ErrorKind::NonDefaultValueAfterDefaultValue,
-                            span: arg.name_span,
-                            ..Error::default()
+                            spans: vec![
+                                RenderableSpan {
+                                    span: arg.name_span,
+                                    auxiliary: false,
+                                    note: Some(String::from("This argument must have a default value.")),
+                                },
+                                RenderableSpan {
+                                    span,
+                                    auxiliary: true,
+                                    note: Some(String::from("This argument has a default value.")),
+                                },
+                            ],
+                            note: None,
                         });
                     }
 
@@ -111,23 +124,34 @@ impl Expr {
                     }
 
                     if arg.default_value.is_some() {
-                        must_have_default_value = true;
+                        span_of_arg_with_default_value = Some(arg.name_span);
                     }
 
-                    match span_by_name.entry(arg.name) {
-                        Entry::Occupied(e) => {
-                            errors.push(Error {
-                                kind: ErrorKind::NameCollision {
-                                    name: arg.name,
-                                },
-                                span: arg.name_span,
-                                extra_span: Some(*e.get()),
-                                ..Error::default()
-                            });
+                    match spans_by_name.entry(arg.name) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().push(arg.name_span);
                         },
                         Entry::Vacant(e) => {
-                            e.insert(arg.name_span);
+                            e.insert(vec![arg.name_span]);
                         },
+                    }
+
+                    for (name, spans) in spans_by_name.iter() {
+                        if spans.len() > 1 {
+                            errors.push(Error {
+                                kind: ErrorKind::NameCollision {
+                                    name: *name,
+                                },
+                                spans: spans.iter().map(
+                                    |span| RenderableSpan {
+                                        span: *span,
+                                        auxiliary: false,
+                                        note: None,
+                                    }
+                                ).collect(),
+                                note: None,
+                            });
+                        }
                     }
                 }
 

@@ -1,11 +1,11 @@
 use crate::{Block, Intrinsic, If, Session, Type};
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
-use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
@@ -190,16 +190,46 @@ impl Expr {
                                         match arg_index {
                                             Some(i) => {
                                                 if let Some(mir_arg) = &mir_args[i] {
-                                                    session.errors.push(Error {
-                                                        kind: ErrorKind::KeywordArgumentRepeated(keyword),
-                                                        span: keyword_span,
-                                                        extra_span: if let Some((_, span)) = &given_keyword_arguments_[i] {
-                                                            Some(*span)
-                                                        } else {
-                                                            Some(mir_arg.error_span())
-                                                        },
-                                                        ..Error::default()
-                                                    });
+                                                    let error = if let Some((_, span)) = given_keyword_arguments_[i] {
+                                                        Error {
+                                                            kind: ErrorKind::KeywordArgumentRepeated(keyword),
+                                                            spans: vec![
+                                                                RenderableSpan {
+                                                                    span: keyword_span,
+                                                                    auxiliary: false,
+                                                                    note: None,
+                                                                },
+                                                                RenderableSpan {
+                                                                    span: span,
+                                                                    auxiliary: false,
+                                                                    note: None,
+                                                                },
+                                                            ],
+                                                            note: None,
+                                                        }
+                                                    }
+
+                                                    else {
+                                                        let keyword_str = String::from_utf8_lossy(&unintern_string(keyword, &session.intermediate_dir).unwrap().unwrap()).to_string();
+                                                        Error {
+                                                            kind: ErrorKind::KeywordArgumentRepeated(keyword),
+                                                            spans: vec![
+                                                                RenderableSpan {
+                                                                    span: keyword_span,
+                                                                    auxiliary: false,
+                                                                    note: None,
+                                                                },
+                                                                RenderableSpan {
+                                                                    span: mir_arg.error_span(),
+                                                                    auxiliary: false,
+                                                                    note: Some(format!("This argument is `{keyword_str}` because it's the {} argument.", to_ordinal(i + 1))),
+                                                                },
+                                                            ],
+                                                            note: None,
+                                                        }
+                                                    };
+
+                                                    session.errors.push(error);
                                                 }
 
                                                 match Expr::from_hir(&hir_arg.arg, session) {
@@ -216,8 +246,8 @@ impl Expr {
                                             None => {
                                                 session.errors.push(Error {
                                                     kind: ErrorKind::InvalidKeywordArgument(keyword),
-                                                    span: keyword_span,
-                                                    ..Error::default()
+                                                    spans: keyword_span.simple_error(),
+                                                    note: None,
                                                 });
                                                 has_error = true;
                                             },
@@ -282,8 +312,8 @@ impl Expr {
                                 Some((_, keyword_span)) => {
                                     session.errors.push(Error {
                                         kind: ErrorKind::KeywordArgumentNotAllowed,
-                                        span: keyword_span,
-                                        ..Error::default()
+                                        spans: keyword_span.simple_error(),
+                                        note: None,
                                     });
                                     has_error = true;
                                 },
@@ -394,11 +424,22 @@ impl Expr {
                             match field_index {
                                 Some(i) => {
                                     if let Some(mir_field) = &mir_fields[i] {
+                                        // TODO: it might generate a weird error message if a field repeated more than twice
                                         session.errors.push(Error {
                                             kind: ErrorKind::StructFieldRepeated(hir_field.name),
-                                            span: hir_field.name_span,
-                                            extra_span: name_spans[i],
-                                            ..Error::default()
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: hir_field.name_span,
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                                RenderableSpan {
+                                                    span: name_spans[i].unwrap(),
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                            ],
+                                            note: None,
                                         });
                                     }
 
@@ -417,8 +458,8 @@ impl Expr {
                                     has_error = true;
                                     session.errors.push(Error {
                                         kind: ErrorKind::InvalidStructField(hir_field.name),
-                                        span: hir_field.name_span,
-                                        ..Error::default()
+                                        spans: hir_field.name_span.simple_error(),
+                                        note: None,
                                     });
                                 },
                             }
@@ -441,11 +482,22 @@ impl Expr {
                                     mir_fields_unwrapped.push(mir_field);
                                 },
                                 None => {
+                                    let field_name = String::from_utf8_lossy(&unintern_string(field_defs[i].name, &session.intermediate_dir).unwrap().unwrap()).to_string();
                                     session.errors.push(Error {
                                         kind: ErrorKind::MissingStructField(field_defs[i].name),
-                                        span: group_span,
-                                        extra_span: Some(field_defs[i].name_span),
-                                        ..Error::default()
+                                        spans: vec![
+                                            RenderableSpan {
+                                                span: group_span,
+                                                auxiliary: false,
+                                                note: Some(format!("This instance is missing field `{field_name}`.")),
+                                            },
+                                            RenderableSpan {
+                                                span: field_defs[i].name_span,
+                                                auxiliary: true,
+                                                note: Some(format!("The field `{field_name}` is defined here.")),
+                                            },
+                                        ],
+                                        note: None,
                                     });
                                     has_error = true;
                                 },

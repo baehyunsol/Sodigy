@@ -6,7 +6,7 @@ use crate::{
     Type,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
@@ -95,38 +95,68 @@ impl<'t> Tokens<'t> {
             let (name, name_span) = self.pop_name_and_span()?;
             let mut r#type = None;
             let mut default_value = None;
+            let mut prev_colon_span = None;
+            let mut prev_assignment_span = None;
 
             'colon_or_value_or_comma: loop {
                 match self.peek() {
                     Some(Token { kind: TokenKind::Punct(Punct::Colon), span }) => {
+                        let span = *span;
+
                         if r#type.is_some() {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
                                     expected: ErrorToken::Punct(Punct::Comma),
                                     got: ErrorToken::Punct(Punct::Colon),
                                 },
-                                span: *span,
+                                spans: vec![
+                                    RenderableSpan {
+                                        span,
+                                        auxiliary: false,
+                                        note: None,
+                                    },
+                                    RenderableSpan {
+                                        span: prev_colon_span.unwrap(),
+                                        auxiliary: true,
+                                        note: Some(String::from("We already have a type annotation here.")),
+                                    },
+                                ],
                                 ..Error::default()
                             }]);
                         }
 
                         self.cursor += 1;
+                        prev_colon_span = Some(span);
                         r#type = Some(self.parse_type()?);
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), span }) => {
+                        let span = *span;
+
                         if default_value.is_some() {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
                                     expected: ErrorToken::Punct(Punct::Comma),
                                     got: ErrorToken::Punct(Punct::Assign),
                                 },
-                                span: *span,
-                                ..Error::default()
+                                spans: vec![
+                                    RenderableSpan {
+                                        span,
+                                        auxiliary: false,
+                                        note: None,
+                                    },
+                                    RenderableSpan {
+                                        span: prev_assignment_span.unwrap(),
+                                        auxiliary: true,
+                                        note: Some(String::from("We already have a default value here.")),
+                                    },
+                                ],
+                                note: None,
                             }]);
                         }
 
                         self.cursor += 1;
+                        prev_assignment_span = Some(span);
                         default_value = Some(self.parse_expr()?);
                         continue 'colon_or_value_or_comma;
                     },
@@ -155,7 +185,7 @@ impl<'t> Tokens<'t> {
                                 expected: ErrorToken::ColonOrComma,
                                 got: (&t.kind).into(),
                             },
-                            span: t.span,
+                            spans: t.span.simple_error(),
                             ..Error::default()
                         }]);
                     },
@@ -179,7 +209,12 @@ impl<'t> Tokens<'t> {
                 (
                     Some(Token { kind: TokenKind::Identifier(id), span }),
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
-                ) => Some((*id, *span)),
+                ) => {
+                    let (id, span) = (*id, *span);
+                    self.cursor += 2;
+
+                    Some((id, span))
+                },
                 _ => None,
             };
             let arg = self.parse_expr()?;
@@ -198,7 +233,7 @@ impl<'t> Tokens<'t> {
                             expected: ErrorToken::Punct(Punct::Comma),
                             got: (&t.kind).into(),
                         },
-                        span: t.span,
+                        spans: t.span.simple_error(),
                         ..Error::default()
                     }]);
                 },
