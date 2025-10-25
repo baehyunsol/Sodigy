@@ -176,7 +176,7 @@ fn render_close_spans(
                         bottom = bottom.max(row);
                         left = left.min(col);
                         right = right.max(col);
-                        curr_byte_color = Some(primary_color);
+                        curr_byte_color = Some(if s.auxiliary { auxiliary_color } else { primary_color });
 
                         if beginning_row_col.is_none() {
                             beginning_row_col = Some((row + 1, col + 1));
