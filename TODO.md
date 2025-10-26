@@ -1,3 +1,7 @@
+# 54. keywordargumentrepeated error
+
+if `x` is repeated 3 times (let's say x1, x2 and x3). it throws an error for x1&x2, and x2&x3. I want it to merge those errors...
+
 # 53. `pub` keyword
 
 Same as Rust
