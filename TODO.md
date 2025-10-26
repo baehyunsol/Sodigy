@@ -231,6 +231,14 @@ fn main(world: World) -> World = match foo() {
 
 What if we want a library of impure functions?
 
+---
+
+Some notes
+
+1. In rust, it's okay to call main functions in other functions!!
+2. In Sodigy, what if someone tries `fn main(world: World) -> World = { let sim1 = main(world.do_something1()); let sim2 = main(world.do_something2()); if world.cond() { sim1 } else { sim2 } }`?
+  - In order to prevent this, `world` and `world.do_something()` must be different types...
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`

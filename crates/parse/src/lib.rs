@@ -1,5 +1,6 @@
 use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
+use sodigy_string::intern_string;
 
 mod alias;
 mod assert;
@@ -55,6 +56,15 @@ pub fn parse(lex_session: LexSession) -> Session {
 
     if let Err(errors) = ast.check(true /* top_level */) {
         session.errors = errors;
+    }
+
+    let main = intern_string(b"main", &session.intermediate_dir).unwrap();
+
+    for func in ast.funcs.iter() {
+        if func.name == main {
+            session.main_func = Some(func.name_span);
+            break;
+        }
     }
 
     session.ast = ast;

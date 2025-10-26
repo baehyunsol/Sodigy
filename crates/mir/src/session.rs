@@ -10,6 +10,7 @@ mod span_string_map;
 
 pub struct Session {
     pub intermediate_dir: String,
+    pub main_func: Option<Span>,
     pub func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>,
     pub struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>,
 
@@ -46,6 +47,7 @@ impl Session {
     pub fn from_hir_session(hir_session: &hir::Session) -> Session {
         Session {
             intermediate_dir: hir_session.intermediate_dir.clone(),
+            main_func: hir_session.main_func,
             func_shapes: hir_session.funcs.iter().map(
                 |func| (
                     func.name_span,

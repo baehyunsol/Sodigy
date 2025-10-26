@@ -23,7 +23,6 @@ pub fn python_code_gen(
 ) -> Result<Vec<u8>, FileError> {
     let mut lines = vec![];
     let mut indent;
-    let mut main_func_label = None;
     let mut help_comment_map = HashMap::new();
     let capture_output = matches!(config.mode, CodeGenMode::Test);
 
@@ -31,11 +30,6 @@ pub fn python_code_gen(
         for func in session.funcs.iter() {
             let func_name = unintern_string(func.name, &config.intermediate_dir)?.unwrap();
             help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
-
-            // TODO: what if there's an inline function named "main"? Do I have to restrict this? maybe...
-            if func_name == b"main" {
-                main_func_label = Some(func.label_id.unwrap());
-            }
         }
 
         for r#let in session.lets.iter() {
@@ -304,7 +298,8 @@ pub fn python_code_gen(
             lines.push(String::from("    sys.exit(1)"));
         },
         CodeGenMode::Binary => {
-            lines.push(format!("run({})", main_func_label.unwrap()));
+            // TODO: how do we find the main function?
+            // lines.push(format!("run({})", main_func_label.unwrap()));
         },
     }
 

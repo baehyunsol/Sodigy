@@ -16,6 +16,7 @@ use sodigy_string::intern_string;
 
 pub struct Session {
     pub intermediate_dir: String,
+    pub main_func: Option<Span>,
     pub name_stack: Vec<Namespace>,
 
     // `func_default_values.last()` has the default values of functions
@@ -58,6 +59,7 @@ impl Session {
 
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
+            main_func: parse_session.main_func,
             name_stack: vec![prelude_namespace],
             func_default_values: vec![],
             is_in_debug_context: false,
