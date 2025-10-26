@@ -104,6 +104,14 @@ impl<'t> Tokens<'t> {
                 },
             };
 
+            if let Some(public) = &attribute.public && !is_top_level {
+                errors.push(Error {
+                    kind: ErrorKind::CannotBePublic,
+                    spans: public.keyword_span.simple_error(),
+                    note: None,
+                });
+            }
+
             // FIXME: the same code is repeated multiple times...
             match self.peek().map(|t| &t.kind) {
                 // `parse_let` might return multiple `Let`s because if there's a pattern,
@@ -185,41 +193,51 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Assert)) => match self.parse_assert() {
-                    Ok(mut assert) => {
-                        if let Some(doc_comment) = &attribute.doc_comment {
-                            errors.push(Error {
-                                kind: ErrorKind::DocCommentNotAllowed,
-                                spans: vec![
-                                    RenderableSpan {
-                                        span: assert.keyword_span,
-                                        auxiliary: false,
-                                        note: Some(String::from("This assertion is documented by the doc comment.")),
-                                    },
-                                    RenderableSpan {
-                                        span: doc_comment.0.last().unwrap().marker_span,
-                                        auxiliary: true,
-                                        note: Some(String::from("This doc comment is documenting the assertion.")),
-                                    },
-                                ],
-                                note: Some(String::from("If you want to add a note, use `@note` decorator.")),
-                            });
-                        }
+                Some(TokenKind::Keyword(Keyword::Assert)) => {
+                    if let Some(public) = &attribute.public && is_top_level {
+                        errors.push(Error {
+                            kind: ErrorKind::CannotBePublic,
+                            spans: public.keyword_span.simple_error(),
+                            note: None,
+                        });
+                    }
 
-                        assert.attribute = attribute;
-                        asserts.push(assert);
-                    },
-                    Err(e) => {
-                        errors.extend(e);
+                    match self.parse_assert() {
+                        Ok(mut assert) => {
+                            if let Some(doc_comment) = &attribute.doc_comment {
+                                errors.push(Error {
+                                    kind: ErrorKind::DocCommentNotAllowed,
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: assert.keyword_span,
+                                            auxiliary: false,
+                                            note: Some(String::from("This assertion is documented by the doc comment.")),
+                                        },
+                                        RenderableSpan {
+                                            span: doc_comment.0.last().unwrap().marker_span,
+                                            auxiliary: true,
+                                            note: Some(String::from("This doc comment is documenting the assertion.")),
+                                        },
+                                    ],
+                                    note: Some(String::from("If you want to add a note, use `@note` decorator.")),
+                                });
+                            }
 
-                        if is_top_level {
-                            self.march_until_top_level_statement();
-                        }
+                            assert.attribute = attribute;
+                            asserts.push(assert);
+                        },
+                        Err(e) => {
+                            errors.extend(e);
 
-                        else {
-                            return Err(errors);
-                        }
-                    },
+                            if is_top_level {
+                                self.march_until_top_level_statement();
+                            }
+
+                            else {
+                                return Err(errors);
+                            }
+                        },
+                    }
                 },
                 Some(TokenKind::Keyword(Keyword::Type)) => match self. parse_alias() {
                     Ok(mut alias) => {

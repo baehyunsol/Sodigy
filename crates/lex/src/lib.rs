@@ -1119,6 +1119,7 @@ impl Session {
                         b"type" => TokenKind::Keyword(Keyword::Type),
                         b"module" => TokenKind::Keyword(Keyword::Module),
                         b"use" => TokenKind::Keyword(Keyword::Use),
+                        b"pub" => TokenKind::Keyword(Keyword::Pub),
                         b"if" => TokenKind::Keyword(Keyword::If),
                         b"else" => TokenKind::Keyword(Keyword::Else),
                         b"match" => TokenKind::Keyword(Keyword::Match),

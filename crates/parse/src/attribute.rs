@@ -2,12 +2,19 @@ use crate::{CallArg, Tokens};
 use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, Punct, Token, TokenKind};
+use sodigy_token::{
+    Delim,
+    Keyword,
+    Punct,
+    Token,
+    TokenKind,
+};
 
 #[derive(Clone, Debug)]
 pub struct Attribute {
     pub doc_comment: Option<DocComment>,
     pub decorators: Vec<Decorator>,
+    pub public: Option<Public>,
 }
 
 impl Attribute {
@@ -15,11 +22,12 @@ impl Attribute {
         Attribute {
             doc_comment: None,
             decorators: vec![],
+            public: None,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.doc_comment.is_none() && self.decorators.is_empty()
+        self.doc_comment.is_none() && self.decorators.is_empty() && self.public.is_none()
     }
 }
 
@@ -92,12 +100,22 @@ impl Decorator {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Public {
+    pub keyword_span: Span,
+
+    // `pub` and `pub()` are different!
+    pub args: Option<Vec<(InternedString, Span)>>,
+    pub arg_group_span: Option<Span>,
+}
+
 impl<'t> Tokens<'t> {
     // If there are multiple doc comments, it throws an error.
     pub fn collect_attribute(&mut self) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];
         let mut doc_comment_buffer = vec![];
         let mut decorator_buffer = vec![];
+        let mut public = None;
 
         loop {
             match self.peek2() {
@@ -147,6 +165,22 @@ impl<'t> Tokens<'t> {
                         }
                     }
                 },
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Pub), span }), _) => {
+                    let keyword_span = *span;
+                    self.cursor += 1;
+
+                    match self.peek() {
+                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => todo!(),
+                        _ => {},
+                    }
+
+                    public = Some(Public {
+                        keyword_span,
+                        args: None,
+                        arg_group_span: None,
+                    });
+                    break;
+                },
                 _ => {
                     break;
                 },
@@ -162,6 +196,7 @@ impl<'t> Tokens<'t> {
             Ok(Attribute {
                 doc_comment,
                 decorators: decorator_buffer,
+                public,
             })
         }
 

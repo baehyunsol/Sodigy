@@ -105,8 +105,24 @@ pub fn render_spans(
                     groups.push(render_close_spans(&[spans[0].0.clone(), spans[1].0.clone()], option, session));
                 }
             },
-            // TODO: I have to group close spans... but I'm too lazy to do that
-            3.. => todo!(),
+            3.. => {
+                let mut merged_rect = spans[0].1;
+
+                for (_, rect) in spans[1..].iter() {
+                    merged_rect = merge_rects(merged_rect, *rect);
+                }
+
+                let (merged_w, merged_h) = (merged_rect.2 - merged_rect.0, merged_rect.3 - merged_rect.1);
+
+                // TODO: I have to group close spans... but I'm too lazy to do that
+                if merged_w > option.max_width || merged_h > option.max_height {
+                    todo!()
+                }
+
+                else {
+                    groups.push(render_close_spans(&spans.iter().map(|(span, _)| span.clone()).collect::<Vec<_>>(), option, session));
+                }
+            },
         }
     }
 

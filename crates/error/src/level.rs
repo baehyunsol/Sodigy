@@ -33,6 +33,7 @@ impl ErrorLevel {
             ErrorKind::DocCommentForNothing |
             ErrorKind::DocCommentNotAllowed |
             ErrorKind::DecoratorNotAllowed |
+            ErrorKind::CannotBePublic |
             ErrorKind::BlockWithoutValue |
             ErrorKind::StructWithoutField |
             ErrorKind::EmptyCurlyBraceBlock |

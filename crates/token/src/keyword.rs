@@ -8,6 +8,7 @@ pub enum Keyword {
     Type,
     Module,
     Use,
+    Pub,
     If,
     Else,
     Match,

@@ -8,45 +8,11 @@ Same as Rust
 
 Attribute parser can handle this. Make sure to break immediately after parsing `pub` keyword!
 
-# 52. More helpful error messages
-
-1. extra_span
-  - 지금은 `Option<Span>`인데 `Vec<Span>`이면 더 좋을 듯?
-2. spans from multiple files
-  - span과 def_span을 함께 보여주면 좋을 때가 많음, 근데 걔네가 다른 파일에 있을 수도 있잖아?
-  - span이 여러 파일에 걸친 error message도 만들어야 함
-3. span vs extra span
-  - 지금은 둘을 구분없이 밑줄치고 있는데, 구분이 있으면 좋지 않을까
-  - 사실 구분이 필요할 때도 있고 아닐 때도 있음. 예를 들어서 cyclic let의 경우 모든 이름들이 동등하게 중요한데, type error에서는 type annotation과 expr을 구분하는게 도움됨.
-4. add message to spans
-  - 밑줄에다가 "this is the type annotation"이라고 바로 적어주면 더 도움될텐데..!!
-
-이걸 다 정리하면
-
-현재 구현: `span: Span, extra_span: Option<Span>` vs 새 구현: `spans: Vec<ErrorSpan>`
-
-```rs
-struct ErrorSpan {
-    span: Span,
-    auxiliary: bool,
-    message: Option<String>,
-}
-```
-
-으로 하고, 여기에 추가로 multi-file span까지!!
-
-I don't think using arrows is a good idea. How about using labels?
-
-```
-let not_an_integer = "";
-
-fn foo(x): Int = not_an_integer;
-           ^^^   ^^^^^^^^^^^^^^
-           (1)   (2)
-
-(1): According to type annotation, it has to be `Int`.
-(2): This value has type `String`.
-```
+1. `pub`, `pub(crate)`, `pub(mod)`
+  - Are we gonna use the term `crate`?
+  - IIRC, `mod` is already a keyword. Should `pub` and `crate` also be keywords?
+2. `pub(self)`, `pub(super)` -> I haven't seen these or used these
+3. `pub(in crate::tools)` -> what is this?
 
 # 51. Number type
 
@@ -166,28 +132,13 @@ A plural form is `bytecodes` -> fix all!!
 
 # 41. String & Char & Int & Bytes
 
-Conclusion
-
-1. You can easily cast a `Char` to an `Int`, but they're different.
-  - Internally, they're the same. Casting a `Char` to an `Int` is a nop, and casting an `Int` to a `Char` does a bound check.
-2. In Sodigy programmer's perspective, `String` is just an alias for `[Char]`.
-  - But the runtime treats them differently. Since the compiler can perfectly inference all the types, it emits different bytecode.
-3. `b'_'` has `Byte` type. You can easily cast a `Byte` to an `Int`, but they're different.
-  - Internally, they're the same. Casting a `Byte` to an `Int` is a nop, and casting an `Int` to a `Byte` does a bound check.
-  - If it's a multibyte literal, it's a compile error.
-4. `Bytes` is like `String`. `Bytes` is just an alias for `[Byte]`, but the runtime distinguishes them.
-
----
-
-I guess we need a radical change in the runtime...
-
 Runtime has 2 types: scalar vs compound
 
 1. `scalar` is a type that can be represented in 32 bits (`Byte`, `Char`).
 2. `compound` is a compound value of 0 or more scalar or compound values. It's reference-counted.
 3. `List`, `Tuple` and `Struct` are all just compound types. An element of a compound type can be a scalar or a compound.
-4. String is just `[Char]` and `Bytes` is just `[Byte]`.
-5. An arbitrary width integer is also just a compound type.
+4. `String` is just `[Char]` and `Bytes` is just `[Byte]`.
+5. An arbitrary-width integer is also just a compound type.
   - Each scalar value can only be accessed by the runtime, and it represents a digit.
 6. Issue: in order for the runtime to free allocated memory, it has to know whether a value is scalar or compound. But who stores such information?
   - The bytecodes must inform the runtime how to free the memory.
@@ -719,15 +670,6 @@ issues
   - 자료구조들을 싹다 memory에 올리는게 항상 가능할까?
 4. pitfalls
   - Rust 문서 읽다가 알아낸 거: `TypeVar(0) = Option(TypeVar(0))`을 unify하려고 시도하면 무한 루프에 빠질 수도 있음. 이거 안 걸리게 조심하기!!
-
-# 10. func arg errors
-
-1. positional arg만 있는 경우
-  - expected 5, got 4
-    - 뭐가 missing인지 찾을 수 있음??
-    - default value가 있으면 머리 아픔...
-  - expected 5, got 6
-  - expected 5, got 5, but there's a type error
 
 # 8. Linear type system
 

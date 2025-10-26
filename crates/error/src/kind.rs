@@ -43,6 +43,7 @@ pub enum ErrorKind {
     DocCommentForNothing,
     DocCommentNotAllowed,
     DecoratorNotAllowed,
+    CannotBePublic,
     BlockWithoutValue,
     StructWithoutField,
     EmptyCurlyBraceBlock,
