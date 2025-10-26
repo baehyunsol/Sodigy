@@ -7,6 +7,7 @@ use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::InfixOp;
+use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -174,6 +175,9 @@ impl Expr {
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
 
+                            // Another attempt for even better error messages
+                            let mut repeated_arguments: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
+
                             for hir_arg in hir_args.iter() {
                                 match hir_arg.keyword {
                                     Some((keyword, keyword_span)) => {
@@ -190,46 +194,69 @@ impl Expr {
                                         match arg_index {
                                             Some(i) => {
                                                 if let Some(mir_arg) = &mir_args[i] {
-                                                    let error = if let Some((_, span)) = given_keyword_arguments_[i] {
-                                                        Error {
-                                                            kind: ErrorKind::KeywordArgumentRepeated(keyword),
-                                                            spans: vec![
-                                                                RenderableSpan {
+                                                    if let Some((_, span)) = given_keyword_arguments_[i] {
+                                                        match repeated_arguments.entry(keyword) {
+                                                            Entry::Occupied(mut e) => {
+                                                                e.get_mut().push(RenderableSpan {
                                                                     span: keyword_span,
                                                                     auxiliary: false,
                                                                     note: None,
-                                                                },
-                                                                RenderableSpan {
+                                                                });
+                                                                e.get_mut().push(RenderableSpan {
                                                                     span: span,
                                                                     auxiliary: false,
                                                                     note: None,
-                                                                },
-                                                            ],
-                                                            note: None,
+                                                                });
+                                                            },
+                                                            Entry::Vacant(e) => {
+                                                                e.insert(vec![
+                                                                    RenderableSpan {
+                                                                        span: keyword_span,
+                                                                        auxiliary: false,
+                                                                        note: None,
+                                                                    },
+                                                                    RenderableSpan {
+                                                                        span: span,
+                                                                        auxiliary: false,
+                                                                        note: None,
+                                                                    },
+                                                                ]);
+                                                            },
                                                         }
                                                     }
 
                                                     else {
                                                         let keyword_str = String::from_utf8_lossy(&unintern_string(keyword, &session.intermediate_dir).unwrap().unwrap()).to_string();
-                                                        Error {
-                                                            kind: ErrorKind::KeywordArgumentRepeated(keyword),
-                                                            spans: vec![
-                                                                RenderableSpan {
+
+                                                        match repeated_arguments.entry(keyword) {
+                                                            Entry::Occupied(mut e) => {
+                                                                e.get_mut().push(RenderableSpan {
                                                                     span: keyword_span,
                                                                     auxiliary: false,
                                                                     note: None,
-                                                                },
-                                                                RenderableSpan {
+                                                                });
+                                                                e.get_mut().push(RenderableSpan {
                                                                     span: mir_arg.error_span(),
                                                                     auxiliary: false,
                                                                     note: Some(format!("This argument is `{keyword_str}` because it's the {} argument.", to_ordinal(i + 1))),
-                                                                },
-                                                            ],
-                                                            note: None,
+                                                                });
+                                                            },
+                                                            Entry::Vacant(e) => {
+                                                                e.insert(vec![
+                                                                    RenderableSpan {
+                                                                        span: keyword_span,
+                                                                        auxiliary: false,
+                                                                        note: None,
+                                                                    },
+                                                                    RenderableSpan {
+                                                                        span: mir_arg.error_span(),
+                                                                        auxiliary: false,
+                                                                        note: Some(format!("This argument is `{keyword_str}` because it's the {} argument.", to_ordinal(i + 1))),
+                                                                    },
+                                                                ]);
+                                                            },
                                                         }
-                                                    };
-
-                                                    session.errors.push(error);
+                                                    }
                                                 }
 
                                                 match Expr::from_hir(&hir_arg.arg, session) {
@@ -266,6 +293,22 @@ impl Expr {
                                         positional_arg_cursor += 1;
                                     },
                                 }
+                            }
+
+                            for (keyword, error_spans) in repeated_arguments.into_iter() {
+                                // remove repeats and sort by span
+                                let mut error_spans = error_spans.into_iter().map(
+                                    |span| (span.span, span)
+                                ).collect::<HashMap<_, _>>().into_iter().map(
+                                    |(_, span)| span
+                                ).collect::<Vec<_>>();
+                                error_spans.sort_by_key(|span| span.span);
+
+                                session.errors.push(Error {
+                                    kind: ErrorKind::KeywordArgumentRepeated(keyword),
+                                    spans: error_spans,
+                                    note: None,
+                                });
                             }
 
                             for i in 0..arg_defs.len() {
@@ -391,6 +434,8 @@ impl Expr {
                     },
                 };
                 let mut generic_defs = vec![];
+                // for better error messages
+                let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
                 match session.struct_shapes.get(&def_span) {
                     Some((field_defs, generic_defs_)) => {
@@ -424,23 +469,34 @@ impl Expr {
                             match field_index {
                                 Some(i) => {
                                     if let Some(mir_field) = &mir_fields[i] {
-                                        // TODO: it might generate a weird error message if a field repeated more than twice
-                                        session.errors.push(Error {
-                                            kind: ErrorKind::StructFieldRepeated(hir_field.name),
-                                            spans: vec![
-                                                RenderableSpan {
+                                        match repeated_fields.entry(hir_field.name) {
+                                            Entry::Occupied(mut e) => {
+                                                e.get_mut().push(RenderableSpan {
                                                     span: hir_field.name_span,
                                                     auxiliary: false,
                                                     note: None,
-                                                },
-                                                RenderableSpan {
+                                                });
+                                                e.get_mut().push(RenderableSpan {
                                                     span: name_spans[i].unwrap(),
                                                     auxiliary: false,
                                                     note: None,
-                                                },
-                                            ],
-                                            note: None,
-                                        });
+                                                });
+                                            },
+                                            Entry::Vacant(e) => {
+                                                e.insert(vec![
+                                                    RenderableSpan {
+                                                        span: hir_field.name_span,
+                                                        auxiliary: false,
+                                                        note: None,
+                                                    },
+                                                    RenderableSpan {
+                                                        span: name_spans[i].unwrap(),
+                                                        auxiliary: false,
+                                                        note: None,
+                                                    },
+                                                ]);
+                                            },
+                                        }
                                     }
 
                                     match Expr::from_hir(&hir_field.value, session) {
@@ -463,6 +519,22 @@ impl Expr {
                                     });
                                 },
                             }
+                        }
+
+                        for (field_name, error_spans) in repeated_fields.into_iter() {
+                            // remove repeats and sort by span
+                            let mut error_spans = error_spans.into_iter().map(
+                                |span| (span.span, span)
+                            ).collect::<HashMap<_, _>>().into_iter().map(
+                                |(_, span)| span
+                            ).collect::<Vec<_>>();
+                            error_spans.sort_by_key(|span| span.span);
+
+                            session.errors.push(Error {
+                                kind: ErrorKind::StructFieldRepeated(field_name),
+                                spans: error_spans,
+                                note: None,
+                            });
                         }
 
                         for i in 0..field_defs.len() {

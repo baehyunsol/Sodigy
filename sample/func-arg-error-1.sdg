@@ -1,3 +1,4 @@
 fn add(x, y, z) = x + y + z;
 
 let double_x = add(10, 20, x=30);
+let triple_x = add(10, x=0,x=0,x=0);
