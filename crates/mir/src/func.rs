@@ -20,6 +20,10 @@ impl Func {
         let mut arg_types = Vec::with_capacity(hir_func.args.len());
         let type_annotation_span = hir_func.r#type.as_ref().map(|t| t.error_span());
 
+        for generic in hir_func.generics.iter() {
+            session.generic_def_span_rev.insert(generic.name_span, hir_func.name_span);
+        }
+
         for hir_arg in hir_func.args.iter() {
             match hir_arg.r#type.as_ref().map(|r#type| Type::from_hir(r#type, session)) {
                 Some(Ok(r#type)) => {

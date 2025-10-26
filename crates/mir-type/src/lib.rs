@@ -41,7 +41,11 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
         todo!()
     }
 
-    solver.check_all_types_infered(&session.types, &session.generic_instances);
+    solver.check_all_types_infered(
+        &session.types,
+        &session.generic_instances,
+        &session.generic_def_span_rev,
+    );
 
     // In order to create error messages, we have to convert spans to strings.
     // But that's very expensive operation, so we initialize this map only when there's an error.
@@ -68,7 +72,7 @@ pub fn dump(session: &mut Session, solver: &Solver) {
                     .unwrap()
                     .unwrap_or(b"????".to_vec())
         );
-        let mut span = None;
+        let span;
 
         let r#type = match type_var {
             Type::Var { def_span, .. } => {

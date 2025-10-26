@@ -41,3 +41,19 @@ pub fn to_ordinal(n: usize) -> String {
         _ => format!("{n}th"),
     }
 }
+
+// I defined it here because it's usually for error messages.
+// Please make sure that `strs.len() > 0`
+pub fn comma_list_strs(
+    strs: &[String],
+    open_quote: &str,
+    close_quote: &str,
+    and_or: &str,
+) -> String {
+    match strs.len() {
+        0 => String::from("Internal Compiler Error"),
+        1 => format!("{open_quote}{}{close_quote}", strs[0]),
+        2 => format!("{open_quote}{}{close_quote} {and_or} {open_quote}{}{close_quote}", strs[0], strs[1]),
+        3.. => format!("{open_quote}{}{close_quote}, {}", strs[0], comma_list_strs(&strs[1..], open_quote, close_quote, and_or)),
+    }
+}

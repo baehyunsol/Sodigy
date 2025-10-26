@@ -3,13 +3,19 @@ use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, GenericDef, StructField};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
-use sodigy_string::unintern_string;
+use sodigy_string::InternedString;
 use std::collections::HashMap;
+
+mod span_string_map;
 
 pub struct Session {
     pub intermediate_dir: String,
     pub func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>,
     pub struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>,
+
+    // generic def span to func def span (or struct def span) map
+    pub generic_def_span_rev: HashMap<Span, Span>,
+
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
     pub asserts: Vec<Assert>,
@@ -30,7 +36,7 @@ pub struct Session {
 
     // We need this when we create error messages.
     // This is really expensive to initialize, so think twice before you init this.
-    pub span_string_map: Option<HashMap<Span, Vec<u8>>>,
+    pub span_string_map: Option<HashMap<Span, InternedString>>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
@@ -72,6 +78,7 @@ impl Session {
                     ),
                 )
             ).collect(),
+            generic_def_span_rev: HashMap::new(),
             lets: vec![],
             funcs: vec![],
             asserts: vec![],
@@ -81,22 +88,6 @@ impl Session {
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
         }
-    }
-
-    pub fn init_span_string_map(&mut self) {
-        if self.span_string_map.is_some() {
-            return;
-        }
-
-        let mut result = HashMap::new();
-
-        for r#let in self.lets.iter() {
-            if let Ok(Some(name)) = unintern_string(r#let.name, &self.intermediate_dir) {
-                result.insert(r#let.name_span, name);
-            }
-        }
-
-        self.span_string_map = Some(result);
     }
 }
 

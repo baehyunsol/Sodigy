@@ -268,8 +268,10 @@ fn render_span_worker(
     auxiliary_color: Color,
     info_color: Color,
 ) -> String {
-    let mut result = vec![];
+    let mut code_lines = vec![];
+    let mut note_lines = vec![];
     let (top, bottom, left, right) = rect;
+    let mut label_index = 0;
 
     for (row, line) in lines.iter().enumerate() {
         if row < top {
@@ -288,7 +290,7 @@ fn render_span_worker(
         let line_bar = " | ";
         let pre_dots = if left > 0 { " ... " } else { "" };
 
-        result.push(format!(
+        code_lines.push(format!(
             "{}{}{}{}{}",
             info_color.render_fg(&line_no),
             info_color.render_fg(&line_bar),
@@ -302,7 +304,7 @@ fn render_span_worker(
         ));
 
         if line.colors.iter().any(|c| c.is_some()) {
-            result.push(format!(
+            code_lines.push(format!(
                 "{}{}{}{}",
                 " ".repeat(line_no.len()),
                 info_color.render_fg(&line_bar),
@@ -345,7 +347,7 @@ fn render_span_worker(
             }
 
             // notes are always sorted by x
-            for (i, (x, _)) in line.notes.iter().enumerate() {
+            for (i, (x, note)) in line.notes.iter().enumerate() {
                 let x = *x;
 
                 match labels.last_mut() {
@@ -363,11 +365,14 @@ fn render_span_worker(
                         labels.push(Label { depth: 1, x, asterisk: x == 0 });
                     },
                 }
+
+                // TODO: automatically break lines if a note is too long
+                note_lines.push(auxiliary_color.render_fg(&format!("({}): {note}", label_index + i)));
             }
 
             let mut label_lines = vec![vec![b' '; line.content.len() + 7]; max_depth * 2];
 
-            for (i, label) in labels.iter().enumerate() {
+            for label in labels.iter() {
                 for y in 0..(label.depth * 2 - 1) {
                     label_lines[y][label.x] = b'|';
                 }
@@ -379,14 +384,14 @@ fn render_span_worker(
                     label_lines[label.depth * 2 - 1][label.x + 3] = b'(';
 
                     // I guess there's not gonna be more than 100 labels... right?
-                    if i >= 10 {
-                        label_lines[label.depth * 2 - 1][label.x + 4] = (i as u8 / 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 5] = (i as u8 % 10) + b'0';
+                    if label_index >= 10 {
+                        label_lines[label.depth * 2 - 1][label.x + 4] = (label_index as u8 / 10) + b'0';
+                        label_lines[label.depth * 2 - 1][label.x + 5] = (label_index as u8 % 10) + b'0';
                         label_lines[label.depth * 2 - 1][label.x + 6] = b')';
                     }
 
                     else {
-                        label_lines[label.depth * 2 - 1][label.x + 4] = i as u8 + b'0';
+                        label_lines[label.depth * 2 - 1][label.x + 4] = label_index as u8 + b'0';
                         label_lines[label.depth * 2 - 1][label.x + 5] = b')';
                     }
                 }
@@ -395,29 +400,23 @@ fn render_span_worker(
                     label_lines[label.depth * 2 - 1][label.x - 1] = b'(';
 
                     // I guess there's not gonna be more than 100 labels... right?
-                    if i >= 10 {
-                        label_lines[label.depth * 2 - 1][label.x] = (i as u8 / 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 1] = (i as u8 % 10) + b'0';
+                    if label_index >= 10 {
+                        label_lines[label.depth * 2 - 1][label.x] = (label_index as u8 / 10) + b'0';
+                        label_lines[label.depth * 2 - 1][label.x + 1] = (label_index as u8 % 10) + b'0';
                         label_lines[label.depth * 2 - 1][label.x + 2] = b')';
                     }
 
                     else {
-                        label_lines[label.depth * 2 - 1][label.x] = i as u8 + b'0';
+                        label_lines[label.depth * 2 - 1][label.x] = label_index as u8 + b'0';
                         label_lines[label.depth * 2 - 1][label.x + 1] = b')';
                     }
                 }
-            }
 
-            // an empty line for readability
-            label_lines.push(vec![]);
-
-            for (i, (_, note)) in line.notes.iter().enumerate() {
-                // TODO: automatically break lines if a note is too long
-                label_lines.push(format!("({i}): {note}").into_bytes());
+                label_index += 1;
             }
 
             for line in label_lines.iter() {
-                result.push(format!(
+                code_lines.push(format!(
                     "{}{}{}{}",
                     " ".repeat(line_no.len()),
                     info_color.render_fg(&line_bar),
@@ -428,7 +427,12 @@ fn render_span_worker(
         }
     }
 
-    result.join("\n")
+    if !note_lines.is_empty() {
+        code_lines.push(String::new());  // an empty line for readability
+        code_lines.extend(note_lines);
+    }
+
+    code_lines.join("\n")
 }
 
 fn merge_rects(r1: (usize, usize, usize, usize), r2: (usize, usize, usize, usize)) -> (usize, usize, usize, usize) {

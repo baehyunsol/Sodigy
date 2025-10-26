@@ -1,5 +1,5 @@
 use crate::Type;
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
@@ -39,10 +39,12 @@ pub enum TypeError {
     CannotInferGenericType {
         call: Span,
         generic: Span,
+        func_def: Option<Span>,
     },
     PartiallyInferedGenericType {
         call: Span,
         generic: Span,
+        func_def: Option<Span>,
         r#type: Type,
     },
     CannotApplyInfixOp {
@@ -168,22 +170,53 @@ impl RenderTypeError for MirSession {
                 spans: span.simple_error(),
                 note: None,
             },
-            TypeError::CannotInferGenericType { call, generic } => Error {
-                kind: ErrorKind::CannotInferGenericType { id: self.span_to_string(*generic) },
-                spans: todo!(),
-                note: None,
-            },
-            TypeError::PartiallyInferedGenericType {
-                call,
-                generic,
-                r#type,
-            } => Error {
-                kind: ErrorKind::PartiallyInferedGenericType {
-                    id: self.span_to_string(*generic),
-                    r#type: self.render_type(r#type),
-                },
-                spans: todo!(),
-                note: None,
+            TypeError::CannotInferGenericType { call, generic, func_def } |
+            TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
+                let generic_id = self.span_to_string(*generic);
+                let spans = match (func_def.map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
+                    (Some(Some((_, generic_defs))), Some(generic_id)) => vec![
+                        RenderableSpan {
+                            span: *call,
+                            auxiliary: false,
+                            note: Some(format!(
+                                "This function has {} type parameter{} ({}), and I cannot infer the type of `{generic_id}`.",
+                                generic_defs.len(),
+                                if generic_defs.len() == 1 { "" } else { "s" },
+                                comma_list_strs(
+                                    &generic_defs.iter().map(
+                                        |generic_def| String::from_utf8_lossy(&unintern_string(generic_def.name, &self.intermediate_dir).unwrap().unwrap()).to_string()
+                                    ).collect::<Vec<_>>(),
+                                    "`",
+                                    "`",
+                                    "and",
+                                ),
+                            )),
+                        },
+                        RenderableSpan {
+                            span: *generic,
+                            auxiliary: true,
+                            note: Some(format!("Type parameter `{generic_id}` is defined here.")),
+                        },
+                    ],
+                    _ => call.simple_error(),
+                };
+
+                match error {
+                    TypeError::CannotInferGenericType { .. } => Error {
+                        kind: ErrorKind::CannotInferGenericType { id: generic_id },
+                        spans,
+                        note: None,
+                    },
+                    TypeError::PartiallyInferedGenericType { r#type, .. } => Error {
+                        kind: ErrorKind::PartiallyInferedGenericType {
+                            id: generic_id,
+                            r#type: self.render_type(r#type),
+                        },
+                        spans,
+                        note: None,
+                    },
+                    _ => unreachable!(),
+                }
             },
             TypeError::CannotApplyInfixOp { op, op_span, arg_types } => Error {
                 kind: ErrorKind::CannotApplyInfixOp {
@@ -237,7 +270,10 @@ impl RenderTypeError for MirSession {
                 _ => None,
             },
             Span::Range { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
-                Some(Some(s)) => Some(String::from_utf8_lossy(s).to_string()),
+                Some(Some(s)) => match unintern_string(*s, &self.intermediate_dir) {
+                    Ok(Some(s)) => Some(String::from_utf8_lossy(&s).to_string()),
+                    _ => None,
+                },
                 _ => None,
             },
             Span::None => None,

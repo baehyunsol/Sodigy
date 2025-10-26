@@ -104,6 +104,7 @@ impl Solver {
         &mut self,
         types: &HashMap<Span, Type>,
         generic_instances: &HashMap<(Span, Span), Type>,
+        generic_def_span_rev: &HashMap<Span, Span>,
     ) {
         for (type_var, id) in self.type_vars.iter() {
             match type_var {
@@ -124,13 +125,22 @@ impl Solver {
                 },
                 Type::GenericInstance { call, generic } => match generic_instances.get(&(*call, *generic)) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
-                        self.errors.push(TypeError::CannotInferGenericType { call: *call, generic: *generic });
+                        self.errors.push(TypeError::CannotInferGenericType {
+                            call: *call,
+                            generic: *generic,
+                            func_def: generic_def_span_rev.get(generic).map(|g| *g),
+                        });
                     },
                     Some(t) => {
                         let type_vars = t.get_type_vars();
 
                         if !type_vars.is_empty() {
-                            self.errors.push(TypeError::PartiallyInferedGenericType { call: *call, generic: *generic, r#type: t.clone() });
+                            self.errors.push(TypeError::PartiallyInferedGenericType {
+                                call: *call,
+                                generic: *generic,
+                                func_def: generic_def_span_rev.get(generic).map(|g| *g),
+                                r#type: t.clone(),
+                            });
                         }
                     },
                 },

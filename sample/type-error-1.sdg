@@ -1,3 +1,6 @@
 let x: Int = "";
 let y = if 3 { 0 } else { "" };
 let empty_list = [];
+
+fn id<T>(x: T) = x;
+fn foo(y) = id(y);
