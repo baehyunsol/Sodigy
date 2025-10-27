@@ -1,28 +1,28 @@
 use super::check_call_args;
-use crate::Expr;
+use crate::{Expr, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Expr {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         match self {
             Expr::Identifier { .. } |
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } => Ok(()),
-            Expr::If(r#if) => r#if.check(),
-            Expr::Match(r#match) => r#match.check(),
-            Expr::Block(block) => block.check(false /* top_level */),
+            Expr::If(r#if) => r#if.check(session),
+            Expr::Match(r#match) => r#match.check(session),
+            Expr::Block(block) => block.check(false /* top_level */, session),
             Expr::Call { func, args } => {
                 let mut errors = vec![];
 
-                if let Err(e) = func.check() {
+                if let Err(e) = func.check(session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = check_call_args(args) {
+                if let Err(e) = check_call_args(args, session) {
                     errors.extend(e);
                 }
 
@@ -39,7 +39,7 @@ impl Expr {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
-                    if let Err(e) = element.check() {
+                    if let Err(e) = element.check(session) {
                         errors.extend(e);
                     }
                 }
@@ -59,12 +59,12 @@ impl Expr {
             } => {
                 let mut errors = vec![];
 
-                if let Err(e) = r#struct.check() {
+                if let Err(e) = r#struct.check(session) {
                     errors.extend(e);
                 }
 
                 for field in fields.iter() {
-                    if let Err(e) = field.value.check() {
+                    if let Err(e) = field.value.check(session) {
                         errors.extend(e);
                     }
                 }
@@ -80,7 +80,7 @@ impl Expr {
             Expr::Path { lhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check() {
+                if let Err(e) = lhs.check(session) {
                     errors.extend(e);
                 }
 
@@ -119,7 +119,7 @@ impl Expr {
                         });
                     }
 
-                    if let Err(e) = arg.check() {
+                    if let Err(e) = arg.check(session) {
                         errors.extend(e);
                     }
 
@@ -161,7 +161,7 @@ impl Expr {
                     }
                 }
 
-                if let Err(e) = value.check() {
+                if let Err(e) = value.check(session) {
                     errors.extend(e);
                 }
 
@@ -177,11 +177,11 @@ impl Expr {
             Expr::FieldModifier { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check() {
+                if let Err(e) = lhs.check(session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check() {
+                if let Err(e) = rhs.check(session) {
                     errors.extend(e);
                 }
 
@@ -193,6 +193,8 @@ impl Expr {
                     Err(errors)
                 }
             },
+            Expr::PrefixOp { rhs: operand, .. } |
+            Expr::PostfixOp { lhs: operand, .. } => operand.check(session),
         }
     }
 }

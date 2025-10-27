@@ -1,3 +1,5 @@
+# 55. `r#keyword` -> implement this in lexer
+
 # 54. keywordargumentrepeated error
 
 if `x` is repeated 3 times (let's say x1, x2 and x3). it throws an error for x1&x2, and x2&x3. I want it to merge those errors...
@@ -125,10 +127,6 @@ Sodigy std에만 있는 특별한 능력들도 필요
 # 43. Locks
 
 interned_string이든 file이든 작업하기 전에 lock 걸고 하고 있음. 지금은 lock 파일이랑 작업 파일이랑 별개거든? 그냥 작업 파일에 lock 걸고 작업한 다음에 풀면 되는 거 아님??
-
-# 42. Bytecodes
-
-A plural form is `bytecodes` -> fix all!!
 
 # 41. String & Char & Int & Bytes
 

@@ -23,6 +23,11 @@ impl Token {
     pub fn pattern_begin(&self) -> bool {
         self.kind.pattern_begin()
     }
+
+    // A token that can be a beginning of an expr.
+    pub fn expr_begin(&self) -> bool {
+        self.kind.expr_begin()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -105,6 +110,39 @@ impl TokenKind {
                 Delim::Brace |
                 Delim::Lambda => false,
             },
+        }
+    }
+
+    pub fn expr_begin(&self) -> bool {
+        match self {
+            TokenKind::Identifier(_) |
+            TokenKind::Number(_) |
+            TokenKind::String { .. } |
+            TokenKind::Char { .. } => true,
+
+            TokenKind::FieldModifier(_) |
+            TokenKind::DocComment(_) |
+            TokenKind::GroupDelim { delim: None, .. } => false,
+
+            TokenKind::Punct(p) => PrefixOp::try_from(*p).is_ok(),
+            TokenKind::Keyword(k) => match k {
+                Keyword::Let |
+                Keyword::Fn |
+                Keyword::Struct |
+                Keyword::Enum |
+                Keyword::Assert |
+                Keyword::Type |
+                Keyword::Module |
+                Keyword::Use |
+                Keyword::Pub |
+                Keyword::Else => false,
+
+                Keyword::If |
+                Keyword::Match => true,
+            },
+
+            TokenKind::GroupDelim { delim: Some(delim), .. } |
+            TokenKind::Group { delim, .. } => true,
         }
     }
 }

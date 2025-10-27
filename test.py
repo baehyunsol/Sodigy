@@ -13,26 +13,24 @@ for file in os.listdir("sample"):
 sample_files.sort()
 result = {}
 
+subprocess.run(["cargo", "build"], capture_output=True)
+
 for file in sample_files:
     status = "compiling"
 
     try:
-        p = subprocess.run(["cargo", "run", "--", "compile", file, "--test", "-o", "out.py"], capture_output=True, timeout=20, text=True)
+        p = subprocess.run(["target/debug/sodigy", "test", file], capture_output=False, timeout=20, text=True)
 
         if p.returncode == 0:
-            status = "compile-success"
+            status = "success"
 
         else:
-            status = "compile-fail"
+            status = "fail"
 
     except subprocess.TimeoutExpired:
-        status = "compile-timeout"
+        status = "timeout"
 
-    if status == "compile-success":
-        p = subprocess.run(["python3", "out.py"], capture_output=True, timeout=20, text=True)
-        status = "test-success" if p.returncode == 0 else "test-fail"
-
-    color = 31 if status == "compile-fail" else 33 if status == "test-fail" else 32
+    color = 31 if status == "fail" else 33 if status == "timeout" else 32
     print(f"{file}: \033[{color}m{status}\033[0m")
     result[status] = result.get(status, 0) + 1
 

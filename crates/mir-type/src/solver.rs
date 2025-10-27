@@ -66,7 +66,7 @@ impl Solver {
                     vec![
                         Type::Static(Span::Prelude(preludes[INT])),
                         Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
+                        Type::Static(Span::Prelude(preludes[INT])),
                     ],
                 ],
             ), (

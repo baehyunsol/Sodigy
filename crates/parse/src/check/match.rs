@@ -1,8 +1,8 @@
-use crate::{Match, MatchBranch};
+use crate::{Match, MatchBranch, Session};
 use sodigy_error::{Error, ErrorKind};
 
 impl Match {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         if self.branches.is_empty() {
@@ -14,7 +14,7 @@ impl Match {
         }
 
         for branch in self.branches.iter() {
-            if let Err(e) = branch.check() {
+            if let Err(e) = branch.check(session) {
                 errors.extend(e);
             }
         }
@@ -30,10 +30,11 @@ impl Match {
 }
 
 impl MatchBranch {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         self.pattern.check(
             /* allow type annotation: */ false,
             /* is_inner_pattern: */ false,
+            session,
         )
     }
 }

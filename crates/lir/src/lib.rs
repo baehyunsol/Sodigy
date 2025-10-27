@@ -1,9 +1,11 @@
+use sodigy_mir::Session as MirSession;
 use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 mod assert;
 mod bytecode;
+mod executable;
 mod expr;
 mod func;
 mod r#let;
@@ -11,6 +13,7 @@ mod session;
 
 pub use assert::Assert;
 pub use bytecode::Bytecode;
+pub use executable::Executable;
 pub use expr::lower_mir_expr;
 pub use func::Func;
 pub use r#let::Let;
@@ -111,7 +114,7 @@ pub enum InPlaceOrRegister {
     Register(Register),
 }
 
-pub fn lower(mir_session: sodigy_mir::Session) -> Session {
+pub fn lower(mir_session: MirSession) -> Session {
     let mut session = Session::from_mir_session(&mir_session);
 
     for func in mir_session.funcs.iter() {
@@ -129,6 +132,5 @@ pub fn lower(mir_session: sodigy_mir::Session) -> Session {
         session.asserts.push(assert);
     }
 
-    session.make_labels_static();
     session
 }

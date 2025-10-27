@@ -1,11 +1,11 @@
-use crate::If;
+use crate::{If, Session};
 use sodigy_error::Error;
 
 impl If {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.cond.check() {
+        if let Err(e) = self.cond.check(session) {
             errors.extend(e);
         }
 
@@ -13,16 +13,17 @@ impl If {
             if let Err(e) = pattern.check(
                 /* allow_type_annotation: */ false,
                 /* is_inner_pattern: */ false,
+                session,
             ) {
                 errors.extend(e);
             }
         }
 
-        if let Err(e) = self.true_value.check() {
+        if let Err(e) = self.true_value.check(session) {
             errors.extend(e);
         }
 
-        if let Err(e) = self.false_value.check() {
+        if let Err(e) = self.false_value.check(session) {
             errors.extend(e);
         }
 

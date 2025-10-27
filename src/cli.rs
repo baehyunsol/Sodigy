@@ -27,7 +27,7 @@ pub enum Command {
         profile: Profile,
     },
     Interpret {
-        bytecode_path: FileOrMemory,
+        executable_path: FileOrMemory,
 
         // It's either `Test` or not.
         // The bytecode will tell you where the tests are, if exist, and where the
@@ -69,7 +69,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 Some("rust") => Backend::Rust,
                 Some("python") => Backend::Python,
                 Some("bytecode") => Backend::Bytecode,
-                None => Backend::Python,  // default
+                None => Backend::Bytecode,  // default
                 _ => unreachable!(),
             };
             let reuse_ir = parsed_args.get_flag(0).is_some();
@@ -144,7 +144,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     profile,
                 },
                 Command::Interpret {
-                    bytecode_path: FileOrMemory::Memory,
+                    executable_path: FileOrMemory::Memory,
                     profile,
                 },
             ])
@@ -176,7 +176,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     profile: Profile::Test,
                 },
                 Command::Interpret {
-                    bytecode_path: FileOrMemory::Memory,
+                    executable_path: FileOrMemory::Memory,
                     profile: Profile::Test,
                 },
             ])

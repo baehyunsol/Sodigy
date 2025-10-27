@@ -1,4 +1,4 @@
-use crate::{Block, Intrinsic, If, Session, Type};
+use crate::{Block, Intrinsic, If, Match, Session, Type};
 use sodigy_error::{Error, ErrorKind, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -6,7 +6,7 @@ use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
-use sodigy_token::InfixOp;
+use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
@@ -23,6 +23,7 @@ pub enum Expr {
         span: Span,
     },
     If(If),
+    Match(Match),
     Block(Block),
     Path {
         lhs: Box<Expr>,
@@ -73,12 +74,20 @@ pub enum Callable {
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
 
-    // Infix operations before type inference. For example, `+` in `3 + 4` is first
+    // Pre/In/Postfix operations before type inference. For example, `+` in `3 + 4` is first
     // lowered to a generic-addition, then after the compiler finds out that the both operands are
     // integer, it's lowered to integer-addition.
     // So, after type-checking, this variant must all be gone.
+    GenericPrefixOp {
+        op: PrefixOp,
+        span: Span,
+    },
     GenericInfixOp {
         op: InfixOp,
+        span: Span,
+    },
+    GenericPostfixOp {
+        op: PostfixOp,
         span: Span,
     },
 }
@@ -104,7 +113,10 @@ impl Expr {
                 Ok(r#if) => Ok(Expr::If(r#if)),
                 Err(()) => Err(()),
             },
-            hir::Expr::Match(r#match) => todo!(),
+            hir::Expr::Match(r#match) => match Match::from_hir(r#match, session) {
+                Ok(r#match) => Ok(Expr::Match(r#match)),
+                Err(()) => Err(()),
+            },
             hir::Expr::Block(block) => match Block::from_hir(block, session) {
                 Ok(block) => Ok(Expr::Block(block)),
                 Err(()) => Err(()),
@@ -613,6 +625,17 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
+            hir::Expr::PrefixOp { op, op_span, rhs } => Ok(Expr::Call {
+                func: Callable::GenericPrefixOp {
+                    op: *op,
+                    span: *op_span,
+                },
+                args: vec![Expr::from_hir(rhs, session)?],
+
+                // It is generic, but the compiler treats it specially, so we don't need the defs.
+                generic_defs: vec![],
+                given_keyword_arguments: vec![],
+            }),
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_hir(lhs, session),
@@ -632,6 +655,17 @@ impl Expr {
                     _ => Err(()),
                 }
             },
+            hir::Expr::PostfixOp { op, op_span, lhs } => Ok(Expr::Call {
+                func: Callable::GenericPostfixOp {
+                    op: *op,
+                    span: *op_span,
+                },
+                args: vec![Expr::from_hir(lhs, session)?],
+
+                // It is generic, but the compiler treats it specially, so we don't need the defs.
+                generic_defs: vec![],
+                given_keyword_arguments: vec![],
+            }),
         }
     }
 
@@ -642,6 +676,7 @@ impl Expr {
             Expr::Number { span, .. } |
             Expr::String { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
+            Expr::Match(r#match) => todo!(),
             Expr::Block(block) => block.group_span,
             // Let's hope it doesn't panic...
             Expr::Path { fields, .. } => fields[0].dot_span().unwrap(),
@@ -668,7 +703,9 @@ impl Callable {
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } |
             Callable::Intrinsic { span, .. } |
-            Callable::GenericInfixOp { span, .. } => *span,
+            Callable::GenericPrefixOp { span, .. } |
+            Callable::GenericInfixOp { span, .. } |
+            Callable::GenericPostfixOp { span, .. } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
         }
     }

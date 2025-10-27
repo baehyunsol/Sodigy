@@ -1,4 +1,4 @@
-use crate::Block;
+use crate::{Block, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
-    pub fn check(&self, top_level: bool) -> Result<(), Vec<Error>> {
+    pub fn check(&self, is_top_level: bool, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
@@ -16,7 +16,7 @@ impl Block {
         let mut let_spans = HashSet::new();
 
         for r#let in self.lets.iter() {
-            if let Err(e) = r#let.check() {
+            if let Err(e) = r#let.check(session) {
                 errors.extend(e);
             }
 
@@ -33,7 +33,7 @@ impl Block {
         }
 
         for func in self.funcs.iter() {
-            if let Err(e) = func.check() {
+            if let Err(e) = func.check(session) {
                 errors.extend(e);
             }
 
@@ -48,7 +48,7 @@ impl Block {
         }
 
         for r#struct in self.structs.iter() {
-            if let Err(e) = r#struct.check() {
+            if let Err(e) = r#struct.check(session) {
                 errors.extend(e);
             }
 
@@ -78,7 +78,7 @@ impl Block {
         }
 
         for module in self.modules.iter() {
-            if !top_level {
+            if !is_top_level {
                 errors.push(Error {
                     kind: ErrorKind::CannotDeclareInlineModule,
                     spans: module.keyword_span.simple_error(),
@@ -140,7 +140,7 @@ impl Block {
         }
 
         if let Some(value) = self.value.as_ref() {
-            if let Err(e) = value.check() {
+            if let Err(e) = value.check(session) {
                 errors.extend(e);
             }
         }

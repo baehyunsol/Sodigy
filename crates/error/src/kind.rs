@@ -52,6 +52,7 @@ pub enum ErrorKind {
     CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd,
     AstPatternTypeError,  // TODO: more context?
+    DifferentNameBindingsInOrPattern,
     InvalidFnType,
     EmptyMatchStatement,
     RedundantDecorator(InternedString),

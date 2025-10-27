@@ -16,10 +16,10 @@ const NULL: u32 = u32::MAX;
 
 // It assumes that there's no error in `bytecode` and `init_label`.
 pub fn interpret(
-    bytecode: &HashMap<u32, Vec<Bytecode>>,
-    heap: &mut Heap,
+    bytecodes: &HashMap<u32, Vec<Bytecode>>,
     init_label: u32,
 ) -> Result<(), Vec<u32>> {  // If it panics, it returns the call stack
+    let mut heap = Heap::new();
     let mut curr_label = init_label;
     let mut call_stack = vec![];
     let mut stacks: HashMap<Register, Vec<u32>> = HashMap::new();
@@ -27,8 +27,8 @@ pub fn interpret(
     let mut ret = 0;
 
     'outer: loop {
-        'inner: for b in bytecode.get(&curr_label).unwrap().iter() {
-            match b {
+        for bytecode in bytecodes.get(&curr_label).unwrap().iter() {
+            match bytecode {
                 Bytecode::Push { src, dst } => {
                     let ptr = match src {
                         Register::Local(_) |
@@ -126,12 +126,10 @@ pub fn interpret(
                         }
                     },
                     Intrinsic::Panic => {
-                        // TODO: clean heap
                         call_stack.push(curr_label);
                         return Err(call_stack);
                     },
                     Intrinsic::Exit => {
-                        // TODO: clean heap
                         return Ok(());
                     },
                     Intrinsic::Print => todo!(),

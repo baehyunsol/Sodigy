@@ -1,17 +1,17 @@
-use crate::{Func, FuncArgDef};
+use crate::{Func, FuncArgDef, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Func {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
         let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
-        if let Err(e) = self.attribute.check() {
+        if let Err(e) = self.attribute.check(session) {
             errors.extend(e);
         }
 
@@ -49,7 +49,7 @@ impl Func {
                 });
             }
 
-            if let Err(e) = arg.check() {
+            if let Err(e) = arg.check(session) {
                 errors.extend(e);
             }
 
@@ -91,7 +91,7 @@ impl Func {
             }
         }
 
-        if let Err(e) = self.value.check() {
+        if let Err(e) = self.value.check(session) {
             errors.extend(e);
         }
 
@@ -106,10 +106,10 @@ impl Func {
 }
 
 impl FuncArgDef {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.attribute.check() {
+        if let Err(e) = self.attribute.check(session) {
             errors.extend(e);
         }
 
@@ -120,7 +120,7 @@ impl FuncArgDef {
         }
 
         if let Some(default_value) = &self.default_value {
-            if let Err(e) = default_value.check() {
+            if let Err(e) = default_value.check(session) {
                 errors.extend(e);
             }
         }

@@ -7,6 +7,7 @@ mod func;
 mod r#if;
 mod intrinsic;
 mod r#let;
+mod r#match;
 mod session;
 mod r#type;
 
@@ -17,6 +18,7 @@ pub use func::Func;
 pub use r#if::If;
 pub use intrinsic::Intrinsic;
 pub use r#let::Let;
+pub use r#match::Match;
 pub use session::Session;
 pub use r#type::Type;
 

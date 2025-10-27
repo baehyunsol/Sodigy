@@ -31,6 +31,12 @@ pub enum Pattern {
         elements: Vec<FullPattern>,
         group_span: Span,
     },
+    Range {
+        lhs: Option<Box<Pattern>>,
+        rhs: Option<Box<Pattern>>,
+        op_span: Span,
+        is_inclusive: bool,
+    },
 }
 
 impl FullPattern {
@@ -101,6 +107,18 @@ impl Pattern {
                 else {
                     Ok(Pattern::List { elements, group_span: *group_span })
                 }
+            },
+            ast::Pattern::Range { lhs, rhs, op_span, is_inclusive } => match (
+                lhs.as_ref().map(|lhs| Pattern::from_ast(lhs, session)),
+                rhs.as_ref().map(|rhs| Pattern::from_ast(rhs, session)),
+            ) {
+                (Some(Err(())), _) | (_, Some(Err(()))) => Err(()),
+                (lhs, rhs) => Ok(Pattern::Range {
+                    lhs: lhs.map(|lhs| Box::new(lhs.unwrap())),
+                    rhs: rhs.map(|rhs| Box::new(rhs.unwrap())),
+                    op_span: *op_span,
+                    is_inclusive: *is_inclusive,
+                }),
             },
             _ => panic!("TODO: {ast_pattern:?}"),
         }

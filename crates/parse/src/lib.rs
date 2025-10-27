@@ -54,7 +54,7 @@ pub fn parse(lex_session: LexSession) -> Session {
         },
     };
 
-    if let Err(errors) = ast.check(true /* top_level */) {
+    if let Err(errors) = ast.check(true /* top_level */, &session) {
         session.errors = errors;
     }
 

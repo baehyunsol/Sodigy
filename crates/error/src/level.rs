@@ -42,6 +42,7 @@ impl ErrorLevel {
             ErrorKind::CannotDeclareInlineModule |
             ErrorKind::InclusiveRangeWithNoEnd |
             ErrorKind::AstPatternTypeError |
+            ErrorKind::DifferentNameBindingsInOrPattern |
             ErrorKind::InvalidFnType |
             ErrorKind::EmptyMatchStatement |
             ErrorKind::RedundantDecorator(_) |

@@ -52,7 +52,8 @@ impl TryFrom<Punct> for InfixOp {
             // Do not use a wildcard!
             Punct::Colon | Punct::Semicolon | Punct::Assign |
             Punct::Comma | Punct::Dot | Punct::At | Punct::Dollar |
-            Punct::QuestionMark | Punct::Arrow | Punct::ReturnType => Err(()),
+            Punct::Factorial | Punct::QuestionMark | Punct::Arrow |
+            Punct::ReturnType => Err(()),
         }
     }
 }

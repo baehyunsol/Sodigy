@@ -13,6 +13,7 @@ pub enum Punct {
     Comma,
     Dot,
     QuestionMark,
+    Factorial,
     At,
     Dollar,
     And,  // "&"
@@ -32,6 +33,23 @@ pub enum Punct {
     ReturnType,  // "->"
 }
 
+impl Punct {
+    // Used when generating error messages.
+    pub fn render_error(&self) -> &'static str {
+        match self {
+            Punct::Add => "+",
+            Punct::Sub => "-",
+            Punct::Mul => "*",
+            Punct::Div => "/",
+            Punct::Rem => "%",
+            Punct::Colon => ":",
+            Punct::Semicolon => ";",
+            Punct::Assign => "=",
+            _ => todo!(),
+        }
+    }
+}
+
 impl From<u8> for Punct {
     fn from(b: u8) -> Punct {
         match b {
@@ -48,6 +66,7 @@ impl From<u8> for Punct {
             b'>' => Punct::Gt,
             b'.' => Punct::Dot,
             b'?' => Punct::QuestionMark,
+            b'!' => Punct::Factorial,
             b'@' => Punct::At,
             b'$' => Punct::Dollar,
             b'&' => Punct::And,

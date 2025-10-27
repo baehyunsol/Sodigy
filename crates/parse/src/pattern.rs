@@ -149,7 +149,6 @@ impl Pattern {
         }
     }
 
-    // TODO: name bindings in `Pattern::Or` have to be treated specially
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             Pattern::Number { .. } |
@@ -173,10 +172,11 @@ impl Pattern {
 
                 result
             },
-            Pattern::Or { lhs, rhs, .. } => vec![
-                lhs.bound_names(),
-                rhs.bound_names(),
-            ].concat(),
+            // NOTE: `lhs` and `rhs` of `Pattern::Or` must have the exact
+            //       same name bindings, otherwise a compile error. But
+            //       checking the compile error is not a responsibility of
+            //       this function, and it just assumes that there's no error.
+            Pattern::Or { lhs, .. } => lhs.bound_names(),
             Pattern::Concat { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),

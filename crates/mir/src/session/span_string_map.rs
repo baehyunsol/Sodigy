@@ -63,6 +63,7 @@ impl Session {
                 self.init_span_string_map_expr(&r#if.true_value, result);
                 self.init_span_string_map_expr(&r#if.false_value, result);
             },
+            Expr::Match(r#match) => todo!(),
             Expr::Block(block) => {
                 for r#let in block.lets.iter() {
                     self.init_span_string_map_let(r#let, result);

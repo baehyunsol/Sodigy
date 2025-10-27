@@ -1,5 +1,5 @@
-use crate::{FullPattern, Pattern};
-use sodigy_error::{Error, ErrorKind};
+use crate::{FullPattern, Pattern, Session};
+use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
 use std::collections::hash_map::{Entry, HashMap};
@@ -12,6 +12,7 @@ impl FullPattern {
         // If patterns are nested, we don't have to check name collisions
         // in the inner patterns. Also, we only type-check the outer-most pattern.
         is_inner_pattern: bool,
+        session: &Session,
     ) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
@@ -28,7 +29,6 @@ impl FullPattern {
         if !is_inner_pattern {
             let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
-            // TODO: it has to treat name bindings in `Pattern::Or` differently
             for (name, name_span) in self.bound_names().iter() {
                 match spans_by_name.entry(*name) {
                     Entry::Occupied(mut e) => {
@@ -70,24 +70,14 @@ impl FullPattern {
                 r#type: _,
                 pattern: Pattern::Identifier { id, span },
             } => {
-                // In order to unintern long string (more than 15 bytes), we need `intermediate_dir: &str`.
-                // Otherwise, we can unintern it locally.
-                // But the problem is that `intermediate_dir` is available at `ParseSession`, and we can't access the session.
-                // So it simply doesn't make a error note if it cannot unintern the name.
-                let note1 = match unintern_string(*name, "") {
-                    Ok(Some(name)) => {
-                        let name = String::from_utf8_lossy(&name);
-                        Some(format!("Name `{name}` is bound to the pattern."))
-                    },
-                    _ => None,
-                };
-                let note2 = match unintern_string(*id, "") {
-                    Ok(Some(name)) => {
-                        let name = String::from_utf8_lossy(&name);
-                        Some(format!("Name `{name}` is bound to the pattern."))
-                    },
-                    _ => None,
-                };
+                let note1 = format!(
+                    "Name `{}` is bound to the pattern.",
+                    String::from_utf8_lossy(&unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()).to_string(),
+                );
+                let note2 = format!(
+                    "Name `{}` is bound to the pattern.",
+                    String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()).to_string(),
+                );
 
                 errors.push(Error {
                     kind: ErrorKind::RedundantNameBinding(*name, *id),
@@ -95,12 +85,12 @@ impl FullPattern {
                         RenderableSpan {
                             span: *name_span,
                             auxiliary: false,
-                            note: note1,
+                            note: Some(note1),
                         },
                         RenderableSpan {
                             span: *span,
                             auxiliary: false,
-                            note: note2,
+                            note: Some(note2),
                         },
                     ],
                     ..Error::default()
@@ -109,7 +99,7 @@ impl FullPattern {
             _ => {},
         }
 
-        if let Err(e) = self.pattern.check() {
+        if let Err(e) = self.pattern.check(session) {
             errors.extend(e);
         }
 
@@ -124,7 +114,7 @@ impl FullPattern {
 }
 
 impl Pattern {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         match self {
             Pattern::Number { .. } |
             Pattern::Identifier { .. } |
@@ -138,6 +128,7 @@ impl Pattern {
                     if let Err(e) = field.pattern.check(
                         /* allow type annotation: */ false,
                         /* is_inner_pattern: */ true,
+                        session,
                     ) {
                         errors.extend(e);
                     }
@@ -160,6 +151,7 @@ impl Pattern {
                     if let Err(e) = element.check(
                         /* allow type annotation: */ false,
                         /* is_inner_pattern: */ true,
+                        session,
                     ) {
                         errors.extend(e);
                     }
@@ -232,12 +224,53 @@ impl Pattern {
             Pattern::Or { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check() {
+                if let Err(e) = lhs.check(session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check() {
+                if let Err(e) = rhs.check(session) {
                     errors.extend(e);
+                }
+
+                let mut lhs_name_binds = lhs.bound_names().iter().map(|(name, _)| *name).collect::<Vec<_>>();
+                let mut rhs_name_binds = rhs.bound_names().iter().map(|(name, _)| *name).collect::<Vec<_>>();
+                lhs_name_binds.sort();
+                rhs_name_binds.sort();
+
+                if lhs_name_binds != rhs_name_binds {
+                    let mut lhs_name_binds = lhs_name_binds.iter().map(
+                        |name| String::from_utf8_lossy(&unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()).to_string()
+                    ).collect::<Vec<_>>();
+                    let mut rhs_name_binds = rhs_name_binds.iter().map(
+                        |name| String::from_utf8_lossy(&unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()).to_string()
+                    ).collect::<Vec<_>>();
+                    lhs_name_binds.sort();
+                    rhs_name_binds.sort();
+
+                    errors.push(Error {
+                        kind: ErrorKind::DifferentNameBindingsInOrPattern,
+                        spans: vec![
+                            RenderableSpan {
+                                span: lhs.error_span(),
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "This pattern binds {}: {}",
+                                    if lhs_name_binds.len() == 1 { "a name" } else { "names" },
+                                    comma_list_strs(&lhs_name_binds, "`", "`", "and"),
+                                )),
+                            },
+                            RenderableSpan {
+                                span: rhs.error_span(),
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "This pattern binds {}: {}",
+                                    if rhs_name_binds.len() == 1 { "a name" } else { "names" },
+                                    comma_list_strs(&rhs_name_binds, "`", "`", "and"),
+                                )),
+                            },
+                        ],
+                        note: Some(String::from("Names must be bound in all patterns.")),
+                    });
                 }
 
                 if errors.is_empty() {
@@ -251,11 +284,11 @@ impl Pattern {
             Pattern::Concat { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(false, true) {
+                if let Err(e) = lhs.check(false, true, session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(false, true) {
+                if let Err(e) = rhs.check(false, true, session) {
                     errors.extend(e);
                 }
 
@@ -463,6 +496,10 @@ enum PatternType {
 }
 
 impl PatternType {
+    // It's kinda type-check + subtyping.
+    // If the two types are the same, it returns the type.
+    // If type A is a subtype of type B, it returns B.
+    // Otherwise, it returns Err.
     pub fn more_specific(&self, other: &PatternType) -> Result<PatternType, ()> {
         match (self, other) {
             (PatternType::NotSure, r#type) => Ok(r#type.clone()),
@@ -477,7 +514,21 @@ impl PatternType {
                 Ok(r#type) => Ok(PatternType::List(Box::new(r#type))),
                 Err(()) => Err(()),
             },
-            (PatternType::Tuple(elements1), PatternType::Tuple(elements2)) => todo!(),
+            (PatternType::Tuple(elements1), PatternType::Tuple(elements2)) => {
+                if elements1.len() != elements2.len() {
+                    Err(())
+                }
+
+                else {
+                    let mut elements = Vec::with_capacity(elements1.len());
+
+                    for i in 0..elements1.len() {
+                        elements.push(elements1[i].more_specific(&elements2[i])?);
+                    }
+
+                    Ok(PatternType::Tuple(elements))
+                }
+            },
             _ => Err(()),
         }
     }

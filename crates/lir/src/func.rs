@@ -12,7 +12,7 @@ use sodigy_string::InternedString;
 pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
-    pub bytecode: Vec<Bytecode>,
+    pub bytecodes: Vec<Bytecode>,
 
     // After calling `session.make_labels_static`, every object will be mapped to a `Label::Static(id)`.
     // This is the id of the label.
@@ -32,24 +32,24 @@ impl Func {
     //    5. Peeks (not pop) the call stack and jump to there.
     // After calling a function, the caller pops the return address from the call stack.
     pub fn from_mir(mir_func: &mir::Func, session: &mut Session) -> Func {
-        let mut bytecode = vec![];
+        let mut bytecodes = vec![];
         session.enter_func();
         session.func_arg_count = mir_func.args.len();
 
         for (i, arg) in mir_func.args.iter().enumerate() {
             let dst = session.register_local_name(arg.name_span);
-            bytecode.push(Bytecode::Push {
+            bytecodes.push(Bytecode::Push {
                 src: Register::Call(i as u32),
                 dst,
             });
-            bytecode.push(Bytecode::Pop(Register::Call(i as u32)));
+            bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
         }
 
-        lower_mir_expr(&mir_func.value, session, &mut bytecode, true /* is_tail_call */);
+        lower_mir_expr(&mir_func.value, session, &mut bytecodes, true /* is_tail_call */);
         Func {
             name: mir_func.name,
             name_span: mir_func.name_span,
-            bytecode,
+            bytecodes,
             label_id: None,
         }
     }

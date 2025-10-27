@@ -1,10 +1,10 @@
 use crate::{CodeGenConfig, CodeGenMode};
 use sodigy_fs_api::FileError;
 use sodigy_lir::{
-    self as lir,
     Bytecode,
     Const,
     ConstOrRegister,
+    Executable,
     InPlaceOrRegister,
     Label,
     Offset,
@@ -14,33 +14,14 @@ use sodigy_mir::Intrinsic;
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_span::Span;
 use sodigy_string::unintern_string;
-use std::collections::HashMap;
 
 pub fn python_code_gen(
-    bytecode: &HashMap<u32, Vec<Bytecode>>,
-    session: &lir::Session,
+    executable: &Executable,
     config: &CodeGenConfig,
 ) -> Result<Vec<u8>, FileError> {
     let mut lines = vec![];
     let mut indent;
-    let mut help_comment_map = HashMap::new();
     let capture_output = matches!(config.mode, CodeGenMode::Test);
-
-    if config.label_help_comment {
-        for func in session.funcs.iter() {
-            let func_name = unintern_string(func.name, &config.intermediate_dir)?.unwrap();
-            help_comment_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
-        }
-
-        for r#let in session.lets.iter() {
-            let let_name = unintern_string(r#let.name, &config.intermediate_dir)?.unwrap();
-            help_comment_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&let_name)));
-        }
-
-        for assert in session.asserts.iter() {
-            help_comment_map.insert(assert.label_id.unwrap(), String::from("assertion"));
-        }
-    }
 
     // TODO: make it configurable
     lines.push(String::from("def deepcopy(v):"));
@@ -70,10 +51,10 @@ pub fn python_code_gen(
 
     lines.push(format!("{indent}while True:"));
 
-    for (i, (id, bytecode)) in bytecode.iter().enumerate() {
+    for (i, (id, bytecode)) in executable.bytecodes.iter().enumerate() {
         indent = " ".repeat(8);
 
-        if let Some(comment) = help_comment_map.get(id) {
+        if let Some(Some(comment)) = executable.debug_info.as_ref().map(|m| m.get(id)) {
             lines.push(format!("{indent}# {comment}"));
         }
 
@@ -268,22 +249,15 @@ pub fn python_code_gen(
             lines.push(String::from("s,f=0,0"));
             lines.push(String::from("stderr_map={}"));
 
-            for assert in session.asserts.iter() {
-                let assert_name = match assert.name {
-                    Some(name) => String::from_utf8_lossy(&unintern_string(name, &config.intermediate_dir).unwrap().unwrap()).to_string(),
-                    None => {
-                        anon_index += 1;
-                        format!("anonymous_assertion_{anon_index}")
-                    },
-                };
+            for (id, name) in executable.asserts.iter() {
                 lines.push(format!("stdout,stderr=[],[]"));
-                lines.push(format!("if run({}):", assert.label_id.unwrap()));
+                lines.push(format!("if run({}):", id));
                 lines.push(format!("    s+=1"));
-                lines.push(format!("    print({assert_name:?}+': \\033[32mPass\\033[0m')"));
+                lines.push(format!("    print({name:?}+': \\033[32mPass\\033[0m')"));
                 lines.push(format!("else:"));
                 lines.push(format!("    f+=1"));
-                lines.push(format!("    print({assert_name:?}+': \\033[31mFail\\033[0m')"));
-                lines.push(format!("    stderr_map[{assert_name:?}]=''.join(stderr)"));
+                lines.push(format!("    print({name:?}+': \\033[31mFail\\033[0m')"));
+                lines.push(format!("    stderr_map[{name:?}]=''.join(stderr)"));
             }
 
             lines.push(String::from("print()"));

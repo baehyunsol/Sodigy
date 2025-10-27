@@ -1,11 +1,11 @@
-use crate::Let;
+use crate::{Let, Session};
 use sodigy_error::Error;
 
 impl Let {
-    pub fn check(&self) -> Result<(), Vec<Error>> {
+    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.attribute.check() {
+        if let Err(e) = self.attribute.check(session) {
             errors.extend(e);
         }
 
@@ -15,7 +15,7 @@ impl Let {
             }
         }
 
-        if let Err(e) = self.value.check() {
+        if let Err(e) = self.value.check(session) {
             errors.extend(e);
         }
 

@@ -1,7 +1,7 @@
-fn map1(ns: [T], f) = {
+fn map1<T>(ns: [T], f) = {
     let nx = f(ns[0]);
 
-    if ns == [] { [] } else { [nx] ++ map(ns[1..], f) }
+    if ns == [] { [] } else { [nx] ++ map1(ns[1..], f) }
 };
 
 fn first(ns) = if ns == [] { 0 } else { ns[0] };

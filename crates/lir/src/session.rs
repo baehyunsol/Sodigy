@@ -1,12 +1,23 @@
-use crate::{Assert, Bytecode, Func, Label, Let, Register};
+use crate::{
+    Assert,
+    Bytecode,
+    Executable,
+    Func,
+    Label,
+    Let,
+    Register,
+};
 use sodigy_error::{Error, Warning};
 use sodigy_session::Session as SodigySession;
 use sodigy_mir as mir;
 use sodigy_span::Span;
+use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 
 pub struct Session {
     pub intermediate_dir: String,
+    pub main_func_span: Option<Span>,
+    pub main_func_label: Option<u32>,
     pub func_arg_count: usize,
 
     // for creating tmp labels
@@ -26,6 +37,8 @@ impl Session {
     pub fn from_mir_session(mir_session: &mir::Session) -> Self {
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
+            main_func_span: mir_session.main_func,
+            main_func_label: None,
             func_arg_count: 0,
             label_counter: 0,
             local_registers: HashMap::new(),
@@ -48,9 +61,9 @@ impl Session {
         register
     }
 
-    pub fn pop_all_locals(&self, bytecode: &mut Vec<Bytecode>) {
+    pub fn pop_all_locals(&self, bytecodes: &mut Vec<Bytecode>) {
         for register in self.local_registers.values() {
-            bytecode.push(Bytecode::Pop(*register));
+            bytecodes.push(Bytecode::Pop(*register));
         }
     }
 
@@ -61,16 +74,65 @@ impl Session {
     }
 
     // Once you call this function, you can't do any operation on the bytecode.
-    pub fn make_labels_static(&mut self) {
+    pub fn into_executable(
+        &mut self,
+        debug_info: bool,
+    ) -> Executable {
+        self.make_labels_static();
+        let bytecodes = self.into_labeled_bytecodes();
+
+        let mut debug_info_map = HashMap::new();
+        let mut asserts = Vec::with_capacity(self.asserts.len());
+        let mut anon_index = 0;
+        self.asserts.sort_by_key(|assert| assert.keyword_span);
+
+        for assert in self.asserts.iter() {
+            let name = match assert.name {
+                Some(name) => String::from_utf8_lossy(&unintern_string(name, &self.intermediate_dir).unwrap().unwrap()).to_string(),
+                None => {
+                    anon_index += 1;
+                    format!("anonymous-{anon_index}")
+                },
+            };
+
+            if debug_info {
+                debug_info_map.insert(assert.label_id.unwrap(), format!("assertion {name}"));
+            }
+
+            asserts.push((assert.label_id.unwrap(), name));
+        }
+
+        if debug_info {
+            for func in self.funcs.iter() {
+                let func_name = unintern_string(func.name, &self.intermediate_dir).unwrap().unwrap();
+                debug_info_map.insert(func.label_id.unwrap(), format!("fn {}", String::from_utf8_lossy(&func_name)));
+            }
+
+            for r#let in self.lets.iter() {
+                let let_name = unintern_string(r#let.name, &self.intermediate_dir).unwrap().unwrap();
+                debug_info_map.insert(r#let.label_id.unwrap(), format!("let {}", String::from_utf8_lossy(&let_name)));
+            }
+        }
+
+        Executable {
+            main_func: self.main_func_label,
+            bytecodes,
+            asserts,
+            debug_info: if debug_info { Some(debug_info_map) } else { None },
+        }
+    }
+
+    // Once you call this function, you can't do any operation on the bytecode.
+    fn make_labels_static(&mut self) {
         // def_span -> number of local_labels
         let mut local_label_map = HashMap::new();
 
         for (def_span, bytecode) in self.funcs.iter().map(
-            |func| (func.name_span, &func.bytecode)
+            |func| (func.name_span, &func.bytecodes)
         ).chain(self.lets.iter().map(
-            |r#let| (r#let.name_span, &r#let.bytecode)
+            |r#let| (r#let.name_span, &r#let.bytecodes)
         )).chain(self.asserts.iter().map(
-            |assert| (assert.keyword_span, &assert.bytecode)
+            |assert| (assert.keyword_span, &assert.bytecodes)
         )) {
             local_label_map.insert(def_span, count_local_labels(bytecode));
         }
@@ -90,7 +152,7 @@ impl Session {
             let offset = *label_map.get(&func.name_span).unwrap();
 
             // `offset` is for the function itself, so we have to add 1 to the offset
-            make_labels_static(&mut func.bytecode, &label_map, offset + 1);
+            make_labels_static(&mut func.bytecodes, &label_map, offset + 1);
             func.label_id = Some(offset);
         }
 
@@ -98,7 +160,7 @@ impl Session {
             let offset = *label_map.get(&r#let.name_span).unwrap();
 
             // `offset` is for the `let` statement itself, so we have to add 1 to the offset
-            make_labels_static(&mut r#let.bytecode, &label_map, offset + 1);
+            make_labels_static(&mut r#let.bytecodes, &label_map, offset + 1);
             r#let.label_id = Some(offset);
         }
 
@@ -106,28 +168,32 @@ impl Session {
             let offset = *label_map.get(&assert.keyword_span).unwrap();
 
             // `offset` is for the assertion itself, so we have to add 1 to the offset
-            make_labels_static(&mut assert.bytecode, &label_map, offset + 1);
+            make_labels_static(&mut assert.bytecodes, &label_map, offset + 1);
             assert.label_id = Some(offset);
         }
     }
 
     // Make sure to run `make_labels_static` before calling this.
-    pub fn into_labeled_bytecode(&self) -> HashMap<u32, Vec<Bytecode>> {
+    fn into_labeled_bytecodes(&mut self) -> HashMap<u32, Vec<Bytecode>> {
         let mut result = HashMap::new();
         let mut curr_label;
 
-        for (label_id, bytecode) in self.funcs.iter().map(
-            |func| (func.label_id.unwrap(), &func.bytecode)
+        for (label_id, bytecodes, def_span) in self.funcs.iter().map(
+            |func| (func.label_id.unwrap(), &func.bytecodes, func.name_span)
         ).chain(self.lets.iter().map(
-            |r#let| (r#let.label_id.unwrap(), &r#let.bytecode)
+            |r#let| (r#let.label_id.unwrap(), &r#let.bytecodes, r#let.name_span)
         )).chain(self.asserts.iter().map(
-            |assert| (assert.label_id.unwrap(), &assert.bytecode)
+            |assert| (assert.label_id.unwrap(), &assert.bytecodes, assert.keyword_span)
         )) {
+            if let Some(main_func_span) = self.main_func_span && main_func_span == def_span {
+                self.main_func_label = Some(label_id);
+            }
+
             curr_label = label_id;
             let mut buffer: Vec<Bytecode> = vec![];
 
-            for b in bytecode.iter() {
-                match b {
+            for bytecode in bytecodes.iter() {
+                match bytecode {
                     Bytecode::Label(Label::Static(n)) => {
                         if !buffer.is_empty() {
                             if !buffer.last().unwrap().is_unconditional_jump() {
@@ -141,7 +207,7 @@ impl Session {
                         curr_label = *n;
                     },
                     _ => {
-                        buffer.push(*b);
+                        buffer.push(*bytecode);
                     },
                 }
             }
@@ -155,11 +221,11 @@ impl Session {
     }
 }
 
-fn count_local_labels(bytecode: &[Bytecode]) -> u32 {
+fn count_local_labels(bytecodes: &[Bytecode]) -> u32 {
     let mut labels = HashSet::new();
 
-    for b in bytecode.iter() {
-        if let Bytecode::Label(Label::Local(n)) = b {
+    for bytecode in bytecodes.iter() {
+        if let Bytecode::Label(Label::Local(n)) = bytecode {
             labels.insert(*n);
         }
     }
@@ -167,9 +233,9 @@ fn count_local_labels(bytecode: &[Bytecode]) -> u32 {
     labels.len() as u32
 }
 
-fn make_labels_static(bytecode: &mut Vec<Bytecode>, map: &HashMap<Span, u32>, offset: u32) {
-    for b in bytecode.iter_mut() {
-        match b {
+fn make_labels_static(bytecodes: &mut Vec<Bytecode>, map: &HashMap<Span, u32>, offset: u32) {
+    for bytecode in bytecodes.iter_mut() {
+        match bytecode {
             Bytecode::PushCallStack(label) |
             Bytecode::Goto(label) |
             Bytecode::Label(label) |

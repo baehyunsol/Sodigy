@@ -17,6 +17,7 @@ use sodigy_token::{
     InfixOp,
     Keyword,
     PostfixOp,
+    PrefixOp,
     Punct,
     Token,
     TokenKind,
@@ -81,11 +82,21 @@ pub enum Expr {
         value: Box<Expr>,
         group_span: Span,
     },
+    PrefixOp {
+        op: PrefixOp,
+        op_span: Span,
+        rhs: Box<Expr>,
+    },
     InfixOp {
         op: InfixOp,
         op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
+    },
+    PostfixOp {
+        op: PostfixOp,
+        op_span: Span,
+        lhs: Box<Expr>,
     },
 }
 
@@ -153,6 +164,33 @@ impl<'t> Tokens<'t> {
         min_bp: u32,
     ) -> Result<Expr, Vec<Error>> {
         let mut lhs = match self.peek() {
+            Some(Token { kind: tk @ TokenKind::Punct(p), span }) => {
+                let punct = *p;
+                let punct_span = *span;
+
+                match PrefixOp::try_from(punct) {
+                    Ok(op) => {
+                        let bp = prefix_binding_power(op);
+                        self.cursor += 1;
+                        let rhs = self.pratt_parse(bp)?;
+                        Expr::PrefixOp {
+                            op,
+                            op_span: punct_span,
+                            rhs: Box::new(rhs),
+                        }
+                    },
+                    Err(_) => {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::Expr,
+                                got: ErrorToken::Punct(punct),
+                            },
+                            spans: punct_span.simple_error(),
+                            note: Some(format!("`{}` is not a prefix operator.", p.render_error())),
+                        }]);
+                    },
+                }
+            },
             Some(Token { kind: TokenKind::Identifier(id), span }) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
@@ -265,8 +303,51 @@ impl<'t> Tokens<'t> {
 
                     match PostfixOp::try_from(punct) {
                         // `..` and `..=` can be both infix and postfix!
-                        Ok(op @ PostfixOp::Range { .. }) => todo!(),
-                        Ok(op) => todo!(),
+                        Ok(op @ PostfixOp::Range { inclusive }) => {
+                            let bp = postfix_binding_power(op);
+
+                            if bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+
+                            match self.peek().map(|t| t.expr_begin()) {
+                                Some(true) => {
+                                    let rhs = self.pratt_parse(bp)?;
+                                    lhs = Expr::InfixOp {
+                                        op: InfixOp::Range { inclusive },
+                                        op_span: punct_span,
+                                        lhs: Box::new(lhs),
+                                        rhs: Box::new(rhs),
+                                    };
+                                },
+                                _ => {
+                                    lhs = Expr::PostfixOp {
+                                        op,
+                                        op_span: punct_span,
+                                        lhs: Box::new(lhs),
+                                    };
+                                },
+                            }
+
+                            continue;
+                        },
+                        Ok(op) => {
+                            let bp = postfix_binding_power(op);
+
+                            if bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+                            lhs = Expr::PostfixOp {
+                                op,
+                                op_span: punct_span,
+                                lhs: Box::new(lhs),
+                            };
+                            continue;
+                        },
                         Err(_) => {
                             // let's try infix
                         },
@@ -498,6 +579,12 @@ fn field_modifier_binding_power() -> (u32, u32) {
     (MODIFY, MODIFY + 1)
 }
 
+fn prefix_binding_power(op: PrefixOp) -> u32 {
+    match op {
+        PrefixOp::Not | PrefixOp::Neg => NEG,
+    }
+}
+
 fn infix_binding_power(op: InfixOp) -> (u32, u32) {
     match op {
         InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
@@ -512,6 +599,13 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::BitOr => (BIT_OR, BIT_OR + 1),
         InfixOp::LogicAnd => (LOGIC_AND, LOGIC_AND + 1),
         InfixOp::LogicOr => (LOGIC_OR, LOGIC_OR + 1),
+    }
+}
+
+fn postfix_binding_power(op: PostfixOp) -> u32 {
+    match op {
+        PostfixOp::Range { .. } => RANGE,
+        PostfixOp::QuestionMark => QUESTION,
     }
 }
 

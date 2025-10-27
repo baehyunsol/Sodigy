@@ -81,17 +81,16 @@ fn main() -> Result<(), ()> {
                             sodigy_mir_type::dump(&mut mir_session, &solver);
                         }
 
-                        let lir_session = sodigy_lir::lower(mir_session);
+                        let mut lir_session = sodigy_lir::lower(mir_session);
                         lir_session.continue_or_dump_errors()?;
-                        let bytecode = lir_session.into_labeled_bytecode();
+                        let executable = lir_session.into_executable(profile != Profile::Release);
                         lir_session.dump_warnings();
 
                         match output_path {
                             FileOrMemory::File(path) => {
                                 let result = match backend {
                                     Backend::Python => sodigy_backend::python_code_gen(
-                                        &bytecode,
-                                        &lir_session,
+                                        &executable,
                                         &sodigy_backend::CodeGenConfig {
                                             intermediate_dir,
                                             label_help_comment: true,
@@ -108,25 +107,52 @@ fn main() -> Result<(), ()> {
                             },
                             FileOrMemory::Memory => match backend {
                                 Backend::Bytecode => {
-                                    compile_result = Some(bytecode);
+                                    compile_result = Some(executable);
                                 },
                                 _ => unreachable!(),
                             },
                         }
                     },
                     Command::Interpret {
-                        bytecode_path,
+                        executable_path,
                         profile,
-                    } => match bytecode_path {
-                        FileOrMemory::File(path) => todo!(),
-                        FileOrMemory::Memory => {
-                            let compile_result = compile_result.as_ref().unwrap();
+                    } => {
+                        let executable = match executable_path {
+                            FileOrMemory::File(path) => todo!(),
+                            FileOrMemory::Memory => compile_result.clone().unwrap(),
+                        };
 
-                            match profile {
-                                Profile::Test => {},
-                                _ => {},
-                            }
-                        },
+                        match profile {
+                            Profile::Test => {
+                                let mut failures = vec![];
+
+                                for (id, name) in executable.asserts.iter() {
+                                    if let Err(e) = sodigy_backend::interpret(
+                                        &executable.bytecodes,
+                                        *id,
+                                    ) {
+                                        failures.push(name.to_string());
+                                    }
+                                }
+
+                                for failure in failures.iter() {
+                                    todo!()
+                                }
+
+                                if !failures.is_empty() {
+                                    return Err(());
+                                }
+                            },
+                            _ => {
+                                if let Err(e) = sodigy_backend::interpret(
+                                    &executable.bytecodes,
+                                    executable.main_func.unwrap(),
+                                ) {
+                                    // what else do we do here?
+                                    return Err(());
+                                }
+                            },
+                        }
                     },
                     Command::Help(doc) => {},
                 }

@@ -14,7 +14,7 @@ use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::InfixOp;
+use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -63,11 +63,21 @@ pub enum Expr {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
+    PrefixOp {
+        op: PrefixOp,
+        op_span: Span,
+        rhs: Box<Expr>,
+    },
     InfixOp {
         op: InfixOp,
         op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
+    },
+    PostfixOp {
+        op: PostfixOp,
+        op_span: Span,
+        lhs: Box<Expr>,
     },
 }
 
@@ -245,6 +255,11 @@ impl Expr {
                     Err(()) => Err(()),
                 }
             },
+            ast::Expr::PrefixOp { op, op_span, rhs } => Ok(Expr::PrefixOp {
+                op: *op,
+                op_span: *op_span,
+                rhs: Box::new(Expr::from_ast(rhs, session)?),
+            }),
             ast::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_ast(lhs, session),
@@ -259,6 +274,11 @@ impl Expr {
                     _ => Err(()),
                 }
             },
+            ast::Expr::PostfixOp { op, op_span, lhs } => Ok(Expr::PostfixOp {
+                op: *op,
+                op_span: *op_span,
+                lhs: Box::new(Expr::from_ast(lhs, session)?),
+            }),
         }
     }
 

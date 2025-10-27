@@ -1,0 +1,43 @@
+if s.len() <= cursor {
+    if stack.is_empty() || !strict {
+        output
+    }
+
+    else {
+        todo()
+    }
+}
+
+else {
+    match state {
+        State.Init => match s[cursor] {
+            open @ ('[' | '{' | '(') => step(
+                s,
+                State.InsideGroup,
+                cursor + 1,
+                stack.push(matching_delim(open)),
+                output + open,
+            ),
+            '\'' | '"' => todo(),
+            '#' if sharp_comment => todo(),
+            '/' if slash_comment && s.get(cursor + 1) == Some('/') => todo(),
+            '/' if slash_block_comment && s.get(cursor + 1) == Some('*') => todo(),
+            c => step(
+                s,
+                State.Init,
+                cursor + 1,
+                stack,
+                output + c,
+            ),
+        },
+        State.InsideGroup => match s[cursor] {
+            open @ ('[' | '{' | '(') => step(),
+            close @ (']' | '}' | ')') => match stack.pop() {
+                (new_stack, Some($close)) => _,
+                (new_stack, Some(wrong)) => if strict {} else {},
+                (stack, None) => if strict {} else {},
+            },
+            '\r' | '\n' | '\t' | ' ' => step(),
+        }
+    }
+}

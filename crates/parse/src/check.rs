@@ -1,4 +1,4 @@
-use crate::CallArg;
+use crate::{CallArg, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::RenderableSpan;
 
@@ -19,7 +19,7 @@ mod r#struct;
 mod r#type;
 mod r#use;
 
-pub(crate) fn check_call_args(args: &[CallArg]) -> Result<(), Vec<Error>> {
+pub(crate) fn check_call_args(args: &[CallArg], session: &Session) -> Result<(), Vec<Error>> {
     // Like Python, a positional argument cannot follow a keyword argument
     let mut has_to_be_kwarg = false;
     let mut keyword_span = None;
@@ -46,7 +46,7 @@ pub(crate) fn check_call_args(args: &[CallArg]) -> Result<(), Vec<Error>> {
             });
         }
 
-        if let Err(e) = arg.arg.check() {
+        if let Err(e) = arg.arg.check(session) {
             errors.extend(e);
         }
 
