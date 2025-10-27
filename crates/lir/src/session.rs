@@ -1,6 +1,8 @@
 use crate::{
     Assert,
     Bytecode,
+    Const,
+    ConstOrRegister,
     Executable,
     Func,
     Label,
@@ -11,7 +13,7 @@ use sodigy_error::{Error, Warning};
 use sodigy_session::Session as SodigySession;
 use sodigy_mir as mir;
 use sodigy_span::Span;
-use sodigy_string::unintern_string;
+use sodigy_string::{InternedString, unintern_string};
 use std::collections::{HashMap, HashSet};
 
 pub struct Session {
@@ -79,7 +81,7 @@ impl Session {
         debug_info: bool,
     ) -> Executable {
         self.make_labels_static();
-        let bytecodes = self.into_labeled_bytecodes();
+        let (bytecodes, interned_strings) = self.into_labeled_bytecodes();
 
         let mut debug_info_map = HashMap::new();
         let mut asserts = Vec::with_capacity(self.asserts.len());
@@ -115,8 +117,11 @@ impl Session {
         }
 
         Executable {
-            main_func: self.main_func_label,
             bytecodes,
+            main_func: self.main_func_label,
+            interned_strings: interned_strings.iter().map(
+                |s| (*s, unintern_string(*s, &self.intermediate_dir).unwrap().unwrap())
+            ).collect(),
             asserts,
             debug_info: if debug_info { Some(debug_info_map) } else { None },
         }
@@ -174,8 +179,9 @@ impl Session {
     }
 
     // Make sure to run `make_labels_static` before calling this.
-    fn into_labeled_bytecodes(&mut self) -> HashMap<u32, Vec<Bytecode>> {
+    fn into_labeled_bytecodes(&mut self) -> (HashMap<u32, Vec<Bytecode>>, HashSet<InternedString>) {
         let mut result = HashMap::new();
+        let mut interned_strings = HashSet::new();
         let mut curr_label;
 
         for (label_id, bytecodes, def_span) in self.funcs.iter().map(
@@ -206,6 +212,15 @@ impl Session {
 
                         curr_label = *n;
                     },
+                    Bytecode::PushConst { value, .. } |
+                    Bytecode::UpdateCompound { value: ConstOrRegister::Const(value), .. } => match value {
+                        Const::String { s, .. } if !s.is_short_string() => {
+                            interned_strings.insert(*s);
+                        },
+                        // If it's a long integer, it also has to be collected
+                        // Const::Number(n) => todo!(),
+                        _ => {},
+                    },
                     _ => {
                         buffer.push(*bytecode);
                     },
@@ -217,7 +232,7 @@ impl Session {
             }
         }
 
-        result
+        (result, interned_strings)
     }
 }
 

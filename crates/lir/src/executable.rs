@@ -1,10 +1,12 @@
 use crate::Bytecode;
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Executable {
     pub bytecodes: HashMap<u32, Vec<Bytecode>>,
     pub main_func: Option<u32>,
+    pub interned_strings: HashMap<InternedString, Vec<u8>>,
 
     // only top-level assertions (for running tests)
     pub asserts: Vec<(u32, String)>,

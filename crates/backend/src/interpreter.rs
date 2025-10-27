@@ -24,10 +24,12 @@ pub fn interpret(
     let mut call_stack = vec![];
     let mut stacks: HashMap<Register, Vec<u32>> = HashMap::new();
     let mut consts: HashMap<Span, u32> = HashMap::new();
-    let mut ret = 0;
+    let mut ret = NULL;
 
     'outer: loop {
+        // println!("label: {curr_label}");
         for bytecode in bytecodes.get(&curr_label).unwrap().iter() {
+            // println!("{bytecode:?}");
             match bytecode {
                 Bytecode::Push { src, dst } => {
                     let ptr = match src {
@@ -39,7 +41,10 @@ pub fn interpret(
                             None => NULL,
                         },
                     };
-                    heap.inc_rc(ptr);
+
+                    if ptr != NULL {
+                        heap.inc_rc(ptr);
+                    }
 
                     match dst {
                         Register::Local(_) |
@@ -92,7 +97,10 @@ pub fn interpret(
                         Register::Return => ret,
                         Register::Const(_) => unreachable!(),
                     };
-                    heap.dec_rc(ptr);
+
+                    if ptr != NULL {
+                        heap.dec_rc(ptr);
+                    }
                 },
                 Bytecode::PushCallStack(label) => {
                     let Label::Static(n) = label else { unreachable!() };
