@@ -153,6 +153,27 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecodes: &m
                         bytecodes.push(Bytecode::PopCallStack);
                     }
                 },
+                Callable::TupleInit { .. } => {
+                    bytecodes.push(Bytecode::PushConst {
+                        value: Const::Compound(args.len() as u32),
+                        dst: Register::Return,
+                    });
+
+                    for i in 0..args.len() {
+                        bytecodes.push(Bytecode::UpdateCompound {
+                            src: Register::Return,
+                            offset: Offset::Static(i as u32),
+                            value: ConstOrRegister::Register(Register::Call(i as u32)),
+                            dst: InPlaceOrRegister::InPlace,
+                        });
+                        bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
+                    }
+
+                    if is_tail_call {
+                        session.pop_all_locals(bytecodes);
+                        bytecodes.push(Bytecode::Return);
+                    }
+                },
                 // The first element is the length of the list.
                 Callable::ListInit { .. } => {
                     bytecodes.push(Bytecode::PushConst {

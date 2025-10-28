@@ -12,7 +12,9 @@ use sodigy_fs_api::{
     create_dir_all,
     exists,
     join,
+    join3,
     write_bytes,
+    write_string,
 };
 use sodigy_session::Session;
 
@@ -39,6 +41,7 @@ fn main() -> Result<(), ()> {
                         input_kind,
                         intermediate_dir,
                         reuse_ir,
+                        emit_irs,
                         dump_type_info,
                         output_path,
                         output_kind,
@@ -65,15 +68,80 @@ fn main() -> Result<(), ()> {
                             intermediate_dir.clone(),
                         );
                         lex_session.continue_or_dump_errors()?;
+
+                        if emit_irs {
+                            write_string(
+                                &join3(
+                                    &intermediate_dir,
+                                    "irs",
+                                    "tokens.rs",
+                                ).unwrap(),
+                                &prettify(&format!("{:?}", lex_session.tokens)),
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+
                         let parse_session = sodigy_parse::parse(lex_session);
                         parse_session.continue_or_dump_errors()?;
+
+                        if emit_irs {
+                            write_string(
+                                &join3(
+                                    &intermediate_dir,
+                                    "irs",
+                                    "ast.rs",
+                                ).unwrap(),
+                                &prettify(&format!("{:?}", parse_session.ast)),
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+
                         let hir_session = sodigy_hir::lower(parse_session);
                         hir_session.continue_or_dump_errors()?;
 
                         // TODO: inter-file hir analysis (name-resolution and applying type-aliases)
 
+                        if emit_irs {
+                            write_string(
+                                &join3(
+                                    &intermediate_dir,
+                                    "irs",
+                                    "hir.rs",
+                                ).unwrap(),
+                                &prettify(&format!(
+                                    "{} lets: {:?}, funcs: {:?}, asserts: {:?} {}",
+                                    "{",
+                                    hir_session.lets,
+                                    hir_session.funcs,
+                                    hir_session.asserts,
+                                    "}",
+                                )),
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+
                         let mir_session = sodigy_mir::lower(hir_session);
                         mir_session.continue_or_dump_errors()?;
+
+                        if emit_irs {
+                            write_string(
+                                &join3(
+                                    &intermediate_dir,
+                                    "irs",
+                                    "mir.rs",
+                                ).unwrap(),
+                                &prettify(&format!(
+                                    "{} lets: {:?}, funcs: {:?}, asserts: {:?} {}",
+                                    "{",
+                                    mir_session.lets,
+                                    mir_session.funcs,
+                                    mir_session.asserts,
+                                    "}",
+                                )),
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+
                         let (mut mir_session, solver) = sodigy_mir_type::solve(mir_session);
                         mir_session.continue_or_dump_errors()?;
 
@@ -83,6 +151,26 @@ fn main() -> Result<(), ()> {
 
                         let mut lir_session = sodigy_lir::lower(mir_session);
                         lir_session.continue_or_dump_errors()?;
+
+                        if emit_irs {
+                            write_string(
+                                &join3(
+                                    &intermediate_dir,
+                                    "irs",
+                                    "lir.rs",
+                                ).unwrap(),
+                                &prettify(&format!(
+                                    "{} lets: {:?}, funcs: {:?}, asserts: {:?} {}",
+                                    "{",
+                                    lir_session.lets,
+                                    lir_session.funcs,
+                                    lir_session.asserts,
+                                    "}",
+                                )),
+                                WriteMode::CreateOrTruncate,
+                            ).unwrap();
+                        }
+
                         let executable = lir_session.into_executable(profile != Profile::Release);
                         lir_session.dump_warnings();
 
@@ -176,8 +264,9 @@ fn main() -> Result<(), ()> {
 }
 
 fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
-    let intern_str_map_dir = join(&intermediate_dir, "str")?;
-    let intern_num_map_dir = join(&intermediate_dir, "num")?;
+    let intern_str_map_dir = join(intermediate_dir, "str")?;
+    let intern_num_map_dir = join(intermediate_dir, "num")?;
+    let ir_dir = join(intermediate_dir, "irs")?;
 
     if !exists(&intern_str_map_dir) {
         create_dir_all(&intern_str_map_dir)?;
@@ -185,6 +274,10 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
 
     if !exists(&intern_num_map_dir) {
         create_dir_all(&intern_num_map_dir)?;
+    }
+
+    if !exists(&ir_dir) {
+        create_dir_all(&ir_dir)?;
     }
 
     File::clear_cache(0 /* project id */, intermediate_dir)?;

@@ -17,10 +17,12 @@ pub enum ErrorToken {
     Declaration,
     Expr,
     Block,
-    ColonOrComma,
-    CommaOrGt,
     AssignOrLt,
-    ParenthesisOrBrace,
+    BraceOrParenthesis,
+    ColonOrComma,
+    CommaOrDot,
+    CommaOrGt,
+    DotOrSemicolon
 }
 
 impl From<&TokenKind> for ErrorToken {

@@ -18,12 +18,14 @@ mod func;
 mod r#if;
 mod r#let;
 mod r#match;
+mod module;
 mod name;
 mod pattern;
 mod prelude;
 mod session;
 mod r#struct;
 mod r#type;
+mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
@@ -34,10 +36,12 @@ pub use func::{CallArg, Func, FuncArgDef, FuncOrigin};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::Match;
+pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
 pub use r#type::Type;
+pub use r#use::Use;
 
 pub use sodigy_parse::GenericDef;
 

@@ -126,16 +126,17 @@ impl TokenKind {
 
             TokenKind::Punct(p) => PrefixOp::try_from(*p).is_ok(),
             TokenKind::Keyword(k) => match k {
-                Keyword::Let |
-                Keyword::Fn |
-                Keyword::Struct |
-                Keyword::Enum |
+                Keyword::As |
                 Keyword::Assert |
-                Keyword::Type |
-                Keyword::Module |
-                Keyword::Use |
+                Keyword::Else |
+                Keyword::Enum |
+                Keyword::Fn |
+                Keyword::Let |
+                Keyword::Mod |
                 Keyword::Pub |
-                Keyword::Else => false,
+                Keyword::Struct |
+                Keyword::Type |
+                Keyword::Use => false,
 
                 Keyword::If |
                 Keyword::Match => true,

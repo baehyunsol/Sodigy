@@ -1111,18 +1111,19 @@ impl Session {
                 },
                 _ => {
                     let token_kind = match self.buffer1.as_slice() {
-                        b"let" => TokenKind::Keyword(Keyword::Let),
-                        b"fn" => TokenKind::Keyword(Keyword::Fn),
-                        b"struct" => TokenKind::Keyword(Keyword::Struct),
-                        b"enum" => TokenKind::Keyword(Keyword::Enum),
+                        b"as" => TokenKind::Keyword(Keyword::As),
                         b"assert" => TokenKind::Keyword(Keyword::Assert),
-                        b"type" => TokenKind::Keyword(Keyword::Type),
-                        b"module" => TokenKind::Keyword(Keyword::Module),
-                        b"use" => TokenKind::Keyword(Keyword::Use),
-                        b"pub" => TokenKind::Keyword(Keyword::Pub),
-                        b"if" => TokenKind::Keyword(Keyword::If),
                         b"else" => TokenKind::Keyword(Keyword::Else),
+                        b"enum" => TokenKind::Keyword(Keyword::Enum),
+                        b"fn" => TokenKind::Keyword(Keyword::Fn),
+                        b"if" => TokenKind::Keyword(Keyword::If),
+                        b"let" => TokenKind::Keyword(Keyword::Let),
                         b"match" => TokenKind::Keyword(Keyword::Match),
+                        b"mod" => TokenKind::Keyword(Keyword::Mod),
+                        b"pub" => TokenKind::Keyword(Keyword::Pub),
+                        b"struct" => TokenKind::Keyword(Keyword::Struct),
+                        b"type" => TokenKind::Keyword(Keyword::Type),
+                        b"use" => TokenKind::Keyword(Keyword::Use),
                         _ => {
                             // Lexer already checked that it's a valid utf8.
                             let identifier = String::from_utf8_lossy(self.buffer1.as_slice());

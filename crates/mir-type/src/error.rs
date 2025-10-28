@@ -3,7 +3,7 @@ use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
-use sodigy_token::InfixOp;
+use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 
 #[derive(Clone, Debug)]
 pub enum TypeError {
@@ -47,8 +47,18 @@ pub enum TypeError {
         func_def: Option<Span>,
         r#type: Type,
     },
+    CannotApplyPrefixOp {
+        op: PrefixOp,
+        op_span: Span,
+        arg_types: Vec<Type>,
+    },
     CannotApplyInfixOp {
         op: InfixOp,
+        op_span: Span,
+        arg_types: Vec<Type>,
+    },
+    CannotApplyPostfixOp {
+        op: PostfixOp,
         op_span: Span,
         arg_types: Vec<Type>,
     },
@@ -68,6 +78,7 @@ pub enum ErrorContext {
     ListElementEqual,
     FuncArgs,
     EqValueEqual,
+    NeqValueEqual,
     Deep,
 
     // If there's nothing special about the context,
@@ -86,6 +97,7 @@ impl ErrorContext {
             ErrorContext::ListElementEqual => Some("All elements of a list must have the same type."),
             ErrorContext::FuncArgs => Some("Arguments of this function are incorrect."),
             ErrorContext::EqValueEqual => Some("Lhs and rhs of `==` operator must have the same type."),
+            ErrorContext::NeqValueEqual => Some("Lhs and rhs of `!=` operator must have the same type."),
             ErrorContext::Deep => Some("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location."),
             ErrorContext::None => None,
         }

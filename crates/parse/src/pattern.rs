@@ -306,7 +306,7 @@ impl<'t> Tokens<'t> {
                 Delim::Bracket | Delim::Lambda => {
                     return Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {
-                            expected: ErrorToken::ParenthesisOrBrace,
+                            expected: ErrorToken::BraceOrParenthesis,
                             got: ErrorToken::Group(*delim),
                         },
                         spans: span2.simple_error(),

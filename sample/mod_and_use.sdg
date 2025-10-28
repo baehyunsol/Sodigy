@@ -1,0 +1,5 @@
+mod x;
+use x;
+
+mod y;
+use x.y;

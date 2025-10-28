@@ -13,7 +13,7 @@ pub struct Module {
 
 impl<'t> Tokens<'t> {
     pub fn parse_module(&mut self) -> Result<Module, Vec<Error>> {
-        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Mod))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 

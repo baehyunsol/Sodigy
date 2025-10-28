@@ -26,10 +26,10 @@ pub struct Block {
     pub enums: Vec<Enum>,
     pub asserts: Vec<Assert>,
     pub aliases: Vec<Alias>,
+    pub uses: Vec<Use>,
 
     // only the top-level block can have modules
     pub modules: Vec<Module>,
-    pub uses: Vec<Use>,
 
     // the top-level block doesn't have a value
     pub value: Box<Option<Expr>>,
@@ -256,7 +256,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Module)) => match self.parse_module() {
+                Some(TokenKind::Keyword(Keyword::Mod)) => match self.parse_module() {
                     Ok(module) => {
                         if !attribute.is_empty() {
                             // TODO: raise error
@@ -277,7 +277,32 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Use)) => todo!(),
+                Some(TokenKind::Keyword(Keyword::Use)) => match self.parse_use() {
+                    Ok(mut uses_) => {
+                        match (uses_.len(), attribute.is_empty()) {
+                            (1, _) => {
+                                uses_[0].attribute = attribute;
+                            },
+                            (_, true) => {},
+
+                            // Maybe distribute the attribute?
+                            (_, false) => todo!(),
+                        }
+
+                        uses.extend(uses_);
+                    },
+                    Err(e) => {
+                        errors.extend(e);
+
+                        if is_top_level {
+                            self.march_until_top_level_statement();
+                        }
+
+                        else {
+                            return Err(errors);
+                        }
+                    },
+                },
                 Some(t) => {
                     if is_top_level {
                         let note = match t {

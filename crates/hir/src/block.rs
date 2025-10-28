@@ -7,6 +7,7 @@ use crate::{
     Let,
     Session,
     Struct,
+    Use,
 };
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_name_analysis::{
@@ -26,8 +27,10 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
+    pub uses: Vec<Use>,
     pub value: Box<Expr>,
 
+    // TODO: The term `use` in `use_counts` is confusing.
     // It only counts names in `lets`.
     // It's later used for optimization.
     pub use_counts: HashMap<InternedString, UseCount>,
@@ -42,6 +45,7 @@ impl Block {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
+        let mut uses = vec![];
 
         let mut let_cycle_check_vertices: HashSet<Span> = ast_block.lets.iter().map(
             |r#let| r#let.name_span
@@ -137,6 +141,22 @@ impl Block {
                     has_error = true;
                 },
             }
+        }
+
+        for r#use in ast_block.uses.iter() {
+            match Use::from_ast(r#use, session) {
+                Ok(r#use) => {
+                    session.uses.push(r#use.clone());
+                    uses.push(r#use);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        for module in ast_block.modules.iter() {
+            session.modules.push(module.clone());
         }
 
         // If `ast_block.value` is None, that means the block is top-level.
@@ -260,6 +280,7 @@ impl Block {
                 group_span: ast_block.group_span,
                 lets,
                 asserts,
+                uses,
                 value: Box::new(value.unwrap()),
                 use_counts,
             })

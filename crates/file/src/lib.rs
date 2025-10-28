@@ -10,7 +10,6 @@ use sodigy_string::{InternedString, intern_string, unintern_string};
 use std::fs::File as StdFile;
 
 mod file_map;
-mod fmt;
 
 use file_map::{
     length_file_map,
@@ -23,7 +22,7 @@ use file_map::{
 //
 // Its `Ord` is for deterministic output of the error messages (it sorts the errors by file).
 // It doesn't sort the files by name.
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct File {
     // If it's compiling multiple projects, the compiler gives sequential numbers.
     // The top-level project is always 0.

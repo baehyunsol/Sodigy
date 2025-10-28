@@ -3,6 +3,7 @@ use sodigy_error::Error;
 
 impl Use {
     pub fn check(&self) -> Result<(), Vec<Error>> {
-        todo!()
+        // TODO: What do we do here?
+        Ok(())
     }
 }

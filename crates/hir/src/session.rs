@@ -4,8 +4,10 @@ use crate::{
     Enum,
     Func,
     Let,
+    Module,
     PRELUDES,
     Struct,
+    Use,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_name_analysis::{Namespace, UseCount};
@@ -35,8 +37,15 @@ pub struct Session {
     pub funcs: Vec<Func>,
     pub structs: Vec<Struct>,
     pub enums: Vec<Enum>,
-    pub aliases: Vec<Alias>,
     pub asserts: Vec<Assert>,
+    pub aliases: Vec<Alias>,
+
+    // it includes top-level and inline `use` statements,
+    // so that it knows which files to look for.
+    pub uses: Vec<Use>,
+
+    // modules are always top-level
+    pub modules: Vec<Module>,
 
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
@@ -69,6 +78,8 @@ impl Session {
             enums: vec![],
             aliases: vec![],
             asserts: vec![],
+            uses: vec![],
+            modules: vec![],
             errors: parse_session.errors.clone(),
             warnings: parse_session.warnings.clone(),
         }

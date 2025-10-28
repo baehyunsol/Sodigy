@@ -1,6 +1,6 @@
 use crate::Punct;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PostfixOp {
     Range { inclusive: bool },
     QuestionMark,

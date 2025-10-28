@@ -178,6 +178,15 @@ impl Solver {
                         Some(_) => todo!(),
                         None => todo!(),
                     },
+                    Callable::TupleInit { group_span } => Ok(Type::Param {
+                        // `Type::Unit`'s `group_span` is of type annotation,
+                        // and `Callable::TupleInit`'s `group_span` is of the expression/
+                        r#type: Box::new(Type::Unit(Span::None)),
+                        args: arg_types,
+
+                        // this is for the type annotation, hence None
+                        group_span: Span::None,
+                    }),
                     Callable::ListInit { group_span } => {
                         // We can treat a list initialization (`[1, 2, 3]`) like calling a
                         // function with variadic arguments (`list.init(1, 2, 3)`).
@@ -270,7 +279,7 @@ impl Solver {
                             _ => todo!(),
                         }
                     },
-                    Callable::GenericInfixOp { op: InfixOp::Eq, span } => {
+                    Callable::GenericInfixOp { op: op @ (InfixOp::Eq | InfixOp::Neq), span } => {
                         let _ = self.equal(
                             &arg_types[0],
                             &arg_types[1],
@@ -279,13 +288,20 @@ impl Solver {
                             false,
                             Some(args[0].error_span()),
                             Some(args[1].error_span()),
-                            ErrorContext::EqValueEqual,
+                            if *op == InfixOp::Eq { ErrorContext::EqValueEqual } else { ErrorContext::NeqValueEqual },
                         );
 
                         Ok(Type::Static(Span::Prelude(self.preludes[BOOL])))
                     },
-                    Callable::GenericInfixOp { op, span } => {
-                        let type_signatures = self.get_possible_type_signatures(*op);
+                    Callable::GenericPrefixOp { span, .. } |
+                    Callable::GenericInfixOp { span, .. } |
+                    Callable::GenericPostfixOp { span, .. } => {
+                        let type_signatures = match func {
+                            Callable::GenericPrefixOp { op, .. } => self.get_prefix_op_type_signatures(*op),
+                            Callable::GenericInfixOp { op, .. } => self.get_infix_op_type_signatures(*op),
+                            Callable::GenericPostfixOp { op, .. } => self.get_postfix_op_type_signatures(*op),
+                            _ => unreachable!(),
+                        };
                         let mut candidates = vec![];
 
                         for type_signature in type_signatures.iter() {
@@ -302,11 +318,31 @@ impl Solver {
                         // `candidates` filters out type signatures that are not compatible with `arg_types`.
                         match candidates.len() {
                             0 => {
-                                self.errors.push(TypeError::CannotApplyInfixOp {
-                                    op: *op,
-                                    op_span: *span,
-                                    arg_types,
-                                });
+                                match func {
+                                    Callable::GenericPrefixOp { op, .. } => {
+                                        self.errors.push(TypeError::CannotApplyPrefixOp {
+                                            op: *op,
+                                            op_span: *span,
+                                            arg_types,
+                                        });
+                                    },
+                                    Callable::GenericInfixOp { op, .. } => {
+                                        self.errors.push(TypeError::CannotApplyInfixOp {
+                                            op: *op,
+                                            op_span: *span,
+                                            arg_types,
+                                        });
+                                    },
+                                    Callable::GenericPostfixOp { op, .. } => {
+                                        self.errors.push(TypeError::CannotApplyPostfixOp {
+                                            op: *op,
+                                            op_span: *span,
+                                            arg_types,
+                                        });
+                                    },
+                                    _ => unreachable!(),
+                                }
+
                                 Err(())
                             },
                             1 => {

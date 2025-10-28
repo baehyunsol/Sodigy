@@ -61,7 +61,7 @@ pub enum NameOrigin {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NameKind {
     Let { is_top_level: bool },
     Func,

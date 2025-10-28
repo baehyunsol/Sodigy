@@ -17,8 +17,9 @@ pub enum Command {
         intermediate_dir: String,
         reuse_ir: bool,
 
-        // It's for debugging the type-checker.
-        // I'll make a CLI option for this, someday.
+        // These two are for debugging the type-checker.
+        // I'll make a CLI option for these, someday.
+        emit_irs: bool,
         dump_type_info: bool,
 
         output_path: FileOrMemory,
@@ -101,6 +102,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     input_kind: IrKind::Code,
                     intermediate_dir,
                     reuse_ir,
+                    emit_irs: true,
                     dump_type_info: true,
                     output_path: FileOrMemory::File(output_path),
                     output_kind: IrKind::TranspiledCode,
@@ -137,6 +139,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     input_kind: IrKind::Code,
                     intermediate_dir,
                     reuse_ir,
+                    emit_irs: true,
                     dump_type_info: true,
                     output_path: FileOrMemory::Memory,
                     output_kind: IrKind::Bytecode,
@@ -169,6 +172,7 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     input_kind: IrKind::Code,
                     intermediate_dir,
                     reuse_ir,
+                    emit_irs: true,
                     dump_type_info: true,
                     output_path: FileOrMemory::Memory,
                     output_kind: IrKind::Bytecode,

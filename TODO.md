@@ -1,6 +1,35 @@
+# 57. `mod` and `use`
+
+1. `mod` 없어도 되지 않음?
+  - `use`에서 처음보는 이름이 있으면 `mod`라고 지레짐작하고 가져오는 거임!
+  - rust에서는 inline `mod`도 가능함: `mod tests { ... }` -> 이거 우리도 됨?
+    - 구현이 trivial하면 되게 하자
+2. `use` 문법
+  - 최대한 rust랑 비슷하게하기...는 별 의미가 없음. 우리는 `::`대신 `.`를 쓰기 때문
+  - 그럼 `::`를 쓸까? 이건 아예 별개의 issue이고 난 살짝 반대임
+  - `use x.y;` is equal to `use x.y as y;`
+  - `use x.{y, z as zz, y.k, y.l as ll};` is equal to `use x.y as y; use x.z as zz; use x.y.k as k; use x.y.l as ll;`
+3. 파일구조
+  - module의 구조는 rust랑 동일하게 하자 (`foo.rs` 혹은 `foo/mod.rs`).
+    - 사실 `mod.rs`말고 더 좋은 이름 있을 듯? 이건 생각해보자.
+    - `mod.rs`는 rust에서 `mod`가 keyword이기 때문에 가능함. 나도 keyword를 쓰거나 잘 회피를 하거나 해야함...
+      - 아 이래서 `mod`를 쓰는 건가? ㅋㅋㅋ
+      - 그럼 rust에서 `mod r#mod`를 하면 어떻게 되나... 해봤더니 circular module error가 뜸! 이것까지 대비를 해뒀구나...
+  - rust는 module 위에 crate가 있음. 우리도 이런 거 있으면 좋은데...
+4. re-export
+  - rust에서는 `pub use`로 re-export가 가능함. 우리도 됨?
+  - 구현이 쉬울 거 같은데, 되게하자!
+
+# 56. byte/bit pattern matching
+
+- some drafts
+  - `1010xxxx`: 8 bit integer that is in range `160..=175`. The matched integer is in range `0..=15`
+  - `1010..xxxx`: an arbitrary size integer that starts with `1010`. It matches the last 4 bit of the integer.
+  - No... not this way. It's too confusing.
+
 # 55. `r#keyword` -> implement this in lexer
 
-# 54. keywordargumentrepeated error
+# 54. KeywordArgumentRepeated error
 
 if `x` is repeated 3 times (let's say x1, x2 and x3). it throws an error for x1&x2, and x2&x3. I want it to merge those errors...
 
@@ -48,6 +77,12 @@ fn bar(..) = baz(foo.<Int>(..), ..);
 - `foo`를 type-check하면 `T`에 대한 constraint가 쌓임.
 - 나중에 `foo.<Int>`를 발견했지? 그럼 `T = Int`를 한 다음에 `T`에 붙은 constraint를 전부 만족시킬 수 있는지 확인함.
 - 만족이 되면 `foo.<Int>` instance를 만드는 거고, 그렇지 않으면 에러를 내야함. 에러 메시지를 만들 때는 `bar` 안에 있는 `foo.<Int>`의 invocation을 콕 찝어줘야함.
+- `foo.<Int>` instance를 만들었으면 코드 안에서 등장하는 `foo.<Int>`를 찾아서 걔네를 바꿔줘야함.
+  - 이거 할 때 operator도 전부 갈아주자!
+  - 그러려면 operator도 일반 generic function처럼 처리해야함. 그러려면 operator의 generic argument의 def_span을 나타낼 방법이 있어야 함!!
+  - 이렇게 하면 코드가 훨씬 간단해짐 `infix_op_type_signatures` 이딴 거 없어도 되거든 ㅋㅋㅋ
+  - 생각해보니까 이거 하면 `Callable::GenericInfixOp`도 사라짐!!
+    - 오
 
 # 49. even more on type system
 
@@ -75,22 +110,74 @@ fn bar(..) = baz(foo.<Int>(..), ..);
 
 Compiler가 Sodigy std를 직접 참조해야할 일이 아주 많음
 
-1. preludes in hir
-  - `Int`를 보고 name-error가 안 나려면 이게 정의돼 있다고 알려줘야함.
-2. primitive types in mir
-  - `3`을 보고 `Int`라고 하려면 `Int`에 대한 정보 혹은 정의가 어딘가에 있어야 함.
-3. operators to functions
-  - `a[0]`을 곧바로 `UpdateCompound`로 번역하는게 아니고, std에 정의된 다른 함수로 번역한 다음 그 함수에서 `UpdateCompound`를 호출
+```sodigy
+// Sodigy std
 
-Sodigy std에만 있는 특별한 능력들도 필요
+// There's no implementation because it's a built-in type.
+type Int;
 
-1. std 안에서는 intrinsic을 직접 호출할 일이 많음. 예를 들어서 `index`는 아래처럼 정의됨.
-  - `fn index<T>(ls: [T], i: Int) -> T = if _ { update_compound(ls, i + 1) } else if _ { update_compound(ls, i + ls.len() + 1) } else { panic() }`
-2. 만약 `Int`나 `Byte`같은 걸 std에서 정의한다고 치면, 이걸 Sodigy로 표현할 방법이 없음
-  - Rust는 `i32` 같은 애들은 완전 built-in이어서 정의도 없음
-  - Rust code 뒤져보면 `#[rustc_intrinsic] fn atomic_load();` 이렇게 생긴 애들 있음. body는 없고 signature만 있음. std 안에서만 쓸 수 있대!
+// It's not a built-in type.
+type String = [Char];
 
-지금 `+` operator를 구현하는 type들의 목록도 정리해둬야 하는데, 그걸 sodigy로 하려면 type class syntax가 필요함! 아직 택도 없는데 ㅠㅠ
+// It has much more flexibly defined than `index_list`.
+fn index<T, U, V>(ls: T, i: U) -> V;
+
+// An instance of `index`. It's still a generic function, though.
+fn index_list<T>(ls: [T], i: Int) -> T = {
+    if 0 <= i && i < ls.len() {
+        // TODO: how do we call built-in functions in Sodigy
+        __built_in.read_compound(ls, i + 1)
+    }
+
+    else if -ls.len() <= i {
+        __built_in.read_compound(ls, i + ls.len() + 1)
+    }
+
+    else {
+        // TODO: error message
+        panic()
+    }
+}
+
+fn div<T, U, V>(a: T, b: U) -> V;
+
+fn div_int(a: Int, b: Int) -> Int = {
+    if b == 0 {
+        // TODO: error message
+        panic()
+    }
+
+    else {
+        __built_in.div_int(a, b)
+    }
+};
+```
+
+1. type annotation에서 `Int`를 보면 std에 있는 `Int`의 def_span과 연결해줘야함.
+  - `use std.Int`를 implicit하게 hir에 넣어주면, `Int`의 def_span이 자동으로 들어옴.
+2. type-infer를 할 때 `3`을 보면 `Int`의 def_span을 이용해서 type을 만들어야함.
+  - 이거는 자동으로 할 방법이 없음. `Int`에다가 `@lang_item("Int")`라고 붙여주고 type-infer engine이 `lang_item("Int")`를 사용하면 됨.
+3. type-checking을 할 때는 `Int`의 def_span을 쓸 거임.
+  - 이거는 1번과 마찬가지로 자동으로 해결됨.
+4. mir expr lowering에서 `a[0]`을 보면 `index(a, 0)`으로 바꿔야함. 또한, `index`의 generic arg로 `T`, `U`, `V`가 있다는 사실도 써야함.
+  - 이때, `index`의 def_span과 `T`, `U`, `V`의 def_span이 필요함.
+  - 나중에 `index`를 다시 `index_list`로 바꿔야함.
+  - `index_list`는 함수 정의가 Sodigy로 돼 있고, 컴파일러가 이 정의를 볼 수 있어야함.
+  - `index_list`는 여전히 generic function이므로 generic function 푸는 과정을 한번 더 거쳐야함!
+    - `T`, `U`, `V`의 정보가 이미 다 있으니까 풀기 쉬울 듯... 아닌가?
+5. mir expr lowering에서 `a / b`를 보면 `div(a, b)`로 바꾸고 generic arg `T`, `U`, `V`를 전부 주면됨!!
+
+참고: Rust compiler를 뒤져봄.
+
+- Rust는 `i32` 같은 애들은 완전 built-in이어서 정의도 없음
+- Rust code 뒤져보면 `#[rustc_intrinsic] fn atomic_load();` 이렇게 생긴 애들 있음. body는 없고 signature만 있음. std 안에서만 쓸 수 있대!
+
+몇가지 예상되는 issues
+
+1. 그럼 user가 `Int`라는 struct를 새로 만들면 name-collision이 나는데?
+  - 생각해보니까 잘하면 피할 수 있음. namespace가 여러 겹으로 쌓이는 구조잖아? prelude namespace를 가장 바깥쪽에 두면 user-defined `Int`가 prelude보다 먼저 선택됨.
+  - 어쨌든 경고는 날릴까?? 이건 모르겠음...
+  - 참고로 Rust는 prelude랑 이름 겹치는 정의 있어도 경고 안 날림
 
 # 46. `include_str!`
 
