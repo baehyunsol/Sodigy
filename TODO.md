@@ -275,6 +275,27 @@ Some notes
 2. In Sodigy, what if someone tries `fn main(world: World) -> World = { let sim1 = main(world.do_something1()); let sim2 = main(world.do_something2()); if world.cond() { sim1 } else { sim2 } }`?
   - In order to prevent this, `world` and `world.do_something()` must be different types...
 
+---
+
+I got some inspirations from pipefish lang. let's divide the language into 2 parts: pure functions and impure commands. Impure commands have completely different syntax and they are defined in a separate file. Impure commands have a shell-like syntax.
+
+I asked [Perplexity about this](https://www.perplexity.ai/search/i-m-trying-to-design-a-purely-KtUQBlYnQs6dm338GwzMLQ), but it's completely hallucinating. [Clean language](https://clean.cs.ru.nl/Clean) is one of its suggestion. Though it's not what I've asked, it's worth reading.
+
+What I mean by shell-like is that, 1) it's piped (`|`), 2) it uses flags (`--flag` or `-f`), 3) and it consists of commands and a command ends with a semicolon.
+
+1. Does a command have types?
+2. Can a command be user-defined?
+3. Can a command call other commands?
+4. Can a command evaluate an arbitrary Sodigy expression?
+5. Control flows, like `if` and `for`
+  - If it's shell, we need `for`... but I really don't like it...
+6. Global variables
+7. error handlings...
+
+How about making it (really) interpreted? Then we can create REPL!
+
+Things that I need: read/write/append to files (including stdin/stdout/stderr). random_int, date, ...
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`
