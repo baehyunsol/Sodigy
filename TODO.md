@@ -1,24 +1,11 @@
 # 57. `mod` and `use`
 
-1. `mod` 없어도 되지 않음?
-  - `use`에서 처음보는 이름이 있으면 `mod`라고 지레짐작하고 가져오는 거임!
-  - rust에서는 inline `mod`도 가능함: `mod tests { ... }` -> 이거 우리도 됨?
-    - 구현이 trivial하면 되게 하자
-2. `use` 문법
-  - 최대한 rust랑 비슷하게하기...는 별 의미가 없음. 우리는 `::`대신 `.`를 쓰기 때문
-  - 그럼 `::`를 쓸까? 이건 아예 별개의 issue이고 난 살짝 반대임
-  - `use x.y;` is equal to `use x.y as y;`
-  - `use x.{y, z as zz, y.k, y.l as ll};` is equal to `use x.y as y; use x.z as zz; use x.y.k as k; use x.y.l as ll;`
-3. 파일구조
-  - module의 구조는 rust랑 동일하게 하자 (`foo.rs` 혹은 `foo/mod.rs`).
-    - 사실 `mod.rs`말고 더 좋은 이름 있을 듯? 이건 생각해보자.
-    - `mod.rs`는 rust에서 `mod`가 keyword이기 때문에 가능함. 나도 keyword를 쓰거나 잘 회피를 하거나 해야함...
-      - 아 이래서 `mod`를 쓰는 건가? ㅋㅋㅋ
-      - 그럼 rust에서 `mod r#mod`를 하면 어떻게 되나... 해봤더니 circular module error가 뜸! 이것까지 대비를 해뒀구나...
-  - rust는 module 위에 crate가 있음. 우리도 이런 거 있으면 좋은데...
-4. re-export
-  - rust에서는 `pub use`로 re-export가 가능함. 우리도 됨?
-  - 구현이 쉬울 거 같은데, 되게하자!
+1. `mod`랑 `use`는 rust와 동일하게 사용
+  - 단, inline module은 아직 고민 중
+  - `pub use`는 하고 싶지만 아직 미구현
+2. `::`는 안 씀. `use`에서도 `.`으로 이름 이어야 함!
+3. 파일구조: rust와 동일
+  - 단, `mod mod;`는 아예 원천적으로 막을 거임. `mod r#mod;` 해도 안됨. 그냥 저 이름 자체를 막을 거임.
 
 # 56. byte/bit pattern matching
 
@@ -29,21 +16,7 @@
 
 # 55. `r#keyword` -> implement this in lexer
 
-# 54. KeywordArgumentRepeated error
-
-if `x` is repeated 3 times (let's say x1, x2 and x3). it throws an error for x1&x2, and x2&x3. I want it to merge those errors...
-
-# 53. `pub` keyword
-
-Same as Rust
-
-Attribute parser can handle this. Make sure to break immediately after parsing `pub` keyword!
-
-1. `pub`, `pub(crate)`, `pub(mod)`
-  - Are we gonna use the term `crate`?
-  - IIRC, `mod` is already a keyword. Should `pub` and `crate` also be keywords?
-2. `pub(self)`, `pub(super)` -> I haven't seen these or used these
-3. `pub(in crate::tools)` -> what is this?
+`fn use(x) = { ... };` 이런 거 보면 "expected an identifer, got a keyword"라고 할 거잖아? 그럼 note로 "use r#"이라고 알려주고 싶음. 지금은 이걸 표시할 자리가 없는데... `ErrorKind::render`를 조금 수정해서 자리를 만드는게 최선일 듯!
 
 # 51. Number type
 
@@ -83,28 +56,6 @@ fn bar(..) = baz(foo.<Int>(..), ..);
   - 이렇게 하면 코드가 훨씬 간단해짐 `infix_op_type_signatures` 이딴 거 없어도 되거든 ㅋㅋㅋ
   - 생각해보니까 이거 하면 `Callable::GenericInfixOp`도 사라짐!!
     - 오
-
-# 49. even more on type system
-
-1. 생각해보니까 subtyping이 필요함... never type이 있거든 ㅠㅠ
-  - 일단은 strict typing만 구현해두고 나중에 생각 ㅠㅠ
-2. 이제 type expression이 필요해졌음
-  - `fn add(x, y)`가 있으면 `add`의 def_span으로 검색을 하면 `Fn(TypeVar(x), TypeVar(y)) -> TypeVar(add)`가 나오겠지? 만약에 `TypeVar(x)`를 풀었다고 치자. 그럼 `TypeVar(add)`도 검색을 해서 여기도 반영을 해줘야하는데 그게 안되고 있음
-  - 풀다 보니까 `TypeVar(a) = TypeVar(b)`라는 equation을 만들었다고 치자. 지금 구현으로는 이걸 처리할 방법이 없음!
-  - As of now, lhs must be a simple TypeVar, because all we can do now is to get a type expression from `types.get(x)`.
-    - Let' create `type_var_rev_map: HashMap<Span, Vec<Span>>`.
-    - In the above case, it looks like `{ x: [add], y: [add] }`, because `TypeVar(x)` is referenced by `TypeVar(add)` and `TypeVar(y)` is also referenced by `TypeVar(add)`.
-    - When we solve `TypeVar(x)`, we iterate type vars that are referencing `TypeVar(x)`, and replace `TypeVar(x)` with the result.
-  - In the future, we might have more complex type equations, where both sides are type expressions.
-    - We can solve this with `type_var_rev_map`.
-    - Think `Result<TypeVar(x), TypeVar(y)> = Result<TypeVar(z), TypeVar(w)>`.
-    - We first create intermediate type vars: `TypeVar(i1) = Result<TypeVar(x), TypeVar(y)>` and `TypeVar(i2) = Result<TypeVar(z), TypeVar(w)>`.
-    - We also add a type equation `TypeVar(i1) = TypeVar(i2)`.
-    - When we solve `TypeVar(x)`, we're gonna also update `TypeVar(i1)`.
-    - When we solve `TypeVar(i1)`, we're gonna update `TypeVar(i2)`.
-3. compiler debugging 하기 좋은 아이디어!!
-  - 이제 type infer 결과물도 다 있고, span도 다 있고, visualize도 다 되고, 심지어 누가 infer됐는지도 다 있음.
-  - 그럼 infer된 결과물 다 보여주는 CLI command를 만들까?
 
 # 48. Compiler & Sodigy std
 
