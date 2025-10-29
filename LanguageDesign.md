@@ -21,7 +21,11 @@ It has 2 benefits.
 
 I'm trying to make Sodigy as Rust-like as possible unless it violates principle 1 or 2.
 
-# 4. It's a language for building CLI tools.
+# 4. Sodigy uses arbitrary width integers.
+
+I like arbitrary width integers. That's it. If you want 32-bit integers or 64-bit integers, this is not your language.
+
+# 5. It's a language for building CLI tools.
 
 You need at least 3 files to run a sodigy program (`sodigy.toml`, `src/lib.sdg`, `src/main.sdgsh`), so it's not a good idea to use Sodigy for a very simple program, which can be done in a few lines.
 
