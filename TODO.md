@@ -1,3 +1,62 @@
+# 59. Complete new implementation of Bytecode/VM
+
+1. `scalar` (32 bit) vs `compound` (arbitrary number of scalar/compound values) are still valid.
+2. There are 4 stacks, 1 register and 1 heap.
+
+```
+stack1: func args (scalar)
+curr stack frame size: 3
+...  v1  v2  v3  _
+     ^           ^
+     |           |
+    sp1          *-- func args for the next call are pushed to here
+
+When it has to read a value, it does something like `stack1[sp1 + i]`
+When it calls another function, it pushes the arguments to `stack1[sp1 + 3 + i]`, and adds 3, which is the stack frame size, to sp1, and jumps. After it comes back, it subtracts 3 from sp1.
+When it tail-calls another function, it pushes the arguments to `stack1[sp1 + 3 + i]`, and copies the values in `stack1[sp1 + 3 + i]` to `stack1[sp1 + i]`, so that it doesn't have to move sp1, and jumps.
+When it returns... it does nothing! There's nothing to drop! Caller is responsible for decreasing the stack pointer, not callee.
+
+stack2: func args (ptr)
+curr stack frame size: 4
+...  p1  p2  p3  p4  _
+     ^               ^
+     |               |
+    sp2              *-- func args for the next call are pushed to here
+
+It's like stack1, but you have to inc_rc when you push something to this stack.
+When it returns, it has to dec_rc of p1, p2, p3 and p4.
+
+stack3: locals (scalar)
+It's like stack1.
+
+stack4: locals (ptr)
+It's like stack2, but it dec_rc when it leaves a block (or any namescope), instead of returning from a function
+
+register1: return (scalar or ptr)
+A function return value is pushed to here. You have to explicitly drop this value, so that the runtime can dec_rc.
+
+heap
+```
+
+3. Optimizations
+  - The easiest way of removing heap allocations is destructuring structs.
+    - For example, by destructuring `{ let p = Person { age: x, name: y }; ... }` to `{ let age = x; let name = y; ... }`, we have removed a heap allocation of `p: Person`.
+    - We can do this if `p` itself is not used, but only its fields are.
+    - We can do this at MIR.
+  - In the current version, when you want to push a constant to `Stack::Call(1)`, you first push it to `Stack::Return` and clone it to `Stack::Call(1)`. It's damn inefficient. You can pass an argument to `lir::lower_expr`, which stack it should push the result. It's not even an optimization. It's just an implementation, but it's a huge gain.
+
+# 58. unnecessary parenthesis warning
+
+심심해서 구버전 Sodigy에서 내던 warning이 뭐가 있는지 찾아봤거든? 그나마 건질만한게 저거밖에 없음.
+
+1. curly brace도 잡기?
+  - `if cond {{{var}}}` -> 이런 말같지도 않은 상황을 상상해볼 수도 있음 ㅋㅋ
+2. unnecessary한지 아닌지 어떻게 판단?
+  - `if (cond) { .. }` -> 이거 unnecessary? 가독성에 도움될 수도 있잖아.
+  - `if cond {(var)}` -> 이거 unnecessary? 이건 unnecessary 해보이긴 함 ㅋㅋㅋ
+  - `let x = (var);` -> 이거 unnecessary? var가 길면 가독성에 도움될 수도 있잖아...
+  - `foo(x, y, (var), z)` -> 이거 unnecessary??
+
 # 57. `mod` and `use`
 
 1. `mod`랑 `use`는 rust와 동일하게 사용
@@ -246,55 +305,100 @@ Canceling reference count isn't a big deal. The big deals are
 
 일단은 보류하고 (아직은 debugging이 필요할 정도로 긴 Sodigy 코드를 못 짬), Sodigy 코드를 많이 짜고 나서 그때 생각할까?
 
-# 36. Impure IO
+# 36. Sodigy-Shell
 
-지금 생각한 거는,
+There's a shell-script on top of sodigy. It is a completely different language, can call arbitrary sodigy functions (does it?), and is impure.
 
-```
-fn main(world: World) -> World = match foo() {
-    $whatever => main(
-        world
-            .print("Hello, World!")
-            .write_string("file.txt", "Hello, World!")
-    ),
-    _ => world.quit(),
-};
-```
-
-이런 식으로 하는 거임. 모든 impure function은 `world`를 통해서만 호출 가능. `main`에서 나가는 순간 `world`에 붙어있는 impure action을 다 처리함. `main`을 recursive하게 호출함으로써 impure action의 결과를 사용할 수도 있음. `World`는 `main`에서만 사용 가능.
-
-근데 이러면 action의 결과를 어떻게 읽어?
-
-What if we want a library of impure functions?
-
----
-
-Some notes
-
-1. In rust, it's okay to call main functions in other functions!!
-2. In Sodigy, what if someone tries `fn main(world: World) -> World = { let sim1 = main(world.do_something1()); let sim2 = main(world.do_something2()); if world.cond() { sim1 } else { sim2 } }`?
-  - In order to prevent this, `world` and `world.do_something()` must be different types...
-
----
-
-I got some inspirations from pipefish lang. let's divide the language into 2 parts: pure functions and impure commands. Impure commands have completely different syntax and they are defined in a separate file. Impure commands have a shell-like syntax.
-
-I asked [Perplexity about this](https://www.perplexity.ai/search/i-m-trying-to-design-a-purely-KtUQBlYnQs6dm338GwzMLQ), but it's completely hallucinating. [Clean language](https://clean.cs.ru.nl/Clean) is one of its suggestion. Though it's not what I've asked, it's worth reading.
-
-What I mean by shell-like is that, 1) it's piped (`|`), 2) it uses flags (`--flag` or `-f`), 3) and it consists of commands and a command ends with a semicolon.
-
-1. Does a command have types?
-2. Can a command be user-defined?
-3. Can a command call other commands?
-4. Can a command evaluate an arbitrary Sodigy expression?
-5. Control flows, like `if` and `for`
-  - If it's shell, we need `for`... but I really don't like it...
-6. Global variables
-7. error handlings...
-
-How about making it (really) interpreted? Then we can create REPL!
+So, basically, sodigy is a library-only language. If you want to *execute* something, you have to use sodigy shell.
 
 Things that I need: read/write/append to files (including stdin/stdout/stderr). random_int, date, ...
+
+옛날에 sreq에서 하려고 했던 것들 여기서 할까?
+
+1. pipe operator
+  - `$in`으로 이전에서 넘어온 값 받게 하자... cause I don't like being implicit
+  - `$in`이 들어갈 자리가 명확하면 생략가능하게 하자!
+2. args and flags
+  - a command takes of small number of args (can be zero) and a lot of flags
+  - you can use parenthesis to make args less ambiguous
+3. command
+  - a command may 1) return a value or 2) fail
+    - it must return a single value. there's no tuple in sdgsh
+    - if it fails, it might pass `$err` to pipe
+4. `or` command
+  - if the previous command failed, it's executed
+  - if there's no `or` command after a failed command, the entire shell dies immediately
+  - can it catch panics?
+    - sodigy-shell must be implemented using sodigy bytecodes. so if it can catch panics, we have to allow sodigy bytecodes to catch panics... oh no...
+5. calling sodigy functions
+  - can the sodigy function take arbitrary types of input?
+    - I don't think so...
+    - okay types: int, number, string, list of okay types (does it allow list of list of list of integers?)
+  - can the sodigy function return arbitrary types?
+    - I want the `or` command to take care of sodigy's `Result` type.
+    - what if it panics? does the shell die?
+    - If we're implementing REPL, it has to be able to return arbitrary types
+6. Type checks?
+  - the current runtime has no type information... so if we pass an integer to a function that expects a string, it'll behave in really weird way but doesn't throw any error
+  - commands have very dynamic types (e.g. return type changes depending on flags)... can we check that?
+  - I still want type checks because
+    - 1, it provides better error messages, both in compile-mode and REPL-mode
+    - 2, I don't want to add runtime type information
+  - In order to check types, we need type information (of course), and in order to check types at runtime, we need the type information at runtime...
+7. Global variables
+  - can we type check this?
+  - in order to type check this, users have to annotate the types of global variables... 으악!
+8. User-defined commands
+  - only a simple macro (text substitution)
+9. Interpreted vs compiled
+  - if it's interpreted, we have REPL!
+  - if it's interpreted, how do we distribute the language?
+10. if it's not repl, there must be some kinda entry point
+  - it has to read stdin, argv, env vars -> easy as cake
+11. comments: `#` vs `//`
+  - if it's shell... then we have to use `#` for comments
+  - but then, we have to rewrite EVERYTHING, even the lexer...
+12. inline expressions
+  - bash/zsh doesn't allow that. nu allows that
+  - if I have to allow this, the language would be at least 3 times more complicated
+13. formatted strings
+  - lexing an f-string is a big deal. it's such a big deal that even sodigy can't do that.
+  - I don't want to implement such thing again...
+14. string escapes
+  - it's a big deal to implement escapes in the lexer
+  - do I have to do that again...??
+15. bash style names (ls, cat, cd, mkdir) vs modern names (read, write, append, list_dir, create_dir, make_dir)
+16. dynamically import sodigy functions
+  - in order to dynamically import sodigy functions, the sodigy functions cannot use static labels
+  - but if the shell is compiled (for distribution), I want them to use static labels
+  - how can it dynamically load bytecodes... we need a whole new architecture
+  - the user points to sodigy source files, not compiled libraries
+    - does it compile the sodigy source on the fly? what if the compilation fails?
+    - how does it find the compiled libraries, or check if it exists?
+  - `use lib_sth.fn_sth as foo;` -> I want this syntax but I cannot reuse the parser in the sodigy compiler ... :(
+17. Then, what happens to the sodigy compiler?
+  - `sodigy new <project_name>` creates a new project
+  - `sodigy run` in the project dir runs the sodigy-shell file in the project
+    - Can a project have multiple shells?
+  - `sodigy test` in the project dir runs the tests in the sodigy files
+  - `sodigy build` emits an output (C/Rust/Python/Bytecode) (including sodigy-shell)
+  - `sodigy interpret <bytecodes_path>` interprets bytecodes
+    - The sodigy binary has to be able to run bytecodes anyway (in order to run tests).
+18. How about this? Sodigy creating `[Command]` at runtime and the shell executes it.
+  - Can we type-check this?
+19. Executing arbitrary binary files
+  - zsh and nu can execute `~/Documents/Rust/hgp/target/release/hgp`... can it? nope!
+20. Another idea for implementation
+  - sodigy-shell is just a thin syntactic sugar over sodigy. for example, `ls -l "../" | do_something | do_another_thing $in 3;` is desugared to `do_another_thing(do_something(ls_long(path="../").unwrap()), 3)`.
+  - Then, it's passed to the sodigy compiler. Sodigy compiler can do everything. It can even type-check the script.
+    - We have to do something with the spans, so that it's error message is readable.
+  - The functions in the generated sodigy code are impure, but the compiler doesn't care about that.
+  - how does it lower `or` command?
+    - `ls -l "../" | or (do_something $err) | do_another_thing $in 3`
+    - `do_another_thing(match ls_long(path="../") { Ok(i) => i, Err(e) => do_something(e) }, 3)`
+    - Wow... this is strong...
+
+TODO: call it `sodigy-script`, not `sodigy-shell` -> fix everything accordingly
 
 # 34. Errors, Panics and Crashes
 

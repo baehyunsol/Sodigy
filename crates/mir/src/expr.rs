@@ -152,6 +152,7 @@ impl Expr {
                         },
                         NameOrigin::FuncArg { .. } => todo!(),
                         NameOrigin::Generic { .. } => unreachable!(),
+                        NameOrigin::External => unreachable!(),
                     },
                     Ok(func) => Callable::Dynamic(Box::new(func)),
                     Err(()) => {
@@ -428,7 +429,7 @@ impl Expr {
                         func,
                         args: mir_elements,
 
-                        // TODO: do we have to treat it like a generic function?
+                        // TODO: do we have to treat list-init like a generic function?
                         generic_defs: vec![],
                         given_keyword_arguments: vec![],
                     })

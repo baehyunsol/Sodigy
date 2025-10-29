@@ -42,10 +42,10 @@ type EmptyResult<E> = Result<(), E>;
 
 ## Decorators
 
-A decorator decorates `let`, `func`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
+A decorator decorates `let`, `func`, `assert`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
 
-1. `@public` (no arguments)
-2. `@test.eq((3, 4), 5)` (with arguments)
+1. `@always` (no arguments)
+2. `@name("test1")` (with arguments)
 
 ## Pattern matching
 
@@ -119,9 +119,12 @@ A char literal starts with a single-quote character and ends with a single-quote
 
 Syntactically, type annotations are always optional. It won't throw any syntax error for missing type annotations. But, it's a compile error if the inference engine cannot infer the type.
 
-- `Int`: built-in integer type
-- `List<Int>`: built-in list type, it has 1 argument
-- `Fn(Int, Int) -> Int`: a function that takes 2 integers and returns 1 integer
+- `Int`: Built-in integer type
+- `[Int]`: Built-in list type
+- `(Int, Int)`: Built-in tuple type
+- `Option<Int>`: Option type, and it has 1 argument
+- `Fn(Int, Int) -> Int`: A function that takes 2 integers and returns 1 integer
+- `Result<_, _>`: You can omit a part of a type annotation.
 
 ## Assertions
 

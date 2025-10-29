@@ -59,6 +59,10 @@ pub enum NameOrigin {
     Foreign {
         kind: NameKind,
     },
+
+    // `use` statements may introduce external names.
+    // It must be removed (or a compile error) in hir-name-analysis pass
+    External,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -91,6 +95,10 @@ impl UseCount {
             always: Counter::Never,
             debug_only: Counter::Never,
         }
+    }
+
+    pub fn never_ever(&self) -> bool {
+        self.always == Counter::Never && self.debug_only == Counter::Never
     }
 }
 

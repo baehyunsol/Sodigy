@@ -1,4 +1,4 @@
-use crate::{Attribute, Tokens};
+use crate::{Attribute, Field, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -15,7 +15,7 @@ pub struct Use {
     // if it's `use a.b.c as d;`, the span points to `d`.
     pub name_span: Span,
 
-    pub full_path: Vec<(InternedString, Span)>,
+    pub full_path: Vec<Field>,
     pub attribute: Attribute,
 }
 
@@ -39,17 +39,24 @@ impl<'t> Tokens<'t> {
     ) -> Result<Vec<Use>, Vec<Error>> {
         let mut prefix = vec![];
         let mut result = vec![];
+        let mut dot_span = Span::None;
 
         loop {
             // `use a.{b`
             // `use a`
-            prefix.push(self.pop_name_and_span()?);
+            let (name, span) = self.pop_name_and_span()?;
+            prefix.push(Field::Name {
+                name,
+                span,
+                dot_span,
+            });
 
             match self.peek() {
                 Some(Token { kind: TokenKind::Punct(p), span }) => match p {
                     // `use a.{b.`
                     // `use a.`
                     Punct::Dot => {
+                        dot_span = *span;
                         self.cursor += 1;
 
                         match self.peek() {
@@ -193,8 +200,8 @@ impl<'t> Tokens<'t> {
                         else {
                             result.push(Use {
                                 full_path: prefix.clone(),
-                                name: prefix.last().unwrap().0,
-                                name_span: prefix.last().unwrap().1,
+                                name: prefix.last().unwrap().unwrap_name(),
+                                name_span: prefix.last().unwrap().unwrap_span(),
 
                                 // not available yet
                                 keyword_span: Span::None,
@@ -317,8 +324,8 @@ impl<'t> Tokens<'t> {
                 None => {
                     result.push(Use {
                         full_path: prefix.clone(),
-                        name: prefix.last().unwrap().0,
-                        name_span: prefix.last().unwrap().1,
+                        name: prefix.last().unwrap().unwrap_name(),
+                        name_span: prefix.last().unwrap().unwrap_span(),
 
                         // not available yet
                         keyword_span: Span::None,

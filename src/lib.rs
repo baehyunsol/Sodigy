@@ -1,8 +1,12 @@
 use sodigy_backend::CodeGenMode;
 
 mod cli;
+mod command;
+mod error;
 
-pub use cli::{Command, FileOrMemory, parse_args};
+pub use cli::{CliCommand, parse_args};
+pub use command::Command;
+pub use error::Error;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IrKind {
@@ -24,17 +28,34 @@ pub enum Backend {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Profile {
-    Debug,
-    Release,
+    Script,
     Test,
 }
 
+// TODO: just use the same enum...
 impl From<Profile> for CodeGenMode {
     fn from(p: Profile) -> CodeGenMode {
         match p {
-            Profile::Debug => CodeGenMode::Binary,
-            Profile::Release => CodeGenMode::Binary,
+            Profile::Script => CodeGenMode::Binary,
             Profile::Test => CodeGenMode::Test,
         }
     }
+}
+
+/// The compiler stores irs (or result) in various places.
+/// 1. It can store the output to user-given path.
+/// 2. If it has to interpret the bytecodes, it just stores them in memory and directly executes them.
+/// 3. In a complicated compilation process, it stores irs in the intermediate_dir.
+#[derive(Clone, Debug)]
+pub enum IrStore {
+    File(String),
+    BytecodesOnMemory,
+    IntermediateDir,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Optimization {
+    None,
+    Mild,
+    Extreme,
 }

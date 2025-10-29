@@ -152,6 +152,20 @@ impl Field {
             Field::Index(_) | Field::Range(_, _) => None,
         }
     }
+
+    pub fn unwrap_name(&self) -> InternedString {
+        match self {
+            Field::Name { name, .. } => *name,
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_span(&self) -> Span {
+        match self {
+            Field::Name { span, .. } => *span,
+            _ => panic!(),
+        }
+    }
 }
 
 impl<'t> Tokens<'t> {

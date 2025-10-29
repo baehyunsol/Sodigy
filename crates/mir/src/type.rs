@@ -99,6 +99,7 @@ impl Type {
                     NameKind::Enum => Ok(Type::Static(id.def_span)),
                     _ => todo!(),
                 },
+                NameOrigin::External => unreachable!(),
             },
             hir::Type::Path { .. } => todo!(),
             hir::Type::Param { r#type, args: hir_args, group_span } => {

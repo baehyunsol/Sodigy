@@ -1,3 +1,4 @@
+use sodigy_name_analysis::Namespace;
 use sodigy_parse::Session as ParseSession;
 
 // In sodigy_lex and sodigy_parse, the functions return `Result<T, Vec<Error>>`, and errors are handled by `?` operator.
@@ -45,8 +46,6 @@ pub use r#use::Use;
 
 pub use sodigy_parse::GenericDef;
 
-pub(crate) use prelude::PRELUDES;
-
 pub fn lower(parse_session: ParseSession) -> Session {
     let mut session = Session::from_parse_session(&parse_session);
     let mut top_level_block = match Block::from_ast(
@@ -68,12 +67,14 @@ pub fn lower(parse_session: ParseSession) -> Session {
         session.asserts.push(assert);
     }
 
-    session
-}
+    let Namespace::Block { names } = session.name_stack.pop().unwrap() else { unreachable!() };
 
-#[derive(Clone, Copy, Debug)]
-pub enum UseCount {
-    None,
-    Once,
-    Multiple,
+    // If the code ever mentions `Int`, we have to add `use std.preludes.Int;`.
+    for (name, (_, _, count)) in names.iter() {
+        if !count.never_ever() {
+            session.uses.push(prelude::use_prelude(*name));
+        }
+    }
+
+    session
 }

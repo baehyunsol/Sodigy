@@ -1,4 +1,4 @@
-use crate::{Backend, IrKind, Profile};
+use crate::{Backend, Optimization, Profile};
 use ragit_cli::{
     ArgCount,
     ArgParser,
@@ -6,64 +6,53 @@ use ragit_cli::{
     Error as CliError,
 };
 
-#[derive(Clone, Debug)]
-pub enum Command {
-    InitIrDir {
-        intermediate_dir: String,
-    },
-    Compile {
-        input_path: String,
-        input_kind: IrKind,
-        intermediate_dir: String,
-        reuse_ir: bool,
-
-        // These two are for debugging the type-checker.
-        // I'll make a CLI option for these, someday.
-        emit_irs: bool,
-        dump_type_info: bool,
-
-        output_path: FileOrMemory,
-        output_kind: IrKind,
+#[derive(Debug)]
+pub enum CliCommand {
+    Build {
+        output_path: String,
         backend: Backend,
+        optimization: Optimization,
         profile: Profile,
+        emit_irs: bool,
+        jobs: u32,
     },
-    Interpret {
-        executable_path: FileOrMemory,
-
-        // It's either `Test` or not.
-        // The bytecode will tell you where the tests are, if exist, and where the
-        // main function is, if exists. But it won't tell you how to optimize itself.
-        profile: Profile,
-    },
+    Clean,
     Help(String),
+    Interpret {
+        bytecodes_path: String,
+    },
+    New {
+        project_name: String,
+    },
+    Run {
+        optimization: Optimization,
+        jobs: u32,
+    },
+    Test {
+        optimization: Optimization,
+        jobs: u32,
+    },
 }
 
-#[derive(Clone, Debug)]
-pub enum FileOrMemory {
-    File(String),
-    Memory,
-}
-
-pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
+pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
     match args.get(1).map(|a| a.as_str()) {
-        Some("compile") => {
+        Some("build") => {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--output", ArgType::String)
-                .optional_arg_flag("--ir", ArgType::String)
                 .optional_arg_flag("--backend", ArgType::enum_(&["c", "rust", "python", "bytecode"]))
-                .optional_flag(&["--reuse-ir"])
-                .optional_flag(&["--release", "--test"])
+                .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
+                .optional_flag(&["--release"])
+                .optional_flag(&["--test"])
+                .optional_flag(&["--emit-irs"])
                 .alias("-O", "--release")
-                .short_flag(&["--output"])
-                .args(ArgType::String, ArgCount::Exact(1))  // input path
+                .short_flag(&["--output", "--jobs"])
+                .args(ArgType::String, ArgCount::None)
                 .parse(&args, 2)?;
 
             if parsed_args.show_help() {
-                return Ok(vec![Command::Help(String::from("compile"))]);
+                return Ok(CliCommand::Help(String::from("build")));
             }
 
-            let input_path = parsed_args.get_args_exact(1)?[0].to_string();
-            let intermediate_dir = parsed_args.arg_flags.get("--ir").map(|p| p.to_string()).unwrap_or_else(|| String::from("__sodigy_cache__"));
             let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
             let backend = match parsed_args.arg_flags.get("--backend").map(|f| f.as_str()) {
                 Some("c") => Backend::C,
@@ -73,15 +62,22 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                 None => Backend::Bytecode,  // default
                 _ => unreachable!(),
             };
-            let reuse_ir = parsed_args.get_flag(0).is_some();
+            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
 
             // Do you see `.as_ref()` and `.map()` below? It's one of the reasons why I'm creating Sodigy.
-            let profile = match parsed_args.get_flag(1).as_ref().map(|f| f.as_str()) {
-                Some("--release") => Profile::Release,
-                Some("--test") => Profile::Test,
-                None => Profile::Debug,
+            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => Optimization::Mild,
+                None => Optimization::None,
                 _ => unreachable!(),
             };
+
+            let profile = match parsed_args.get_flag(1).as_ref().map(|f| f.as_str()) {
+                Some("--test") => Profile::Test,
+                None => Profile::Script,
+                _ => unreachable!(),
+            };
+
+            let emit_irs = parsed_args.get_flag(2).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -89,101 +85,118 @@ pub fn parse_args(args: &[String]) -> Result<Vec<Command>, CliError> {
                     Backend::C => "out.c",
                     Backend::Rust => "out.rs",
                     Backend::Python => "out.py",
-                    Backend::Bytecode => "out.sbc",
+                    Backend::Bytecode => "out.sdgbc",
                 }.to_string(),
             };
 
-            Ok(vec![
-                Command::InitIrDir {
-                    intermediate_dir: intermediate_dir.clone(),
-                },
-                Command::Compile {
-                    input_path,
-                    input_kind: IrKind::Code,
-                    intermediate_dir,
-                    reuse_ir,
-                    emit_irs: true,
-                    dump_type_info: true,
-                    output_path: FileOrMemory::File(output_path),
-                    output_kind: IrKind::TranspiledCode,
-                    backend,
-                    profile,
-                },
-            ])
+            Ok(CliCommand::Build {
+                output_path,
+                backend,
+                optimization,
+                profile,
+                emit_irs,
+                jobs,
+            })
         },
-        Some("compile-hir") => todo!(),
-        Some("run") => {
+        Some("clean") => {
             let parsed_args = ArgParser::new()
-                .optional_arg_flag("--ir", ArgType::String)
-                .optional_flag(&["--reuse-ir"])
-                .optional_flag(&["--release"])
-                .alias("-O", "--release")
-                .args(ArgType::String, ArgCount::Exact(1))  // input path
+                .args(ArgType::String, ArgCount::None)
                 .parse(&args, 2)?;
 
-            let input_path = parsed_args.get_args_exact(1)?[0].to_string();
-            let intermediate_dir = parsed_args.arg_flags.get("--ir").map(|p| p.to_string()).unwrap_or_else(|| String::from("__sodigy_cache__"));
-            let reuse_ir = parsed_args.get_flag(0).is_some();
-            let profile = match parsed_args.get_flag(1).as_ref().map(|f| f.as_str()) {
-                Some("--release") => Profile::Release,
-                None => Profile::Debug,
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("clean")));
+            }
+
+            Ok(CliCommand::Clean)
+        },
+        Some("help") => {
+            let parsed_args = ArgParser::new()
+                .args(ArgType::String, ArgCount::Exact(1))
+                .parse(&args, 2)?;
+
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("clean")));
+            }
+
+            let help = parsed_args.get_args_exact(1)?[0].to_string();
+
+            Ok(CliCommand::Help(help))
+        },
+        Some("interpret") => {
+            let parsed_args = ArgParser::new()
+                .args(ArgType::String, ArgCount::Exact(1))  // bytecodes path
+                .parse(&args, 2)?;
+
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("interpret")));
+            }
+
+            let bytecodes_path = parsed_args.get_args_exact(1)?[0].to_string();
+
+            Ok(CliCommand::Interpret { bytecodes_path })
+        },
+        Some("new") => {
+            let parsed_args = ArgParser::new()
+                .args(ArgType::String, ArgCount::Exact(1))  // project name
+                .parse(&args, 2)?;
+
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("new")));
+            }
+
+            let project_name = parsed_args.get_args_exact(1)?[0].to_string();
+
+            Ok(CliCommand::New { project_name })
+        },
+        Some("run") => {
+            let parsed_args = ArgParser::new()
+                .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
+                .optional_flag(&["--release"])
+                .alias("-O", "--release")
+                .short_flag(&["--jobs"])
+                .args(ArgType::String, ArgCount::None)
+                .parse(&args, 2)?;
+
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("run")));
+            }
+
+            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => Optimization::Mild,
+                None => Optimization::None,
                 _ => unreachable!(),
             };
+            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
 
-            Ok(vec![
-                Command::InitIrDir {
-                    intermediate_dir: intermediate_dir.clone(),
-                },
-                Command::Compile {
-                    input_path,
-                    input_kind: IrKind::Code,
-                    intermediate_dir,
-                    reuse_ir,
-                    emit_irs: true,
-                    dump_type_info: true,
-                    output_path: FileOrMemory::Memory,
-                    output_kind: IrKind::Bytecode,
-                    backend: Backend::Bytecode,
-                    profile,
-                },
-                Command::Interpret {
-                    executable_path: FileOrMemory::Memory,
-                    profile,
-                },
-            ])
+            Ok(CliCommand::Run {
+                optimization,
+                jobs,
+            })
         },
         Some("test") => {
             let parsed_args = ArgParser::new()
-                .optional_arg_flag("--ir", ArgType::String)
-                .optional_flag(&["--reuse-ir"])
-                .args(ArgType::String, ArgCount::Exact(1))  // input path
+                .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
+                .optional_flag(&["--release"])
+                .alias("-O", "--release")
+                .short_flag(&["--jobs"])
+                .args(ArgType::String, ArgCount::None)
                 .parse(&args, 2)?;
 
-            let input_path = parsed_args.get_args_exact(1)?[0].to_string();
-            let intermediate_dir = parsed_args.arg_flags.get("--ir").map(|p| p.to_string()).unwrap_or_else(|| String::from("__sodigy_cache__"));
-            let reuse_ir = parsed_args.get_flag(0).is_some();
+            if parsed_args.show_help() {
+                return Ok(CliCommand::Help(String::from("test")));
+            }
 
-            Ok(vec![
-                Command::InitIrDir {
-                    intermediate_dir: intermediate_dir.clone(),
-                },
-                Command::Compile {
-                    input_path,
-                    input_kind: IrKind::Code,
-                    intermediate_dir,
-                    reuse_ir,
-                    emit_irs: true,
-                    dump_type_info: true,
-                    output_path: FileOrMemory::Memory,
-                    output_kind: IrKind::Bytecode,
-                    backend: Backend::Bytecode,
-                    profile: Profile::Test,
-                },
-                Command::Interpret {
-                    executable_path: FileOrMemory::Memory,
-                    profile: Profile::Test,
-                },
-            ])
+            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => Optimization::Mild,
+                None => Optimization::None,
+                _ => unreachable!(),
+            };
+            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
+
+            Ok(CliCommand::Test {
+                optimization,
+                jobs,
+            })
         },
         Some(_) => todo!(),
         None => todo!(),

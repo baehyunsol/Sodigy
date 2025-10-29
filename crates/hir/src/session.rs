@@ -5,16 +5,15 @@ use crate::{
     Func,
     Let,
     Module,
-    PRELUDES,
     Struct,
     Use,
+    prelude::prelude_namespace,
 };
 use sodigy_error::{Error, Warning};
-use sodigy_name_analysis::{Namespace, UseCount};
+use sodigy_name_analysis::Namespace;
 use sodigy_parse::Session as ParseSession;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
-use sodigy_string::intern_string;
 
 pub struct Session {
     pub intermediate_dir: String,
@@ -53,23 +52,10 @@ pub struct Session {
 
 impl Session {
     pub fn from_parse_session(parse_session: &ParseSession) -> Self {
-        let prelude_namespace = Namespace::Block {
-            names: PRELUDES.iter().map(
-                |(name, kind)| (
-                    intern_string(name, &parse_session.intermediate_dir).unwrap(),
-                    (
-                        Span::Prelude(intern_string(name, &parse_session.intermediate_dir).unwrap()),
-                        *kind,
-                        UseCount::new(),
-                    ),
-                )
-            ).collect(),
-        };
-
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
             main_func: parse_session.main_func,
-            name_stack: vec![prelude_namespace],
+            name_stack: vec![prelude_namespace(&parse_session.intermediate_dir)],
             func_default_values: vec![],
             is_in_debug_context: false,
             lets: vec![],
