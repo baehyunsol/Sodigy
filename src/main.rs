@@ -12,11 +12,16 @@ use sodigy::{
 use sodigy_file::File;
 use sodigy_fs_api::{
     FileError,
+    FileErrorKind,
     WriteMode,
+    basename,
+    create_dir,
     create_dir_all,
     exists,
     join,
     join3,
+    read_dir,
+    set_current_dir,
     write_bytes,
     write_string,
 };
@@ -38,21 +43,26 @@ fn main() -> Result<(), Error> {
 
     match parse_args(&args) {
         Ok(command) => match command {
+            CliCommand::New { project_name } => {
+                init_project(&project_name).map_err(|e| Error::FileError(e))?;
+                Ok(())
+            },
             CliCommand::Test {
                 optimization,
                 jobs,
             } => {
+                goto_root_dir()?;
                 let workers = worker::init_workers(jobs);
 
                 // This is the main worker. It'll run the VM.
                 workers[0].send(MessageToWorker::Run(vec![
                     Command::InitIrDir {
-                        intermediate_dir: todo!(),
+                        intermediate_dir: String::from("target"),
                     },
                     Command::Compile {
-                        input_path: todo!(),
+                        input_path: String::from("src/lib.sdg"),
                         input_kind: IrKind::Code,
-                        intermediate_dir: todo!(),
+                        intermediate_dir: String::from("target"),
                         reuse_ir: true,
 
                         // These 2 are for debugging the compiler
@@ -104,6 +114,56 @@ fn main() -> Result<(), Error> {
             Err(Error::CliError)
         },
     }
+}
+
+fn goto_root_dir() -> Result<(), FileError> {
+    loop {
+        for f in read_dir(".", false)? {
+            if basename(&f)? == "sodigy.toml" {
+                return Ok(());
+            }
+        }
+
+        set_current_dir("..")?;
+    }
+}
+
+fn init_project(name: &str) -> Result<(), FileError> {
+    // TODO: make sure that `project_name` is a valid identifier
+
+    if exists(&name) {
+        eprintln!("`{name}` already exists!");
+        return Err(FileError {
+            kind: FileErrorKind::AlreadyExists,
+            given_path: Some(name.to_string()),
+        });
+    }
+
+    create_dir(&name)?;
+    let src = join(&name, "src")?;
+    create_dir(&src)?;
+
+    let lib = join(&src, "lib.sdg")?;
+    write_string(
+        &lib,
+        "fn add(x: Int, y: Int) -> Int = x + y;",
+        WriteMode::CreateOrTruncate,
+    )?;
+
+    let main = join(&src, "main.sdgsh")?;
+    write_string(
+        &main,
+        "add 1 1 | print;",
+        WriteMode::CreateOrTruncate,
+    )?;
+
+    let config = join(&name, "sodigy.toml")?;
+    write_string(
+        &config,
+        "TODO",
+        WriteMode::CreateOrTruncate,
+    )?;
+    Ok(())
 }
 
 pub fn run(commands: Vec<Command>) -> Result<(), Error> {
