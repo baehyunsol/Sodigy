@@ -56,7 +56,39 @@ impl Endec for InfixOp {
             InfixOp::Gt => {
                 buffer.push(9);
             },
-            _ => panic!("TODO: {self:?}"),
+            InfixOp::Leq => {
+                buffer.push(10);
+            },
+            InfixOp::Neq => {
+                buffer.push(11);
+            },
+            InfixOp::Geq => {
+                buffer.push(12);
+            },
+            InfixOp::Index => {
+                buffer.push(13);
+            },
+            InfixOp::Concat => {
+                buffer.push(14);
+            },
+            InfixOp::Range { inclusive: true } => {
+                buffer.push(15);
+            },
+            InfixOp::Range { inclusive: false } => {
+                buffer.push(16);
+            },
+            InfixOp::BitAnd => {
+                buffer.push(17);
+            },
+            InfixOp::BitOr => {
+                buffer.push(18);
+            },
+            InfixOp::LogicAnd => {
+                buffer.push(19);
+            },
+            InfixOp::LogicOr => {
+                buffer.push(20);
+            },
         }
     }
 

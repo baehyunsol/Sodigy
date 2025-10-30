@@ -489,6 +489,18 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
         create_dir_all(&ir_dir)?;
     }
 
+    // TODO: We only a few of these dirs
+    for stage in CompileStage::all() {
+        let stage_ir_dir = join(
+            &ir_dir,
+            &format!("{stage:?}").to_lowercase(),
+        )?;
+
+        if !exists(&stage_ir_dir) {
+            create_dir_all(&stage_ir_dir)?;
+        }
+    }
+
     File::clear_cache(0 /* project id */, intermediate_dir)?;
     Ok(())
 }
@@ -546,8 +558,8 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
                     join4(
                         intermediate_dir,
                         "irs",
-                        &format!("{finished_stage:?}.{ext}").to_lowercase(),
-                        &format!("{content_hash:x}"),
+                        &format!("{finished_stage:?}").to_lowercase(),
+                        &format!("{content_hash:x}.{ext}"),
                     )?
                 } else {
                     join3(

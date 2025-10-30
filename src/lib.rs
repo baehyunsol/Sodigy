@@ -20,6 +20,21 @@ pub enum CompileStage {
     CodeGen,
 }
 
+impl CompileStage {
+    pub fn all() -> Vec<CompileStage> {
+        vec![
+            CompileStage::Lex,
+            CompileStage::Parse,
+            CompileStage::Hir,
+            CompileStage::InterHir,
+            CompileStage::Mir,
+            CompileStage::TypeCheck,
+            CompileStage::Bytecode,
+            CompileStage::CodeGen,
+        ]
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Backend {
     C,
