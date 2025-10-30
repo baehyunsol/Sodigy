@@ -1,4 +1,4 @@
-use crate::Span;
+use crate::{RenderableSpan, Span};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_file::File;
 use sodigy_string::InternedString;
@@ -54,5 +54,28 @@ impl Endec for Span {
             Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for RenderableSpan {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.span.encode_impl(buffer);
+        self.auxiliary.encode_impl(buffer);
+        self.note.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (auxiliary, cursor) = bool::decode_impl(buffer, cursor)?;
+        let (note, cursor) = Option::<String>::decode_impl(buffer, cursor)?;
+
+        Ok((
+            RenderableSpan {
+                span,
+                auxiliary,
+                note,
+            },
+            cursor,
+        ))
     }
 }

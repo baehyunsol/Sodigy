@@ -29,3 +29,15 @@ impl<T: Endec> Endec for Box<T> {
         Ok((Box::new(v), cursor))
     }
 }
+
+impl Endec for String {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.len().encode_impl(buffer);
+        buffer.extend(self.as_bytes());
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (v, cursor) = Vec::<u8>::decode_impl(buffer, cursor)?;
+        Ok((String::from_utf8(v).map_err(|_| DecodeError::InvalidUtf8)?, cursor))
+    }
+}

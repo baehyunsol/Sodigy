@@ -1,3 +1,15 @@
+# 62. format string
+
+Lexer도 아직 못 짬 -> 너무 복잡해서 아직 손댈 엄두를 못 내는 중
+
+1. rust 방식
+  - {} 안에 들어갈 수 있는 token이 아주 제한됨. 그대신 뒤에 arg로 줄 수 있음. arg는 문법이 아주 풍부. 그대신 `format!`과 `println!`이 compiler-built-in임...
+2. python 방식
+  - {} 안에 들어갈 수 있는 token에 제한이 거의 없음. 그대신 parsing이 빡세고 가끔 비직관적인 일이 일어남 (`:`를 썼는데 의미가 애매해진다든가...)
+3. 절충안
+  - 몇몇 token만 허용하기? identifier, comma, dot, parenthesis
+  - quote랑 curly brace 빼고 다 허용하기? colon도 허용하면 안될듯
+
 # 61. more on purity
 
 How do you define purity?
