@@ -1,4 +1,5 @@
 mod base;
+mod endec;
 mod fmt;
 
 pub use base::Base;

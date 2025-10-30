@@ -5,6 +5,7 @@ use sodigy_string::InternedString;
 
 mod assert;
 mod bytecode;
+mod endec;
 mod executable;
 mod expr;
 mod func;

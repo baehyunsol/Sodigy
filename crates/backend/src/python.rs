@@ -245,7 +245,6 @@ pub fn python_code_gen(
 
     match config.mode {
         CodeGenMode::Test => {
-            let mut anon_index = 0;
             lines.push(String::from("s,f=0,0"));
             lines.push(String::from("stderr_map={}"));
 

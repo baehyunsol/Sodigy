@@ -182,7 +182,7 @@ impl Solver {
                     },
                     Some(t) => {
                         let type_vars = t.get_type_vars();
-    
+
                         if !type_vars.is_empty() {
                             self.errors.push(TypeError::PartiallyInferedType { id: *id, span: *def_span, r#type: t.clone() });
                         }
@@ -511,7 +511,7 @@ impl Solver {
                 Type::Var { def_span, .. } => match types.get_mut(def_span) {
                     Some(ref_type) => {
                         ref_type.substitute(type_var, r#type);
-    
+
                         if ref_type.get_type_vars().is_empty() {
                             newly_completed_type_vars.push(ref_type_var);
                         }

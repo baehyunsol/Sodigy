@@ -1,6 +1,6 @@
 use sodigy_fs_api::{FileError, FileErrorKind};
 
-// A file map is a list of `file_id: u32`, `content_hash: u128`, `normalized_path: String`.
+// A file map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`.
 
 pub fn length_file_map(file_map: &[u8], file_map_path: &str) -> Result<usize, FileError> {
     let mut cursor = 0;
@@ -30,15 +30,15 @@ pub fn push_file_map(
     file_map: &mut Vec<u8>,
     file_id: u32,
     content_hash: u128,
-    normalized_path: &str,
+    module_path: &str,
 ) {
     file_map.extend(file_id.to_le_bytes());
     file_map.extend(content_hash.to_le_bytes());
-    file_map.extend((normalized_path.len() as u32).to_le_bytes());
-    file_map.extend(normalized_path.as_bytes());
+    file_map.extend((module_path.len() as u32).to_le_bytes());
+    file_map.extend(module_path.as_bytes());
 }
 
-pub fn search_file_map(file_map: &[u8], normalized_path: &str, file_map_path: &str) -> Result<Option<(u32, u128)>, FileError> {
+pub fn search_file_map(file_map: &[u8], module_path: &str, file_map_path: &str) -> Result<Option<(u32, u128)>, FileError> {
     let mut cursor = 0;
 
     loop {
@@ -69,7 +69,7 @@ pub fn search_file_map(file_map: &[u8], normalized_path: &str, file_map_path: &s
 
         let curr_normalized_path = &file_map[cursor..(cursor + str_len as usize)];
 
-        if curr_normalized_path == normalized_path.as_bytes() {
+        if curr_normalized_path == module_path.as_bytes() {
             return Ok(Some((file_id, content_hash)));
         }
 
@@ -106,10 +106,10 @@ pub fn search_file_map_by_id(file_map: &[u8], file_id: u32, file_map_path: &str)
             });
         }
 
-        let normalized_path = &file_map[cursor..(cursor + str_len as usize)];
+        let module_path = &file_map[cursor..(cursor + str_len as usize)];
 
         if curr_file_id == file_id {
-            return Ok(Some((String::from_utf8_lossy(normalized_path).to_string(), content_hash)));
+            return Ok(Some((String::from_utf8_lossy(module_path).to_string(), content_hash)));
         }
 
         cursor += str_len as usize;

@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }

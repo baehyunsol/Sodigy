@@ -344,7 +344,7 @@ fn render_span_worker(
         // 2. when the labels are far from each other, but one of index is 0
         //    ^^^^
         //    |
-        //    *--(0) 
+        //    *--(0)
         //
         // 3. when the labels are close to each other
         //         ^ ^

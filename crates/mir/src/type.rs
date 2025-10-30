@@ -97,7 +97,7 @@ impl Type {
                 NameOrigin::Foreign { kind } => match kind {
                     NameKind::Struct |
                     NameKind::Enum => Ok(Type::Static(id.def_span)),
-                    _ => todo!(),
+                    _ => panic!("TODO: {kind:?}"),
                 },
                 NameOrigin::External => unreachable!(),
             },

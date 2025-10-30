@@ -1,7 +1,8 @@
 use crate::{
     Backend,
-    IrKind,
-    IrStore,
+    CompileStage,
+    EmitIrOption,
+    StoreIrAt,
     Optimization,
     Profile,
 };
@@ -12,24 +13,28 @@ pub enum Command {
         intermediate_dir: String,
     },
     Compile {
-        input_path: String,
-        input_kind: IrKind,
-        intermediate_dir: String,
-        reuse_ir: bool,
+        // A module is (almost always) a file.
+        // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
+        input_file_path: String,
+        input_module_path: String,
 
-        // These two are for debugging the compiler.
-        // I'll make a CLI option for these, someday.
-        emit_irs: bool,
+        intermediate_dir: String,
+        emit_ir_options: Vec<EmitIrOption>,
+
+        // It's for debugging the compiler.
+        // I'll make a CLI option for this, someday.
         dump_type_info: bool,
 
-        output_path: IrStore,
-        output_kind: IrKind,
+        // You can quit termination after emitting irs.
+        output_path: Option<String>,
+
+        stop_after: CompileStage,
         backend: Backend,
         profile: Profile,
         optimization: Optimization,
     },
     Interpret {
-        bytecodes_path: IrStore,
+        bytecodes_path: StoreIrAt,
 
         // It's either `Test` or not.
         // The bytecode will tell you where the tests are, if exist, and where the

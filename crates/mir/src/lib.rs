@@ -2,6 +2,7 @@ use sodigy_hir::Session as HirSession;
 
 mod assert;
 mod block;
+mod endec;
 mod expr;
 mod func;
 mod r#if;

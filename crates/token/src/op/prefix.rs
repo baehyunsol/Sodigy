@@ -18,7 +18,7 @@ impl TryFrom<Punct> for PrefixOp {
             Punct::Colon | Punct::Semicolon |
             Punct::Lt | Punct::Assign | Punct::Gt |
             Punct::Comma | Punct::Dot | Punct::At |
-            Punct::Factorial | Punct::QuestionMark | Punct::Dollar |
+            Punct::QuestionMark | Punct::Dollar |
             Punct::And | Punct::Or | Punct::AndAnd | Punct::OrOr |
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |

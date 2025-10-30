@@ -7,6 +7,7 @@ mod assert;
 mod attribute;
 mod block;
 mod check;
+mod endec;
 mod r#enum;
 mod expr;
 mod func;

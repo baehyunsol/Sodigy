@@ -1,5 +1,6 @@
 use sodigy_span::RenderableSpan;
 
+mod endec;
 mod kind;
 mod level;
 mod token;

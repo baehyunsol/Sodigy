@@ -8,6 +8,7 @@ use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 
+mod endec;
 mod session;
 
 pub use session::Session;

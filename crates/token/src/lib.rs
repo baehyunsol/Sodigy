@@ -3,6 +3,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 mod delim;
+mod endec;
 mod keyword;
 mod op;
 mod punct;
@@ -142,8 +143,8 @@ impl TokenKind {
                 Keyword::Match => true,
             },
 
-            TokenKind::GroupDelim { delim: Some(delim), .. } |
-            TokenKind::Group { delim, .. } => true,
+            TokenKind::GroupDelim { delim: Some(_), .. } |
+            TokenKind::Group { .. } => true,
         }
     }
 }

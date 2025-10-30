@@ -132,6 +132,12 @@ pub enum ErrorKind {
         op: InfixOp,
         arg_types: Vec<String>,
     },
+    MultipleModuleFiles {
+        module: String,
+    },
+    ModuleFileNotFound {
+        module: String,
+    },
 
     // --- warnings from here ---
     UnusedName {

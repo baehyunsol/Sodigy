@@ -9,13 +9,15 @@ pub use command::Command;
 pub use error::Error;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum IrKind {
-    Code,
-    // Ast,
+pub enum CompileStage {
+    Lex,
+    Parse,
     Hir,
+    InterHir,
     Mir,
+    TypeCheck,
     Bytecode,
-    TranspiledCode,
+    CodeGen,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -47,9 +49,9 @@ impl From<Profile> for CodeGenMode {
 /// 2. If it has to interpret the bytecodes, it just stores them in memory and directly executes them.
 /// 3. In a complicated compilation process, it stores irs in the intermediate_dir.
 #[derive(Clone, Debug)]
-pub enum IrStore {
+pub enum StoreIrAt {
     File(String),
-    BytecodesOnMemory,
+    Memory,
     IntermediateDir,
 }
 
@@ -58,4 +60,11 @@ pub enum Optimization {
     None,
     Mild,
     Extreme,
+}
+
+#[derive(Clone, Debug)]
+pub struct EmitIrOption {
+    pub stage: CompileStage,
+    pub store: StoreIrAt,
+    pub human_readable: bool,
 }

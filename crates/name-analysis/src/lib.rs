@@ -2,6 +2,8 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+mod endec;
+
 pub enum Namespace {
     ForeignNameCollector {
         is_func: bool,

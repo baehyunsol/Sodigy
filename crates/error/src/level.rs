@@ -72,7 +72,9 @@ impl ErrorLevel {
             ErrorKind::PartiallyInferedType { .. } |
             ErrorKind::CannotInferGenericType { .. } |
             ErrorKind::PartiallyInferedGenericType { .. } |
-            ErrorKind::CannotApplyInfixOp { .. } => ErrorLevel::Error,
+            ErrorKind::CannotApplyInfixOp { .. } |
+            ErrorKind::MultipleModuleFiles { .. } |
+            ErrorKind::ModuleFileNotFound { .. } => ErrorLevel::Error,
             WarningKind::UnusedName { .. } => ErrorLevel::Warning,
         }
     }

@@ -2,6 +2,7 @@ use sodigy_file::File;
 use sodigy_string::InternedString;
 
 mod cmp;
+mod endec;
 mod render;
 
 pub use render::{

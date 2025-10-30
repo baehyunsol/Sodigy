@@ -89,3 +89,25 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
 
     eprintln!("{}", stderr.concat());
 }
+
+/// Sometimes, you want to dump sodigy_error::Error to stderr, but you don't have any session.
+/// You can use `DummySession` in such cases.
+pub struct DummySession {
+    pub errors: Vec<Error>,
+    pub warnings: Vec<Warning>,
+    pub intermediate_dir: String,
+}
+
+impl Session for DummySession {
+    fn get_errors(&self) -> &[Error] {
+        &self.errors
+    }
+
+    fn get_warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    fn get_intermediate_dir(&self) -> &str {
+        &self.intermediate_dir
+    }
+}

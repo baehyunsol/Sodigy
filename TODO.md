@@ -1,3 +1,38 @@
+# 61. more on purity
+
+How do you define purity?
+
+1. if x = y, then f(x) = f(y)
+  - Then, we should not allow users to implement their own `==`.
+2. no side effects
+  - How do you define side effect?
+3. is `panic()` pure?
+
+# 60. emit-ir
+
+지금 emit-ir이랑 관련된 옵션이 너무 중구난방임!!
+
+정리
+
+1. debug용 emit-ir
+  - 특정 ir(들)만 골라서 정해준 path에 emit
+  - emit하고 나서 계속 진행
+  - readable format 사용
+2. cache용 emit-ir
+  - 항상 emit
+  - emit하고 나서 계속 진행
+  - binary format 사용
+3. compilation steps
+  - 특정 step이 끝난 후 멈출 수 있도록 설계
+4. reuse-irs
+  - 항상 true로 해버리자
+
+구현
+
+1. 어디서 멈출지와 어디서 emit할지는 별도의 option으로 관리
+2. debug용 emit-ir과 cache용 emit-ir은 완전 별개임
+3. 매 step이 끝날 때마다 emit해야하는게 있는지 확인하고 있으면 emit하고 지나감
+
 # 59. Complete new implementation of Bytecode/VM
 
 1. `scalar` (32 bit) vs `compound` (arbitrary number of scalar/compound values) are still valid.

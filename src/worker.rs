@@ -1,4 +1,5 @@
 use crate::{Command, Error, run};
+use sodigy_span::Span;
 use std::sync::mpsc;
 use std::thread;
 
@@ -7,6 +8,12 @@ pub enum MessageToWorker {
 }
 
 pub enum MessageToMain {
+    FoundExternalModule {
+        module_path: String,
+
+        // It's used to generate an error message.
+        span: Span,
+    },
     Error(Error),
 }
 
@@ -55,7 +62,7 @@ fn worker_loop(
     for msg in rx_from_main {
         match msg {
             MessageToWorker::Run(commands) => {
-                run(commands)?;
+                run(commands, tx_to_main.clone())?;
             },
         }
     }

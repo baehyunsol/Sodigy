@@ -6,6 +6,7 @@
 
 use sodigy_fs_api::{FileError, join};
 
+mod endec;
 mod fmt;
 mod fs;
 
