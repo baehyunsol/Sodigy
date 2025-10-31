@@ -41,10 +41,13 @@ pub enum Expr {
         span: Span,
     },
     Char {
-        binary: bool,
         ch: u32,
 
         // it includes quotes
+        span: Span,
+    },
+    Byte {
+        b: u8,
         span: Span,
     },
     If(If),
@@ -220,10 +223,15 @@ impl<'t> Tokens<'t> {
                 self.cursor += 1;
                 Expr::String { binary, s, span }
             },
-            Some(Token { kind: TokenKind::Char { binary, ch, .. }, span }) => {
-                let (binary, ch, span) = (*binary, *ch, *span);
+            Some(Token { kind: TokenKind::Char(ch), span }) => {
+                let (ch, span) = (*ch, *span);
                 self.cursor += 1;
-                Expr::Char { binary, ch, span }
+                Expr::Char { ch, span }
+            },
+            Some(Token { kind: TokenKind::Byte(b), span }) => {
+                let (b, span) = (*b, *span);
+                self.cursor += 1;
+                Expr::Byte { b, span }
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
             Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),

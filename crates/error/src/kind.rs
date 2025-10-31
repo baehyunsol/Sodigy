@@ -15,6 +15,7 @@ pub enum ErrorKind {
     InvalidCharLiteral,
     InvalidCharLiteralPrefix,
     UnterminatedCharLiteral,
+    InvalidByteLiteral,
     InvalidEscape,
     EmptyCharLiteral,
     UnterminatedBlockComment,

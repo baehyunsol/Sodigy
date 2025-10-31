@@ -3,7 +3,7 @@
 
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
-use sodigy_number::{Base, InternedNumber, intern_number};
+use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
@@ -161,6 +161,57 @@ impl Session {
                     self.token_start = self.cursor;
                     self.state = LexState::Integer(Base::Decimal);
                     self.cursor += 1;
+                },
+                (Some(b'#'), _, _) => {
+                    self.cursor += 1;
+                    let mut base = Base::Decimal;
+                    let mut buffer = vec![];
+
+                    if let Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B') = self.input_bytes.get(self.cursor) {
+                        self.cursor += 1;
+                        base = todo!();
+                    }
+
+                    loop {
+                        match self.input_bytes.get(self.cursor) {
+                            Some(x @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) => {
+                                if !base.is_valid_digit(*x) {
+                                    return Err(Error {
+                                        kind: ErrorKind::InvalidNumberLiteral,
+                                        spans: _,
+                                        note: Some(_),
+                                    });
+                                }
+
+                                buffer.push(*x);
+                                self.cursor += 1;
+                            },
+                            Some(b'_') => {
+                                self.cursor += 1;
+                            },
+                            _ => {
+                                break;
+                            },
+                        }
+                    }
+
+                    let n = intern_number(base, &buffer, &[], true /* is_integer */);
+
+                    match n.value {
+                        InternedNumberValue::SmallInteger(n @ 0..=255) => {
+                            self.tokens.push(Token {
+                                kind: TokenKind::Byte(n as u8),
+                                span: _,
+                            });
+                        },
+                        _ => {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidByteLiteral,
+                                spans: _,
+                                note: _,
+                            });
+                        },
+                    }
                 },
                 (Some(b'/'), Some(b'/'), Some(b'/')) => {
                     self.token_start = self.cursor;
@@ -323,11 +374,10 @@ impl Session {
                     }
                 },
                 (Some(x @ (
-                    b'!' | b'#' | b'$' | b'%' | b'&' |
-                    b'*' | b'+' | b',' | b'-' | b'.' |
-                    b'/' | b':' | b';' | b'<' | b'=' |
-                    b'>' | b'?' | b'@' | b'^' | b'|' |
-                    b'~'
+                    b'!' | b'$' | b'%' | b'&' | b'*' |
+                    b'+' | b',' | b'-' | b'.' | b'/' |
+                    b':' | b';' | b'<' | b'=' | b'>' |
+                    b'?' | b'@' | b'^' | b'|' | b'~'
                 )), _, _) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Punct((*x).into()),
@@ -840,24 +890,40 @@ impl Session {
             ) {
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), Some(b'\''), _, _) => {
-                    let ch = match *y {
-                        b'\'' => '\'',
-                        b'"' => '"',
-                        b'\\' => '\\',
-                        b'n' => '\n',
-                        b'r' => '\r',
-                        b't' => '\t',
-                        b'0' => '\0',
+                    let (ch, b) = match *y {
+                        b'\'' => ('\'', b'\''),
+                        b'"' => ('"', b'"'),
+                        b'\\' => ('\\', b'\\'),
+                        b'n' => ('\n', b'\n'),
+                        b'r' => ('\r', b'\r'),
+                        b't' => ('\t', b'\t'),
+                        b'0' => ('\0', b'\0'),
                         _ => unreachable!(),
                     };
-                    self.tokens.push(Token {
-                        kind: TokenKind::Char { binary, ch: ch as u32 },
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor + 3,
-                        ),
-                    });
+
+                    // It's always ascii, so we don't have to check that.
+                    if binary {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Byte(b),
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor + 3,
+                            ),
+                        });
+                    }
+
+                    else {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Char(ch as u32),
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor + 3,
+                            ),
+                        });
+                    }
+
                     self.state = LexState::Init;
                     self.cursor += 3;
                 },
@@ -877,14 +943,42 @@ impl Session {
                         _ => unreachable!(),
                     } as u32;
 
-                    self.tokens.push(Token {
-                        kind: TokenKind::Char { binary, ch: n1 * 16 + n2 },
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor + 5,
-                        ),
-                    });
+                    if binary {
+                        if n1 < 8 {
+                            self.tokens.push(Token {
+                                kind: TokenKind::Byte((n1 * 16 + n2) as u8),
+                                span: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor + 5,
+                                ),
+                            });
+                        }
+
+                        else {
+                            return Err(Error {
+                                kind: ErrorKind::InvalidByteLiteral,
+                                spans: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor + 5,
+                                ).simple_error(),
+                                note: Some(format!("A byte char literal must be an ascii char. Perhaps you mean `#{}`?", n1 * 16 + n2)),
+                            });
+                        }
+                    }
+
+                    else {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Char(n1 * 16 + n2),
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor + 5,
+                            ),
+                        });
+                    }
+
                     self.state = LexState::Init;
                     self.cursor += 5;
                 },
@@ -945,14 +1039,48 @@ impl Session {
                     }
 
                     self.state = LexState::Init;
-                    self.tokens.push(Token {
-                        kind: TokenKind::Char { binary, ch: n },
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor,
-                        ),
-                    });
+
+                    if binary {
+                        if n < 128 {
+                            self.tokens.push(Token {
+                                kind: TokenKind::Byte(n as u8),
+                                span: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor,
+                                ),
+                            });
+                        }
+
+                        else {
+                            let error_note = if n < 256 {
+                                format!("A byte char literal must be an ascii char. Perhaps you mean `#{n}`?")
+                            } else {
+                                format!("A byte must be less than 256.")
+                            };
+
+                            return Err(Error {
+                                kind: ErrorKind::InvalidByteLiteral,
+                                spans: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor,
+                                ).simple_error(),
+                                note: Some(error_note),
+                            });
+                        }
+                    }
+
+                    else {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Char(n),
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor,
+                            ),
+                        });
+                    }
                 },
                 // invalid escape
                 (Some(b'\\'), Some(_), _, _, _) => {
@@ -1010,14 +1138,48 @@ impl Session {
 
                     match char::from_u32(n) {
                         Some(_) => {
-                            self.tokens.push(Token {
-                                kind: TokenKind::Char { binary, ch: n },
-                                span: Span::range(
-                                    self.file,
-                                    self.token_start,
-                                    self.cursor + l + 1,
-                                ),
-                            });
+                            if binary {
+                                if n < 128 {
+                                    self.tokens.push(Token {
+                                        kind: TokenKind::Byte(n as u8),
+                                        span: Span::range(
+                                            self.file,
+                                            self.token_start,
+                                            self.cursor + l + 1,
+                                        ),
+                                    });
+                                }
+
+                                else {
+                                    let error_note = if n < 256 {
+                                        format!("A byte char literal must be an ascii char. Perhaps you mean `#{n}`?")
+                                    } else {
+                                        format!("A byte must be less than 256.")
+                                    };
+
+                                    return Err(Error {
+                                        kind: ErrorKind::InvalidByteLiteral,
+                                        spans: Span::range(
+                                            self.file,
+                                            self.token_start,
+                                            self.cursor + l + 1,
+                                        ).simple_error(),
+                                        note: Some(error_note),
+                                    });
+                                }
+                            }
+
+                            else {
+                                self.tokens.push(Token {
+                                    kind: TokenKind::Char(n),
+                                    span: Span::range(
+                                        self.file,
+                                        self.token_start,
+                                        self.cursor + l + 1,
+                                    ),
+                                });
+                            }
+
                             self.state = LexState::Init;
                             self.cursor += l + 1;
                         },
@@ -1199,7 +1361,7 @@ impl Session {
                                 self.cursor,
                                 self.cursor + 1,
                             ).simple_error(),
-                            ..Error::default()
+                            note: Some(_),
                         });
                     }
 

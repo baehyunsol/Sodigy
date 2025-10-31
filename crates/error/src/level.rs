@@ -18,6 +18,7 @@ impl ErrorLevel {
             ErrorKind::InvalidCharLiteral |
             ErrorKind::InvalidCharLiteralPrefix |
             ErrorKind::UnterminatedCharLiteral |
+            ErrorKind::InvalidByteLiteral |
             ErrorKind::InvalidEscape |
             ErrorKind::EmptyCharLiteral |
             ErrorKind::UnterminatedBlockComment |

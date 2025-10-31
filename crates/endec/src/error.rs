@@ -4,4 +4,5 @@ pub enum DecodeError {
     UnexpectedEof,
     InvalidEnumVariant(u8),
     InvalidUtf8,
+    InvalidUnicodePoint(u32),
 }

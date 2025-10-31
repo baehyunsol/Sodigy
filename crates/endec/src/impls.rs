@@ -13,7 +13,7 @@ impl Endec for bool {
         match buffer.get(cursor) {
             Some(0) => Ok((false, cursor + 1)),
             Some(1) => Ok((true, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -39,5 +39,16 @@ impl Endec for String {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (v, cursor) = Vec::<u8>::decode_impl(buffer, cursor)?;
         Ok((String::from_utf8(v).map_err(|_| DecodeError::InvalidUtf8)?, cursor))
+    }
+}
+
+impl Endec for char {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        (*self as u32).encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (ch, cursor) = u32::decode_impl(buffer, cursor)?;
+        Ok((char::from_u32(ch).ok_or(DecodeError::InvalidUnicodePoint(ch))?, cursor))
     }
 }

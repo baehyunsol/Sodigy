@@ -73,7 +73,7 @@ impl Endec for NameOrigin {
                 Ok((NameOrigin::Foreign { kind }, cursor))
             },
             Some(4) => Ok((NameOrigin::External, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -131,7 +131,7 @@ impl Endec for NameKind {
             Some(8) => Ok((NameKind::FuncArg, cursor + 1)),
             Some(9) => Ok((NameKind::Generic, cursor + 1)),
             Some(10) => Ok((NameKind::PatternNameBind, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -262,7 +262,7 @@ impl Endec for UseCount {
                 },
                 cursor + 1,
             )),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

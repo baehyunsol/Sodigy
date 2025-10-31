@@ -51,7 +51,7 @@ impl Endec for Span {
                 Ok((Span::Prelude(file), cursor))
             },
             Some(4) => Ok((Span::None, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

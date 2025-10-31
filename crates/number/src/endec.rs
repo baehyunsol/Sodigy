@@ -40,7 +40,7 @@ impl Endec for InternedNumberValue {
                 let (denom, cursor) = u64::decode_impl(buffer, cursor)?;
                 Ok((InternedNumberValue::SmallRatio { numer, denom }, cursor))
             },
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

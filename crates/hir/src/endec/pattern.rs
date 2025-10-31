@@ -100,7 +100,7 @@ impl Endec for Pattern {
                 let (is_inclusive, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((Pattern::Range { lhs, rhs, op_span, is_inclusive }, cursor))
             },
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

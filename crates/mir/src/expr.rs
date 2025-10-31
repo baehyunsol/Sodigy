@@ -107,7 +107,8 @@ impl Expr {
             }),
 
             // TODO: declare `mir::Expr::Char` vs `mir::Expr::Call { char_init, ch }`
-            hir::Expr::Char { binary, ch, span } => todo!(),
+            hir::Expr::Char { ch, span } => todo!(),
+            hir::Expr::Byte { b, span } => todo!(),
 
             hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
                 Ok(r#if) => Ok(Expr::If(r#if)),

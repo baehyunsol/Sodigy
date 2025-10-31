@@ -60,41 +60,47 @@ fn main() -> Result<(), Error> {
             } => {
                 goto_root_dir()?;
                 let workers = worker::init_workers(jobs);
-                let mut round_robin = 0;
+                let mut run_id = 0;
+                let mut unfinished_runs = HashSet::new();
                 let mut generated_hirs = HashSet::new();
 
-                workers[round_robin].send(MessageToWorker::Run(vec![
-                    Command::InitIrDir {
-                        intermediate_dir: String::from("target"),
-                    },
-                    Command::Compile {
-                        // TODO: how about `src/lib/mod.sdg`? Does rust allow this?
-                        // TODO: raise an error if `src/lib.sdg` does not exist
-                        //       instead of raising FileError, it has to raise a more helpful one
-                        input_file_path: String::from("src/lib.sdg"),
-                        input_module_path: String::from("lib"),
-                        intermediate_dir: String::from("target"),
-                        emit_ir_options: vec![
-                            // cache hir for incremental compilation
-                            EmitIrOption {
-                                stage: CompileStage::Hir,
-                                store: StoreIrAt::IntermediateDir,
-                                human_readable: false,
-                            },
-                        ],
+                workers[run_id % workers.len()].send(MessageToWorker::Run {
+                    commands: vec![
+                        Command::InitIrDir {
+                            intermediate_dir: String::from("target"),
+                        },
+                        Command::Compile {
+                            // TODO: how about `src/lib/mod.sdg`? Does rust allow this?
+                            // TODO: raise an error if `src/lib.sdg` does not exist
+                            //       instead of raising FileError, it has to raise a more helpful one
+                            input_file_path: String::from("src/lib.sdg"),
+                            input_module_path: String::from("lib"),
+                            intermediate_dir: String::from("target"),
+                            emit_ir_options: vec![
+                                // cache hir for incremental compilation
+                                EmitIrOption {
+                                    stage: CompileStage::Hir,
+                                    store: StoreIrAt::IntermediateDir,
+                                    human_readable: false,
+                                },
+                            ],
 
-                        // It's for debugging the compiler
-                        dump_type_info: true,
+                            // It's for debugging the compiler
+                            dump_type_info: true,
 
-                        output_path: None,
-                        backend: Backend::Bytecode,  // doesn't matter
-                        stop_after: CompileStage::Hir,
-                        profile: Profile::Test,
-                        optimization,
-                    },
-                ])).map_err(|_| Error::ProcessError)?;
-                round_robin = (round_robin + 1) % workers.len();
+                            output_path: None,
+                            backend: Backend::Bytecode,  // doesn't matter
+                            stop_after: CompileStage::Hir,
+                            profile: Profile::Test,
+                            optimization,
+                        },
+                    ],
+                    id: run_id,
+                }).map_err(|_| Error::ProcessError)?;
+                unfinished_runs.insert(run_id);
+                run_id += 1;
 
+                // loop 1: generate hir of all files
                 loop {
                     for (worker_id, worker) in workers.iter().enumerate() {
                         match worker.try_recv() {
@@ -111,26 +117,33 @@ fn main() -> Result<(), Error> {
                                             "target",
                                             None,
                                         )?;
-                                        workers[round_robin].send(MessageToWorker::Run(vec![Command::Compile {
-                                            input_file_path: file_path,
-                                            input_module_path: module_path,
-                                            intermediate_dir: String::from("target"),
-                                            emit_ir_options: vec![
-                                                EmitIrOption {
-                                                    stage: CompileStage::Hir,
-                                                    store: StoreIrAt::IntermediateDir,
-                                                    human_readable: false,
-                                                },
-                                            ],
-                                            dump_type_info: true,
-                                            output_path: None,
-                                            backend: Backend::Bytecode,
-                                            stop_after: CompileStage::Hir,
-                                            profile: Profile::Test,
-                                            optimization,
-                                        }])).map_err(|_| Error::ProcessError)?;
-                                        round_robin = (round_robin + 1) % workers.len();
+                                        workers[run_id % workers.len()].send(MessageToWorker::Run {
+                                            commands: vec![Command::Compile {
+                                                input_file_path: file_path,
+                                                input_module_path: module_path,
+                                                intermediate_dir: String::from("target"),
+                                                emit_ir_options: vec![
+                                                    EmitIrOption {
+                                                        stage: CompileStage::Hir,
+                                                        store: StoreIrAt::IntermediateDir,
+                                                        human_readable: false,
+                                                    },
+                                                ],
+                                                dump_type_info: true,
+                                                output_path: None,
+                                                backend: Backend::Bytecode,
+                                                stop_after: CompileStage::Hir,
+                                                profile: Profile::Test,
+                                                optimization,
+                                            }],
+                                            id: run_id,
+                                        }).map_err(|_| Error::ProcessError)?;
+                                        unfinished_runs.insert(run_id);
+                                        run_id += 1;
                                     }
+                                },
+                                MessageToMain::RunComplete { id } => {
+                                    unfinished_runs.remove(&id);
                                 },
                                 MessageToMain::Error(e) => {
                                     return Err(e);
@@ -141,6 +154,10 @@ fn main() -> Result<(), Error> {
                                 return Err(Error::ProcessError);
                             },
                         }
+                    }
+
+                    if unfinished_runs.is_empty() {
+                        break;
                     }
 
                     thread::sleep(Duration::from_millis(200));

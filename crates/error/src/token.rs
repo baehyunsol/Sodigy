@@ -6,7 +6,7 @@ pub enum ErrorToken {
     Nothing,
     Any,
     Character(u8),  // specific character
-    Char,  // any character (in a character literal)
+    AnyCharacter,   // in a character literal
     Keyword(Keyword),
     Punct(Punct),
     Group(Delim),

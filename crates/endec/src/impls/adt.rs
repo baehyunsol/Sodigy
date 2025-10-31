@@ -20,7 +20,7 @@ impl<T: Endec> Endec for Option<T> {
                 let (v, cursor) = T::decode_impl(buffer, cursor + 1)?;
                 Ok((Some(v), cursor))
             },
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

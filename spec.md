@@ -111,9 +111,20 @@ A string literal starts with N (odd number) double-quotes, and ends with the sam
 
 ### Char literals
 
-A char literal starts with a single-quote character and ends with a single-quote character
+A char literal starts with a single-quote character and ends with a single-quote character.
 
-- Binary Chars: prefix `b`
+### Byte literals
+
+A byte is like an integer, but is always greater than or equal to 0 and less than 256. There are 2 ways to represent a byte value.
+
+- Byte char
+  - `b'a'`
+- Byte numeric
+  - `#0`
+  - `#200`
+  - `#xff`
+  - `#o377`
+  - `#b11111111`
 
 ## Type annotations
 

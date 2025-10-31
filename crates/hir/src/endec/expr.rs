@@ -25,71 +25,75 @@ impl Endec for Expr {
                 s.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Expr::Char { binary, ch, span } => {
+            Expr::Char { ch, span } => {
                 buffer.push(3);
-                binary.encode_impl(buffer);
                 ch.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Expr::If(r#if) => {
+            Expr::Byte { b, span } => {
                 buffer.push(4);
+                b.encode_impl(buffer);
+                span.encode_impl(buffer);
+            },
+            Expr::If(r#if) => {
+                buffer.push(5);
                 r#if.encode_impl(buffer);
             },
             Expr::Match(r#match) => {
-                buffer.push(5);
+                buffer.push(6);
                 r#match.encode_impl(buffer);
             },
             Expr::Block(block) => {
-                buffer.push(6);
+                buffer.push(7);
                 block.encode_impl(buffer);
             },
             Expr::Call { func, args } => {
-                buffer.push(7);
+                buffer.push(8);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
             },
             Expr::Tuple { elements, group_span } => {
-                buffer.push(8);
-                elements.encode_impl(buffer);
-                group_span.encode_impl(buffer);
-            },
-            Expr::List { elements, group_span } => {
                 buffer.push(9);
                 elements.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::StructInit { r#struct, fields, group_span } => {
+            Expr::List { elements, group_span } => {
                 buffer.push(10);
+                elements.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
+            Expr::StructInit { r#struct, fields, group_span } => {
+                buffer.push(11);
                 r#struct.encode_impl(buffer);
                 fields.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
             Expr::Path { lhs, fields } => {
-                buffer.push(11);
+                buffer.push(12);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
             Expr::FieldModifier { fields, lhs, rhs } => {
-                buffer.push(12);
+                buffer.push(13);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::PrefixOp { op, op_span, rhs } => {
-                buffer.push(13);
+                buffer.push(14);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::InfixOp { op, op_span, lhs, rhs } => {
-                buffer.push(14);
+                buffer.push(15);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::PostfixOp { op, op_span, lhs } => {
-                buffer.push(15);
+                buffer.push(16);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
@@ -115,75 +119,79 @@ impl Endec for Expr {
                 Ok((Expr::String { binary, s, span }, cursor))
             },
             Some(3) => {
-                let (binary, cursor) = bool::decode_impl(buffer, cursor + 1)?;
-                let (ch, cursor) = u32::decode_impl(buffer, cursor)?;
+                let (ch, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::Char { binary, ch, span }, cursor))
+                Ok((Expr::Char { ch, span }, cursor))
             },
             Some(4) => {
+                let (b, cursor) = u8::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::Byte { b, span }, cursor))
+            },
+            Some(5) => {
                 let (r#if, cursor) = If::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::If(r#if), cursor))
             },
-            Some(5) => {
+            Some(6) => {
                 let (r#match, cursor) = Match::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Match(r#match), cursor))
             },
-            Some(6) => {
+            Some(7) => {
                 let (block, cursor) = Block::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Block(block), cursor))
             },
-            Some(7) => {
+            Some(8) => {
                 let (func, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<CallArg>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args }, cursor))
             },
-            Some(8) => {
+            Some(9) => {
                 let (elements, cursor) = Vec::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Expr::Tuple { elements, group_span }, cursor))
             },
-            Some(9) => {
+            Some(10) => {
                 let (elements, cursor) = Vec::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Expr::List { elements, group_span }, cursor))
             },
-            Some(10) => {
+            Some(11) => {
                 let (r#struct, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructInitField>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Expr::StructInit { r#struct, fields, group_span }, cursor))
             },
-            Some(11) => {
+            Some(12) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Path { lhs, fields }, cursor))
             },
-            Some(12) => {
+            Some(13) => {
                 let (fields, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
             },
-            Some(13) => {
+            Some(14) => {
                 let (op, cursor) = PrefixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::PrefixOp { op, op_span, rhs }, cursor))
             },
-            Some(14) => {
+            Some(15) => {
                 let (op, cursor) = InfixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::InfixOp { op, op_span, lhs, rhs }, cursor))
             },
-            Some(15) => {
+            Some(16) => {
                 let (op, cursor) = PostfixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::PostfixOp { op, op_span, lhs }, cursor))
             },
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 17..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

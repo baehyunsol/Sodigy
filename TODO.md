@@ -1,3 +1,90 @@
+# 65. explicit type casts
+
+1. `String(x)`, `Int(x)`처럼 하기!
+  - `Byte(x)`를 하면, `Result<Byte, _>`를 반환해? 그건 좀 많이 이상한데?
+2. `as` operator
+  - 이것도 마찬가지, `300 as Byte`를 하면 `Result<Byte, _>`를 반환해? 그건 좀...
+3. `.into()`
+
+# 64. more on bytes
+
+`Byte`는 덧셈 뺄셈할 일이 엄청 많음. `b: Byte`라고 해보자. `b + 4`나 `let b = 4;`같은 거 어떻게 함??
+
+- implicit cast를 금지하자는 철학을 따르자면 `b + Byte(4)`같은 걸 해야함
+- 이러면 Rust보다도 더 불편한데?? Rust는 integer type이라는게 따로 있고, 컴파일러가 특수처리를 해서 저게 i32인지 u8인지 판별함
+- Python은 그냥 runtime에 (implicitly) Byte를 Integer로 바꿈 (혹은 반대)
+- C는 그냥 runtime에 (implicitly) Byte를 Integer로 바꿈 (혹은 반대)
+
+선택지는 5개임
+
+1. implicit type cast at runtime (like Python)
+2. implicit type cast at compile time (like C)
+3. Special type inference for integers (like Rust)
+4. Byte literals
+  - 지금은 byte를 만드려면 `b'a'`처럼 해야함.
+  - 숫자를 못 쓰네?? 그럼 `30b` 이런 식으로 할까??
+  - 난 사실 이것도 반대임. i32/i64/u32/u64...처럼 integer가 분화되는게 싫어서 `Int`로 통일한건데 이러면 또 `3`이랑 `3b`로 갈라지는 거잖아...
+  - 애초에 byte type이 존재하는 순간 분화는 이미 된 거임. 분화가 됐으면 새 문법을 만드는게 맞고 그게 아니면 분화를 안 시켜야지
+5. Everything is an integer
+  - 극도로 비효율적이 되기는하지만 이상에 가장 부합함. 이게 젤 추상적이잖아 ㅋㅋㅋ
+  - 구현은 integer/byte 따로 해놓고 프로그래머 입장에서는 둘이 구분 못하게 해버리면 안됨??
+    - 이러면 edge case가 엄청나게 많아지거나 비효율적인 구현이 나올텐데 ㅠㅠ
+
+사실 3번을 하려면 4번도 해야함. type inference가 실패할 때를 대비해서 byte literal이 있어야하거든...
+
+걍 4나 5중에서 고르자. 4도 생각보다 괜찮은게, `Byte`랑 `Int`랑 아예 다른 거라고 생각하면, 분화해도 괜찮은 거 같기도 하고...
+생각해보니까 `3b`는 못씀. `0b`라고 하면 이미 있는 문법이랑 겹치거든 ㅠㅠ b보다 좋은게 안 떠오르는데... ㅠㅠ
+
+`0bt`라고 하기 vs `0b`라고 한 다음에 lexer에서 잘 처리하기
+-> 더 큰 문제가 있음. `b`가 postfix로 붙으면 `0x`랑 같이 못 씀. `0xffb`이면은 이게 `Byte(255)`인지 `Int(4091)`인지 알 방법이 없음
+
+아니면 `*0`은 ㅇㄸ? 개별로? ㅋㅋㅋ 생각해보니까 이거는 lexer가 고생하겠다. 아예 안 쓰는 character 중에서 골라야함. `#`는 ㅇㄸ
+
+- `#0` -> `Byte(0)`
+- `#200` -> `Byte(200)`
+- `#xff` -> `Byte(255)`
+
+# 63. Inter-HIR
+
+해야되는 거는 딱 하나! 사실 2개...
+
+1. `use x.y as z;`
+  - 이제 모든 HIR이 있으니 `x`의 def_span을 정확하게 잡을 수 있음. `z`를 찾아서 전부 `x.y`로 교체하면 됨.
+  - 정확히는, `hir::Expr::Identifier`를 전부 찾아서 확인하고 교체하면 됨.
+  - 아니 생각해보면 type annotation에 있는 `z`들도 전부 처리해줘야하잖아!!
+2. `type X = Y;`
+  - `X`를 전부 찾아서 `Y`로 교체하면 됨.
+  - `X`가 type annotation에도 등장할 수 있고 expr에도 등장할 수 있는 거 아님?? 둘이 달라야할텐데...
+3. `x`가 module일 때
+  - `x` -> `x` 단독으로는 expr처럼 사용할 수 없음! 아닌가? 된다고 할까? module as a first-class object. 괜찮지 않음? 이건 좀 더 고민 필요
+  - `x.y` -> `y`가 definition일 수도 있고, 또다른 module일 수도 있음! 적당히 recursion을 잘해야함...
+  - `x.y.z`에서 `y`가 definition일 때 -> `y`가 instance of struct이면 `z`가 필드이름이고, `y`가 struct이면... 걍 문법오류고, `y`가 enum이면 `z`가 variant이니까 결국 `z`도 definition이고... 생각할게 많네?
+  - 생각해보니까 여기서도 Compile Error를 마음껏 날려야함!!
+    - `x.y`인데 `x`가 module이고 `y`란 이름이 없다? 그럼 여기서 error 날려야지
+    - 여기서 compile error를 날리려면 module이 first-class object가 될 수 없음!
+  - 이게 단순히 external만 푸는게 아니고, 모든 path를 다 풀어야함
+    - expression에 path 붙어있는 거는 못풀고 그거는 type checker가 알아서 할 거고,
+    - 그게 아니면 다 def_span까지 찾아놔야함!!
+4. 생각해보니 여기도 cycle이 발생할 수 있음.
+  - 서로 다른 module에서 cycle을 만들어버리면 intra-HIR에서는 못 잡고 inter-HIR에서만 잡을 수 있잖아??
+  - 1, cycle 검사기를 돌리고 시작한다.
+    - 그럴거면 굳이 intra-hir에서 cycle 검사할 필요가 있음?
+  - 2, 계속 substitution을 하다가 substitution 횟수가 limit에 도달하면 에러를 내면서 죽는다.
+    - 이걸 하려면 필연적으로 limit 설정을 가능케해야함.
+    - 그럴거면 굳이 intra-hir에서 cycle 검사할 필요가 있음?
+5. 나중에 mir 만들 때 `func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>, struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>` 필요하거든? 이것도 Inter-HIR이 만들어야함. 이거는 name-resolution이랑은 완전 별개로 만드는 거임. 이미 필요한 정보는 각 Hir Session에 전부 다 있고 얘는 그냥 모으기만 하는 거임.
+
+```rs
+// 근데 module에 def_span이 있음? `Span::File`로 하기 vs `mod foo;`의 name_span 쓰기 -> 후자가 낫겠지?
+name_map = HashMap<Span /* def_span */, Node>;
+
+Node {
+    def_span: Span,
+    kind: NameKind,
+    children: HashMap<InternedString, Span /* def_span */>,
+}
+```
+
 # 62. format string
 
 Lexer도 아직 못 짬 -> 너무 복잡해서 아직 손댈 엄두를 못 내는 중

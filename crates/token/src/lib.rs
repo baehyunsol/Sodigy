@@ -41,10 +41,12 @@ pub enum TokenKind {
         raw: bool,
         s: InternedString,
     },
-    Char {
-        binary: bool,
-        ch: u32,
-    },
+    // `'a'`
+    Char(u32),
+    // `b'a'` or `200b`
+    // `181b` is a valid byte, but `b'µ'` is not.
+    // The `b'_'` syntax is only valid for ascii characters.
+    Byte(u8),
     FieldModifier(InternedString),
     DocComment(InternedString),
     Punct(Punct),
@@ -90,7 +92,8 @@ impl TokenKind {
             TokenKind::Identifier(_) |
             TokenKind::Number(_) |
             TokenKind::String { .. } |
-            TokenKind::Char { .. } => true,
+            TokenKind::Char(_) |
+            TokenKind::Byte(_) => true,
 
             TokenKind::Keyword(_) |
             TokenKind::FieldModifier(_) |
@@ -119,7 +122,8 @@ impl TokenKind {
             TokenKind::Identifier(_) |
             TokenKind::Number(_) |
             TokenKind::String { .. } |
-            TokenKind::Char { .. } => true,
+            TokenKind::Char(_) |
+            TokenKind::Byte(_) => true,
 
             TokenKind::FieldModifier(_) |
             TokenKind::DocComment(_) |

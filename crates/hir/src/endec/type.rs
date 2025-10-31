@@ -74,7 +74,7 @@ impl Endec for Type {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Type::Wildcard(span), cursor))
             },
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

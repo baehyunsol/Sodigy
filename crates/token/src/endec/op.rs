@@ -17,7 +17,7 @@ impl Endec for PrefixOp {
         match buffer.get(cursor) {
             Some(0) => Ok((PrefixOp::Not, cursor + 1)),
             Some(1) => Ok((PrefixOp::Neg, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -121,7 +121,7 @@ impl Endec for PostfixOp {
             Some(0) => Ok((PostfixOp::Range { inclusive: true }, cursor + 1)),
             Some(1) => Ok((PostfixOp::Range { inclusive: false }, cursor + 1)),
             Some(2) => Ok((PostfixOp::QuestionMark, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

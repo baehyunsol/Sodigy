@@ -1,0 +1,62 @@
+// Very efficient way of encoding a list of sorted integers.
+// Each number is represented as `offset + d`, and `d` is always 1 byte.
+// If `d` is too big to represent in a byte, it uses extra bytes to
+// increment the offset.
+
+// It returns (initial_offset: Int, result: Bytes)
+// The result doesn't include the very first integer, because
+// it's always equal to the initial_offset.
+fn encode(ns: [Int]) -> (Option<Int>, Bytes) = match ns {
+    [] => (None, []),
+    [n] ++ ns => (Some(n), encode_worker(offset=n, ns=ns)),
+};
+
+fn encode_worker(offset: Int, ns: [Int]) -> Bytes = match ns {
+    [] => [],
+    [n] ++ ns if n - offset < 224 => [(n - offset).into()] ++ encode_worker(offset, ns),
+    [n] ++ _ => {
+        let d = (n - offset) / 256 * 256;
+        let new_offset = offset + d;
+
+        # TODO: what if `d` is greater than 16777215?
+        [(d / 65536).into(), (d / 256 % 256).into()] ++ encode_worker(new_offset, ns)
+    },
+};
+
+fn decode(offset: Option<Int>, bytes: Bytes) -> Result<[Int], DecodeError> = match (offset, bytes) {
+    (None, _) | (_, []) => Ok([]),
+    (Some(n), bytes) => decode_worker(n, bytes),
+};
+
+fn decode_worker(offset: Int, bytes: Bytes) -> Result<[Int], DecodeError> = match bytes {
+    [] => Ok([]),
+
+    // TODO: We cannot apply the optimization at issue29. We have to consider this case when
+    //       implementing the optimization.
+    [b @ #0..=#223] ++ bytes => match decode_worker(offset, bytes) {
+        Ok(ns) => Ok([offset + b] ++ ns),
+        Err(e) => Err(e),
+    },
+
+    [b @ #224..=#255, bn] ++ bytes => decode_worker(offset + (b.into() * 65536 + bn.into() * 256), bytes),
+    _ => Err(DecodeError),
+};
+
+fn endec_test(ns: [Int]) -> Bool = {
+    let (offset, bytes) = encode(ns);
+    let ns_ = decode(offset, bytes).unwrap();
+    ns == ns_
+};
+
+assert endec_test([]);
+assert endec_test([0]);
+assert endec_test([1]);
+assert endec_test([1, 2, 3]);
+assert endec_test([100, 200, 300]);
+assert endec_test([100, 200, 300, 400, 500, 600, 700]);
+assert endec_test([
+    10000, 10001, 10002, 10003,
+    20000, 20001, 20002, 20003,
+    30000, 30001, 30002, 30003,
+    40000, 40001, 40002, 40003,
+]);

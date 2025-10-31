@@ -29,8 +29,11 @@ pub enum Expr {
         span: Span,
     },
     Char {
-        binary: bool,
         ch: u32,
+        span: Span,
+    },
+    Byte {
+        b: u8,
         span: Span,
     },
     If(If),
@@ -104,7 +107,8 @@ impl Expr {
             },
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
-            ast::Expr::Char { binary, ch, span } => Ok(Expr::Char { binary: *binary, ch: *ch, span: *span }),
+            ast::Expr::Char { ch, span } => Ok(Expr::Char { ch: *ch, span: *span }),
+            ast::Expr::Byte { b, span } => Ok(Expr::Byte { b: *b, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
             ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),

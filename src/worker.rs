@@ -4,7 +4,10 @@ use std::sync::mpsc;
 use std::thread;
 
 pub enum MessageToWorker {
-    Run(Vec<Command>),
+    Run {
+        commands: Vec<Command>,
+        id: usize,
+    },
 }
 
 pub enum MessageToMain {
@@ -13,6 +16,9 @@ pub enum MessageToMain {
 
         // It's used to generate an error message.
         span: Span,
+    },
+    RunComplete {
+        id: usize,
     },
     Error(Error),
 }
@@ -61,8 +67,9 @@ fn worker_loop(
 ) -> Result<(), Error> {
     for msg in rx_from_main {
         match msg {
-            MessageToWorker::Run(commands) => {
+            MessageToWorker::Run { commands, id } => {
                 run(commands, tx_to_main.clone())?;
+                tx_to_main.send(MessageToMain::RunComplete { id }).map_err(|_| Error::ProcessError)?;
             },
         }
     }

@@ -11,7 +11,8 @@ impl Expr {
             Expr::Identifier { .. } |
             Expr::Number { .. } |
             Expr::String { .. } |
-            Expr::Char { .. } => Ok(()),
+            Expr::Char { .. } |
+            Expr::Byte { .. } => Ok(()),
             Expr::If(r#if) => r#if.check(session),
             Expr::Match(r#match) => r#match.check(session),
             Expr::Block(block) => block.check(false /* top_level */, session),
