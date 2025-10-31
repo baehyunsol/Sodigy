@@ -163,6 +163,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'#'), _, _) => {
+                    let token_start = self.cursor;
                     self.cursor += 1;
                     let mut base = Base::Decimal;
                     let mut buffer = vec![];
@@ -174,12 +175,18 @@ impl Session {
 
                     loop {
                         match self.input_bytes.get(self.cursor) {
-                            Some(x @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) => {
+                            // `b'g'..=b'z'` is always error, but it matches the
+                            // range so that it can generate a better error message
+                            Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')) => {
                                 if !base.is_valid_digit(*x) {
                                     return Err(Error {
-                                        kind: ErrorKind::InvalidNumberLiteral,
-                                        spans: _,
-                                        note: Some(_),
+                                        kind: ErrorKind::InvalidByteLiteral,
+                                        spans: Span::range(
+                                            self.file,
+                                            self.cursor,
+                                            self.cursor + 1,
+                                        ).simple_error(),
+                                        note: Some(base.invalid_digit_error_message(*x)),
                                     });
                                 }
 
@@ -195,20 +202,40 @@ impl Session {
                         }
                     }
 
+                    if buffer.is_empty() {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidByteLiteral,
+                            spans: Span::range(
+                                self.file,
+                                token_start,
+                                self.cursor,
+                            ).simple_error(),
+                            note: None,
+                        });
+                    }
+
                     let n = intern_number(base, &buffer, &[], true /* is_integer */);
 
                     match n.value {
                         InternedNumberValue::SmallInteger(n @ 0..=255) => {
                             self.tokens.push(Token {
                                 kind: TokenKind::Byte(n as u8),
-                                span: _,
+                                span: Span::range(
+                                    self.file,
+                                    token_start,
+                                    self.cursor,
+                                ),
                             });
                         },
                         _ => {
                             return Err(Error {
                                 kind: ErrorKind::InvalidByteLiteral,
-                                spans: _,
-                                note: _,
+                                spans: Span::range(
+                                    self.file,
+                                    token_start,
+                                    self.cursor,
+                                ).simple_error(),
+                                note: Some(String::from("A byte must be in range #0..=#255.")),
                             });
                         },
                     }
@@ -1038,6 +1065,14 @@ impl Session {
                         }
                     }
 
+                    match self.input_bytes.get(self.cursor) {
+                        Some(b'\'') => {
+                            self.cursor += 1;
+                        },
+                        Some(_) => todo!(),
+                        None => todo!(),
+                    }
+
                     self.state = LexState::Init;
 
                     if binary {
@@ -1056,7 +1091,7 @@ impl Session {
                             let error_note = if n < 256 {
                                 format!("A byte char literal must be an ascii char. Perhaps you mean `#{n}`?")
                             } else {
-                                format!("A byte must be less than 256.")
+                                String::from("A byte must be in range #0..=#255.")
                             };
 
                             return Err(Error {
@@ -1082,7 +1117,6 @@ impl Session {
                         });
                     }
                 },
-                // invalid escape
                 (Some(b'\\'), Some(_), _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidEscape,
@@ -1094,7 +1128,6 @@ impl Session {
                         ..Error::default()
                     });
                 },
-                // invalid char
                 (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidCharLiteral,
@@ -1154,7 +1187,7 @@ impl Session {
                                     let error_note = if n < 256 {
                                         format!("A byte char literal must be an ascii char. Perhaps you mean `#{n}`?")
                                     } else {
-                                        format!("A byte must be less than 256.")
+                                        String::from("A byte must be in range #0..=#255.")
                                     };
 
                                     return Err(Error {
@@ -1352,7 +1385,9 @@ impl Session {
                 },
             },
             LexState::Integer(base) => match self.input_bytes.get(self.cursor) {
-                Some(x @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')) => {
+                // `b'g'..=b'z'` is always error, but it matches the
+                // range so that it can generate a better error message
+                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')) => {
                     if !base.is_valid_digit(*x) {
                         return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
@@ -1361,7 +1396,7 @@ impl Session {
                                 self.cursor,
                                 self.cursor + 1,
                             ).simple_error(),
-                            note: Some(_),
+                            note: Some(base.invalid_digit_error_message(*x)),
                         });
                     }
 

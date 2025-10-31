@@ -45,7 +45,8 @@ impl Punct {
             Punct::Colon => ":",
             Punct::Semicolon => ";",
             Punct::Assign => "=",
-            _ => todo!(),
+            Punct::And => "&&",
+            _ => panic!("TODO: {self:?}"),
         }
     }
 }

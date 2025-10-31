@@ -16,4 +16,18 @@ impl Base {
             _ => false,
         }
     }
+
+    pub fn invalid_digit_error_message(&self, b: u8) -> String {
+        format!(
+            "`{}` is not a valid digit for a {} number. Valid digits are {}.",
+            b as char,
+            format!("{self:?}").to_lowercase(),
+            match self {
+                Base::Hexadecimal => "0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b, c, d, e and f",
+                Base::Decimal => "0, 1, 2, 3, 4, 5, 6, 7, 8 and 9",
+                Base::Octal => "0, 1, 2, 3, 4, 5, 6 and 7",
+                Base::Binary => "0 and 1",
+            },
+        )
+    }
 }

@@ -76,7 +76,17 @@ impl Endec for Session {
 
 impl DumpIr for Session {
     fn dump_ir(&self) -> Vec<u8> {
-        todo!()
+        let s = format!(
+            "{}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
+            "{",
+            self.lets,
+            self.funcs,
+            self.asserts,
+            "}",
+        );
+        let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());
+        c.step_all();
+        c.output().to_vec()
     }
 }
 

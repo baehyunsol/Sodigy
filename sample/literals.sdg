@@ -1,0 +1,9 @@
+assert 0x1234 == 4660;
+assert 0o1234 == 668;
+assert 0b10101110 == 174;
+
+assert 123e4 == 1230000.0;
+assert 1.23e-4 == 0.000123;
+
+assert #x33 == #51;
+assert #65 == b'A';

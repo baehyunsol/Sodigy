@@ -20,6 +20,5 @@ sodigy-session = { version = "0.1.0", path = "crates/session" }
 sodigy-span = { version = "0.1.0", path = "crates/span" }
 sodigy-string = { version = "0.1.0", path = "crates/string" }
 
-# TODO: replace these with sodigy-based code
-hgp = { version = "0.1.0", path = "../hgp" }
+# TODO: I want everything to be inside this repository
 ragit-cli = "0.4.4"

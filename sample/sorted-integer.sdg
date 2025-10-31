@@ -18,7 +18,7 @@ fn encode_worker(offset: Int, ns: [Int]) -> Bytes = match ns {
         let d = (n - offset) / 256 * 256;
         let new_offset = offset + d;
 
-        # TODO: what if `d` is greater than 16777215?
+        // TODO: what if `d` is greater than 16777215?
         [(d / 65536).into(), (d / 256 % 256).into()] ++ encode_worker(new_offset, ns)
     },
 };

@@ -60,7 +60,7 @@ pub fn intern_number(
                 value: InternedNumberValue::SmallInteger(n),
                 is_integer,
             },
-            Err(_) => todo!(),
+            Err(_) => panic!("TODO: {integer:?}"),
         },
         (Base::Decimal, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
             Ok(int_numer) => {

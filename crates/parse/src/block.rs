@@ -341,7 +341,6 @@ impl<'t> Tokens<'t> {
                                 },
                             ],
                             note: Some(String::from("You can't add a document for an expression.")),
-                            ..Error::default()
                         });
                         return Err(errors);
                     }

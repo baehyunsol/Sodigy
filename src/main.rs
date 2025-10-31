@@ -77,6 +77,23 @@ fn main() -> Result<(), Error> {
                             input_module_path: String::from("lib"),
                             intermediate_dir: String::from("target"),
                             emit_ir_options: vec![
+                                // for debugging
+                                EmitIrOption {
+                                    stage: CompileStage::Lex,
+                                    store: StoreIrAt::File(String::from("tokens.rs")),
+                                    human_readable: true,
+                                },
+                                EmitIrOption {
+                                    stage: CompileStage::Parse,
+                                    store: StoreIrAt::File(String::from("ast.rs")),
+                                    human_readable: true,
+                                },
+                                EmitIrOption {
+                                    stage: CompileStage::Hir,
+                                    store: StoreIrAt::File(String::from("hir.rs")),
+                                    human_readable: true,
+                                },
+
                                 // cache hir for incremental compilation
                                 EmitIrOption {
                                     stage: CompileStage::Hir,
@@ -612,12 +629,6 @@ fn get_cached_ir(
     else {
         Ok(None)
     }
-}
-
-fn prettify(s: &str) -> String {
-    let mut c = hgp::Context::new(s.as_bytes().to_vec());
-    c.step_all();
-    String::from_utf8_lossy(c.output()).to_string()
 }
 
 fn find_module_file(
