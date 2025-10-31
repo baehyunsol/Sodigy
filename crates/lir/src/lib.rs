@@ -77,7 +77,7 @@ pub enum Label {
 //     - A string is just `[Char]`.
 //     - There's nothing special about tuples and structs.
 //     - TODO: enums...
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Const {
     Scalar(u32),
 
@@ -103,7 +103,7 @@ pub enum Offset {
     Dynamic(Register),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ConstOrRegister {
     Const(Const),
     Register(Register),

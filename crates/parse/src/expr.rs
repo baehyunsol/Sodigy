@@ -214,7 +214,7 @@ impl<'t> Tokens<'t> {
                 Expr::Identifier { id, span }
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
-                let (n, span) = (*n, *span);
+                let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
                 Expr::Number { n, span }
             },

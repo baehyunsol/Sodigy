@@ -76,7 +76,7 @@ impl FullPattern {
 impl Pattern {
     pub fn from_ast(ast_pattern: &ast::Pattern, session: &mut Session) -> Result<Pattern, ()> {
         match ast_pattern {
-            ast::Pattern::Number { n, span } => Ok(Pattern::Number { n: *n, span: *span }),
+            ast::Pattern::Number { n, span } => Ok(Pattern::Number { n: n.clone(), span: *span }),
             ast::Pattern::Identifier { id, span } => Ok(Pattern::Identifier { id: *id, span: *span }),
             ast::Pattern::Wildcard(span) => Ok(Pattern::Wildcard(*span)),
             ast::Pattern::Tuple { elements: ast_elements, group_span } |

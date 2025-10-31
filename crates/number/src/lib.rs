@@ -1,10 +1,19 @@
 mod base;
+mod big_int;
 mod endec;
-mod fmt;
+mod error;
+mod ratio;
 
 pub use base::Base;
+pub use big_int::BigInt;
+pub(crate) use error::ParseIntError;
+pub use ratio::Ratio;
 
-#[derive(Clone, Copy)]
+// `InternedString` implements `Copy` (hence "interned"), but
+// `InternedNumber` doesn't. My idea is that strings, including identifiers
+// are used really frequently by the compiler, but `BigInt`s and `BigRatio`s
+// are used less frequently, so it's okay to use heap memory.
+#[derive(Clone, Debug)]
 pub struct InternedNumber {
     pub value: InternedNumberValue,
 
@@ -13,29 +22,25 @@ pub struct InternedNumber {
     pub is_integer: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug)]
 pub enum InternedNumberValue {
-    SmallInteger(i64),
+    SmallInt(i64),
     SmallRatio {
         numer: i64,
         denom: u64,
     },
+    BigInt(BigInt),
+    BigRatio(Ratio),
 }
 
 impl InternedNumber {
     pub fn from_u32(n: u32, is_integer: bool) -> Self {
         InternedNumber {
-            value: InternedNumberValue::SmallInteger(n as i64),
+            value: InternedNumberValue::SmallInt(n as i64),
             is_integer,
         }
     }
 }
-
-// impl From<u32> for InternedNumber {
-//     fn from(n: u32) -> InternedNumber {
-//         InternedNumber::SmallInteger(n as i64)
-//     }
-// }
 
 /// Lexer must guarantee that it's parse-able.
 pub fn intern_number(
@@ -49,18 +54,24 @@ pub fn intern_number(
     match (base, frac.len()) {
         (Base::Hexadecimal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 16) {
             Ok(n) => InternedNumber {
-                value: InternedNumberValue::SmallInteger(n),
+                value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
-            Err(_) => todo!(),
+            Err(_) => InternedNumber {
+                value: InternedNumberValue::BigInt(BigInt::parse_positive_hex(integer).unwrap()),
+                is_integer,
+            },
         },
         (Base::Hexadecimal, _) => unreachable!(),
         (Base::Decimal, 0) => match String::from_utf8_lossy(integer).parse::<i64>() {
             Ok(n) => InternedNumber {
-                value: InternedNumberValue::SmallInteger(n),
+                value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
-            Err(_) => panic!("TODO: {integer:?}"),
+            Err(_) => InternedNumber {
+                value: InternedNumberValue::BigInt(BigInt::parse_positive_decimal(integer).unwrap()),
+                is_integer,
+            },
         },
         (Base::Decimal, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
             Ok(int_numer) => {
@@ -75,7 +86,7 @@ pub fn intern_number(
                 match frac_vec.len() {
                     0 => match i64::try_from(int_numer) {
                         Ok(n) => InternedNumber {
-                            value: InternedNumberValue::SmallInteger(n),
+                            value: InternedNumberValue::SmallInt(n),
                             is_integer,
                         },
                         Err(_) => intern_number(base, integer, b"", is_integer),
@@ -112,7 +123,7 @@ pub fn intern_number(
         },
         (Base::Octal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
             Ok(n) => InternedNumber {
-                value: InternedNumberValue::SmallInteger(n),
+                value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
             Err(_) => todo!(),
@@ -120,7 +131,7 @@ pub fn intern_number(
         (Base::Octal, _) => unreachable!(),
         (Base::Binary, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 2) {
             Ok(n) => InternedNumber {
-                value: InternedNumberValue::SmallInteger(n),
+                value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
             Err(_) => todo!(),

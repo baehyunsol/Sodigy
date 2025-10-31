@@ -63,7 +63,7 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecodes: &m
         },
         mir::Expr::Number { n, .. } => {
             bytecodes.push(Bytecode::PushConst {
-                value: Const::Number(*n),
+                value: Const::Number(n.clone()),
                 dst: Register::Return,
             });
 

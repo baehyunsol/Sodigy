@@ -222,7 +222,7 @@ impl Session {
                         _ => {},
                     },
                     _ => {
-                        buffer.push(*bytecode);
+                        buffer.push(bytecode.clone());
                     },
                 }
             }

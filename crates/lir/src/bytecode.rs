@@ -8,7 +8,7 @@ use crate::{
 };
 use sodigy_mir::Intrinsic;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Bytecode {
     // It peeks a value from `src` and pushes that to `dst`.
     Push {

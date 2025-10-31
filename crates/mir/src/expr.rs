@@ -97,7 +97,7 @@ impl Expr {
         match hir_expr {
             hir::Expr::Identifier(id) => Ok(Expr::Identifier(*id)),
             hir::Expr::Number { n, span } => Ok(Expr::Number {
-                n: *n,
+                n: n.clone(),
                 span: *span,
             }),
             hir::Expr::String { binary, s, span } => Ok(Expr::String {

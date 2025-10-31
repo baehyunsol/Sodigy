@@ -333,11 +333,12 @@ fn py_value(v: &Const, intermediate_dir: &str) -> String {
             }
         },
         Const::Number(InternedNumber { value, is_integer }) => match value {
-            InternedNumberValue::SmallInteger(n) => match is_integer {
+            InternedNumberValue::SmallInt(n) => match is_integer {
                 true => format!("{n}"),
                 false => format!("{n}.0"),
             },
             InternedNumberValue::SmallRatio { denom, numer } => format!("{numer}/{denom}"),
+            _ => panic!("TODO: {value:?}"),
         },
         Const::Compound(n) => format!("[None for _ in range({n})]"),
     }

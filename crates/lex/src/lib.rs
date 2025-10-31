@@ -124,7 +124,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => todo!(),
-                (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'), _) => {
+                (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
                         spans: Span::range(
@@ -217,7 +217,7 @@ impl Session {
                     let n = intern_number(base, &buffer, &[], true /* is_integer */);
 
                     match n.value {
-                        InternedNumberValue::SmallInteger(n @ 0..=255) => {
+                        InternedNumberValue::SmallInt(n @ 0..=255) => {
                             self.tokens.push(Token {
                                 kind: TokenKind::Byte(n as u8),
                                 span: Span::range(

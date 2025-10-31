@@ -385,7 +385,7 @@ impl<'t> Tokens<'t> {
                 }
             },
             (Some(Token { kind: TokenKind::Number(n), span }), _) => {
-                let (n, span) = (*n, *span);
+                let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
                 Pattern::Number { n, span }
             },

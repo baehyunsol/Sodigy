@@ -105,7 +105,7 @@ impl Expr {
                     Err(())
                 },
             },
-            ast::Expr::Number { n, span } => Ok(Expr::Number { n: *n, span: *span }),
+            ast::Expr::Number { n, span } => Ok(Expr::Number { n: n.clone(), span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
             ast::Expr::Char { ch, span } => Ok(Expr::Char { ch: *ch, span: *span }),
             ast::Expr::Byte { b, span } => Ok(Expr::Byte { b: *b, span: *span }),
