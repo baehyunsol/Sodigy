@@ -1,0 +1,7 @@
+[package]
+name = "sodigy-hir-inter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-hir = { version = "0.1.0", path = "../hir" }

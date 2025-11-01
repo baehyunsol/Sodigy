@@ -534,6 +534,28 @@ Things that I need: read/write/append to files (including stdin/stdout/stderr). 
 
 TODO: call it `sodigy-script`, not `sodigy-shell` -> fix everything accordingly
 
+---
+
+다시 생각
+
+1. 지금 컨셉이 너무 애매함
+  - shell이라고 하기에는 너무 다르고 (path에 항상 quote해야하고, 기본 명령어 (ls, chdir, mv, cp)들도 다 다르고, arbitrary process 실행도 못하고, 특정 명령어에서 panic이 발생하면 shell 전체가 죽어버리고)
+  - script라고 하기에는 너무 약하고 (기본적인 expression도 못씀, 함수 호출 방식도 다름, Python REPL을 쓰던 사람이 sodigy REPL에서 기대하는 거를 아무것도 못함)
+  - 아예 다른 언어를 하나 만들고 컨셉을 확실히 해야함 (그게 꼭 shell이나 script일 필요는 없지만)
+2. Sodigy에는 없지만 action-language에는 필요한 것들
+  - Sodigy는 값 하나만 eval하고 바로 return 하지? action-language는 action 여러개를 연속적으로 실행할 수 있어야함
+  - action의 실행 순서를 정할 수 있어야함.
+  - 위의 2가지가 생기면 for문도 필요해짐
+3. Action-language의 방향
+  - 최대한 간단해야함. 복잡한 logic은 Sodigy로 다 구현해야하거든
+  - action이 sodigy func를 호출하는 건 가능하지만 반대는 불가능
+  - Sodigy와 동일한 VM 위에서 돌아가야함
+
+결론: action 여러개를 연속으로 실행하되, 이전 action의 결과가 이후 action의 실행에 영향을 줌
+-> elixir랑 gleam에서 어떻게 구현했는지 좀 볼까...
+
+`read sodigy.toml |> parse |> gen-code |> write -o bin.exe;`
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`

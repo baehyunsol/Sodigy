@@ -117,6 +117,7 @@ impl Pattern {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         match self {
             Pattern::Number { .. } |
+            Pattern::Byte { .. } |
             Pattern::Identifier { .. } |
             Pattern::Path(_) |
             Pattern::Wildcard(_) => Ok(()),
@@ -303,6 +304,8 @@ impl Pattern {
         }
     }
 
+    // TODO: What's the point of type-checking AST?
+    //       We'll do a full type-checking at MIR...
     fn type_check(&self) -> Result<PatternType, Vec<Error>> {
         match self {
             Pattern::Number { n, .. } => {
@@ -314,6 +317,7 @@ impl Pattern {
                     Ok(PatternType::Number)
                 }
             },
+            Pattern::Byte { .. } => Ok(PatternType::Byte),
             Pattern::Identifier { .. } |
             Pattern::Wildcard(_) |
             Pattern::Path(_) => Ok(PatternType::NotSure),
@@ -487,6 +491,7 @@ enum PatternType {
     NotSure,  // e.g. identifier, wildcard, ...
     Int,
     Number,
+    Byte,
     String,
     Bytes,
     Regex,
@@ -506,6 +511,7 @@ impl PatternType {
             (r#type, PatternType::NotSure) => Ok(r#type.clone()),
             (PatternType::Int, PatternType::Int) |
             (PatternType::Number, PatternType::Number) |
+            (PatternType::Byte, PatternType::Byte) |
             (PatternType::String, PatternType::String) |
             (PatternType::Bytes, PatternType::Bytes) |
             (PatternType::Regex, PatternType::Regex) |
@@ -539,6 +545,7 @@ impl PatternType {
             PatternType::NotSure => String::from("_"),
             PatternType::Int => String::from("Int"),
             PatternType::Number => String::from("Number"),
+            PatternType::Byte => String::from("Byte"),
             PatternType::String => String::from("String"),
             PatternType::Bytes => String::from("Bytes"),
 

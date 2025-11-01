@@ -64,6 +64,18 @@ impl Endec for Pattern {
                 op_span.encode_impl(buffer);
                 is_inclusive.encode_impl(buffer);
             },
+            Pattern::Or { lhs, rhs, op_span } => {
+                buffer.push(6);
+                lhs.encode_impl(buffer);
+                rhs.encode_impl(buffer);
+                op_span.encode_impl(buffer);
+            },
+            Pattern::Concat { lhs, rhs, op_span } => {
+                buffer.push(7);
+                lhs.encode_impl(buffer);
+                rhs.encode_impl(buffer);
+                op_span.encode_impl(buffer);
+            },
         }
     }
 
@@ -100,7 +112,19 @@ impl Endec for Pattern {
                 let (is_inclusive, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((Pattern::Range { lhs, rhs, op_span, is_inclusive }, cursor))
             },
-            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(6) => {
+                let (lhs, cursor) = Box::<Pattern>::decode_impl(buffer, cursor + 1)?;
+                let (rhs, cursor) = Box::<Pattern>::decode_impl(buffer, cursor)?;
+                let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Pattern::Or { lhs, rhs, op_span }, cursor))
+            },
+            Some(7) => {
+                let (lhs, cursor) = Box::<FullPattern>::decode_impl(buffer, cursor + 1)?;
+                let (rhs, cursor) = Box::<FullPattern>::decode_impl(buffer, cursor)?;
+                let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Pattern::Concat { lhs, rhs, op_span }, cursor))
+            },
+            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

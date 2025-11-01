@@ -37,6 +37,16 @@ pub enum Pattern {
         op_span: Span,
         is_inclusive: bool,
     },
+    Or {
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
+    Concat {
+        lhs: Box<FullPattern>,
+        rhs: Box<FullPattern>,
+        op_span: Span,
+    },
 }
 
 impl FullPattern {
@@ -118,6 +128,28 @@ impl Pattern {
                     rhs: rhs.map(|rhs| Box::new(rhs.unwrap())),
                     op_span: *op_span,
                     is_inclusive: *is_inclusive,
+                }),
+            },
+            ast::Pattern::Or { lhs, rhs, op_span } => match (
+                Pattern::from_ast(lhs, session),
+                Pattern::from_ast(rhs, session),
+            ) {
+                (Err(()), _) | (_, Err(())) => Err(()),
+                (lhs, rhs) => Ok(Pattern::Or {
+                    lhs: Box::new(lhs.unwrap()),
+                    rhs: Box::new(rhs.unwrap()),
+                    op_span: *op_span,
+                }),
+            },
+            ast::Pattern::Concat { lhs, rhs, op_span } => match (
+                FullPattern::from_ast(lhs, session),
+                FullPattern::from_ast(rhs, session),
+            ) {
+                (Err(()), _) | (_, Err(())) => Err(()),
+                (lhs, rhs) => Ok(Pattern::Concat {
+                    lhs: Box::new(lhs.unwrap()),
+                    rhs: Box::new(rhs.unwrap()),
+                    op_span: *op_span,
                 }),
             },
             _ => panic!("TODO: {ast_pattern:?}"),

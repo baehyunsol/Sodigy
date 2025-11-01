@@ -15,8 +15,9 @@ mod file_map;
 use file_map::{
     length_file_map,
     push_file_map,
-    search_file_map,
+    search_content_hashes_by_module_paths,
     search_file_map_by_id,
+    search_file_map_by_module_path,
 };
 
 // It represents a file in a project.
@@ -54,11 +55,11 @@ impl File {
     pub fn register(
         project_id: u32,
 
-        // `read_bytes(path)` should work
-        path: &str,
+        // `read_bytes(file_path)` should work
+        file_path: &str,
 
         // Each module has a unique module_path within a project.
-        // It's like a file path, but represents a module hierarchy.
+        // It's like file_path, but represents a module hierarchy.
         // For example, a module with `foo/bar` can be in `src/foo/bar.rs` or `src/foo/bar/mod.rs`.
         module_path: &str,
 
@@ -80,7 +81,7 @@ impl File {
         let (mut file_map, file) = if exists(&file_map_path) {
             let file_map = read_bytes(&file_map_path)?;
 
-            match search_file_map(&file_map, module_path, &file_map_path)? {
+            match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
                 // If it's already registered, it returns the previous one without updating its content_hash.
                 // That means you cannot update a file while a compilation is going on.
                 Some((file_id, _)) => {
@@ -111,9 +112,9 @@ impl File {
             )
         };
 
-        let content = read_bytes(path)?;
+        let content = read_bytes(file_path)?;
         let content_hash = intern_string(&content, intermediate_dir)?;
-        push_file_map(&mut file_map, file.file, content_hash.0, module_path);
+        push_file_map(&mut file_map, file.file, content_hash.0, module_path, file_path);
         write_bytes(
             &join(
                 intermediate_dir,
@@ -126,8 +127,9 @@ impl File {
         Ok(file)
     }
 
+    // It returns (module_path, file_path).
     // This is very very expensive.
-    pub fn get_path(&self, intermediate_dir: &str) -> Result<Option<String>, FileError> {
+    pub fn get_path(&self, intermediate_dir: &str) -> Result<Option<(String, String)>, FileError> {
         let project_id = self.project;
 
         let lock_file_path = join(
@@ -146,7 +148,7 @@ impl File {
         lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
         match search_file_map_by_id(&file_map, self.file, &file_map_path)? {
-            Some((path, _)) => Ok(Some(path.to_string())),
+            Some((module_path, file_path, _)) => Ok(Some((module_path.to_string(), file_path.to_string()))),
             None => Ok(None),
         }
     }
@@ -170,7 +172,7 @@ impl File {
         lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
         match search_file_map_by_id(&file_map, self.file, &file_map_path)? {
-            Some((_, content_hash)) => Ok(content_hash),
+            Some((_, _, content_hash)) => Ok(content_hash),
 
             // error? panic? unreachable?
             None => todo!(),

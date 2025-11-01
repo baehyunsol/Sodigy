@@ -348,12 +348,13 @@ impl Session {
                     self.cursor += 3;
                 },
                 (
-                    Some(x @ (b'!' | b'+' | b'-' | b'.' | b'<' | b'=' | b'>')),
-                    Some(y @ (b'+' | b'.' | b'<' | b'=' | b'>')),
+                    Some(x @ (b'!' | b'&' | b'+' | b'-' | b'.' | b'<' | b'=' | b'>' | b'|')),
+                    Some(y @ (b'&' | b'+' | b'.' | b'<' | b'=' | b'>' | b'|')),
                     _,
                 ) => {
                     let punct = match (x, y) {
                         (b'!', b'=') => Some(Punct::Neq),
+                        (b'&', b'&') => Some(Punct::AndAnd),
                         (b'+', b'+') => Some(Punct::Concat),
                         (b'-', b'>') => Some(Punct::ReturnType),
                         (b'.', b'.') => Some(Punct::DotDot),
@@ -363,6 +364,7 @@ impl Session {
                         (b'=', b'>') => Some(Punct::Arrow),
                         (b'>', b'=') => Some(Punct::Geq),
                         (b'>', b'>') => Some(Punct::Shr),
+                        (b'|', b'|') => Some(Punct::OrOr),
                         _ => None,
                     };
 

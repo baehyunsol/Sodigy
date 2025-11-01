@@ -45,9 +45,9 @@ impl Session {
             Some(file) => match self.file_paths.entry(file) {
                 Entry::Occupied(e) => Some(e.get().to_string()),
                 Entry::Vacant(e) => match file.get_path(&self.intermediate_dir) {
-                    Ok(Some(path)) => {
-                        e.insert(path.to_string());
-                        Some(path.to_string())
+                    Ok(Some((_, file_path))) => {
+                        e.insert(file_path.to_string());
+                        Some(file_path.to_string())
                     },
                     _ => None,
                 },

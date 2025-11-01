@@ -73,6 +73,10 @@ pub enum Pattern {
         n: InternedNumber,
         span: Span,
     },
+    Byte {
+        n: u8,
+        span: Span,
+    },
     Identifier {
         id: InternedString,
         span: Span,
@@ -128,6 +132,7 @@ impl Pattern {
     pub fn error_span(&self) -> Span {
         match self {
             Pattern::Number { span, .. } |
+            Pattern::Byte { span, .. } |
             Pattern::Identifier { span, .. } |
             Pattern::Wildcard(span) |
             Pattern::Tuple { group_span: span, .. } |
@@ -152,6 +157,7 @@ impl Pattern {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             Pattern::Number { .. } |
+            Pattern::Byte { .. } |
             Pattern::Wildcard(_) |
             Pattern::Path(_) => vec![],
             Pattern::Identifier { id, span } => vec![(*id, *span)],
@@ -388,6 +394,11 @@ impl<'t> Tokens<'t> {
                 let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
                 Pattern::Number { n, span }
+            },
+            (Some(Token { kind: TokenKind::Byte(n), span }), _) => {
+                let (n, span) = (*n, *span);
+                self.cursor += 1;
+                Pattern::Byte { n, span }
             },
             // `..3`
             (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {

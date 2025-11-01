@@ -33,6 +33,9 @@ pub enum Command {
         profile: Profile,
         optimization: Optimization,
     },
+    HirInter {
+        modules: Vec<String>,
+    },
     Interpret {
         bytecodes_path: StoreIrAt,
 

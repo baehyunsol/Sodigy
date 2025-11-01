@@ -180,6 +180,15 @@ fn main() -> Result<(), Error> {
                     thread::sleep(Duration::from_millis(200));
                 }
 
+                workers[run_id % workers.len()].send(MessageToWorker::Run {
+                    commands: vec![Command::HirInter {
+                        modules: generated_hirs.iter().map(|module| module.to_string()).collect(),
+                    }],
+                    id: run_id,
+                }).map_err(|_| Error::ProcessError)?;
+                unfinished_runs.insert(run_id);
+                run_id += 1;
+
                 Ok(())
             },
             _ => panic!("TODO: {command:?}"),
@@ -450,6 +459,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                         WriteMode::CreateOrTruncate,
                     )?;
                 }
+            },
+            Command::HirInter { modules } => {
+                let hir_ids = sodigy_file::search_content_hashes_by_module_paths()?;
             },
             Command::Interpret {
                 bytecodes_path,
