@@ -63,6 +63,7 @@ fn main() -> Result<(), Error> {
                 let mut run_id = 0;
                 let mut unfinished_runs = HashSet::new();
                 let mut generated_hirs = HashSet::new();
+                generated_hirs.insert(String::from("lib"));
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
                     commands: vec![
@@ -181,13 +182,19 @@ fn main() -> Result<(), Error> {
                 }
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
-                    commands: vec![Command::HirInter {
+                    commands: vec![Command::InterHir {
                         modules: generated_hirs.iter().map(|module| module.to_string()).collect(),
+                        intermediate_dir: String::from("target"),
                     }],
                     id: run_id,
                 }).map_err(|_| Error::ProcessError)?;
                 unfinished_runs.insert(run_id);
                 run_id += 1;
+
+                // loop 2: generate inter-hir map
+                loop {
+                    // TODO
+                }
 
                 Ok(())
             },
@@ -290,7 +297,11 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
                 let mut cached_hir_session = None;
 
-                if let Some(cached_data) = get_cached_ir(&join(&intermediate_dir, "hir")?, content_hash)? {
+                if let Some(cached_data) = get_cached_ir(
+                    &intermediate_dir,
+                    CompileStage::Hir,
+                    Some(content_hash),
+                )? {
                     // TODO: It doesn't have to exit at decode_error, it can just generate hir from scratch.
                     //       But then, it'd be impossible to catch this error. I'm still debugging the compiler
                     //       so I'll just let it crash.
@@ -460,8 +471,48 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     )?;
                 }
             },
-            Command::HirInter { modules } => {
-                let hir_ids = sodigy_file::search_content_hashes_by_module_paths()?;
+            Command::InterHir {
+                modules,
+                intermediate_dir,
+            } => {
+                let hir_ids = sodigy_file::get_content_hashes(
+                    0,  // project_id
+                    &modules,
+                    &intermediate_dir,
+                )?;
+                let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
+
+                for hir_id in hir_ids.iter() {
+                    let hir_session_bytes = get_cached_ir(
+                        &intermediate_dir,
+                        CompileStage::Hir,
+                        Some(*hir_id),
+                    )?;
+
+                    let mut hir_session = match hir_session_bytes.map(|bytes| sodigy_hir::Session::decode(&bytes)) {
+                        Some(Ok(session)) => session,
+
+                        // TODO: It's kinda ICE, but there's no interface for ICE yet
+                        _ => todo!(),
+                    };
+
+                    hir_session.intermediate_dir = intermediate_dir.clone();
+                    inter_hir_session.ingest(hir_session);
+                }
+
+                emit_irs_if_has_to(
+                    &inter_hir_session,
+                    &[EmitIrOption {
+                        stage: CompileStage::InterHir,
+                        store: StoreIrAt::IntermediateDir,
+                        human_readable: false,
+                    }],
+                    CompileStage::InterHir,
+                    None,
+                    &intermediate_dir,
+                    &mut memory,
+                )?;
+                inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
             },
             Command::Interpret {
                 bytecodes_path,
@@ -590,7 +641,7 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
         } else {
             binary.as_ref().unwrap()
         };
-        let ext = if *human_readable_ { "rs" } else { "ir" };
+        let ext = if *human_readable_ { ".rs" } else { "" };
 
         match store {
             StoreIrAt::File(s) => {
@@ -605,13 +656,13 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
                         intermediate_dir,
                         "irs",
                         &format!("{finished_stage:?}").to_lowercase(),
-                        &format!("{content_hash:x}.{ext}"),
+                        &format!("{content_hash:x}{ext}"),
                     )?
                 } else {
                     join3(
                         intermediate_dir,
                         "irs",
-                        &format!("{finished_stage:?}.{ext}").to_lowercase(),
+                        &format!("{finished_stage:?}{ext}").to_lowercase(),
                     )?
                 };
 
@@ -628,14 +679,27 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
 }
 
 fn get_cached_ir(
-    dir: &str,
-    content_hash: u128
+    intermediate_dir: &str,
+    stage: CompileStage,
+    content_hash: Option<u128>,
 ) -> Result<Option<Vec<u8>>, FileError> {
-    let path = join(dir, &format!("{content_hash:x}"))?;
+    let path = if let Some(content_hash) = content_hash {
+        join4(
+            intermediate_dir,
+            "irs",
+            &format!("{stage:?}").to_lowercase(),
+            &format!("{content_hash:x}"),
+        )?
+    } else {
+        join3(
+            intermediate_dir,
+            "irs",
+            &format!("{stage:?}").to_lowercase(),
+        )?
+    };
 
     if exists(&path) {
-        let bytes = read_bytes(&path)?;
-        Ok(Some(bytes))
+        Ok(Some(read_bytes(&path)?))
     }
 
     else {

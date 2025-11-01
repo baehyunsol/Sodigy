@@ -10,7 +10,7 @@ sodigy-endec = { version = "0.1.0", path = "crates/endec" }
 sodigy-file = { version = "0.1.0", path = "crates/file" }
 sodigy-fs-api = { version = "0.1.0", path = "crates/fs-api" }
 sodigy-hir = { version = "0.1.0", path = "crates/hir" }
-sodigy-hir-inter = { version = "0.1.0", path = "crates/hir-inter" }
+sodigy-inter-hir = { version = "0.1.0", path = "crates/inter-hir" }
 sodigy-lex = { version = "0.1.0", path = "crates/lex" }
 sodigy-lir = { version = "0.1.0", path = "crates/lir" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }

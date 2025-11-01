@@ -33,8 +33,9 @@ pub enum Command {
         profile: Profile,
         optimization: Optimization,
     },
-    HirInter {
+    InterHir {
         modules: Vec<String>,
+        intermediate_dir: String,
     },
     Interpret {
         bytecodes_path: StoreIrAt,

@@ -556,6 +556,16 @@ TODO: call it `sodigy-script`, not `sodigy-shell` -> fix everything accordingly
 
 `read sodigy.toml |> parse |> gen-code |> write -o bin.exe;`
 
+---
+
+How about this? A script language that's very similar to Sodigy, except that,
+
+1. You cannot define new a struct/enum/func/alias, only `let` or `assert`.
+2. You can evaluate or execute a function (an action, actually), without `let` or `assert`.
+3. `let` and `assert` are always executed in the order
+4. You can mutate values
+  - `let x = foo();` declares `x` and `x = bar();` assigns `bar()` to `x` (mutates `x`).
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`

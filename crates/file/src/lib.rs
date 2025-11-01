@@ -185,3 +185,21 @@ impl File {
         Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
     }
 }
+
+pub fn get_content_hashes(project_id: u32, module_paths: &[String], intermediate_dir: &str) -> Result<Vec<u128>, FileError> {
+    let lock_file_path = join(
+        intermediate_dir,
+        &format!("file_map_{project_id}_lock"),
+    )?;
+    let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+    lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+
+    let file_map_path = join(
+        intermediate_dir,
+        &format!("files_{project_id}"),
+    )?;
+    let file_map = read_bytes(&file_map_path)?;
+
+    lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+    search_content_hashes_by_module_paths(&file_map, module_paths, &file_map_path)
+}
