@@ -26,6 +26,27 @@ impl<T: Endec> Endec for Option<T> {
     }
 }
 
+impl Endec for () {
+    fn encode_impl(&self, _: &mut Vec<u8>) {
+        // ZST
+    }
+
+    fn decode_impl(_: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        Ok(((), cursor))
+    }
+}
+
+impl <T1: Endec> Endec for (T1,) {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.0.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (e, cursor) = T1::decode_impl(buffer, cursor)?;
+        Ok(((e,), cursor))
+    }
+}
+
 impl <T1: Endec, T2: Endec> Endec for (T1, T2) {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.0.encode_impl(buffer);

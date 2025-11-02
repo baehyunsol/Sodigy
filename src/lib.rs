@@ -3,10 +3,12 @@ use sodigy_backend::CodeGenMode;
 mod cli;
 mod command;
 mod error;
+mod module;
 
 pub use cli::{CliCommand, parse_args};
 pub use command::Command;
 pub use error::Error;
+pub use module::ModulePath;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompileStage {

@@ -5,6 +5,7 @@ use sodigy::{
     CompileStage,
     EmitIrOption,
     Error,
+    ModulePath,
     Optimization,
     Profile,
     StoreIrAt,
@@ -63,7 +64,13 @@ fn main() -> Result<(), Error> {
                 let mut run_id = 0;
                 let mut unfinished_runs = HashSet::new();
                 let mut generated_hirs = HashSet::new();
-                generated_hirs.insert(String::from("lib"));
+                let input_module_path = ModulePath::lib();
+                let input_file_path = input_module_path.get_file_path(
+                    Span::None,  // TODO: how about `Span::Lib`?
+                    "target",
+                    None,
+                )?;
+                generated_hirs.insert(input_module_path.clone());
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
                     commands: vec![
@@ -71,11 +78,8 @@ fn main() -> Result<(), Error> {
                             intermediate_dir: String::from("target"),
                         },
                         Command::Compile {
-                            // TODO: how about `src/lib/mod.sdg`? Does rust allow this?
-                            // TODO: raise an error if `src/lib.sdg` does not exist
-                            //       instead of raising FileError, it has to raise a more helpful one
-                            input_file_path: String::from("src/lib.sdg"),
-                            input_module_path: String::from("lib"),
+                            input_file_path,
+                            input_module_path,
                             intermediate_dir: String::from("target"),
                             emit_ir_options: vec![
                                 // for debugging
@@ -129,8 +133,7 @@ fn main() -> Result<(), Error> {
                                 } => {
                                     if !generated_hirs.contains(&module_path) {
                                         generated_hirs.insert(module_path.clone());
-                                        let file_path = find_module_file(
-                                            &module_path,
+                                        let file_path = module_path.get_file_path(
                                             span,
                                             "target",
                                             None,
@@ -291,7 +294,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let file = File::register(
                     0,  // project_id
                     &input_file_path,
-                    &input_module_path,
+                    &input_module_path.to_string(),
                     &intermediate_dir,
                 )?;
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
@@ -346,17 +349,18 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                         continue;
                     }
 
-                    sodigy_hir::lower(parse_session)
+                    let hir_session = sodigy_hir::lower(parse_session);
+                    emit_irs_if_has_to(
+                        &hir_session,
+                        &emit_ir_options,
+                        CompileStage::Hir,
+                        Some(content_hash),
+                        &intermediate_dir,
+                        &mut memory,
+                    )?;
+                    hir_session
                 };
 
-                emit_irs_if_has_to(
-                    &hir_session,
-                    &emit_ir_options,
-                    CompileStage::Hir,
-                    Some(content_hash),
-                    &intermediate_dir,
-                    &mut memory,
-                )?;
                 hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
                 if let CompileStage::Hir = stop_after {
@@ -704,43 +708,5 @@ fn get_cached_ir(
 
     else {
         Ok(None)
-    }
-}
-
-fn find_module_file(
-    // It's always normalized.
-    // "foo/bar"
-    module: &str,
-
-    // for error message
-    span: Span,
-    intermediate_dir: &str,
-    error_note: Option<String>,
-) -> Result<String, Error> {
-    let candidate1 = format!("src/{module}.sdg");
-    let candidate2 = format!("src/{module}/mod.sdg");
-
-    let result = match (exists(&candidate1), exists(&candidate2)) {
-        (true, true) => Err(SodigyErrorKind::MultipleModuleFiles { module: module.to_string() }),
-        (false, false) => Err(SodigyErrorKind::ModuleFileNotFound { module: module.to_string() }),
-        (true, false) => Ok(candidate1),
-        (false, true) => Ok(candidate2),
-    };
-
-    match result {
-        Ok(path) => Ok(path),
-        Err(e) => {
-            let dummy_session = DummySession {
-                errors: vec![SodigyError {
-                    kind: e,
-                    spans: span.simple_error(),
-                    note: error_note,
-                }],
-                warnings: vec![],
-                intermediate_dir: intermediate_dir.to_string(),
-            };
-            dummy_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
-            unreachable!()
-        },
     }
 }

@@ -2,9 +2,10 @@ use crate::{
     Backend,
     CompileStage,
     EmitIrOption,
-    StoreIrAt,
+    ModulePath,
     Optimization,
     Profile,
+    StoreIrAt,
 };
 
 #[derive(Clone, Debug)]
@@ -16,7 +17,7 @@ pub enum Command {
         // A module is (almost always) a file.
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
         input_file_path: String,
-        input_module_path: String,
+        input_module_path: ModulePath,
 
         intermediate_dir: String,
         emit_ir_options: Vec<EmitIrOption>,

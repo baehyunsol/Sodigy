@@ -8,3 +8,4 @@ sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-error = { version = "0.1.0", path = "../error" }
 sodigy-hir = { version = "0.1.0", path = "../hir" }
 sodigy-session = { version = "0.1.0", path = "../session" }
+sodigy-span = { version = "0.1.0", path = "../span" }

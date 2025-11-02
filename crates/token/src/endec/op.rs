@@ -94,8 +94,28 @@ impl Endec for InfixOp {
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(_) => todo!(),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(0) => Ok((InfixOp::Add, cursor + 1)),
+            Some(1) => Ok((InfixOp::Sub, cursor + 1)),
+            Some(2) => Ok((InfixOp::Mul, cursor + 1)),
+            Some(3) => Ok((InfixOp::Div, cursor + 1)),
+            Some(4) => Ok((InfixOp::Rem, cursor + 1)),
+            Some(5) => Ok((InfixOp::Shl, cursor + 1)),
+            Some(6) => Ok((InfixOp::Shr, cursor + 1)),
+            Some(7) => Ok((InfixOp::Lt, cursor + 1)),
+            Some(8) => Ok((InfixOp::Eq, cursor + 1)),
+            Some(9) => Ok((InfixOp::Gt, cursor + 1)),
+            Some(10) => Ok((InfixOp::Leq, cursor + 1)),
+            Some(11) => Ok((InfixOp::Neq, cursor + 1)),
+            Some(12) => Ok((InfixOp::Geq, cursor + 1)),
+            Some(13) => Ok((InfixOp::Index, cursor + 1)),
+            Some(14) => Ok((InfixOp::Concat, cursor + 1)),
+            Some(15) => Ok((InfixOp::Range { inclusive: true }, cursor + 1)),
+            Some(16) => Ok((InfixOp::Range { inclusive: false }, cursor + 1)),
+            Some(17) => Ok((InfixOp::BitAnd, cursor + 1)),
+            Some(18) => Ok((InfixOp::BitOr, cursor + 1)),
+            Some(19) => Ok((InfixOp::LogicAnd, cursor + 1)),
+            Some(20) => Ok((InfixOp::LogicOr, cursor + 1)),
+            Some(n @ 21..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

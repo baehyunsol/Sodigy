@@ -1,4 +1,4 @@
-use crate::{Command, Error, run};
+use crate::{Command, Error, ModulePath, run};
 use sodigy_span::Span;
 use std::sync::mpsc;
 use std::thread;
@@ -12,7 +12,7 @@ pub enum MessageToWorker {
 
 pub enum MessageToMain {
     FoundExternalModule {
-        module_path: String,
+        module_path: ModulePath,
 
         // It's used to generate an error message.
         span: Span,
