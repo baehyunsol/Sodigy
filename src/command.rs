@@ -7,6 +7,8 @@ use crate::{
     Profile,
     StoreIrAt,
 };
+use sodigy_span::Span;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum Command {
@@ -35,7 +37,7 @@ pub enum Command {
         optimization: Optimization,
     },
     InterHir {
-        modules: Vec<String>,
+        modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
     },
     Interpret {

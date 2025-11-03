@@ -9,6 +9,16 @@ impl Ord for Span {
             (Span::None, _) => Ordering::Less,
             (_, Span::None) => Ordering::Greater,
 
+            // `Span::Lib` is the next smallest
+            (Span::Lib, Span::Lib) => Ordering::Equal,
+            (Span::Lib, _) => Ordering::Less,
+            (_, Span::Lib) => Ordering::Greater,
+
+            // `Span::Std` is the next smallest
+            (Span::Std, Span::Std) => Ordering::Equal,
+            (Span::Std, _) => Ordering::Less,
+            (_, Span::Std) => Ordering::Greater,
+
             // `Span::Prelude` is the next smallest
             (Span::Prelude(p1), Span::Prelude(p2)) => p1.cmp(p2),
             (Span::Prelude(_), _) => Ordering::Less,

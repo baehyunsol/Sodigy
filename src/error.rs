@@ -10,7 +10,7 @@ pub enum Error {
     DecodeError(DecodeError),
     CliError,
     TestError,
-    ProcessError,
+    MpscError,
 }
 
 impl From<FileError> for Error {
@@ -22,5 +22,11 @@ impl From<FileError> for Error {
 impl From<DecodeError> for Error {
     fn from(e: DecodeError) -> Error {
         Error::DecodeError(e)
+    }
+}
+
+impl<T> From<std::sync::mpsc::SendError<T>> for Error {
+    fn from(_: std::sync::mpsc::SendError<T>) -> Error {
+        Error::MpscError
     }
 }

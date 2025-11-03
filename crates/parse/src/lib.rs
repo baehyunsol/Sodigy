@@ -24,7 +24,7 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
-pub use attribute::{Attribute, Decorator, DocComment};
+pub use attribute::{Attribute, Decorator, DocComment, DocCommentLine, Public};
 pub use block::Block;
 pub use r#enum::Enum;
 pub use expr::{Expr, Field};

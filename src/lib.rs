@@ -2,25 +2,15 @@ use sodigy_backend::CodeGenMode;
 
 mod cli;
 mod command;
+mod compile_stage;
 mod error;
 mod module;
 
 pub use cli::{CliCommand, parse_args};
 pub use command::Command;
+pub use compile_stage::CompileStage;
 pub use error::Error;
 pub use module::ModulePath;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CompileStage {
-    Lex,
-    Parse,
-    Hir,
-    InterHir,
-    Mir,
-    TypeCheck,
-    Bytecode,
-    CodeGen,
-}
 
 impl CompileStage {
     pub fn all() -> Vec<CompileStage> {

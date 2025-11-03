@@ -1,9 +1,10 @@
-use crate::{Expr, FuncArgDef, GenericDef, Session, Type};
+use crate::{Expr, FuncArgDef, GenericDef, Public, Session, Type};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 pub struct Struct {
+    pub public: Public,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -29,6 +30,14 @@ impl Struct {
         let mut fields = Vec::with_capacity(ast_struct.fields.len());
         let mut has_error = false;
 
+        let public = match Public::from_ast(&ast_struct.attribute.public, session) {
+            Ok(p) => Some(p),
+            Err(()) => {
+                has_error = true;
+                None
+            },
+        };
+
         for field in ast_struct.fields.iter() {
             match StructField::from_ast(field, session, is_top_level) {
                 Ok(field) => {
@@ -46,6 +55,7 @@ impl Struct {
 
         else {
             Ok(Struct {
+                public: public.unwrap(),
                 keyword_span: ast_struct.keyword_span,
                 name: ast_struct.name,
                 name_span: ast_struct.name_span,

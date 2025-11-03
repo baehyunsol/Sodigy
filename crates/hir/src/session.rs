@@ -4,16 +4,18 @@ use crate::{
     Enum,
     Func,
     Let,
+    LetOrigin,
     Module,
     Struct,
     Use,
     prelude::prelude_namespace,
 };
 use sodigy_error::{Error, Warning};
-use sodigy_name_analysis::Namespace;
+use sodigy_name_analysis::{NameKind, Namespace};
 use sodigy_parse::Session as ParseSession;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 
 pub struct Session {
     pub intermediate_dir: String,
@@ -69,6 +71,51 @@ impl Session {
             errors: parse_session.errors.clone(),
             warnings: parse_session.warnings.clone(),
         }
+    }
+
+    // TODO: more fine-grained filtering for publicity
+    pub fn iter_public_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+        self.lets.iter().filter(
+            |r#let| r#let.public.is_public()
+        ).map(
+            |r#let| (r#let.name, r#let.name_span, NameKind::Let { is_top_level: r#let.origin == LetOrigin::TopLevel })
+        ).chain(
+            self.funcs.iter().filter(
+                |func| func.public.is_public()
+            ).map(
+                |func| (func.name, func.name_span, NameKind::Func)
+            )
+        ).chain(
+            self.structs.iter().filter(
+                |r#struct| r#struct.public.is_public()
+            ).map(
+                |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
+            )
+        ).chain(
+            self.enums.iter().filter(
+                |r#enum| r#enum.public.is_public()
+            ).map(
+                |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
+            )
+        ).chain(
+            self.aliases.iter().filter(
+                |alias| alias.public.is_public()
+            ).map(
+                |alias| (alias.name, alias.name_span, NameKind::Alias)
+            )
+        ).chain(
+            self.uses.iter().filter(
+                |r#use| r#use.public.is_public()
+            ).map(
+                |r#use| (r#use.name, r#use.name_span, NameKind::Use)
+            )
+        ).chain(
+            self.modules.iter().filter(
+                |module| module.public.is_public()
+            ).map(
+                |module| (module.name, module.name_span, NameKind::Use)
+            )
+        )
     }
 
     pub fn push_func_default_value(&mut self, default_value: Let) {

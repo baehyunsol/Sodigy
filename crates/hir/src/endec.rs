@@ -1,5 +1,6 @@
-mod assert;
 mod alias;
+mod assert;
+mod attribute;
 mod block;
 mod r#enum;
 mod expr;
@@ -7,6 +8,7 @@ mod func;
 mod r#if;
 mod r#let;
 mod r#match;
+mod module;
 mod pattern;
 mod session;
 mod r#struct;

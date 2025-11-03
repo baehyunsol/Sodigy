@@ -30,7 +30,7 @@ pub enum NamespaceKind {
     FuncArg,
     Generic,
     Block,  // declarations in a block
-    Local,  // anything other than those
+    Local,  // anything other than the above
 }
 
 #[derive(Clone, Copy, Debug)]

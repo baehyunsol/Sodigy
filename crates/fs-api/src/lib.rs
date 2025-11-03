@@ -445,7 +445,7 @@ impl FileError {
                 "file already exists: `{path}`"
             ),
             FileErrorKind::Unknown(msg) => format!(
-                "unknown file error: `{msg}`"
+                "unknown file error: `{msg}`, `{path}`"
             ),
             FileErrorKind::OsStrErr(os_str) => format!(
                 "error converting os_str: `{os_str:?}`"

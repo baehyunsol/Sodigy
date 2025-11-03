@@ -22,6 +22,7 @@ pub enum InfixOp {
     BitOr,
     LogicAnd,
     LogicOr,
+    Xor,
 }
 
 impl TryFrom<Punct> for InfixOp {
@@ -44,6 +45,7 @@ impl TryFrom<Punct> for InfixOp {
             Punct::Geq => Ok(InfixOp::Geq),
             Punct::And => Ok(InfixOp::BitAnd),
             Punct::Or => Ok(InfixOp::BitOr),
+            Punct::Xor => Ok(InfixOp::Xor),
             Punct::AndAnd => Ok(InfixOp::LogicAnd),
             Punct::OrOr => Ok(InfixOp::LogicOr),
             Punct::Concat => Ok(InfixOp::Concat),

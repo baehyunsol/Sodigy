@@ -257,12 +257,8 @@ impl<'t> Tokens<'t> {
                     },
                 },
                 Some(TokenKind::Keyword(Keyword::Mod)) => match self.parse_module() {
-                    Ok(module) => {
-                        if !attribute.is_empty() {
-                            // TODO: raise error
-                            todo!()
-                        }
-
+                    Ok(mut module) => {
+                        module.attribute = attribute;
                         modules.push(module);
                     },
                     Err(e) => {

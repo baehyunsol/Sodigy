@@ -62,6 +62,10 @@
   - 생각해보니까 여기서도 Compile Error를 마음껏 날려야함!!
     - `x.y`인데 `x`가 module이고 `y`란 이름이 없다? 그럼 여기서 error 날려야지
     - 여기서 compile error를 날리려면 module이 first-class object가 될 수 없음!
+    - first-class object로 하더라고 구현할 수 있지 않음? `x`를 struct처럼 생각하면 `y`가 `x`의 field인 거지! `x`와 `y`의 type은 둘다 module인 거고.
+      - enum도 이렇게 구현할 수 있음
+      - 그대신 문제: type-checking 이전에 모든 함수를 static하게 def_span으로 바꿔야하는데, 그러려면 module이 first-class object가 될 수 없음. 아니면 함수를 static하게 dispatch하는 pass를 뒤에 하나 더 만들던가...
+      - 둘다 할까? 앞에서 name resolution도 하고, 뒤에서 module-as-first-class-object로써의 처리도 하고...
   - 이게 단순히 external만 푸는게 아니고, 모든 path를 다 풀어야함
     - expression에 path 붙어있는 거는 못풀고 그거는 type checker가 알아서 할 거고,
     - 그게 아니면 다 def_span까지 찾아놔야함!!
@@ -78,12 +82,57 @@
 // 근데 module에 def_span이 있음? `Span::File`로 하기 vs `mod foo;`의 name_span 쓰기 -> 후자가 낫겠지?
 name_map = HashMap<Span /* def_span */, Node>;
 
+// children of let:
+// children of func:
+// children of struct:
+// children of enum: variants
+// children of assert:
+// children of alias:
+// children of use:
+// children of module: every public name defined in the module
 Node {
     def_span: Span,
     kind: NameKind,
     children: HashMap<InternedString, Span /* def_span */>,
 }
 ```
+
+---
+
+푸는 순서
+
+1. 각 hir을 전부 돌면서 name_map을 모은다.
+2. hir을 하나 고른다.
+3. 고른 hir에 있는 `use`를 전부 푼다.
+  - `use x.y.z as d;`가 있으면 `x.y.z`를 def_span이 명확해질 때까지 푸는 거임!
+4. `use`를 사용하는 expr들을 전부 푼다.
+  - `use x.y.z as d;`가 있으면 `d`를 전부 찾아서 `x.y.z`로 바꿔주는 거임
+  - `use`끼리 서로 참조를 할 수도 있으므로, `use`끼리 먼저 풀고 그 다음에 expr을 풀어야 함.
+
+---
+
+error messages
+
+1. `use x.y.z as d;`에서 `x.y`까지는 있는데 `z`가 없는 경우
+2. `use x.y.z as d;`에서 `x`까지는 있는데 `y`가 없는 경우
+3. `use x.y.z as d;`에서 `x`가 없는 경우
+4. `use x.y.z; lex k = z.w;`에서 `x.y.z`까지는 있는데 `w`가 없는 경우
+
+---
+
+생각해보니까 unused_name도 다시 계산해야하는데??
+
+1. 특정 module에서 `pub`으로 선언돼 있으면 unused_name을 던지면 안됨.
+2. 특정 module에서 `pub`으로 선언돼 있더라도 다른 module에서 사용하지 않으면 unused_name을 던져야 함.
+  - 이거 계산해야함...
+
+---
+
+`Span::External`을 아예 없애버리고, external name은 `lib`이랑 `std`만 허용하자!
+
+즉, `use lib.x.y as z;`이나 `use std.prelude.Int;`에서는 `lib`/`std`가 unknown-name이어도 허용하고, 다른 unknown-name이 나오면 그자리에서 죽어버리는 거임!!
+
+아니지, 이러면 external library를 못 쓰는데?? 그럼 `Span::External`도 허용해주고 `lib`이랑 `std`는 특수처리해줘야겠네...
 
 # 62. format string
 

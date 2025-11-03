@@ -1,8 +1,8 @@
 use crate::Session;
-use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
+use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 
 // If it's `use a.b.c as x;`,
 //    root: a
@@ -32,6 +32,11 @@ pub struct Use {
 
 impl Use {
     pub fn from_ast(ast_use: &ast::Use, session: &mut Session) -> Result<Use, ()> {
+        let (name, span) = match ast_use.full_path[0] {
+            Field::Name { name, span, .. } => (name, span),
+            _ => unreachable!(),
+        };
+
         let root = match session.find_origin_and_count_usage(ast_use.full_path[0].unwrap_name()) {
             Some((origin, def_span)) if def_span != ast_use.name_span => IdentWithOrigin {
                 id: ast_use.full_path[0].unwrap_name(),
@@ -39,11 +44,21 @@ impl Use {
                 origin,
                 def_span,
             },
-            _ => IdentWithOrigin {
-                id: ast_use.full_path[0].unwrap_name(),
-                span: ast_use.full_path[0].unwrap_span(),
-                origin: NameOrigin::External,
-                def_span: Span::None,
+            _ => {
+                let (origin, def_span) = if name == intern_string(b"std", "").unwrap() {
+                    (NameOrigin::Foreign { kind: NameKind::Module }, Span::Std)
+                } else if name == intern_string(b"lib", "").unwrap() {
+                    (NameOrigin::Foreign { kind: NameKind::Module }, Span::Lib)
+                } else {
+                    (NameOrigin::External, Span::None)
+                };
+
+                IdentWithOrigin {
+                    id: ast_use.full_path[0].unwrap_name(),
+                    span: ast_use.full_path[0].unwrap_span(),
+                    origin,
+                    def_span,
+                }
             },
         };
 

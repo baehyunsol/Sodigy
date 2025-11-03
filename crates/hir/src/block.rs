@@ -5,6 +5,7 @@ use crate::{
     Func,
     FuncOrigin,
     Let,
+    Module,
     Session,
     Struct,
     Use,
@@ -27,7 +28,6 @@ pub struct Block {
     pub group_span: Span,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
-    pub uses: Vec<Use>,
     pub value: Box<Expr>,
 
     // TODO: The term `use` in `use_counts` is confusing.
@@ -45,7 +45,6 @@ impl Block {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
-        let mut uses = vec![];
 
         let mut let_cycle_check_vertices: HashSet<Span> = ast_block.lets.iter().map(
             |r#let| r#let.name_span
@@ -143,11 +142,11 @@ impl Block {
             }
         }
 
+        // All the uses are stored in the top-level block.
         for r#use in ast_block.uses.iter() {
             match Use::from_ast(r#use, session) {
                 Ok(r#use) => {
                     session.uses.push(r#use.clone());
-                    uses.push(r#use);
                 },
                 Err(()) => {
                     has_error = true;
@@ -156,7 +155,14 @@ impl Block {
         }
 
         for module in ast_block.modules.iter() {
-            session.modules.push(module.clone());
+            match Module::from_ast(module, session) {
+                Ok(module) => {
+                    session.modules.push(module);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
         }
 
         // If `ast_block.value` is None, that means the block is top-level.
@@ -280,7 +286,6 @@ impl Block {
                 group_span: ast_block.group_span,
                 lets,
                 asserts,
-                uses,
                 value: Box::new(value.unwrap()),
                 use_counts,
             })

@@ -621,6 +621,7 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::BitOr => (BIT_OR, BIT_OR + 1),
         InfixOp::LogicAnd => (LOGIC_AND, LOGIC_AND + 1),
         InfixOp::LogicOr => (LOGIC_OR, LOGIC_OR + 1),
+        InfixOp::Xor => (XOR, XOR + 1),
     }
 }
 

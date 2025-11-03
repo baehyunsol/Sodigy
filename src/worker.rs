@@ -11,10 +11,10 @@ pub enum MessageToWorker {
 }
 
 pub enum MessageToMain {
-    FoundExternalModule {
-        module_path: ModulePath,
+    FoundModuleDef {
+        path: ModulePath,
 
-        // It's used to generate an error message.
+        // def_span of the module
         span: Span,
     },
     RunComplete {
@@ -69,7 +69,7 @@ fn worker_loop(
         match msg {
             MessageToWorker::Run { commands, id } => {
                 run(commands, tx_to_main.clone())?;
-                tx_to_main.send(MessageToMain::RunComplete { id }).map_err(|_| Error::ProcessError)?;
+                tx_to_main.send(MessageToMain::RunComplete { id })?;
             },
         }
     }

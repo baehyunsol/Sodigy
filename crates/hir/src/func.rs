@@ -2,6 +2,7 @@ use crate::{
     Expr,
     Let,
     LetOrigin,
+    Public,
     Session,
     Type,
 };
@@ -21,6 +22,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
+    pub public: Public,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -70,6 +72,15 @@ impl Func {
         is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
+
+        let public = match Public::from_ast(&ast_func.attribute.public, session) {
+            Ok(p) => Some(p),
+            Err(()) => {
+                has_error = true;
+                None
+            },
+        };
+
         let mut func_arg_names = HashMap::new();
         let mut func_arg_index = HashMap::new();
         let mut generic_names = HashMap::new();
@@ -191,6 +202,7 @@ impl Func {
 
         else {
             Ok(Func {
+                public: public.unwrap(),
                 keyword_span: ast_func.keyword_span,
                 name: ast_func.name,
                 name_span: ast_func.name_span,
@@ -239,6 +251,7 @@ impl FuncArgDef<Type> {
                 Ok(v) => {
                     let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
                     session.push_func_default_value(Let {
+                        public: Public::private(),
                         keyword_span: Span::None,
                         name: ast_arg.name,
                         name_span: ast_arg.name_span,

@@ -68,7 +68,7 @@ impl<'t> Tokens<'t> {
 
     pub fn unexpected_end(&self, expected_token: ErrorToken) -> Error {
         match self.span_end {
-            Span::Eof(_) | Span::File(_) | Span::None => Error {
+            Span::Lib | Span::Std | Span::Eof(_) | Span::File(_) | Span::None => Error {
                 kind: ErrorKind::UnexpectedEof {
                     expected: expected_token,
                 },

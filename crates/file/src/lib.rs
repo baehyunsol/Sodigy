@@ -127,6 +127,28 @@ impl File {
         Ok(file)
     }
 
+    pub fn from_module_path(project_id: u32, path: &str, intermediate_dir: &str) -> Result<Option<File>, FileError> {
+        let lock_file_path = join(
+            intermediate_dir,
+            &format!("file_map_{project_id}_lock"),
+        )?;
+        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+
+        let file_map_path = join(
+            intermediate_dir,
+            &format!("files_{project_id}"),
+        )?;
+        let file_map = read_bytes(&file_map_path)?;
+
+        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+
+        match search_file_map_by_module_path(&file_map, path, &file_map_path)? {
+            Some((file_id, _)) => Ok(Some(File { project: project_id, file: file_id })),
+            None => Ok(None),
+        }
+    }
+
     // It returns (module_path, file_path).
     // This is very very expensive.
     pub fn get_path(&self, intermediate_dir: &str) -> Result<Option<(String, String)>, FileError> {

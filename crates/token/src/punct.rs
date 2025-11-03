@@ -18,6 +18,7 @@ pub enum Punct {
     Dollar,
     And,  // "&"
     Or,   // "|"
+    Xor,  // "^"
     AndAnd,  // "&&"
     OrOr,    // "||"
     Shl,  // "<<"
@@ -45,6 +46,12 @@ impl Punct {
             Punct::Colon => ":",
             Punct::Semicolon => ";",
             Punct::Assign => "=",
+            Punct::Lt => "<",
+            Punct::Gt => ">",
+            Punct::Comma => ",",
+            Punct::Dot => ".",
+            Punct::QuestionMark => "?",
+            Punct::Factorial => "!",
             Punct::And => "&&",
             _ => panic!("TODO: {self:?}"),
         }
@@ -54,23 +61,24 @@ impl Punct {
 impl From<u8> for Punct {
     fn from(b: u8) -> Punct {
         match b {
+            b'!' => Punct::Factorial,
+            b'$' => Punct::Dollar,
             b'%' => Punct::Rem,
+            b'&' => Punct::And,
             b'*' => Punct::Mul,
             b'+' => Punct::Add,
             b',' => Punct::Comma,
             b'-' => Punct::Sub,
+            b'.' => Punct::Dot,
             b'/' => Punct::Div,
             b':' => Punct::Colon,
             b';' => Punct::Semicolon,
-            b'=' => Punct::Assign,
             b'<' => Punct::Lt,
+            b'=' => Punct::Assign,
             b'>' => Punct::Gt,
-            b'.' => Punct::Dot,
             b'?' => Punct::QuestionMark,
-            b'!' => Punct::Factorial,
             b'@' => Punct::At,
-            b'$' => Punct::Dollar,
-            b'&' => Punct::And,
+            b'^' => Punct::Xor,
             b'|' => Punct::Or,
             _ => panic!("TODO: {:?}", b as char),
         }

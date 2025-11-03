@@ -16,6 +16,14 @@ pub use render::{
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Span {
+    // Defspan of lib.
+    // Virtually, it's name_span of `mod lib;`.
+    Lib,
+
+    // Defspan of stb.
+    // Virtually, it's name_span of `mod std;`.
+    Std,
+
     // When a span has something to do with this file, but we cannot tell the exact location.
     // e.g. if there's an error reading the file, the error has this span.
     File(File),
@@ -78,7 +86,7 @@ impl Span {
                 start: (*end).max(1) - 1,
                 end: *end,
             },
-            Span::None => Span::None,
+            Span::Lib | Span::Std | Span::None => Span::None,
             Span::Prelude(_) => unreachable!(),
         }
     }
@@ -88,9 +96,7 @@ impl Span {
             Span::File(file) |
             Span::Eof(file) |
             Span::Range { file, .. } => Some(*file),
-
-            // TODO: maybe File::Prelude?
-            Span::None | Span::Prelude(_) => None,
+            Span::Lib | Span::Std | Span::None | Span::Prelude(_) => None,
         }
     }
 

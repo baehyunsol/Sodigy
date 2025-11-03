@@ -59,3 +59,18 @@ impl <T1: Endec, T2: Endec> Endec for (T1, T2) {
         Ok(((e1, e2), cursor))
     }
 }
+
+impl <T1: Endec, T2: Endec, T3: Endec> Endec for (T1, T2, T3) {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.0.encode_impl(buffer);
+        self.1.encode_impl(buffer);
+        self.2.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (e1, cursor) = T1::decode_impl(buffer, cursor)?;
+        let (e2, cursor) = T2::decode_impl(buffer, cursor)?;
+        let (e3, cursor) = T3::decode_impl(buffer, cursor)?;
+        Ok(((e1, e2, e3), cursor))
+    }
+}

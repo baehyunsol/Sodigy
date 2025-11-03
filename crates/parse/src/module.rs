@@ -1,4 +1,4 @@
-use crate::Tokens;
+use crate::{Attribute, Tokens};
 use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -9,6 +9,7 @@ pub struct Module {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
+    pub attribute: Attribute,
 }
 
 impl<'t> Tokens<'t> {
@@ -21,6 +22,7 @@ impl<'t> Tokens<'t> {
             keyword_span,
             name,
             name_span,
+            attribute: Attribute::new(),
         })
     }
 }

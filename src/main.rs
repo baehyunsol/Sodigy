@@ -12,7 +12,6 @@ use sodigy::{
     parse_args,
 };
 use sodigy_endec::{DumpIr, Endec};
-use sodigy_error::{Error as SodigyError, ErrorKind as SodigyErrorKind};
 use sodigy_file::File;
 use sodigy_fs_api::{
     FileError,
@@ -25,6 +24,7 @@ use sodigy_fs_api::{
     join,
     join3,
     join4,
+    parent,
     read_bytes,
     read_dir,
     set_current_dir,
@@ -33,11 +33,10 @@ use sodigy_fs_api::{
 };
 use sodigy_hir as hir;
 use sodigy_lir::Executable;
-use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
-use sodigy_session::{DummySession, Session};
+use sodigy_session::Session;
 use sodigy_span::Span;
-use sodigy_string::intern_string;
-use std::collections::HashSet;
+use sodigy_string::unintern_string;
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
@@ -63,14 +62,17 @@ fn main() -> Result<(), Error> {
                 let workers = worker::init_workers(jobs);
                 let mut run_id = 0;
                 let mut unfinished_runs = HashSet::new();
-                let mut generated_hirs = HashSet::new();
+
+                // HashMap<path of the module, def_span of the module>
+                let mut generated_hirs: HashMap<ModulePath, Span> = HashMap::new();
+
                 let input_module_path = ModulePath::lib();
                 let input_file_path = input_module_path.get_file_path(
-                    Span::None,  // TODO: how about `Span::Lib`?
+                    Span::Lib,
                     "target",
                     None,
                 )?;
-                generated_hirs.insert(input_module_path.clone());
+                generated_hirs.insert(input_module_path.clone(), Span::Lib);
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
                     commands: vec![
@@ -118,7 +120,7 @@ fn main() -> Result<(), Error> {
                         },
                     ],
                     id: run_id,
-                }).map_err(|_| Error::ProcessError)?;
+                })?;
                 unfinished_runs.insert(run_id);
                 run_id += 1;
 
@@ -127,13 +129,13 @@ fn main() -> Result<(), Error> {
                     for (worker_id, worker) in workers.iter().enumerate() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
-                                MessageToMain::FoundExternalModule {
-                                    module_path,
+                                MessageToMain::FoundModuleDef {
+                                    path,
                                     span,
                                 } => {
-                                    if !generated_hirs.contains(&module_path) {
-                                        generated_hirs.insert(module_path.clone());
-                                        let file_path = module_path.get_file_path(
+                                    if !generated_hirs.contains_key(&path) {
+                                        generated_hirs.insert(path.clone(), span);
+                                        let file_path = path.get_file_path(
                                             span,
                                             "target",
                                             None,
@@ -141,7 +143,7 @@ fn main() -> Result<(), Error> {
                                         workers[run_id % workers.len()].send(MessageToWorker::Run {
                                             commands: vec![Command::Compile {
                                                 input_file_path: file_path,
-                                                input_module_path: module_path,
+                                                input_module_path: path,
                                                 intermediate_dir: String::from("target"),
                                                 emit_ir_options: vec![
                                                     EmitIrOption {
@@ -158,7 +160,7 @@ fn main() -> Result<(), Error> {
                                                 optimization,
                                             }],
                                             id: run_id,
-                                        }).map_err(|_| Error::ProcessError)?;
+                                        })?;
                                         unfinished_runs.insert(run_id);
                                         run_id += 1;
                                     }
@@ -172,7 +174,7 @@ fn main() -> Result<(), Error> {
                             },
                             Err(mpsc::TryRecvError::Empty) => {},
                             Err(mpsc::TryRecvError::Disconnected) => {
-                                return Err(Error::ProcessError);
+                                return Err(Error::MpscError);
                             },
                         }
                     }
@@ -186,17 +188,108 @@ fn main() -> Result<(), Error> {
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
                     commands: vec![Command::InterHir {
-                        modules: generated_hirs.iter().map(|module| module.to_string()).collect(),
+                        modules: generated_hirs.clone(),
                         intermediate_dir: String::from("target"),
                     }],
                     id: run_id,
-                }).map_err(|_| Error::ProcessError)?;
+                })?;
                 unfinished_runs.insert(run_id);
                 run_id += 1;
 
                 // loop 2: generate inter-hir map
                 loop {
-                    // TODO
+                    for (worker_id, worker) in workers.iter().enumerate() {
+                        match worker.try_recv() {
+                            Ok(msg) => match msg {
+                                // TODO: throw an ICE
+                                MessageToMain::FoundModuleDef { .. } => unreachable!(),
+
+                                MessageToMain::RunComplete { id } => {
+                                    unfinished_runs.remove(&id);
+                                },
+                                MessageToMain::Error(e) => {
+                                    return Err(e);
+                                },
+                            },
+                            Err(mpsc::TryRecvError::Empty) => {},
+                            Err(mpsc::TryRecvError::Disconnected) => {
+                                return Err(Error::MpscError);
+                            },
+                        }
+                    }
+
+                    if unfinished_runs.is_empty() {
+                        break;
+                    }
+
+                    thread::sleep(Duration::from_millis(200));
+                }
+
+                for (path, span) in generated_hirs.iter() {
+                    let file_path = path.get_file_path(
+                        *span,
+                        "target",
+                        None,
+                    )?;
+                    workers[run_id % workers.len()].send(MessageToWorker::Run {
+                        commands: vec![Command::Compile {
+                            input_file_path: file_path,
+                            input_module_path: path.clone(),
+                            intermediate_dir: String::from("target"),
+                            emit_ir_options: vec![
+                                EmitIrOption {
+                                    stage: CompileStage::Mir,
+                                    store: StoreIrAt::IntermediateDir,
+                                    human_readable: false,
+                                },
+
+                                // for debugging
+                                EmitIrOption {
+                                    stage: CompileStage::Mir,
+                                    store: StoreIrAt::File(String::from("mir.rs")),
+                                    human_readable: true,
+                                },
+                            ],
+                            dump_type_info: true,
+                            output_path: None,
+                            backend: Backend::Bytecode,  // doesn't matter
+                            stop_after: CompileStage::Mir,
+                            profile: Profile::Test,
+                            optimization,
+                        }],
+                        id: run_id,
+                    })?;
+                    unfinished_runs.insert(run_id);
+                    run_id += 1;
+                }
+
+                // loop 3: generate mir of all files
+                loop {
+                    for (worker_id, worker) in workers.iter().enumerate() {
+                        match worker.try_recv() {
+                            Ok(msg) => match msg {
+                                // TODO: throw an ICE
+                                MessageToMain::FoundModuleDef { .. } => unreachable!(),
+
+                                MessageToMain::RunComplete { id } => {
+                                    unfinished_runs.remove(&id);
+                                },
+                                MessageToMain::Error(e) => {
+                                    return Err(e);
+                                },
+                            },
+                            Err(mpsc::TryRecvError::Empty) => {},
+                            Err(mpsc::TryRecvError::Disconnected) => {
+                                return Err(Error::MpscError);
+                            },
+                        }
+                    }
+
+                    if unfinished_runs.is_empty() {
+                        break;
+                    }
+
+                    thread::sleep(Duration::from_millis(200));
                 }
 
                 Ok(())
@@ -311,7 +404,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     cached_hir_session = Some(hir::Session::decode(&cached_data)?);
                 }
 
-                let hir_session = if let Some(mut hir_session) = cached_hir_session {
+                let mut hir_session = if let Some(mut hir_session) = cached_hir_session {
                     hir_session.intermediate_dir = intermediate_dir.clone();
                     hir_session
                 } else {
@@ -363,41 +456,35 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
+                for module in hir_session.modules.iter() {
+                    let module_name = unintern_string(module.name, &intermediate_dir)?.unwrap();
+                    let module_name = String::from_utf8_lossy(&module_name).to_string();
+                    tx_to_main.send(MessageToMain::FoundModuleDef {
+                        path: input_module_path.join(module_name),
+                        span: module.name_span,
+                    })?;
+                }
+
                 if let CompileStage::Hir = stop_after {
                     continue;
                 }
 
-                let external_names = hir_session.uses.iter().map(
-                    |hir::Use { root: IdentWithOrigin { id, origin, span, .. }, .. }| (*id, *origin, *span)
-                ).filter(
-                    |(_, origin, _)| matches!(origin, NameOrigin::External)
-                ).map(
-                    |(id, _, span)| (id, span)
-                ).collect::<HashSet<_>>();
-                let std_name = intern_string(b"std", &intermediate_dir)?;
+                // the inter-hir session must be created at this point
+                let inter_hir_session = get_cached_ir(
+                    &intermediate_dir,
+                    CompileStage::InterHir,
+                    None,
+                )?.unwrap();  // TODO: throw an ICE instead of unwrapping
+                let mut inter_hir_session = sodigy_inter_hir::Session::decode(&inter_hir_session)?;
+                inter_hir_session.resolve(&mut hir_session);
+                inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
-                for (name, span) in external_names.iter() {
-                    if *name != std_name {
-                        tx_to_main.send(MessageToMain::FoundExternalModule {
-                            module_path: todo!(),
-                            span: *span,
-                        }).map_err(|_| Error::ProcessError)?;
-                    }
-                }
+                // TODO: Now that inter_hir_session and hir_session are updated, we have to cache them again.
+                //       Be careful not to overwrite the per-file hir sessions. (do we have to create another CompileStage for this?)
 
                 if let CompileStage::InterHir = stop_after {
                     continue;
                 }
-
-                // TODO: inter-file hir analysis (name-resolution and applying type-aliases)
-                // There are 3 types of files: current_compiling_file, std, and dependencies
-                // We have hir of current_compiling_file, and other processes might have created
-                // hir of other types of files and saved them on disk.
-                // In order for name-resolution, we need a giant map that has names and type signatures
-                // of everything in every file (we don't need expressions).
-                // The giant map can be reused.
-                // So, a process first creates the giant map, and each process uses the giant map
-                // for name-resolution in their hir.
 
                 let mir_session = sodigy_mir::lower(hir_session);
                 emit_irs_if_has_to(
@@ -479,18 +566,19 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 modules,
                 intermediate_dir,
             } => {
-                let hir_ids = sodigy_file::get_content_hashes(
-                    0,  // project_id
-                    &modules,
-                    &intermediate_dir,
-                )?;
                 let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
 
-                for hir_id in hir_ids.iter() {
+                for (path, span) in modules.iter() {
+                    let file = File::from_module_path(
+                        0,  // project_id
+                        &path.to_string(),
+                        &intermediate_dir,
+                    )?.unwrap();  // TODO: throw an ICE instead of unwrapping it
+                    let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let hir_session_bytes = get_cached_ir(
                         &intermediate_dir,
                         CompileStage::Hir,
-                        Some(*hir_id),
+                        Some(content_hash),
                     )?;
 
                     let mut hir_session = match hir_session_bytes.map(|bytes| sodigy_hir::Session::decode(&bytes)) {
@@ -501,7 +589,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     };
 
                     hir_session.intermediate_dir = intermediate_dir.clone();
-                    inter_hir_session.ingest(hir_session);
+                    inter_hir_session.ingest(*span, hir_session);
                 }
 
                 emit_irs_if_has_to(
@@ -590,18 +678,6 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
         create_dir_all(&ir_dir)?;
     }
 
-    // TODO: We only a few of these dirs
-    for stage in CompileStage::all() {
-        let stage_ir_dir = join(
-            &ir_dir,
-            &format!("{stage:?}").to_lowercase(),
-        )?;
-
-        if !exists(&stage_ir_dir) {
-            create_dir_all(&stage_ir_dir)?;
-        }
-    }
-
     File::clear_cache(0 /* project id */, intermediate_dir)?;
     Ok(())
 }
@@ -649,31 +725,35 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
 
         match store {
             StoreIrAt::File(s) => {
-                write_bytes(&s, content, WriteMode::CreateOrTruncate)?;
+                write_bytes(&s, content, WriteMode::Atomic)?;
             },
             StoreIrAt::Memory => {
                 *memory = Some(content.to_vec());
             },
             StoreIrAt::IntermediateDir => {
-                let path = if let Some(content_hash) = content_hash {
-                    join4(
-                        intermediate_dir,
-                        "irs",
-                        &format!("{finished_stage:?}").to_lowercase(),
-                        &format!("{content_hash:x}{ext}"),
-                    )?
-                } else {
-                    join3(
-                        intermediate_dir,
-                        "irs",
-                        &format!("{finished_stage:?}{ext}").to_lowercase(),
-                    )?
-                };
+                let path = join4(
+                    intermediate_dir,
+                    "irs",
+                    &format!("{finished_stage:?}").to_lowercase(),
+                    &format!(
+                        "{}{ext}",
+                        if let Some(content_hash) = content_hash {
+                            format!("{content_hash:x}")
+                        } else {
+                            String::from("total")
+                        },
+                    ),
+                )?;
+                let parent = parent(&path)?;
+
+                if !exists(&parent) {
+                    create_dir(&parent)?;
+                }
 
                 write_bytes(
                     &path,
                     content,
-                    WriteMode::CreateOrTruncate,
+                    WriteMode::Atomic,
                 )?;
             },
         }
@@ -687,20 +767,17 @@ fn get_cached_ir(
     stage: CompileStage,
     content_hash: Option<u128>,
 ) -> Result<Option<Vec<u8>>, FileError> {
-    let path = if let Some(content_hash) = content_hash {
-        join4(
-            intermediate_dir,
-            "irs",
-            &format!("{stage:?}").to_lowercase(),
-            &format!("{content_hash:x}"),
-        )?
-    } else {
-        join3(
-            intermediate_dir,
-            "irs",
-            &format!("{stage:?}").to_lowercase(),
-        )?
-    };
+    let path = join4(
+        intermediate_dir,
+        "irs",
+        &format!("{stage:?}").to_lowercase(),
+        // There's no `ext` because it's always `!human_readable`
+        &if let Some(content_hash) = content_hash {
+            format!("{content_hash:x}")
+        } else {
+            String::from("total")
+        },
+    )?;
 
     if exists(&path) {
         Ok(Some(read_bytes(&path)?))

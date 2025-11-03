@@ -19,6 +19,13 @@ impl ModulePath {
         self.path.is_empty()
     }
 
+    #[must_use = "method returns a new value and does not mutate the original value"]
+    pub fn join(&self, module: String) -> ModulePath {
+        let mut path = self.path.clone();
+        path.push(module);
+        ModulePath { path }
+    }
+
     pub fn get_file_path(
         &self,
 

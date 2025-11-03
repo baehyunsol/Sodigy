@@ -89,6 +89,9 @@ impl Endec for InfixOp {
             InfixOp::LogicOr => {
                 buffer.push(20);
             },
+            InfixOp::Xor => {
+                buffer.push(21);
+            },
         }
     }
 
@@ -115,7 +118,8 @@ impl Endec for InfixOp {
             Some(18) => Ok((InfixOp::BitOr, cursor + 1)),
             Some(19) => Ok((InfixOp::LogicAnd, cursor + 1)),
             Some(20) => Ok((InfixOp::LogicOr, cursor + 1)),
-            Some(n @ 21..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(21) => Ok((InfixOp::Xor, cursor + 1)),
+            Some(n @ 22..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

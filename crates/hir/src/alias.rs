@@ -6,6 +6,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
 pub struct Alias {
     pub keyword_span: Span,
     pub name: InternedString,

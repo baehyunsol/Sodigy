@@ -12,6 +12,7 @@ use sodigy_parse::Session as ParseSession;
 
 mod alias;
 mod assert;
+mod attribute;
 mod block;
 mod endec;
 mod r#enum;
@@ -31,6 +32,7 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
+pub use attribute::Public;
 pub use block::Block;
 pub use r#enum::Enum;
 pub use expr::Expr;
