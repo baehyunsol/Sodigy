@@ -91,21 +91,28 @@ impl Session {
             ).map(
                 |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
             )
-        ).chain(
-            self.enums.iter().filter(
-                |r#enum| r#enum.public.is_public()
-            ).map(
-                |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
-            )
-        ).chain(
+        )
+        // TODO: `enum` is not worked yet
+        // .chain(
+        //     self.enums.iter().filter(
+        //         |r#enum| r#enum.public.is_public()
+        //     ).map(
+        //         |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
+        //     )
+        // )
+        .chain(
             self.aliases.iter().filter(
-                |alias| alias.public.is_public()
+                // TODO
+                // |alias| alias.public.is_public()
+                |_| true
             ).map(
                 |alias| (alias.name, alias.name_span, NameKind::Alias)
             )
         ).chain(
             self.uses.iter().filter(
-                |r#use| r#use.public.is_public()
+                // TODO
+                // |r#use| r#use.public.is_public()
+                |_| true
             ).map(
                 |r#use| (r#use.name, r#use.name_span, NameKind::Use)
             )

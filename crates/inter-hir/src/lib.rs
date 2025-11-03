@@ -1,3 +1,4 @@
+use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{Expr, FuncArgDef, StructField, Type};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
@@ -111,7 +112,11 @@ impl Session {
             }
 
             if i == 32 {
-                self.errors.push();
+                self.errors.push(Error {
+                    kind: ErrorKind::NameAliasRecursionLimitReached,
+                    spans: _,
+                    note: None,
+                });
             }
 
             else if !nested_aliases.is_empty() {
@@ -129,7 +134,7 @@ impl Session {
 
             for (def_span, type_alias) in self.type_aliases.iter() {
                 match &type_alias.r#type {
-                    Type::Identifier(id) | Path { id, .. } => todo!(),
+                    Type::Identifier(id) | Type::Path { id, .. } => todo!(),
                     Type::Param { r#type, .. } => todo!(),
                     Type::Tuple { types, .. } => todo!(),
                     Type::Func { args, r#return, .. } => todo!(),
@@ -138,7 +143,11 @@ impl Session {
             }
 
             if i == 32 {
-                self.errors.push();
+                self.errors.push(Error {
+                    kind: ErrorKind::TypeAliasRecursionLimitReached,
+                    spans: _,
+                    note: None,
+                });
             }
 
             else if !nested_aliases.is_empty() {
