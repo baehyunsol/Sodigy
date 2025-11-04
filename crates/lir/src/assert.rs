@@ -33,17 +33,19 @@ impl Assert {
             value: Register::Return,
             label: no_panic,
         });
-        bytecodes.push(Bytecode::PushConst {
-            value: Const::String {
-                s: mir_assert.error_message,
-                binary: false,
-            },
-            dst: Register::Call(0),
-        });
-        bytecodes.push(Bytecode::Intrinsic(Intrinsic::EPrint));
-        bytecodes.push(Bytecode::Pop(Register::Call(0)));
-        bytecodes.push(Bytecode::Intrinsic(Intrinsic::Panic));
-        bytecodes.push(Bytecode::Label(no_panic));
+
+        // TODO: print error message
+        // bytecodes.push(Bytecode::PushConst {
+        //     value: Const::String {
+        //         s: mir_assert.error_message,
+        //         binary: false,
+        //     },
+        //     dst: Register::Call(0),
+        // });
+        // bytecodes.push(Bytecode::Intrinsic(Intrinsic::EPrint));
+        // bytecodes.push(Bytecode::Pop(Register::Call(0)));
+        // bytecodes.push(Bytecode::Intrinsic(Intrinsic::Panic));
+        // bytecodes.push(Bytecode::Label(no_panic));
 
         if is_top_level {
             bytecodes.push(Bytecode::Intrinsic(Intrinsic::Exit));

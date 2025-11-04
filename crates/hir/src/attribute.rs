@@ -6,8 +6,9 @@ use sodigy_parse as ast;
 pub struct Public(pub bool);
 
 impl Public {
+    // TODO: more fine-grained publicity
     pub fn from_ast(ast_public: &Option<ast::Public>, session: &mut Session) -> Result<Public, ()> {
-        todo!()
+        Ok(Public(ast_public.is_some()))
     }
 
     // TODO: more fine-grained publicity

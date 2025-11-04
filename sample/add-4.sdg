@@ -1,0 +1,28 @@
+fn adder(x, y) = {
+    let adders = [
+        \(x) => x + 0,
+        \(x) => x + 1,
+        \(x) => x + 2,
+        \(x) => x + 3,
+        \(x) => x + 4,
+    ];
+
+    if y < 5 {
+        adders[y](x)
+    } else {
+        5 + adder(x, y - 5)
+    }
+};
+
+fn adder_test(x, y) = {
+    let result = adder(x, y);
+    let answer = x + y;
+
+    if result != answer {
+        panic(f"got: {x} + {y},result: {result}, answer: {answer}")
+    } else {
+        ()
+    }
+};
+
+assert (0..10000).map(\(n) => adder_test(n / 100, n % 100)).len() == 10000;

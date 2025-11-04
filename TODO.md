@@ -1,3 +1,32 @@
+# 67. more edges in inter-hir
+
+1. 지금은 name_alias랑 type_alias랑 완전 별개로 풀려고 하고 있는데, 둘이 별개로 풀 수가 없음...
+
+```
+struct a = { ... };
+use a as b;
+type c = b;
+use c as d;
+type e = d;
+```
+
+저런 극단적인 상황이 있다고 치면 use랑 type이랑 번갈아가면서 4번 풀어야 다 풀림...
+
+2. 그럼 무식하게 use랑 type이랑 합치면 되냐? 그것도 안됨!
+
+일단, use는 field가 붙을 수 있고 type은 말그대로 arbitrary type이 올 수가 있음. `type String = [Char];`인데 `Char`가 또다른 `use`로부터 온 걸 수도 있으니까...
+
+# 66. Assertion loops
+
+Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!! 그럼 자연스럽게 assertion note도 for문에서 만들게 됨. 이걸 Sodigy로 하려면??
+
+1. for문 대신 recursion을 해야함. 이건 타협 불가
+2. recursion 안에서 assert를 한 다음에 뭔가를 return 해야함. 이게 좀 애매
+  - `assert`를 expr로 쓰기? 는 힘듦 -> block 안에서 syntactic ambiguity가 생기거든
+3. assertion note나 assertion name을 pragmatic하게 만들고 싶은데, 이건 구현해야함
+  - name을 pragmatic하게 만드는 거는 애매. 이름이 겹치면 어떻게 하지?
+  - name은 identifier로 받고 note는 expr로 받을까?
+
 # 65. explicit type casts
 
 1. `String(x)`, `Int(x)`처럼 하기!

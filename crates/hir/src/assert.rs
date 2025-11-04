@@ -7,8 +7,25 @@ use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
 pub struct Assert {
+    // A name of an assertion must be a string literal, but you can use
+    // any string expression as a note.
+    // e.g. `@name("test1")` is valid,
+    //      `@name(f"test{i}")` is not valid,
+    //      `@name(test1)` is not valid,
+    //      `@note("It is a test")` is valid,
+    //      `@note(f"check {a}+{b}={a+b}")` is valid,
+    //      `@note(3 + 4)` is not valid (type error).
+    // I chose this way because
+    //
+    // 1. In order to create a test harness, it has to be easy for the compiler
+    //    to know the name of the assertions. So, I don't want a runtime-evaluation.
+    // 2. If it uses an identifier instead of a string literal, there are much less
+    //    characters to use. For example, the user might want to use colons in the
+    //    name of an assertion.
+    // 3. `@note` must be very flexible.
     pub name: Option<InternedString>,
-    pub note: Option<InternedString>,
+    pub note: Option<Expr>,
+
     pub keyword_span: Span,
     pub value: Expr,
 
@@ -20,7 +37,7 @@ pub struct Assert {
 #[derive(Clone, Debug)]
 pub struct AssertAttribute {
     pub name: Option<InternedString>,
-    pub note: Option<InternedString>,
+    pub note: Option<Expr>,
     pub always: bool,
 }
 
@@ -135,8 +152,6 @@ impl AssertAttribute {
                         });
                     }
 
-                    let mut d_arg = None;
-
                     match &decorator.args {
                         Some(args) => {
                             match args.get(0) {
@@ -148,19 +163,45 @@ impl AssertAttribute {
                                         note: None,
                                     });
                                 },
-                                Some(CallArg { arg: ast::Expr::String { s, binary: false, .. }, .. }) => {
-                                    d_arg = Some(*s);
+                                Some(CallArg { arg: arg @ ast::Expr::String { s, binary: false, .. }, .. }) => {
+                                    if d == b"name" {
+                                        name = Some(*s);
+                                    }
+
+                                    else {
+                                        match Expr::from_ast(arg, session) {
+                                            Ok(arg) => {
+                                                note = Some(arg);
+                                            },
+                                            Err(()) => {
+                                                has_error = true;
+                                            },
+                                        }
+                                    }
                                 },
                                 Some(CallArg { arg, .. }) => {
-                                    has_error = true;
-                                    session.errors.push(Error {
-                                        kind: ErrorKind::UnexpectedToken {
-                                            expected: ErrorToken::String,
-                                            got: ErrorToken::Expr,
-                                        },
-                                        spans: arg.error_span().simple_error(),
-                                        note: None,
-                                    });
+                                    if d == b"name" {
+                                        has_error = true;
+                                        session.errors.push(Error {
+                                            kind: ErrorKind::UnexpectedToken {
+                                                expected: ErrorToken::String,
+                                                got: ErrorToken::Expr,
+                                            },
+                                            spans: arg.error_span().simple_error(),
+                                            note: Some(String::from("A name of an assertion must be a compile-time-evaluable string.")),
+                                        });
+                                    }
+
+                                    else {
+                                        match Expr::from_ast(arg, session) {
+                                            Ok(arg) => {
+                                                note = Some(arg);
+                                            },
+                                            Err(()) => {
+                                                has_error = true;
+                                            },
+                                        }
+                                    }
                                 },
                                 None => {
                                     has_error = true;
@@ -198,14 +239,6 @@ impl AssertAttribute {
                                 note: None,
                             });
                         },
-                    }
-
-                    if d == b"name" {
-                        name = d_arg;
-                    }
-
-                    else {
-                        note = d_arg;
                     }
                 },
                 _ => {

@@ -52,18 +52,17 @@ pub(crate) fn use_prelude(name: InternedString) -> Use {
     Use {
         keyword_span: Span::None,
         name,
-        name_span: Span::None,
+        name_span: Span::Prelude(name),
         fields: vec![Field::Name {
             name: prelude,
             span: Span::None,
             dot_span: Span::None,
         }],
-        // TODO: what if the user defines a module named "std"?
         root: IdentWithOrigin {
             id: std,
             span: Span::None,
             origin: NameOrigin::External,
-            def_span: Span::None,
+            def_span: Span::Std,
         },
     }
 }

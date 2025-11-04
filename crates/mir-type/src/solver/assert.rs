@@ -13,6 +13,7 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> Result<(), ()> {
+        // TODO: make sure that the error message is String, if exists
         let assertion_type = self.solve_expr(&assert.value, types, generic_instances)?;
         match assertion_type {
             Type::Static(Span::Prelude(s)) if s == self.preludes[BOOL] => Ok(()),

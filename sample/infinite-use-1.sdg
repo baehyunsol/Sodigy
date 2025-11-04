@@ -1,0 +1,2 @@
+use x as y;
+use y as x;

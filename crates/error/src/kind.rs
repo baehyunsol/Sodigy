@@ -85,6 +85,8 @@ pub enum ErrorKind {
 
     KeywordArgumentRepeated(InternedString),
     KeywordArgumentNotAllowed,
+    NameAliasRecursionLimitReached,
+    TypeAliasRecursionLimitReached,
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),

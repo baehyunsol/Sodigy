@@ -312,7 +312,8 @@ fn main() -> Result<(), Error> {
 }
 
 fn goto_root_dir() -> Result<(), FileError> {
-    loop {
+    // In some os, running `set_current_dir("..")` at `/` is nop.
+    for _ in 0..64 {
         for f in read_dir(".", false)? {
             if basename(&f)? == "sodigy.toml" {
                 return Ok(());
@@ -321,6 +322,11 @@ fn goto_root_dir() -> Result<(), FileError> {
 
         set_current_dir("..")?;
     }
+
+    Err(FileError {
+        kind: FileErrorKind::FileNotFound,
+        given_path: Some(String::from("sodigy.toml")),
+    })
 }
 
 fn init_project(name: &str) -> Result<(), FileError> {
@@ -401,7 +407,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     // TODO: It doesn't have to exit at decode_error, it can just generate hir from scratch.
                     //       But then, it'd be impossible to catch this error. I'm still debugging the compiler
                     //       so I'll just let it crash.
-                    cached_hir_session = Some(hir::Session::decode(&cached_data)?);
+                    let mut s = hir::Session::decode(&cached_data)?;
+                    s.intermediate_dir = intermediate_dir.clone();
+                    cached_hir_session = Some(s);
                 }
 
                 let mut hir_session = if let Some(mut hir_session) = cached_hir_session {
@@ -476,6 +484,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     None,
                 )?.unwrap();  // TODO: throw an ICE instead of unwrapping
                 let mut inter_hir_session = sodigy_inter_hir::Session::decode(&inter_hir_session)?;
+                inter_hir_session.intermediate_dir = intermediate_dir.clone();
                 inter_hir_session.resolve(&mut hir_session);
                 inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 

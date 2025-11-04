@@ -1,7 +1,8 @@
 use crate::Session;
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, Field};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
 
 // If it's `use a.b.c as x;`,
@@ -62,16 +63,39 @@ impl Use {
             },
         };
 
-        Ok(Use {
-            keyword_span: ast_use.keyword_span,
-            name: ast_use.name,
-            name_span: ast_use.name_span,
-            fields: if ast_use.full_path.len() > 1 {
-                ast_use.full_path[1..].to_vec()
-            } else {
-                vec![]
-            },
-            root,
-        })
+        if root.id == ast_use.name {
+            session.errors.push(Error {
+                kind: ErrorKind::NameAliasRecursionLimitReached,
+                spans: vec![
+                    RenderableSpan {
+                        span: ast_use.name_span,
+                        auxiliary: false,
+                        note: None,
+                    },
+                    RenderableSpan {
+                        span: root.span,
+                        auxiliary: true,
+                        note: None,
+                    },
+                ],
+                note: None,
+            });
+
+            Err(())
+        }
+
+        else {
+            Ok(Use {
+                keyword_span: ast_use.keyword_span,
+                name: ast_use.name,
+                name_span: ast_use.name_span,
+                fields: if ast_use.full_path.len() > 1 {
+                    ast_use.full_path[1..].to_vec()
+                } else {
+                    vec![]
+                },
+                root,
+            })
+        }
     }
 }
