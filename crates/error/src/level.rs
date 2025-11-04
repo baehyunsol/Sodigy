@@ -61,8 +61,7 @@ impl ErrorLevel {
             ErrorKind::UndefinedName(_) |
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |
-            ErrorKind::NameAliasRecursionLimitReached |
-            ErrorKind::TypeAliasRecursionLimitReached |
+            ErrorKind::AliasResolveRecursionLimitReached |
             ErrorKind::InvalidKeywordArgument(_) |
             ErrorKind::MissingArgument { .. } |
             ErrorKind::UnexpectedArgument { .. } |

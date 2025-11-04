@@ -1,0 +1,16 @@
+struct a = {
+    name: String,
+    age: Int,
+};
+use a as b;
+type c = b;
+use c as d;
+type e = d;
+
+assert a {
+    name: "Bae",
+    age: 27,
+} == e {
+    name: "Bae",
+    age: 27,
+};

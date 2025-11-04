@@ -63,9 +63,10 @@ impl Use {
             },
         };
 
+        // `use x as x;` is an error
         if root.id == ast_use.name {
             session.errors.push(Error {
-                kind: ErrorKind::NameAliasRecursionLimitReached,
+                kind: ErrorKind::AliasResolveRecursionLimitReached,
                 spans: vec![
                     RenderableSpan {
                         span: ast_use.name_span,

@@ -1,0 +1,4 @@
+type T = [U];
+type U = [K];
+
+use T as K;

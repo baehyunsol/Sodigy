@@ -16,6 +16,11 @@ type e = d;
 
 일단, use는 field가 붙을 수 있고 type은 말그대로 arbitrary type이 올 수가 있음. `type String = [Char];`인데 `Char`가 또다른 `use`로부터 온 걸 수도 있으니까...
 
+3. 아니 애초에 type만 합치는 것도 경우의 수가 엄청나게 많음...
+
+1. `type T1 = T2;`, `type T2 = T3;` -> `type T1 = T3;`
+1. `type T1 = Bar<Foo, Baz<U1, U2>>;`, `type Baz<K, V> = Goo<K, V, Int>;` -> `type T1 = Bar<Foo, Goo<U1, U2, Int>>`
+
 # 66. Assertion loops
 
 Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!! 그럼 자연스럽게 assertion note도 for문에서 만들게 됨. 이걸 Sodigy로 하려면??
