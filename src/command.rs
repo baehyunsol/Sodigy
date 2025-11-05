@@ -2,11 +2,11 @@ use crate::{
     Backend,
     CompileStage,
     EmitIrOption,
-    ModulePath,
     Optimization,
     Profile,
     StoreIrAt,
 };
+use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ pub enum Command {
     Compile {
         // A module is (almost always) a file.
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
-        input_file_path: String,
+        input_file_path: FileOrStd,
         input_module_path: ModulePath,
 
         intermediate_dir: String,

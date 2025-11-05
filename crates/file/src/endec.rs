@@ -3,19 +3,32 @@ use sodigy_endec::{DecodeError, Endec};
 
 impl Endec for File {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.project.encode_impl(buffer);
-        self.file.encode_impl(buffer);
+        match self {
+            File::File { project, file } => {
+                buffer.push(0);
+                project.encode_impl(buffer);
+                file.encode_impl(buffer);
+            },
+            File::Std(n) => {
+                buffer.push(1);
+                n.encode_impl(buffer);
+            },
+        }
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (project, cursor) = u32::decode_impl(buffer, cursor)?;
-        let (file, cursor) = u32::decode_impl(buffer, cursor)?;
-        Ok((
-            File {
-                project,
-                file,
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (project, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                let (file, cursor) = u32::decode_impl(buffer, cursor)?;
+                Ok((File::File { project, file }, cursor))
             },
-            cursor,
-        ))
+            Some(1) => {
+                let (n, cursor) = u64::decode_impl(buffer, cursor + 1)?;
+                Ok((File::Std(n), cursor))
+            },
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
     }
 }

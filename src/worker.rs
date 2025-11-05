@@ -1,4 +1,5 @@
-use crate::{Command, Error, ModulePath, run};
+use crate::{Command, Error, run};
+use sodigy_file::ModulePath;
 use sodigy_span::Span;
 use std::sync::mpsc;
 use std::thread;

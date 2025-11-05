@@ -10,7 +10,12 @@ use sodigy_string::{InternedString, intern_string, unintern_string};
 use std::fs::File as StdFile;
 
 mod endec;
+mod error;
 mod file_map;
+mod module_path;
+
+pub use error::GetFilePathError;
+pub use module_path::ModulePath;
 
 use file_map::{
     length_file_map,
@@ -25,13 +30,16 @@ use file_map::{
 // Its `Ord` is for deterministic output of the error messages (it sorts the errors by file).
 // It doesn't sort the files by name.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct File {
-    // If it's compiling multiple projects, the compiler gives sequential numbers.
-    // The top-level project is always 0.
-    pub project: u32,
+pub enum File {
+    File {
+        // If it's compiling multiple projects, the compiler gives sequential numbers.
+        // The top-level project is always 0.
+        project: u32,
 
-    // If there are multiple files in the project, the compiler gives sequential numbers.
-    pub file: u32,
+        // If there are multiple files in the project, the compiler gives sequential numbers.
+        file: u32,
+    },
+    Std(u64),
 }
 
 impl File {
@@ -78,14 +86,14 @@ impl File {
         )?;
 
         // file_map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`
-        let (mut file_map, file) = if exists(&file_map_path) {
+        let (mut file_map, file, file_id) = if exists(&file_map_path) {
             let file_map = read_bytes(&file_map_path)?;
 
             match search_file_map_by_module_path(&file_map, module_path, &file_map_path)? {
                 // If it's already registered, it returns the previous one without updating its content_hash.
                 // That means you cannot update a file while a compilation is going on.
                 Some((file_id, _)) => {
-                    return Ok(File {
+                    return Ok(File::File {
                         project: project_id,
                         file: file_id,
                     });
@@ -94,27 +102,29 @@ impl File {
                     let file_id = length_file_map(&file_map, &file_map_path)? as u32;
                     (
                         file_map,
-                        File {
+                        File::File {
                             project: project_id,
                             file: file_id,
                         },
+                        file_id,
                     )
                 },
             }
         } else {
             (
                 vec![],
-                File {
+                File::File {
                     project: project_id,
                     // This is the first file!
                     file: 0,
                 },
+                0,
             )
         };
 
         let content = read_bytes(file_path)?;
         let content_hash = intern_string(&content, intermediate_dir)?;
-        push_file_map(&mut file_map, file.file, content_hash.0, module_path, file_path);
+        push_file_map(&mut file_map, file_id, content_hash.0, module_path, file_path);
         write_bytes(
             &join(
                 intermediate_dir,
@@ -144,7 +154,7 @@ impl File {
         lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
         match search_file_map_by_module_path(&file_map, path, &file_map_path)? {
-            Some((file_id, _)) => Ok(Some(File { project: project_id, file: file_id })),
+            Some((file_id, _)) => Ok(Some(File::File { project: project_id, file: file_id })),
             None => Ok(None),
         }
     }
@@ -152,52 +162,58 @@ impl File {
     // It returns (module_path, file_path).
     // This is very very expensive.
     pub fn get_path(&self, intermediate_dir: &str) -> Result<Option<(String, String)>, FileError> {
-        let project_id = self.project;
+        match self {
+            File::File { project: project_id, file: file_id } => {
+                let lock_file_path = join(
+                    intermediate_dir,
+                    &format!("file_map_{project_id}_lock"),
+                )?;
+                let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+                lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-        let lock_file_path = join(
-            intermediate_dir,
-            &format!("file_map_{project_id}_lock"),
-        )?;
-        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+                let file_map_path = join(
+                    intermediate_dir,
+                    &format!("files_{project_id}"),
+                )?;
+                let file_map = read_bytes(&file_map_path)?;
 
-        let file_map_path = join(
-            intermediate_dir,
-            &format!("files_{project_id}"),
-        )?;
-        let file_map = read_bytes(&file_map_path)?;
+                lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-        match search_file_map_by_id(&file_map, self.file, &file_map_path)? {
-            Some((module_path, file_path, _)) => Ok(Some((module_path.to_string(), file_path.to_string()))),
-            None => Ok(None),
+                match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
+                    Some((module_path, file_path, _)) => Ok(Some((module_path.to_string(), file_path.to_string()))),
+                    None => Ok(None),
+                }
+            },
+            File::Std(_) => todo!(),
         }
     }
 
     pub fn get_content_hash(&self, intermediate_dir: &str) -> Result<u128, FileError> {
-        let project_id = self.project;
+        match self {
+            File::File { project: project_id, file: file_id } => {
+                let lock_file_path = join(
+                    intermediate_dir,
+                    &format!("file_map_{project_id}_lock"),
+                )?;
+                let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
+                lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-        let lock_file_path = join(
-            intermediate_dir,
-            &format!("file_map_{project_id}_lock"),
-        )?;
-        let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-        lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+                let file_map_path = join(
+                    intermediate_dir,
+                    &format!("files_{project_id}"),
+                )?;
+                let file_map = read_bytes(&file_map_path)?;
 
-        let file_map_path = join(
-            intermediate_dir,
-            &format!("files_{project_id}"),
-        )?;
-        let file_map = read_bytes(&file_map_path)?;
+                lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-        lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
+                match search_file_map_by_id(&file_map, *file_id, &file_map_path)? {
+                    Some((_, _, content_hash)) => Ok(content_hash),
 
-        match search_file_map_by_id(&file_map, self.file, &file_map_path)? {
-            Some((_, _, content_hash)) => Ok(content_hash),
-
-            // error? panic? unreachable?
-            None => todo!(),
+                    // error? panic? unreachable?
+                    None => todo!(),
+                }
+            },
+            File::Std(_) => todo!(),
         }
     }
 
@@ -224,4 +240,10 @@ pub fn get_content_hashes(project_id: u32, module_paths: &[String], intermediate
 
     lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
     search_content_hashes_by_module_paths(&file_map, module_paths, &file_map_path)
+}
+
+#[derive(Clone, Debug)]
+pub enum FileOrStd {
+    File(String),
+    Std(u64),
 }

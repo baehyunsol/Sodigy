@@ -5,14 +5,13 @@ use sodigy::{
     CompileStage,
     EmitIrOption,
     Error,
-    ModulePath,
     Optimization,
     Profile,
     StoreIrAt,
     parse_args,
 };
 use sodigy_endec::{DumpIr, Endec};
-use sodigy_file::File;
+use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
     FileErrorKind,
@@ -67,11 +66,7 @@ fn main() -> Result<(), Error> {
                 let mut generated_hirs: HashMap<ModulePath, Span> = HashMap::new();
 
                 let input_module_path = ModulePath::lib();
-                let input_file_path = input_module_path.get_file_path(
-                    Span::Lib,
-                    "target",
-                    None,
-                )?;
+                let input_file_path = input_module_path.get_file_path().map_err()?;
                 generated_hirs.insert(input_module_path.clone(), Span::Lib);
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
@@ -135,11 +130,7 @@ fn main() -> Result<(), Error> {
                                 } => {
                                     if !generated_hirs.contains_key(&path) {
                                         generated_hirs.insert(path.clone(), span);
-                                        let file_path = path.get_file_path(
-                                            span,
-                                            "target",
-                                            None,
-                                        )?;
+                                        let file_path = path.get_file_path()?;
                                         workers[run_id % workers.len()].send(MessageToWorker::Run {
                                             commands: vec![Command::Compile {
                                                 input_file_path: file_path,
@@ -226,11 +217,7 @@ fn main() -> Result<(), Error> {
                 }
 
                 for (path, span) in generated_hirs.iter() {
-                    let file_path = path.get_file_path(
-                        *span,
-                        "target",
-                        None,
-                    )?;
+                    let file_path = path.get_file_path()?;
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
                         commands: vec![Command::Compile {
                             input_file_path: file_path,
@@ -387,13 +374,19 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 profile,
                 optimization,
             } => {
-                let file = File::register(
-                    0,  // project_id
-                    &input_file_path,
-                    &input_module_path.to_string(),
-                    &intermediate_dir,
-                )?;
-                let content_hash = file.get_content_hash(&intermediate_dir)?;
+                let (file, content_hash) = match &input_file_path {
+                    FileOrStd::File(path) => {
+                        let file = File::register(
+                            0,  // project_id
+                            &path,
+                            &input_module_path.to_string(),
+                            &intermediate_dir,
+                        )?;
+                        let content_hash = file.get_content_hash(&intermediate_dir)?;
+                        (file, content_hash)
+                    },
+                    FileOrStd::Std(n) => todo!(),
+                };
                 let mut cached_hir_session = None;
 
                 if let Some(cached_data) = get_cached_ir(
@@ -413,9 +406,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     hir_session.intermediate_dir = intermediate_dir.clone();
                     hir_session
                 } else {
-                    let bytes = std::fs::read(&input_file_path).map_err(
-                        |e| Error::FileError(FileError::from_std(e, &input_file_path))
-                    )?;
+                    // TODO: throw an ICE instead of unwrap
+                    let bytes = file.read_bytes(&intermediate_dir)?.unwrap();
+
                     let lex_session = sodigy_lex::lex(
                         file,
                         bytes,

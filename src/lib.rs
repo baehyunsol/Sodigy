@@ -4,13 +4,11 @@ mod cli;
 mod command;
 mod compile_stage;
 mod error;
-mod module;
 
 pub use cli::{CliCommand, parse_args};
 pub use command::Command;
 pub use compile_stage::CompileStage;
 pub use error::Error;
-pub use module::ModulePath;
 
 impl CompileStage {
     pub fn all() -> Vec<CompileStage> {
