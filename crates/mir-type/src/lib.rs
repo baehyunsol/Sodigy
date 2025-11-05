@@ -11,14 +11,13 @@ use sodigy_span::{
 use sodigy_string::unintern_string;
 
 mod error;
-mod preludes;
 mod solver;
 
 pub use error::{ErrorContext, RenderTypeError, TypeError};
 use solver::Solver;
 
 pub fn solve(mut session: Session) -> (Session, Solver) {
-    let mut solver = Solver::new();
+    let mut solver = Solver::new(session.lang_items.clone());
     let mut generic_funcs = vec![];
 
     for func in session.funcs.iter() {

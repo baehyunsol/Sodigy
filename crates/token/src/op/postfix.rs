@@ -6,6 +6,24 @@ pub enum PostfixOp {
     QuestionMark,
 }
 
+impl PostfixOp {
+    pub fn get_def_lang_item(&self) -> &'static str {
+        match self {
+            PostfixOp::Range { inclusive: true } => "op.inclusive_range",
+            PostfixOp::Range { inclusive: false } => "op.exclusive_range",
+            PostfixOp::QuestionMark => "op.question_mark",
+        }
+    }
+
+    pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
+        match self {
+            PostfixOp::Range { inclusive: true } => vec!["op.inclusive_range.generic.0", "op.inclusive_range.generic.1"],
+            PostfixOp::Range { inclusive: false } => vec!["op.exclusive_range.generic.0", "op.exclusive_range.generic.1"],
+            PostfixOp::QuestionMark => vec!["op.question_mark.generic.0", "op.question_mark.generic.1"],
+        }
+    }
+}
+
 impl TryFrom<Punct> for PostfixOp {
     type Error = ();
 

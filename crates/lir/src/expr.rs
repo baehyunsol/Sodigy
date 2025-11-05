@@ -9,13 +9,12 @@ use crate::{
     Register,
     Session,
 };
-use sodigy_mir::{self as mir, Callable, Intrinsic};
+use sodigy_mir::{self as mir, Callable};
 use sodigy_name_analysis::{
     NameKind,
     NameOrigin,
 };
 use sodigy_number::InternedNumber;
-use sodigy_token::InfixOp;
 
 // It pushes the expr to `Register::Return`.
 // If it's a tail-call, it jumps to another function after evaluating the expr.
@@ -202,69 +201,6 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecodes: &m
                         session.pop_all_locals(bytecodes);
                         bytecodes.push(Bytecode::Return);
                     }
-                },
-                // If type-check was successful, `Callable::GenericInfixOp` is unreachable.
-                // But the type-checker isn't complete yet. I'm doing this for debugging.
-                Callable::GenericInfixOp { op, .. } => match op {
-                    InfixOp::Add |
-                    InfixOp::Sub |
-                    InfixOp::Mul |
-                    InfixOp::Div |
-                    InfixOp::Eq |
-                    InfixOp::Gt |
-                    InfixOp::Lt => {
-                        let intrinsic = match op {
-                            InfixOp::Add => Intrinsic::IntegerAdd,
-                            InfixOp::Sub => Intrinsic::IntegerSub,
-                            InfixOp::Mul => Intrinsic::IntegerMul,
-                            InfixOp::Div => Intrinsic::IntegerDiv,
-                            InfixOp::Eq => Intrinsic::IntegerEq,
-                            InfixOp::Gt => Intrinsic::IntegerGt,
-                            InfixOp::Lt => Intrinsic::IntegerLt,
-                            _ => panic!("TODO: {op:?}"),
-                        };
-                        bytecodes.push(Bytecode::Intrinsic(intrinsic));
-
-                        for i in 0..args.len() {
-                            bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
-                        }
-
-                        if is_tail_call {
-                            session.pop_all_locals(bytecodes);
-                            bytecodes.push(Bytecode::Return);
-                        }
-                    },
-                    // Call(0): list, Call(1): index
-                    // It has to read `index + 1` because `ls[0]` is for the length of the list
-                    InfixOp::Index => {
-                        bytecodes.push(Bytecode::PushConst {
-                            value: Const::Number(InternedNumber::from_u32(1, true)),
-                            dst: Register::Call(0),
-                        });
-                        bytecodes.push(Bytecode::Intrinsic(Intrinsic::IntegerAdd));
-                        bytecodes.push(Bytecode::Pop(Register::Call(0)));
-                        bytecodes.push(Bytecode::Pop(Register::Call(1)));
-                        bytecodes.push(Bytecode::Push {
-                            src: Register::Return,
-                            dst: Register::Call(1),
-                        });
-
-                        bytecodes.push(Bytecode::ReadCompound {
-                            src: Register::Call(0),
-                            offset: Offset::Dynamic(Register::Call(1)),
-                            dst: Register::Return,
-                        });
-
-                        for i in 0..args.len() {
-                            bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
-                        }
-
-                        if is_tail_call {
-                            session.pop_all_locals(bytecodes);
-                            bytecodes.push(Bytecode::Return);
-                        }
-                    },
-                    _ => panic!("TODO: {op:?}"),
                 },
                 Callable::Intrinsic { intrinsic, .. } => {
                     bytecodes.push(Bytecode::Intrinsic(*intrinsic));

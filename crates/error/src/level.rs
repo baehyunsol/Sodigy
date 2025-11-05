@@ -62,6 +62,8 @@ impl ErrorLevel {
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |
             ErrorKind::AliasResolveRecursionLimitReached |
+            ErrorKind::MissingTypeArgument { .. } |
+            ErrorKind::UnexpectedTypeArgument { .. } |
             ErrorKind::InvalidKeywordArgument(_) |
             ErrorKind::MissingArgument { .. } |
             ErrorKind::UnexpectedArgument { .. } |

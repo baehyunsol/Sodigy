@@ -86,6 +86,14 @@ pub enum ErrorKind {
     KeywordArgumentRepeated(InternedString),
     KeywordArgumentNotAllowed,
     AliasResolveRecursionLimitReached,
+    MissingTypeArgument {
+        expected: usize,
+        got: usize,
+    },
+    UnexpectedTypeArgument {
+        expected: usize,
+        got: usize,
+    },
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),

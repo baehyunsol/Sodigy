@@ -1,10 +1,8 @@
 use super::Solver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
-use crate::preludes::*;
 use sodigy_mir::Callable;
 use sodigy_span::Span;
-use sodigy_token::InfixOp;
 use std::collections::HashMap;
 
 impl Solver {
@@ -36,21 +34,21 @@ impl Solver {
                 },
             },
             Expr::Number { n, .. } => match n.is_integer {
-                true => Ok(Type::Static(Span::Prelude(self.preludes[INT]))),
-                false => Ok(Type::Static(Span::Prelude(self.preludes[NUMBER]))),
+                true => Ok(Type::Static(self.get_lang_item_span("type.Int"))),
+                false => Ok(Type::Static(self.get_lang_item_span("type.Number"))),
             },
             Expr::String { binary, .. } => match *binary {
-                true => Ok(Type::Static(Span::Prelude(self.preludes[BYTES]))),
-                false => Ok(Type::Static(Span::Prelude(self.preludes[STRING]))),
+                true => Ok(Type::Static(self.get_lang_item_span("type.Bytes"))),
+                false => Ok(Type::Static(self.get_lang_item_span("type.String"))),
             },
             Expr::If(r#if) => {
                 let cond_type = self.solve_expr(r#if.cond.as_ref(), types, generic_instances)?;
 
                 match cond_type {
-                    Type::Static(Span::Prelude(s)) if s == self.preludes[BOOL] => {},  // okay
+                    Type::Static(s) if s == self.get_lang_item_span("type.Bool") => {},  // okay
                     _ => {
                         let _ = self.equal(
-                            &Type::Static(Span::Prelude(self.preludes[BOOL])),
+                            &Type::Static(self.get_lang_item_span("type.Bool")),
                             &cond_type,
                             types,
                             generic_instances,
@@ -198,7 +196,7 @@ impl Solver {
                             self.add_type_var(type_var.clone(), None);
 
                             Ok(Type::Param {
-                                r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
+                                r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
                                 args: vec![type_var],
 
                                 // this is for the type annotation, hence None
@@ -221,7 +219,7 @@ impl Solver {
                             }
 
                             Ok(Type::Param {
-                                r#type: Box::new(Type::Static(Span::Prelude(self.preludes[LIST]))),
+                                r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
                                 args: arg_types.drain(0..1).collect(),
 
                                 // this is for the type annotation, hence None
@@ -277,93 +275,6 @@ impl Solver {
                                 Ok(*r#return.clone())
                             },
                             _ => todo!(),
-                        }
-                    },
-                    Callable::GenericInfixOp { op: op @ (InfixOp::Eq | InfixOp::Neq), span } => {
-                        let _ = self.equal(
-                            &arg_types[0],
-                            &arg_types[1],
-                            types,
-                            generic_instances,
-                            false,
-                            Some(args[0].error_span()),
-                            Some(args[1].error_span()),
-                            if *op == InfixOp::Eq { ErrorContext::EqValueEqual } else { ErrorContext::NeqValueEqual },
-                        );
-
-                        Ok(Type::Static(Span::Prelude(self.preludes[BOOL])))
-                    },
-                    Callable::GenericPrefixOp { span, .. } |
-                    Callable::GenericInfixOp { span, .. } |
-                    Callable::GenericPostfixOp { span, .. } => {
-                        let type_signatures = match func {
-                            Callable::GenericPrefixOp { op, .. } => self.get_prefix_op_type_signatures(*op),
-                            Callable::GenericInfixOp { op, .. } => self.get_infix_op_type_signatures(*op),
-                            Callable::GenericPostfixOp { op, .. } => self.get_postfix_op_type_signatures(*op),
-                            _ => unreachable!(),
-                        };
-                        let mut candidates = vec![];
-
-                        for type_signature in type_signatures.iter() {
-                            if applicable(
-                                type_signature,
-                                &arg_types,
-                            ) {
-                                candidates.push(type_signature);
-                            }
-                        }
-
-                        // Let's say `op` is `Op::Add`.
-                        // Then the type signatures would be `[[Int, Int, Int], [Number, Number, Number], ... (and maybe more) ...]`.
-                        // `candidates` filters out type signatures that are not compatible with `arg_types`.
-                        match candidates.len() {
-                            0 => {
-                                match func {
-                                    Callable::GenericPrefixOp { op, .. } => {
-                                        self.errors.push(TypeError::CannotApplyPrefixOp {
-                                            op: *op,
-                                            op_span: *span,
-                                            arg_types,
-                                        });
-                                    },
-                                    Callable::GenericInfixOp { op, .. } => {
-                                        self.errors.push(TypeError::CannotApplyInfixOp {
-                                            op: *op,
-                                            op_span: *span,
-                                            arg_types,
-                                        });
-                                    },
-                                    Callable::GenericPostfixOp { op, .. } => {
-                                        self.errors.push(TypeError::CannotApplyPostfixOp {
-                                            op: *op,
-                                            op_span: *span,
-                                            arg_types,
-                                        });
-                                    },
-                                    _ => unreachable!(),
-                                }
-
-                                Err(())
-                            },
-                            1 => {
-                                let candidate = candidates[0].clone();
-
-                                for i in 0..arg_types.len() {
-                                    let _ = self.equal(
-                                        &candidate[i],
-                                        &arg_types[i],
-                                        types,
-                                        generic_instances,
-                                        false,
-                                        None,
-                                        Some(args[i].error_span()),
-                                        ErrorContext::None,  // TODO: do we need an error-context for this?
-                                    );
-                                }
-
-                                Ok(candidate.last().unwrap().clone())
-                            },
-                            2.. => todo!(),
                         }
                     },
                     _ => panic!("TODO: {func:?}"),

@@ -1,6 +1,7 @@
 use crate::{Assert, Func, Let, Type};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, GenericDef, StructField};
+use sodigy_inter_hir as inter_hir;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -10,7 +11,6 @@ mod span_string_map;
 
 pub struct Session {
     pub intermediate_dir: String,
-    pub main_func: Option<Span>,
     pub func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>,
     pub struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>,
 
@@ -39,47 +39,20 @@ pub struct Session {
     // This is really expensive to initialize, so think twice before you init this.
     pub span_string_map: Option<HashMap<Span, InternedString>>,
 
+    pub lang_items: HashMap<String, Span>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
 
 impl Session {
-    pub fn from_hir_session(hir_session: &hir::Session) -> Session {
+    pub fn from_hir_session(
+        hir_session: &hir::Session,
+        inter_hir_session: &inter_hir::Session,
+    ) -> Session {
         Session {
             intermediate_dir: hir_session.intermediate_dir.clone(),
-            main_func: hir_session.main_func,
-            func_shapes: hir_session.funcs.iter().map(
-                |func| (
-                    func.name_span,
-                    (
-                        func.args.iter().map(
-                            |arg| FuncArgDef {
-                                name: arg.name,
-                                name_span: arg.name_span,
-                                r#type: None,
-                                default_value: arg.default_value,
-                            }
-                        ).collect(),
-                        func.generics.clone(),
-                    ),
-                )
-            ).collect(),
-            struct_shapes: hir_session.structs.iter().map(
-                |r#struct| (
-                    r#struct.name_span,
-                    (
-                        r#struct.fields.iter().map(
-                            |field| StructField {
-                                name: field.name,
-                                name_span: field.name_span,
-                                r#type: None,
-                                default_value: field.default_value,
-                            }
-                        ).collect(),
-                        r#struct.generics.clone(),
-                    ),
-                )
-            ).collect(),
+            func_shapes: inter_hir_session.func_shapes.clone(),
+            struct_shapes: inter_hir_session.struct_shapes.clone(),
             generic_def_span_rev: HashMap::new(),
             lets: vec![],
             funcs: vec![],
@@ -87,8 +60,18 @@ impl Session {
             types: HashMap::new(),
             generic_instances: HashMap::new(),
             span_string_map: Some(HashMap::new()),
+            lang_items: inter_hir_session.lang_items.clone(),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
+        }
+    }
+
+    pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
+        match self.lang_items.get(lang_item) {
+            Some(s) => *s,
+
+            // TODO: It must be an ICE, but there's no interface for an ICE
+            None => todo!(),
         }
     }
 }

@@ -25,6 +25,26 @@ pub enum InfixOp {
     Xor,
 }
 
+impl InfixOp {
+    pub fn get_def_lang_item(&self) -> &'static str {
+        match self {
+            InfixOp::Add => "op.add",
+            InfixOp::Sub => "op.sub",
+            InfixOp::Mul => "op.mul",
+            InfixOp::Div => "op.div",
+            InfixOp::Rem => "op.rem",
+            _ => panic!("TODO: {self:?}"),
+        }
+    }
+
+    pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
+        match self {
+            InfixOp::Add => vec!["op.add.generic.0", "op.add.generic.1", "op.add.generic.1"],
+            _ => panic!("TODO: {self:?}"),
+        }
+    }
+}
+
 impl TryFrom<Punct> for InfixOp {
     type Error = ();
 

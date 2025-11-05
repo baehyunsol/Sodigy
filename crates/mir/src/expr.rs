@@ -6,7 +6,6 @@ use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
-use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
@@ -66,6 +65,8 @@ pub enum Callable {
     ListInit {
         group_span: Span,
     },
+
+    // TODO: do we need this?
     Intrinsic {
         intrinsic: Intrinsic,
         span: Span,
@@ -73,23 +74,6 @@ pub enum Callable {
 
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
-
-    // Pre/In/Postfix operations before type inference. For example, `+` in `3 + 4` is first
-    // lowered to a generic-addition, then after the compiler finds out that the both operands are
-    // integer, it's lowered to integer-addition.
-    // So, after type-checking, this variant must all be gone.
-    GenericPrefixOp {
-        op: PrefixOp,
-        span: Span,
-    },
-    GenericInfixOp {
-        op: InfixOp,
-        span: Span,
-    },
-    GenericPostfixOp {
-        op: PostfixOp,
-        span: Span,
-    },
 }
 
 impl Expr {
@@ -430,7 +414,7 @@ impl Expr {
                         func,
                         args: mir_elements,
 
-                        // TODO: do we have to treat list-init like a generic function?
+                        // TODO: It needs `generic_def` if it's `Callable::ListInit`
                         generic_defs: vec![],
                         given_keyword_arguments: vec![],
                     })
@@ -627,47 +611,62 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
-            hir::Expr::PrefixOp { op, op_span, rhs } => Ok(Expr::Call {
-                func: Callable::GenericPrefixOp {
-                    op: *op,
+            hir::Expr::PrefixOp { op, op_span, rhs } => {
+                let func = Callable::Static {
+                    def_span: session.get_lang_item_span(op.get_def_lang_item()),
                     span: *op_span,
-                },
-                args: vec![Expr::from_hir(rhs, session)?],
+                };
+                let generic_defs = op.get_generic_lang_items().iter().map(
+                    |lang_item| session.get_lang_item_span(lang_item)
+                ).collect();
 
-                // It is generic, but the compiler treats it specially, so we don't need the defs.
-                generic_defs: vec![],
-                given_keyword_arguments: vec![],
-            }),
+                Ok(Expr::Call {
+                    func,
+                    args: vec![Expr::from_hir(rhs, session)?],
+                    generic_defs,
+                    given_keyword_arguments: vec![],
+                })
+            },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
                 match (
                     Expr::from_hir(lhs, session),
                     Expr::from_hir(rhs, session),
                 ) {
-                    (Ok(lhs), Ok(rhs)) => Ok(Expr::Call {
-                        func: Callable::GenericInfixOp {
-                            op: *op,
+                    (Ok(lhs), Ok(rhs)) => {
+                        let func = Callable::Static {
+                            def_span: session.get_lang_item_span(op.get_def_lang_item()),
                             span: *op_span,
-                        },
-                        args: vec![lhs, rhs],
+                        };
+                        let generic_defs = op.get_generic_lang_items().iter().map(
+                            |lang_item| session.get_lang_item_span(lang_item)
+                        ).collect();
 
-                        // It is generic, but the compiler treats it specially, so we don't need the defs.
-                        generic_defs: vec![],
-                        given_keyword_arguments: vec![],
-                    }),
+                        Ok(Expr::Call {
+                            func,
+                            args: vec![lhs, rhs],
+                            generic_defs,
+                            given_keyword_arguments: vec![],
+                        })
+                    },
                     _ => Err(()),
                 }
             },
-            hir::Expr::PostfixOp { op, op_span, lhs } => Ok(Expr::Call {
-                func: Callable::GenericPostfixOp {
-                    op: *op,
+            hir::Expr::PostfixOp { op, op_span, lhs } => {
+                let func = Callable::Static {
+                    def_span: session.get_lang_item_span(op.get_def_lang_item()),
                     span: *op_span,
-                },
-                args: vec![Expr::from_hir(lhs, session)?],
+                };
+                let generic_defs = op.get_generic_lang_items().iter().map(
+                    |lang_item| session.get_lang_item_span(lang_item)
+                ).collect();
 
-                // It is generic, but the compiler treats it specially, so we don't need the defs.
-                generic_defs: vec![],
-                given_keyword_arguments: vec![],
-            }),
+                Ok(Expr::Call {
+                    func,
+                    args: vec![Expr::from_hir(lhs, session)?],
+                    generic_defs,
+                    given_keyword_arguments: vec![],
+                })
+            },
         }
     }
 
@@ -704,10 +703,7 @@ impl Callable {
             Callable::StructInit { span, .. } |
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } |
-            Callable::Intrinsic { span, .. } |
-            Callable::GenericPrefixOp { span, .. } |
-            Callable::GenericInfixOp { span, .. } |
-            Callable::GenericPostfixOp { span, .. } => *span,
+            Callable::Intrinsic { span, .. } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
         }
     }

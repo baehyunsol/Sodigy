@@ -99,7 +99,7 @@ impl Session {
 
         for r#let in hir_session.lets.iter_mut() {
             if let Some(r#type) = &mut r#let.r#type {
-                self.resolve_type_recursive(r#type);
+                self.resolve_type_recursive(r#type, &mut vec![]);
             }
 
             self.resolve_expr_recursive(&mut r#let.value);
@@ -107,12 +107,12 @@ impl Session {
 
         for func in hir_session.funcs.iter_mut() {
             if let Some(r#type) = &mut func.r#type {
-                self.resolve_type_recursive(r#type);
+                self.resolve_type_recursive(r#type, &mut vec![]);
             }
 
             for arg in func.args.iter_mut() {
                 if let Some(r#type) = &mut arg.r#type {
-                    self.resolve_type_recursive(r#type);
+                    self.resolve_type_recursive(r#type, &mut vec![]);
                 }
             }
 
@@ -130,7 +130,7 @@ impl Session {
         let mut emergency = false;
 
         // TODO: name <-> name (done)
-        // TODO: type <-> type
+        // TODO: type <-> type (done)
         // TODO: type <-> name
         'outer: for i in 0..(ALIAS_RESOLVE_RECURSION_LIMIT + 1) {
             let mut nested_name_aliases: HashMap<Span, Use> = HashMap::new();
@@ -237,8 +237,13 @@ impl Session {
                     }
                 }
 
-                for (def_span, new_alias) in nested_type_aliases.iter() {
-                    todo!()
+                for (def_span, new_alias) in nested_type_aliases.into_iter() {
+                    match self.type_aliases.get_mut(&def_span) {
+                        Some(old_alias) => {
+                            old_alias.r#type = new_alias;
+                        },
+                        None => unreachable!(),
+                    }
                 }
             }
         }
@@ -256,43 +261,321 @@ impl Session {
             Type::Identifier(id) => match self.type_aliases.get(&id.def_span) {
                 Some(alias) => {
                     // alias: type Bar = Foo;
+                    // alias: type Bar = Foo<Int, Int>;
+                    // alias: type Bar = (Int, Int);
                     // r#type: Bar
                     if alias.generics.is_empty() {
+                        error_spans.push(id.def_span);
+                        error_spans.push(id.span);
                         *r#type = alias.r#type.clone();
                     }
 
                     // alias: type Bar<T> = Foo<T>;
                     // r#type: Bar
                     else {
-                        self.errors.push();
+                        self.errors.push(Error {
+                            kind: ErrorKind::MissingTypeArgument {
+                                expected: alias.generics.len(),
+                                got: 0,
+                            },
+                            spans: vec![
+                                RenderableSpan {
+                                    span: alias.group_span.unwrap(),
+                                    auxiliary: true,
+                                    note: Some(format!(
+                                        "It requires {} argument{}.",
+                                        alias.generics.len(),
+                                        if alias.generics.len() == 1 { "" } else { "s" },
+                                    )),
+                                },
+                                RenderableSpan {
+                                    span: id.span,
+                                    auxiliary: false,
+                                    note: Some(String::from("There're no arguments.")),
+                                },
+                            ],
+                            note: None,
+                        });
                     }
                 },
                 None => {},
             },
-            Type::Path { id, .. } => match self.type_aliases.get(&id.def_span) {
+            Type::Path { id, fields } => match self.type_aliases.get(&id.def_span) {
                 Some(alias) => {
-                    // alias: type Bar = Foo;
-                    // r#type: Bar.x.y
                     if alias.generics.is_empty() {
-                        // It also depends on how the rhs of the alias looks like
-                        todo!()
+                        match &alias.r#type {
+                            // alias: type Bar = Foo;
+                            // r#type: Bar.a.b
+                            Type::Identifier(alias_id) => {
+                                // I'm not sure whether this case is compatible with the current type system.
+                                // If so, the type-checker will handle this. There's no need to worry about it.
+                                *r#type = Type::Path { id: *alias_id, fields: fields.clone() };
+                                error_spans.push(alias_id.def_span);
+                                error_spans.push(alias_id.span);
+                            },
+                            // alias: type Bar = Foo.a.b;
+                            // r#type: Bar.c.d.
+                            Type::Path { id: alias_id, fields: alias_fields } => {
+                                // This doesn't make sense, and the type-checker will reject this.
+                                // It's not resolver's responsibility to catch this error here.
+                                *r#type = Type::Path {
+                                    id: *alias_id,
+                                    fields: vec![
+                                        alias_fields.clone(),
+                                        fields.clone(),
+                                    ].concat(),
+                                };
+                                error_spans.push(alias_id.def_span);
+                                error_spans.push(alias_id.span);
+                            },
+                            // alias: type Bar = Option<Int>;
+                            // r#type: Bar.Some   -> this is not a valid type annotation
+                            //
+                            // alias: type Bar = (Int, Int);
+                            // alias: type Bar = Fn(Int, Int) -> Int;
+                            // alias: type Bar = _;
+                            // r#type: Bar.a.b
+                            Type::Param { .. } |
+                            Type::Tuple { .. } |
+                            Type::Func { .. } |
+                            Type::Wildcard(_) => {
+                                self.errors.push(todo!());
+                            },
+                        }
                     }
 
-                    // alias type Bar<T> = Foo<T>;
-                    // r#type: Bar.x.y
                     else {
-                        // It also depends on how the rhs of the alias looks like
-                        todo!()
+                        // alias: type Bar<T> = Foo;
+                        // alias: type Bar<T> = Foo.c.d;
+                        // alias: type Bar<T> = (Int, Int);
+                        // alias: type Bar<T> = Fn(Int, Int) -> Int;
+                        // alias: type Bar<T> = _;
+                        // r#type: Bar.a.b
+                        //
+                        // Regardless of the rhs of the type alias, it's an error because it's missing the argument.
+                        self.errors.push(Error {
+                            kind: ErrorKind::MissingTypeArgument {
+                                expected: alias.generics.len(),
+                                got: 0,
+                            },
+                            spans: vec![
+                                RenderableSpan {
+                                    span: alias.group_span.unwrap(),
+                                    auxiliary: true,
+                                    note: Some(format!(
+                                        "It requires {} argument{}.",
+                                        alias.generics.len(),
+                                        if alias.generics.len() == 1 { "" } else { "s" },
+                                    )),
+                                },
+                                RenderableSpan {
+                                    span: id.span,
+                                    auxiliary: false,
+                                    note: Some(String::from("There're no arguments.")),
+                                },
+                            ],
+                            note: None,
+                        });
                     }
                 },
                 None => {},
             },
-            Type::Param { r#type, args, .. } => match r#type {
+            Type::Param { r#type: type_p, args, group_span } => match &**type_p {
                 Type::Identifier(id) => match self.type_aliases.get(&id.def_span) {
-                    _ => todo!(),
+                    Some(alias) => {
+                        if alias.generics.is_empty() {
+                            match &alias.r#type {
+                                // alias: type Bar = Foo;
+                                // r#type: Bar<T, U>
+                                Type::Identifier(alias_id) => {
+                                    error_spans.push(id.def_span);
+                                    error_spans.push(id.span);
+                                    *r#type = Type::Param {
+                                        r#type: Box::new(Type::Identifier(*alias_id)),
+                                        args: args.clone(),
+                                        group_span: *group_span,
+                                    };
+                                },
+                                // alias: type Bar = Foo.a.b;
+                                // r#type: Bar<T, U>
+                                Type::Path { .. } => {
+                                    error_spans.push(id.def_span);
+                                    error_spans.push(id.span);
+                                    *r#type = Type::Param {
+                                        r#type: Box::new(alias.r#type.clone()),
+                                        args: args.clone(),
+                                        group_span: *group_span,
+                                    };
+                                },
+                                // alias: type Bar = Foo<Int, Int>;
+                                // alias: type Bar = (Int, Int);
+                                // alias: type Bar = Fn(Int, Int) -> Int;
+                                // alias: type Bar = _;
+                                // r#type: Bar<T, U>
+                                Type::Param { .. } |
+                                Type::Tuple { .. } |
+                                Type::Func { .. } |
+                                Type::Wildcard(_) => {
+                                    self.errors.push(Error {
+                                        kind: ErrorKind::UnexpectedTypeArgument {
+                                            expected: 0,
+                                            got: args.len(),
+                                        },
+                                        spans: vec![
+                                            RenderableSpan {
+                                                span: alias.name_span,
+                                                auxiliary: true,
+                                                note: Some(String::from("It requires no arguments.")),
+                                            },
+                                            RenderableSpan {
+                                                span: *group_span,
+                                                auxiliary: false,
+                                                note: Some(format!(
+                                                    "It has {} unnecessary argument{}.",
+                                                    args.len(),
+                                                    if args.len() == 1 { "" } else { "s" },
+                                                )),
+                                            },
+                                        ],
+                                        note: None,
+                                    });
+                                },
+                            }
+                        }
+
+                        else {
+                            match &alias.r#type {
+                                // alias: type Bar<T, U> = Foo;
+                                // alias: type Bar<T, U> = Foo.a.b;
+                                // r#type: Bar<T, U>
+                                Type::Identifier(_) |
+                                Type::Path { .. } |
+                                Type::Wildcard(_) => {
+                                    // This is very very strange and meaningless, but not an error anyway.
+                                    if alias.generics.len() == args.len() {
+                                        match &alias.r#type {
+                                            Type::Identifier(alias_id) |
+                                            Type::Path { id: alias_id, .. } => {
+                                                error_spans.push(alias_id.span);
+                                                error_spans.push(alias_id.def_span);
+                                            },
+                                            Type::Wildcard(span) => {
+                                                error_spans.push(*span);
+                                            },
+                                            _ => unreachable!(),
+                                        }
+
+                                        *r#type = alias.r#type.clone();
+                                    }
+
+                                    else {
+                                        let error_kind = if alias.generics.len() > args.len() {
+                                            ErrorKind::MissingTypeArgument {
+                                                expected: alias.generics.len(),
+                                                got: args.len(),
+                                            }
+                                        } else {
+                                            ErrorKind::UnexpectedTypeArgument {
+                                                expected: alias.generics.len(),
+                                                got: args.len(),
+                                            }
+                                        };
+                                        self.errors.push(Error {
+                                            kind: error_kind,
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: alias.group_span.unwrap(),
+                                                    auxiliary: true,
+                                                    note: Some(format!(
+                                                        "It requires {} argument{}.",
+                                                        alias.generics.len(),
+                                                        if alias.generics.len() == 1 { "" } else { "s" },
+                                                    )),
+                                                },
+                                                RenderableSpan {
+                                                    span: *group_span,
+                                                    auxiliary: false,
+                                                    note: Some(format!(
+                                                        "It has {} argument{}.",
+                                                        args.len(),
+                                                        if args.len() == 1 { "" } else { "s" },
+                                                    )),
+                                                },
+                                            ],
+                                            note: None,
+                                        });
+                                    }
+                                },
+                                // alias: type Bar<T, U> = Foo<T, U>;
+                                // alias: type Bar<T, U> = (T, U);
+                                // alias: type Bar<T, U> = Fn(T) -> U;
+                                // r#type: Bar<Int, Int>
+                                Type::Param { .. } |
+                                Type::Tuple { .. } |
+                                Type::Func { .. } => {
+                                    if alias.generics.len() == args.len() {
+                                        // clone the alias_type and replace `T` and `U` with `Int` and `Int`.
+                                        todo!()
+                                    }
+
+                                    else {
+                                        let error_kind = if alias.generics.len() > args.len() {
+                                            ErrorKind::MissingTypeArgument {
+                                                expected: alias.generics.len(),
+                                                got: args.len(),
+                                            }
+                                        } else {
+                                            ErrorKind::UnexpectedTypeArgument {
+                                                expected: alias.generics.len(),
+                                                got: args.len(),
+                                            }
+                                        };
+                                        self.errors.push(Error {
+                                            kind: error_kind,
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: alias.group_span.unwrap(),
+                                                    auxiliary: true,
+                                                    note: Some(format!(
+                                                        "It requires {} argument{}.",
+                                                        alias.generics.len(),
+                                                        if alias.generics.len() == 1 { "" } else { "s" },
+                                                    )),
+                                                },
+                                                RenderableSpan {
+                                                    span: *group_span,
+                                                    auxiliary: false,
+                                                    note: Some(format!(
+                                                        "It has {} argument{}.",
+                                                        args.len(),
+                                                        if args.len() == 1 { "" } else { "s" },
+                                                    )),
+                                                },
+                                            ],
+                                            note: None,
+                                        });
+                                    }
+                                },
+                            }
+                        }
+                    },
+                    None => {},
                 },
                 Type::Path { id, .. } => match self.type_aliases.get(&id.def_span) {
-                    _ => todo!(),
+                    Some(alias) => {
+                        // alias: type Bar = ???;
+                        // r#type: Bar.a.b<T, U>
+                        if alias.generics.is_empty() {
+                            todo!()
+                        }
+
+                        // alias: type Bar<T, U> = ???;
+                        // r#type: Bar.a.b<T, U>
+                        else {
+                            todo!()
+                        }
+                    },
+                    None => {},
                 },
                 _ => panic!("ICE"),
             },

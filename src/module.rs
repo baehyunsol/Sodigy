@@ -78,6 +78,7 @@ impl ModulePath {
 }
 
 impl fmt::Display for ModulePath {
+    /// Unique (in the project) identifier of this module.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(fmt, "{}", self.path.join("/"))
     }

@@ -19,6 +19,7 @@ pub struct Alias {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<GenericDef>,
+    pub group_span: Option<Span>,
     pub r#type: Type,
 
     // We have to do cycle checks.
@@ -110,6 +111,7 @@ impl Alias {
                 name: ast_alias.name,
                 name_span: ast_alias.name_span,
                 generics: ast_alias.generics.clone(),
+                group_span: ast_alias.group_span,
                 r#type,
                 foreign_names,
             })

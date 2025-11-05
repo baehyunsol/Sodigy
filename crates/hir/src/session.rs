@@ -16,10 +16,10 @@ use sodigy_parse::Session as ParseSession;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 pub struct Session {
     pub intermediate_dir: String,
-    pub main_func: Option<Span>,
     pub name_stack: Vec<Namespace>,
 
     // `func_default_values.last()` has the default values of functions
@@ -48,6 +48,9 @@ pub struct Session {
     // modules are always top-level
     pub modules: Vec<Module>,
 
+    // inter-hir will collect this
+    pub lang_items: HashMap<String, Span>,
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -56,7 +59,6 @@ impl Session {
     pub fn from_parse_session(parse_session: &ParseSession) -> Self {
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
-            main_func: parse_session.main_func,
             name_stack: vec![prelude_namespace(&parse_session.intermediate_dir)],
             func_default_values: vec![],
             is_in_debug_context: false,
@@ -68,6 +70,7 @@ impl Session {
             asserts: vec![],
             uses: vec![],
             modules: vec![],
+            lang_items: HashMap::new(),
             errors: parse_session.errors.clone(),
             warnings: parse_session.warnings.clone(),
         }

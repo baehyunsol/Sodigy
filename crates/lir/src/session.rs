@@ -18,8 +18,6 @@ use std::collections::{HashMap, HashSet};
 
 pub struct Session {
     pub intermediate_dir: String,
-    pub main_func_span: Option<Span>,
-    pub main_func_label: Option<u32>,
     pub func_arg_count: usize,
 
     // for creating tmp labels
@@ -39,8 +37,6 @@ impl Session {
     pub fn from_mir_session(mir_session: &mir::Session) -> Self {
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
-            main_func_span: mir_session.main_func,
-            main_func_label: None,
             func_arg_count: 0,
             label_counter: 0,
             local_registers: HashMap::new(),
@@ -118,7 +114,6 @@ impl Session {
 
         Executable {
             bytecodes,
-            main_func: self.main_func_label,
             interned_strings: interned_strings.iter().map(
                 |s| (*s, unintern_string(*s, &self.intermediate_dir).unwrap().unwrap())
             ).collect(),
@@ -191,10 +186,6 @@ impl Session {
         )).chain(self.asserts.iter().map(
             |assert| (assert.label_id.unwrap(), &assert.bytecodes, assert.keyword_span)
         )) {
-            if let Some(main_func_span) = self.main_func_span && main_func_span == def_span {
-                self.main_func_label = Some(label_id);
-            }
-
             curr_label = label_id;
             let mut buffer: Vec<Bytecode> = vec![];
 

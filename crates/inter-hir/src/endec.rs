@@ -20,6 +20,7 @@ impl Endec for Session {
         // self.type_aliases.encode_impl(buffer);
 
         self.module_name_map.encode_impl(buffer);
+        self.lang_items.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -28,6 +29,7 @@ impl Endec for Session {
         let (func_shapes, cursor) = HashMap::<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructField<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (module_name_map, cursor) = HashMap::<Span, (Span, NameKind, HashMap<InternedString, Span>)>::decode_impl(buffer, cursor)?;
+        let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -40,6 +42,7 @@ impl Endec for Session {
                 name_aliases: HashMap::new(),
                 type_aliases: HashMap::new(),
                 module_name_map,
+                lang_items,
                 errors,
                 warnings,
             },

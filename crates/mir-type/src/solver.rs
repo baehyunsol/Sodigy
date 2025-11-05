@@ -1,9 +1,7 @@
 use crate::Type;
 use crate::error::{ErrorContext, TypeError};
-use crate::preludes::*;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
-use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 use std::collections::hash_map::{Entry, HashMap};
 
 mod assert;
@@ -39,128 +37,17 @@ pub struct Solver {
     // Later, it checks if instances of `foo` all satisfies the constraints.
     pub generic_constraints: HashMap<Span, Vec<Type>>,
 
-    pub preludes: Vec<InternedString>,
-    pub prefix_op_type_signatures: HashMap<PrefixOp, Vec<Vec<Type>>>,
-    pub infix_op_type_signatures: HashMap<InfixOp, Vec<Vec<Type>>>,
-    pub postfix_op_type_signatures: HashMap<PostfixOp, Vec<Vec<Type>>>,
+    pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
 }
 
 impl Solver {
-    pub fn new() -> Self {
-        let preludes = get_preludes();
-
-        // TODO: better way to manage this list?
-        // TODO: how does it represent an index operator? it's generic...
-        let prefix_op_type_signatures = vec![
-            (
-                PrefixOp::Not,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                    ],
-                ],
-            ), (
-                PrefixOp::Neg,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                    ],
-                    vec![
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                    ],
-                ],
-            ),
-        ].into_iter().collect();
-        let infix_op_type_signatures = vec![
-            (
-                InfixOp::Add,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                    ],
-                    vec![
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                    ],
-                ],
-            ), (
-                InfixOp::Mul,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                    ],
-                    vec![
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                    ],
-                ],
-            ), (
-                InfixOp::Gt,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                    ],
-                    vec![
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                    ],
-                ],
-            ), (
-                InfixOp::Lt,
-                vec![
-                    vec![
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[INT])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                    ],
-                    vec![
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[NUMBER])),
-                        Type::Static(Span::Prelude(preludes[BOOL])),
-                    ],
-                ],
-            ),
-        ].into_iter().collect();
-        let postfix_op_type_signatures = vec![
-            (
-                PostfixOp::Range { inclusive: true },
-                vec![
-                    // TODO: Range type
-                ],
-            ), (
-                PostfixOp::Range { inclusive: false },
-                vec![
-                    // TODO: Range type
-                ],
-            ), (
-                PostfixOp::QuestionMark,
-                vec![
-                    // TODO: spec for this operator
-                ],
-            ),
-        ].into_iter().collect();
-
+    pub fn new(lang_items: HashMap<String, Span>) -> Self {
         Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             generic_constraints: HashMap::new(),
-            preludes,
-            prefix_op_type_signatures,
-            infix_op_type_signatures,
-            postfix_op_type_signatures,
+            lang_items,
             errors: vec![],
         }
     }
@@ -546,24 +433,12 @@ impl Solver {
         }
     }
 
-    fn get_prefix_op_type_signatures(&self, op: PrefixOp) -> &[Vec<Type>] {
-        match self.prefix_op_type_signatures.get(&op) {
-            Some(tys) => tys,
-            None => panic!("TODO: type signatures for {op:?}"),
-        }
-    }
+    pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
+        match self.lang_items.get(lang_item) {
+            Some(s) => *s,
 
-    fn get_infix_op_type_signatures(&self, op: InfixOp) -> &[Vec<Type>] {
-        match self.infix_op_type_signatures.get(&op) {
-            Some(tys) => tys,
-            None => panic!("TODO: type signatures for {op:?}"),
-        }
-    }
-
-    fn get_postfix_op_type_signatures(&self, op: PostfixOp) -> &[Vec<Type>] {
-        match self.postfix_op_type_signatures.get(&op) {
-            Some(tys) => tys,
-            None => panic!("TODO: type signatures for {op:?}"),
+            // TODO: It must be an ICE, but there's no interface for an ICE
+            None => todo!(),
         }
     }
 }

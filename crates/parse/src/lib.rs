@@ -59,15 +59,6 @@ pub fn parse(lex_session: LexSession) -> Session {
         session.errors = errors;
     }
 
-    let main = intern_string(b"main", &session.intermediate_dir).unwrap();
-
-    for func in ast.funcs.iter() {
-        if func.name == main {
-            session.main_func = Some(func.name_span);
-            break;
-        }
-    }
-
     session.ast = ast;
     session
 }

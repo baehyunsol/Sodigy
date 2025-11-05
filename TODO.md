@@ -1,3 +1,20 @@
+# 68. turbofish operator
+
+1. Samples
+  - `a.map().collect::<Vec<_>>()` in rust becomes `a.map().collect.<Vec<_>>()` in Sodigy
+  - `Vec::<u32>::decode_impl()` in rust becomes `List.<u32>.decode_impl()` in Sodigy
+2. Implementation (let's say in AST)
+  - separate token vs attribute of ... what?
+  - if it's a separate token, it'd be damn difficult to parse `Expr::Call`.
+  - how about treating it like a field?
+    - 이게 나을 듯..!!
+3. Syntactic ambiguity
+  - `1.` is a number, `<` and `>` are infix operators and let's say `T` is an integer value. Then `1.<T>` is a syntactically valid.
+    - Well, we can avoid this because `1` cannot be an lhs of a turbofish.
+  - 사실 이미 Sodigy에 syntactic ambiguity가 존재하거든? 그래서 여기도 syntactic ambiguity를 넣은 다음에 에러메시지를 좀 더 잘 써줘도 됨.
+
+How about just using `::<>` instead of `.<>`?
+
 # 67. more edges in inter-hir
 
 1. 지금은 name_alias랑 type_alias랑 완전 별개로 풀려고 하고 있는데, 둘이 별개로 풀 수가 없음...
@@ -39,44 +56,6 @@ Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!
 2. `as` operator
   - 이것도 마찬가지, `300 as Byte`를 하면 `Result<Byte, _>`를 반환해? 그건 좀...
 3. `.into()`
-
-# 64. more on bytes
-
-`Byte`는 덧셈 뺄셈할 일이 엄청 많음. `b: Byte`라고 해보자. `b + 4`나 `let b = 4;`같은 거 어떻게 함??
-
-- implicit cast를 금지하자는 철학을 따르자면 `b + Byte(4)`같은 걸 해야함
-- 이러면 Rust보다도 더 불편한데?? Rust는 integer type이라는게 따로 있고, 컴파일러가 특수처리를 해서 저게 i32인지 u8인지 판별함
-- Python은 그냥 runtime에 (implicitly) Byte를 Integer로 바꿈 (혹은 반대)
-- C는 그냥 runtime에 (implicitly) Byte를 Integer로 바꿈 (혹은 반대)
-
-선택지는 5개임
-
-1. implicit type cast at runtime (like Python)
-2. implicit type cast at compile time (like C)
-3. Special type inference for integers (like Rust)
-4. Byte literals
-  - 지금은 byte를 만드려면 `b'a'`처럼 해야함.
-  - 숫자를 못 쓰네?? 그럼 `30b` 이런 식으로 할까??
-  - 난 사실 이것도 반대임. i32/i64/u32/u64...처럼 integer가 분화되는게 싫어서 `Int`로 통일한건데 이러면 또 `3`이랑 `3b`로 갈라지는 거잖아...
-  - 애초에 byte type이 존재하는 순간 분화는 이미 된 거임. 분화가 됐으면 새 문법을 만드는게 맞고 그게 아니면 분화를 안 시켜야지
-5. Everything is an integer
-  - 극도로 비효율적이 되기는하지만 이상에 가장 부합함. 이게 젤 추상적이잖아 ㅋㅋㅋ
-  - 구현은 integer/byte 따로 해놓고 프로그래머 입장에서는 둘이 구분 못하게 해버리면 안됨??
-    - 이러면 edge case가 엄청나게 많아지거나 비효율적인 구현이 나올텐데 ㅠㅠ
-
-사실 3번을 하려면 4번도 해야함. type inference가 실패할 때를 대비해서 byte literal이 있어야하거든...
-
-걍 4나 5중에서 고르자. 4도 생각보다 괜찮은게, `Byte`랑 `Int`랑 아예 다른 거라고 생각하면, 분화해도 괜찮은 거 같기도 하고...
-생각해보니까 `3b`는 못씀. `0b`라고 하면 이미 있는 문법이랑 겹치거든 ㅠㅠ b보다 좋은게 안 떠오르는데... ㅠㅠ
-
-`0bt`라고 하기 vs `0b`라고 한 다음에 lexer에서 잘 처리하기
--> 더 큰 문제가 있음. `b`가 postfix로 붙으면 `0x`랑 같이 못 씀. `0xffb`이면은 이게 `Byte(255)`인지 `Int(4091)`인지 알 방법이 없음
-
-아니면 `*0`은 ㅇㄸ? 개별로? ㅋㅋㅋ 생각해보니까 이거는 lexer가 고생하겠다. 아예 안 쓰는 character 중에서 골라야함. `#`는 ㅇㄸ
-
-- `#0` -> `Byte(0)`
-- `#200` -> `Byte(200)`
-- `#xff` -> `Byte(255)`
 
 # 63. Inter-HIR
 
@@ -189,31 +168,6 @@ How do you define purity?
 2. no side effects
   - How do you define side effect?
 3. is `panic()` pure?
-
-# 60. emit-ir
-
-지금 emit-ir이랑 관련된 옵션이 너무 중구난방임!!
-
-정리
-
-1. debug용 emit-ir
-  - 특정 ir(들)만 골라서 정해준 path에 emit
-  - emit하고 나서 계속 진행
-  - readable format 사용
-2. cache용 emit-ir
-  - 항상 emit
-  - emit하고 나서 계속 진행
-  - binary format 사용
-3. compilation steps
-  - 특정 step이 끝난 후 멈출 수 있도록 설계
-4. reuse-irs
-  - 항상 true로 해버리자
-
-구현
-
-1. 어디서 멈출지와 어디서 emit할지는 별도의 option으로 관리
-2. debug용 emit-ir과 cache용 emit-ir은 완전 별개임
-3. 매 step이 끝날 때마다 emit해야하는게 있는지 확인하고 있으면 emit하고 지나감
 
 # 59. Complete new implementation of Bytecode/VM
 
@@ -332,6 +286,7 @@ fn bar(..) = baz(foo.<Int>(..), ..);
   - 이렇게 하면 코드가 훨씬 간단해짐 `infix_op_type_signatures` 이딴 거 없어도 되거든 ㅋㅋㅋ
   - 생각해보니까 이거 하면 `Callable::GenericInfixOp`도 사라짐!!
     - 오
+- 근데 어차피 monomorphize를 할 거면, monomorphize 한 다음에 그 안에서 새로 type-check하면 안됨? 이게 덜 복잡할 거 같은데...
 
 # 48. Compiler & Sodigy std
 
@@ -342,6 +297,9 @@ Compiler가 Sodigy std를 직접 참조해야할 일이 아주 많음
 
 // There's no implementation because it's a built-in type.
 type Int;
+
+// It's also built-in.
+type Char;
 
 // It's not a built-in type.
 type String = [Char];
@@ -848,13 +806,6 @@ It's a very very common pattern. Tail-call optimization won't help it because it
     - `cargo test` 해보니까 얘도 큰 binary 만들어서 그거 한번 돌리고 끝남. 출력도 다 이 안에서 하고, panic도 지가 알아서 잡는 듯?
     - 애초에 backend가 여러개인게 문제임!! 그냥 rust나 Python으로만 구현하고 다른 backend는 나중에 생각해야함...
     - if we can catch panics, we can implement the test harness completely in bytecode...
-
-# 27. 개발 방향
-
-1. embedding language, interpreter 전부 고려 X. Cargo스러운 compiler만 개발
-  - 즉, 중간 파일을 많이 만들어도 상관없고, 프로세스를 많이 띄워도 상관없음.
-2. FFI: 일단은 고려안함. 모든 코드는 Sodigy로만 작성됐다고 가정
-3. 메모리 최적화 기준: 4GiB
 
 # 25. Make it more Rust-like!! ... 하다가 생긴 문제점
 

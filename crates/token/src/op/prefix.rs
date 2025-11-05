@@ -6,6 +6,22 @@ pub enum PrefixOp {
     Neg,
 }
 
+impl PrefixOp {
+    pub fn get_def_lang_item(&self) -> &'static str {
+        match self {
+            PrefixOp::Not => "op.not",
+            PrefixOp::Neg => "op.neg",
+        }
+    }
+
+    pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
+        match self {
+            PrefixOp::Not => vec!["op.not.generic.0", "op.not.generic.1"],
+            PrefixOp::Neg => vec!["op.neg.generic.0", "op.neg.generic.1"],
+        }
+    }
+}
+
 impl TryFrom<Punct> for PrefixOp {
     type Error = ();
 

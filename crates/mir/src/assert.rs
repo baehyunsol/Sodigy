@@ -52,10 +52,18 @@ impl Assert {
             // if cond { _ } else { panic() }
             let exec = Expr::If(If {
                 if_span: Span::None,
-                cond: Box::new(value),
+                cond: Box::new(value.clone()),
                 else_span: Span::None,
-                true_value: todo!(),
-                false_value: todo!(),
+
+                // TODO: I'm using dummy values because I'm too lazy to implement this...
+                true_value: Box::new(Expr::Number {
+                    n: sodigy_number::InternedNumber::from_u32(0, true),
+                    span: Span::None,
+                }),
+                false_value: Box::new(Expr::Number {
+                    n: sodigy_number::InternedNumber::from_u32(0, true),
+                    span: Span::None,
+                }),
             });
 
             Ok(Assert {

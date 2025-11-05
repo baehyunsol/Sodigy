@@ -27,6 +27,9 @@ pub struct Session {
     // It's collecting `NameKind::Module` because the map can later be used to solve enum variants.
     pub module_name_map: HashMap<Span, (Span, NameKind, HashMap<InternedString, Span>)>,
 
+    // For example, you can get def_span of `Int` from this map by querying `lang_items.get("type.Int")`.
+    pub lang_items: HashMap<String, Span>,
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -40,6 +43,7 @@ impl Session {
             name_aliases: HashMap::new(),
             type_aliases: HashMap::new(),
             module_name_map: HashMap::new(),
+            lang_items: HashMap::new(),
             errors: vec![],
             warnings: vec![],
         }

@@ -1,0 +1,60 @@
+@built_in
+@lang_item("type.Int")
+type Int = _;
+
+@built_in
+@lang_item("type.Char")
+type Char = _;
+
+@built_in
+@lang_item("type.Byte")
+type Byte = _;
+
+@lang_item("type.String")
+type String = [Char];
+
+@lang_item("type.Bytes")
+type Bytes = [Byte];
+
+@built_in
+@lang_item("type.List")
+type List = _;
+
+@built_in
+@lang_item("op.index")
+@lang_item_generic("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")
+fn index<T, U, V>(ls: T, i: U) -> V = _;
+
+@built_in
+@lang_item("op.div")
+@lang_item_generic("op.div.generic.0", "op.div.generic.1", "op.div.generic.2")
+fn div<T, U, V>(a: T, b: U) -> V = _;
+
+mod built_in_fns;
+
+fn index_list<T>(ls: [T], i: Int) -> T = {
+    if 0 <= i && i < ls.len() {
+        // The first element is for the length of the list
+        built_in_fns.read_compound(ls, i + 1)
+    }
+
+    else if -ls.len() <= i {
+        built_in_fns.read_compound(ls, i + ls.len() + 1)
+    }
+
+    else {
+        // TODO: error message
+        panic()
+    }
+};
+
+fn div_int(a: Int, b: Int) -> Int = {
+    if b == 0 {
+        // TODO: error message
+        panic()
+    }
+
+    else {
+        built_in_fns.div_int(a, b)
+    }
+};

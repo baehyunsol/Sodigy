@@ -10,8 +10,6 @@ impl Endec for Session {
         // changes everytime
         // self.intermediate_dir.encode_impl(buffer);
 
-        self.main_func.encode_impl(buffer);
-
         // TODO: aren't these too expensive to save per-file?
         self.func_shapes.encode_impl(buffer);
         self.struct_shapes.encode_impl(buffer);
@@ -29,12 +27,12 @@ impl Endec for Session {
         // you can re-construct it from scratch
         // self.span_string_map.encode_impl(buffer);
 
+        self.lang_items.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (main_func, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (func_shapes, cursor) = HashMap::<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructField<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
@@ -43,6 +41,7 @@ impl Endec for Session {
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_instances, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
+        let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -50,7 +49,6 @@ impl Endec for Session {
             Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
-                main_func,
                 func_shapes,
                 struct_shapes,
                 generic_def_span_rev,
@@ -60,6 +58,7 @@ impl Endec for Session {
                 types,
                 generic_instances,
                 span_string_map: None,
+                lang_items,
                 errors,
                 warnings,
             },

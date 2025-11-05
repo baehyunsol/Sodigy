@@ -9,7 +9,6 @@ pub struct Session {
     pub file: File,
     pub ast: Block,
     pub intermediate_dir: String,
-    pub main_func: Option<Span>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -20,7 +19,6 @@ impl Session {
             file: lex_session.file,
             ast: Block::dummy(),
             intermediate_dir: lex_session.intermediate_dir.to_string(),
-            main_func: None,
             errors: lex_session.errors.clone(),
             warnings: lex_session.warnings.clone(),
         }

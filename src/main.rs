@@ -387,9 +387,6 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 profile,
                 optimization,
             } => {
-                let bytes = std::fs::read(&input_file_path).map_err(
-                    |e| Error::FileError(FileError::from_std(e, &input_file_path))
-                )?;
                 let file = File::register(
                     0,  // project_id
                     &input_file_path,
@@ -416,6 +413,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     hir_session.intermediate_dir = intermediate_dir.clone();
                     hir_session
                 } else {
+                    let bytes = std::fs::read(&input_file_path).map_err(
+                        |e| Error::FileError(FileError::from_std(e, &input_file_path))
+                    )?;
                     let lex_session = sodigy_lex::lex(
                         file,
                         bytes,
@@ -495,7 +495,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     continue;
                 }
 
-                let mir_session = sodigy_mir::lower(hir_session);
+                let mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
                 emit_irs_if_has_to(
                     &mir_session,
                     &emit_ir_options,
@@ -653,7 +653,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     _ => {
                         if let Err(e) = sodigy_backend::interpret(
                             &bytecodes.bytecodes,
-                            bytecodes.main_func.unwrap(),
+                            todo!(),  // where's the entry point?
                         ) {
                             // what else do we do here?
                             panic!("TODO: {e:?}")

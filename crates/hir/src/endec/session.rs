@@ -12,13 +12,12 @@ use crate::{
 use sodigy_endec::{DecodeError, DumpIr, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_span::Span;
+use std::collections::HashMap;
 
 impl Endec for Session {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         // changes everytime
         // self.intermediate_dir.encode_impl(buffer);
-
-        self.main_func.encode_impl(buffer);
 
         // must be empty when encoding
         // self.name_stack.encode_impl(buffer);
@@ -33,12 +32,12 @@ impl Endec for Session {
         self.aliases.encode_impl(buffer);
         self.uses.encode_impl(buffer);
         self.modules.encode_impl(buffer);
+        self.lang_items.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (main_func, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
         let (structs, cursor) = Vec::<Struct>::decode_impl(buffer, cursor)?;
@@ -47,6 +46,7 @@ impl Endec for Session {
         let (aliases, cursor) = Vec::<Alias>::decode_impl(buffer, cursor)?;
         let (uses, cursor) = Vec::<Use>::decode_impl(buffer, cursor)?;
         let (modules, cursor) = Vec::<Module>::decode_impl(buffer, cursor)?;
+        let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -54,7 +54,6 @@ impl Endec for Session {
             Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
-                main_func,
                 name_stack: vec![],
                 func_default_values: vec![],
                 is_in_debug_context: false,
@@ -66,6 +65,7 @@ impl Endec for Session {
                 aliases,
                 uses,
                 modules,
+                lang_items,
                 errors,
                 warnings,
             },
