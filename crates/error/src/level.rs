@@ -78,7 +78,9 @@ impl ErrorLevel {
             ErrorKind::PartiallyInferedGenericType { .. } |
             ErrorKind::CannotApplyInfixOp { .. } |
             ErrorKind::MultipleModuleFiles { .. } |
-            ErrorKind::ModuleFileNotFound { .. } => ErrorLevel::Error,
+            ErrorKind::ModuleFileNotFound { .. } |
+            ErrorKind::LibFileNotFound |
+            ErrorKind::Todo { .. } => ErrorLevel::Error,
             WarningKind::UnusedName { .. } => ErrorLevel::Warning,
         }
     }

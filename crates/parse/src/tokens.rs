@@ -106,4 +106,8 @@ impl<'t> Tokens<'t> {
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }
+
+    pub fn curr_span(&self) -> Option<Span> {
+        self.tokens.get(self.cursor).map(|t| t.span)
+    }
 }

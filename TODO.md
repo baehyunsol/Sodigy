@@ -1,3 +1,18 @@
+# 69. trait/method/operator overloading
+
+1. std에 `index`가 있고 `index_list`가 있지? 둘을 어떻게 연결시킬까? -> 여기서 모든 고민이 시작됨.
+2. operator overloading을 구현할 거임?
+  - 이거는 살짝 반대임
+3. trait (a.k.a. type class)를 구현할 거임?
+  - 언젠간 구현하고 싶긴 함. 다만 지금 하기에는 너무 벅찰 뿐...
+4. method는 어떻게 표시?
+  - Rust랑 비슷하게 하려면 `impl Person {}`을 하면 됨!
+    - 이러면 `self` keyword도 쓰는 거지?? 그러려면 parser를 좀 수정해야함 ㅠㅠ
+    - `self`가 안 붙으면 class method가 되나??
+    - 그럼 `impl<T> Option<T> {}`하고 `impl Option<Int> {}`하고 구분해야겠네??
+      - 그럼 orphan rule도 만들어야 하는 거 아님??
+  - 옛날 sodigy에서는 decorator로 type을 연결시키려 했는데... 별로였음!!
+
 # 68. turbofish operator
 
 1. Samples
@@ -275,6 +290,10 @@ fn bar(..) = baz(foo.<Int>(..), ..);
   - 사실 전부 못 만듦. `fn foo<T>(x: T, y, z) = x.do_something(y, z);`이면 `.do_something`에 대한 정보가 아예 없어서 다른 추론도 막힘.
   - 아니면 ``fn foo<T>(x: T, y) = x `field y;``같은 예시도 생각해볼 수 있음!!
   - 아니면 `fn foo<Person>(x: Person) -> Int = x.age;`도 있고...
+    - 근데, 50번 이슈랑 별개로 `x.age`라고 돼 있으면 type-checker가 어떻게 풀어야하나? 지금 방식으로는 못 풀 거 같은데?
+    - `y = x.age;`인데 `x`와 `y`의 type을 둘 다 모를 경우 (각각 TV_x, TV_y라고 할게), 얻을 수 있는 정보가 2가지임. `TV_x has field "age"`, `TV_y = field(TV_x, "age")`. 둘다 현재 type expression으로는 표현 불가능. 첫번째 expression을 type-infer에 사용 (`age`라는 이름의 field를 갖고 있는 type들만 걸러내기)할 건지도 애매...
+    - 이거는 새로운 type-var를 만들어야 함...
+  - 아니면 `fn foo<T>(x: T) -> T = bar.<Int, T>(3, x);` 이런 것도 있음 ㅋㅋㅋ
   - 이걸 해결하려면 constraint를 아주 정교하게 만들거나, 중간 type-var를 엄청 만들거나 해야함
     - 중간 type-var를 만든다고 치면은, `T = Int`일 때와 `T = String`일 때의 중간 type-var들을 분리해야하는데, 그것도 빡셈
 - `foo`를 type-check하면 `T`에 대한 constraint가 쌓임.
@@ -286,7 +305,10 @@ fn bar(..) = baz(foo.<Int>(..), ..);
   - 이렇게 하면 코드가 훨씬 간단해짐 `infix_op_type_signatures` 이딴 거 없어도 되거든 ㅋㅋㅋ
   - 생각해보니까 이거 하면 `Callable::GenericInfixOp`도 사라짐!!
     - 오
-- 근데 어차피 monomorphize를 할 거면, monomorphize 한 다음에 그 안에서 새로 type-check하면 안됨? 이게 덜 복잡할 거 같은데...
+- 근데 어차피 monomorphize를 할 거면, monomorphize 한 다음에 그 안에서 새로 type-check하면 안됨 (C++ 방식)? 이게 덜 복잡할 거 같은데... 이걸 하려다가 포기했던 이유가
+  - 1, error message가 난해해짐.
+  - 2, generic function body 안에 type variable X가 있다고 하자, 이 function이 instantiate 될 때마다 X가 하나씩 늘어나야함. X들끼리 서로 다르게 type-infer 해야하거든... 그럼 코드가 엄청 복잡해짐.
+- Rust 방식은 하고싶지 않음. 그렇게 하려면 trait system을 완전 정교하게 design 해야하거든...
 
 # 48. Compiler & Sodigy std
 

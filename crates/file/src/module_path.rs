@@ -4,8 +4,8 @@ use std::fmt;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ModulePath {
-    path: Vec<String>,
-    is_std: bool,
+    pub(crate) path: Vec<String>,
+    pub(crate) is_std: bool,
 }
 
 impl ModulePath {
@@ -35,6 +35,7 @@ impl ModulePath {
                     is_std: false,
                     module_path: self.clone(),
                     found_files: vec![],
+                    candidates: vec![String::from("src/lib.sdg")],
                 })
             }
         }
@@ -45,12 +46,24 @@ impl ModulePath {
 
         else {
             let joined = self.to_string();
-            let candidate1 = format!("src/{joined}.sdg");
-            let candidate2 = format!("src/{joined}/mod.sdg");
+            let candidate1 = format!("src/{}.sdg", joined.replace(".", "/"));
+            let candidate2 = format!("src/{}/mod.sdg", joined.replace(".", "/"));
 
             match (exists(&candidate1), exists(&candidate2)) {
-                (true, true) => Err(todo!()),
-                (false, false) => Err(todo!()),
+                (true, true) => Err(GetFilePathError {
+                    is_lib: false,
+                    is_std: false,
+                    module_path: self.clone(),
+                    candidates: vec![candidate1.clone(), candidate2.clone()],
+                    found_files: vec![candidate1, candidate2],
+                }),
+                (false, false) => Err(GetFilePathError {
+                    is_lib: false,
+                    is_std: false,
+                    module_path: self.clone(),
+                    candidates: vec![candidate1, candidate2],
+                    found_files: vec![],
+                }),
                 (true, false) => Ok(FileOrStd::File(candidate1)),
                 (false, true) => Ok(FileOrStd::File(candidate2)),
             }
@@ -61,6 +74,6 @@ impl ModulePath {
 impl fmt::Display for ModulePath {
     /// Unique (in the project) identifier of this module.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(fmt, "{}", self.path.join("/"))
+        write!(fmt, "lib.{}", self.path.join("."))
     }
 }

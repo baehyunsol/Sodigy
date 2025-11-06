@@ -1,3 +1,4 @@
+use crate::std_file::STD_FILES;
 use sodigy_fs_api::{
     FileError,
     WriteMode,
@@ -13,9 +14,11 @@ mod endec;
 mod error;
 mod file_map;
 mod module_path;
+mod std_file;
 
 pub use error::GetFilePathError;
 pub use module_path::ModulePath;
+pub use std_file::std_root;
 
 use file_map::{
     length_file_map,
@@ -184,7 +187,10 @@ impl File {
                     None => Ok(None),
                 }
             },
-            File::Std(_) => todo!(),
+            File::Std(id) => Ok(Some((
+                STD_FILES[*id as usize].0.to_string(),
+                STD_FILES[*id as usize].1.to_string(),
+            ))),
         }
     }
 
@@ -213,33 +219,20 @@ impl File {
                     None => todo!(),
                 }
             },
-            File::Std(_) => todo!(),
+            File::Std(id) => Ok(STD_FILES[*id as usize].3),
         }
     }
 
     // This is very very expensive.
     pub fn read_bytes(&self, intermediate_dir: &str) -> Result<Option<Vec<u8>>, FileError> {
-        let content_hash = self.get_content_hash(intermediate_dir)?;
-        Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
+        match self {
+            File::File { .. } => {
+                let content_hash = self.get_content_hash(intermediate_dir)?;
+                Ok(unintern_string(InternedString(content_hash), intermediate_dir)?)
+            },
+            File::Std(id) => Ok(Some(STD_FILES[*id as usize].2.to_vec())),
+        }
     }
-}
-
-pub fn get_content_hashes(project_id: u32, module_paths: &[String], intermediate_dir: &str) -> Result<Vec<u128>, FileError> {
-    let lock_file_path = join(
-        intermediate_dir,
-        &format!("file_map_{project_id}_lock"),
-    )?;
-    let lock_file = StdFile::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
-    lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-
-    let file_map_path = join(
-        intermediate_dir,
-        &format!("files_{project_id}"),
-    )?;
-    let file_map = read_bytes(&file_map_path)?;
-
-    lock_file.unlock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
-    search_content_hashes_by_module_paths(&file_map, module_paths, &file_map_path)
 }
 
 #[derive(Clone, Debug)]

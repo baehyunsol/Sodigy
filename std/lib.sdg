@@ -1,14 +1,14 @@
 @built_in
 @lang_item("type.Int")
-type Int = _;
+enum Int = _;
 
 @built_in
 @lang_item("type.Char")
-type Char = _;
+enum Char = _;
 
 @built_in
 @lang_item("type.Byte")
-type Byte = _;
+enum Byte = _;
 
 @lang_item("type.String")
 type String = [Char];
@@ -18,17 +18,32 @@ type Bytes = [Byte];
 
 @built_in
 @lang_item("type.List")
-type List = _;
+struct List = _;
 
 @built_in
-@lang_item("op.index")
-@lang_item_generic("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")
-fn index<T, U, V>(ls: T, i: U) -> V = _;
+@lang_item("op.add")
+@lang_item_generic("op.add.generic.0", "op.add.generic.1", "op.add.generic.2")
+fn add<T, U, V>(a: T, b: U) -> V = _;
+
+@built_in
+@lang_item("op.sub")
+@lang_item_generic("op.sub.generic.0", "op.sub.generic.1", "op.sub.generic.2")
+fn sub<T, U, V>(a: T, b: U) -> V = _;
+
+@built_in
+@lang_item("op.mul")
+@lang_item_generic("op.mul.generic.0", "op.mul.generic.1", "op.mul.generic.2")
+fn mul<T, U, V>(a: T, b: U) -> V = _;
 
 @built_in
 @lang_item("op.div")
 @lang_item_generic("op.div.generic.0", "op.div.generic.1", "op.div.generic.2")
 fn div<T, U, V>(a: T, b: U) -> V = _;
+
+@built_in
+@lang_item("op.index")
+@lang_item_generic("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")
+fn index<T, U, V>(ls: T, i: U) -> V = _;
 
 mod built_in_fns;
 

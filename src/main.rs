@@ -7,10 +7,12 @@ use sodigy::{
     Error,
     Optimization,
     Profile,
+    QuickError,
     StoreIrAt,
     parse_args,
 };
 use sodigy_endec::{DumpIr, Endec};
+use sodigy_error::Error as SodigyError;
 use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
@@ -21,7 +23,6 @@ use sodigy_fs_api::{
     create_dir_all,
     exists,
     join,
-    join3,
     join4,
     parent,
     read_bytes,
@@ -66,7 +67,13 @@ fn main() -> Result<(), Error> {
                 let mut generated_hirs: HashMap<ModulePath, Span> = HashMap::new();
 
                 let input_module_path = ModulePath::lib();
-                let input_file_path = input_module_path.get_file_path().map_err()?;
+                let input_file_path = input_module_path.get_file_path().map_err(
+                    |e| SodigyError {
+                        kind: e.into(),
+                        spans: Span::Lib.simple_error(),
+                        note: None,
+                    }
+                ).continue_or_dump_error("target")?;
                 generated_hirs.insert(input_module_path.clone(), Span::Lib);
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
@@ -119,6 +126,38 @@ fn main() -> Result<(), Error> {
                 unfinished_runs.insert(run_id);
                 run_id += 1;
 
+                // compile std
+                let (input_module_path, input_file_path) = sodigy_file::std_root();
+                workers[run_id % workers.len()].send(MessageToWorker::Run {
+                    commands: vec![
+                        Command::InitIrDir {
+                            intermediate_dir: String::from("target"),
+                        },
+                        Command::Compile {
+                            input_file_path,
+                            input_module_path,
+                            intermediate_dir: String::from("target"),
+                            emit_ir_options: vec![
+                                // cache hir for incremental compilation
+                                EmitIrOption {
+                                    stage: CompileStage::Hir,
+                                    store: StoreIrAt::IntermediateDir,
+                                    human_readable: false,
+                                },
+                            ],
+                            dump_type_info: false,
+                            output_path: None,
+                            backend: Backend::Bytecode,  // doesn't matter
+                            stop_after: CompileStage::Hir,
+                            profile: Profile::Test,
+                            optimization,
+                        },
+                    ],
+                    id: run_id,
+                })?;
+                unfinished_runs.insert(run_id);
+                run_id += 1;
+
                 // loop 1: generate hir of all files
                 loop {
                     for (worker_id, worker) in workers.iter().enumerate() {
@@ -130,7 +169,13 @@ fn main() -> Result<(), Error> {
                                 } => {
                                     if !generated_hirs.contains_key(&path) {
                                         generated_hirs.insert(path.clone(), span);
-                                        let file_path = path.get_file_path()?;
+                                        let file_path = path.get_file_path().map_err(
+                                            |e| SodigyError {
+                                                kind: e.into(),
+                                                spans: span.simple_error(),
+                                                note: None,
+                                            }
+                                        ).continue_or_dump_error("target")?;
                                         workers[run_id % workers.len()].send(MessageToWorker::Run {
                                             commands: vec![Command::Compile {
                                                 input_file_path: file_path,
@@ -217,7 +262,13 @@ fn main() -> Result<(), Error> {
                 }
 
                 for (path, span) in generated_hirs.iter() {
-                    let file_path = path.get_file_path()?;
+                    let file_path = path.get_file_path().map_err(
+                        |e| SodigyError {
+                            kind: e.into(),
+                            spans: span.simple_error(),
+                            note: None,
+                        }
+                    ).continue_or_dump_error("target")?;
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
                         commands: vec![Command::Compile {
                             input_file_path: file_path,
@@ -374,19 +425,16 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 profile,
                 optimization,
             } => {
-                let (file, content_hash) = match &input_file_path {
-                    FileOrStd::File(path) => {
-                        let file = File::register(
-                            0,  // project_id
-                            &path,
-                            &input_module_path.to_string(),
-                            &intermediate_dir,
-                        )?;
-                        let content_hash = file.get_content_hash(&intermediate_dir)?;
-                        (file, content_hash)
-                    },
-                    FileOrStd::Std(n) => todo!(),
+                let file = match &input_file_path {
+                    FileOrStd::File(path) => File::register(
+                        0,  // project_id
+                        &path,
+                        &input_module_path.to_string(),
+                        &intermediate_dir,
+                    )?,
+                    FileOrStd::Std(n) => File::Std(*n),
                 };
+                let content_hash = file.get_content_hash(&intermediate_dir)?;
                 let mut cached_hir_session = None;
 
                 if let Some(cached_data) = get_cached_ir(
@@ -470,7 +518,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     continue;
                 }
 
-                // the inter-hir session must be created at this point
+                // the inter-hir session must have been created at this point
                 let inter_hir_session = get_cached_ir(
                     &intermediate_dir,
                     CompileStage::InterHir,
@@ -643,14 +691,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                             return Err(Error::TestError);
                         }
                     },
+                    // It's TODO until we design and implement the impure part
                     _ => {
-                        if let Err(e) = sodigy_backend::interpret(
-                            &bytecodes.bytecodes,
-                            todo!(),  // where's the entry point?
-                        ) {
-                            // what else do we do here?
-                            panic!("TODO: {e:?}")
-                        }
+                        todo!()
                     },
                 }
             },

@@ -1,4 +1,4 @@
-use sodigy_span::RenderableSpan;
+use sodigy_span::{RenderableSpan, Span};
 
 mod endec;
 mod kind;
@@ -20,6 +20,16 @@ pub struct Error {
     pub spans: Vec<RenderableSpan>,
 
     pub note: Option<String>,
+}
+
+impl Error {
+    pub fn todo(message: &str, span: Span) -> Error {
+        Error {
+            kind: ErrorKind::Todo { message: message.to_string() },
+            spans: span.simple_error(),
+            note: None,
+        }
+    }
 }
 
 impl Default for Error {

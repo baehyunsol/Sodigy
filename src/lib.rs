@@ -8,7 +8,7 @@ mod error;
 pub use cli::{CliCommand, parse_args};
 pub use command::Command;
 pub use compile_stage::CompileStage;
-pub use error::Error;
+pub use error::{Error, QuickError};
 
 impl CompileStage {
     pub fn all() -> Vec<CompileStage> {

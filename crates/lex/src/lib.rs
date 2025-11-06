@@ -123,7 +123,9 @@ impl Session {
                     });
                     self.cursor += 1;
                 },
-                (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => todo!(),
+                (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => {
+                    return Err(Error::todo("lexing non-decimal integer", Span::range(self.file, self.cursor, self.cursor + 2)));
+                },
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
@@ -907,7 +909,9 @@ impl Session {
                     });
                 },
             },
-            LexState::FormattedString { raw, quote_count } => todo!(),
+            LexState::FormattedString { raw, quote_count } => {
+                return Err(Error::todo("lexing formatted string", Span::range(self.file, self.token_start, self.token_start + 1)));
+            },
             // NOTE: empty char literals are already filtered out!
             // NOTE: the cursor is pointing at the first byte of the content (not the quote)
             LexState::Char { binary } => match (

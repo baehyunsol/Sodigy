@@ -36,6 +36,9 @@ pub enum TokenKind {
     Keyword(Keyword),
     Identifier(InternedString),
     Number(InternedNumber),
+
+    // TODO: I want the spans of formatted strings and binary strings to include
+    // their prefixes (`f` and `b`), but they don't.
     String {
         binary: bool,
         raw: bool,

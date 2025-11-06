@@ -71,7 +71,7 @@ impl Session {
             Some(s) => *s,
 
             // TODO: It must be an ICE, but there's no interface for an ICE
-            None => todo!(),
+            None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }
 }

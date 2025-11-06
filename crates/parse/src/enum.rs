@@ -2,6 +2,7 @@ use crate::{Attribute, Tokens};
 use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use sodigy_token::{Keyword, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Enum {
@@ -13,6 +14,7 @@ pub struct Enum {
 
 impl<'t> Tokens<'t> {
     pub fn parse_enum(&mut self) -> Result<Enum, Vec<Error>> {
-        todo!();
+        let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Enum))?.span;
+        Err(vec![Error::todo("parse enum", keyword_span)])
     }
 }

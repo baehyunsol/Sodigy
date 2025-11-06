@@ -1,4 +1,5 @@
 use crate::ErrorToken;
+use sodigy_file::{GetFilePathError, ModulePath};
 use sodigy_name_analysis::NameKind;
 use sodigy_string::InternedString;
 use sodigy_token::InfixOp;
@@ -143,15 +144,47 @@ pub enum ErrorKind {
         arg_types: Vec<String>,
     },
     MultipleModuleFiles {
-        module: String,
+        module: ModulePath,
+        found_files: Vec<String>,
     },
     ModuleFileNotFound {
-        module: String,
+        module: ModulePath,
+        candidates: Vec<String>,
     },
+    LibFileNotFound,
 
     // --- warnings from here ---
     UnusedName {
         name: InternedString,
         kind: NameKind,
     },
+
+    // not implemented feature in compiler
+    Todo { message: String },
+}
+
+impl From<GetFilePathError> for ErrorKind {
+    fn from(e: GetFilePathError) -> ErrorKind {
+        if e.is_std && e.found_files.is_empty() {
+            ErrorKind::LibFileNotFound
+        }
+
+        else if e.found_files.is_empty() {
+            ErrorKind::ModuleFileNotFound {
+                module: e.module_path.clone(),
+                candidates: e.candidates.clone(),
+            }
+        }
+
+        else if e.found_files.len() > 1 {
+            ErrorKind::MultipleModuleFiles {
+                module: e.module_path.clone(),
+                found_files: e.found_files.clone(),
+            }
+        }
+
+        else {
+            unreachable!()
+        }
+    }
 }
