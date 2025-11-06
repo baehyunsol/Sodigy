@@ -3,7 +3,6 @@ use sodigy_error::{Error, Warning};
 use sodigy_file::File;
 use sodigy_lex::Session as LexSession;
 use sodigy_session::Session as SodigySession;
-use sodigy_span::Span;
 
 pub struct Session {
     pub file: File,

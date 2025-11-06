@@ -1,6 +1,5 @@
 use sodigy_lex::Session as LexSession;
 use sodigy_span::Span;
-use sodigy_string::intern_string;
 
 mod alias;
 mod assert;
@@ -26,7 +25,7 @@ pub use alias::Alias;
 pub use assert::Assert;
 pub use attribute::{Attribute, Decorator, DocComment, DocCommentLine, Public};
 pub use block::Block;
-pub use r#enum::Enum;
+pub use r#enum::{Enum, EnumVariantDef};
 pub use expr::{Expr, Field};
 pub use func::{CallArg, Func, FuncArgDef};
 pub use r#if::If;

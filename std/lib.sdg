@@ -1,14 +1,23 @@
 @built_in
 @lang_item("type.Int")
-enum Int = _;
+enum Int = {
+    // built_in
+    _
+};
 
 @built_in
 @lang_item("type.Char")
-enum Char = _;
+enum Char = {
+    // built_in
+    _
+};
 
 @built_in
 @lang_item("type.Byte")
-enum Byte = _;
+enum Byte = {
+    // built_in
+    _
+};
 
 @lang_item("type.String")
 type String = [Char];
@@ -18,7 +27,10 @@ type Bytes = [Byte];
 
 @built_in
 @lang_item("type.List")
-struct List = _;
+struct List = {
+    // built_in
+    _
+};
 
 @built_in
 @lang_item("op.add")

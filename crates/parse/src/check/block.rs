@@ -58,7 +58,7 @@ impl Block {
         }
 
         for r#enum in self.enums.iter() {
-            if let Err(e) = r#enum.check() {
+            if let Err(e) = r#enum.check(session) {
                 errors.extend(e);
             }
 

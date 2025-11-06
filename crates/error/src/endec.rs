@@ -519,20 +519,23 @@ impl Endec for ErrorToken {
             ErrorToken::AssignOrLt => {
                 buffer.push(14);
             },
-            ErrorToken::BraceOrParenthesis => {
+            ErrorToken::BraceOrCommaOrParenthesis => {
                 buffer.push(15);
             },
-            ErrorToken::ColonOrComma => {
+            ErrorToken::BraceOrParenthesis => {
                 buffer.push(16);
             },
-            ErrorToken::CommaOrDot => {
+            ErrorToken::ColonOrComma => {
                 buffer.push(17);
             },
-            ErrorToken::CommaOrGt => {
+            ErrorToken::CommaOrDot => {
                 buffer.push(18);
             },
-            ErrorToken::DotOrSemicolon => {
+            ErrorToken::CommaOrGt => {
                 buffer.push(19);
+            },
+            ErrorToken::DotOrSemicolon => {
+                buffer.push(20);
             },
         }
     }
@@ -566,12 +569,13 @@ impl Endec for ErrorToken {
             Some(12) => Ok((ErrorToken::Expr, cursor + 1)),
             Some(13) => Ok((ErrorToken::Block, cursor + 1)),
             Some(14) => Ok((ErrorToken::AssignOrLt, cursor + 1)),
-            Some(15) => Ok((ErrorToken::BraceOrParenthesis, cursor + 1)),
-            Some(16) => Ok((ErrorToken::ColonOrComma, cursor + 1)),
-            Some(17) => Ok((ErrorToken::CommaOrDot, cursor + 1)),
-            Some(18) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
-            Some(19) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
-            Some(n @ 20..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(15) => Ok((ErrorToken::BraceOrCommaOrParenthesis, cursor + 1)),
+            Some(16) => Ok((ErrorToken::BraceOrParenthesis, cursor + 1)),
+            Some(17) => Ok((ErrorToken::ColonOrComma, cursor + 1)),
+            Some(18) => Ok((ErrorToken::CommaOrDot, cursor + 1)),
+            Some(19) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
+            Some(20) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
+            Some(n @ 21..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

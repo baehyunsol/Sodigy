@@ -16,11 +16,11 @@ pub struct Struct {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<GenericDef>,
-    pub fields: Vec<StructField>,
+    pub fields: Vec<StructFieldDef>,
     pub attribute: Attribute,
 }
 
-pub type StructField = FuncArgDef;
+pub type StructFieldDef = FuncArgDef;
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {
@@ -64,7 +64,7 @@ impl<'t> Tokens<'t> {
         })
     }
 
-    fn parse_struct_fields(&mut self) -> Result<Vec<StructField>, Vec<Error>> {
+    fn parse_struct_fields(&mut self) -> Result<Vec<StructFieldDef>, Vec<Error>> {
         self.parse_func_arg_defs()
     }
 

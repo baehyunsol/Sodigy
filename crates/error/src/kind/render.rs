@@ -10,8 +10,11 @@ impl ErrorKind {
                 let kind = match kind {
                     NameKind::Let { .. } => "value",
                     NameKind::Func => "function",
-                    NameKind::FuncArg => "argument",
+                    NameKind::Struct => "struct",
+                    NameKind::Enum => "enum",
+                    NameKind::Alias => "type alias",
                     NameKind::Use => "import",
+                    NameKind::FuncArg => "argument",
                     _ => panic!("TODO: {kind:?}"),
                 };
 
