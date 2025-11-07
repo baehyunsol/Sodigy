@@ -1,0 +1,15 @@
+@built_in
+@lang_item("type.Int")
+enum Int = { _ };
+
+@built_in
+@lang_item("type.Char")
+enum Char = { _ };
+
+@built_in
+@lang_item("type.Byte")
+enum Byte = { _ };
+
+@built_in
+@lang_item("type.List")
+struct List = { _ };

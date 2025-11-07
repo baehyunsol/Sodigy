@@ -23,7 +23,6 @@ pub use std_file::std_root;
 use file_map::{
     length_file_map,
     push_file_map,
-    search_content_hashes_by_module_paths,
     search_file_map_by_id,
     search_file_map_by_module_path,
 };
@@ -158,7 +157,15 @@ impl File {
 
         match search_file_map_by_module_path(&file_map, path, &file_map_path)? {
             Some((file_id, _)) => Ok(Some(File::File { project: project_id, file: file_id })),
-            None => Ok(None),
+            None => {
+                for (i, (p, _, _, _)) in STD_FILES.iter().enumerate() {
+                    if *p == path {
+                        return Ok(Some(File::Std(i as u64)));
+                    }
+                }
+
+                Ok(None)
+            },
         }
     }
 

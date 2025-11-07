@@ -1,5 +1,4 @@
 use sodigy_fs_api::{FileError, FileErrorKind};
-use std::collections::HashSet;
 
 // A file map is a list of `file_id: u32`, `content_hash: u128`, `module_path: String`, `file_path: String`.
 
@@ -140,54 +139,5 @@ pub fn search_file_map_by_id(file_map: &[u8], file_id: u32, file_map_path: &str)
         if curr_file_id == file_id {
             return Ok(Some((String::from_utf8_lossy(module_path).to_string(), String::from_utf8_lossy(file_path).to_string(), content_hash)));
         }
-    }
-}
-
-pub fn search_content_hashes_by_module_paths(
-    file_map: &[u8],
-    module_paths: &[String],
-    file_map_path: &str,
-) -> Result<Vec<u128>, FileError> {
-    let mut cursor = 0;
-    let mut result = Vec::with_capacity(module_paths.len());
-    let mut module_paths = module_paths.iter().map(|m| m.to_string().into_bytes()).collect::<HashSet<_>>();
-
-    loop {
-        if file_map.len() == cursor {
-            return Ok(result);
-        }
-
-        if cursor + 24 >= file_map.len() {
-            return Err(FileError {
-                kind: FileErrorKind::CannotDecodeFile,
-                given_path: Some(file_map_path.to_string()),
-            });
-        }
-
-        cursor += 4;  // file_id
-
-        let content_hash = u128::from_le_bytes((&file_map[cursor..(cursor + 16)]).try_into().unwrap());
-        cursor += 16;
-        let str_len = u32::from_le_bytes((&file_map[cursor..(cursor + 4)]).try_into().unwrap());
-        cursor += 4;
-
-        if cursor + str_len as usize > file_map.len() {
-            return Err(FileError {
-                kind: FileErrorKind::CannotDecodeFile,
-                given_path: Some(file_map_path.to_string()),
-            });
-        }
-
-        let curr_module_path = file_map[cursor..(cursor + str_len as usize)].to_vec();
-
-        if module_paths.contains(&curr_module_path) {
-            result.push(content_hash);
-        }
-
-        cursor += str_len as usize;
-
-        // file_path
-        let str_len = u32::from_le_bytes((&file_map[cursor..(cursor + 4)]).try_into().unwrap());
-        cursor += 4 + (str_len as usize);
     }
 }

@@ -1,4 +1,4 @@
-use crate::{FileOrStd, GetFilePathError};
+use crate::{FileOrStd, GetFilePathError, STD_FILES};
 use sodigy_fs_api::exists;
 use std::fmt;
 
@@ -41,7 +41,15 @@ impl ModulePath {
         }
 
         else if self.is_std {
-            todo!()
+            let module_path = self.to_string();
+
+            for (i, (module_path_, _, _, _)) in STD_FILES.iter().enumerate() {
+                if module_path == *module_path_ {
+                    return Ok(FileOrStd::Std(i as u64));
+                }
+            }
+
+            panic!("TODO: {module_path:?}")
         }
 
         else {
@@ -74,6 +82,13 @@ impl ModulePath {
 impl fmt::Display for ModulePath {
     /// Unique (in the project) identifier of this module.
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(fmt, "lib.{}", self.path.join("."))
+        write!(
+            fmt,
+            "{}lib{}",
+            if self.is_std { "@std." } else { "" },
+            self.path.iter().map(
+                |path| format!(".{path}")
+            ).collect::<Vec<_>>().concat(),
+        )
     }
 }

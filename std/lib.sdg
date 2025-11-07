@@ -1,23 +1,4 @@
-@built_in
-@lang_item("type.Int")
-enum Int = {
-    // built_in
-    _
-};
-
-@built_in
-@lang_item("type.Char")
-enum Char = {
-    // built_in
-    _
-};
-
-@built_in
-@lang_item("type.Byte")
-enum Byte = {
-    // built_in
-    _
-};
+mod built_in;
 
 @lang_item("type.String")
 type String = [Char];
@@ -25,63 +6,29 @@ type String = [Char];
 @lang_item("type.Bytes")
 type Bytes = [Byte];
 
-@built_in
-@lang_item("type.List")
-struct List = {
-    // built_in
-    _
-};
-
-@built_in
-@lang_item("op.add")
-@lang_item_generic("op.add.generic.0", "op.add.generic.1", "op.add.generic.2")
-fn add<T, U, V>(a: T, b: U) -> V = _;
-
-@built_in
-@lang_item("op.sub")
-@lang_item_generic("op.sub.generic.0", "op.sub.generic.1", "op.sub.generic.2")
-fn sub<T, U, V>(a: T, b: U) -> V = _;
-
-@built_in
-@lang_item("op.mul")
-@lang_item_generic("op.mul.generic.0", "op.mul.generic.1", "op.mul.generic.2")
-fn mul<T, U, V>(a: T, b: U) -> V = _;
-
-@built_in
-@lang_item("op.div")
-@lang_item_generic("op.div.generic.0", "op.div.generic.1", "op.div.generic.2")
-fn div<T, U, V>(a: T, b: U) -> V = _;
-
-@built_in
-@lang_item("op.index")
-@lang_item_generic("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")
-fn index<T, U, V>(ls: T, i: U) -> V = _;
-
-mod built_in_fns;
-
 fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
         // The first element is for the length of the list
-        built_in_fns.read_compound(ls, i + 1)
+        built_in.fns.read_compound(ls, i + 1)
     }
 
     else if -ls.len() <= i {
-        built_in_fns.read_compound(ls, i + ls.len() + 1)
+        built_in.fns.read_compound(ls, i + ls.len() + 1)
     }
 
     else {
         // TODO: error message
-        panic()
+        built_in.fns.panic()
     }
 };
 
 fn div_int(a: Int, b: Int) -> Int = {
     if b == 0 {
         // TODO: error message
-        panic()
+        built_in.fns.panic()
     }
 
     else {
-        built_in_fns.div_int(a, b)
+        built_in.fns.div_int(a, b)
     }
 };

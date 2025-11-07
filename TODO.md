@@ -1,3 +1,14 @@
+# 70. Attribute Parser
+
+1. 지금 `AssertAttribute::from_ast` 한번 보셈. 무지하게 긺. 이거를 struct/enum/func/let/module/use에 전부 다하게 생겼음...
+  - 당장 `StdAttribute::from_ast`만 해도 막막함
+  - we need some kinda macro!!
+    - macro가 됐든 적절히 함수로 감싸든 뭔가 factoring이 필요함!!
+  - 하는김에 publicity랑 doc_comment도 같이 잡아버리자!!
+2. 지금은 `parse::Tokens::parse_block`에서 잘못된 attribute를 어느정도 거르고 넘어가지? 그러지말고, attribute error도 전부 hir에서 잡자.
+  - hir이 정보도 더 많고, 비슷한 코드는 비슷한 위치에 있는게 낫고, 에러는 최대한 뒤에서 만드는게 나음!!
+3. 지금은 `XXXAttribute::from_ast`에서 이름 모르는 decorator 있으면 에러내잖아? 근데 한 func에 대해서 `StdAttribute`도 뽑고 `FuncAttribute`도 뽑을려면 이렇게 하면 안됨...
+
 # 69. trait/method/operator overloading
 
 1. std에 `index`가 있고 `index_list`가 있지? 둘을 어떻게 연결시킬까? -> 여기서 모든 고민이 시작됨.

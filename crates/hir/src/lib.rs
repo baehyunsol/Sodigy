@@ -32,7 +32,7 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
-pub use attribute::Public;
+pub use attribute::{Public, StdAttribute};
 pub use block::Block;
 pub use r#enum::Enum;
 pub use expr::Expr;

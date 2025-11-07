@@ -34,7 +34,7 @@ pub use r#match::{Match, MatchBranch};
 pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use session::Session;
-pub use r#struct::{Struct, StructInitField};
+pub use r#struct::{Struct, StructInitField, StructFieldDef};
 pub(crate) use tokens::Tokens;
 pub use r#type::{GenericDef, Type};
 pub use r#use::Use;

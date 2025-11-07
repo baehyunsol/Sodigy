@@ -64,7 +64,7 @@ impl<'t> Tokens<'t> {
         })
     }
 
-    fn parse_struct_fields(&mut self) -> Result<Vec<StructFieldDef>, Vec<Error>> {
+    pub fn parse_struct_fields(&mut self) -> Result<Vec<StructFieldDef>, Vec<Error>> {
         self.parse_func_arg_defs()
     }
 

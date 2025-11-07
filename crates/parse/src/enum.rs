@@ -1,4 +1,10 @@
-use crate::{Attribute, GenericDef, Tokens};
+use crate::{
+    Attribute,
+    GenericDef,
+    StructFieldDef,
+    Tokens,
+    Type,
+};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -31,10 +37,8 @@ pub struct EnumVariantDef {
 #[derive(Clone, Debug)]
 pub enum EnumVariantArgs {
     None,
-
-    // TODO: fields
-    Tuple,
-    Struct,
+    Tuple(Vec<(Type, Attribute)>),
+    Struct(Vec<StructFieldDef>),
 }
 
 impl<'t> Tokens<'t> {
@@ -97,8 +101,105 @@ impl<'t> Tokens<'t> {
                         break;
                     }
                 },
-                Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => todo!(),
-                Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => todo!(),
+                Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
+                    let mut struct_body_tokens = Tokens::new(tokens, span.end());
+                    let fields = struct_body_tokens.parse_struct_fields()?;
+                    variants.push(EnumVariantDef {
+                        name,
+                        name_span,
+                        args: EnumVariantArgs::Struct(fields),
+                        attribute,
+                    });
+                    self.cursor += 1;
+
+                    match self.peek2() {
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) | (None, _) => {
+                            break;
+                        },
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
+                            self.cursor += 1;
+                        },
+                        (Some(t), _) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Punct(Punct::Comma),
+                                    got: (&t.kind).into(),
+                                },
+                                spans: t.span.simple_error(),
+                                ..Error::default()
+                            }]);
+                        },
+                    }
+                },
+                Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
+                    let mut tuple_body_tokens = Tokens::new(tokens, span.end());
+
+                    if tuple_body_tokens.is_empty() {
+                        variants.push(EnumVariantDef {
+                            name,
+                            name_span,
+                            args: EnumVariantArgs::Tuple(vec![]),
+                            attribute,
+                        });
+                    }
+
+                    else {
+                        let mut fields = vec![];
+
+                        loop {
+                            let attribute = tuple_body_tokens.collect_attribute()?;
+                            let r#type = tuple_body_tokens.parse_type()?;
+                            fields.push((r#type, attribute));
+
+                            match tuple_body_tokens.peek2() {
+                                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) | (None, _) => {
+                                    break;
+                                },
+                                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
+                                    tuple_body_tokens.cursor += 1;
+                                },
+                                (Some(t), _) => {
+                                    return Err(vec![Error {
+                                        kind: ErrorKind::UnexpectedToken {
+                                            expected: ErrorToken::Punct(Punct::Comma),
+                                            got: (&t.kind).into(),
+                                        },
+                                        spans: t.span.simple_error(),
+                                        ..Error::default()
+                                    }]);
+                                },
+                            }
+                        }
+
+                        variants.push(EnumVariantDef {
+                            name,
+                            name_span,
+                            args: EnumVariantArgs::Tuple(fields),
+                            attribute,
+                        });
+                    }
+
+                    self.cursor += 1;
+
+                    match self.peek2() {
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) | (None, _) => {
+                            break;
+                        },
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
+                            self.cursor += 1;
+                        },
+                        (Some(t), _) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Punct(Punct::Comma),
+                                    got: (&t.kind).into(),
+                                },
+                                spans: t.span.simple_error(),
+                                ..Error::default()
+                            }]);
+                        },
+                    }
+                },
                 Some(t) => {
                     return Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {

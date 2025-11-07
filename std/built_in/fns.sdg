@@ -1,0 +1,10 @@
+@built_in
+@no_type
+fn read_compound(a, b: Int) = 0;
+
+@built_in
+@no_type
+fn panic() = 0;
+
+@built_in
+fn div_int(a: Int, b: Int) -> Int = 0;

@@ -13,6 +13,7 @@ impl ErrorKind {
                     NameKind::Struct => "struct",
                     NameKind::Enum => "enum",
                     NameKind::Alias => "type alias",
+                    NameKind::Module => "module",
                     NameKind::Use => "import",
                     NameKind::FuncArg => "argument",
                     _ => panic!("TODO: {kind:?}"),

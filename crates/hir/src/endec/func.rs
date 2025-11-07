@@ -1,4 +1,13 @@
-use crate::{CallArg, Expr, Func, FuncArgDef, FuncOrigin, Public, Type};
+use crate::{
+    CallArg,
+    Expr,
+    Func,
+    FuncArgDef,
+    FuncOrigin,
+    Public,
+    StdAttribute,
+    Type,
+};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin, UseCount};
 use sodigy_parse::GenericDef;
@@ -17,6 +26,7 @@ impl Endec for Func {
         self.r#type.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
+        self.std_attribute.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
         self.use_counts.encode_impl(buffer);
     }
@@ -31,6 +41,7 @@ impl Endec for Func {
         let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
+        let (std_attribute, cursor) = StdAttribute::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
         let (use_counts, cursor) = HashMap::<InternedString, UseCount>::decode_impl(buffer, cursor)?;
 
@@ -45,6 +56,7 @@ impl Endec for Func {
                 r#type,
                 value,
                 origin,
+                std_attribute,
                 foreign_names,
                 use_counts,
             },

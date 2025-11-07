@@ -4,6 +4,7 @@ use crate::{
     LetOrigin,
     Public,
     Session,
+    StdAttribute,
     Type,
 };
 use sodigy_error::{Warning, WarningKind};
@@ -31,6 +32,7 @@ pub struct Func {
     pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
+    pub std_attribute: StdAttribute,
 
     // We have to distinguish closures and lambda functions
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
@@ -72,6 +74,14 @@ impl Func {
         is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
+
+        let std_attribute = match StdAttribute::from_ast(&ast_func.attribute, session) {
+            Ok(a) => a,
+            Err(()) => {
+                has_error = true;
+                StdAttribute::new()
+            },
+        };
 
         let public = match Public::from_ast(&ast_func.attribute.public, session) {
             Ok(p) => Some(p),
@@ -211,6 +221,7 @@ impl Func {
                 r#type,
                 value: value.unwrap(),
                 origin,
+                std_attribute,
                 foreign_names,
                 use_counts,
             })

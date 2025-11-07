@@ -134,6 +134,7 @@ impl AssertAttribute {
                         });
                     }
 
+                    session.error_if_decorator_name_too_long(&mut has_error, &decorator.name, 1);
                     always = true;
                 },
                 Some(d) if d == b"name" || d == b"note" => {
@@ -151,6 +152,8 @@ impl AssertAttribute {
                             note: None,
                         });
                     }
+
+                    session.error_if_decorator_name_too_long(&mut has_error, &decorator.name, 1);
 
                     match &decorator.args {
                         Some(args) => {
