@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{Expr, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
@@ -38,11 +38,22 @@ impl Attribute {
                 });
                 None
             },
-            (Requirement::Never, Some(_)) => {
+            (Requirement::Never, Some(doc_comment)) => {
                 has_error = true;
                 session.errors.push(Error {
                     kind: ErrorKind::DocCommentNotAllowed,
-                    spans: _,
+                    spans: vec![
+                        RenderableSpan {
+                            span: item_keyword_span,
+                            auxiliary: true,
+                            note: Some(String::from("You can't add doc comment to this.")),
+                        },
+                        RenderableSpan {
+                            span: doc_comment.0[0].marker_span,
+                            auxiliary: false,
+                            note: None,
+                        },
+                    ],
                     note: None,
                 });
                 None
@@ -56,7 +67,7 @@ impl Attribute {
         let mut spans_by_name: HashMap<Vec<InternedString>, Vec<Span>> = HashMap::new();
 
         for ast_decorator in ast_attribute.decorators.iter() {
-            let name = ast_decorator.name.iter().map(|(name, _)| *name).collect();
+            let name: Vec<InternedString> = ast_decorator.name.iter().map(|(name, _)| *name).collect();
             let merged_span = ast_decorator.name.iter().map(
                 |(_, span)| *span
             ).fold(
@@ -106,21 +117,83 @@ impl Attribute {
                             });
                         },
                         (_, Some(ast_args)) => {
-                            let mut keyword_args = HashMap::new();
-                            let mut positional_args = vec![];
+                            let mut keyword_args: HashMap<InternedString, Expr> = HashMap::new();
+                            let mut positional_args: Vec<&ast::Expr> = vec![];
+                            let mut spans_by_keyword: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
                             for ast_arg in ast_args.iter() {
                                 match ast_arg.keyword {
                                     Some((keyword, span)) => match rule.keyword_args.get(&keyword) {
-                                        Some((requirement, arg_type)) => todo!(),
+                                        Some((requirement, arg_type)) => {
+                                            if let Requirement::Never = requirement {
+                                                has_error = true;
+                                                session.errors.push();
+                                            }
+
+                                            match spans_by_keyword.entry(keyword) {
+                                                Entry::Occupied(mut e) => {
+                                                    e.get_mut().push(span);
+                                                },
+                                                Entry::Vacant(e) => {
+                                                    e.insert(vec![span]);
+                                                },
+                                            }
+
+                                            match Expr::from_ast(&ast_arg.arg, session) {
+                                                Ok(arg) => match check_arg_type(&arg, *arg_type, session) {
+                                                    Ok(()) => {
+                                                        keyword_args.insert(keyword, arg);
+                                                    },
+                                                    Err(()) => {
+                                                        has_error = true;
+                                                    },
+                                                },
+                                                Err(()) => {
+                                                    has_error = true;
+                                                },
+                                            }
+                                        },
                                         None => {
                                             has_error = true;
-                                            session.errors.push();
+                                            session.errors.push(Error {
+                                                kind: ErrorKind::InvalidKeywordArgument(keyword),
+                                                spans: span.simple_error(),
+                                                note: None,
+                                            });
                                         },
                                     },
                                     None => {
                                         positional_args.push(&ast_arg.arg);
                                     },
+                                }
+                            }
+
+                            for (keyword, spans) in spans_by_keyword.iter() {
+                                if spans.len() > 1 {
+                                    has_error = true;
+                                    session.errors.push(Error {
+                                        kind: ErrorKind::KeywordArgumentRepeated(*keyword),
+                                        spans: spans.iter().map(
+                                            |span| RenderableSpan {
+                                                span: *span,
+                                                auxiliary: false,
+                                                note: None,
+                                            }
+                                        ).collect(),
+                                        note: None,
+                                    });
+                                }
+                            }
+
+                            for (keyword, (requirement, _)) in rule.keyword_args.iter() {
+                                if let Requirement::Must = requirement {
+                                    if spans_by_keyword.get(keyword).is_none() {
+                                        session.errors.push(Error {
+                                            kind: ErrorKind::MissingKeywordArgument(*keyword),
+                                            spans: merged_span.simple_error(),
+                                            note: None,
+                                        });
+                                    }
                                 }
                             }
 
@@ -183,11 +256,28 @@ impl Attribute {
 
                             match count_rule {
                                 Ok(()) => {
-                                    for arg in positional_args.iter() {
-                                        todo!()  // check type
+                                    let mut args = Vec::with_capacity(positional_args.len());
+
+                                    for ast_arg in positional_args.iter() {
+                                        match Expr::from_ast(ast_arg, session) {
+                                            Ok(arg) => match check_arg_type(&arg, arg_type, session) {
+                                                Ok(()) => {
+                                                    args.push(arg);
+                                                },
+                                                Err(()) => {
+                                                    has_error = true;
+                                                },
+                                            },
+                                            Err(()) => {
+                                                has_error = true;
+                                            },
+                                        }
                                     }
 
-                                    decorators.insert(name, Decorator {});
+                                    decorators.insert(name, Decorator {
+                                        args,
+                                        keyword_args,
+                                    });
                                 },
                                 Err((error_kind, error_span)) => {
                                     has_error = true;
@@ -200,7 +290,10 @@ impl Attribute {
                             }
                         },
                         (_, None) => {
-                            decorators.insert(name, Decorator {});
+                            decorators.insert(name, Decorator {
+                                args: vec![],
+                                keyword_args: HashMap::new(),
+                            });
                         },
                     }
                 },
@@ -208,7 +301,7 @@ impl Attribute {
                     // TODO: try `rule.decorators.get(&name[..i])` to generate a better error message
                     has_error = true;
                     session.errors.push(Error {
-                        kind: ErrorKind::InvalidDecorator(),
+                        kind: ErrorKind::InvalidDecorator(join_decorator_name(&name, session)),
                         spans: _,
                         note: None,
                     });
@@ -229,7 +322,7 @@ impl Attribute {
             if spans.len() > 1 {
                 has_error = true;
                 errors.push(Error {
-                    kind: ErrorKind::RedundantDecorator(*name),
+                    kind: ErrorKind::RedundantDecorator(join_decorator_name(name, session)),
                     spans: spans.iter().map(
                         |span| RenderableSpan {
                             span: *span,
@@ -269,9 +362,12 @@ pub enum Requirement {
     Never,
 }
 
+#[derive(Clone, Debug)]
+pub struct Public;
+
 pub struct Decorator {
-    pub args: Vec<_>,
-    pub keyword_args: HashMap<InternedString, _>,
+    pub args: Vec<Expr>,
+    pub keyword_args: HashMap<InternedString, Expr>,
 }
 
 pub struct DecoratorRule {
@@ -299,4 +395,12 @@ pub enum ArgCount {
     Eq(usize),
     Gt(usize),
     Lt(usize),
+}
+
+fn join_decorator_name(name: &[InternedString], session: &Session) -> InternedString {
+    todo!()
+}
+
+fn check_arg_type(arg: &Expr, arg_type: ArgType, session: &mut Session) -> Result<(), ()> {
+    todo!()
 }

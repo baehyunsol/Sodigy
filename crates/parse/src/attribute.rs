@@ -1,6 +1,6 @@
 use crate::{CallArg, Tokens};
-use sodigy_error::Error;
-use sodigy_span::Span;
+use sodigy_error::{Error, ErrorKind, ErrorToken};
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use sodigy_token::{
     Delim,
@@ -110,8 +110,6 @@ pub struct Public {
 }
 
 impl<'t> Tokens<'t> {
-    // TODO: throw an error if there's a semicolon after a decorator
-    //       -> `collect_attribute` is the only place we can throw the error.
     // If there are multiple doc comments, it throws an error.
     pub fn collect_attribute(&mut self) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];
@@ -158,7 +156,39 @@ impl<'t> Tokens<'t> {
                                 }
 
                                 self.cursor += 1;
+
+                                if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), span }) = self.peek() {
+                                    errors.push(Error {
+                                        kind: ErrorKind::UnexpectedToken {
+                                            expected: ErrorToken::Nothing,
+                                            got: ErrorToken::Punct(Punct::Semicolon),
+                                        },
+                                        spans: vec![RenderableSpan {
+                                            span: *span,
+                                            auxiliary: false,
+                                            note: Some(String::from("Remove this `;`.")),
+                                        }],
+                                        note: Some(String::from("Don't put a semicolon after a decorator.")),
+                                    });
+                                    return Err(errors);
+                                }
+
                                 break;
+                            },
+                            (Some(Token { kind: TokenKind::Punct(Punct::Semicolon), span }), _) => {
+                                errors.push(Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected: ErrorToken::Nothing,
+                                        got: ErrorToken::Punct(Punct::Semicolon),
+                                    },
+                                    spans: vec![RenderableSpan {
+                                        span: *span,
+                                        auxiliary: false,
+                                        note: Some(String::from("Remove this `;`.")),
+                                    }],
+                                    note: Some(String::from("Don't put a semicolon after a decorator.")),
+                                });
+                                return Err(errors);
                             },
                             _ => {
                                 decorator_buffer.push(Decorator::new_without_args(name, name_span));
