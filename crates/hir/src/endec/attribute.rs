@@ -24,7 +24,7 @@ impl Endec for StdAttribute {
         let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
         let (no_type, cursor) = bool::decode_impl(buffer, cursor)?;
         let (lang_item, cursor) = Option::<String>::decode_impl(buffer, cursor)?;
-        let (lang_item_generics, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
+        let (lang_item_generics, cursor) = Option::<Vec<String>>::decode_impl(buffer, cursor)?;
 
         Ok((
             StdAttribute {
