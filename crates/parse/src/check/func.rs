@@ -80,7 +80,7 @@ impl Func {
                             note: None,
                         }
                     ).collect(),
-                    ..Error::default()
+                    note: None,
                 });
             }
         }

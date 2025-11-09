@@ -110,6 +110,8 @@ pub struct Public {
 }
 
 impl<'t> Tokens<'t> {
+    // TODO: throw an error if there's a semicolon after a decorator
+    //       -> `collect_attribute` is the only place we can throw the error.
     // If there are multiple doc comments, it throws an error.
     pub fn collect_attribute(&mut self) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];

@@ -194,35 +194,8 @@ impl<'t> Tokens<'t> {
                     },
                 },
                 Some(TokenKind::Keyword(Keyword::Assert)) => {
-                    if let Some(public) = &attribute.public && is_top_level {
-                        errors.push(Error {
-                            kind: ErrorKind::CannotBePublic,
-                            spans: public.keyword_span.simple_error(),
-                            note: None,
-                        });
-                    }
-
                     match self.parse_assert() {
                         Ok(mut assert) => {
-                            if let Some(doc_comment) = &attribute.doc_comment {
-                                errors.push(Error {
-                                    kind: ErrorKind::DocCommentNotAllowed,
-                                    spans: vec![
-                                        RenderableSpan {
-                                            span: assert.keyword_span,
-                                            auxiliary: false,
-                                            note: Some(String::from("This assertion is documented by the doc comment.")),
-                                        },
-                                        RenderableSpan {
-                                            span: doc_comment.0.last().unwrap().marker_span,
-                                            auxiliary: true,
-                                            note: Some(String::from("This doc comment is documenting the assertion.")),
-                                        },
-                                    ],
-                                    note: Some(String::from("If you want to add a note, use `@note` decorator.")),
-                                });
-                            }
-
                             assert.attribute = attribute;
                             asserts.push(assert);
                         },
@@ -300,27 +273,6 @@ impl<'t> Tokens<'t> {
                     },
                 },
                 Some(t) => {
-                    if is_top_level {
-                        let note = match t {
-                            // There's a very weird edge case: If the tokens are `<Decorator> -> <DocComment> -> <Semicolon> -> <Expr>`,
-                            // you'll see this error message with the semicolon.
-                            TokenKind::Punct(Punct::Semicolon) if !attribute.decorators.is_empty() => Some(String::from(
-                                "Don't put a semicolon after a decorator."
-                            )),
-                            _ => None,
-                        };
-
-                        errors.push(Error {
-                            kind: ErrorKind::UnexpectedToken {
-                                expected: ErrorToken::Declaration,
-                                got: t.into(),
-                            },
-                            spans: self.peek().unwrap().span.simple_error(),
-                            note,
-                        });
-                        return Err(errors);
-                    }
-
                     if let Some(doc_comment) = &attribute.doc_comment {
                         errors.push(Error {
                             kind: ErrorKind::DocCommentNotAllowed,
@@ -361,6 +313,8 @@ impl<'t> Tokens<'t> {
                         });
                         return Err(errors);
                     }
+
+                    // TODO: throw an error if there's `pub` keyword
 
                     match self.parse_expr() {
                         Ok(expr) => {
