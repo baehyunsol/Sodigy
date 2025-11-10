@@ -52,6 +52,7 @@ pub fn lex(
     file: File,
     input: Vec<u8>,
     intermediate_dir: String,
+    is_std: bool,
 ) -> Session {
     let mut session = Session {
         file,
@@ -60,6 +61,7 @@ pub fn lex(
         cursor: 0,
         tokens: vec![],
         intermediate_dir,
+        is_std,
         group_stack: vec![],
         token_start: 0,
         buffer1: vec![],

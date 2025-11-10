@@ -425,14 +425,17 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 profile,
                 optimization,
             } => {
-                let file = match &input_file_path {
-                    FileOrStd::File(path) => File::register(
-                        0,  // project_id
-                        &path,
-                        &input_module_path.to_string(),
-                        &intermediate_dir,
-                    )?,
-                    FileOrStd::Std(n) => File::Std(*n),
+                let (is_std, file) = match &input_file_path {
+                    FileOrStd::File(path) => (
+                        false,
+                        File::register(
+                            0,  // project_id
+                            &path,
+                            &input_module_path.to_string(),
+                            &intermediate_dir,
+                        )?,
+                    ),
+                    FileOrStd::Std(n) => (true, File::Std(*n)),
                 };
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
                 let mut cached_hir_session = None;
@@ -461,6 +464,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                         file,
                         bytes,
                         intermediate_dir.clone(),
+                        is_std,
                     );
                     emit_irs_if_has_to(
                         &lex_session,

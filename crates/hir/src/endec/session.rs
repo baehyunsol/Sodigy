@@ -24,6 +24,7 @@ impl Endec for Session {
         // self.func_default_values.encode_impl(buffer);
         // self.is_in_debug_context.encode_impl(buffer);
 
+        self.is_std.encode_impl(buffer);
         self.lets.encode_impl(buffer);
         self.funcs.encode_impl(buffer);
         self.structs.encode_impl(buffer);
@@ -38,6 +39,7 @@ impl Endec for Session {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (is_std, cursor) = bool::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
         let (structs, cursor) = Vec::<Struct>::decode_impl(buffer, cursor)?;
@@ -57,6 +59,7 @@ impl Endec for Session {
                 name_stack: vec![],
                 func_default_values: vec![],
                 is_in_debug_context: false,
+                is_std,
                 lets,
                 funcs,
                 structs,

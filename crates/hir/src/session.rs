@@ -29,8 +29,9 @@ pub struct Session {
     // and pushes them to the current block.
     pub func_default_values: Vec<Vec<Let>>,
 
-    // The expr/func/block it's lowering only exists in debug context.
+    // `is_in_debug_context` might change in a file, but `is_std` doesn't change inside a file.
     pub is_in_debug_context: bool,
+    pub is_std: bool,
 
     // Top-level declarations are stored here.
     // Also, many inline declarations are stored here (so that inline blocks get simpler).
@@ -62,6 +63,7 @@ impl Session {
             name_stack: vec![prelude_namespace(&parse_session.intermediate_dir)],
             func_default_values: vec![],
             is_in_debug_context: false,
+            is_std: parse_session.is_std,
             lets: vec![],
             funcs: vec![],
             structs: vec![],

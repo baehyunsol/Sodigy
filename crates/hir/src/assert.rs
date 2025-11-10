@@ -85,11 +85,7 @@ impl Assert {
                         name: vec![intern_string(b"always", &session.intermediate_dir).unwrap()],
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Never,
-                        arg_count: ArgCount::Zero,
-                        arg_count_error_note: None,
-                        arg_type: ArgType::Expr,
-                        arg_type_error_note: None,
-                        keyword_args: HashMap::new(),
+                        ..DecoratorRule::default()
                     },
                 ),
             ].into_iter().collect(),

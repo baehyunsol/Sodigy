@@ -2,6 +2,7 @@
 @no_type
 fn read_compound(a, b: Int) = 0;
 
+// TODO: It's supposed to be `Never` type, not `@no_type`.
 @built_in
 @no_type
 fn panic() = 0;

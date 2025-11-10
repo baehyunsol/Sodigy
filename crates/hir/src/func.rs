@@ -100,13 +100,17 @@ impl Func {
         });
 
         // TODO: I want it to be static
-        let attribute_rule = AttributeRule {
+        let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: HashMap::new(),
         };
+
+        if session.is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
 
         // TODO: Can the attributes use func args and generics?
         //       As of now, yes. But I have to think more about its spec.
@@ -118,6 +122,10 @@ impl Func {
             },
         };
         let visibility = attribute.visibility.clone();
+
+        // TODO: what are we gonna do with these?
+        let built_in = attribute.built_in(&session.intermediate_dir);
+        let no_type = attribute.no_type(&session.intermediate_dir);
 
         if let Some(lang_item) = attribute.lang_item(&session.intermediate_dir) {
             session.lang_items.insert(lang_item, ast_func.name_span);

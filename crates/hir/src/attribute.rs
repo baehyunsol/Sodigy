@@ -415,6 +415,14 @@ impl Attribute {
         }
     }
 
+    pub fn built_in(&self, intermediate_dir: &str) -> bool {
+        self.decorators.contains_key(&vec![intern_string(b"built_in", intermediate_dir).unwrap()])
+    }
+
+    pub fn no_type(&self, intermediate_dir: &str) -> bool {
+        self.decorators.contains_key(&vec![intern_string(b"no_type", intermediate_dir).unwrap()])
+    }
+
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
         match self.decorators.get(&vec![intern_string(b"lang_item", intermediate_dir).unwrap()]) {
             Some(d) => match d.args.get(0) {
@@ -444,6 +452,57 @@ pub struct AttributeRule {
     pub visibility: Requirement,
     pub visibility_error_note: Option<String>,
     pub decorators: HashMap<Vec<InternedString>, DecoratorRule>,
+}
+
+impl AttributeRule {
+    pub fn add_std_rules(&mut self, intermediate_dir: &str) {
+        for (name, mut decorator) in [
+            (
+                "built_in",
+                DecoratorRule {
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Never,
+                    ..DecoratorRule::default()
+                },
+            ),
+            (
+                "no_type",
+                DecoratorRule {
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Never,
+                    ..DecoratorRule::default()
+                },
+            ),
+            (
+                "lang_item",
+                DecoratorRule {
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Must,
+                    arg_count: ArgCount::Eq(1),
+                    arg_count_error_note: Some(String::from("An item can have at most 1 lang item.")),
+                    arg_type: ArgType::StringLiteral,
+                    arg_type_error_note: Some(String::from("A lang item must be a string literal, which is compile-time-evaluable.")),
+                    ..DecoratorRule::default()
+                },
+            ),
+            (
+                "lang_item_generics",
+                DecoratorRule {
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Must,
+                    arg_count: ArgCount::Gt(0),
+                    arg_count_error_note: None,
+                    arg_type: ArgType::StringLiteral,
+                    arg_type_error_note: Some(String::from("A lang item must be a string literal, which is compile-time-evaluable.")),
+                    ..DecoratorRule::default()
+                },
+            ),
+        ] {
+            let name = vec![intern_string(name.as_bytes(), intermediate_dir).unwrap()];
+            decorator.name = name.clone();
+            self.decorators.insert(name, decorator);
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -493,6 +552,21 @@ pub struct DecoratorRule {
     pub arg_type_error_note: Option<String>,
 
     pub keyword_args: HashMap<InternedString, KeywordArgRule>,
+}
+
+impl Default for DecoratorRule {
+    fn default() -> DecoratorRule {
+        DecoratorRule {
+            name: vec![],
+            requirement: Requirement::Never,
+            arg_requirement: Requirement::Never,
+            arg_count: ArgCount::Zero,
+            arg_count_error_note: None,
+            arg_type: ArgType::Expr,
+            arg_type_error_note: None,
+            keyword_args: HashMap::new(),
+        }
+    }
 }
 
 pub struct KeywordArgRule {

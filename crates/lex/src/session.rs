@@ -12,6 +12,7 @@ pub struct Session {
     pub(crate) cursor: usize,
     pub tokens: Vec<Token>,
     pub intermediate_dir: String,
+    pub is_std: bool,
 
     pub(crate) group_stack: Vec<(u8, Span)>,  // u8: b']' | b'}' | b')', Span: span of the opening delim
 
