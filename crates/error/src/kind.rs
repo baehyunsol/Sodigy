@@ -42,9 +42,14 @@ pub enum ErrorKind {
     UnexpectedEog {
         expected: ErrorToken,
     },
+
+    MissingDocComment,
     DocCommentForNothing,
     DocCommentNotAllowed,
+    MissingDecorator(InternedString),
     DecoratorNotAllowed,
+    UnexpectedDecorator(InternedString),
+    MissingVisibility,
     CannotBePublic,
     BlockWithoutValue,
     StructWithoutField,
@@ -95,6 +100,7 @@ pub enum ErrorKind {
         expected: usize,
         got: usize,
     },
+    MissingKeywordArgument(InternedString),
 
     // TODO: suggest similar names
     InvalidKeywordArgument(InternedString),

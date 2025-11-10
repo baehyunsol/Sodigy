@@ -76,21 +76,21 @@ impl Session {
         }
     }
 
-    // TODO: more fine-grained filtering for publicity
+    // TODO: more fine-grained filtering for visibility
     pub fn iter_public_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
         self.lets.iter().filter(
-            |r#let| r#let.public.is_public()
+            |r#let| r#let.visibility.is_public()
         ).map(
             |r#let| (r#let.name, r#let.name_span, NameKind::Let { is_top_level: r#let.origin == LetOrigin::TopLevel })
         ).chain(
             self.funcs.iter().filter(
-                |func| func.public.is_public()
+                |func| func.visibility.is_public()
             ).map(
                 |func| (func.name, func.name_span, NameKind::Func)
             )
         ).chain(
             self.structs.iter().filter(
-                |r#struct| r#struct.public.is_public()
+                |r#struct| r#struct.visibility.is_public()
             ).map(
                 |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
             )
@@ -98,7 +98,7 @@ impl Session {
         // TODO: `enum` is not worked yet
         // .chain(
         //     self.enums.iter().filter(
-        //         |r#enum| r#enum.public.is_public()
+        //         |r#enum| r#enum.visibility.is_public()
         //     ).map(
         //         |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
         //     )
@@ -106,7 +106,7 @@ impl Session {
         .chain(
             self.aliases.iter().filter(
                 // TODO
-                // |alias| alias.public.is_public()
+                // |alias| alias.visibility.is_public()
                 |_| true
             ).map(
                 |alias| (alias.name, alias.name_span, NameKind::Alias)
@@ -114,14 +114,14 @@ impl Session {
         ).chain(
             self.uses.iter().filter(
                 // TODO
-                // |r#use| r#use.public.is_public()
+                // |r#use| r#use.visibility.is_public()
                 |_| true
             ).map(
                 |r#use| (r#use.name, r#use.name_span, NameKind::Use)
             )
         ).chain(
             self.modules.iter().filter(
-                |module| module.public.is_public()
+                |module| module.visibility.is_public()
             ).map(
                 |module| (module.name, module.name_span, NameKind::Use)
             )

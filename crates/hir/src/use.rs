@@ -38,10 +38,10 @@ impl Use {
             _ => unreachable!(),
         };
 
-        let root = match session.find_origin_and_count_usage(ast_use.full_path[0].unwrap_name()) {
+        let root = match session.find_origin_and_count_usage(name) {
             Some((origin, def_span)) if def_span != ast_use.name_span => IdentWithOrigin {
-                id: ast_use.full_path[0].unwrap_name(),
-                span: ast_use.full_path[0].unwrap_span(),
+                id: name,
+                span,
                 origin,
                 def_span,
             },
@@ -55,8 +55,8 @@ impl Use {
                 };
 
                 IdentWithOrigin {
-                    id: ast_use.full_path[0].unwrap_name(),
-                    span: ast_use.full_path[0].unwrap_span(),
+                    id: name,
+                    span,
                     origin,
                     def_span,
                 }

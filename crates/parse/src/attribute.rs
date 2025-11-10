@@ -14,7 +14,7 @@ use sodigy_token::{
 pub struct Attribute {
     pub doc_comment: Option<DocComment>,
     pub decorators: Vec<Decorator>,
-    pub public: Option<Public>,
+    pub visibility: Option<Visibility>,
 }
 
 impl Attribute {
@@ -22,12 +22,12 @@ impl Attribute {
         Attribute {
             doc_comment: None,
             decorators: vec![],
-            public: None,
+            visibility: None,
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.doc_comment.is_none() && self.decorators.is_empty() && self.public.is_none()
+        self.doc_comment.is_none() && self.decorators.is_empty() && self.visibility.is_none()
     }
 }
 
@@ -101,7 +101,7 @@ impl Decorator {
 }
 
 #[derive(Clone, Debug)]
-pub struct Public {
+pub struct Visibility {
     pub keyword_span: Span,
 
     // `pub` and `pub()` are different!
@@ -115,7 +115,7 @@ impl<'t> Tokens<'t> {
         let mut errors = vec![];
         let mut doc_comment_buffer = vec![];
         let mut decorator_buffer = vec![];
-        let mut public = None;
+        let mut visibility = None;
 
         loop {
             match self.peek2() {
@@ -206,7 +206,7 @@ impl<'t> Tokens<'t> {
                         _ => {},
                     }
 
-                    public = Some(Public {
+                    visibility = Some(Visibility {
                         keyword_span,
                         args: None,
                         arg_group_span: None,
@@ -228,7 +228,7 @@ impl<'t> Tokens<'t> {
             Ok(Attribute {
                 doc_comment,
                 decorators: decorator_buffer,
-                public,
+                visibility,
             })
         }
 

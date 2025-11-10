@@ -11,11 +11,11 @@ use crate::{
     Tokens,
     Use,
 };
-use sodigy_error::{Error, ErrorKind, ErrorToken};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
-use sodigy_token::{Keyword, Punct, TokenKind};
+use sodigy_token::{Keyword, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -103,14 +103,6 @@ impl<'t> Tokens<'t> {
                     Attribute::new()
                 },
             };
-
-            if let Some(public) = &attribute.public && !is_top_level {
-                errors.push(Error {
-                    kind: ErrorKind::CannotBePublic,
-                    spans: public.keyword_span.simple_error(),
-                    note: None,
-                });
-            }
 
             // FIXME: the same code is repeated multiple times...
             match self.peek().map(|t| &t.kind) {

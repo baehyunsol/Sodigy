@@ -1,9 +1,17 @@
-use crate::{Expr, Session};
-use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_parse::{self as ast, CallArg};
-use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::InternedString;
-use std::collections::hash_map::{Entry, HashMap};
+use crate::{
+    ArgCount,
+    ArgType,
+    Attribute,
+    AttributeRule,
+    DecoratorRule,
+    Expr,
+    Requirement,
+    Session,
+};
+use sodigy_parse as ast;
+use sodigy_span::Span;
+use sodigy_string::{InternedString, intern_string};
+use std::collections::hash_map::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
@@ -34,29 +42,60 @@ pub struct Assert {
     pub always: bool,
 }
 
-#[derive(Clone, Debug)]
-pub struct AssertAttribute {
-    pub name: Option<InternedString>,
-    pub note: Option<Expr>,
-    pub always: bool,
-}
-
-impl Default for AssertAttribute {
-    fn default() -> Self {
-        AssertAttribute {
-            name: None,
-            note: None,
-            always: false,
-        }
-    }
-}
-
 impl Assert {
     pub fn from_ast(ast_assert: &ast::Assert, session: &mut Session) -> Result<Assert, ()> {
         let mut has_error = false;
 
-        let attribute = match AssertAttribute::from_ast(&ast_assert.attribute, session) {
-            Ok(attribute) => attribute,
+        // TODO: I want it to be static
+        let attribute_rule = AttributeRule {
+            doc_comment: Requirement::Never,
+            doc_comment_error_note: Some(String::from("Use `@note()` decorator instead.")),
+            visibility: Requirement::Never,
+            visibility_error_note: Some(String::from("You cannot set visibility of an assertion.")),
+            decorators: vec![
+                (
+                    vec![intern_string(b"name", &session.intermediate_dir).unwrap()],
+                    DecoratorRule {
+                        name: vec![intern_string(b"name", &session.intermediate_dir).unwrap()],
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_count_error_note: Some(String::from("A name of an assertion must be unique.")),
+                        arg_type: ArgType::StringLiteral,
+                        arg_type_error_note: Some(String::from("A name of an assertion must be a string literal, which is compile-time-evaluable.")),
+                        keyword_args: HashMap::new(),
+                    },
+                ),
+                (
+                    vec![intern_string(b"note", &session.intermediate_dir).unwrap()],
+                    DecoratorRule {
+                        name: vec![intern_string(b"note", &session.intermediate_dir).unwrap()],
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_count_error_note: Some(String::from("There must be at most 1 note for an assertion.")),
+                        arg_type: ArgType::Expr,
+                        arg_type_error_note: None,  // infallible
+                        keyword_args: HashMap::new(),
+                    },
+                ),
+                (
+                    vec![intern_string(b"always", &session.intermediate_dir).unwrap()],
+                    DecoratorRule {
+                        name: vec![intern_string(b"always", &session.intermediate_dir).unwrap()],
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        arg_count: ArgCount::Zero,
+                        arg_count_error_note: None,
+                        arg_type: ArgType::Expr,
+                        arg_type_error_note: None,
+                        keyword_args: HashMap::new(),
+                    },
+                ),
+            ].into_iter().collect(),
+        };
+        let attribute = match Attribute::from_ast(&ast_assert.attribute, session, &attribute_rule, ast_assert.keyword_span) {
+            Ok(attribute) => AssertAttribute::from_attribute(&attribute, session),
             Err(()) => {
                 has_error = true;
                 AssertAttribute::default()
@@ -92,11 +131,55 @@ impl Assert {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct AssertAttribute {
+    pub name: Option<InternedString>,
+    pub note: Option<Expr>,
+    pub always: bool,
+}
+
+impl Default for AssertAttribute {
+    fn default() -> Self {
+        AssertAttribute {
+            name: None,
+            note: None,
+            always: false,
+        }
+    }
+}
+
 impl AssertAttribute {
-    pub fn from_ast(
-        ast_attribute: &ast::Attribute,
+    // It never fails because `Attribute::from_ast` does all the checks.
+    pub fn from_attribute(
+        attribute: &Attribute,
         session: &mut Session,
-    ) -> Result<AssertAttribute, ()> {
-        todo!()
+    ) -> AssertAttribute {
+        let mut name = None;
+        let mut note = None;
+        let mut always = false;
+
+        if let Some(name_) = attribute.decorators.get(&vec![intern_string(b"name", &session.intermediate_dir).unwrap()]) {
+            match name_.args.get(0) {
+                Some(Expr::String { s, .. }) => {
+                    name = Some(*s);
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        if let Some(note_) = attribute.decorators.get(&vec![intern_string(b"note", &session.intermediate_dir).unwrap()]) {
+            match note_.args.get(0) {
+                Some(e) => {
+                    note = Some(e.clone());
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        if attribute.decorators.get(&vec![intern_string(b"always", &session.intermediate_dir).unwrap()]).is_some() {
+            always = true;
+        }
+
+        AssertAttribute { name, note, always }
     }
 }

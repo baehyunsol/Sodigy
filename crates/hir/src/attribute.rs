@@ -1,5 +1,5 @@
 use crate::{Expr, Session};
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{
@@ -15,26 +15,34 @@ use std::collections::hash_map::{Entry, HashMap};
 pub struct Attribute {
     pub doc_comment: Option<DocComment>,
     pub decorators: HashMap<Vec<InternedString>, Decorator>,
-    pub public: Public,
+    pub visibility: Visibility,
 }
 
 impl Attribute {
+    pub fn new() -> Attribute {
+        Attribute {
+            doc_comment: None,
+            decorators: HashMap::new(),
+            visibility: Visibility::private(),
+        }
+    }
+
     pub fn from_ast(
         ast_attribute: &ast::Attribute,
         session: &mut Session,
-        rule: AttributeRule,
+        rule: &AttributeRule,
 
         // span of `fn`, `let`, `enum`, `struct`, ...
         item_keyword_span: Span,
     ) -> Result<Attribute, ()> {
         let mut has_error = false;
-        let doc_comment = match (rule.doc_comment, ast_attribute.doc_comment) {
+        let doc_comment = match (rule.doc_comment, &ast_attribute.doc_comment) {
             (Requirement::Must, None) => {
                 has_error = true;
                 session.errors.push(Error {
                     kind: ErrorKind::MissingDocComment,
                     spans: item_keyword_span.simple_error(),
-                    note: None,
+                    note: rule.doc_comment_error_note.clone(),
                 });
                 None
             },
@@ -54,13 +62,59 @@ impl Attribute {
                             note: None,
                         },
                     ],
-                    note: None,
+                    note: rule.doc_comment_error_note.clone(),
                 });
                 None
             },
             _ => ast_attribute.doc_comment.clone(),
         };
-        let public = todo!();
+        let visibility = match (rule.visibility, &ast_attribute.visibility) {
+            (Requirement::Must, None) => {
+                has_error = true;
+                session.errors.push(Error {
+                    kind: ErrorKind::MissingVisibility,
+                    spans: item_keyword_span.simple_error(),
+                    note: rule.visibility_error_note.clone(),
+                });
+                Visibility::private()
+            },
+            (Requirement::Never, Some(ast_visibility)) => {
+                has_error = true;
+                session.errors.push(Error {
+                    kind: ErrorKind::CannotBePublic,
+                    spans: vec![
+                        RenderableSpan {
+                            span: item_keyword_span,
+                            auxiliary: true,
+                            note: Some(String::from("This cannot be public.")),
+                        },
+                        RenderableSpan {
+                            span: ast_visibility.keyword_span,
+                            auxiliary: false,
+                            note: None,
+                        },
+                    ],
+                    note: rule.visibility_error_note.clone(),
+                });
+
+                match Visibility::from_ast(&ast_visibility, session) {
+                    Ok(visibility) => visibility,
+                    Err(()) => {
+                        has_error = true;
+                        Visibility::private()
+                    },
+                }
+            },
+            (_, None) => Visibility::private(),
+            (_, Some(ast_visibility)) => match Visibility::from_ast(&ast_visibility, session) {
+                Ok(visibility) => visibility,
+                Err(()) => {
+                    has_error = true;
+                    Visibility::private()
+                },
+            },
+        };
+
         let mut decorators = HashMap::with_capacity(ast_attribute.decorators.len());
 
         // for error messages
@@ -79,7 +133,11 @@ impl Attribute {
                 Some(rule) => {
                     if let Requirement::Never = rule.requirement {
                         has_error = true;
-                        session.errors.push();
+                        session.errors.push(Error {
+                            kind: ErrorKind::UnexpectedDecorator(join_decorator_name(&name, &session)),
+                            spans: merged_span.simple_error(),
+                            note: None,
+                        });
                     }
 
                     match (rule.arg_requirement, &ast_decorator.args) {
@@ -124,10 +182,19 @@ impl Attribute {
                             for ast_arg in ast_args.iter() {
                                 match ast_arg.keyword {
                                     Some((keyword, span)) => match rule.keyword_args.get(&keyword) {
-                                        Some((requirement, arg_type)) => {
+                                        Some(KeywordArgRule {
+                                            requirement,
+                                            requirement_error_note,
+                                            arg_type,
+                                            arg_type_error_note,
+                                        }) => {
                                             if let Requirement::Never = requirement {
                                                 has_error = true;
-                                                session.errors.push();
+                                                session.errors.push(Error {
+                                                    kind: ErrorKind::InvalidKeywordArgument(keyword),
+                                                    spans: span.simple_error(),
+                                                    note: requirement_error_note.clone(),
+                                                });
                                             }
 
                                             match spans_by_keyword.entry(keyword) {
@@ -140,7 +207,7 @@ impl Attribute {
                                             }
 
                                             match Expr::from_ast(&ast_arg.arg, session) {
-                                                Ok(arg) => match check_arg_type(&arg, *arg_type, session) {
+                                                Ok(arg) => match check_arg_type(&arg, *arg_type, arg_type_error_note, session) {
                                                     Ok(()) => {
                                                         keyword_args.insert(keyword, arg);
                                                     },
@@ -185,13 +252,13 @@ impl Attribute {
                                 }
                             }
 
-                            for (keyword, (requirement, _)) in rule.keyword_args.iter() {
+                            for (keyword, KeywordArgRule { requirement, requirement_error_note, .. }) in rule.keyword_args.iter() {
                                 if let Requirement::Must = requirement {
                                     if spans_by_keyword.get(keyword).is_none() {
                                         session.errors.push(Error {
                                             kind: ErrorKind::MissingKeywordArgument(*keyword),
                                             spans: merged_span.simple_error(),
-                                            note: None,
+                                            note: requirement_error_note.clone(),
                                         });
                                     }
                                 }
@@ -260,7 +327,7 @@ impl Attribute {
 
                                     for ast_arg in positional_args.iter() {
                                         match Expr::from_ast(ast_arg, session) {
-                                            Ok(arg) => match check_arg_type(&arg, arg_type, session) {
+                                            Ok(arg) => match check_arg_type(&arg, rule.arg_type, &rule.arg_type_error_note, session) {
                                                 Ok(()) => {
                                                     args.push(arg);
                                                 },
@@ -274,7 +341,7 @@ impl Attribute {
                                         }
                                     }
 
-                                    decorators.insert(name, Decorator {
+                                    decorators.insert(name.clone(), Decorator {
                                         args,
                                         keyword_args,
                                     });
@@ -284,13 +351,13 @@ impl Attribute {
                                     session.errors.push(Error {
                                         kind: error_kind,
                                         spans: error_span,
-                                        note: None,
+                                        note: rule.arg_count_error_note.clone(),
                                     });
                                 },
                             }
                         },
                         (_, None) => {
-                            decorators.insert(name, Decorator {
+                            decorators.insert(name.clone(), Decorator {
                                 args: vec![],
                                 keyword_args: HashMap::new(),
                             });
@@ -302,7 +369,7 @@ impl Attribute {
                     has_error = true;
                     session.errors.push(Error {
                         kind: ErrorKind::InvalidDecorator(join_decorator_name(&name, session)),
-                        spans: _,
+                        spans: merged_span.simple_error(),
                         note: None,
                     });
                 },
@@ -321,7 +388,7 @@ impl Attribute {
         for (name, spans) in spans_by_name.iter() {
             if spans.len() > 1 {
                 has_error = true;
-                errors.push(Error {
+                session.errors.push(Error {
                     kind: ErrorKind::RedundantDecorator(join_decorator_name(name, session)),
                     spans: spans.iter().map(
                         |span| RenderableSpan {
@@ -343,15 +410,39 @@ impl Attribute {
             Ok(Attribute {
                 doc_comment,
                 decorators,
-                public,
+                visibility,
             })
+        }
+    }
+
+    pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
+        match self.decorators.get(&vec![intern_string(b"lang_item", intermediate_dir).unwrap()]) {
+            Some(d) => match d.args.get(0) {
+                Some(Expr::String { s, .. }) => Some(String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string()),
+                _ => unreachable!(),
+            },
+            None => None,
+        }
+    }
+
+    pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<Vec<String>> {
+        match self.decorators.get(&vec![intern_string(b"lang_item_generics", intermediate_dir).unwrap()]) {
+            Some(d) => Some(d.args.iter().map(
+                |arg| match arg {
+                    Expr::String { s, .. } => String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string(),
+                    _ => unreachable!(),
+                }
+            ).collect()),
+            None => None,
         }
     }
 }
 
 pub struct AttributeRule {
     pub doc_comment: Requirement,
-    pub publicity: Requirement,
+    pub doc_comment_error_note: Option<String>,
+    pub visibility: Requirement,
+    pub visibility_error_note: Option<String>,
     pub decorators: HashMap<Vec<InternedString>, DecoratorRule>,
 }
 
@@ -363,7 +454,26 @@ pub enum Requirement {
 }
 
 #[derive(Clone, Debug)]
-pub struct Public;
+pub struct Visibility {
+    pub keyword_span: Option<Span>,
+    // TODO: more fields
+}
+
+impl Visibility {
+    pub fn from_ast(ast_visibility: &ast::Visibility, session: &mut Session) -> Result<Visibility, ()> {
+        todo!()
+    }
+
+    pub fn private() -> Visibility {
+        Visibility {
+            keyword_span: None,
+        }
+    }
+
+    pub fn is_public(&self) -> bool {
+        todo!()
+    }
+}
 
 pub struct Decorator {
     pub args: Vec<Expr>,
@@ -378,9 +488,18 @@ pub struct DecoratorRule {
     // `ArgCount::Zero` is `@note()`, while `Requirement::Never` is `@note`.
     pub arg_requirement: Requirement,
     pub arg_count: ArgCount,
+    pub arg_count_error_note: Option<String>,
     pub arg_type: ArgType,
+    pub arg_type_error_note: Option<String>,
 
-    pub keyword_args: HashMap<InternedString, (Requirement, ArgType)>,
+    pub keyword_args: HashMap<InternedString, KeywordArgRule>,
+}
+
+pub struct KeywordArgRule {
+    pub requirement: Requirement,
+    pub requirement_error_note: Option<String>,
+    pub arg_type: ArgType,
+    pub arg_type_error_note: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -398,9 +517,28 @@ pub enum ArgCount {
 }
 
 fn join_decorator_name(name: &[InternedString], session: &Session) -> InternedString {
-    todo!()
+    let uninterned_name = name.iter().map(
+        |name| unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()
+    ).collect::<Vec<_>>();
+    let joined_name = uninterned_name.join(&(b"."[..]));
+    intern_string(&joined_name, &session.intermediate_dir).unwrap()
 }
 
-fn check_arg_type(arg: &Expr, arg_type: ArgType, session: &mut Session) -> Result<(), ()> {
-    todo!()
+fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, session: &mut Session) -> Result<(), ()> {
+    match (arg_type, arg) {
+        (ArgType::Expr, _) => Ok(()),
+        (ArgType::StringLiteral, Expr::String { .. }) => Ok(()),
+        (ArgType::StringLiteral, _) => {
+            session.errors.push(Error {
+                // It's not a type error. An f-string token has type `String`, but it's still an error.
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::String,
+                    got: ErrorToken::Expr,
+                },
+                spans: arg.error_span().simple_error(),
+                note: error_note.clone(),
+            });
+            Err(())
+        },
+    }
 }

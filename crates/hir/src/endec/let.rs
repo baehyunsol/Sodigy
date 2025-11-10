@@ -1,4 +1,4 @@
-use crate::{Expr, Let, LetOrigin, Public, Type};
+use crate::{Expr, Let, LetOrigin, Type, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::NameOrigin;
 use sodigy_span::Span;
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 impl Endec for Let {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.public.encode_impl(buffer);
+        self.visibility.encode_impl(buffer);
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -18,7 +18,7 @@ impl Endec for Let {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (public, cursor) = Public::decode_impl(buffer, cursor)?;
+        let (visibility, cursor) = Visibility::decode_impl(buffer, cursor)?;
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
@@ -29,7 +29,7 @@ impl Endec for Let {
 
         Ok((
             Let {
-                public,
+                visibility,
                 keyword_span,
                 name,
                 name_span,

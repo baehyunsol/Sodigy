@@ -1,4 +1,12 @@
-use crate::{Expr, Public, Session, Type};
+use crate::{
+    Attribute,
+    AttributeRule,
+    Expr,
+    Requirement,
+    Session,
+    Type,
+    Visibility,
+};
 use sodigy_name_analysis::{NameOrigin, Namespace};
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -7,7 +15,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Let {
-    pub public: Public,
+    pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -30,18 +38,28 @@ impl Let {
     pub fn from_ast(
         ast_let: &ast::Let,
         session: &mut Session,
-        top_level: bool,
+        is_top_level: bool,
     ) -> Result<Let, ()> {
         let mut has_error = false;
         let mut r#type = None;
 
-        let public = match Public::from_ast(&ast_let.attribute.public, session) {
-            Ok(p) => Some(p),
+        // TODO: I want it to be static
+        let attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
+            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            visibility_error_note: Some(String::from("Only top-level items can be public.")),
+            decorators: HashMap::new(),
+        };
+
+        let attribute = match Attribute::from_ast(&ast_let.attribute, session, &attribute_rule, ast_let.keyword_span) {
+            Ok(attribute) => attribute,
             Err(()) => {
                 has_error = true;
-                None
+                Attribute::new()
             },
         };
+        let visibility = attribute.visibility;
 
         if let Some(ast_type) = &ast_let.r#type {
             match Type::from_ast(ast_type, session) {
@@ -75,13 +93,13 @@ impl Let {
 
         else {
             Ok(Let {
-                public: public.unwrap(),
+                visibility,
                 keyword_span: ast_let.keyword_span,
                 name: ast_let.name,
                 name_span: ast_let.name_span,
                 r#type,
                 value: value.unwrap(),
-                origin: if top_level {
+                origin: if is_top_level {
                     LetOrigin::TopLevel
                 } else {
                     LetOrigin::Inline

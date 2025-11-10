@@ -1,4 +1,4 @@
-use crate::{Attribute, CallArg, Decorator, DocComment, DocCommentLine, Public};
+use crate::{Attribute, CallArg, Decorator, DocComment, DocCommentLine, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -7,19 +7,19 @@ impl Endec for Attribute {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.doc_comment.encode_impl(buffer);
         self.decorators.encode_impl(buffer);
-        self.public.encode_impl(buffer);
+        self.visibility.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (doc_comment, cursor) = Option::<DocComment>::decode_impl(buffer, cursor)?;
         let (decorators, cursor) = Vec::<Decorator>::decode_impl(buffer, cursor)?;
-        let (public, cursor) = Option::<Public>::decode_impl(buffer, cursor)?;
+        let (visibility, cursor) = Option::<Visibility>::decode_impl(buffer, cursor)?;
 
         Ok((
             Attribute {
                 doc_comment,
                 decorators,
-                public,
+                visibility,
             },
             cursor,
         ))
@@ -90,7 +90,7 @@ impl Endec for Decorator {
     }
 }
 
-impl Endec for Public {
+impl Endec for Visibility {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.keyword_span.encode_impl(buffer);
         self.args.encode_impl(buffer);
@@ -103,7 +103,7 @@ impl Endec for Public {
         let (arg_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
 
         Ok((
-            Public {
+            Visibility {
                 keyword_span,
                 args,
                 arg_group_span

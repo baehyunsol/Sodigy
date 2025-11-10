@@ -31,9 +31,13 @@ impl ErrorLevel {
             ErrorKind::UnexpectedToken { .. } |
             ErrorKind::UnexpectedEof { .. } |
             ErrorKind::UnexpectedEog { .. } |
+            ErrorKind::MissingDocComment |
             ErrorKind::DocCommentForNothing |
             ErrorKind::DocCommentNotAllowed |
+            ErrorKind::MissingDecorator(_) |
             ErrorKind::DecoratorNotAllowed |
+            ErrorKind::UnexpectedDecorator(_) |
+            ErrorKind::MissingVisibility |
             ErrorKind::CannotBePublic |
             ErrorKind::BlockWithoutValue |
             ErrorKind::StructWithoutField |
@@ -64,6 +68,7 @@ impl ErrorLevel {
             ErrorKind::AliasResolveRecursionLimitReached |
             ErrorKind::MissingTypeArgument { .. } |
             ErrorKind::UnexpectedTypeArgument { .. } |
+            ErrorKind::MissingKeywordArgument(_) |
             ErrorKind::InvalidKeywordArgument(_) |
             ErrorKind::MissingArgument { .. } |
             ErrorKind::UnexpectedArgument { .. } |

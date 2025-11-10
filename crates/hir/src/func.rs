@@ -1,11 +1,13 @@
 use crate::{
+    Attribute,
+    AttributeRule,
     Expr,
     Let,
     LetOrigin,
-    Public,
+    Requirement,
     Session,
-    StdAttribute,
     Type,
+    Visibility,
 };
 use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
@@ -23,7 +25,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
-    pub public: Public,
+    pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -32,7 +34,6 @@ pub struct Func {
     pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
-    pub std_attribute: StdAttribute,
 
     // We have to distinguish closures and lambda functions
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
@@ -74,23 +75,6 @@ impl Func {
         is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
-
-        let std_attribute = match StdAttribute::from_ast(&ast_func.attribute, session) {
-            Ok(a) => a,
-            Err(()) => {
-                has_error = true;
-                StdAttribute::new()
-            },
-        };
-
-        let public = match Public::from_ast(&ast_func.attribute.public, session) {
-            Ok(p) => Some(p),
-            Err(()) => {
-                has_error = true;
-                None
-            },
-        };
-
         let mut func_arg_names = HashMap::new();
         let mut func_arg_index = HashMap::new();
         let mut generic_names = HashMap::new();
@@ -114,6 +98,43 @@ impl Func {
             names: generic_names,
             index: generic_index,
         });
+
+        // TODO: I want it to be static
+        let attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
+            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            visibility_error_note: Some(String::from("Only top-level items can be public.")),
+            decorators: HashMap::new(),
+        };
+
+        // TODO: Can the attributes use func args and generics?
+        //       As of now, yes. But I have to think more about its spec.
+        let attribute = match Attribute::from_ast(&ast_func.attribute, session, &attribute_rule, ast_func.keyword_span) {
+            Ok(attribute) => attribute,
+            Err(()) => {
+                has_error = true;
+                Attribute::new()
+            },
+        };
+        let visibility = attribute.visibility.clone();
+
+        if let Some(lang_item) = attribute.lang_item(&session.intermediate_dir) {
+            session.lang_items.insert(lang_item, ast_func.name_span);
+        }
+
+        if let Some(lang_item_generics) = attribute.lang_item_generics(&session.intermediate_dir) {
+            if lang_item_generics.len() == ast_func.generics.len() {
+                for i in 0..ast_func.generics.len() {
+                    session.lang_items.insert(lang_item_generics[i].to_string(), ast_func.generics[i].name_span);
+                }
+            }
+
+            else {
+                // What kinda error should it throw?
+                todo!()
+            }
+        }
 
         // We have to lower args before pushing args to the name_stack because
         // 1. Sodigy doesn't allow dependent types.
@@ -212,7 +233,7 @@ impl Func {
 
         else {
             Ok(Func {
-                public: public.unwrap(),
+                visibility,
                 keyword_span: ast_func.keyword_span,
                 name: ast_func.name,
                 name_span: ast_func.name_span,
@@ -221,7 +242,6 @@ impl Func {
                 r#type,
                 value: value.unwrap(),
                 origin,
-                std_attribute,
                 foreign_names,
                 use_counts,
             })
@@ -262,7 +282,7 @@ impl FuncArgDef<Type> {
                 Ok(v) => {
                     let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
                     session.push_func_default_value(Let {
-                        public: Public::private(),
+                        visibility: Visibility::private(),
                         keyword_span: Span::None,
                         name: ast_arg.name,
                         name_span: ast_arg.name_span,

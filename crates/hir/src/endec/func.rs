@@ -4,9 +4,8 @@ use crate::{
     Func,
     FuncArgDef,
     FuncOrigin,
-    Public,
-    StdAttribute,
     Type,
+    Visibility,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin, UseCount};
@@ -17,7 +16,7 @@ use std::collections::HashMap;
 
 impl Endec for Func {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        self.public.encode_impl(buffer);
+        self.visibility.encode_impl(buffer);
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -26,13 +25,12 @@ impl Endec for Func {
         self.r#type.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
-        self.std_attribute.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
         self.use_counts.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (public, cursor) = Public::decode_impl(buffer, cursor)?;
+        let (visibility, cursor) = Visibility::decode_impl(buffer, cursor)?;
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
@@ -41,13 +39,12 @@ impl Endec for Func {
         let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
-        let (std_attribute, cursor) = StdAttribute::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
         let (use_counts, cursor) = HashMap::<InternedString, UseCount>::decode_impl(buffer, cursor)?;
 
         Ok((
             Func {
-                public,
+                visibility,
                 keyword_span,
                 name,
                 name_span,
@@ -56,7 +53,6 @@ impl Endec for Func {
                 r#type,
                 value,
                 origin,
-                std_attribute,
                 foreign_names,
                 use_counts,
             },
