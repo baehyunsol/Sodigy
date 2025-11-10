@@ -55,6 +55,8 @@ impl Session {
             Expr::Identifier(_) |
             Expr::Number { .. } |
             Expr::String { .. } |
+            Expr::Char { .. } |
+            Expr::Byte { .. } |
             Expr::Path { .. } |
             Expr::FieldModifier { .. } => {},
 

@@ -1,13 +1,23 @@
-# 70. Attribute Parser
+# 71. Wildcard
 
-1. 지금 `AssertAttribute::from_ast` 한번 보셈. 무지하게 긺. 이거를 struct/enum/func/let/module/use에 전부 다하게 생겼음...
-  - 당장 `StdAttribute::from_ast`만 해도 막막함
-  - we need some kinda macro!!
-    - macro가 됐든 적절히 함수로 감싸든 뭔가 factoring이 필요함!!
-  - 하는김에 publicity랑 doc_comment도 같이 잡아버리자!!
-2. 지금은 `parse::Tokens::parse_block`에서 잘못된 attribute를 어느정도 거르고 넘어가지? 그러지말고, attribute error도 전부 hir에서 잡자.
-  - hir이 정보도 더 많고, 비슷한 코드는 비슷한 위치에 있는게 낫고, 에러는 최대한 뒤에서 만드는게 나음!!
-3. 지금은 `XXXAttribute::from_ast`에서 이름 모르는 decorator 있으면 에러내잖아? 근데 한 func에 대해서 `StdAttribute`도 뽑고 `FuncAttribute`도 뽑을려면 이렇게 하면 안됨...
+lexer는 Identifer로 잡은 다음에 parser가 Wildcard로 바꾸기 vs lexer가 Wildcard로 잡아버리기!
+
+Wildcard 사용처를 생각해보자
+
+1. pattern matching
+  - `_`로 시작하는 이름은 unused_name 안 날리기? -> 이거 구현하면 사실 그냥 identifer랑 다를게 없음
+    - 아니다 살짝 다르네, `_`로 name binding 여러개 해도 오류 날리면 안되니까!!
+2. function argument
+  - `_`로 시작하는 이름은 unused_name 안 날리기? -> 이거 구현하면 사실 그냥 identifer랑 다를게 없음
+  - 이것도 살짝 더 생각해야함. `_`로 된 func arg 여러개 선언하면 오류 날릴 거임?
+    - 와 rust에서는 `_`로 된 func arg 여러개 선언하는 거 가능하네!!
+  - 그럼 `foo(3, _=4, _=5)` 하면 오류 날려야하는데??
+3. type annotation
+  - 여기서는 좀 special treatment가 필요함! 어차피 special treatment 할 거면 아예 구분하자 이거지
+
+생각해보니까 identifier가 쓰이는 모든 곳을 다 고쳐야함... 흠 좀 빡셀 거 같기는 한데 ㅠㅠ
+
+그럼 `_`로 시작하는 이름은 unused_name 안 날리는 것만 구현하자!
 
 # 69. trait/method/operator overloading
 

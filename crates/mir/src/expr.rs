@@ -21,6 +21,14 @@ pub enum Expr {
         s: InternedString,
         span: Span,
     },
+    Char {
+        ch: u32,
+        span: Span,
+    },
+    Byte {
+        b: u8,
+        span: Span,
+    },
     If(If),
     Match(Match),
     Block(Block),
@@ -89,10 +97,14 @@ impl Expr {
                 s: *s,
                 span: *span,
             }),
-
-            // TODO: declare `mir::Expr::Char` vs `mir::Expr::Call { char_init, ch }`
-            hir::Expr::Char { ch, span } => todo!(),
-            hir::Expr::Byte { b, span } => todo!(),
+            hir::Expr::Char { ch, span } => Ok(Expr::Char {
+                ch: *ch,
+                span: *span,
+            }),
+            hir::Expr::Byte { b, span } => Ok(Expr::Byte {
+                b: *b,
+                span: *span,
+            }),
 
             hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
                 Ok(r#if) => Ok(Expr::If(r#if)),
@@ -466,7 +478,7 @@ impl Expr {
 
                             match field_index {
                                 Some(i) => {
-                                    if let Some(mir_field) = &mir_fields[i] {
+                                    if mir_fields[i].is_some() {
                                         match repeated_fields.entry(hir_field.name) {
                                             Entry::Occupied(mut e) => {
                                                 e.get_mut().push(RenderableSpan {
@@ -675,7 +687,9 @@ impl Expr {
         match self {
             Expr::Identifier(id) => id.span,
             Expr::Number { span, .. } |
-            Expr::String { span, .. } => *span,
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => todo!(),
             Expr::Block(block) => block.group_span,
