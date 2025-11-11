@@ -39,8 +39,8 @@ impl TryFrom<Punct> for PrefixOp {
             Punct::AndAnd | Punct::OrOr |
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |
-            Punct::Concat | Punct::Arrow |
-            Punct::DotDot | Punct::DotDotEq |
+            Punct::Concat | Punct::Append | Punct::Prepend |
+            Punct::Arrow | Punct::DotDot | Punct::DotDotEq |
             Punct::ReturnType => Err(()),
         }
     }

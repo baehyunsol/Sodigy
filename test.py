@@ -8,6 +8,7 @@ import sys
 
 args = sys.argv
 no_clean = "--no-clean" in args
+no_std = "--no-std" in args
 args = [arg for arg in args if not arg.startswith("-")]
 filter = args[1] if len(args) > 1 else None
 sample_files = []
@@ -38,7 +39,8 @@ try:
             with open("lib.sdg", "w") as f:
                 f.write(sample)
 
-            p = subprocess.run(["../../target/debug/sodigy", "test"], timeout=20)
+            flags = ["--no-std"] if no_std else []
+            p = subprocess.run(["../../target/debug/sodigy", "test", *flags], timeout=20)
 
             if p.returncode == 0:
                 status = "success"

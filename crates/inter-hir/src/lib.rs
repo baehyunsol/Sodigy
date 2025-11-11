@@ -7,8 +7,9 @@ use sodigy_hir::{
     Type,
     Use,
 };
-use sodigy_name_analysis::NameKind;
+use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::InternedString;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -65,7 +66,7 @@ impl Session {
 
         let mut children = HashMap::new();
 
-        for (name, span, _) in hir_session.iter_public_names() {
+        for (name, span, _) in hir_session.iter_item_names() {
             children.insert(name, span);
         }
 
@@ -77,6 +78,10 @@ impl Session {
                 children,
             ),
         );
+
+        for (name, span) in hir_session.lang_items.into_iter() {
+            self.lang_items.insert(name, span);
+        }
     }
 
     pub fn resolve(&mut self, hir_session: &mut sodigy_hir::Session) {
@@ -120,6 +125,22 @@ impl Session {
         }
 
         // TODO: structs, enums, asserts
+
+        let mut external_names: HashMap<Span, InternedString> = HashMap::new();
+
+        for r#use in self.name_aliases.values() {
+            if let NameOrigin::External = r#use.root.origin {
+                external_names.insert(r#use.root.span, r#use.root.id);
+            }
+        }
+
+        for (span, name) in external_names.iter() {
+            self.errors.push(Error {
+                kind: ErrorKind::UndefinedName(*name),
+                spans: span.simple_error(),
+                note: None,
+            });
+        }
     }
 
     // If there's `use x as y;` and `use y as z;`, we have to

@@ -78,12 +78,15 @@ pub fn lower(parse_session: ParseSession) -> Session {
         session.asserts.push(assert);
     }
 
-    let Namespace::Block { names } = session.name_stack.pop().unwrap() else { unreachable!() };
+    // std does not have preludes
+    if !session.is_std {
+        let Namespace::Block { names } = session.name_stack.pop().unwrap() else { unreachable!() };
 
-    // If the code ever mentions `Int`, we have to add `use std.preludes.Int;`.
-    for (name, (_, _, count)) in names.iter() {
-        if !count.never_ever() {
-            session.uses.push(prelude::use_prelude(*name));
+        // If the code ever mentions `Int`, we have to add `use std.preludes.Int;`.
+        for (name, (_, _, count)) in names.iter() {
+            if !count.never_ever() {
+                session.uses.push(prelude::use_prelude(*name));
+            }
         }
     }
 

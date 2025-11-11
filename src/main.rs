@@ -56,6 +56,7 @@ fn main() -> Result<(), Error> {
             },
             CliCommand::Test {
                 optimization,
+                import_std,
                 jobs,
             } => {
                 goto_root_dir()?;
@@ -89,17 +90,17 @@ fn main() -> Result<(), Error> {
                                 // for debugging
                                 EmitIrOption {
                                     stage: CompileStage::Lex,
-                                    store: StoreIrAt::File(String::from("tokens.rs")),
+                                    store: StoreIrAt::IntermediateDir,
                                     human_readable: true,
                                 },
                                 EmitIrOption {
                                     stage: CompileStage::Parse,
-                                    store: StoreIrAt::File(String::from("ast.rs")),
+                                    store: StoreIrAt::IntermediateDir,
                                     human_readable: true,
                                 },
                                 EmitIrOption {
                                     stage: CompileStage::Hir,
-                                    store: StoreIrAt::File(String::from("hir.rs")),
+                                    store: StoreIrAt::IntermediateDir,
                                     human_readable: true,
                                 },
 
@@ -127,36 +128,38 @@ fn main() -> Result<(), Error> {
                 run_id += 1;
 
                 // compile std
-                let (input_module_path, input_file_path) = sodigy_file::std_root();
-                workers[run_id % workers.len()].send(MessageToWorker::Run {
-                    commands: vec![
-                        Command::InitIrDir {
-                            intermediate_dir: String::from("target"),
-                        },
-                        Command::Compile {
-                            input_file_path,
-                            input_module_path,
-                            intermediate_dir: String::from("target"),
-                            emit_ir_options: vec![
-                                // cache hir for incremental compilation
-                                EmitIrOption {
-                                    stage: CompileStage::Hir,
-                                    store: StoreIrAt::IntermediateDir,
-                                    human_readable: false,
-                                },
-                            ],
-                            dump_type_info: false,
-                            output_path: None,
-                            backend: Backend::Bytecode,  // doesn't matter
-                            stop_after: CompileStage::Hir,
-                            profile: Profile::Test,
-                            optimization,
-                        },
-                    ],
-                    id: run_id,
-                })?;
-                unfinished_runs.insert(run_id);
-                run_id += 1;
+                if import_std {
+                    let (input_module_path, input_file_path) = sodigy_file::std_root();
+                    workers[run_id % workers.len()].send(MessageToWorker::Run {
+                        commands: vec![
+                            Command::InitIrDir {
+                                intermediate_dir: String::from("target"),
+                            },
+                            Command::Compile {
+                                input_file_path,
+                                input_module_path,
+                                intermediate_dir: String::from("target"),
+                                emit_ir_options: vec![
+                                    // cache hir for incremental compilation
+                                    EmitIrOption {
+                                        stage: CompileStage::Hir,
+                                        store: StoreIrAt::IntermediateDir,
+                                        human_readable: false,
+                                    },
+                                ],
+                                dump_type_info: false,
+                                output_path: None,
+                                backend: Backend::Bytecode,  // doesn't matter
+                                stop_after: CompileStage::Hir,
+                                profile: Profile::Test,
+                                optimization,
+                            },
+                        ],
+                        id: run_id,
+                    })?;
+                    unfinished_runs.insert(run_id);
+                    run_id += 1;
+                }
 
                 // loop 1: generate hir of all files
                 loop {
@@ -204,7 +207,14 @@ fn main() -> Result<(), Error> {
                                 MessageToMain::RunComplete { id } => {
                                     unfinished_runs.remove(&id);
                                 },
-                                MessageToMain::Error(e) => {
+                                MessageToMain::Error { id, e } => {
+                                    unfinished_runs.remove(&id);
+
+                                    // Kinda graceful shutdown, so that workers can dump their error messages
+                                    if !unfinished_runs.is_empty() {
+                                        thread::sleep(Duration::from_millis(200));
+                                    }
+
                                     return Err(e);
                                 },
                             },
@@ -243,7 +253,14 @@ fn main() -> Result<(), Error> {
                                 MessageToMain::RunComplete { id } => {
                                     unfinished_runs.remove(&id);
                                 },
-                                MessageToMain::Error(e) => {
+                                MessageToMain::Error { id, e } => {
+                                    unfinished_runs.remove(&id);
+
+                                    // Kinda graceful shutdown, so that workers can dump their error messages
+                                    if !unfinished_runs.is_empty() {
+                                        thread::sleep(Duration::from_millis(200));
+                                    }
+
                                     return Err(e);
                                 },
                             },
@@ -284,7 +301,7 @@ fn main() -> Result<(), Error> {
                                 // for debugging
                                 EmitIrOption {
                                     stage: CompileStage::Mir,
-                                    store: StoreIrAt::File(String::from("mir.rs")),
+                                    store: StoreIrAt::IntermediateDir,
                                     human_readable: true,
                                 },
                             ],
@@ -312,7 +329,14 @@ fn main() -> Result<(), Error> {
                                 MessageToMain::RunComplete { id } => {
                                     unfinished_runs.remove(&id);
                                 },
-                                MessageToMain::Error(e) => {
+                                MessageToMain::Error { id, e } => {
+                                    unfinished_runs.remove(&id);
+
+                                    // Kinda graceful shutdown, so that workers can dump their error messages
+                                    if !unfinished_runs.is_empty() {
+                                        thread::sleep(Duration::from_millis(200));
+                                    }
+
                                     return Err(e);
                                 },
                             },
@@ -648,11 +672,20 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 emit_irs_if_has_to(
                     &inter_hir_session,
-                    &[EmitIrOption {
-                        stage: CompileStage::InterHir,
-                        store: StoreIrAt::IntermediateDir,
-                        human_readable: false,
-                    }],
+                    &[
+                        EmitIrOption {
+                            stage: CompileStage::InterHir,
+                            store: StoreIrAt::IntermediateDir,
+                            human_readable: false,
+                        },
+
+                        // debug
+                        EmitIrOption {
+                            stage: CompileStage::InterHir,
+                            store: StoreIrAt::IntermediateDir,
+                            human_readable: true,
+                        },
+                    ],
                     CompileStage::InterHir,
                     None,
                     &intermediate_dir,

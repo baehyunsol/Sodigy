@@ -166,7 +166,11 @@ pub enum ErrorKind {
     },
 
     // not implemented feature in compiler
-    Todo { message: String },
+    Todo {
+        // Give an arbitrary number so that it's easy to Ctrl+Shift+F
+        id: u32,
+        message: String,
+    },
 }
 
 impl From<GetFilePathError> for ErrorKind {

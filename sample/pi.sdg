@@ -1,0 +1,72 @@
+fn pi_naive(x, y, r) = {
+    let d = if x * x + y * y < r * r { 1 } else { 0 };
+    let min = -r;
+
+    match (x, y) {
+        ($min, $min) => d,
+        (_, $min) => d + pi_naive(x - 1, r, r),
+        _ => d + pi_naive(x, y - 1, r),
+    }
+};
+
+// error is less than 0.5 percent
+let pi_approx_naive = pi_naive(50, 50, 50);
+assert 50 * 50 * 31415 / 10000 * 199 / 200 < pi_approx_naive && pi_approx_naive < 50 * 50 * 31415 / 10000 * 201 / 200;
+
+fn pi_less_naive(x, y, r) = {
+    if x == r {
+        0
+    }
+
+    else if x * x + y * y < r * r {
+        y + pi_less_naive(x + 1, r, r)
+    }
+
+    else {
+        pi_less_naive(x, y - 1, r)
+    }
+};
+
+let pi_approx_less_naive = pi_less_naive(0, 200, 200);
+assert 31400 < pi_approx_less_naive && pi_approx_less_naive < 31500;
+
+// https://en.wikipedia.org/wiki/Bailey%E2%80%93Borwein%E2%80%93Plouffe_formula
+// sum((4 / (8n + 1) - 2 / (8n + 4) - 1 / (8n + 5) - 1 / (8n + 6)) / 16^n)
+fn spigot(n, p, max_n) = {
+    let (numer, denom) = spigot_iter(n);
+
+    match n {
+        $max_n => (numer, denom * p),
+        _ => {
+            let (numer2, denom2) = spigot(n + 1, p * 16, max_n);
+            let added_numer = numer * denom2 + numer2 * denom * p;
+            let added_denom = denom * denom2 * p;
+            let r = gcd(added_numer, added_denom);
+            (added_numer / r, added_denom / r)
+        },
+    }
+};
+
+fn spigot_iter(n, p) = {
+    let d1 = 8 * n + 1;
+    let d2 = 8 * n + 4;
+    let d3 = 8 * n + 5;
+    let d4 = 8 * n + 6;
+    let n1 = 4 * d2 * d3 * d4;
+    let n2 = -2 * d1 * d3 * d4;
+    let n3 = -1 * d1 * d2 * d4;
+    let n4 = -1 * d1 * d2 * d3;
+
+    (n1 + n2 + n3 + n4, d1 * d2 * d3 * d4)
+};
+
+fn gcd(a, b) = match b {
+    0 => a,
+    _ => gcd(b, a % b),
+};
+
+let pi_approx_spigot = {
+    let (numer, denom) = spigot(0, 1, 7);
+    numer * 1_000_000_000_000 / denom
+};
+assert 3_1415_9265_358 < pi_approx_spigot && pi_approx_spigot < 3_1415_9265_359

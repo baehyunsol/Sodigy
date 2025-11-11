@@ -17,6 +17,8 @@ pub enum InfixOp {
     Geq,
     Index,
     Concat,
+    Append,
+    Prepend,
     Range { inclusive: bool },
     BitAnd,
     BitOr,
@@ -33,6 +35,13 @@ impl InfixOp {
             InfixOp::Mul => "op.mul",
             InfixOp::Div => "op.div",
             InfixOp::Rem => "op.rem",
+            InfixOp::Shl => "op.shl",
+            InfixOp::Shr => "op.shr",
+            InfixOp::Lt => "op.lt",
+            InfixOp::Eq => "op.eq",
+            InfixOp::Gt => "op.gt",
+            InfixOp::Append => "op.append",
+            InfixOp::Prepend => "op.prepend",
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -40,6 +49,15 @@ impl InfixOp {
     pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
         match self {
             InfixOp::Add => vec!["op.add.generic.0", "op.add.generic.1", "op.add.generic.1"],
+            InfixOp::Sub => vec!["op.sub.generic.0", "op.sub.generic.1", "op.sub.generic.1"],
+            InfixOp::Mul => vec!["op.mul.generic.0", "op.mul.generic.1", "op.mul.generic.1"],
+            InfixOp::Div => vec!["op.div.generic.0", "op.div.generic.1", "op.div.generic.1"],
+            InfixOp::Rem => vec!["op.rem.generic.0", "op.rem.generic.1", "op.rem.generic.1"],
+            InfixOp::Shl => vec!["op.shl.generic.0", "op.shl.generic.1", "op.shl.generic.1"],
+            InfixOp::Shr => vec!["op.shr.generic.0", "op.shr.generic.1", "op.shr.generic.1"],
+            InfixOp::Lt => vec!["op.lt.generic.0"],
+            InfixOp::Eq => vec!["op.eq.generic.0"],
+            InfixOp::Gt => vec!["op.gt.generic.0"],
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -69,6 +87,8 @@ impl TryFrom<Punct> for InfixOp {
             Punct::AndAnd => Ok(InfixOp::LogicAnd),
             Punct::OrOr => Ok(InfixOp::LogicOr),
             Punct::Concat => Ok(InfixOp::Concat),
+            Punct::Append => Ok(InfixOp::Append),
+            Punct::Prepend => Ok(InfixOp::Prepend),
             Punct::DotDot => Ok(InfixOp::Range { inclusive: false }),
             Punct::DotDotEq => Ok(InfixOp::Range { inclusive: true }),
             // Do not use a wildcard!

@@ -58,9 +58,15 @@ pub struct Session {
 
 impl Session {
     pub fn from_parse_session(parse_session: &ParseSession) -> Self {
+        let name_stack = if parse_session.is_std {
+            vec![]
+        } else {
+            vec![prelude_namespace(&parse_session.intermediate_dir)]
+        };
+
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
-            name_stack: vec![prelude_namespace(&parse_session.intermediate_dir)],
+            name_stack,
             func_default_values: vec![],
             is_in_debug_context: false,
             is_std: parse_session.is_std,
@@ -78,53 +84,35 @@ impl Session {
         }
     }
 
-    // TODO: more fine-grained filtering for visibility
-    pub fn iter_public_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
-        self.lets.iter().filter(
-            |r#let| r#let.visibility.is_public()
-        ).map(
+    // TODO: return visibility
+    pub fn iter_item_names(&self) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
+        self.lets.iter().map(
             |r#let| (r#let.name, r#let.name_span, NameKind::Let { is_top_level: r#let.origin == LetOrigin::TopLevel })
         ).chain(
-            self.funcs.iter().filter(
-                |func| func.visibility.is_public()
-            ).map(
+            self.funcs.iter().map(
                 |func| (func.name, func.name_span, NameKind::Func)
             )
         ).chain(
-            self.structs.iter().filter(
-                |r#struct| r#struct.visibility.is_public()
-            ).map(
+            self.structs.iter().map(
                 |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
             )
         )
         // TODO: `enum` is not worked yet
         // .chain(
-        //     self.enums.iter().filter(
-        //         |r#enum| r#enum.visibility.is_public()
-        //     ).map(
+        //     self.enums.iter().map(
         //         |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
         //     )
         // )
         .chain(
-            self.aliases.iter().filter(
-                // TODO
-                // |alias| alias.visibility.is_public()
-                |_| true
-            ).map(
+            self.aliases.iter().map(
                 |alias| (alias.name, alias.name_span, NameKind::Alias)
             )
         ).chain(
-            self.uses.iter().filter(
-                // TODO
-                // |r#use| r#use.visibility.is_public()
-                |_| true
-            ).map(
+            self.uses.iter().map(
                 |r#use| (r#use.name, r#use.name_span, NameKind::Use)
             )
         ).chain(
-            self.modules.iter().filter(
-                |module| module.visibility.is_public()
-            ).map(
+            self.modules.iter().map(
                 |module| (module.name, module.name_span, NameKind::Use)
             )
         )

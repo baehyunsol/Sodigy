@@ -520,7 +520,10 @@ pub struct Visibility {
 
 impl Visibility {
     pub fn from_ast(ast_visibility: &ast::Visibility, session: &mut Session) -> Result<Visibility, ()> {
-        todo!()
+        Ok(Visibility {
+            keyword_span: Some(ast_visibility.keyword_span),
+            // TODO: more fields
+        })
     }
 
     pub fn private() -> Visibility {
@@ -530,7 +533,8 @@ impl Visibility {
     }
 
     pub fn is_public(&self) -> bool {
-        todo!()
+        // TODO: more fine-grained visibility control
+        self.keyword_span.is_some()
     }
 }
 

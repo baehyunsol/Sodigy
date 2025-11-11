@@ -126,6 +126,60 @@ A byte is like an integer, but is always greater than or equal to 0 and less tha
   - `#o377`
   - `#b11111111`
 
+## Operators
+
+### `++`
+
+Concat operator
+
+```
+assert "Hello, " ++ "World!" == "Hello, World!";
+assert [1, 2, 3] ++ [4, 5, 6] == [1, 2, 3, 4, 5, 6];
+```
+
+### `+>`
+
+Prepend operator
+
+```
+assert 3 +> [4, 5, 6] == [3, 4, 5, 6];
+assert 'a' +> "bcd" == "abcd";
+```
+
+### `<+`
+
+Append operator
+
+```
+assert [1, 2, 3] <+ 4 == [1, 2, 3, 4];
+assert "abc" <+ 'd' == "abcd";
+```
+
+### `>>`
+
+Right shift operator
+
+```
+assert 1000 >> 2 == 250;
+```
+
+### `<<`
+
+Left shift operator
+
+```
+assert 1 << 16 == 65536;
+```
+
+### `^`
+
+Xor operator
+
+```
+assert 0xf0f0 ^ 0x0f0f == 0xffff;
+assert 0x1234 ^ 0x5678 == 0x444c;
+```
+
 ## Type annotations
 
 Syntactically, type annotations are always optional. It won't throw any syntax error for missing type annotations. But, it's a compile error if the inference engine cannot infer the type.

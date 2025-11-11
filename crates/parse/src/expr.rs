@@ -609,19 +609,21 @@ fn prefix_binding_power(op: PrefixOp) -> u32 {
 
 fn infix_binding_power(op: InfixOp) -> (u32, u32) {
     match op {
-        InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
+        InfixOp::Index => (INDEX, INDEX + 1),
         InfixOp::Mul | InfixOp::Div | InfixOp::Rem => (MUL, MUL + 1),
+        InfixOp::Add | InfixOp::Sub => (ADD, ADD + 1),
+        InfixOp::Shl | InfixOp::Shr => (SHIFT, SHIFT + 1),
+        InfixOp::BitAnd => (BIT_AND, BIT_AND + 1),
+        InfixOp::Xor => (XOR, XOR + 1),
+        InfixOp::BitOr => (BIT_OR, BIT_OR + 1),
+        InfixOp::Range { .. } => (RANGE, RANGE + 1),
+        InfixOp::Append => (APPEND, APPEND + 1),
+        InfixOp::Prepend => (PREPEND, PREPEND + 1),
+        InfixOp::Concat => (CONCAT, CONCAT + 1),
         InfixOp::Lt | InfixOp::Gt | InfixOp::Leq | InfixOp::Geq => (COMP, COMP + 1),
         InfixOp::Eq | InfixOp::Neq => (COMP_EQ, COMP_EQ + 1),
-        InfixOp::Shl | InfixOp::Shr => (SHIFT, SHIFT + 1),
-        InfixOp::Index => (INDEX, INDEX + 1),
-        InfixOp::Range { .. } => (RANGE, RANGE + 1),
-        InfixOp::Concat => (CONCAT, CONCAT + 1),
-        InfixOp::BitAnd => (BIT_AND, BIT_AND + 1),
-        InfixOp::BitOr => (BIT_OR, BIT_OR + 1),
         InfixOp::LogicAnd => (LOGIC_AND, LOGIC_AND + 1),
         InfixOp::LogicOr => (LOGIC_OR, LOGIC_OR + 1),
-        InfixOp::Xor => (XOR, XOR + 1),
     }
 }
 
@@ -644,6 +646,9 @@ const SHIFT: u32 = 21;  // a << b, a >> b
 const BIT_AND: u32 = 19;  // a & b
 const XOR: u32 = 17;  // a ^ b
 const BIT_OR: u32 = 15;  // a | b
+
+// TODO: it has to be right associative...
+const APPEND: u32 = 13; const PREPEND: u32 = 13;
 
 // RANGE: a..b, a..=b, a.., ..a
 const CONCAT: u32 = 11; const RANGE: u32 = 11;

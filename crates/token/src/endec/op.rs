@@ -71,26 +71,32 @@ impl Endec for InfixOp {
             InfixOp::Concat => {
                 buffer.push(14);
             },
-            InfixOp::Range { inclusive: true } => {
+            InfixOp::Append => {
                 buffer.push(15);
             },
-            InfixOp::Range { inclusive: false } => {
+            InfixOp::Prepend => {
                 buffer.push(16);
             },
-            InfixOp::BitAnd => {
+            InfixOp::Range { inclusive: true } => {
                 buffer.push(17);
             },
-            InfixOp::BitOr => {
+            InfixOp::Range { inclusive: false } => {
                 buffer.push(18);
             },
-            InfixOp::LogicAnd => {
+            InfixOp::BitAnd => {
                 buffer.push(19);
             },
-            InfixOp::LogicOr => {
+            InfixOp::BitOr => {
                 buffer.push(20);
             },
-            InfixOp::Xor => {
+            InfixOp::LogicAnd => {
                 buffer.push(21);
+            },
+            InfixOp::LogicOr => {
+                buffer.push(22);
+            },
+            InfixOp::Xor => {
+                buffer.push(23);
             },
         }
     }
@@ -112,14 +118,16 @@ impl Endec for InfixOp {
             Some(12) => Ok((InfixOp::Geq, cursor + 1)),
             Some(13) => Ok((InfixOp::Index, cursor + 1)),
             Some(14) => Ok((InfixOp::Concat, cursor + 1)),
-            Some(15) => Ok((InfixOp::Range { inclusive: true }, cursor + 1)),
-            Some(16) => Ok((InfixOp::Range { inclusive: false }, cursor + 1)),
-            Some(17) => Ok((InfixOp::BitAnd, cursor + 1)),
-            Some(18) => Ok((InfixOp::BitOr, cursor + 1)),
-            Some(19) => Ok((InfixOp::LogicAnd, cursor + 1)),
-            Some(20) => Ok((InfixOp::LogicOr, cursor + 1)),
-            Some(21) => Ok((InfixOp::Xor, cursor + 1)),
-            Some(n @ 22..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(15) => Ok((InfixOp::Append, cursor + 1)),
+            Some(16) => Ok((InfixOp::Prepend, cursor + 1)),
+            Some(17) => Ok((InfixOp::Range { inclusive: true }, cursor + 1)),
+            Some(18) => Ok((InfixOp::Range { inclusive: false }, cursor + 1)),
+            Some(19) => Ok((InfixOp::BitAnd, cursor + 1)),
+            Some(20) => Ok((InfixOp::BitOr, cursor + 1)),
+            Some(21) => Ok((InfixOp::LogicAnd, cursor + 1)),
+            Some(22) => Ok((InfixOp::LogicOr, cursor + 1)),
+            Some(23) => Ok((InfixOp::Xor, cursor + 1)),
+            Some(n @ 24..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

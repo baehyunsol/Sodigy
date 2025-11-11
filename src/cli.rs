@@ -12,6 +12,7 @@ pub enum CliCommand {
         output_path: String,
         backend: Backend,
         optimization: Optimization,
+        import_std: bool,
         profile: Profile,
         emit_irs: bool,
         jobs: u32,
@@ -26,10 +27,12 @@ pub enum CliCommand {
     },
     Run {
         optimization: Optimization,
+        import_std: bool,
         jobs: u32,
     },
     Test {
         optimization: Optimization,
+        import_std: bool,
         jobs: u32,
     },
 }
@@ -44,6 +47,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
                 .optional_flag(&["--emit-irs"])
+                .optional_flag(&["--no-std"])
                 .alias("-O", "--release")
                 .short_flag(&["--output", "--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -78,6 +82,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             };
 
             let emit_irs = parsed_args.get_flag(2).is_some();
+            let import_std = !parsed_args.get_flag(3).is_some();
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
@@ -93,6 +98,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 output_path,
                 backend,
                 optimization,
+                import_std,
                 profile,
                 emit_irs,
                 jobs,
@@ -152,6 +158,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--no-std"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -167,9 +174,11 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
+            let import_std = !parsed_args.get_flag(1).is_some();
 
             Ok(CliCommand::Run {
                 optimization,
+                import_std,
                 jobs,
             })
         },
@@ -177,6 +186,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--no-std"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
                 .args(ArgType::String, ArgCount::None)
@@ -192,9 +202,11 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
+            let import_std = !parsed_args.get_flag(1).is_some();
 
             Ok(CliCommand::Test {
                 optimization,
+                import_std,
                 jobs,
             })
         },

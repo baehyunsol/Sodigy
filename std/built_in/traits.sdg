@@ -1,3 +1,5 @@
+use std.Bool;
+
 @built_in
 @lang_item("op.add")
 @lang_item_generics("op.add.generic.0", "op.add.generic.1", "op.add.generic.2")
@@ -22,3 +24,18 @@ fn div<T, U, V>(a: T, b: U) -> V = 0;
 @lang_item("op.index")
 @lang_item_generics("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")
 fn index<T, U, V>(ls: T, i: U) -> V = 0;
+
+@built_in
+@lang_item("op.lt")
+@lang_item_generics("op.lt.generic.0")
+fn lt<T>(lhs: T, rhs: T) -> Bool = 0;
+
+@built_in
+@lang_item("op.eq")
+@lang_item_generics("op.eq.generic.0")
+fn eq<T>(lhs: T, rhs: T) -> Bool = 0;
+
+@built_in
+@lang_item("op.gt")
+@lang_item_generics("op.gt.generic.0")
+fn gt<T>(lhs: T, rhs: T) -> Bool = 0;

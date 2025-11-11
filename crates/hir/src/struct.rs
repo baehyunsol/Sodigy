@@ -57,13 +57,17 @@ impl Struct {
         });
 
         // TODO: I want it to be static
-        let attribute_rule = AttributeRule {
+        let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: HashMap::new(),
         };
+
+        if session.is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
 
         let attribute = match Attribute::from_ast(&ast_struct.attribute, session, &attribute_rule, ast_struct.keyword_span) {
             Ok(attribute) => attribute,

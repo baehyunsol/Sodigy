@@ -289,8 +289,9 @@ impl Endec for ErrorKind {
                 name.encode_impl(buffer);
                 kind.encode_impl(buffer);
             },
-            ErrorKind::Todo { message } => {
+            ErrorKind::Todo { id, message } => {
                 buffer.push(72);
+                id.encode_impl(buffer);
                 message.encode_impl(buffer);
             },
         }
@@ -490,8 +491,9 @@ impl Endec for ErrorKind {
                 Ok((ErrorKind::UnusedName { name, kind }, cursor))
             },
             Some(72) => {
-                let (message, cursor) = String::decode_impl(buffer, cursor + 1)?;
-                Ok((ErrorKind::Todo { message }, cursor))
+                let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                let (message, cursor) = String::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::Todo { id, message }, cursor))
             },
             Some(n @ 73..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),

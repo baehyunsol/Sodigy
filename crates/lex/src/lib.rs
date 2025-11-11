@@ -126,7 +126,7 @@ impl Session {
                     self.cursor += 1;
                 },
                 (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => {
-                    return Err(Error::todo("lexing non-decimal integer", Span::range(self.file, self.cursor, self.cursor + 2)));
+                    return Err(Error::todo(38837, "lexing non-decimal integer", Span::range(self.file, self.cursor, self.cursor + 2)));
                 },
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
                     return Err(Error {
@@ -360,8 +360,10 @@ impl Session {
                         (b'!', b'=') => Some(Punct::Neq),
                         (b'&', b'&') => Some(Punct::AndAnd),
                         (b'+', b'+') => Some(Punct::Concat),
+                        (b'+', b'>') => Some(Punct::Prepend),
                         (b'-', b'>') => Some(Punct::ReturnType),
                         (b'.', b'.') => Some(Punct::DotDot),
+                        (b'<', b'+') => Some(Punct::Append),
                         (b'<', b'<') => Some(Punct::Shl),
                         (b'<', b'=') => Some(Punct::Leq),
                         (b'=', b'=') => Some(Punct::Eq),
@@ -912,7 +914,7 @@ impl Session {
                 },
             },
             LexState::FormattedString { raw, quote_count } => {
-                return Err(Error::todo("lexing formatted string", Span::range(self.file, self.token_start, self.token_start + 1)));
+                return Err(Error::todo(66818, "lexing formatted string", Span::range(self.file, self.token_start, self.token_start + 1)));
             },
             // NOTE: empty char literals are already filtered out!
             // NOTE: the cursor is pointing at the first byte of the content (not the quote)

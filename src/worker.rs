@@ -21,7 +21,10 @@ pub enum MessageToMain {
     RunComplete {
         id: usize,
     },
-    Error(Error),
+    Error {
+        id: usize,
+        e: Error,
+    },
 }
 
 pub struct Channel {
@@ -40,10 +43,10 @@ impl Channel {
 }
 
 pub fn init_workers(n: u32) -> Vec<Channel> {
-    (0..n).map(|i| init_worker(i)).collect()
+    (0..n).map(|_| init_worker()).collect()
 }
 
-fn init_worker(worker_id: u32) -> Channel {
+fn init_worker() -> Channel {
     let (tx_to_main, rx_to_main) = mpsc::channel();
     let (tx_from_main, rx_from_main) = mpsc::channel();
 
@@ -52,8 +55,8 @@ fn init_worker(worker_id: u32) -> Channel {
         rx_from_main,
     ) {
         Ok(()) => {},
-        Err(e) => {
-            tx_to_main.send(MessageToMain::Error(e)).unwrap();
+        Err((id, e)) => {
+            tx_to_main.send(MessageToMain::Error { id, e }).unwrap();
         },
     });
 
@@ -65,12 +68,12 @@ fn init_worker(worker_id: u32) -> Channel {
 fn worker_loop(
     tx_to_main: mpsc::Sender<MessageToMain>,
     rx_from_main: mpsc::Receiver<MessageToWorker>,
-) -> Result<(), Error> {
+) -> Result<(), (usize, Error)> {
     for msg in rx_from_main {
         match msg {
             MessageToWorker::Run { commands, id } => {
-                run(commands, tx_to_main.clone())?;
-                tx_to_main.send(MessageToMain::RunComplete { id })?;
+                run(commands, tx_to_main.clone()).map_err(|e| (id, e))?;
+                tx_to_main.send(MessageToMain::RunComplete { id }).map_err(|e| (id, e.into()))?;
             },
         }
     }

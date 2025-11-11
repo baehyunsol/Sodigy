@@ -97,7 +97,10 @@ impl Type {
                 NameOrigin::Foreign { kind } => match kind {
                     NameKind::Struct |
                     NameKind::Enum => Ok(Type::Static(id.def_span)),
-                    _ => panic!("TODO: {kind:?}"),
+                    _ => {
+                        session.errors.push(Error::todo(92226, &format!("TODO: lowering hir type: {hir_type:?}"), hir_type.error_span()));
+                        Err(())
+                    },
                 },
                 NameOrigin::External => unreachable!(),
             },

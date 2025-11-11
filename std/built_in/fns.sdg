@@ -1,3 +1,5 @@
+use std.Int;
+
 @built_in
 @no_type
 fn read_compound(a, b: Int) = 0;

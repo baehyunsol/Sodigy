@@ -1,0 +1,5 @@
+use x.{y, z, w};
+
+let x1 = w;
+let x2 = y;
+let x3 = z;

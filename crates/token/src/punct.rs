@@ -28,6 +28,8 @@ pub enum Punct {
     Neq,  // "!="
     Geq,  // ">="
     Concat,  // "++"
+    Append,  // "<+"
+    Prepend, // "+>"
     DotDot,  // ".."
     DotDotEq,  // "..="
     Arrow,  // "=>"

@@ -168,6 +168,15 @@ impl<'t> Tokens<'t> {
                     // `use a,` (invalid)
                     Punct::Comma => {
                         if inside_group {
+                            result.push(Use {
+                                full_path: prefix.clone(),
+                                name: prefix.last().unwrap().unwrap_name(),
+                                name_span: prefix.last().unwrap().unwrap_span(),
+
+                                // not available yet
+                                keyword_span: Span::None,
+                                attribute: Attribute::new(),
+                            });
                             prefix = vec![];
                             self.cursor += 1;
                         }

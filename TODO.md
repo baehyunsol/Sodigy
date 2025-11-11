@@ -1,3 +1,33 @@
+# 73. Decorator
+
+Rust랑 비슷하게 만든다치면 decorator도 `#[built_in]`처럼 해야하지 않음??
+
+그럼 이름도 decorator가 아니라 attribute라고 해야하나?? 근데 attribute라는 용어는 이미 쓰고 있는데...
+
+Draft
+
+1. `#[built_in]`, `#[lang_item("blah_blah")]`처럼 하기. 즉, `@` 뒤에 오던 걸 `#[]` 안에 넣는 거임!!
+2. Rust에서는 `#[must_use = "You must use this!!!"]`처럼도 쓰는데 이건 못쓰게 막기
+3. decorator라는 용어와 attribute라는 용어는 그대로 쓰기
+4. decorator이름에 `Vec<InternedString>`대신 `InternedString` 쓰기... please...
+5. `#![]`이랑 `//!`도 구현하기?? ㄱㄱㄱ
+
+# 72. Visibility
+
+가라로 하던 거 업보 청산할 시간...
+
+1. 지금은 inter-hir에서 `iter_public_names`를 한 다음에, public한 name들만 module_name_map에 올려둠.
+2. 즉, 완전 public한 애들만 resolve를 하기 때문에 딴 애들은 ... 건들지도 않음 ㅠㅠ
+3. 일단, private한 애들도 resolve를 하긴 해야함.
+4. 지금은 public/private만 구분을 하고 있는데 module 단위로 visibility를 따로 확인해야함!
+  - 어느 타이밍에 하지...
+  - `a.b`가 있으면 `a`는 확인할 필요없고, `b`는 확인해야함.
+  - `a`가
+    - module일 경우, `b`는 item이고, attribute 뒤져보면 visibility가 있음. 현재 lowering 하고있는 module (= file)이 저 item을 볼 수 있는지 확인하면 됨.
+    - value일 경우, `b`는 field이고, `a`의 type을 알게될 때까지 검사가 불가능. `a`의 type을 알더라도 검사가 좀 빡셈, 얘는 module 단위로 visibility가 있는게 아니거든...
+    - enum일 경우, `a`의 visibilty와 `b`의 visibility가 동일하기 때문에 상관없음
+      - 아닌가? private variant같은 개념도 만들까?
+
 # 71. Wildcard
 
 lexer는 Identifer로 잡은 다음에 parser가 Wildcard로 바꾸기 vs lexer가 Wildcard로 잡아버리기!

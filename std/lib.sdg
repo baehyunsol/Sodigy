@@ -1,5 +1,7 @@
 mod built_in;
 
+use built_in.{Byte, Char, Int};
+
 @lang_item("type.String")
 type String = [Char];
 
