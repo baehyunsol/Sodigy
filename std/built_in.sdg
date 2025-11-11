@@ -1,6 +1,6 @@
 // Decorators for built-ins.
-// 1. `@built_in`: The compiler doesn't check the body of the func/enum/struct.
-// 2. `@no_type`: The type-infer engine and the type checker ignores the item.
+// 1. `#[built_in]`: The compiler doesn't check the body of the func/enum/struct.
+// 2. `#[no_type]`: The type-infer engine and the type checker ignores the item.
 
 mod fns;
 mod traits;

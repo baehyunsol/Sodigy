@@ -52,6 +52,8 @@ pub struct Session {
     // inter-hir will collect this
     pub lang_items: HashMap<String, Span>,
 
+    // TODO: attribute for the current module
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }

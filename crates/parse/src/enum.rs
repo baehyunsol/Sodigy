@@ -84,7 +84,7 @@ impl<'t> Tokens<'t> {
         }
 
         loop {
-            let attribute = self.collect_attribute()?;
+            let attribute = self.collect_attribute(false /* top_level */)?;
             let (name, name_span) = self.pop_name_and_span()?;
 
             match self.peek() {
@@ -147,7 +147,7 @@ impl<'t> Tokens<'t> {
                         let mut fields = vec![];
 
                         loop {
-                            let attribute = tuple_body_tokens.collect_attribute()?;
+                            let attribute = tuple_body_tokens.collect_attribute(false /* top_level */)?;
                             let r#type = tuple_body_tokens.parse_type()?;
                             fields.push((r#type, attribute));
 

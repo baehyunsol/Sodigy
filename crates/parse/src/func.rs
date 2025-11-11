@@ -91,7 +91,7 @@ impl<'t> Tokens<'t> {
         }
 
         'args: loop {
-            let attribute = self.collect_attribute()?;
+            let attribute = self.collect_attribute(false /* top_level */)?;
             let (name, name_span) = self.pop_name_and_span()?;
             let mut r#type = None;
             let mut default_value = None;

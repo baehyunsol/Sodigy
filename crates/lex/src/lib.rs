@@ -44,7 +44,9 @@ pub(crate) enum LexState {
     Integer(Base),
     Fraction,
     LineComment,
-    DocComment,
+    DocComment {
+        top_level: bool,
+    },
     BlockComment,
 }
 
@@ -166,6 +168,38 @@ impl Session {
                     self.state = LexState::Integer(Base::Decimal);
                     self.cursor += 1;
                 },
+                (Some(b'#'), Some(b'['), _) => {
+                    let opening_span = Span::range(
+                        self.file,
+                        self.cursor,
+                        self.cursor + 2,
+                    );
+                    self.group_stack.push((b']', opening_span));
+                    self.tokens.push(Token {
+                        kind: TokenKind::GroupDelim {
+                            delim: Some(Delim::Decorator),
+                            id: opening_span,
+                        },
+                        span: opening_span,
+                    });
+                    self.cursor += 2;
+                },
+                (Some(b'#'), Some(b'!'), Some(b'[')) => {
+                    let opening_span = Span::range(
+                        self.file,
+                        self.cursor,
+                        self.cursor + 3,
+                    );
+                    self.group_stack.push((b']', opening_span));
+                    self.tokens.push(Token {
+                        kind: TokenKind::GroupDelim {
+                            delim: Some(Delim::ModuleDecorator),
+                            id: opening_span,
+                        },
+                        span: opening_span,
+                    });
+                    self.cursor += 3;
+                },
                 (Some(b'#'), _, _) => {
                     let token_start = self.cursor;
                     self.cursor += 1;
@@ -244,9 +278,10 @@ impl Session {
                         },
                     }
                 },
-                (Some(b'/'), Some(b'/'), Some(b'/')) => {
+                (Some(b'/'), Some(b'/'), Some(z @ (b'/' | b'!'))) => {
+                    let top_level = *z == b'!';
                     self.token_start = self.cursor;
-                    self.state = LexState::DocComment;
+                    self.state = LexState::DocComment { top_level: top_level };
                     self.cursor += 3;
                 },
                 (Some(b'/'), Some(b'/'), _) => {
@@ -1484,12 +1519,15 @@ impl Session {
                     self.state = LexState::Init;
                 },
             },
-            LexState::DocComment => match self.input_bytes.get(self.cursor) {
+            LexState::DocComment { top_level } => match self.input_bytes.get(self.cursor) {
                 Some(b'\n') => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
-                        kind: TokenKind::DocComment(interned),
+                        kind: TokenKind::DocComment {
+                            top_level,
+                            doc: interned,
+                        },
                         span: Span::range(
                             self.file,
                             self.token_start,

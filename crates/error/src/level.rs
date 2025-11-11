@@ -32,11 +32,12 @@ impl ErrorLevel {
             ErrorKind::UnexpectedEof { .. } |
             ErrorKind::UnexpectedEog { .. } |
             ErrorKind::MissingDocComment |
-            ErrorKind::DocCommentForNothing |
             ErrorKind::DocCommentNotAllowed |
+            ErrorKind::ModuleDocCommentNotAtTop |
             ErrorKind::MissingDecorator(_) |
             ErrorKind::DecoratorNotAllowed |
             ErrorKind::UnexpectedDecorator(_) |
+            ErrorKind::ModuleDecoratorNotAtTop |
             ErrorKind::MissingVisibility |
             ErrorKind::CannotBePublic |
             ErrorKind::BlockWithoutValue |

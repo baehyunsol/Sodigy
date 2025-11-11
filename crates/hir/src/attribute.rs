@@ -14,7 +14,7 @@ use std::collections::hash_map::{Entry, HashMap};
 // Each item extracts extra information from this type.
 pub struct Attribute {
     pub doc_comment: Option<DocComment>,
-    pub decorators: HashMap<Vec<InternedString>, Decorator>,
+    pub decorators: HashMap<InternedString, Decorator>,
     pub visibility: Visibility,
 }
 
@@ -118,24 +118,16 @@ impl Attribute {
         let mut decorators = HashMap::with_capacity(ast_attribute.decorators.len());
 
         // for error messages
-        let mut spans_by_name: HashMap<Vec<InternedString>, Vec<Span>> = HashMap::new();
+        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
         for ast_decorator in ast_attribute.decorators.iter() {
-            let name: Vec<InternedString> = ast_decorator.name.iter().map(|(name, _)| *name).collect();
-            let merged_span = ast_decorator.name.iter().map(
-                |(_, span)| *span
-            ).fold(
-                ast_decorator.name[0].1,
-                |folded, span| folded.merge(span),
-            );
-
-            match rule.decorators.get(&name) {
+            match rule.decorators.get(&ast_decorator.name) {
                 Some(rule) => {
                     if let Requirement::Never = rule.requirement {
                         has_error = true;
                         session.errors.push(Error {
-                            kind: ErrorKind::UnexpectedDecorator(join_decorator_name(&name, &session)),
-                            spans: merged_span.simple_error(),
+                            kind: ErrorKind::UnexpectedDecorator(ast_decorator.name),
+                            spans: ast_decorator.name_span.simple_error(),
                             note: None,
                         });
                     }
@@ -148,7 +140,7 @@ impl Attribute {
                                     expected: 1,  // how many?
                                     got: 0,
                                 },
-                                spans: merged_span.simple_error(),
+                                spans: ast_decorator.name_span.simple_error(),
                                 note: None,
                             });
                         },
@@ -161,7 +153,7 @@ impl Attribute {
                                 },
                                 spans: vec![
                                     RenderableSpan {
-                                        span: merged_span,
+                                        span: ast_decorator.name_span,
                                         auxiliary: true,
                                         note: Some(String::from("It requires no arguments.")),
                                     },
@@ -257,7 +249,7 @@ impl Attribute {
                                     if spans_by_keyword.get(keyword).is_none() {
                                         session.errors.push(Error {
                                             kind: ErrorKind::MissingKeywordArgument(*keyword),
-                                            spans: merged_span.simple_error(),
+                                            spans: ast_decorator.name_span.simple_error(),
                                             note: requirement_error_note.clone(),
                                         });
                                     }
@@ -283,7 +275,7 @@ impl Attribute {
                                         expected: n,
                                         got: m,
                                     },
-                                    merged_span.simple_error(),
+                                    ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Eq(n), m) if n < m => Err((
                                     ErrorKind::UnexpectedArgument {
@@ -303,7 +295,7 @@ impl Attribute {
                                         expected: n + 1,
                                         got: m,
                                     },
-                                    merged_span.simple_error(),
+                                    ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Lt(n), m) if n <= m => Err((
                                     ErrorKind::UnexpectedArgument {
@@ -341,10 +333,13 @@ impl Attribute {
                                         }
                                     }
 
-                                    decorators.insert(name.clone(), Decorator {
-                                        args,
-                                        keyword_args,
-                                    });
+                                    decorators.insert(
+                                        ast_decorator.name,
+                                        Decorator {
+                                            args,
+                                            keyword_args,
+                                        },
+                                    );
                                 },
                                 Err((error_kind, error_span)) => {
                                     has_error = true;
@@ -357,10 +352,13 @@ impl Attribute {
                             }
                         },
                         (_, None) => {
-                            decorators.insert(name.clone(), Decorator {
-                                args: vec![],
-                                keyword_args: HashMap::new(),
-                            });
+                            decorators.insert(
+                                ast_decorator.name,
+                                Decorator {
+                                    args: vec![],
+                                    keyword_args: HashMap::new(),
+                                },
+                            );
                         },
                     }
                 },
@@ -368,19 +366,19 @@ impl Attribute {
                     // TODO: try `rule.decorators.get(&name[..i])` to generate a better error message
                     has_error = true;
                     session.errors.push(Error {
-                        kind: ErrorKind::InvalidDecorator(join_decorator_name(&name, session)),
-                        spans: merged_span.simple_error(),
+                        kind: ErrorKind::InvalidDecorator(ast_decorator.name),
+                        spans: ast_decorator.name_span.simple_error(),
                         note: None,
                     });
                 },
             }
 
-            match spans_by_name.entry(name) {
+            match spans_by_name.entry(ast_decorator.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(merged_span);
+                    e.get_mut().push(ast_decorator.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![merged_span]);
+                    e.insert(vec![ast_decorator.name_span]);
                 },
             }
         }
@@ -389,7 +387,7 @@ impl Attribute {
             if spans.len() > 1 {
                 has_error = true;
                 session.errors.push(Error {
-                    kind: ErrorKind::RedundantDecorator(join_decorator_name(name, session)),
+                    kind: ErrorKind::RedundantDecorator(*name),
                     spans: spans.iter().map(
                         |span| RenderableSpan {
                             span: *span,
@@ -416,15 +414,15 @@ impl Attribute {
     }
 
     pub fn built_in(&self, intermediate_dir: &str) -> bool {
-        self.decorators.contains_key(&vec![intern_string(b"built_in", intermediate_dir).unwrap()])
+        self.decorators.contains_key(&intern_string(b"built_in", intermediate_dir).unwrap())
     }
 
     pub fn no_type(&self, intermediate_dir: &str) -> bool {
-        self.decorators.contains_key(&vec![intern_string(b"no_type", intermediate_dir).unwrap()])
+        self.decorators.contains_key(&intern_string(b"no_type", intermediate_dir).unwrap())
     }
 
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
-        match self.decorators.get(&vec![intern_string(b"lang_item", intermediate_dir).unwrap()]) {
+        match self.decorators.get(&intern_string(b"lang_item", intermediate_dir).unwrap()) {
             Some(d) => match d.args.get(0) {
                 Some(Expr::String { s, .. }) => Some(String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string()),
                 _ => unreachable!(),
@@ -434,7 +432,7 @@ impl Attribute {
     }
 
     pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<Vec<String>> {
-        match self.decorators.get(&vec![intern_string(b"lang_item_generics", intermediate_dir).unwrap()]) {
+        match self.decorators.get(&intern_string(b"lang_item_generics", intermediate_dir).unwrap()) {
             Some(d) => Some(d.args.iter().map(
                 |arg| match arg {
                     Expr::String { s, .. } => String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string(),
@@ -451,7 +449,7 @@ pub struct AttributeRule {
     pub doc_comment_error_note: Option<String>,
     pub visibility: Requirement,
     pub visibility_error_note: Option<String>,
-    pub decorators: HashMap<Vec<InternedString>, DecoratorRule>,
+    pub decorators: HashMap<InternedString, DecoratorRule>,
 }
 
 impl AttributeRule {
@@ -498,7 +496,7 @@ impl AttributeRule {
                 },
             ),
         ] {
-            let name = vec![intern_string(name.as_bytes(), intermediate_dir).unwrap()];
+            let name = intern_string(name.as_bytes(), intermediate_dir).unwrap();
             decorator.name = name.clone();
             self.decorators.insert(name, decorator);
         }
@@ -544,11 +542,11 @@ pub struct Decorator {
 }
 
 pub struct DecoratorRule {
-    pub name: Vec<InternedString>,
+    pub name: InternedString,
     pub requirement: Requirement,
 
     // `ArgCount::Zero` and `Requirement::Never` are different.
-    // `ArgCount::Zero` is `@note()`, while `Requirement::Never` is `@note`.
+    // `ArgCount::Zero` is `#[note()]`, while `Requirement::Never` is `#[note]`.
     pub arg_requirement: Requirement,
     pub arg_count: ArgCount,
     pub arg_count_error_note: Option<String>,
@@ -561,7 +559,7 @@ pub struct DecoratorRule {
 impl Default for DecoratorRule {
     fn default() -> DecoratorRule {
         DecoratorRule {
-            name: vec![],
+            name: InternedString::empty(),
             requirement: Requirement::Never,
             arg_requirement: Requirement::Never,
             arg_count: ArgCount::Zero,
@@ -592,14 +590,6 @@ pub enum ArgCount {
     Eq(usize),
     Gt(usize),
     Lt(usize),
-}
-
-fn join_decorator_name(name: &[InternedString], session: &Session) -> InternedString {
-    let uninterned_name = name.iter().map(
-        |name| unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()
-    ).collect::<Vec<_>>();
-    let joined_name = uninterned_name.join(&(b"."[..]));
-    intern_string(&joined_name, &session.intermediate_dir).unwrap()
 }
 
 fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, session: &mut Session) -> Result<(), ()> {

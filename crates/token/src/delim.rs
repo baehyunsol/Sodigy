@@ -4,4 +4,6 @@ pub enum Delim {
     Bracket,
     Brace,
     Lambda,  // \()
+    Decorator,  // #[]
+    ModuleDecorator,  // #![]
 }

@@ -51,7 +51,11 @@ pub enum TokenKind {
     // The `b'_'` syntax is only valid for ascii characters.
     Byte(u8),
     FieldModifier(InternedString),
-    DocComment(InternedString),
+    DocComment {
+        // `//!`
+        top_level: bool,
+        doc: InternedString,
+    },
     Punct(Punct),
 
     // It'll be later processed to `Group` by `group_tokens`
@@ -79,8 +83,8 @@ impl TokenKind {
             (TokenKind::Identifier(_), _) => false,
             (TokenKind::Number(_), TokenKind::Number(_)) => true,
             (TokenKind::Number(_), _) => false,
-            (TokenKind::DocComment(_), TokenKind::DocComment(_)) => true,
-            (TokenKind::DocComment(_), _) => false,
+            (TokenKind::DocComment { top_level: a, .. }, TokenKind::DocComment { top_level: b, .. }) => a == b,
+            (TokenKind::DocComment { .. }, _) => false,
             (TokenKind::Punct(a), TokenKind::Punct(b)) => a == b,
             (TokenKind::Punct(_), _) => false,
             (TokenKind::Group { delim: a, .. }, TokenKind::Group { delim: b, .. }) => a == b,
@@ -100,7 +104,7 @@ impl TokenKind {
 
             TokenKind::Keyword(_) |
             TokenKind::FieldModifier(_) |
-            TokenKind::DocComment(_) |
+            TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { delim: None, .. } => false,
 
             TokenKind::Punct(p) => match p {
@@ -115,7 +119,9 @@ impl TokenKind {
                 Delim::Parenthesis |
                 Delim::Bracket => true,
                 Delim::Brace |
-                Delim::Lambda => false,
+                Delim::Lambda |
+                Delim::Decorator |
+                Delim::ModuleDecorator => false,
             },
         }
     }
@@ -129,7 +135,7 @@ impl TokenKind {
             TokenKind::Byte(_) => true,
 
             TokenKind::FieldModifier(_) |
-            TokenKind::DocComment(_) |
+            TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { delim: None, .. } => false,
 
             TokenKind::Punct(p) => PrefixOp::try_from(*p).is_ok(),

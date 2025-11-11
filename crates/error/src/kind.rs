@@ -44,11 +44,12 @@ pub enum ErrorKind {
     },
 
     MissingDocComment,
-    DocCommentForNothing,
     DocCommentNotAllowed,
+    ModuleDocCommentNotAtTop,
     MissingDecorator(InternedString),
     DecoratorNotAllowed,
     UnexpectedDecorator(InternedString),
+    ModuleDecoratorNotAtTop,
     MissingVisibility,
     CannotBePublic,
     BlockWithoutValue,

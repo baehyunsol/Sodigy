@@ -307,6 +307,13 @@ impl<'t> Tokens<'t> {
                         group_span: span,
                     }
                 },
+                Delim::Decorator | Delim::ModuleDecorator => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::DecoratorNotAllowed,
+                        spans: span.simple_error(),
+                        note: Some(String::from("You cannot decorate an expression.")),
+                    }]);
+                },
             },
             Some(t) => panic!("TODO: {t:?}"),
             None => {
@@ -427,7 +434,23 @@ impl<'t> Tokens<'t> {
                     let span = *span;
 
                     match delim {
-                        Delim::Lambda => todo!(),
+                        Delim::Lambda => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Operator,
+                                    got: ErrorToken::Group(*delim),
+                                },
+                                spans: span.simple_error(),
+                                note: None,
+                            }]);
+                        },
+                        Delim::Decorator | Delim::ModuleDecorator => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::DecoratorNotAllowed,
+                                spans: span.simple_error(),
+                                note: Some(String::from("You cannot decorate an expression.")),
+                            }]);
+                        },
                         // call
                         Delim::Parenthesis => {
                             let (l_bp, _) = call_binding_power();

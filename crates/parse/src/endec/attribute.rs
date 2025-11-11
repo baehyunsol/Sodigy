@@ -73,7 +73,7 @@ impl Endec for Decorator {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (name, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (args, cursor) = Option::<Vec<CallArg>>::decode_impl(buffer, cursor)?;
         let (arg_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;

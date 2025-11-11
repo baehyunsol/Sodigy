@@ -17,6 +17,7 @@ pub enum ErrorToken {
     Declaration,
     Expr,
     Block,
+    Operator,
     AssignOrLt,
     BraceOrCommaOrParenthesis,
     BraceOrParenthesis,

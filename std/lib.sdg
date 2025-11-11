@@ -2,10 +2,10 @@ mod built_in;
 
 use built_in.{Byte, Char, Int};
 
-@lang_item("type.String")
+#[lang_item("type.String")]
 type String = [Char];
 
-@lang_item("type.Bytes")
+#[lang_item("type.Bytes")]
 type Bytes = [Byte];
 
 fn index_list<T>(ls: [T], i: Int) -> T = {

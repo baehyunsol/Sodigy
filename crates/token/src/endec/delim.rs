@@ -16,6 +16,12 @@ impl Endec for Delim {
             Delim::Lambda => {
                 buffer.push(3);
             },
+            Delim::Decorator => {
+                buffer.push(4);
+            },
+            Delim::ModuleDecorator => {
+                buffer.push(5);
+            },
         }
     }
 
@@ -25,7 +31,9 @@ impl Endec for Delim {
             Some(1) => Ok((Delim::Bracket, cursor + 1)),
             Some(2) => Ok((Delim::Brace, cursor + 1)),
             Some(3) => Ok((Delim::Lambda, cursor + 1)),
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => Ok((Delim::Decorator, cursor + 1)),
+            Some(5) => Ok((Delim::ModuleDecorator, cursor + 1)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

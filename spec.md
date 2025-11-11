@@ -42,10 +42,16 @@ type EmptyResult<E> = Result<(), E>;
 
 ## Decorators
 
+Decorators are like attributes in Rust. But there're only built-in decorators, no custom ones.
+
 A decorator decorates `let`, `func`, `assert`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
 
-1. `@always` (no arguments)
-2. `@name("test1")` (with arguments)
+1. `#[always]` (no arguments)
+2. `#[name("test1")]` (with arguments)
+
+For module-level decorators, use `#![...]` instead of `#[...]`. A module-level decorator must come at the first of the module (usually a file).
+
+A decorator decorates an item following it. So, a decorator must come before an item.
 
 ## Pattern matching
 
@@ -198,13 +204,13 @@ assert two == 2;
 let two = 1 + 1;
 
 // By default, assertions are only enabled in debug-mode.
-// With `@always` decorator, it's always enabled.
-@always
+// With `#[always]` decorator, it's always enabled.
+#[always]
 assert 1 + 1 == 2;
 
-// `@name` and `@note` will improve readability of the test result.
-@name("add_test")
-@note("It makes sure that `add` function is correct")
+// `#[name("...")]` and `#[note("...")]` will improve readability of the test result.
+#[name("add_test")]
+#[note("It makes sure that `add` function is correct")]
 assert add(1, 1) == 2;
 fn add(x: Int, y: Int): Int = x + y;
 ```

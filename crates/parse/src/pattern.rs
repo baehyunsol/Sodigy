@@ -316,7 +316,17 @@ impl<'t> Tokens<'t> {
                             got: ErrorToken::Group(*delim),
                         },
                         spans: span2.simple_error(),
-                        ..Error::default()
+                        note: None,
+                    }]);
+                },
+                Delim::Decorator | Delim::ModuleDecorator => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::BraceOrParenthesis,
+                            got: ErrorToken::Group(*delim),
+                        },
+                        spans: span2.simple_error(),
+                        note: Some(String::from("You cannot decorate a pattern.")),
                     }]);
                 },
             },

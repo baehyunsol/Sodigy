@@ -1,3 +1,13 @@
+# 74. `#[no_type]`
+
+1. `read_compound`의 경우 아무 값이나 넣을 수 있기 때문에 `Any` type이 필요
+2. `panic`의 경우 `Never` type을 구현하거나 아무 값이나 return할 수 있게 하거나...
+
+아니면 손쉬운 trick이 있음: `read_compoun<T, U>(ls: T, i: Int) -> U`로 한 다음에 얘네는 generic이 infer가 안돼도 error를 안 내는 거지!!
+panic도 마찬가지: `panic<T>() -> T`라고 한 다음에 generic이 infer가 안돼도 error를 안내면 됨.
+
+이러면 "a type that is a subtype of every other type"을 구현할 수 있음!!
+
 # 73. Decorator
 
 Rust랑 비슷하게 만든다치면 decorator도 `#[built_in]`처럼 해야하지 않음??
@@ -10,6 +20,7 @@ Draft
 2. Rust에서는 `#[must_use = "You must use this!!!"]`처럼도 쓰는데 이건 못쓰게 막기
 3. decorator라는 용어와 attribute라는 용어는 그대로 쓰기
 4. decorator이름에 `Vec<InternedString>`대신 `InternedString` 쓰기... please...
+  - Rust에서는 path도 사용가능하지만 일단 Sodigy에서는 안되게 막을 거임. 아직은 user-defined decorator가 들어갈 자리가 없거든 ㅋㅋ
 5. `#![]`이랑 `//!`도 구현하기?? ㄱㄱㄱ
 
 # 72. Visibility
@@ -414,7 +425,7 @@ fn div_int(a: Int, b: Int) -> Int = {
 1. type annotation에서 `Int`를 보면 std에 있는 `Int`의 def_span과 연결해줘야함.
   - `use std.Int`를 implicit하게 hir에 넣어주면, `Int`의 def_span이 자동으로 들어옴.
 2. type-infer를 할 때 `3`을 보면 `Int`의 def_span을 이용해서 type을 만들어야함.
-  - 이거는 자동으로 할 방법이 없음. `Int`에다가 `@lang_item("Int")`라고 붙여주고 type-infer engine이 `lang_item("Int")`를 사용하면 됨.
+  - 이거는 자동으로 할 방법이 없음. `Int`에다가 `#[lang_item("Int")]`라고 붙여주고 type-infer engine이 `lang_item("Int")`를 사용하면 됨.
 3. type-checking을 할 때는 `Int`의 def_span을 쓸 거임.
   - 이거는 1번과 마찬가지로 자동으로 해결됨.
 4. mir expr lowering에서 `a[0]`을 보면 `index(a, 0)`으로 바꿔야함. 또한, `index`의 generic arg로 `T`, `U`, `V`가 있다는 사실도 써야함.
@@ -839,21 +850,21 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 3. Name-analysis: We have to tweak some logic.
   - If a name is only used by assertions, but not by expressions, we raise an unused name warning.
     - But we add an extra help message here, saying that the name is only used in debug mode.
-    - How about adding `@unused` decorator?
-      - Just being curious here,,, is it okay to use a name that's decorated with `@unused`?
-      - How about `@allow(unused)`?
+    - How about adding `#[unused]` decorator?
+      - Just being curious here,,, is it okay to use a name that's decorated with `#[unused]`?
+      - How about `#[allow(unused)]`?
         - well... currently the parser uses expr_parser to parse the arguments of a decorator. But the hir's expr_parser won't allow the identifier `unused`. There are a few ways to fix this:
         - First, we can implement a separate parser for decorators. But then we have to write parser for each decorator. That'd be huge!
           - Hir has to do this. If we choose a right timing, it can access to defined names (if it has to), and use undefined names (if it wants to).
         - Second, we can add `unused` to namespace (only when parsing decorators).
-        - Third, we can use `@allow("unused")` syntax.
+        - Third, we can use `#[allow("unused")]` syntax.
   - If a name is used by expressions only once, and multiple time by assertions, we inline the name anyway. For example, `{ let x = foo() + 1; assert x > 0; assert x > 1; [x] }` becomes `{ let x = foo() + 1; assert x > 0; assert x > 1; [foo() + 1] }`.
     - We need a lot of tweaks here...
     - `let x` statement is removed in release mode, but not in debug mode.
 4. Assertions that are enabled in release mode.
-  - How about `@always` decorator?
+  - How about `#[always]` decorator?
   - The compiler treats such assertions like an expression, not an assertion.
-  - If a top-level assertion is decorated with `@always`, it's asserted before entering the main function.
+  - If a top-level assertion is decorated with `#[always]`, it's asserted before entering the main function.
     - It's ignored in test-context.
 5. Syntactic sugar for `assert x == y;`
   - 이게 실패하면 lhs와 rhs를 확인해야함...
@@ -863,7 +874,7 @@ It's a very very common pattern. Tail-call optimization won't help it because it
     - value가 `Block { lets: Vec<Let>, value: Expr }`인 경우, `lets`를 dump (expr만), `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `if { cond: Expr, .. }`인 경우, `cond`를 dump, `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `match { value: Expr, .. }`인 경우, `value`를 dump하고 어느 branch에 걸렸는지도 dump
-6. Naming assertions: `@name("fibo_assert")`.
+6. Naming assertions: `#[name("fibo_assert")]`.
 7. Test 결과를 runtime이 compiler한테 다시 전달하면 compiler가 span 꾸며서 dump하기... 괜찮은 듯!
   - 지금은 test 돌리면 runtime에서 알아서 모든 test 돌리고 결과물 즉시 출력하게 돼 있거든? 이러지말고,
   - 1, runtime에다가 label id를 주면 runtime이 그 label을 실행하도록 code gen

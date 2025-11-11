@@ -67,37 +67,14 @@ impl DocCommentLine {
 
 #[derive(Clone, Debug)]
 pub struct Decorator {
-    pub name: Vec<(InternedString, Span)>,  // dotted name, like `test.eq`
-    pub name_span: Span,  // merged span of names
+    // Rust attributes support paths, like `#[rustfmt::skip]`, but Sodigy doesn't.
+    // That's because rust supports user-defined attributes, but Sodigy doesn't.
+    pub name: InternedString,
+    pub name_span: Span,
 
-    // `@public` and `@public()` are different!
+    // `#[public]` and `#[public()]` are different!
     pub args: Option<Vec<CallArg>>,
     pub arg_group_span: Option<Span>,
-}
-
-impl Decorator {
-    pub fn new_with_args(
-        name: Vec<(InternedString, Span)>,
-        name_span: Span,
-        args: Vec<CallArg>,
-        arg_group_span: Span,
-    ) -> Self {
-        Decorator {
-            name,
-            name_span,
-            args: Some(args),
-            arg_group_span: Some(arg_group_span),
-        }
-    }
-
-    pub fn new_without_args(name: Vec<(InternedString, Span)>, name_span: Span) -> Self {
-        Decorator {
-            name,
-            name_span,
-            args: None,
-            arg_group_span: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -110,107 +87,94 @@ pub struct Visibility {
 }
 
 impl<'t> Tokens<'t> {
-    // If there are multiple doc comments, it throws an error.
-    pub fn collect_attribute(&mut self) -> Result<Attribute, Vec<Error>> {
+    pub fn collect_attribute(&mut self, top_level: bool) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];
-        let mut doc_comment_buffer = vec![];
-        let mut decorator_buffer = vec![];
+        let mut doc_comments = vec![];
+        let mut decorators = vec![];
         let mut visibility = None;
+        let mut module_doc_error = false;
 
         loop {
-            match self.peek2() {
-                (Some(Token { kind: TokenKind::DocComment(doc), span }), _) => {
-                    doc_comment_buffer.push(DocCommentLine::new(*doc, *span));
-                    self.cursor += 1;
-                },
-                (
-                    Some(Token { kind: TokenKind::Punct(Punct::At), span: span1 }),
-                    Some(Token { kind: TokenKind::Identifier(dec), span: span2 }),
-                ) => {
-                    let span = span1.merge(*span2);
-                    let mut name = vec![(*dec, span)];
-                    let mut name_span = span;
-                    self.cursor += 2;
-
-                    loop {
-                        match self.peek2() {
-                            (
-                                Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
-                                Some(Token { kind: TokenKind::Identifier(dec), span }),
-                            ) => {
-                                name.push((*dec, *span));
-                                name_span = name_span.merge(*span);
-                                self.cursor += 2;
-                            },
-                            (Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }), _) => {
-                                let group_span = *span;
-                                let mut tokens = Tokens::new(tokens, span.end());
-
-                                match tokens.parse_call_args() {
-                                    Ok(args) => {
-                                        decorator_buffer.push(Decorator::new_with_args(name, name_span, args, group_span));
-                                    },
-                                    Err(e) => {
-                                        errors.extend(e);
-                                    },
-                                }
-
-                                self.cursor += 1;
-
-                                if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), span }) = self.peek() {
-                                    errors.push(Error {
-                                        kind: ErrorKind::UnexpectedToken {
-                                            expected: ErrorToken::Nothing,
-                                            got: ErrorToken::Punct(Punct::Semicolon),
-                                        },
-                                        spans: vec![RenderableSpan {
-                                            span: *span,
-                                            auxiliary: false,
-                                            note: Some(String::from("Remove this `;`.")),
-                                        }],
-                                        note: Some(String::from("Don't put a semicolon after a decorator.")),
-                                    });
-                                    return Err(errors);
-                                }
-
-                                break;
-                            },
-                            (Some(Token { kind: TokenKind::Punct(Punct::Semicolon), span }), _) => {
-                                errors.push(Error {
-                                    kind: ErrorKind::UnexpectedToken {
-                                        expected: ErrorToken::Nothing,
-                                        got: ErrorToken::Punct(Punct::Semicolon),
-                                    },
-                                    spans: vec![RenderableSpan {
-                                        span: *span,
-                                        auxiliary: false,
-                                        note: Some(String::from("Remove this `;`.")),
-                                    }],
-                                    note: Some(String::from("Don't put a semicolon after a decorator.")),
-                                });
-                                return Err(errors);
-                            },
-                            _ => {
-                                decorator_buffer.push(Decorator::new_without_args(name, name_span));
-                                break;
-                            },
+            match self.peek() {
+                Some(Token { kind: TokenKind::DocComment { doc, top_level: top_level_ }, span }) => {
+                    if !top_level && *top_level_ {
+                        // If the programmer accidentally wrote a very long module document at wrong place,
+                        // it would generate a very long error message. I want to prevent that.
+                        if !module_doc_error {
+                            errors.push(Error {
+                                kind: ErrorKind::ModuleDocCommentNotAtTop,
+                                spans: span.simple_error(),
+                                note: None,
+                            });
+                            module_doc_error = true;
                         }
                     }
-                },
-                (Some(Token { kind: TokenKind::Keyword(Keyword::Pub), span }), _) => {
-                    let keyword_span = *span;
-                    self.cursor += 1;
 
-                    match self.peek() {
-                        Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => todo!(),
-                        _ => {},
+                    doc_comments.push(DocCommentLine::new(*doc, *span));
+                    self.cursor += 1;
+                },
+                Some(Token { kind: TokenKind::Group {
+                    delim: delim @ (Delim::Decorator | Delim::ModuleDecorator),
+                    tokens
+                }, span }) => {
+                    let top_level_ = matches!(delim, Delim::ModuleDecorator);
+
+                    if !top_level && top_level_ {
+                        errors.push(Error {
+                            kind: ErrorKind::ModuleDecoratorNotAtTop,
+                            spans: span.simple_error(),
+                            note: None,
+                        });
                     }
 
-                    visibility = Some(Visibility {
-                        keyword_span,
-                        args: None,
-                        arg_group_span: None,
-                    });
+                    let group_span = *span;
+                    let mut tokens = Tokens::new(tokens, group_span.end());
+
+                    match tokens.parse_decorator() {
+                        Ok(decorator) => {
+                            decorators.push(decorator);
+                        },
+                        Err(e) => {
+                            errors.extend(e);
+                        },
+                    }
+
+                    self.cursor += 1;
+
+                    if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), span }) = self.peek() {
+                        errors.push(Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::Nothing,
+                                got: ErrorToken::Punct(Punct::Semicolon),
+                            },
+                            spans: vec![RenderableSpan {
+                                span: *span,
+                                auxiliary: false,
+                                note: Some(String::from("Remove this `;`.")),
+                            }],
+                            note: Some(String::from("Don't put a semicolon after a decorator.")),
+                        });
+                        self.cursor += 1;
+                        return Err(errors);
+                    }
+                },
+                Some(Token { kind: TokenKind::Keyword(Keyword::Pub), span }) => {
+                    if !top_level {
+                        let keyword_span = *span;
+                        self.cursor += 1;
+
+                        match self.peek() {
+                            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => todo!(),
+                            _ => {},
+                        }
+
+                        visibility = Some(Visibility {
+                            keyword_span,
+                            args: None,
+                            arg_group_span: None,
+                        });
+                    }
+
                     break;
                 },
                 _ => {
@@ -220,20 +184,73 @@ impl<'t> Tokens<'t> {
         }
 
         if errors.is_empty() {
-            let doc_comment = match doc_comment_buffer.len() {
+            let doc_comment = match doc_comments.len() {
                 0 => None,
-                _ => Some(DocComment::new(doc_comment_buffer)),
+                _ => Some(DocComment::new(doc_comments)),
             };
 
             Ok(Attribute {
                 doc_comment,
-                decorators: decorator_buffer,
+                decorators,
                 visibility,
             })
         }
 
         else {
             Err(errors)
+        }
+    }
+
+    pub fn parse_decorator(&mut self) -> Result<Decorator, Vec<Error>> {
+        let (name, name_span) = self.pop_name_and_span()?;
+
+        match self.peek() {
+            Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
+                let group_span = *span;
+                let mut tokens = Tokens::new(tokens, group_span.end());
+                let args = tokens.parse_call_args()?;
+                let result = Decorator {
+                    name,
+                    name_span,
+                    args: Some(args),
+                    arg_group_span: Some(group_span),
+                };
+                self.cursor += 1;
+
+                match self.peek() {
+                    Some(t) => {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::Nothing,
+                                got: (&t.kind).into(),
+                            },
+                            spans: t.span.simple_error(),
+                            note: None,
+                        }]);
+                    },
+                    None => {
+                        return Ok(result);
+                    },
+                }
+            },
+            Some(t) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::UnexpectedToken {
+                        expected: ErrorToken::Group(Delim::Parenthesis),
+                        got: (&t.kind).into(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                }]);
+            },
+            None => {
+                return Ok(Decorator {
+                    name,
+                    name_span,
+                    args: None,
+                    arg_group_span: None,
+                });
+            },
         }
     }
 }

@@ -33,6 +33,9 @@ pub struct Block {
 
     // the top-level block doesn't have a value
     pub value: Box<Option<Expr>>,
+
+    // only top-level block has an attribute
+    pub attribute: Option<Attribute>,
 }
 
 impl Block {
@@ -50,6 +53,7 @@ impl Block {
             modules: vec![],
             uses: vec![],
             value: Box::new(None),
+            attribute: None,
         }
     }
 
@@ -92,8 +96,21 @@ impl<'t> Tokens<'t> {
         let mut uses = vec![];
         let mut value = None;
 
+        // If it's top-level, it has to collect the module attribute.
+        let attribute = if is_top_level {
+            match self.collect_attribute(true) {
+                Ok(attribute) => Some(attribute),
+                Err(e) => {
+                    errors = e;
+                    None
+                },
+            }
+        } else {
+            None
+        };
+
         loop {
-            let attribute = match self.collect_attribute() {
+            let attribute = match self.collect_attribute(false /* top_level */) {
                 Ok(attribute) => attribute,
 
                 // Even though there's an error, the parser can still find declarations.
@@ -345,6 +362,7 @@ impl<'t> Tokens<'t> {
                 modules,
                 uses,
                 value: Box::new(value),
+                attribute,
             })
         }
 
