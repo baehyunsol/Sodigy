@@ -133,9 +133,6 @@ fn main() -> Result<(), Error> {
                     let (input_module_path, input_file_path) = sodigy_file::std_root();
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
                         commands: vec![
-                            Command::InitIrDir {
-                                intermediate_dir: String::from("target"),
-                            },
                             Command::Compile {
                                 input_file_path,
                                 input_module_path,
@@ -165,7 +162,7 @@ fn main() -> Result<(), Error> {
 
                 // loop 1: generate hir of all files
                 loop {
-                    for (worker_id, worker) in workers.iter().enumerate() {
+                    for worker in workers.iter() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
                                 MessageToMain::FoundModuleDef {
@@ -247,7 +244,7 @@ fn main() -> Result<(), Error> {
 
                 // loop 2: generate inter-hir map
                 loop {
-                    for (worker_id, worker) in workers.iter().enumerate() {
+                    for worker in workers.iter() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
                                 // TODO: throw an ICE
@@ -324,7 +321,7 @@ fn main() -> Result<(), Error> {
 
                 // loop 3: generate mir of all files
                 loop {
-                    for (worker_id, worker) in workers.iter().enumerate() {
+                    for worker in workers.iter() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
                                 // TODO: throw an ICE

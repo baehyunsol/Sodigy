@@ -199,6 +199,6 @@ fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentW
                 find_ids_with_def_span(arg, def_span, result);
             }
         },
-        Type::Wildcard(_) => {},
+        Type::Wildcard(_) | Type::Never(_) => {},
     }
 }

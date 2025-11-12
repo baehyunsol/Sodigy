@@ -272,6 +272,7 @@ impl RenderTypeError for MirSession {
                 self.render_type(r#return.as_ref()),
             ),
             Type::Var { .. } | Type::GenericInstance { .. } => String::from("_"),
+            Type::Never { .. } => String::from("!"),
         }
     }
 

@@ -387,7 +387,8 @@ impl Session {
                             Type::Param { .. } |
                             Type::Tuple { .. } |
                             Type::Func { .. } |
-                            Type::Wildcard(_) => {
+                            Type::Wildcard(_) |
+                            Type::Never(_) => {
                                 self.errors.push(todo!());
                             },
                         }
@@ -460,11 +461,13 @@ impl Session {
                                 // alias: type Bar = (Int, Int);
                                 // alias: type Bar = Fn(Int, Int) -> Int;
                                 // alias: type Bar = _;
+                                // alias: type Bar = !;
                                 // r#type: Bar<T, U>
                                 Type::Param { .. } |
                                 Type::Tuple { .. } |
                                 Type::Func { .. } |
-                                Type::Wildcard(_) => {
+                                Type::Wildcard(_) |
+                                Type::Never(_) => {
                                     self.errors.push(Error {
                                         kind: ErrorKind::UnexpectedTypeArgument {
                                             expected: 0,
@@ -496,10 +499,13 @@ impl Session {
                             match &alias.r#type {
                                 // alias: type Bar<T, U> = Foo;
                                 // alias: type Bar<T, U> = Foo.a.b;
+                                // alias: type Bar<T, U> = _;
+                                // alais: type Bar<T, U> = !;
                                 // r#type: Bar<T, U>
                                 Type::Identifier(_) |
                                 Type::Path { .. } |
-                                Type::Wildcard(_) => {
+                                Type::Wildcard(_) |
+                                Type::Never(_) => {
                                     // This is very very strange and meaningless, but not an error anyway.
                                     if alias.generics.len() == args.len() {
                                         match &alias.r#type {
@@ -640,7 +646,7 @@ impl Session {
                     self.resolve_type(arg, alias_log);
                 }
             },
-            Type::Wildcard(_) => {},
+            Type::Wildcard(_) | Type::Never(_) => {},
         }
     }
 
@@ -807,7 +813,7 @@ impl Session {
                     self.resolve_name_alias_in_type(arg, alias_log);
                 }
             },
-            Type::Wildcard(_) => {},
+            Type::Wildcard(_) | Type::Never(_) => {},
         }
     }
 

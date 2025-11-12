@@ -18,6 +18,9 @@ pub enum Type {
     // ()
     Unit(Span /* group_span */),
 
+    // !
+    Never(Span),
+
     // Result<Int, String>, Result<T, U>, Option<Result<Int, String>>, ...
     // Tuple also has this type: `Param { type: Unit, args: [..] }`
     Param {
@@ -211,6 +214,7 @@ impl Type {
                 def_span: *span,
                 is_return: false,
             }),
+            hir::Type::Never(span) => Ok(Type::Never(*span)),
         }
     }
 
@@ -218,7 +222,8 @@ impl Type {
         match self {
             Type::Static(_) |
             Type::GenericDef(_) |
-            Type::Unit(_) => vec![],
+            Type::Unit(_) |
+            Type::Never(_) => vec![],
             Type::Param { r#type: t, args, .. } |
             Type::Func { r#return: t, args, .. } => {
                 let mut result = t.get_type_vars();
@@ -237,7 +242,8 @@ impl Type {
         match self {
             Type::Static(_) |
             Type::GenericDef(_) |
-            Type::Unit(_) => {},
+            Type::Unit(_) |
+            Type::Never(_) => {},
             Type::Param {
                 r#type: t,
                 args,

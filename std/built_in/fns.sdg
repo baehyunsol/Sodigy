@@ -5,8 +5,7 @@ use std.Int;
 fn read_compound<T, U>(a: T, b: Int) -> U = 0;
 
 #[built_in]
-#[any_type(T)]
-fn panic<T>() -> T = 0;
+fn panic() -> ! = 0;
 
 #[built_in]
 fn div_int(a: Int, b: Int) -> Int = 0;

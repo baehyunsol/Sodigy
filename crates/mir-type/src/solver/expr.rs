@@ -43,29 +43,23 @@ impl Solver {
             },
             Expr::If(r#if) => {
                 let cond_type = self.solve_expr(r#if.cond.as_ref(), types, generic_instances)?;
-
-                match cond_type {
-                    Type::Static(s) if s == self.get_lang_item_span("type.Bool") => {},  // okay
-                    _ => {
-                        let _ = self.equal(
-                            &Type::Static(self.get_lang_item_span("type.Bool")),
-                            &cond_type,
-                            types,
-                            generic_instances,
-                            false,
-                            None,
-                            Some(r#if.cond.error_span()),
-                            ErrorContext::IfConditionBool,
-                        );
-                    },
-                }
+                let _ = self.solve_subtype(
+                    &Type::Static(self.get_lang_item_span("type.Bool")),
+                    &cond_type,
+                    types,
+                    generic_instances,
+                    false,
+                    None,
+                    Some(r#if.cond.error_span()),
+                    ErrorContext::IfConditionBool,
+                );
 
                 match (
                     self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
                     self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
                 ) {
                     (Ok(true_type), Ok(false_type)) => {
-                        self.equal(
+                        let expr_type = self.solve_subtype(
                             &true_type,
                             &false_type,
                             types,
@@ -75,7 +69,7 @@ impl Solver {
                             Some(r#if.false_value.error_span()),
                             ErrorContext::IfValueEqual,
                         )?;
-                        Ok(true_type)
+                        Ok(expr_type)
                     },
                     _ => Err(()),
                 }
@@ -158,7 +152,7 @@ impl Solver {
 
                             else {
                                 for (i, arg_def) in arg_defs.iter().enumerate() {
-                                    let _ = self.equal(
+                                    let _ = self.solve_subtype(
                                         arg_def,
                                         &arg_types[i],
                                         types,
@@ -205,9 +199,11 @@ impl Solver {
                         }
 
                         else {
+                            let mut elem_type = arg_types[0].clone();
+
                             for i in 1..arg_types.len() {
-                                let _ = self.equal(
-                                    &arg_types[0],
+                                if let Ok(new_elem_type) = self.solve_subtype(
+                                    &elem_type,
                                     &arg_types[i],
                                     types,
                                     generic_instances,
@@ -215,12 +211,14 @@ impl Solver {
                                     Some(args[0].error_span()),
                                     Some(args[i].error_span()),
                                     ErrorContext::ListElementEqual,
-                                );
+                                ) {
+                                    elem_type = new_elem_type;
+                                }
                             }
 
                             Ok(Type::Param {
                                 r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
-                                args: arg_types.drain(0..1).collect(),
+                                args: vec![elem_type],
 
                                 // this is for the type annotation, hence None
                                 group_span: Span::None,
@@ -259,7 +257,7 @@ impl Solver {
 
                                 else {
                                     for i in 0..arg_defs.len() {
-                                        let _ = self.equal(
+                                        let _ = self.solve_subtype(
                                             &arg_defs[i],
                                             &arg_types[i],
                                             types,

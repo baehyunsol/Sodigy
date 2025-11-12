@@ -109,13 +109,18 @@ pub enum Type {
     // `_` in `[_]`
     // It'll be infered, if possible.
     Wildcard(Span),
+
+    // `!`
+    // It's subtype of every type.
+    Never(Span),
 }
 
 impl Type {
     pub fn error_span(&self) -> Span {
         match self {
             Type::Identifier { span, .. } |
-            Type::Wildcard(span) => *span,
+            Type::Wildcard(span) |
+            Type::Never(span) => *span,
             Type::Path { fields, .. } => match fields.get(0) {
                 Some(Field::Name { dot_span, .. }) => *dot_span,
                 _ => unreachable!(),
@@ -312,14 +317,27 @@ impl<'t> Tokens<'t> {
                             got: ErrorToken::Group(d),
                         },
                         spans: group_span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]),
                 };
 
                 self.cursor += 1;
                 result
             },
-            ts => panic!("TODO: {ts:?}"),
+            (Some(Token { kind: TokenKind::Punct(Punct::Factorial), span }), _) => {
+                let result = Ok(Type::Never(*span));
+                self.cursor += 1;
+                result
+            },
+            (Some(t), _) => Err(vec![Error {
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::TypeAnnotation,
+                    got: (&t.kind).into(),
+                },
+                spans: t.span.simple_error(),
+                note: None,
+            }]),
+            (None, _) => Err(vec![self.unexpected_end(ErrorToken::TypeAnnotation)]),
         }
     }
 

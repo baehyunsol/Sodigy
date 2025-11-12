@@ -1,3 +1,21 @@
+# 76. Subtyping...
+
+1. Never type만 고려할 경우
+  - `Never` is a subtype of everything
+  - `Never`를 위한 variant와 (`Type::Never`) notation (`!`)을 새로 만들어야 함
+  - assertion이나 if처럼 특정 type을 기대하는 경우: 해당 type의 subtype이 나오면 맞다고 하고 넘어가기
+    - 함수 arg도 이에 해당
+  - list처럼 여러 type이 동일하기를 기대하는 경우
+    - 각 type을 전부 subtype으로 묶은 다음에 가장 concrete한 type을 만들어서 전체의 type으로 처리
+    - 묶는데 실패하면 오류
+  - `TypeVar(x) = Type::Never`인 경우
+    - 살짝 꼼수를 씀. 일단은 `TypeVar(x)`를 안 풀고 남겨놔. 나중에 더 자세한 type을 찾으면 `TypeVar(x)`를 풀고, 끝까지 안 풀리면 그냥 `Type::Never`를 넣는 거지.
+  - `TypeVar(x) = Result<Int, !>`인 경우
+    - 이거는 어쩔 수 없다 ㅠㅠ
+    - 아니면, `TypeVar(x) = Result<Int, TypeVar(new)>`로 한 다음에 `TypeVar(new) = !`를 추가로 대입하는 방법도 있음..!!
+      - 아니지, 이거를 해도 `TypeVar(new)`를 풀 방법이 없지. 다른 곳에서 등장을 안할텐데?
+2. general subtyping
+
 # 75. inter-hir
 
 inter-hir이 너무 더러워지고 있음. 걍 싹다 날리고 새로 짤까?
@@ -39,7 +57,11 @@ inter-hir이 너무 더러워지고 있음. 걍 싹다 날리고 새로 짤까?
 아니면 손쉬운 trick이 있음: `read_compoun<T, U>(ls: T, i: Int) -> U`로 한 다음에 얘네는 generic이 infer가 안돼도 error를 안 내는 거지!!
 panic도 마찬가지: `panic<T>() -> T`라고 한 다음에 generic이 infer가 안돼도 error를 안내면 됨.
 
-이러면 "a type that is a subtype of every other type"을 구현할 수 있음!!
+이러면 "a type that is a subtype of every type"을 구현할 수 있음!!
+
+생각해보니까 이거 안됨. `fn always_panic() = panic();`을 하면 쟤의 type을 `T`로 추론하겠지? 근데 어디서는 `always_panic`을 int 자리에 쓰고 어디서는 `always_panic`을 string 자리에 쓰면 그 둘이 type collision이 나잖아? 그럼 안되지...
+
+`read_compound`는 저렇게 그대로 써도 될 듯??
 
 # 73. Decorator
 
@@ -126,29 +148,6 @@ Wildcard 사용처를 생각해보자
   - 사실 이미 Sodigy에 syntactic ambiguity가 존재하거든? 그래서 여기도 syntactic ambiguity를 넣은 다음에 에러메시지를 좀 더 잘 써줘도 됨.
 
 How about just using `::<>` instead of `.<>`?
-
-# 67. more edges in inter-hir
-
-1. 지금은 name_alias랑 type_alias랑 완전 별개로 풀려고 하고 있는데, 둘이 별개로 풀 수가 없음...
-
-```
-struct a = { ... };
-use a as b;
-type c = b;
-use c as d;
-type e = d;
-```
-
-저런 극단적인 상황이 있다고 치면 use랑 type이랑 번갈아가면서 4번 풀어야 다 풀림...
-
-2. 그럼 무식하게 use랑 type이랑 합치면 되냐? 그것도 안됨!
-
-일단, use는 field가 붙을 수 있고 type은 말그대로 arbitrary type이 올 수가 있음. `type String = [Char];`인데 `Char`가 또다른 `use`로부터 온 걸 수도 있으니까...
-
-3. 아니 애초에 type만 합치는 것도 경우의 수가 엄청나게 많음...
-
-1. `type T1 = T2;`, `type T2 = T3;` -> `type T1 = T3;`
-1. `type T1 = Bar<Foo, Baz<U1, U2>>;`, `type Baz<K, V> = Goo<K, V, Int>;` -> `type T1 = Bar<Foo, Goo<U1, U2, Int>>`
 
 # 66. Assertion loops
 
@@ -465,25 +464,6 @@ Runtime has 2 types: scalar vs compound
   - struct-init을 없애버릴까?
     - struct-init을 parenthesis로 쓰는 것도 괜찮을 거 같기는 한데, 그럼 struct pattern이 애매해짐 ㅠㅠ
 
-# 38. More on memory
-
-1. dec_rc를 한 다음에 destructor를 호출하려면... 현재 보고 있는 값이 Integer/String인지 Compound인지 알아야 함!
-  - 만약 Compound라면 element는 몇개인지, 각 element의 type은 뭔지도 알아야 함...
-2. ref-count 분석을 했다고 치자... 그래서 뭘 할 수 있지? 어차피 다 heap에 올라가면 이득이 거의 없는 거 아님??
-  - 즉, heap-allocation을 아예 피하는 방법을 찾아야함, how?
-3. in-place mutation -> bytecode로 어떻게 표현? ref_count는??
-  - 지금은 그냥 `Register::Call(0)`에다가 struct 두고 `Register::Call(1)`에다가 index 두고 `Register::Call(2)`에다가 value 둔 다음에 `Intrinsic::Update` 해야겠지?
-  - 그럼 `Intrinsic::Update`가 새로운 struct 만들고, 기존 field 복사하고 (update할 field 빼고) (이때 inc_rc도 하고), value도 복사하고 (이때 inc_rc)도 하고, 이거 끝나면 `Register::Call(_)`에 있는 값들 pop하면서 dec_rc도 함.
-  - in-place로 하려면 새로운 struct 만드는대신 기존 struct를 inc_rc 하고, 기존 field는 건드리지 말고, value는 복사해서 inc_rc하고, 덮어씌워지는 값은 dec_rc 하고, 그럼 됨!
-    - 조금 더 싸네
-  - 근데, Sodigy에 cyclic reference가 없는 이유가 in-place mutation이 없기 때문이잖아, 이 최적화를 하면 cycle이 생길 수도 있는 거 아님??
-    - 생각해보니까 될 듯... 이거 어케 막지? type 보고 cycle이 가능한 경우에는 in-place mutation을 꺼야 함!
-
-Canceling reference count isn't a big deal. The big deals are
-
-1. In-place mutations.
-2. Turning `match (x, y, z) { (0, 1, 2) => _ }` into `let e1 = x; let e2 = y; let e3 = z; if x == 0 && y == 1 && z == 2 { _ }`.
-
 # 37. debug function
 
 - 단순 print문이나 log문으로 디버깅하기 -> 필수!
@@ -506,6 +486,7 @@ Canceling reference count isn't a big deal. The big deals are
   - 그럼 debugger가 필요한데...
 4. 함수 로그 찍는 decorator를 만들까?
   - 진입할 때 arg 전부 다 보여주고, 빠져나올 때 결과값도 보여줌 -> 이러면 tail-call을 못하는데??
+  - 진입할 때 arg, datetime만 찍어도 괜찮을 거 같은데??
 
 일단은 보류하고 (아직은 debugging이 필요할 정도로 긴 Sodigy 코드를 못 짬), Sodigy 코드를 많이 짜고 나서 그때 생각할까?
 
@@ -839,6 +820,8 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 # 25. Make it more Rust-like!! ... 하다가 생긴 문제점
 
 Name binding에 `$`를 안 붙이니까 한가지 문제가 생김: `True`랑 `False`에 match 하려면 `$True`, `$False`를 해야함... Rust는 `true`/`false`가 keyword여서 이런 문제가 없음.
+
+-> 생각해보니까 이것도 안되네. `$True`면은 "True라는 이름을 가진 변수와 값이 같다"라는 뜻이잖아...
 
 # 24. tuple struct
 

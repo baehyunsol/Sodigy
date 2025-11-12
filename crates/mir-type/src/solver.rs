@@ -144,17 +144,18 @@ impl Solver {
         }
     }
 
-    // It first checks whether `lhs` and `rhs` are equal. There's no subtyping in Sodigy. (TODO: there is)
+    // It first checks whether `subtype` is a subtype of `expected_type`. If so, it creates a more concrete type and returns it.
+    // For example, if `expected_type` is `Type::Int` and `subtype` is `Type::Never`, it returns `Ok(Type::Int)`.
     // If either operand is a type variable, it creates a new type equation.
     // It tries to solve the type equation. If it solves, it updates `types` and `self.`
     // If it finds non-sense while solving, it pushes the error to `self.errors` and returns `Err(())`.
-    pub fn equal(
+    pub fn solve_subtype(
         &mut self,
 
-        // It's a type equation `lhs == rhs`
-        // If there's an error, the message would be "expected {lhs}, got {rhs}".
-        lhs: &Type,
-        rhs: &Type,
+        // It's a type equation `subtype <: expected_type`
+        // If there's an error, the message would be "expected {expected_type}, got {subtype}".
+        expected_type: &Type,
+        subtype: &Type,
 
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
@@ -164,24 +165,36 @@ impl Solver {
         is_checking_argument: bool,
 
         // for helpful error messages
-        lhs_span: Option<Span>,
-        rhs_span: Option<Span>,
+        expected_span: Option<Span>,
+        subtype_span: Option<Span>,
         context: ErrorContext,
-    ) -> Result<(), ()> {
-        match (lhs, rhs) {
-            (Type::Unit(_), Type::Unit(_)) => Ok(()),
-            (Type::Static(lhs_def), Type::Static(rhs_def)) => {
-                if *lhs_def == *rhs_def {
-                    Ok(())
+    ) -> Result<Type, ()> {
+        match (expected_type, subtype) {
+            (Type::Unit(_), Type::Unit(_)) => Ok(expected_type.clone()),
+            (Type::Never(_), concrete) | (concrete, Type::Never(_)) => {
+                // We don't solve the variable, because we might solve it with a more concrete type.
+                // But we still have to remember that this variable might be `Type::Never`.
+                // If we can't solve the variable, we'll assign `Type::Never` to the variable.
+                match concrete {
+                    Type::Var { .. } => todo!(),
+                    Type::GenericInstance { .. } => todo!(),
+                    _ => {},
+                }
+
+                Ok(concrete.clone())
+            },
+            (Type::Static(exp_def), Type::Static(sub_def)) => {
+                if *exp_def == *sub_def {
+                    Ok(expected_type.clone())
                 }
 
                 else {
                     if !is_checking_argument {
                         self.errors.push(TypeError::UnexpectedType {
-                            expected: lhs.clone(),
-                            expected_span: lhs_span,
-                            got: rhs.clone(),
-                            got_span: rhs_span,
+                            expected: expected_type.clone(),
+                            expected_span: expected_span,
+                            got: subtype.clone(),
+                            got_span: subtype_span,
                             context,
                         });
                     }
@@ -191,7 +204,7 @@ impl Solver {
             },
             (Type::Param { r#type: t1, args: args1, .. }, Type::Param { r#type: t2, args: args2, .. }) |
             (Type::Func { r#return: t1, args: args1, .. }, Type::Func { r#return: t2, args: args2, .. }) => {
-                if let Err(()) = self.equal(
+                let t = match self.solve_subtype(
                     t1,
                     t2,
                     types,
@@ -201,25 +214,29 @@ impl Solver {
                     None,
                     context,
                 ) {
-                    if !is_checking_argument {
-                        self.errors.push(TypeError::UnexpectedType {
-                            expected: lhs.clone(),
-                            expected_span: lhs_span,
-                            got: rhs.clone(),
-                            got_span: rhs_span,
-                            context,
-                        });
-                    }
-                    Err(())
-                }
+                    Ok(t) => t,
+                    Err(()) => {
+                        if !is_checking_argument {
+                            self.errors.push(TypeError::UnexpectedType {
+                                expected: expected_type.clone(),
+                                expected_span: expected_span,
+                                got: subtype.clone(),
+                                got_span: subtype_span,
+                                context,
+                            });
+                        }
 
-                else if args1.len() != args2.len() {
+                        return Err(());
+                    },
+                };
+
+                if args1.len() != args2.len() {
                     if !is_checking_argument {
                         self.errors.push(TypeError::UnexpectedType {
-                            expected: lhs.clone(),
-                            expected_span: lhs_span,
-                            got: rhs.clone(),
-                            got_span: rhs_span,
+                            expected: expected_type.clone(),
+                            expected_span: expected_span,
+                            got: subtype.clone(),
+                            got_span: subtype_span,
                             context,
                         });
                     }
@@ -228,9 +245,10 @@ impl Solver {
 
                 else {
                     let mut has_error = false;
+                    let mut args = Vec::with_capacity(args1.len());
 
                     for i in 0..args1.len() {
-                        if let Err(()) = self.equal(
+                        match self.solve_subtype(
                             &args1[i],
                             &args2[i],
                             types,
@@ -240,16 +258,21 @@ impl Solver {
                             None,
                             ErrorContext::None,
                         ) {
-                            if !is_checking_argument {
-                                self.errors.push(TypeError::UnexpectedType {
-                                    expected: lhs.clone(),
-                                    expected_span: lhs_span,
-                                    got: rhs.clone(),
-                                    got_span: rhs_span,
-                                    context,
-                                });
-                            }
-                            has_error = true;
+                            Ok(arg) => {
+                                args.push(arg);
+                            },
+                            Err(()) => {
+                                if !is_checking_argument {
+                                    self.errors.push(TypeError::UnexpectedType {
+                                        expected: expected_type.clone(),
+                                        expected_span: expected_span,
+                                        got: subtype.clone(),
+                                        got_span: subtype_span,
+                                        context,
+                                    });
+                                }
+                                has_error = true;
+                            },
                         }
                     }
 
@@ -258,7 +281,20 @@ impl Solver {
                     }
 
                     else {
-                        Ok(())
+                        match expected_type {
+                            Type::Param { group_span, .. } => Ok(Type::Param {
+                                r#type: Box::new(t),
+                                args,
+                                group_span: *group_span,
+                            }),
+                            Type::Func { fn_span, group_span, .. } => Ok(Type::Func {
+                                fn_span: *fn_span,
+                                group_span: *group_span,
+                                r#return: Box::new(t),
+                                args,
+                            }),
+                            _ => unreachable!(),
+                        }
                     }
                 }
             },
@@ -283,7 +319,7 @@ impl Solver {
                 }
 
                 self.substitute(type_var, concrete, types, generic_instances);
-                Ok(())
+                Ok(concrete.clone())
             },
             (
                 type_var @ Type::Var { def_span, is_return },
@@ -317,15 +353,15 @@ impl Solver {
                     }
                 }
 
-                Ok(())
+                Ok(maybe_concrete.clone())
             },
             (Type::Var { def_span: v1, .. }, Type::Var { def_span: v2, .. }) if *v1 == *v2 => {
                 // nop
-                Ok(())
+                Ok(expected_type.clone())
             },
             (Type::GenericInstance { call: c1, generic: g1 }, Type::GenericInstance { call: c2, generic: g2 }) if *c1 == *c2 && *g1 == *g2 => {
                 // nop
-                Ok(())
+                Ok(expected_type.clone())
             },
             (
                 t1 @ Type::Var { def_span: v1, is_return: false },
@@ -333,28 +369,28 @@ impl Solver {
             ) => {
                 if let Some(type1) = types.get(v1) {
                     let type1 = type1.clone();
-                    self.equal(
+                    self.solve_subtype(
                         &type1,
-                        rhs,
+                        subtype,
                         types,
                         generic_instances,
                         is_checking_argument,
-                        lhs_span,
-                        rhs_span,
+                        expected_span,
+                        subtype_span,
                         ErrorContext::Deep,
                     )
                 }
 
                 else if let Some(type2) = types.get(v2) {
                     let type2 = type2.clone();
-                    self.equal(
-                        lhs,
+                    self.solve_subtype(
+                        expected_type,
                         &type2,
                         types,
                         generic_instances,
                         is_checking_argument,
-                        lhs_span,
-                        rhs_span,
+                        expected_span,
+                        subtype_span,
                         ErrorContext::Deep,
                     )
                 }
@@ -366,20 +402,20 @@ impl Solver {
                     types.insert(*v2, t1.clone());
                     self.add_type_var(t2.clone(), None);
                     self.add_type_var_ref(t2.clone(), t1.clone());
-                    Ok(())
+                    Ok(t1.clone())
                 }
             },
             (t1 @ Type::GenericDef(g1), t2 @ Type::GenericDef(g2)) => {
                 self.add_generic_constraint(*g1, t2);
                 self.add_generic_constraint(*g2, t1);
-                Ok(())
+                Ok(t1.clone())
             },
             (Type::GenericDef(generic), constraint) |
             (constraint, Type::GenericDef(generic)) => {
                 self.add_generic_constraint(*generic, constraint);
-                Ok(())
+                Ok(constraint.clone())
             },
-            _ => panic!("TODO: {:?}", (lhs, rhs)),
+            _ => panic!("TODO: {:?}", (expected_type, subtype)),
         }
     }
 

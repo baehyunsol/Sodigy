@@ -46,7 +46,7 @@ impl Solver {
             _ => unreachable!(),
         };
 
-        self.equal(
+        self.solve_subtype(
             &annotated_type,
             &infered_type,
             types,

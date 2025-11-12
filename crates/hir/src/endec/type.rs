@@ -38,6 +38,10 @@ impl Endec for Type {
                 buffer.push(5);
                 span.encode_impl(buffer);
             },
+            Type::Never(span) => {
+                buffer.push(6);
+                span.encode_impl(buffer);
+            },
         }
     }
 
@@ -74,7 +78,11 @@ impl Endec for Type {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Type::Wildcard(span), cursor))
             },
-            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(6) => {
+                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((Type::Never(span), cursor))
+            },
+            Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

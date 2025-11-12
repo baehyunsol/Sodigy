@@ -17,26 +17,30 @@ impl Endec for Type {
                 buffer.push(2);
                 group_span.encode_impl(buffer);
             },
-            Type::Param { r#type, args, group_span } => {
+            Type::Never(span) => {
                 buffer.push(3);
+                span.encode_impl(buffer);
+            },
+            Type::Param { r#type, args, group_span } => {
+                buffer.push(4);
                 r#type.encode_impl(buffer);
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
             Type::Func { fn_span, group_span, args, r#return } => {
-                buffer.push(4);
+                buffer.push(5);
                 fn_span.encode_impl(buffer);
                 group_span.encode_impl(buffer);
                 args.encode_impl(buffer);
                 r#return.encode_impl(buffer);
             },
             Type::Var { def_span, is_return } => {
-                buffer.push(5);
+                buffer.push(6);
                 def_span.encode_impl(buffer);
                 is_return.encode_impl(buffer);
             },
             Type::GenericInstance { call, generic } => {
-                buffer.push(6);
+                buffer.push(7);
                 call.encode_impl(buffer);
                 generic.encode_impl(buffer);
             },
@@ -58,29 +62,33 @@ impl Endec for Type {
                 Ok((Type::Unit(group_span), cursor))
             },
             Some(3) => {
+                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((Type::Never(span), cursor))
+            },
+            Some(4) => {
                 let (r#type, cursor) = Box::<Type>::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Type::Param { r#type, args, group_span }, cursor))
             },
-            Some(4) => {
+            Some(5) => {
                 let (fn_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (r#return, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
                 Ok((Type::Func { fn_span, group_span, args, r#return }, cursor))
             },
-            Some(5) => {
+            Some(6) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (is_return, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((Type::Var { def_span, is_return }, cursor))
             },
-            Some(6) => {
+            Some(7) => {
                 let (call, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (generic, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Type::GenericInstance { call, generic }, cursor))
             },
-            Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

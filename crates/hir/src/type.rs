@@ -28,6 +28,7 @@ pub enum Type {
         r#return: Box<Type>,
     },
     Wildcard(Span),
+    Never(Span),
 }
 
 impl Type {
@@ -213,6 +214,7 @@ impl Type {
                 }
             },
             ast::Type::Wildcard(span) => Ok(Type::Wildcard(*span)),
+            ast::Type::Never(span) => Ok(Type::Never(*span)),
         }
     }
 
@@ -240,7 +242,7 @@ impl Type {
                 span = span.merge(*group_span);
                 span.merge(r#return.error_span())
             },
-            Type::Wildcard(span) => *span,
+            Type::Wildcard(span) | Type::Never(span) => *span,
         }
     }
 }

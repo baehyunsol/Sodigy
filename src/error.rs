@@ -45,7 +45,7 @@ impl<T> QuickError<T> for Result<T, SodigyError> {
         match self {
             Ok(v) => Ok(v),
             Err(e) => {
-                let mut session = DummySession {
+                let session = DummySession {
                     errors: vec![e],
                     warnings: vec![],
                     intermediate_dir: intermediate_dir.to_string(),
