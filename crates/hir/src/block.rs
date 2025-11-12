@@ -1,6 +1,7 @@
 use crate::{
     Alias,
     Assert,
+    Enum,
     Expr,
     Func,
     FuncOrigin,
@@ -115,6 +116,17 @@ impl Block {
             match Struct::from_ast(r#struct, session, is_top_level) {
                 Ok(r#struct) => {
                     session.structs.push(r#struct);
+                },
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
+
+        for r#enum in ast_block.enums.iter() {
+            match Enum::from_ast(r#enum, session, is_top_level) {
+                Ok(r#enum) => {
+                    session.enums.push(r#enum);
                 },
                 Err(()) => {
                     has_error = true;

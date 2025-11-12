@@ -35,7 +35,7 @@ impl Endec for Func {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<GenericDef>::decode_impl(buffer, cursor)?;
-        let (args, cursor) = Vec::<FuncArgDef<Type>>::decode_impl(buffer, cursor)?;
+        let (args, cursor) = Vec::<FuncArgDef>::decode_impl(buffer, cursor)?;
         let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
@@ -61,7 +61,7 @@ impl Endec for Func {
     }
 }
 
-impl<T: Endec> Endec for FuncArgDef<T> {
+impl Endec for FuncArgDef {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -72,7 +72,7 @@ impl<T: Endec> Endec for FuncArgDef<T> {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (r#type, cursor) = Option::<T>::decode_impl(buffer, cursor)?;
+        let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (default_value, cursor) = Option::<IdentWithOrigin>::decode_impl(buffer, cursor)?;
 
         Ok((

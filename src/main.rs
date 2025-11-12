@@ -86,6 +86,7 @@ fn main() -> Result<(), Error> {
                             input_file_path,
                             input_module_path,
                             intermediate_dir: String::from("target"),
+                            find_modules: true,
                             emit_ir_options: vec![
                                 // for debugging
                                 EmitIrOption {
@@ -139,6 +140,7 @@ fn main() -> Result<(), Error> {
                                 input_file_path,
                                 input_module_path,
                                 intermediate_dir: String::from("target"),
+                                find_modules: true,
                                 emit_ir_options: vec![
                                     // cache hir for incremental compilation
                                     EmitIrOption {
@@ -184,6 +186,7 @@ fn main() -> Result<(), Error> {
                                                 input_file_path: file_path,
                                                 input_module_path: path,
                                                 intermediate_dir: String::from("target"),
+                                                find_modules: true,
                                                 emit_ir_options: vec![
                                                     EmitIrOption {
                                                         stage: CompileStage::Hir,
@@ -291,6 +294,7 @@ fn main() -> Result<(), Error> {
                             input_file_path: file_path,
                             input_module_path: path.clone(),
                             intermediate_dir: String::from("target"),
+                            find_modules: false,
                             emit_ir_options: vec![
                                 EmitIrOption {
                                     stage: CompileStage::Mir,
@@ -441,6 +445,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 input_file_path,
                 input_module_path,
                 intermediate_dir,
+                find_modules,
                 emit_ir_options,
                 dump_type_info,
                 output_path,
@@ -533,13 +538,15 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
-                for module in hir_session.modules.iter() {
-                    let module_name = unintern_string(module.name, &intermediate_dir)?.unwrap();
-                    let module_name = String::from_utf8_lossy(&module_name).to_string();
-                    tx_to_main.send(MessageToMain::FoundModuleDef {
-                        path: input_module_path.join(module_name),
-                        span: module.name_span,
-                    })?;
+                if find_modules {
+                    for module in hir_session.modules.iter() {
+                        let module_name = unintern_string(module.name, &intermediate_dir)?.unwrap();
+                        let module_name = String::from_utf8_lossy(&module_name).to_string();
+                        tx_to_main.send(MessageToMain::FoundModuleDef {
+                            path: input_module_path.join(module_name),
+                            span: module.name_span,
+                        })?;
+                    }
                 }
 
                 if let CompileStage::Hir = stop_after {

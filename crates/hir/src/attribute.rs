@@ -1,5 +1,6 @@
 use crate::{Expr, Session};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
+use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{
@@ -417,8 +418,8 @@ impl Attribute {
         self.decorators.contains_key(&intern_string(b"built_in", intermediate_dir).unwrap())
     }
 
-    pub fn no_type(&self, intermediate_dir: &str) -> bool {
-        self.decorators.contains_key(&intern_string(b"no_type", intermediate_dir).unwrap())
+    pub fn any_type(&self, intermediate_dir: &str) -> bool {
+        self.decorators.contains_key(&intern_string(b"any_type", intermediate_dir).unwrap())
     }
 
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
@@ -464,10 +465,14 @@ impl AttributeRule {
                 },
             ),
             (
-                "no_type",
+                "any_type",
                 DecoratorRule {
                     requirement: Requirement::Maybe,
-                    arg_requirement: Requirement::Never,
+                    arg_requirement: Requirement::Must,
+                    arg_count: ArgCount::Gt(0),
+                    arg_count_error_note: Some(String::from("Please give a list of generic parameters.")),
+                    arg_type: ArgType::Generic,
+                    arg_type_error_note: Some(String::from("It's used to turn off type-checking of generic parameters.")),
                     ..DecoratorRule::default()
                 },
             ),
@@ -581,6 +586,7 @@ pub struct KeywordArgRule {
 #[derive(Clone, Copy, Debug)]
 pub enum ArgType {
     StringLiteral,
+    Generic,
     Expr,
 }
 
@@ -601,6 +607,18 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
                 // It's not a type error. An f-string token has type `String`, but it's still an error.
                 kind: ErrorKind::UnexpectedToken {
                     expected: ErrorToken::String,
+                    got: ErrorToken::Expr,
+                },
+                spans: arg.error_span().simple_error(),
+                note: error_note.clone(),
+            });
+            Err(())
+        },
+        (ArgType::Generic, Expr::Identifier(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. })) => Ok(()),
+        (ArgType::Generic, _) => {
+            session.errors.push(Error {
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::Generic,
                     got: ErrorToken::Expr,
                 },
                 spans: arg.error_span().simple_error(),

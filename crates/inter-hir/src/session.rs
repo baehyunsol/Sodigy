@@ -1,5 +1,5 @@
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{Alias, FuncArgDef, GenericDef, StructField, Use};
+use sodigy_hir::{Alias, FuncArgDef, GenericDef, StructFieldDef, Use};
 use sodigy_name_analysis::NameKind;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
@@ -10,8 +10,8 @@ pub struct Session {
     pub intermediate_dir: String,
 
     // of all hir files
-    pub func_shapes: HashMap<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>,
-    pub struct_shapes: HashMap<Span, (Vec<StructField<()>>, Vec<GenericDef>)>,
+    pub func_shapes: HashMap<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>,
+    pub struct_shapes: HashMap<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>,
 
     // of the current hir file
     pub name_aliases: HashMap<Span, Use>,

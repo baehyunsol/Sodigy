@@ -1,6 +1,8 @@
 // Decorators for built-ins.
 // 1. `#[built_in]`: The compiler doesn't check the body of the func/enum/struct.
-// 2. `#[no_type]`: The type-infer engine and the type checker ignores the item.
+// 2. `#[any_type(T)]`: The generic parameter `T` can be anytype. The type checker and the inference engine
+//                      doesn't care about the exact type of `T`.
+//                      It's used to represent `Never` type of `panic`, which is a subtype of every other type, and `read_compound`, which can literally take any type as an input.
 
 mod fns;
 mod traits;

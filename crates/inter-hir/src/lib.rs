@@ -3,7 +3,7 @@ use sodigy_hir::{
     Expr,
     FuncArgDef,
     Pattern,
-    StructField,
+    StructFieldDef,
     Type,
     Use,
 };
@@ -50,7 +50,7 @@ impl Session {
                 r#struct.name_span,
                 (
                     r#struct.fields.iter().map(
-                        |field| StructField {
+                        |field| StructFieldDef {
                             name: field.name,
                             name_span: field.name_span,
                             r#type: None,
@@ -96,7 +96,7 @@ impl Session {
             self.type_aliases.insert(alias.name_span, alias.clone());
         }
 
-        self.resolve_alias_recursive();
+        self.resolve_alias();
 
         if !self.errors.is_empty() {
             return;
@@ -104,24 +104,27 @@ impl Session {
 
         for r#let in hir_session.lets.iter_mut() {
             if let Some(r#type) = &mut r#let.r#type {
-                self.resolve_type_recursive(r#type, &mut vec![]);
+                self.resolve_type(r#type, &mut vec![]);
+                self.resolve_name_alias_in_type(r#type, &mut vec![]);
             }
 
-            self.resolve_expr_recursive(&mut r#let.value);
+            self.resolve_expr(&mut r#let.value);
         }
 
         for func in hir_session.funcs.iter_mut() {
             if let Some(r#type) = &mut func.r#type {
-                self.resolve_type_recursive(r#type, &mut vec![]);
+                self.resolve_type(r#type, &mut vec![]);
+                self.resolve_name_alias_in_type(r#type, &mut vec![]);
             }
 
             for arg in func.args.iter_mut() {
                 if let Some(r#type) = &mut arg.r#type {
-                    self.resolve_type_recursive(r#type, &mut vec![]);
+                    self.resolve_type(r#type, &mut vec![]);
+                    self.resolve_name_alias_in_type(r#type, &mut vec![]);
                 }
             }
 
-            self.resolve_expr_recursive(&mut func.value);
+            self.resolve_expr(&mut func.value);
         }
 
         // TODO: structs, enums, asserts
@@ -147,12 +150,9 @@ impl Session {
     // replace `use y as z;` with `use x as z;`.
     // Also, if there's `type MyInt = Int;` and `type YourInt = MyInt;`,
     // we have to replace `type YourInt = MyInt;` with `type YourInt = Int;`.
-    pub fn resolve_alias_recursive(&mut self) {
+    pub fn resolve_alias(&mut self) {
         let mut emergency = false;
 
-        // TODO: name <-> name (done)
-        // TODO: type <-> type (done)
-        // TODO: type <-> name
         'outer: for i in 0..(ALIAS_RESOLVE_RECURSION_LIMIT + 1) {
             let mut nested_name_aliases: HashMap<Span, Use> = HashMap::new();
             let mut nested_type_aliases: HashMap<Span, Type> = HashMap::new();
@@ -170,7 +170,13 @@ impl Session {
                         suspicious_spans.push(*def_span);
                         suspicious_spans.push(new_alias.name_span);
                     }
+
+                    continue;
                 }
+
+                // TODO: check type_alias in names
+                // e.g. `type Foo = Bar; use Foo as Baz;`
+                //      -> We have to replace `use Foo as Baz;` with `use Bar as Baz;`
             }
 
             // type_alias: `type Foo = Bar;`
@@ -178,7 +184,20 @@ impl Session {
             for (def_span, type_alias) in self.type_aliases.clone().iter() {
                 let mut alias = type_alias.r#type.clone();
                 let mut alias_log = vec![];
-                self.resolve_type_recursive(&mut alias, &mut alias_log);
+                self.resolve_type(&mut alias, &mut alias_log);
+
+                if !alias_log.is_empty() {
+                    nested_type_aliases.insert(*def_span, alias);
+
+                    if i == ALIAS_RESOLVE_RECURSION_LIMIT {
+                        suspicious_spans.push(*def_span);
+                        suspicious_spans.extend(alias_log);
+                    }
+
+                    continue;
+                }
+
+                self.resolve_name_alias_in_type(&mut alias, &mut alias_log);
 
                 if !alias_log.is_empty() {
                     nested_type_aliases.insert(*def_span, alias);
@@ -270,13 +289,21 @@ impl Session {
         }
     }
 
-    pub fn resolve_type_recursive(
+    // It resolves type aliases in a type annotation or a type alias.
+    // `x: Option<Int>` -> here, `Option<Int>` is a type annotation.
+    // `type MyOption = Option<Int>;` -> here, `Option<Int>` is a type alias.
+    //
+    // Let's say there's `type MyOption = Option<Int>;` and a type annotation `x: MyOption`.
+    // Then it replaces `MyOption` in the type annotation with `Option<Int>`.
+    pub fn resolve_type(
         &mut self,
         r#type: &mut Type,
 
         // If it resolves something, it pushes related spans to this vector.
-        // The spans are solely used for error messages, when alias_resolve_recursion_limit is reached.
-        error_spans: &mut Vec<Span>,
+        // The spans are used
+        //    1) for error messages, when alias_resolve_recursion_limit is reached.
+        //    2) to check whether anything has been resolved or not
+        alias_log: &mut Vec<Span>,
     ) {
         match r#type {
             Type::Identifier(id) => match self.type_aliases.get(&id.def_span) {
@@ -286,8 +313,8 @@ impl Session {
                     // alias: type Bar = (Int, Int);
                     // r#type: Bar
                     if alias.generics.is_empty() {
-                        error_spans.push(id.def_span);
-                        error_spans.push(id.span);
+                        alias_log.push(id.def_span);
+                        alias_log.push(id.span);
                         *r#type = alias.r#type.clone();
                     }
 
@@ -331,8 +358,8 @@ impl Session {
                                 // I'm not sure whether this case is compatible with the current type system.
                                 // If so, the type-checker will handle this. There's no need to worry about it.
                                 *r#type = Type::Path { id: *alias_id, fields: fields.clone() };
-                                error_spans.push(alias_id.def_span);
-                                error_spans.push(alias_id.span);
+                                alias_log.push(alias_id.def_span);
+                                alias_log.push(alias_id.span);
                             },
                             // alias: type Bar = Foo.a.b;
                             // r#type: Bar.c.d.
@@ -346,8 +373,8 @@ impl Session {
                                         fields.clone(),
                                     ].concat(),
                                 };
-                                error_spans.push(alias_id.def_span);
-                                error_spans.push(alias_id.span);
+                                alias_log.push(alias_id.def_span);
+                                alias_log.push(alias_id.span);
                             },
                             // alias: type Bar = Option<Int>;
                             // r#type: Bar.Some   -> this is not a valid type annotation
@@ -409,8 +436,8 @@ impl Session {
                                 // alias: type Bar = Foo;
                                 // r#type: Bar<T, U>
                                 Type::Identifier(alias_id) => {
-                                    error_spans.push(id.def_span);
-                                    error_spans.push(id.span);
+                                    alias_log.push(id.def_span);
+                                    alias_log.push(id.span);
                                     *r#type = Type::Param {
                                         r#type: Box::new(Type::Identifier(*alias_id)),
                                         args: args.clone(),
@@ -420,8 +447,8 @@ impl Session {
                                 // alias: type Bar = Foo.a.b;
                                 // r#type: Bar<T, U>
                                 Type::Path { .. } => {
-                                    error_spans.push(id.def_span);
-                                    error_spans.push(id.span);
+                                    alias_log.push(id.def_span);
+                                    alias_log.push(id.span);
                                     *r#type = Type::Param {
                                         r#type: Box::new(alias.r#type.clone()),
                                         args: args.clone(),
@@ -477,11 +504,11 @@ impl Session {
                                         match &alias.r#type {
                                             Type::Identifier(alias_id) |
                                             Type::Path { id: alias_id, .. } => {
-                                                error_spans.push(alias_id.span);
-                                                error_spans.push(alias_id.def_span);
+                                                alias_log.push(alias_id.span);
+                                                alias_log.push(alias_id.def_span);
                                             },
                                             Type::Wildcard(span) => {
-                                                error_spans.push(*span);
+                                                alias_log.push(*span);
                                             },
                                             _ => unreachable!(),
                                         }
@@ -602,23 +629,26 @@ impl Session {
             },
             Type::Tuple { types, .. } => {
                 for r#type in types.iter_mut() {
-                    self.resolve_type_recursive(r#type, error_spans);
+                    self.resolve_type(r#type, alias_log);
                 }
             },
             Type::Func { r#return, args, .. } => {
-                self.resolve_type_recursive(r#return, error_spans);
+                self.resolve_type(r#return, alias_log);
 
                 for arg in args.iter_mut() {
-                    self.resolve_type_recursive(arg, error_spans);
+                    self.resolve_type(arg, alias_log);
                 }
             },
             Type::Wildcard(_) => {},
         }
     }
 
-    // TODO: it also has to resolve type_alias
-    //       e.g. type MyOption<T> = Option<T>; let x = MyOption.Some(3);
-    pub fn resolve_expr_recursive(&mut self, expr: &mut Expr) {
+    // It resolves name aliases in expressions, recursively.
+    // For example, if there's `use Foo.Bar as x;` and an expression `x + 1`,
+    // it replaces the expression with `Foo.Bar + 1`.
+    // There should be no further alias in `use Foo.Bar as x;` because
+    // `resolve_alias` already resolved all the aliases in aliases.
+    pub fn resolve_expr(&mut self, expr: &mut Expr) {
         match expr {
             Expr::Number { .. } |
             Expr::String { .. } |
@@ -659,47 +689,128 @@ impl Session {
                 },
                 Expr::Path { .. } => panic!("ICE"),  // It should have been flattened
                 e => {
-                    self.resolve_expr_recursive(e);
+                    self.resolve_expr(e);
                 },
             },
             Expr::If(r#if) => {
-                self.resolve_expr_recursive(&mut r#if.cond);
+                self.resolve_expr(&mut r#if.cond);
 
                 if let Some(full_pattern) = &mut r#if.pattern {
-                    self.resolve_pattern_recursive(&mut full_pattern.pattern);
+                    self.resolve_pattern(&mut full_pattern.pattern);
                 }
 
-                self.resolve_expr_recursive(&mut r#if.true_value);
-                self.resolve_expr_recursive(&mut r#if.false_value);
+                self.resolve_expr(&mut r#if.true_value);
+                self.resolve_expr(&mut r#if.false_value);
             },
             Expr::Match(r#match) => todo!(),
             Expr::Block(block) => todo!(),
             Expr::Call { func, args } => {
-                self.resolve_expr_recursive(func);
+                self.resolve_expr(func);
 
                 for arg in args.iter_mut() {
-                    self.resolve_expr_recursive(&mut arg.arg);
+                    self.resolve_expr(&mut arg.arg);
                 }
             },
             Expr::Tuple { elements, .. } | Expr::List { elements, .. } => {
                 for element in elements.iter_mut() {
-                    self.resolve_expr_recursive(element);
+                    self.resolve_expr(element);
                 }
             },
             Expr::StructInit { r#struct, fields, .. } => todo!(),
             Expr::FieldModifier { lhs, rhs, .. } |
             Expr::InfixOp { lhs, rhs, .. } => {
-                self.resolve_expr_recursive(lhs);
-                self.resolve_expr_recursive(rhs);
+                self.resolve_expr(lhs);
+                self.resolve_expr(rhs);
             },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => {
-                self.resolve_expr_recursive(hs);
+                self.resolve_expr(hs);
             },
         }
     }
 
-    pub fn resolve_pattern_recursive(&mut self, pattern: &mut Pattern) {
+    // Let's say there's `x: [MyChar]; use foo.bar.Char as MyChar;`.
+    // Then, it replaces `MyChar` in the type annotation with `foo.bar.Char`. So it
+    // becomes `x: [foo.bar.Char];`
+    pub fn resolve_name_alias_in_type(
+        &mut self,
+        r#type: &mut Type,
+
+        // If it resolves something, it pushes related spans to this vector.
+        // The spans are used
+        //    1) for error messages, when alias_resolve_recursion_limit is reached.
+        //    2) to check whether anything has been resolved or not
+        alias_log: &mut Vec<Span>,
+    ) {
+        match r#type {
+            Type::Identifier(id) => match self.name_aliases.get(&id.def_span) {
+                Some(alias) => {
+                    alias_log.push(id.def_span);
+                    alias_log.push(id.span);
+
+                    // type: `x: MyChar`
+                    // alias: `use Char as MyChar;`
+                    if alias.fields.is_empty() {
+                        *r#type = Type::Identifier(alias.root);
+                    }
+
+                    // type: `x: MyChar`
+                    // alias: `use foo.bar.Char as MyChar;`
+                    else {
+                        *r#type = Type::Path {
+                            id: alias.root,
+                            fields: alias.fields.clone(),
+                        };
+                    }
+                },
+                None => {},
+            },
+            Type::Path { id, fields } => match self.name_aliases.get(&id.def_span) {
+                Some(alias) => {
+                    alias_log.push(id.def_span);
+                    alias_log.push(id.span);
+
+                    // type: `x: foo.bar.Char`
+                    // alias: `use baz as foo`
+                    //   -> `x: baz.bar.Char`
+                    //
+                    // type: `x: foo.bar.Char`
+                    // alias: `use baz.goo as foo;`
+                    //   -> `x: baz.goo.bar.Char`
+                    *r#type = Type::Path {
+                        id: alias.root,
+                        fields: vec![
+                            alias.fields.clone(),
+                            fields.clone(),
+                        ].concat(),
+                    };
+                },
+                None => {},
+            },
+            Type::Param { r#type: p_type, args, .. } => {
+                self.resolve_name_alias_in_type(p_type, alias_log);
+
+                for arg in args.iter_mut() {
+                    self.resolve_name_alias_in_type(arg, alias_log);
+                }
+            },
+            Type::Tuple { types, .. } => {
+                for r#type in types.iter_mut() {
+                    self.resolve_name_alias_in_type(r#type, alias_log);
+                }
+            },
+            Type::Func { args, r#return, .. } => {
+                self.resolve_name_alias_in_type(r#return, alias_log);
+
+                for arg in args.iter_mut() {
+                    self.resolve_name_alias_in_type(arg, alias_log);
+                }
+            },
+            Type::Wildcard(_) => {},
+        }
+    }
+
+    pub fn resolve_pattern(&mut self, pattern: &mut Pattern) {
         todo!()
     }
 }

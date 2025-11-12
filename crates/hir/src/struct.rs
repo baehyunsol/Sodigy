@@ -6,7 +6,6 @@ use crate::{
     GenericDef,
     Requirement,
     Session,
-    Type,
     Visibility,
 };
 use sodigy_error::{Warning, WarningKind};
@@ -16,16 +15,18 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+// TODO: attributes
 pub struct Struct {
     pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<GenericDef>,
-    pub fields: Vec<StructField<Type>>,
+    pub fields: Vec<StructFieldDef>,
 }
 
-pub type StructField<T> = FuncArgDef<T>;
+// TODO: attributes
+pub type StructFieldDef = FuncArgDef;
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {
@@ -96,7 +97,7 @@ impl Struct {
         }
 
         for field in ast_struct.fields.iter() {
-            match StructField::from_ast(field, session, is_top_level) {
+            match StructFieldDef::from_ast(field, session, is_top_level) {
                 Ok(field) => {
                     fields.push(field);
                 },

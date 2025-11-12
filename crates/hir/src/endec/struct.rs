@@ -1,4 +1,4 @@
-use crate::{Expr, Struct, StructInitField, StructField, Type, Visibility};
+use crate::{Expr, Struct, StructInitField, StructFieldDef, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::GenericDef;
 use sodigy_span::Span;
@@ -20,7 +20,7 @@ impl Endec for Struct {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<GenericDef>::decode_impl(buffer, cursor)?;
-        let (fields, cursor) = Vec::<StructField<Type>>::decode_impl(buffer, cursor)?;
+        let (fields, cursor) = Vec::<StructFieldDef>::decode_impl(buffer, cursor)?;
 
         Ok((
             Struct {

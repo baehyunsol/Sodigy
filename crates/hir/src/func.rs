@@ -30,7 +30,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<GenericDef>,
-    pub args: Vec<FuncArgDef<Type>>,
+    pub args: Vec<FuncArgDef>,
     pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
@@ -43,8 +43,9 @@ pub struct Func {
     pub use_counts: HashMap<InternedString, UseCount>,
 }
 
+// TODO: attributes
 #[derive(Clone, Debug)]
-pub struct FuncArgDef<Type> {
+pub struct FuncArgDef {
     pub name: InternedString,
     pub name_span: Span,
     pub r#type: Option<Type>,
@@ -125,7 +126,7 @@ impl Func {
 
         // TODO: what are we gonna do with these?
         let built_in = attribute.built_in(&session.intermediate_dir);
-        let no_type = attribute.no_type(&session.intermediate_dir);
+        let any_type = attribute.any_type(&session.intermediate_dir);
 
         if let Some(lang_item) = attribute.lang_item(&session.intermediate_dir) {
             session.lang_items.insert(lang_item, ast_func.name_span);
@@ -257,14 +258,14 @@ impl Func {
     }
 }
 
-impl FuncArgDef<Type> {
+impl FuncArgDef {
     pub fn from_ast(
         ast_arg: &ast::FuncArgDef,
         session: &mut Session,
 
         // whether the function or the function-like object is defined in the top-level block
         is_top_level: bool,
-    ) -> Result<FuncArgDef<Type>, ()> {
+    ) -> Result<FuncArgDef, ()> {
         let mut r#type = None;
         let mut default_value = None;
         let mut has_error = false;

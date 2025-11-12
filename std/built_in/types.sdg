@@ -1,15 +1,15 @@
 #[built_in]
 #[lang_item("type.Int")]
-enum Int = { _ };
+pub enum Int = { _ };
 
 #[built_in]
 #[lang_item("type.Char")]
-enum Char = { _ };
+pub enum Char = { _ };
 
 #[built_in]
 #[lang_item("type.Byte")]
-enum Byte = { _ };
+pub enum Byte = { _ };
 
 #[built_in]
 #[lang_item("type.List")]
-struct List = { _ };
+pub struct List = { _ };

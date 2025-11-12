@@ -11,6 +11,7 @@ pub enum ErrorToken {
     Punct(Punct),
     Group(Delim),
     Identifier,
+    Generic,
     Number,
     String,
     TypeAnnotation,

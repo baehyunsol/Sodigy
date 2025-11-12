@@ -8,7 +8,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<GenericDef>,
-    pub args: Vec<FuncArgDef<()>>,
+    pub args: Vec<FuncArgDef>,
     pub type_annotation_span: Option<Span>,
     pub value: Expr,
 }

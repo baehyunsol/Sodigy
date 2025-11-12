@@ -22,6 +22,12 @@ pub enum Command {
         input_module_path: ModulePath,
 
         intermediate_dir: String,
+
+        // When first generating hir, it has to find sub-modules in the module
+        // so that the compiler can continue compiling. If it's using the cached
+        // hir, it doesn't have to do so.
+        find_modules: bool,
+
         emit_ir_options: Vec<EmitIrOption>,
 
         // It's for debugging the compiler.

@@ -18,7 +18,7 @@ impl Endec for Func {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<GenericDef>::decode_impl(buffer, cursor)?;
-        let (args, cursor) = Vec::<FuncArgDef<()>>::decode_impl(buffer, cursor)?;
+        let (args, cursor) = Vec::<FuncArgDef>::decode_impl(buffer, cursor)?;
         let (type_annotation_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
 

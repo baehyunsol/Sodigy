@@ -53,9 +53,9 @@ impl ModulePath {
         }
 
         else {
-            let joined = self.to_string();
-            let candidate1 = format!("src/{}.sdg", joined.replace(".", "/"));
-            let candidate2 = format!("src/{}/mod.sdg", joined.replace(".", "/"));
+            let joined = self.path.join("/");
+            let candidate1 = format!("src/{}.sdg", joined);
+            let candidate2 = format!("src/{}/mod.sdg", joined);
 
             match (exists(&candidate1), exists(&candidate2)) {
                 (true, true) => Err(GetFilePathError {

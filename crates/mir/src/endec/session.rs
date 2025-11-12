@@ -1,7 +1,7 @@
 use crate::{Assert, Func, Let, Session, Type};
 use sodigy_endec::{DecodeError, DumpIr, Endec};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{FuncArgDef, GenericDef, StructField};
+use sodigy_hir::{FuncArgDef, GenericDef, StructFieldDef};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -33,8 +33,8 @@ impl Endec for Session {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (func_shapes, cursor) = HashMap::<Span, (Vec<FuncArgDef<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
-        let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructField<()>>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
+        let (func_shapes, cursor) = HashMap::<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
+        let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;

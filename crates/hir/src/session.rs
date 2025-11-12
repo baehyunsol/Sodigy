@@ -99,12 +99,11 @@ impl Session {
                 |r#struct| (r#struct.name, r#struct.name_span, NameKind::Struct)
             )
         )
-        // TODO: `enum` is not worked yet
-        // .chain(
-        //     self.enums.iter().map(
-        //         |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
-        //     )
-        // )
+        .chain(
+            self.enums.iter().map(
+                |r#enum| (r#enum.name, r#enum.name_span, NameKind::Enum)
+            )
+        )
         .chain(
             self.aliases.iter().map(
                 |alias| (alias.name, alias.name_span, NameKind::Alias)
