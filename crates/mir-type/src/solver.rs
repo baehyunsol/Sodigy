@@ -170,19 +170,6 @@ impl Solver {
         context: ErrorContext,
     ) -> Result<Type, ()> {
         match (expected_type, subtype) {
-            (Type::Unit(_), Type::Unit(_)) => Ok(expected_type.clone()),
-            (Type::Never(_), concrete) | (concrete, Type::Never(_)) => {
-                // We don't solve the variable, because we might solve it with a more concrete type.
-                // But we still have to remember that this variable might be `Type::Never`.
-                // If we can't solve the variable, we'll assign `Type::Never` to the variable.
-                match concrete {
-                    Type::Var { .. } => todo!(),
-                    Type::GenericInstance { .. } => todo!(),
-                    _ => {},
-                }
-
-                Ok(concrete.clone())
-            },
             (Type::Static(exp_def), Type::Static(sub_def)) => {
                 if *exp_def == *sub_def {
                     Ok(expected_type.clone())
@@ -202,6 +189,13 @@ impl Solver {
                     Err(())
                 }
             },
+            (t1 @ Type::GenericDef(g1), t2 @ Type::GenericDef(g2)) => {
+                self.add_generic_constraint(*g1, t2);
+                self.add_generic_constraint(*g2, t1);
+                Ok(t1.clone())
+            },
+            (Type::Unit(_), Type::Unit(_)) => Ok(expected_type.clone()),
+            (Type::Never(_), Type::Never(_)) => Ok(expected_type.clone()),
             (Type::Param { r#type: t1, args: args1, .. }, Type::Param { r#type: t2, args: args2, .. }) |
             (Type::Func { r#return: t1, args: args1, .. }, Type::Func { r#return: t2, args: args2, .. }) => {
                 let t = match self.solve_subtype(
@@ -240,6 +234,7 @@ impl Solver {
                             context,
                         });
                     }
+
                     Err(())
                 }
 
@@ -299,6 +294,79 @@ impl Solver {
                 }
             },
             (
+                t1 @ Type::Var { def_span: v1, is_return: is_return1 },
+                t2 @ Type::Var { def_span: v2, is_return: is_return2 },
+            ) => {
+                if *v1 == *v2 {
+                    Ok(expected_type.clone())
+                }
+
+                else if !*is_return1 && !*is_return2 {
+                    if let Some(type1) = types.get(v1) {
+                        let type1 = type1.clone();
+                        self.solve_subtype(
+                            &type1,
+                            subtype,
+                            types,
+                            generic_instances,
+                            is_checking_argument,
+                            expected_span,
+                            subtype_span,
+                            ErrorContext::Deep,
+                        )
+                    }
+
+                    else if let Some(type2) = types.get(v2) {
+                        let type2 = type2.clone();
+                        self.solve_subtype(
+                            expected_type,
+                            &type2,
+                            types,
+                            generic_instances,
+                            is_checking_argument,
+                            expected_span,
+                            subtype_span,
+                            ErrorContext::Deep,
+                        )
+                    }
+
+                    else {
+                        types.insert(*v1, t2.clone());
+                        self.add_type_var(t1.clone(), None);
+                        self.add_type_var_ref(t1.clone(), t2.clone());
+                        types.insert(*v2, t1.clone());
+                        self.add_type_var(t2.clone(), None);
+                        self.add_type_var_ref(t2.clone(), t1.clone());
+                        Ok(t1.clone())
+                    }
+                }
+
+                else {
+                    todo!()
+                }
+            },
+            (Type::GenericInstance { call: c1, generic: g1 }, Type::GenericInstance { call: c2, generic: g2 }) => {
+                if *c1 == *c2 && *g1 == *g2 {
+                    Ok(expected_type.clone())
+                }
+
+                else {
+                    todo!()
+                }
+            },
+            (Type::Never(_), concrete) | (concrete, Type::Never(_)) => {
+                // We don't solve the variable, because we might solve it with a more concrete type.
+                // But we still have to remember that this variable might be `Type::Never`.
+                // If we can't solve the variable, we'll assign `Type::Never` to the variable.
+                match concrete {
+                    Type::Var { .. } => todo!(),
+                    Type::GenericInstance { .. } => todo!(),
+                    _ => {},
+                }
+
+                Ok(concrete.clone())
+            },
+            (
                 type_var @ Type::Var { def_span, is_return },
                 concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
             ) | (
@@ -323,9 +391,9 @@ impl Solver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                maybe_concrete @ (Type::Func { .. } | Type::Param { .. }),
+                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
             ) | (
-                maybe_concrete @ (Type::Func { .. } | Type::Param { .. }),
+                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
@@ -355,65 +423,25 @@ impl Solver {
 
                 Ok(maybe_concrete.clone())
             },
-            (Type::Var { def_span: v1, .. }, Type::Var { def_span: v2, .. }) if *v1 == *v2 => {
-                // nop
-                Ok(expected_type.clone())
-            },
-            (Type::GenericInstance { call: c1, generic: g1 }, Type::GenericInstance { call: c2, generic: g2 }) if *c1 == *c2 && *g1 == *g2 => {
-                // nop
-                Ok(expected_type.clone())
-            },
-            (
-                t1 @ Type::Var { def_span: v1, is_return: false },
-                t2 @ Type::Var { def_span: v2, is_return: false },
-            ) => {
-                if let Some(type1) = types.get(v1) {
-                    let type1 = type1.clone();
-                    self.solve_subtype(
-                        &type1,
-                        subtype,
-                        types,
-                        generic_instances,
-                        is_checking_argument,
-                        expected_span,
-                        subtype_span,
-                        ErrorContext::Deep,
-                    )
-                }
-
-                else if let Some(type2) = types.get(v2) {
-                    let type2 = type2.clone();
-                    self.solve_subtype(
-                        expected_type,
-                        &type2,
-                        types,
-                        generic_instances,
-                        is_checking_argument,
-                        expected_span,
-                        subtype_span,
-                        ErrorContext::Deep,
-                    )
-                }
-
-                else {
-                    types.insert(*v1, t2.clone());
-                    self.add_type_var(t1.clone(), None);
-                    self.add_type_var_ref(t1.clone(), t2.clone());
-                    types.insert(*v2, t1.clone());
-                    self.add_type_var(t2.clone(), None);
-                    self.add_type_var_ref(t2.clone(), t1.clone());
-                    Ok(t1.clone())
-                }
-            },
-            (t1 @ Type::GenericDef(g1), t2 @ Type::GenericDef(g2)) => {
-                self.add_generic_constraint(*g1, t2);
-                self.add_generic_constraint(*g2, t1);
-                Ok(t1.clone())
-            },
-            (Type::GenericDef(generic), constraint) |
-            (constraint, Type::GenericDef(generic)) => {
+            (Type::GenericDef(generic), constraint) | (constraint, Type::GenericDef(generic)) => {
                 self.add_generic_constraint(*generic, constraint);
                 Ok(constraint.clone())
+            },
+            (
+                t1 @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
+                t2 @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
+            ) => {
+                if !is_checking_argument {
+                    self.errors.push(TypeError::UnexpectedType {
+                        expected: expected_type.clone(),
+                        expected_span: expected_span,
+                        got: subtype.clone(),
+                        got_span: subtype_span,
+                        context,
+                    });
+                }
+
+                Err(())
             },
             _ => panic!("TODO: {:?}", (expected_type, subtype)),
         }
