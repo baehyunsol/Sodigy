@@ -1,5 +1,6 @@
 use crate::{
     Attribute,
+    AttributeKind,
     AttributeRule,
     Expr,
     FuncArgDef,
@@ -57,20 +58,12 @@ impl Struct {
             index: generic_index,
         });
 
-        // TODO: I want it to be static
-        let mut attribute_rule = AttributeRule {
-            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
-            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
-            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
-            visibility_error_note: Some(String::from("Only top-level items can be public.")),
-            decorators: HashMap::new(),
-        };
-
-        if session.is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
-        }
-
-        let attribute = match Attribute::from_ast(&ast_struct.attribute, session, &attribute_rule, ast_struct.keyword_span) {
+        let attribute = match session.lower_attribute(
+            &ast_struct.attribute,
+            AttributeKind::Struct,
+            ast_struct.keyword_span,
+            is_top_level,
+        ) {
             Ok(attribute) => attribute,
             Err(()) => {
                 has_error = true;
@@ -79,21 +72,12 @@ impl Struct {
         };
         let visibility = attribute.visibility.clone();
 
-        if let Some(lang_item) = attribute.lang_item(&session.intermediate_dir) {
-            session.lang_items.insert(lang_item, ast_struct.name_span);
-        }
-
-        if let Some(lang_item_generics) = attribute.lang_item_generics(&session.intermediate_dir) {
-            if lang_item_generics.len() == ast_struct.generics.len() {
-                for i in 0..ast_struct.generics.len() {
-                    session.lang_items.insert(lang_item_generics[i].to_string(), ast_struct.generics[i].name_span);
-                }
-            }
-
-            else {
-                // What kinda error should it throw?
-                todo!()
-            }
+        if let Err(()) = session.collect_lang_items(
+            &attribute,
+            ast_struct.name_span,
+            Some(&ast_struct.generics),
+        ) {
+            has_error = true;
         }
 
         for field in ast_struct.fields.iter() {
@@ -143,5 +127,21 @@ impl Struct {
                 fields,
             })
         }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
+            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            visibility_error_note: Some(String::from("Only top-level items can be public.")),
+            decorators: HashMap::new(),
+        };
+
+        if is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
+
+        attribute_rule
     }
 }

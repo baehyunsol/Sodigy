@@ -1,4 +1,16 @@
-use crate::{Expr, Session};
+use crate::{
+    Alias,
+    Assert,
+    Enum,
+    Expr,
+    Func,
+    GenericDef,
+    Let,
+    Module,
+    Session,
+    Struct,
+    Use,
+};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, DocComment};
@@ -10,9 +22,78 @@ use sodigy_string::{
 };
 use std::collections::hash_map::{Entry, HashMap};
 
+impl Session {
+    pub fn lower_attribute(
+        &mut self,
+        ast_attribute: &ast::Attribute,
+        kind: AttributeKind,
+        keyword_span: Span,
+        is_top_level: bool,
+    ) -> Result<Attribute, ()> {
+        let attribute_rule_key = AttributeRuleKey {
+            kind,
+            is_top_level,
+            is_std: self.is_std,
+        };
+        let attribute_rule = match self.attribute_rule_cache.get(&attribute_rule_key) {
+            Some(rule) => rule.clone(),
+            None => {
+                let rule = match kind {
+                    AttributeKind::Alias => Alias::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Assert => Assert::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Enum => Enum::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Func => Func::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Let => Let::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Module => Module::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Struct => Struct::get_attribute_rule(is_top_level, self.is_std, self),
+                    AttributeKind::Use => Use::get_attribute_rule(is_top_level, self.is_std, self),
+                };
+                self.attribute_rule_cache.insert(attribute_rule_key, rule.clone());
+                rule
+            },
+        };
+
+        Attribute::from_ast(ast_attribute, self, &attribute_rule, keyword_span)
+    }
+
+    pub fn collect_lang_items(
+        &mut self,
+        attribute: &Attribute,
+        lang_item_span: Span,
+        generic_defs: Option<&[GenericDef]>,
+    ) -> Result<(), ()> {
+        if let Some(lang_item) = attribute.lang_item(&self.intermediate_dir) {
+            self.lang_items.insert(lang_item, lang_item_span);
+        }
+
+        if let Some(lang_item_generics) = attribute.lang_item_generics(&self.intermediate_dir) {
+            if let Some(generic_defs) = generic_defs {
+                if lang_item_generics.len() == generic_defs.len() {
+                    for i in 0..generic_defs.len() {
+                        self.lang_items.insert(lang_item_generics[i].to_string(), generic_defs[i].name_span);
+                    }
+                }
+
+                else {
+                    // What kinda error should it throw?
+                    todo!()
+                }
+            }
+
+            else {
+                // What kinda error should it throw?
+                todo!()
+            }
+        }
+
+        Ok(())
+    }
+}
+
 // `ast::Attribute` is first lowered to this type. It does some basic
 // checks (redundant names, undefined names, arguments).
 // Each item extracts extra information from this type.
+#[derive(Clone, Debug)]
 pub struct Attribute {
     pub doc_comment: Option<DocComment>,
     pub decorators: HashMap<InternedString, Decorator>,
@@ -445,6 +526,7 @@ impl Attribute {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct AttributeRule {
     pub doc_comment: Requirement,
     pub doc_comment_error_note: Option<String>,
@@ -541,11 +623,13 @@ impl Visibility {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Decorator {
     pub args: Vec<Expr>,
     pub keyword_args: HashMap<InternedString, Expr>,
 }
 
+#[derive(Clone, Debug)]
 pub struct DecoratorRule {
     pub name: InternedString,
     pub requirement: Requirement,
@@ -576,6 +660,7 @@ impl Default for DecoratorRule {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct KeywordArgRule {
     pub requirement: Requirement,
     pub requirement_error_note: Option<String>,
@@ -627,4 +712,23 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             Err(())
         },
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct AttributeRuleKey {
+    pub kind: AttributeKind,
+    pub is_std: bool,
+    pub is_top_level: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum AttributeKind {
+    Alias,
+    Assert,
+    Enum,
+    Func,
+    Let,
+    Module,
+    Struct,
+    Use,
 }

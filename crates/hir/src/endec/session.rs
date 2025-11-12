@@ -24,6 +24,9 @@ impl Endec for Session {
         // self.func_default_values.encode_impl(buffer);
         // self.is_in_debug_context.encode_impl(buffer);
 
+        // doesn't have to be stored on disk
+        // self.attribute_rule_cache.encode_impl(buffer);
+
         self.is_std.encode_impl(buffer);
         self.lets.encode_impl(buffer);
         self.funcs.encode_impl(buffer);
@@ -58,6 +61,7 @@ impl Endec for Session {
                 intermediate_dir: String::new(),
                 name_stack: vec![],
                 func_default_values: vec![],
+                attribute_rule_cache: HashMap::new(),
                 is_in_debug_context: false,
                 is_std,
                 lets,

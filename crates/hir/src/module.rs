@@ -1,4 +1,11 @@
-use crate::{Attribute, AttributeRule, Requirement, Session, Visibility};
+use crate::{
+    Attribute,
+    AttributeKind,
+    AttributeRule,
+    Requirement,
+    Session,
+    Visibility,
+};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -16,27 +23,19 @@ impl Module {
     pub fn from_ast(ast_module: &ast::Module, session: &mut Session) -> Result<Module, ()> {
         let mut has_error = false;
 
-        // TODO: I want it to be static
-        let attribute_rule = AttributeRule {
-            // TODO: I want users to be able to add doc comments to modules, but there's no way we can add doc comments to the lib
-            doc_comment: Requirement::Never,
-            doc_comment_error_note: Some(String::from("You can't add doc comments to a module.")),
-
-            // NOTE: a module definition is always at top-level
-            visibility: Requirement::Maybe,
-            visibility_error_note: None,
-
-            decorators: HashMap::new(),
-        };
-
-        let attribute = match Attribute::from_ast(&ast_module.attribute, session, &attribute_rule, ast_module.keyword_span) {
+        let attribute = match session.lower_attribute(
+            &ast_module.attribute,
+            AttributeKind::Module,
+            ast_module.keyword_span,
+            true,  // a module is always at top level
+        ) {
             Ok(attribute) => attribute,
             Err(()) => {
                 has_error = true;
                 Attribute::new()
             },
         };
-        let visibility = attribute.visibility;
+        let visibility = attribute.visibility.clone();
 
         if has_error {
             Err(())
@@ -49,6 +48,16 @@ impl Module {
                 name: ast_module.name,
                 name_span: ast_module.name_span,
             })
+        }
+    }
+
+    pub fn get_attribute_rule(_is_top_level: bool, _is_std: bool, _session: &Session) -> AttributeRule {
+        AttributeRule {
+            doc_comment: Requirement::Never,
+            doc_comment_error_note: Some(String::from("Use module doc comment inside the module instead.")),
+            visibility: Requirement::Maybe,
+            visibility_error_note: None,
+            decorators: HashMap::new(),
         }
     }
 }

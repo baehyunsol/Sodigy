@@ -1,5 +1,6 @@
 use crate::{
     Attribute,
+    AttributeKind,
     AttributeRule,
     Expr,
     Let,
@@ -100,22 +101,12 @@ impl Func {
             index: generic_index,
         });
 
-        // TODO: I want it to be static
-        let mut attribute_rule = AttributeRule {
-            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
-            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
-            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
-            visibility_error_note: Some(String::from("Only top-level items can be public.")),
-            decorators: HashMap::new(),
-        };
-
-        if session.is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
-        }
-
-        // TODO: Can the attributes use func args and generics?
-        //       As of now, yes. But I have to think more about its spec.
-        let attribute = match Attribute::from_ast(&ast_func.attribute, session, &attribute_rule, ast_func.keyword_span) {
+        let attribute = match session.lower_attribute(
+            &ast_func.attribute,
+            AttributeKind::Func,
+            ast_func.keyword_span,
+            is_top_level,
+        ) {
             Ok(attribute) => attribute,
             Err(()) => {
                 has_error = true;
@@ -128,21 +119,12 @@ impl Func {
         let built_in = attribute.built_in(&session.intermediate_dir);
         let any_type = attribute.any_type(&session.intermediate_dir);
 
-        if let Some(lang_item) = attribute.lang_item(&session.intermediate_dir) {
-            session.lang_items.insert(lang_item, ast_func.name_span);
-        }
-
-        if let Some(lang_item_generics) = attribute.lang_item_generics(&session.intermediate_dir) {
-            if lang_item_generics.len() == ast_func.generics.len() {
-                for i in 0..ast_func.generics.len() {
-                    session.lang_items.insert(lang_item_generics[i].to_string(), ast_func.generics[i].name_span);
-                }
-            }
-
-            else {
-                // What kinda error should it throw?
-                todo!()
-            }
+        if let Err(()) = session.collect_lang_items(
+            &attribute,
+            ast_func.name_span,
+            Some(&ast_func.generics),
+        ) {
+            has_error = true;
         }
 
         // We have to lower args before pushing args to the name_stack because
@@ -255,6 +237,22 @@ impl Func {
                 use_counts,
             })
         }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
+            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            visibility_error_note: Some(String::from("Only top-level items can be public.")),
+            decorators: HashMap::new(),
+        };
+
+        if is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
+
+        attribute_rule
     }
 }
 

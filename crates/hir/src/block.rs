@@ -64,7 +64,7 @@ impl Block {
         });
 
         for assert in ast_block.asserts.iter() {
-            match Assert::from_ast(assert, session) {
+            match Assert::from_ast(assert, session, is_top_level) {
                 Ok(assert) => {
                     asserts.push(assert);
                 },
@@ -136,7 +136,7 @@ impl Block {
 
         // All the aliases are stored in the top-level block.
         for alias in ast_block.aliases.iter() {
-            match Alias::from_ast(alias, session) {
+            match Alias::from_ast(alias, session, is_top_level) {
                 Ok(alias) => {
                     alias_cycle_check_edges.insert(
                         alias.name_span,
@@ -156,7 +156,7 @@ impl Block {
 
         // All the uses are stored in the top-level block.
         for r#use in ast_block.uses.iter() {
-            match Use::from_ast(r#use, session) {
+            match Use::from_ast(r#use, session, is_top_level) {
                 Ok(r#use) => {
                     session.uses.push(r#use.clone());
                 },

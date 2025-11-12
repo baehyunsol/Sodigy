@@ -267,6 +267,7 @@ impl Session {
                         self.name_aliases.insert(
                             *def_span,
                             Use {
+                                visibility: todo!(),
                                 keyword_span: old_alias.keyword_span,
                                 name: old_alias.name,
                                 name_span: old_alias.name_span,

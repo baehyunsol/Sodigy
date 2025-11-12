@@ -50,6 +50,7 @@ pub(crate) fn use_prelude(name: InternedString) -> Use {
     let std = intern_string(b"std", "").unwrap();
 
     Use {
+        visibility: todo!(),
         keyword_span: Span::None,
         name,
         name_span: Span::Prelude(name),

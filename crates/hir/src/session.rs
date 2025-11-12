@@ -1,6 +1,8 @@
 use crate::{
     Alias,
     Assert,
+    AttributeRule,
+    AttributeRuleKey,
     Enum,
     Func,
     Let,
@@ -21,6 +23,9 @@ use std::collections::HashMap;
 pub struct Session {
     pub intermediate_dir: String,
     pub name_stack: Vec<Namespace>,
+
+    // It'd be too expensive to instantiate a rule each time...
+    pub attribute_rule_cache: HashMap<AttributeRuleKey, AttributeRule>,
 
     // `func_default_values.last()` has the default values of functions
     // in the current block.
@@ -69,6 +74,7 @@ impl Session {
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
             name_stack,
+            attribute_rule_cache: HashMap::new(),
             func_default_values: vec![],
             is_in_debug_context: false,
             is_std: parse_session.is_std,

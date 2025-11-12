@@ -2,6 +2,7 @@ use crate::{
     ArgCount,
     ArgType,
     Attribute,
+    AttributeKind,
     AttributeRule,
     DecoratorRule,
     Expr,
@@ -43,11 +44,56 @@ pub struct Assert {
 }
 
 impl Assert {
-    pub fn from_ast(ast_assert: &ast::Assert, session: &mut Session) -> Result<Assert, ()> {
+    pub fn from_ast(
+        ast_assert: &ast::Assert,
+        session: &mut Session,
+        is_top_level: bool,
+    ) -> Result<Assert, ()> {
         let mut has_error = false;
 
-        // TODO: I want it to be static
-        let attribute_rule = AttributeRule {
+        let attribute = match session.lower_attribute(
+            &ast_assert.attribute,
+            AttributeKind::Enum,
+            ast_assert.keyword_span,
+            is_top_level,
+        ) {
+            Ok(attribute) => AssertAttribute::from_attribute(&attribute, session),
+            Err(()) => {
+                has_error = true;
+                AssertAttribute::default()
+            },
+        };
+
+        let is_in_debug_context_prev = session.is_in_debug_context;
+        session.is_in_debug_context = !attribute.always;
+
+        let value = match Expr::from_ast(&ast_assert.value, session) {
+            Ok(value) => Some(value),
+            Err(()) => {
+                has_error = true;
+                None
+            },
+        };
+
+        session.is_in_debug_context = is_in_debug_context_prev;
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(Assert {
+                name: attribute.name,
+                note: attribute.note,
+                keyword_span: ast_assert.keyword_span,
+                value: value.unwrap(),
+                always: attribute.always,
+            })
+        }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, _is_std: bool, session: &Session) -> AttributeRule {
+        AttributeRule {
             doc_comment: Requirement::Never,
             doc_comment_error_note: Some(String::from("Use `#[note(\"...\")]` decorator instead.")),
             visibility: Requirement::Never,
@@ -89,40 +135,6 @@ impl Assert {
                     },
                 ),
             ].into_iter().collect(),
-        };
-        let attribute = match Attribute::from_ast(&ast_assert.attribute, session, &attribute_rule, ast_assert.keyword_span) {
-            Ok(attribute) => AssertAttribute::from_attribute(&attribute, session),
-            Err(()) => {
-                has_error = true;
-                AssertAttribute::default()
-            },
-        };
-
-        let is_in_debug_context_prev = session.is_in_debug_context;
-        session.is_in_debug_context = !attribute.always;
-
-        let value = match Expr::from_ast(&ast_assert.value, session) {
-            Ok(value) => Some(value),
-            Err(()) => {
-                has_error = true;
-                None
-            },
-        };
-
-        session.is_in_debug_context = is_in_debug_context_prev;
-
-        if has_error {
-            Err(())
-        }
-
-        else {
-            Ok(Assert {
-                name: attribute.name,
-                note: attribute.note,
-                keyword_span: ast_assert.keyword_span,
-                value: value.unwrap(),
-                always: attribute.always,
-            })
         }
     }
 }

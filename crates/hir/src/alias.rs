@@ -1,4 +1,13 @@
-use crate::{GenericDef, Type, Session};
+use crate::{
+    Attribute,
+    AttributeKind,
+    AttributeRule,
+    GenericDef,
+    Type,
+    Requirement,
+    Session,
+    Visibility,
+};
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_name_analysis::{
     Counter,
@@ -15,6 +24,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Alias {
+    pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -27,7 +37,11 @@ pub struct Alias {
 }
 
 impl Alias {
-    pub fn from_ast(ast_alias: &ast::Alias, session: &mut Session) -> Result<Alias, ()> {
+    pub fn from_ast(
+        ast_alias: &ast::Alias,
+        session: &mut Session,
+        is_top_level: bool,
+    ) -> Result<Alias, ()> {
         let mut has_error = false;
         let mut generic_names = HashMap::new();
         let mut generic_index = HashMap::new();
@@ -45,6 +59,28 @@ impl Alias {
             names: generic_names,
             index: generic_index,
         });
+
+        let attribute = match session.lower_attribute(
+            &ast_alias.attribute,
+            AttributeKind::Alias,
+            ast_alias.keyword_span,
+            is_top_level,
+        ) {
+            Ok(attribute) => attribute,
+            Err(()) => {
+                has_error = true;
+                Attribute::new()
+            },
+        };
+        let visibility = attribute.visibility.clone();
+
+        if let Err(()) = session.collect_lang_items(
+            &attribute,
+            ast_alias.name_span,
+            Some(&ast_alias.generics),
+        ) {
+            has_error = true;
+        }
 
         let r#type = match Type::from_ast(&ast_alias.r#type, session) {
             Ok(t) => Some(t),
@@ -107,6 +143,7 @@ impl Alias {
             }
 
             Ok(Alias {
+                visibility,
                 keyword_span: ast_alias.keyword_span,
                 name: ast_alias.name,
                 name_span: ast_alias.name_span,
@@ -116,6 +153,22 @@ impl Alias {
                 foreign_names,
             })
         }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
+            visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            visibility_error_note: Some(String::from("Only top-level items can be public.")),
+            decorators: HashMap::new(),
+        };
+
+        if is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
+
+        attribute_rule
     }
 }
 
