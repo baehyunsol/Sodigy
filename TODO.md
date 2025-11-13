@@ -1,3 +1,100 @@
+# 79. Commit hash
+
+사실 Sodigy랑은 큰 상관없고 그냥 심심풀이용임.
+
+1. `sodigy version`을 하면 commit hash가 나오게 하고 싶음!
+2. 보통은 `build.rs`를 이용해서 commit hash를 집어넣음
+3. 왜냐면 commit hash를 hard-code하는 순간 commit hash가 바뀌어버리기 때문에 hard-code할 수가 없거든
+  - ... 그렇지 않음!! 비트코인 채굴하는 거랑 똑같은 원리로 넣을 수 있음. commit hash를 무작위로 hard-code 하다보면 언젠간 일치하거든!!
+  - (commit hash 변경, `git add <file>`, `git commit --amend`, commit hash 확인) -> 이거를 계속 loop 돌리면 됨!!
+
+```py
+# params
+file = "src/lib.rs"
+line = "pub const COMMIT_HASH: &'static str = \"{{replace}}\";"
+
+import subprocess
+rep_at = line.index("{{replace}}")
+prefix = line[:rep_at]
+suffix = line[(rep_at + len("{{replace}}")):]
+
+with open(file, "r") as f:
+    lines = f.read().split("\n")
+
+line_no = [i for i, line in enumerate(lines) if line.startswith(prefix) and line.endswith(suffix)][0]
+
+for i in range(4096):
+    hash = f"{i:03x}"
+    new_line = line.replace("{{replace}}", hash)
+    lines[line_no] = new_line
+
+    with open(file, "w") as f:
+        f.write("\n".join(lines))
+
+    subprocess.run(["git", "add", file], check=True)
+    subprocess.run(["git", "commit", "--amend", "--no-edit"], check=True)
+    real_hash = subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout
+
+    if real_hash.startswith(hash):
+        break
+```
+
+이렇게 하니까 너무 오래 걸림... 4096개 도는데 몇분은 걸리는듯 ㅠㅠ
+또다른 문제: 4096개 다 돌았는데 collision이 하나도 없을 수도 있음!
+또다른 문제: `.git/`에 쓰레기가 조금씩 쌓임 -> 이건 사소
+
+Rust로 짜면 더 빨리 짤 수 있을 거 같기도 하고??
+
+1. `git cat-file commit <hash>` 하면 현재 commit의 정보가 나옴. 아마 이거 hash하면 그대로 commit hash 될텐데?
+  - ㄴㄴ perplexity한테 물어보니까 `"commit " + content.len() + "\0" + content` 한 다음에 hash해야한대. 참고로 content.len()은 byte로 계산
+2. tree도 마찬가지래 `"tree " + content.len() + "\0" + content` 해야한대...
+
+# 78. Generic functions with default values
+
+`fn add<T, U, V>(a: T = 1, b: U = 2) -> V = a + b;`
+
+... 이러면 `T`는 항상 Int라고 봐야돼?? 그건 아니긴한데 좀 이상하네
+
+# 77. Sodigy for real-world programming
+
+In order for Sodigy to be practical, it needs impure functions.
+
+1. Simple File IO
+  - read/write/append to file (string/bytes), read dir, create dir, remove dir, exists, create file, remove file
+  - We don't have this, but we definitely need this.
+2. Time
+  - sleep, get time
+  - We don't have this, but we definitely need this.
+3. Random
+  - get random value
+  - We don't have this, but we definitely need this.
+4. Fancy File IO
+  - create_dir, copy_file, rename, set_current_dir, get_current_dir, file_metadata
+  - Maybe later...
+5. Network
+  - http request/response
+  - it'd be nice, but it'd be much harder to add new backends
+6. GUI
+  - input events (keyboard, mouse, window), output events (draw something)
+  - it'd be a lot of work...
+7. DOM manipulation
+  - purescript is Haskell-ish javascript, and Sodigy becomes Rust-ish javascript!
+  - it'd be a lot of work...
+8. SQL
+  - We have 2 choices: C FFI or implement new DBMS from scratch
+
+There are some pure functions (libraries) that Sodigy is missing
+
+1. Regex
+2. JSON/binary serde
+3. Markdown
+
+It'd be nice to have multithread/multiprocess capabilities, but it's not just about libraries, we have to tweak the runtime...
+
+1. `spawn(\(x) => foo(x))` to spawn a new thread/process.
+  - It's easy, but how do they interact with each other?
+2. async/await -> we need a built-in event loop...
+
 # 76. Subtyping...
 
 1. Never type만 고려할 경우
@@ -15,6 +112,7 @@
     - 아니면, `TypeVar(x) = Result<Int, TypeVar(new)>`로 한 다음에 `TypeVar(new) = !`를 추가로 대입하는 방법도 있음..!!
       - 아니지, 이거를 해도 `TypeVar(new)`를 풀 방법이 없지. 다른 곳에서 등장을 안할텐데?
 2. general subtyping
+  - 또 어디에 필요하려나...
 
 # 75. inter-hir
 
@@ -48,35 +146,8 @@ inter-hir이 너무 더러워지고 있음. 걍 싹다 날리고 새로 짤까?
 - 저 3개 사이에 infinite loop가 발생할 수 있으므로 검사해야함.
   - 또다른 특이한 edge case: `use x.y.z as a; use a.b.c as x;`가 있으면 (근데 intra-hir에서 못 잡았으면), 저거를 n번 풀면 field의 길이가 2의 n제곱이 됨. 즉, recursion_limit이 20 정도만 돼도 맛이 감. 저거는 미리 탈출해야함!!
 - name alias 안에서 무언가를 찾는 함수, type alias/annotation 안에서 무언가를 찾는 함수, expr 안에서 무언가를 찾는 함수를 각각 만들어야함. 그리고 type alias/annotation과 expr은 recursive하게 찾아야 함.
-
-# 74. `#[no_type]`
-
-1. `read_compound`의 경우 아무 값이나 넣을 수 있기 때문에 `Any` type이 필요
-2. `panic`의 경우 `Never` type을 구현하거나 아무 값이나 return할 수 있게 하거나...
-
-아니면 손쉬운 trick이 있음: `read_compoun<T, U>(ls: T, i: Int) -> U`로 한 다음에 얘네는 generic이 infer가 안돼도 error를 안 내는 거지!!
-panic도 마찬가지: `panic<T>() -> T`라고 한 다음에 generic이 infer가 안돼도 error를 안내면 됨.
-
-이러면 "a type that is a subtype of every type"을 구현할 수 있음!!
-
-생각해보니까 이거 안됨. `fn always_panic() = panic();`을 하면 쟤의 type을 `T`로 추론하겠지? 근데 어디서는 `always_panic`을 int 자리에 쓰고 어디서는 `always_panic`을 string 자리에 쓰면 그 둘이 type collision이 나잖아? 그럼 안되지...
-
-`read_compound`는 저렇게 그대로 써도 될 듯??
-
-# 73. Decorator
-
-Rust랑 비슷하게 만든다치면 decorator도 `#[built_in]`처럼 해야하지 않음??
-
-그럼 이름도 decorator가 아니라 attribute라고 해야하나?? 근데 attribute라는 용어는 이미 쓰고 있는데...
-
-Draft
-
-1. `#[built_in]`, `#[lang_item("blah_blah")]`처럼 하기. 즉, `@` 뒤에 오던 걸 `#[]` 안에 넣는 거임!!
-2. Rust에서는 `#[must_use = "You must use this!!!"]`처럼도 쓰는데 이건 못쓰게 막기
-3. decorator라는 용어와 attribute라는 용어는 그대로 쓰기
-4. decorator이름에 `Vec<InternedString>`대신 `InternedString` 쓰기... please...
-  - Rust에서는 path도 사용가능하지만 일단 Sodigy에서는 안되게 막을 거임. 아직은 user-defined decorator가 들어갈 자리가 없거든 ㅋㅋ
-5. `#![]`이랑 `//!`도 구현하기?? ㄱㄱㄱ
+- 지금은 각 module 안에 있는 name alias와 type alias끼리만 연결하고 있는데, alias는 전부 load 해놓고 작업해야함.
+  - 그대신 expr과 type annotation은 파일별로 작업 가능!
 
 # 72. Visibility
 
@@ -314,6 +385,10 @@ fn bar(..) = baz(foo.<Int>(..), ..);
 - 근데 어차피 monomorphize를 할 거면, monomorphize 한 다음에 그 안에서 새로 type-check하면 안됨 (C++ 방식)? 이게 덜 복잡할 거 같은데... 이걸 하려다가 포기했던 이유가
   - 1, error message가 난해해짐.
   - 2, generic function body 안에 type variable X가 있다고 하자, 이 function이 instantiate 될 때마다 X가 하나씩 늘어나야함. X들끼리 서로 다르게 type-infer 해야하거든... 그럼 코드가 엄청 복잡해짐.
+    - 간단할 거 같은데? generic function을 한번에 하나씩만 type-check를 하고, 각 function의 type-check가 끝날 때마다 그 안에 있는 type variable과 관련된 정보는 다 삭제하면 됨!!
+    - body 안에 있는 type variable의 목록을 알아내는게 중요하겠네!
+      - 단순 삭제만 하면 안되고, infer에 실패한 type variable이 있는지도 검사해야함
+  - ㄴㄴ 걍 아예 새 function을 만들어버리고 span도 다 새로 주자. 이게 근본적인 해결책 아님?
 - Rust 방식은 하고싶지 않음. 그렇게 하려면 trait system을 완전 정교하게 design 해야하거든...
 
 # 48. Compiler & Sodigy std
@@ -482,6 +557,7 @@ Runtime has 2 types: scalar vs compound
     - statement를 추가하는 거 자체가 별로임
     - debug-mode에만 작동된다는 걸 납득 못하는 사람들이 많을 듯
     - 그냥 print문 대용으로 쓰려고 할 듯
+    - 그럼 이름을 `debug`로 바꾸면 되지 ㅋㅋㅋ
 3. breakpoint를 걸 수 있게 할까?
   - 그럼 debugger가 필요한데...
 4. 함수 로그 찍는 decorator를 만들까?
@@ -504,7 +580,7 @@ Things that I need: read/write/append to files (including stdin/stdout/stderr). 
   - `$in`으로 이전에서 넘어온 값 받게 하자... cause I don't like being implicit
   - `$in`이 들어갈 자리가 명확하면 생략가능하게 하자!
 2. args and flags
-  - a command takes of small number of args (can be zero) and a lot of flags
+  - a command takes a small number of args (can be zero) and a lot of flags
   - you can use parenthesis to make args less ambiguous
 3. command
   - a command may 1) return a value or 2) fail
@@ -524,7 +600,7 @@ Things that I need: read/write/append to files (including stdin/stdout/stderr). 
     - what if it panics? does the shell die?
     - If we're implementing REPL, it has to be able to return arbitrary types
 6. Type checks?
-  - the current runtime has no type information... so if we pass an integer to a function that expects a string, it'll behave in really weird way but doesn't throw any error
+  - the current runtime has no type information... so if we pass an integer to a function that expects a string, it'll behave in a really weird way but doesn't throw any error
   - commands have very dynamic types (e.g. return type changes depending on flags)... can we check that?
   - I still want type checks because
     - 1, it provides better error messages, both in compile-mode and REPL-mode
@@ -617,6 +693,35 @@ How about this? A script language that's very similar to Sodigy, except that,
 4. You can mutate values
   - `let x = foo();` declares `x` and `x = bar();` assigns `bar()` to `x` (mutates `x`).
 
+근데 이거를 하려면 for문을 만들어야하는데...
+
+---
+
+또다시 정리 ㅋㅋㅋ 쟁점들
+
+1. 기존 Sodigy compiler를 얼마나 재활용할 것인가?
+2. 예외처리를 어떻게 할 것인가
+3. inline expression을 허용할 것인가
+4. for문을 구현해야하나
+5. type check를 언제 할 것인가
+  - type check를 할지말지는 선택사항이 아님... runtime에라도 해야지...
+  - 만약에 runtime에 할 거면 Sodigy가 내놓은 값을 enum으로 감싸서 (`serde_json::Value`처럼) 써야함
+  - compile time에 할 거면 기존 type checker를 재활용해?
+    - 재활용하기에는 기존 type checker가 너무 무겁고 (inference는 필요가 없거든), 새로 만들기에는 너무 중복되는게 많음
+    - 재활용하려면 hir->inter-hir->mir을 전부 다 태워야 함
+
+---
+
+아니면 이건 ㅇㄸ
+
+`main.sdgcmd`가 따로 있음. Sodigy와 완전히 동일한 문법을 사용하지만 몇몇 impure function을 추가로 사용할 수 있고, `#[impure]`를 이용해서 impure function을 정의할 수 있음.
+
+module hierarchy를 잘 만들면 impure context를 완전히 격리시키는게 가능 (일반 sodigy 파일에서는 impure function을 사용 불가)
+
+Action을 순서대로 실행하기 위해서는 `exec_actions(a1, a2, ...)`가 필요!! 모든 action을 주어진 순서로 실행한 다음에 제일 첫번째 값을 반환 (제일 마지막 값을 반환하는 함수도 만들어야할 듯?). -> 이거 std에서도 써먹을 수 있을 거 같은데??
+
+아마 최적화를 구현하면 pure-function을 상정한 최적화가 많이 들어갈텐데, 걔네를 잘 걷어내는게 관건!
+
 # 34. Errors, Panics and Crashes
 
 1. Errors: `Result<T, E>`
@@ -628,6 +733,7 @@ How about this? A script language that's very similar to Sodigy, except that,
     - Stacktrace를 만드려면 runtime을 수정해야하고, 그럼 모든 runtime을 똑같이 구현해야함! 귀찮쓰...
 3. Crashes: OOM, Stack overflow, ...
   - 사실 stack overflow도 panic으로 구현하는게 가능함. stack에 뭐 넣을 때마다 크기 검사하는 거임. 그러면 프로그램이 무지 느려지겠지?? ㅋㅋㅋ
+  - 생각보다 안 느릴 거같은데?? 그냥 call stack 깊이만 보고 하면 안됨??
 
 모든 예외는 1이나 2를 통해야함. Runtime이 자체적으로 예외를 발생시키는 건 안됨. 예를 들어서 integer division을 한다? divisor가 0인지 아닌지를 Sodigy가 판단을 하고 Sodigy가 panic을 해야함. Python이 ZeroDivisionError를 내는 건 안됨!
 
@@ -724,6 +830,8 @@ lir까지 다 완성된 다음에 이 분석을 해도됨: alloc을 하는 명�
   - There's no `goto` in Rust.
     - We have to use a gigantic `match` statement... but I hope the rust compiler can optimize this.
   - It's tricky to manage memory manually in Rust.
+
+근데 Python이 꼭 필요해? quick code-compile-debug loop를 위해서는 bytecode interpreter만 있으면 되는 거 아닌가??
 
 # 29. Some optimization
 
@@ -822,6 +930,8 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 Name binding에 `$`를 안 붙이니까 한가지 문제가 생김: `True`랑 `False`에 match 하려면 `$True`, `$False`를 해야함... Rust는 `true`/`false`가 keyword여서 이런 문제가 없음.
 
 -> 생각해보니까 이것도 안되네. `$True`면은 "True라는 이름을 가진 변수와 값이 같다"라는 뜻이잖아...
+  - 아니지, 이미 namespace에 `use Bool.True as True`가 있으니까 `$True`로 해도 되지!
+-> 할 거면 `Bool.True`로 해야함.
 
 # 24. tuple struct
 
@@ -1114,6 +1224,6 @@ Angle bracket 다루는게 불편하겠지만 어쩔 수 없음! 일단은 turbo
 3. functor: default value도 없고 keyword arg도 없음.
   - compile time에 파악 불가능한 함수에 keyword arg를 쓰면 무조건 error
 4. function to functor
-  - `Fn<(Int, Int): Int>` 자리에 `fn foo(x: Int, y: Int, z: Int = 5): Int`를 넣는 경우, `\(x: Int, y: Int): Int => foo(x, y, 5)`로 자동으로 바꾸기...??
+  - `Fn(Int, Int) -> Int` 자리에 `fn foo(x: Int, y: Int, z: Int = 5) -> Int`를 넣는 경우, `\(x: Int, y: Int) -> Int => foo(x, y, 5)`로 자동으로 바꾸기...??
 
 1, 2, 3은 구현했고 4는 아직 미정
