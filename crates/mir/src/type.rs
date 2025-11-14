@@ -101,13 +101,16 @@ impl Type {
                     NameKind::Struct |
                     NameKind::Enum => Ok(Type::Static(id.def_span)),
                     _ => {
-                        session.errors.push(Error::todo(92226, &format!("TODO: lowering hir type: {hir_type:?}"), hir_type.error_span()));
+                        session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span()));
                         Err(())
                     },
                 },
                 NameOrigin::External => unreachable!(),
             },
-            hir::Type::Path { .. } => todo!(),
+            hir::Type::Path { .. } => {
+                session.errors.push(Error::todo(33045, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span()));
+                Err(())
+            },
             hir::Type::Param { r#type, args: hir_args, group_span } => {
                 let mut has_error = false;
                 let r#type = match Type::from_hir(r#type, session) {

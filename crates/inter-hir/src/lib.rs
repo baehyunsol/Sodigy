@@ -632,7 +632,7 @@ impl Session {
                     },
                     None => {},
                 },
-                _ => panic!("ICE"),
+                _ => unreachable!(),
             },
             Type::Tuple { types, .. } => {
                 for r#type in types.iter_mut() {
@@ -694,7 +694,7 @@ impl Session {
                     },
                     None => {},
                 },
-                Expr::Path { .. } => panic!("ICE"),  // It should have been flattened
+                Expr::Path { .. } => unreachable!(),  // It should have been flattened
                 e => {
                     self.resolve_expr(e);
                 },

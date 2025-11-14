@@ -69,8 +69,6 @@ impl Session {
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.lang_items.get(lang_item) {
             Some(s) => *s,
-
-            // TODO: It must be an ICE, but there's no interface for an ICE
             None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }

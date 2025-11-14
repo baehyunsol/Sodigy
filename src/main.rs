@@ -247,9 +247,7 @@ fn main() -> Result<(), Error> {
                     for worker in workers.iter() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
-                                // TODO: throw an ICE
                                 MessageToMain::FoundModuleDef { .. } => unreachable!(),
-
                                 MessageToMain::RunComplete { id } => {
                                     unfinished_runs.remove(&id);
                                 },
@@ -324,9 +322,7 @@ fn main() -> Result<(), Error> {
                     for worker in workers.iter() {
                         match worker.try_recv() {
                             Ok(msg) => match msg {
-                                // TODO: throw an ICE
                                 MessageToMain::FoundModuleDef { .. } => unreachable!(),
-
                                 MessageToMain::RunComplete { id } => {
                                     unfinished_runs.remove(&id);
                                 },
