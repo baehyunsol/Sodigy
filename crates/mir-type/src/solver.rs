@@ -17,25 +17,36 @@ pub struct Solver {
     // Whenever `types.get(span)` returns `None`, it creates a type variable
     // and inserts the `span` to this hash set. It's later used to check
     // if all the type variables are infered.
+    //
     // If the type variable is from a type annotation and a name is bound to
     // the type annotation, it also collects the name: that'd be helpful when
     // creating error messages.
     //
-    // TODO: it has to collect `Type::GenericInstance`.
+    // The key (`Type`) is either `Type::Var` or `Type::GenericInstance`.
+    // Every type variable the type-solver encountered must be in this map.
+    // The value being `None` or `Some(_)`... doesn't mean much. It's just used to
+    // help generating error messages. If you want to check if a variable has been
+    // successfully infered, you have to check `types` or `generic_instances`, which
+    // do not belong to `Solver`.
     pub type_vars: HashMap<Type, Option<InternedString>>,
 
     // If a type variable references another type variable, we have to track the relation.
-    // For example, if a type of function `add` is `TypeVar(add) = Fn(TypeVar(x), TypeVar(y)) -> Int`,
+    // For example, if a type of function `add` is `Type::Var(add) = Fn(Type::Var(x), Type::Var(y)) -> Int`,
     // we have to update `TypeVar(add)` when `TypeVar(x)` is updated. So, we `type_var_refs.get(x)`
     // will give you a vector with `add`.
     // If a type variable references itself, that should not be included in the Vec<Span>.
+    //
+    // A type var can be either `Type::Var` or `Type::GenericInstance`.
     pub type_var_refs: HashMap<Type, Vec<Type>>,
 
-    // When it solves a generic function, say `foo<T>`, it treats `T` like a concrete type.
-    // It first solves unknown types in the function, and collects constraints of `T`.
-    // For example, if it sees a type equation `T = Int`, it inserts `Int` to the constraints of `T`.
-    // Later, it checks if instances of `foo` all satisfies the constraints.
-    pub generic_constraints: HashMap<Span, Vec<Type>>,
+    // If it infers that `Type::Var(x) = Type::Never`, it doesn't substitute
+    // `x` with `Type::Never` because it might later find less-subtype of `x`.
+    // For example, if `x` is infered to `Type::Never` and `Type::Static(Int)`, it
+    // chooses `Type::Static(Int)` because `Type::Never` is subtype of `Type::Static(Int)`.
+    // But if it cannot find any more information about `x`, it has to choose `Type::Never`.
+    // So, after type inference is done, if there's an un-infered type variable and the variable
+    // is in this set, the type variable has `Type::Never`.
+    pub maybe_never_type: HashMap<Type /* TypeVar */, Type /* Type::Never */>,
 
     pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
@@ -46,9 +57,65 @@ impl Solver {
         Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
-            generic_constraints: HashMap::new(),
+            maybe_never_type: HashMap::new(),
             lang_items,
             errors: vec![],
+        }
+    }
+
+    pub fn apply_never_types(
+        &mut self,
+        types: &mut HashMap<Span, Type>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
+    ) {
+        let mut never_types = vec![];
+
+        for type_var in self.type_vars.keys() {
+            match type_var {
+                Type::Var { def_span, .. } => match types.get(def_span) {
+                    None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        if let Some(never_type) = self.maybe_never_type.get(type_var) {
+                            never_types.push((type_var.clone(), never_type.clone()));
+                        }
+                    },
+                    _ => {},
+                },
+                Type::GenericInstance { call, generic } => match generic_instances.get(&(*call, *generic)) {
+                    None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        if let Some(never_type) = self.maybe_never_type.get(type_var) {
+                            never_types.push((type_var.clone(), never_type.clone()));
+                        }
+                    },
+                    _ => {},
+                },
+                _ => unreachable!(),
+            }
+        }
+
+        for (type_var, never_type) in never_types.iter() {
+            match type_var {
+                Type::Var { def_span, is_return } => {
+                    if *is_return {
+                        match types.get_mut(def_span) {
+                            Some(Type::Func { r#return, .. }) => {
+                                *r#return = Box::new(never_type.clone());
+                            },
+                            _ => unreachable!(),
+                        }
+                    }
+
+                    else {
+                        types.insert(*def_span, never_type.clone());
+                    }
+
+                    self.substitute(type_var, never_type, types, generic_instances);
+                },
+                Type::GenericInstance { call, generic } => {
+                    generic_instances.insert((*call, *generic), never_type.clone());
+                    self.substitute(type_var, never_type, types, generic_instances);
+                },
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -57,11 +124,14 @@ impl Solver {
         types: &HashMap<Span, Type>,
         generic_instances: &HashMap<(Span, Span), Type>,
         generic_def_span_rev: &HashMap<Span, Span>,
-    ) {
+    ) -> Result<(), ()> {
+        let mut has_error = false;
+
         for (type_var, id) in self.type_vars.iter() {
             match type_var {
                 Type::Var { def_span, .. } => match types.get(def_span) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        has_error = true;
                         self.errors.push(TypeError::CannotInferType {
                             id: *id,
                             span: *def_span,
@@ -71,12 +141,14 @@ impl Solver {
                         let type_vars = t.get_type_vars();
 
                         if !type_vars.is_empty() {
+                            has_error = true;
                             self.errors.push(TypeError::PartiallyInferedType { id: *id, span: *def_span, r#type: t.clone() });
                         }
                     },
                 },
                 Type::GenericInstance { call, generic } => match generic_instances.get(&(*call, *generic)) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        has_error = true;
                         self.errors.push(TypeError::CannotInferGenericType {
                             call: *call,
                             generic: *generic,
@@ -87,6 +159,7 @@ impl Solver {
                         let type_vars = t.get_type_vars();
 
                         if !type_vars.is_empty() {
+                            has_error = true;
                             self.errors.push(TypeError::PartiallyInferedGenericType {
                                 call: *call,
                                 generic: *generic,
@@ -98,6 +171,14 @@ impl Solver {
                 },
                 _ => unreachable!(),
             }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
         }
     }
 
@@ -128,19 +209,6 @@ impl Solver {
                     e.insert(vec![referent]);
                 },
             }
-        }
-    }
-
-    pub fn add_generic_constraint(&mut self, generic_def_span: Span, r#type: &Type) {
-        let r#type = r#type.clone();
-
-        match self.generic_constraints.entry(generic_def_span) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().push(r#type);
-            },
-            Entry::Vacant(e) => {
-                e.insert(vec![r#type]);
-            },
         }
     }
 
@@ -188,11 +256,6 @@ impl Solver {
 
                     Err(())
                 }
-            },
-            (t1 @ Type::GenericDef(g1), t2 @ Type::GenericDef(g2)) => {
-                self.add_generic_constraint(*g1, t2);
-                self.add_generic_constraint(*g2, t1);
-                Ok(t1.clone())
             },
             (Type::Unit(_), Type::Unit(_)) => Ok(expected_type.clone()),
             (Type::Never(_), Type::Never(_)) => Ok(expected_type.clone()),
@@ -306,7 +369,7 @@ impl Solver {
                         let type1 = type1.clone();
                         self.solve_subtype(
                             &type1,
-                            subtype,
+                            t2,
                             types,
                             generic_instances,
                             is_checking_argument,
@@ -319,7 +382,7 @@ impl Solver {
                     else if let Some(type2) = types.get(v2) {
                         let type2 = type2.clone();
                         self.solve_subtype(
-                            expected_type,
+                            t1,
                             &type2,
                             types,
                             generic_instances,
@@ -345,22 +408,63 @@ impl Solver {
                     todo!()
                 }
             },
-            (Type::GenericInstance { call: c1, generic: g1 }, Type::GenericInstance { call: c2, generic: g2 }) => {
+            (t1 @ Type::GenericInstance { call: c1, generic: g1 }, t2 @ Type::GenericInstance { call: c2, generic: g2 }) => {
                 if *c1 == *c2 && *g1 == *g2 {
                     Ok(expected_type.clone())
                 }
 
                 else {
-                    todo!()
+                    if let Some(type1) = generic_instances.get(&(*c1, *g1)) {
+                        let type1 = type1.clone();
+                        self.solve_subtype(
+                            &type1,
+                            t2,
+                            types,
+                            generic_instances,
+                            is_checking_argument,
+                            expected_span,
+                            subtype_span,
+                            ErrorContext::Deep,
+                        )
+                    }
+
+                    else if let Some(type2) = generic_instances.get(&(*c2, *g2)) {
+                        let type2 = type2.clone();
+                        self.solve_subtype(
+                            t1,
+                            &type2,
+                            types,
+                            generic_instances,
+                            is_checking_argument,
+                            expected_span,
+                            subtype_span,
+                            ErrorContext::Deep,
+                        )
+                    }
+
+                    else {
+                        generic_instances.insert((*c1, *g1), t2.clone());
+                        self.add_type_var(t1.clone(), None);
+                        self.add_type_var_ref(t1.clone(), t2.clone());
+                        generic_instances.insert((*c2, *g2), t1.clone());
+                        self.add_type_var(t2.clone(), None);
+                        self.add_type_var_ref(t2.clone(), t1.clone());
+                        Ok(t1.clone())
+                    }
                 }
             },
-            (Type::Never(_), concrete) | (concrete, Type::Never(_)) => {
+            (Type::GenericDef(_), _) | (_, Type::GenericDef(_)) => {
+                // We'll only type check/infer monomorphized functions.
+                unreachable!()
+            },
+            (never @ Type::Never(_), concrete) | (concrete, never @ Type::Never(_)) => {
                 // We don't solve the variable, because we might solve it with a more concrete type.
                 // But we still have to remember that this variable might be `Type::Never`.
                 // If we can't solve the variable, we'll assign `Type::Never` to the variable.
                 match concrete {
-                    Type::Var { .. } => todo!(),
-                    Type::GenericInstance { .. } => todo!(),
+                    Type::Var { .. } | Type::GenericInstance { .. } => {
+                        self.maybe_never_type.insert(concrete.clone(), never.clone());
+                    },
                     _ => {},
                 }
 
@@ -368,9 +472,9 @@ impl Solver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+                concrete @ (Type::Static(_) | Type::Unit(_)),
             ) | (
-                concrete @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_)),
+                concrete @ (Type::Static(_) | Type::Unit(_)),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 if *is_return {
@@ -423,13 +527,42 @@ impl Solver {
 
                 Ok(maybe_concrete.clone())
             },
-            (Type::GenericDef(generic), constraint) | (constraint, Type::GenericDef(generic)) => {
-                self.add_generic_constraint(*generic, constraint);
-                Ok(constraint.clone())
+            (
+                type_var @ Type::GenericInstance { call, generic },
+                concrete @ (Type::Static(_) | Type::Unit(_)),
+            ) | (
+                concrete @ (Type::Static(_) | Type::Unit(_)),
+                type_var @ Type::GenericInstance { call, generic },
+            ) => {
+                generic_instances.insert((*call, *generic), concrete.clone());
+                self.substitute(type_var, concrete, types, generic_instances);
+                Ok(concrete.clone())
             },
             (
-                t1 @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
-                t2 @ (Type::Static(_) | Type::GenericDef(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
+                type_var @ Type::GenericInstance { call, generic },
+                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+            ) | (
+                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+                type_var @ Type::GenericInstance { call, generic },
+            ) => {
+                let ref_type_vars = maybe_concrete.get_type_vars();
+
+                if ref_type_vars.is_empty() {
+                    generic_instances.insert((*call, *generic), maybe_concrete.clone());
+                    self.substitute(type_var, maybe_concrete, types, generic_instances);
+                }
+
+                else {
+                    for ref_type_var in ref_type_vars.into_iter() {
+                        self.add_type_var_ref(ref_type_var, type_var.clone());
+                    }
+                }
+
+                Ok(maybe_concrete.clone())
+            },
+            (
+                t1 @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
+                t2 @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
             ) => {
                 if !is_checking_argument {
                     self.errors.push(TypeError::UnexpectedType {
@@ -443,10 +576,45 @@ impl Solver {
 
                 Err(())
             },
-            _ => panic!("TODO: {:?}", (expected_type, subtype)),
+            (
+                tv @ Type::Var { def_span, is_return },
+                gi @ Type::GenericInstance { call, generic },
+            ) | (
+                gi @ Type::GenericInstance { call, generic },
+                tv @ Type::Var { def_span, is_return },
+            ) => {
+                let (tv_span, gi_span) = if let Type::Var { .. } = expected_type {
+                    (expected_span, subtype_span)
+                } else {
+                    (subtype_span, expected_span)
+                };
+
+                if let Some(tv_concrete) = types.get(def_span) {
+                    let tv_concrete = tv_concrete.clone();
+                    self.solve_subtype(
+                        &tv_concrete,
+                        gi,
+                        types,
+                        generic_instances,
+                        is_checking_argument,
+                        tv_span,
+                        gi_span,
+                        ErrorContext::Deep,
+                    )
+                }
+
+                // It's complicated due to the `is_return` field...
+                else {
+                    todo!()
+                }
+            },
         }
     }
 
+    // Let's say there's a type expression: `Type::Var(x) = Type::Param { unit, args: [Type::Static(Int), Type::Var(y)] }`.
+    // When we infered that `Type::Var(y) = Type::Static(Int)`, we have to update `Type::Var(x)`.
+    // In this case, we call `self.substitute(y, Int)`.
+    // The relationship between `x` and `y` are stored in `self.type_var_refs`.
     fn substitute(
         &mut self,
         type_var: &Type,
@@ -500,9 +668,7 @@ impl Solver {
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.lang_items.get(lang_item) {
             Some(s) => *s,
-
-            // TODO: It must be an ICE, but there's no interface for an ICE
-            None => todo!(),
+            None => unreachable!(),
         }
     }
 }

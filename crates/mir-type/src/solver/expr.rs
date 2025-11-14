@@ -101,13 +101,6 @@ impl Solver {
             //    - a generic function
             //      - it first converts `Generic` to `GenericInstance` and does what
             //        a non-generic function does
-            //    - an operator
-            //      - it lists all the possible type signatures of the operator
-            //        - todo: what if it's generic? I guess we have to use `GenericInstance` here
-            //      - it finds applicable candidates in the list
-            //      - if there are 0 match: type error
-            //      - if there are exactly 1 match: we can solve this!
-            //      - if there are multiple matches... we need another form of a type-variable.. :(
             Expr::Call { func, args, generic_defs, given_keyword_arguments } if generic_defs.is_empty() => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
@@ -128,7 +121,9 @@ impl Solver {
                 }
 
                 match func {
+                    // The `expr` is `f()` and we know the def_span of `f`.
                     Callable::Static { def_span, span } => match types.get(def_span) {
+                        // `f` is a function and we have enough information.
                         Some(Type::Func {
                             args: arg_defs,
                             r#return,
@@ -167,7 +162,23 @@ impl Solver {
 
                             Ok(return_type)
                         },
-                        Some(_) => todo!(),
+                        // We're sure that `f` is not a function.
+                        // For example, `let f = 3; f()`.
+                        Some(t @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. })) => {
+                            self.errors.push(TypeError::NotCallable {
+                                r#type: t.clone(),
+                                func_span: *span,
+                            });
+                            Err(())
+                        },
+                        // We only type check/infer monomorphized functions.
+                        Some(Type::GenericDef(_)) => unreachable!(),
+                        // This is not a type error because `!` is subtype of every type.
+                        Some(t @ Type::Never(_)) => Ok(t.clone()),
+                        // `let foo = bar(); foo()`.
+                        // We're solving the expression `foo()`, we don't know the exact type
+                        // of `foo` and `bar()`, but we now know that they have the same type.
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => todo!(),
                         None => todo!(),
                     },
                     Callable::TupleInit { group_span } => Ok(Type::Param {
@@ -238,9 +249,8 @@ impl Solver {
                                 return Err(());
                             },
 
-                            // Some generics are callable.
-                            // I have to add a constraint.
-                            Type::GenericDef(_) => todo!(),
+                            // We'll only type check/infer monomorphized functions.
+                            Type::GenericDef(_) => unreachable!(),
 
                             Type::Func { args: arg_defs, r#return, .. } => {
                                 // It doesn't check arg types if there are wrong number of args.
@@ -272,7 +282,7 @@ impl Solver {
 
                                 Ok(*r#return.clone())
                             },
-                            _ => todo!(),
+                            _ => panic!("TODO: {func:?}"),
                         }
                     },
                     _ => panic!("TODO: {func:?}"),
@@ -281,32 +291,4 @@ impl Solver {
             _ => panic!("TODO: {expr:?}"),
         }
     }
-}
-
-// `type_signature.len() == arg_types.len() + 1` because the last element of
-// `type_signature` is the return type.
-fn applicable(
-    type_signature: &[Type],
-    arg_types: &[Type],
-) -> bool {
-    assert_eq!(type_signature.len(), arg_types.len() + 1);
-
-    for i in 0..arg_types.len() {
-        // TODO: there must be an error in this match statement.
-        match (
-            &type_signature[i],
-            &arg_types[i],
-        ) {
-            (_, Type::Var { .. } | Type::GenericInstance { .. }) => {},
-            (Type::Static(s1), Type::Static(s2)) if *s1 == *s2 => {},
-            (Type::Unit(_), Type::Unit(_)) => {},
-            (Type::Param { .. }, _) |
-            (_, Type::Param { .. }) => todo!(),
-            _ => {
-                return false;
-            },
-        }
-    }
-
-    true
 }
