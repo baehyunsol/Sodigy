@@ -1,3 +1,11 @@
+# 80. Language doc
+
+1. I'm writting the document at `spec.md`. I'll have to split files before it gets too long.2
+2. I want to implement a markdown parser in Sodigy to parse the document.
+3. I want to run the codes in the document's code blocks.
+  - Some blocks assert that they don't compile. Some assert that they compile but don't pass the test.
+  - I want it to create a new code block with the compile error messages (colored).
+
 # 79. Commit hash
 
 사실 Sodigy랑은 큰 상관없고 그냥 심심풀이용임.

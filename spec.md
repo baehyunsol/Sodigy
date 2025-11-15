@@ -1,228 +1,294 @@
-## Blocks
+# Sodigy
 
-In Sodigy, everything is a block. A block consists of zero or more declarations (`let`, `func`, `struct` and `enum`), and exactly one expression at the end.
+Sodigy is a purely-functional, Rust-like programming language.
 
-A block is wrapped by curly braces. A file is also a giant block, but it's not wrapped in curly braces.
+## Installation
 
-## Structs
+TODO: documentation
 
-Unlike Rust, it has `=` and `;`. That's because it's a declaration.
+## Values
 
-```
-struct Person = {
-    name: String,
-    age: Int,
-};
-```
+You can bind a name to a value using `let` keyword. There's no "variable" in Sodigy: everything is immutable.
 
-You can also declare a generic struct.
+A `let` statement must be followed by a semicolon (`;`). Type annotation is optional in Sodigy.
 
-```
-struct Message<T> = {
-    id: Int,
-    content: T,
-};
+```sodigy
+let three = 3;
+let pi = 3.14;
+
+let hundred: Int = 100;
 ```
 
-## Enums
+## Data Types
 
-```
-enum Option<T> = {
-    Some(T),
-    None,
-};
-```
+### Integers
 
-## Type aliases
+Sodigy uses an arbitrary-width integer type.
 
-```
-type String = [Char];
-type EmptyResult<E> = Result<(), E>;
+```sodigy
+assert 1_000_000_000_000_000_000_000_000 + 1 == 1_000_000_000_000_000_000_000_001;
 ```
 
-## Decorators
+You can use underbar (`_`) characters in integer literals for readability, see the example above.
 
-Decorators are like attributes in Rust. But there're only built-in decorators, no custom ones.
+Like most languages, you can write integer literals with various bases.
 
-A decorator decorates `let`, `func`, `assert`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
+```sodigy
+// a hexadecimal literal
+assert 0x3e8 == 1000;
 
-1. `#[always]` (no arguments)
-2. `#[name("test1")]` (with arguments)
+// an octal literal
+assert 0o1750 == 1000;
 
-For module-level decorators, use `#![...]` instead of `#[...]`. A module-level decorator must come at the first of the module (usually a file).
+// a binary literal
+assert 0b1111101000 == 1000;
+```
 
-A decorator decorates an item following it. So, a decorator must come before an item.
+### Real Numbers
 
-## Pattern matching
+TODO: documentation
 
-1. `match foo() { (0..3, _) => 1, (x, y) => x + y }`
-2. `let (x, y) = foo();`
-3. `if let (0..3, _) = foo() { 1 } else { 0 }`
+```sodigy
+assert 0.1 + 0.2 == 0.3;
+assert 1.234e-5 == 0.00001234;
+```
 
-### Patterns
+### Bytes
 
-- Integer patterns
-  - `0`
-  - `0..5`, `0..=5`, `0..`, `..5`, `..=5`: These match a range of integers.
-  - `a`: It matches any integer and bind name `a`.
-- String patterns
-  - `""`: It matches an empty string.
-  - `"abc"`: It matches a string literal `"abc"`.
-  - `"abc" ++ a ++ "def"`: It matches a string that starts with `"abc"` and ends with `"def"`, and bind name `a` to the slice `[3..-3]` of the string.
-- Regex patterns
-  - A string literal prefixed with `r` (raw string) is treated as a regex pattern.
-  - The string must match the entire regex pattern!
-  - For example, `r"\d"` matches if the string is a single numeric character.
-  - You can also bind names. For example, a pattern `(?<number>\d+)` matches a number and binds name `number` to the matched string.
-    - Bound name always has type `Option<String>`. That's because the compiler is not smart enough to infer whether the group is optional or not.
-- List patterns
-  - `[]`: It matches an empty list.
-  - `[a, b]`: It matches a list with 2 elements, and bind names `a` and `b` to the elements.
-  - `[a] ++ _`: It matches a list with at least 1 element, and bind name `a` to the first element.
-  - `[_] ++ a ++ [_]`: It matches a list with at least 2 elements, and bind name `a` to the slice `[1..-1]` of the list.
-  - `[1..5, a, _]`: You can use other patterns inside a list pattern.
-- Tuple patterns
-  - `()`: It matches an empty tuple.
-  - `(a, b, _)`: It matches a tuple with 3 elements, and bind names `a` and `b` to the first and the second elements.
-  - You cannot concat (`++`) tuples.
-- Struct patterns
-  - `Person { age: 25..=30, name }`: It matches an instance of `Person` whose age is between 25 and 30 (inclusive), and bind name `name` to the field `name` of the person.
-- Tuple-struct patterns
-  - `Point(x, y)`: It matches any point, and bind name `x` and `y` to its fields.
-- Name bindings
-  - `a @ 0..5`: It matches an integer between 0 and 5, and bind name `a`.
-  - `a @ [_, _]`: It matches a list with 2 elements, and bind name `a`.
-- Equality checks
-  - `$a`: It matches if the value is equal to `a`. There must be a value named `a` in the name scope.
-  - `[$a] ++ _`: It matches a list whose first element is equal to `a`.
-  - `[b @ $a] ++ _`: It matches a list whose first element is equal to `a`, and bind name `b` to the first element.
+TODO: documentation
 
-## Lambda Functions
+### Strings/Chars
 
-- `\(a, b) => a + b`
-- `\(a: Int, b: Int) -> Int => a + b`
+Use double-quotes to specify a string literal and single-quotes for a character literal.
 
-## Literals
+```sodigy
+let s = "Hello, World!";
+let c = 'a';
+```
 
-### String literals
+A character literal must be ... a single character, of course!
+
+```sodigy, compile_error
+// This is a syntax error.
+let c = 'abc';
+
+// So is it.
+let e = '';
+```
 
 A string literal starts with N (odd number) double-quotes, and ends with the same number of double-quotes.
 
-- Binary Strings: prefix `b`.
-- Formatted Strings: prefix `f`.
-- Raw Strings: prefix `r`.
-  - All the escapes are ignored.
-- Mixes
-  - You can use multiple prefixes at once (only `br`, `rb`, `fr`, `rf`).
+```sodigy
+// a string literal with triple double-quotes.
+let s = """
+This is a string literal.
+There's a double-quote here: "
+This is still a string literal.
+""";
+```
 
-### Char literals
+String escape rules are almost identical to [Rust](https://doc.rust-lang.org/reference/tokens.html#r-lex.token.literal.str).
 
-A char literal starts with a single-quote character and ends with a single-quote character.
+```sodigy
+assert "\'" == "'";
+assert "\u{ac00}" == "가";
+assert "\n" == "
+";
+assert '\x41' == 'A';
+assert "\x41\x42\x43" == "ABC";
+```
 
-### Byte literals
+Raw string literals ignore escapes. A raw string literal starts with `r` character, followed by a string literal.
 
-A byte is like an integer, but is always greater than or equal to 0 and less than 256. There are 2 ways to represent a byte value.
+Please note that using multiple double-quotes has nothing to do with it being a raw string literal. The number of the starting double-quotes determines how many double-quotes it needs to end the literal, and the `r` character determines whether it ignores escapes.
 
-- Byte char
-  - `b'a'`
-- Byte numeric
-  - `#0`
-  - `#200`
-  - `#xff`
-  - `#o377`
-  - `#b11111111`
+```sodigy
+assert r"\" == "\\";
+assert r"\x41" == "\\x41";
+```
+
+Internally, `String` is just a list of `Char`.
+
+```sodigy
+assert "Sodigy" == ['S', 'o', 'd', 'i', 'g', 'y'];
+assert "" == [];
+```
+
+### Binary Strings/Chars
+
+TODO: documentation
+
+### Formatted Strings
+
+TODO: documentation
+
+```sodigy
+let x = 3;
+let y = 4;
+
+assert f"{x} + {y} = {x + y}" == "3 + 4 = 7";
+```
 
 ## Operators
 
 ### `++`
 
-Concat operator
+`++` concatonates two lists. Since `String` is `[Char]`, you can use the `++` operator with strings.
 
-```
+```sodigy
 assert "Hello, " ++ "World!" == "Hello, World!";
 assert [1, 2, 3] ++ [4, 5, 6] == [1, 2, 3, 4, 5, 6];
 ```
 
 ### `+>`
 
-Prepend operator
+`+>` is a "prepend" operator. It prepends an element to a list.
 
-```
+```sodigy
 assert 3 +> [4, 5, 6] == [3, 4, 5, 6];
 assert 'a' +> "bcd" == "abcd";
 ```
 
 ### `<+`
 
-Append operator
+`<+` is an "append" operator. It appends an element to a list.
 
-```
+```sodigy
 assert [1, 2, 3] <+ 4 == [1, 2, 3, 4];
 assert "abc" <+ 'd' == "abcd";
 ```
 
-### `>>`
+## Functions
 
-Right shift operator
+Use `fn` keyword to define a function. The keyword is followed by a name of the function, a list of arguments (a parenthesis), an assignment (`=`), its return value, and a semicolon.
 
-```
-assert 1000 >> 2 == 250;
-```
+```sodigy
+assert add(3, 4) == 7;
+fn add(x, y) = x + y;
 
-### `<<`
-
-Left shift operator
-
-```
-assert 1 << 16 == 65536;
+assert three() == 3;
+fn three() = 3;
 ```
 
-### `^`
+In sodigy, type annotations are always optional. Adding a type annotation might make your code more readable. Use `->` to state the return type of the function.
 
-Xor operator
+```sodigy
+fn add(x: Int, y: Int) -> Int = x + y;
 
+// The compiler will infer that `y` has type `Int`.
+fn mul(x: Int, y) -> Int = x * y;
 ```
-assert 0xf0f0 ^ 0x0f0f == 0xffff;
-assert 0x1234 ^ 0x5678 == 0x444c;
+
+## Comments
+
+Sodigy's comment syntax is very similar (or identical) to Rust/Zig/C's.
+
+TODO: documentation
+
+### Doc Comments
+
+Sodigy's doc comment syntax is very similar (or identical) to Rust/Zig's.
+
+TODO: documentation
+
+## Structs
+
+TODO: documentation
+
+```sodigy
+struct Person = {
+    name: String,
+    age: Int,
+};
 ```
 
-## Type annotations
+## Enums
+
+TODO: documentation
+
+```sodigy
+enum Result<T, E> = {
+    Ok(T),
+    Err(E),
+};
+```
+
+## Type Aliases
+
+TODO: documentation
+
+```sodigy
+type OptionalInt = Option<Int>;
+type ErroneousInt<E> = Result<Int, E>;
+
+// This is how `String` is defined in std.
+type String = [Char];
+```
+
+## Blocks
+
+A block is an anonymous name scope. Any code wrapped in curly braces form a block. A block is always an expression. A block is evaluated to the last value in the block.
+
+```sodigy
+let x = {
+    let a = 3;
+    let b = 4;
+
+    a + b
+};
+
+assert x == 7;
+```
+
+Blocks create their own scope. Names defined in a block cannot be accessed from outside.
+
+```sodigy
+let block = {
+    fn add(x) = x + 10;
+    assert add(10) == 20;
+
+    let y = 10;
+    assert y == 10;
+
+    ()
+};
+
+fn add(x) = x + 100;
+assert add(100) == 200;
+
+let y = 100;
+assert y == 100;
+```
+
+## Pattern Matchings
+
+TODO: documentation
+
+## Type Annotations
 
 Syntactically, type annotations are always optional. It won't throw any syntax error for missing type annotations. But, it's a compile error if the inference engine cannot infer the type.
 
-- `Int`: Built-in integer type
-- `[Int]`: Built-in list type
-- `(Int, Int)`: Built-in tuple type
-- `Option<Int>`: Option type, and it has 1 argument
-- `Fn(Int, Int) -> Int`: A function that takes 2 integers and returns 1 integer
+- `Int`: Built-in integer type.
+- `[Int]`: Built-in list type.
+- `(Int, Int)`: Built-in tuple type.
+- `Option<Int>`: Option type, and it has 1 argument.
+- `Fn(Int, Int) -> Int`: A function that takes 2 integers and returns 1 integer.
 - `Result<_, _>`: You can omit a part of a type annotation.
 
-## Assertions
+## Tests
 
-```sodigy
-assert two == 2;
-let two = 1 + 1;
+TODO: documentation
 
-// By default, assertions are only enabled in debug-mode.
-// With `#[always]` decorator, it's always enabled.
-#[always]
-assert 1 + 1 == 2;
+## Decorators
 
-// `#[name("...")]` and `#[note("...")]` will improve readability of the test result.
-#[name("add_test")]
-#[note("It makes sure that `add` function is correct")]
-assert add(1, 1) == 2;
-fn add(x: Int, y: Int): Int = x + y;
-```
+TODO: documentation
 
 ## IO (and impure functions)
 
+TODO: documentation
+
 ### panic
 
-```
-fn panic(message: String);
-```
-
-`panic` is the only impure function that can be used anywhere in Sodigy. It prints the error message to stderr and the process is terminated with a non-zero exit code.
+`panic` is the only impure function that can be used anywhere in Sodigy.
 
 You can NEVER catch a panic. `panic` is impure, but catching a `panic` is even more impure.

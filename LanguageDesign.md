@@ -19,7 +19,7 @@ I'm trying to make Sodigy as Rust-like as possible as long as I can keep it pure
 
 ## 3. Compile-time Checks
 
-The compiler has to catch as many errors as possible at compile time.
+The compiler has to catch as many errors as possible at compile time. That's why Sodigy does not have conditional compilations (like `cfg` in Rust) because conditional compilations might hide some errors.
 
 Generating nice error messages is more important than quick compile time.
 
