@@ -554,8 +554,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 )?.unwrap();  // TODO: throw an ICE instead of unwrapping
                 let mut inter_hir_session = sodigy_inter_hir::Session::decode(&inter_hir_session)?;
                 inter_hir_session.intermediate_dir = intermediate_dir.clone();
-                inter_hir_session.resolve(&mut hir_session);
+                let _ = inter_hir_session.resolve_module(&mut hir_session);
                 inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+                hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
                 // TODO: Now that inter_hir_session and hir_session are updated, we have to cache them again.
                 //       Be careful not to overwrite the per-file hir sessions. (do we have to create another CompileStage for this?)
@@ -670,6 +671,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     inter_hir_session.ingest(*span, hir_session);
                 }
 
+                let _ = inter_hir_session.resolve_alias();
                 emit_irs_if_has_to(
                     &inter_hir_session,
                     &[

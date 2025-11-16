@@ -1,9 +1,13 @@
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
+    Assert,
     Expr,
+    Func,
     FuncArgDef,
+    Let,
     Pattern,
+    Session as HirSession,
     StructFieldDef,
     Type,
     Use,
@@ -11,7 +15,7 @@ use sodigy_hir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, unintern_string};
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -118,7 +122,7 @@ impl Session {
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
                 let mut alias_log = vec![];
 
-                if let Err(()) = self.resolve_type_alias(&mut alias, &mut alias_log) {
+                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log) {
                     has_error = true;
                 }
 
@@ -128,7 +132,7 @@ impl Session {
                         suspicious_spans.extend(alias_log);
                     }
 
-                    nested_type_aliases.insert(name_span, alias);
+                    nested_type_aliases.insert(name_span, alias.r#type);
                 }
             }
 
@@ -185,7 +189,8 @@ impl Session {
                 }
 
                 for (name_span, alias) in nested_type_aliases.drain() {
-                    self.type_aliases.insert(name_span, alias);
+                    let old_alias = self.type_aliases.get_mut(&name_span).unwrap();
+                    old_alias.r#type = alias;
                 }
             }
 
@@ -195,6 +200,94 @@ impl Session {
         }
 
         Ok(())
+    }
+
+    pub fn resolve_module(&mut self, hir_session: &mut HirSession) -> Result<(), ()> {
+        let mut has_error = false;
+
+        for r#let in hir_session.lets.iter_mut() {
+            if let Err(()) = self.resolve_let(r#let) {
+                has_error = true;
+            }
+        }
+
+        for func in hir_session.funcs.iter_mut() {
+            if let Err(()) = self.resolve_func(func) {
+                has_error = true;
+            }
+        }
+
+        // TODO: structs, enums
+
+        for assert in hir_session.asserts.iter_mut() {
+            if let Err(()) = self.resolve_assert(assert) {
+                has_error = true;
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_let(&mut self, r#let: &mut Let) -> Result<(), ()> {
+        let mut has_error = false;
+
+        if let Some(r#type) = &mut r#let.r#type {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                has_error = true;
+            }
+        }
+
+        if let Err(()) = self.resolve_expr(&mut r#let.value) {
+            has_error = true;
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_func(&mut self, func: &mut Func) -> Result<(), ()> {
+        let mut has_error = false;
+
+        for arg in func.args.iter_mut() {
+            if let Some(r#type) = &mut arg.r#type {
+                if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                    has_error = true;
+                }
+            }
+        }
+
+        if let Some(r#type) = &mut func.r#type {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                has_error = true;
+            }
+        }
+
+        if let Err(()) = self.resolve_expr(&mut func.value) {
+            has_error = true;
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_assert(&mut self, assert: &mut Assert) -> Result<(), ()> {
+        todo!()
     }
 
     // If `x` in `use x.y.z as w;` is an alias, it resolves `x`.
@@ -265,6 +358,9 @@ impl Session {
                             return Ok(());
                         },
 
+                        // ... is this an error??
+                        Type::Param { r#type, args, .. } => todo!(),
+
                         // error
                         Type::Tuple { .. } | Type::Func { .. } |
                         Type::Wildcard(_) | Type::Never(_) => todo!(),
@@ -275,9 +371,27 @@ impl Session {
                 // alias: `type x<T> = _;`
                 else {
                     self.errors.push(Error {
-                        kind: ErrorKind::MissingTypeArgument {},
-                        spans: _,
-                        note: _,
+                        kind: ErrorKind::MissingTypeArgument {
+                            expected: alias.generics.len(),
+                            got: 0,
+                        },
+                        spans: vec![
+                            RenderableSpan {
+                                span: r#use.root.def_span,
+                                auxiliary: true,
+                                note: Some(format!(
+                                    "It expects {} argument{}.",
+                                    alias.generics.len(),
+                                    if alias.generics.len() == 1 { "" } else { "s" },
+                                )),
+                            },
+                            RenderableSpan {
+                                span: r#use.root.span,
+                                auxiliary: false,
+                                note: Some(String::from("It has 0 arguments.")),
+                            },
+                        ],
+                        note: None,
                     });
                     return Err(());
                 }
@@ -315,7 +429,15 @@ impl Session {
                     // r#use: `use x.y.z as w;`
                     // `x` is a module, but `x` doesn't have an item named `y`.
                     None => {
-                        self.errors.push(Error {});
+                        self.errors.push(Error {
+                            kind: ErrorKind::UndefinedName(field_name),
+                            spans: field_span.simple_error(),
+                            note: Some(format!(
+                                "Module `{}` doesn't have an item named `{}`.",
+                                String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
+                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                            )),
+                        });
                         return Err(());
                     },
                 },
@@ -326,7 +448,181 @@ impl Session {
         Ok(())
     }
 
-    pub fn resolve_type_alias(&mut self, r#type: &mut Alias, log: &mut Vec<Span>) -> Result<(), ()> {
-        todo!()
+    // It resolves names in type annotations and type aliases.
+    // See the comments in `resolve_use` for more information.
+    pub fn resolve_type(&mut self, r#type: &mut Type, log: &mut Vec<Span>) -> Result<(), ()> {
+        match r#type {
+            Type::Identifier(id) => {
+                match self.name_aliases.get(&id.def_span) {
+                    Some(alias) => {
+                        // r#type: `type x = y;`
+                        // alias: `use a as y;`
+                        // ->
+                        // `type x = a;`
+                        if alias.fields.is_empty() {
+                            log.push(id.span);
+                            log.push(id.def_span);
+                            *r#type = Type::Identifier(alias.root);
+                        }
+
+                        // r#type: `type x = y;`
+                        // alias: `use a.b as y;`
+                        // ->
+                        // `type x = a.b;`
+                        else {
+                            log.push(id.span);
+                            log.push(id.def_span);
+                            *r#type = Type::Path {
+                                id: alias.root,
+                                fields: alias.fields.clone(),
+                            };
+                        }
+
+                        return Ok(());
+                    },
+                    None => {},
+                }
+
+                match self.type_aliases.get(&id.def_span) {
+                    Some(alias) => match &alias.r#type {
+                        Type::Identifier(alias_id) => {
+                            // r#type: `type x = y;`
+                            // alias: `type y = a;`
+                            // ->
+                            // `type x = a;`
+                            if alias.generics.is_empty() {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                *r#type = Type::Identifier(*alias_id);
+                            }
+
+                            // r#type: `type x = y;`
+                            // alias: `type y<T> = a;`
+                            // error!
+                            else {
+                                self.errors.push(Error {
+                                    kind: ErrorKind::MissingTypeArgument {
+                                        expected: alias.generics.len(),
+                                        got: 0,
+                                    },
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: id.def_span,
+                                            auxiliary: true,
+                                            note: Some(format!(
+                                                "It expects {} argument{}.",
+                                                alias.generics.len(),
+                                                if alias.generics.len() == 1 { "" } else { "s" },
+                                            )),
+                                        },
+                                        RenderableSpan {
+                                            span: id.span,
+                                            auxiliary: false,
+                                            note: Some(String::from("It has 0 arguments.")),
+                                        },
+                                    ],
+                                    note: None,
+                                });
+                                return Err(());
+                            }
+                        },
+                        Type::Path { id: alias_id, fields: alias_fields } => todo!(),
+                        Type::Param { r#type: alias_t, args, .. } => todo!(),
+                        _ => todo!(),
+                    },
+                    None => {},
+                }
+
+                Ok(())
+            },
+            Type::Path { id, fields } => todo!(),
+            Type::Param { r#type, args, .. } => todo!(),
+            Type::Func { r#return, args, .. } => {
+                let mut has_error = false;
+
+                if let Err(()) = self.resolve_type(r#return, log) {
+                    has_error = true;
+                }
+
+                for arg in args.iter_mut() {
+                    if let Err(()) = self.resolve_type(arg, log) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            Type::Tuple { types, .. } => {
+                let mut has_error = false;
+
+                for r#type in types.iter_mut() {
+                    if let Err(()) = self.resolve_type(r#type, log) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            Type::Wildcard(_) | Type::Never(_) => Ok(()),
+        }
+    }
+
+    pub fn resolve_expr(&mut self, expr: &mut Expr) -> Result<(), ()> {
+        match expr {
+            Expr::Number { .. } |
+            Expr::String { .. } |
+            Expr::Char { .. } |
+            Expr::Byte { .. } => Ok(()),
+            Expr::Identifier(id) => todo!(),
+            Expr::If(r#if) => match (
+                self.resolve_expr(&mut r#if.cond),
+                self.resolve_expr(&mut r#if.true_value),
+                self.resolve_expr(&mut r#if.false_value),
+            ) {
+                (Ok(()), Ok(()), Ok(())) => Ok(()),
+                _ => Err(()),
+            },
+            Expr::Match(r#match) => todo!(),
+            Expr::Block(block) => {
+                let mut has_error = false;
+
+                for r#let in block.lets.iter_mut() {
+                    if let Err(()) = self.resolve_let(r#let) {
+                        has_error = true;
+                    }
+                }
+
+                for assert in block.asserts.iter_mut() {
+                    if let Err(()) = self.resolve_assert(assert) {
+                        has_error = true;
+                    }
+                }
+
+                if let Err(()) = self.resolve_expr(&mut block.value) {
+                    has_error = true;
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            _ => todo!(),
+        }
     }
 }
