@@ -12,8 +12,6 @@ pub struct Session {
     // of all hir files
     pub func_shapes: HashMap<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>,
     pub struct_shapes: HashMap<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>,
-
-    // of the current hir file
     pub name_aliases: HashMap<Span, Use>,
     pub type_aliases: HashMap<Span, Alias>,
 
@@ -22,10 +20,11 @@ pub struct Session {
     //
     // Let's say function `y` and `z` are defined in module `x`, so we can access `x.y` and `x.z`.
     // Then this map has an entry for `x`, which looks like
-    // `module_name_map[x_span] = (x_span, NameKind::Module, { "y": y_span, "z": z_span })`.
+    // `module_name_map[x_span] = (NameKind::Module, { "y": (y_span, NameKind::Func), "z": (z_span, NameKind::Func) })`.
     // Later, when it finds `x.y` in the code, it'll try to replace `x.y` with `y_span` using this map.
-    // It's collecting `NameKind::Module` because the map can later be used to solve enum variants.
-    pub module_name_map: HashMap<Span, (Span, NameKind, HashMap<InternedString, Span>)>,
+    // Even though it only collects modules, it's collecting `NameKind` because the map can later be
+    // used to solve enum variants.
+    pub module_name_map: HashMap<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>,
 
     // For example, you can get def_span of `Int` from this map by querying `lang_items.get("type.Int")`.
     pub lang_items: HashMap<String, Span>,
