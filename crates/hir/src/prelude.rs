@@ -1,4 +1,4 @@
-use crate::Use;
+use crate::{Use, Visibility};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     NameKind,
@@ -50,7 +50,7 @@ pub(crate) fn use_prelude(name: InternedString) -> Use {
     let std = intern_string(b"std", "").unwrap();
 
     Use {
-        visibility: todo!(),
+        visibility: Visibility::private(),
         keyword_span: Span::None,
         name,
         name_span: Span::Prelude(name),

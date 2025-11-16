@@ -77,6 +77,10 @@ impl Session {
 
                 self.init_span_string_map_expr(&block.value, result);
             },
+            Expr::ShortCircuit { lhs, rhs, .. } => {
+                self.init_span_string_map_expr(lhs, result);
+                self.init_span_string_map_expr(rhs, result);
+            },
             Expr::Call { func, args, .. } => {
                 if let Callable::Dynamic(f) = func {
                     self.init_span_string_map_expr(f, result);

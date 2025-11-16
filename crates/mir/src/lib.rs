@@ -15,7 +15,7 @@ mod r#type;
 
 pub use assert::Assert;
 pub use block::Block;
-pub use expr::{Callable, Expr};
+pub use expr::{Callable, Expr, ShortCircuitKind};
 pub use func::Func;
 pub use r#if::If;
 pub use intrinsic::Intrinsic;

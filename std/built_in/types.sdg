@@ -13,3 +13,9 @@ pub enum Byte = { _ };
 #[built_in]
 #[lang_item("type.List")]
 pub struct List = { _ };
+
+#[lang_item("type.Bool")]
+pub enum Bool = {
+    True,
+    False,
+};

@@ -26,8 +26,8 @@ impl Endec for Session {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (func_shapes, cursor) = HashMap::<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
-        let (name_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?; 
-        let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?; 
+        let (name_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
+        let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (module_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;

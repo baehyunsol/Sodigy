@@ -7,7 +7,7 @@ pub(crate) const STD_FILES: [(
     &'static str,   // file_path
     &'static [u8],  // contents
     u128,           // content_hash
-); 5] = [
+); 6] = [
     (
         "@std.lib",
         "@std/lib.sdg",
@@ -33,6 +33,11 @@ pub(crate) const STD_FILES: [(
         "@std/built_in/types.sdg",
         include_bytes!("../../../std/built_in/types.sdg"),
         1004,
+    ), (
+        "@std.lib.prelude",
+        "@std/prelude.sdg",
+        include_bytes!("../../../std/prelude.sdg"),
+        1005,
     ),
 ];
 

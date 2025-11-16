@@ -131,6 +131,7 @@ fn main() -> Result<(), Error> {
                 // compile std
                 if import_std {
                     let (input_module_path, input_file_path) = sodigy_file::std_root();
+                    generated_hirs.insert(input_module_path.clone(), Span::Std);
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
                         commands: vec![
                             Command::Compile {
@@ -555,7 +556,8 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let mut inter_hir_session = sodigy_inter_hir::Session::decode(&inter_hir_session)?;
                 inter_hir_session.intermediate_dir = intermediate_dir.clone();
                 let _ = inter_hir_session.resolve_module(&mut hir_session);
-                inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+                hir_session.errors.extend(inter_hir_session.errors.drain(..));
+                hir_session.warnings.extend(inter_hir_session.warnings.drain(..));
                 hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
                 // TODO: Now that inter_hir_session and hir_session are updated, we have to cache them again.

@@ -6,6 +6,7 @@ use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
+use sodigy_token::InfixOp;
 use std::collections::hash_map::{Entry, HashMap};
 
 #[derive(Clone, Debug)]
@@ -38,6 +39,13 @@ pub enum Expr {
     },
     FieldModifier {
         fields: Vec<(InternedString, Span)>,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    // `&&` and `||` have to be lazily evaluated!
+    ShortCircuit {
+        kind: ShortCircuitKind,
+        op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -82,6 +90,12 @@ pub enum Callable {
 
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ShortCircuitKind {
+    And,
+    Or,
 }
 
 impl Expr {
@@ -645,20 +659,30 @@ impl Expr {
                     Expr::from_hir(rhs, session),
                 ) {
                     (Ok(lhs), Ok(rhs)) => {
-                        let func = Callable::Static {
-                            def_span: session.get_lang_item_span(op.get_def_lang_item()),
-                            span: *op_span,
-                        };
-                        let generic_defs = op.get_generic_lang_items().iter().map(
-                            |lang_item| session.get_lang_item_span(lang_item)
-                        ).collect();
+                        match op {
+                            InfixOp::LogicAnd | InfixOp::LogicOr => Ok(Expr::ShortCircuit {
+                                kind: ShortCircuitKind::from(*op),
+                                op_span: *op_span,
+                                lhs: Box::new(lhs),
+                                rhs: Box::new(rhs),
+                            }),
+                            _ => {
+                                let func = Callable::Static {
+                                    def_span: session.get_lang_item_span(op.get_def_lang_item()),
+                                    span: *op_span,
+                                };
+                                let generic_defs = op.get_generic_lang_items().iter().map(
+                                    |lang_item| session.get_lang_item_span(lang_item)
+                                ).collect();
 
-                        Ok(Expr::Call {
-                            func,
-                            args: vec![lhs, rhs],
-                            generic_defs,
-                            given_keyword_arguments: vec![],
-                        })
+                                Ok(Expr::Call {
+                                    func,
+                                    args: vec![lhs, rhs],
+                                    generic_defs,
+                                    given_keyword_arguments: vec![],
+                                })
+                            },
+                        }
                     },
                     _ => Err(()),
                 }
@@ -683,6 +707,7 @@ impl Expr {
     }
 
     // span for error messages
+    // TODO: shouldn't it be wider?
     pub fn error_span(&self) -> Span {
         match self {
             Expr::Identifier(id) => id.span,
@@ -704,6 +729,7 @@ impl Expr {
 
                 merged_span
             },
+            Expr::ShortCircuit { op_span, .. } => *op_span,
             Expr::Call { func, .. } => func.error_span(),
         }
     }
@@ -719,6 +745,16 @@ impl Callable {
             Callable::ListInit { group_span: span } |
             Callable::Intrinsic { span, .. } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
+        }
+    }
+}
+
+impl From<InfixOp> for ShortCircuitKind {
+    fn from(op: InfixOp) -> ShortCircuitKind {
+        match op {
+            InfixOp::LogicAnd => ShortCircuitKind::And,
+            InfixOp::LogicOr => ShortCircuitKind::Or,
+            _ => panic!(),
         }
     }
 }

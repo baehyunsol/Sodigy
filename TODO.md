@@ -1,3 +1,15 @@
+# 81. new issues in inter-hir
+
+```
+use std.{Bool, Int};
+
+fn add(a: Int, b: Int) -> Bool = a + b;
+```
+
+The return type of `add` is `Bool`, but it returns an `Int`. The error message should underline the type annotation and the expression. But the problem is that the span of the type annotation is replaced with `Bool` in `use std.Bool;`...
+
+We should only replace the def_span but we're replacing the def_span and span.
+
 # 80. Language doc
 
 1. I'm writting the document at `spec.md`. I'll have to split files before it gets too long.2
@@ -62,6 +74,8 @@ Rust로 짜면 더 빨리 짤 수 있을 거 같기도 하고??
 `fn add<T, U, V>(a: T = 1, b: U = 2) -> V = a + b;`
 
 ... 이러면 `T`는 항상 Int라고 봐야돼?? 그건 아니긴한데 좀 이상하네
+
+그냥 금지해버릴까??
 
 # 77. Sodigy for real-world programming
 

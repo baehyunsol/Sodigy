@@ -40,8 +40,15 @@ impl InfixOp {
             InfixOp::Lt => "op.lt",
             InfixOp::Eq => "op.eq",
             InfixOp::Gt => "op.gt",
+            InfixOp::Leq => "op.leq",
+            InfixOp::Neq => "op.neq",
+            InfixOp::Geq => "op.geq",
+            InfixOp::Index => "op.index",
+            InfixOp::Concat => "op.concat",
             InfixOp::Append => "op.append",
             InfixOp::Prepend => "op.prepend",
+            InfixOp::LogicAnd => "op.logic_and",
+            InfixOp::LogicOr => "op.logic_or",
             _ => panic!("TODO: {self:?}"),
         }
     }

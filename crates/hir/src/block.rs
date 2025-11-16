@@ -158,7 +158,7 @@ impl Block {
         for r#use in ast_block.uses.iter() {
             match Use::from_ast(r#use, session, is_top_level) {
                 Ok(r#use) => {
-                    session.uses.push(r#use.clone());
+                    session.uses.push(r#use);
                 },
                 Err(()) => {
                     has_error = true;

@@ -1,6 +1,7 @@
 mod built_in;
+mod prelude;
 
-use built_in.types.{Byte, Char, Int};
+use built_in.types.{Bool, Byte, Char, Int};
 
 #[lang_item("type.String")]
 type String = [Char];
@@ -8,6 +9,8 @@ type String = [Char];
 #[lang_item("type.Bytes")]
 type Bytes = [Byte];
 
+// TODO: methods are not implemented yet
+/*
 fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
         // The first element is for the length of the list
@@ -34,3 +37,4 @@ fn div_int(a: Int, b: Int) -> Int = {
         built_in.fns.div_int(a, b)
     }
 };
+*/

@@ -70,14 +70,6 @@ impl Session {
             self.struct_shapes.insert(def_span, (fields, generics));
         }
 
-        for r#use in hir_session.uses.drain(..) {
-            self.name_aliases.insert(r#use.name_span, r#use);
-        }
-
-        for alias in hir_session.aliases.drain(..) {
-            self.type_aliases.insert(alias.name_span, alias);
-        }
-
         let mut children = HashMap::new();
 
         for (name, span, kind) in hir_session.iter_item_names() {
@@ -94,6 +86,14 @@ impl Session {
 
         for (name, span) in hir_session.lang_items.into_iter() {
             self.lang_items.insert(name, span);
+        }
+
+        for r#use in hir_session.uses.drain(..) {
+            self.name_aliases.insert(r#use.name_span, r#use);
+        }
+
+        for alias in hir_session.aliases.drain(..) {
+            self.type_aliases.insert(alias.name_span, alias);
         }
     }
 
@@ -287,7 +287,25 @@ impl Session {
     }
 
     pub fn resolve_assert(&mut self, assert: &mut Assert) -> Result<(), ()> {
-        todo!()
+        let mut has_error = false;
+
+        if let Some(note) = &mut assert.note {
+            if let Err(()) = self.resolve_expr(note) {
+                has_error = true;
+            }
+        }
+
+        if let Err(()) = self.resolve_expr(&mut assert.value) {
+            has_error = true;
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
     }
 
     // If `x` in `use x.y.z as w;` is an alias, it resolves `x`.
@@ -536,7 +554,56 @@ impl Session {
                 Ok(())
             },
             Type::Path { id, fields } => todo!(),
-            Type::Param { r#type, args, .. } => todo!(),
+            Type::Param { r#type: p_type, args, group_span } => match &**p_type {
+                Type::Identifier(id) => {
+                    match self.name_aliases.get(&id.def_span) {
+                        Some(alias) => {
+                            // r#type: `type x = y<Int>;`
+                            // alias: `use a as y;`
+                            // ->
+                            // `type x = a<Int>;`
+                            if alias.fields.is_empty() {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                *r#type = Type::Param {
+                                    r#type: Box::new(Type::Identifier(alias.root)),
+                                    args: args.clone(),
+                                    group_span: *group_span,
+                                };
+                            }
+
+                            // r#type: `type x = y<Int>;`
+                            // alias: `use a.b.c as y;`
+                            // ->
+                            // `type x = a.b.c<Int>;`
+                            else {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                *r#type = Type::Param {
+                                    r#type: Box::new(Type::Path {
+                                        id: alias.root,
+                                        fields: alias.fields.clone(),
+                                    }),
+                                    args: args.clone(),
+                                    group_span: *group_span,
+                                };
+                            }
+
+                            return Ok(());
+                        },
+                        None => {},
+                    }
+
+                    match self.type_aliases.get(&id.def_span) {
+                        Some(alias) => todo!(),
+                        None => {},
+                    }
+
+                    Ok(())
+                },
+                Type::Path { id, fields } => todo!(),
+                _ => unreachable!(),
+            },
             Type::Func { r#return, args, .. } => {
                 let mut has_error = false;
 
@@ -585,7 +652,19 @@ impl Session {
             Expr::String { .. } |
             Expr::Char { .. } |
             Expr::Byte { .. } => Ok(()),
-            Expr::Identifier(id) => todo!(),
+            Expr::Identifier(id) => {
+                match self.name_aliases.get(&id.def_span) {
+                    Some(alias) => todo!(),
+                    None => {},
+                }
+
+                match self.type_aliases.get(&id.def_span) {
+                    Some(alias) => todo!(),
+                    None => {},
+                }
+
+                Ok(())
+            },
             Expr::If(r#if) => match (
                 self.resolve_expr(&mut r#if.cond),
                 self.resolve_expr(&mut r#if.true_value),
@@ -622,7 +701,37 @@ impl Session {
                     Ok(())
                 }
             },
-            _ => todo!(),
+            Expr::Call { func, args } => {
+                let mut has_error = false;
+
+                if let Err(()) = self.resolve_expr(func) {
+                    has_error = true;
+                }
+
+                for arg in args.iter_mut() {
+                    if let Err(()) = self.resolve_expr(&mut arg.arg) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            Expr::PrefixOp { rhs: hs, .. } |
+            Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
+            Expr::InfixOp { lhs, rhs, .. } => match (
+                self.resolve_expr(lhs),
+                self.resolve_expr(rhs),
+            ) {
+                (Ok(()), Ok(())) => Ok(()),
+                _ => Err(()),
+            },
+            _ => panic!("TODO: {expr:?}"),
         }
     }
 }

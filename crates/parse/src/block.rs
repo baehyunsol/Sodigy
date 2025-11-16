@@ -262,9 +262,12 @@ impl<'t> Tokens<'t> {
                                 uses_[0].attribute = attribute;
                             },
                             (_, true) => {},
-
-                            // Maybe distribute the attribute?
-                            (_, false) => todo!(),
+                            (_, false) => {
+                                // TODO: I'm not sure it's okay to naively distribute the attributes
+                                for r#use in uses_.iter_mut() {
+                                    r#use.attribute = attribute.clone();
+                                }
+                            },
                         }
 
                         uses.extend(uses_);
