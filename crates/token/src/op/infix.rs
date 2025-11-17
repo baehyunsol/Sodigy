@@ -65,6 +65,9 @@ impl InfixOp {
             InfixOp::Lt => vec!["op.lt.generic.0"],
             InfixOp::Eq => vec!["op.eq.generic.0"],
             InfixOp::Gt => vec!["op.gt.generic.0"],
+            InfixOp::Leq => vec!["op.leq.generic.0"],
+            InfixOp::Neq => vec!["op.neq.generic.0"],
+            InfixOp::Geq => vec!["op.geq.generic.0"],
             _ => panic!("TODO: {self:?}"),
         }
     }

@@ -847,6 +847,24 @@ impl Session {
                     Ok(())
                 }
             },
+            Expr::Tuple { elements, .. } |
+            Expr::List { elements, .. } => {
+                let mut has_error = false;
+
+                for element in elements.iter_mut() {
+                    if let Err(()) = self.resolve_expr(element) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
             Expr::InfixOp { lhs, rhs, .. } => match (
