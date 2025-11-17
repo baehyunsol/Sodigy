@@ -198,31 +198,11 @@ impl Block {
         let mut use_counts = HashMap::new();
         let Some(Namespace::Block { names }) = session.name_stack.pop() else { unreachable!() };
 
-        // TODO:
-        //    inline-block: always warn unused names
-        //    top-level-block: only warn unused `use`s
-        //    how about debug-only names in top-level?
+        // TODO: it has to warn unused names...
+        //       but we need specs for visibility
         for (name, (span, kind, count)) in names.iter() {
             if let NameKind::Let { .. } = kind {
                 use_counts.insert(*name, *count);
-            }
-
-            if (!session.is_in_debug_context && count.always == Counter::Never) ||
-                (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                let mut note = None;
-
-                if count.debug_only != Counter::Never {
-                    note = Some(String::from("This value is only used in debug mode."));
-                }
-
-                session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName {
-                        name: *name,
-                        kind: *kind,
-                    },
-                    spans: span.simple_error(),
-                    note,
-                });
             }
         }
 

@@ -171,50 +171,10 @@ impl Func {
 
         let mut use_counts = HashMap::new();
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
-
-        for (name, (span, kind, count)) in names.iter() {
-            use_counts.insert(*name, *count);
-
-            if (!session.is_in_debug_context && count.always == Counter::Never) ||
-                (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                let mut note = None;
-
-                if count.debug_only != Counter::Never {
-                    note = Some(String::from("This value is only used in debug mode."));
-                }
-
-                session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName {
-                        name: *name,
-                        kind: *kind,
-                    },
-                    spans: span.simple_error(),
-                    note,
-                });
-            }
-        }
+        session.warn_unused_names(&names);
 
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
-
-        for (name, (span, kind, count)) in names.iter() {
-            if (!session.is_in_debug_context && count.always == Counter::Never) ||
-                (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                let mut note = None;
-
-                if count.debug_only != Counter::Never {
-                    note = Some(String::from("This value is only used in debug mode."));
-                }
-
-                session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName {
-                        name: *name,
-                        kind: *kind,
-                    },
-                    spans: span.simple_error(),
-                    note,
-                });
-            }
-        }
+        session.warn_unused_names(&names);
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 

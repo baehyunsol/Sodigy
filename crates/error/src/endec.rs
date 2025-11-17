@@ -287,9 +287,9 @@ impl Endec for ErrorKind {
             ErrorKind::LibFileNotFound => {
                 buffer.push(71);
             },
-            ErrorKind::UnusedName { name, kind } => {
+            ErrorKind::UnusedNames { names, kind } => {
                 buffer.push(72);
-                name.encode_impl(buffer);
+                names.encode_impl(buffer);
                 kind.encode_impl(buffer);
             },
             ErrorKind::Todo { id, message } => {
@@ -490,9 +490,9 @@ impl Endec for ErrorKind {
             },
             Some(71) => Ok((ErrorKind::LibFileNotFound, cursor + 1)),
             Some(72) => {
-                let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                let (names, cursor) = Vec::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 let (kind, cursor) = NameKind::decode_impl(buffer, cursor)?;
-                Ok((ErrorKind::UnusedName { name, kind }, cursor))
+                Ok((ErrorKind::UnusedNames { names, kind }, cursor))
             },
             Some(73) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;

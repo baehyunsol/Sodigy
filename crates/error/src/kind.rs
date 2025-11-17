@@ -161,8 +161,11 @@ pub enum ErrorKind {
     LibFileNotFound,
 
     // --- warnings from here ---
-    UnusedName {
-        name: InternedString,
+
+    // If a function has 5 arguments and 3 of them are unused,
+    // it throws 1 warning instead of 3.
+    UnusedNames {
+        names: Vec<InternedString>,
         kind: NameKind,
     },
 

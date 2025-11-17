@@ -91,21 +91,7 @@ impl Alias {
         };
 
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
-
-        for (name, (span, kind, count)) in names.iter() {
-            // You can't assert inside a type alias, but you can create a type alias inside an assertion.
-            if (!session.is_in_debug_context && count.always == Counter::Never) ||
-                (session.is_in_debug_context && count.debug_only == Counter::Never) {
-                session.warnings.push(Warning {
-                    kind: WarningKind::UnusedName {
-                        name: *name,
-                        kind: *kind,
-                    },
-                    spans: span.simple_error(),
-                    note: None,
-                });
-            }
-        }
+        session.warn_unused_names(&names);
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 

@@ -87,7 +87,7 @@ impl ErrorLevel {
             ErrorKind::ModuleFileNotFound { .. } |
             ErrorKind::LibFileNotFound |
             ErrorKind::Todo { .. } => ErrorLevel::Error,
-            WarningKind::UnusedName { .. } => ErrorLevel::Warning,
+            WarningKind::UnusedNames { .. } => ErrorLevel::Warning,
         }
     }
 
