@@ -58,6 +58,7 @@ pub(crate) fn use_prelude(name: InternedString) -> Use {
             name: prelude,
             span: Span::None,
             dot_span: Span::None,
+            is_from_alias: false,
         }],
         root: IdentWithOrigin {
             id: std,

@@ -49,6 +49,7 @@ impl<'t> Tokens<'t> {
                 name,
                 span,
                 dot_span,
+                is_from_alias: false,
             });
 
             match self.peek() {

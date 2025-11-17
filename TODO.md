@@ -10,6 +10,38 @@ The return type of `add` is `Bool`, but it returns an `Int`. The error message s
 
 We should only replace the def_span but we're replacing the def_span and span.
 
+More on this
+
+```
+use x.z as a;
+use y as x;
+```
+
+Let's say `y` doesn't have an item named `z`. Then, it has to underline `x.z` and say "module `x` doesn't have an item named `z`."
+
+-> just replace the def_span of `x` in `x.z`
+
+How about...
+
+```
+use x.y.z as w;
+use a.b.c as x;
+```
+
+`use x.y.z as w;` would become `use a.b.c.y.z as w;`. What if `a` doesn't have an item `b`? It'd generate the same error twice. We have to prevent that.
+
+It's impossible to underline `a.b.c.y.z` because if `a` is using `x`'s span, then `a.b` doesn't make sense. If all spans are conserved, `c.y` doesn't make sense.
+
+How about, `a`, `b` and `c` all use `x`'s span?
+
+---
+
+정리...
+
+1. alias를 풀 때는 def_span만 갈아끼우고 span/id는 그대로 둔다.
+2. field가 있는 경우 `x.y.z`를 `a.b.c.y.z`로 갈아끼웠을 때는 `b`와 `c` 모두 `x`의 span을 물려받는다.
+3. `use a.b.c as x;`에서 `a.b`가 오류일 경우 `x`를 참조하는 모든 곳에서 오류가 나겠지? 다른 곳에서는 오류가 나지 않도록 미리 방지해야함..!!
+
 # 80. Language doc
 
 1. I'm writting the document at `spec.md`. I'll have to split files before it gets too long.2

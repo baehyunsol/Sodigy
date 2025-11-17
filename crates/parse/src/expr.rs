@@ -138,6 +138,7 @@ pub enum Field {
         name: InternedString,
         span: Span,
         dot_span: Span,
+        is_from_alias: bool,
     },
 
     /// In `let pat (_, x) = foo()`, `x` is `Index(1)` of `foo()`.
@@ -398,6 +399,7 @@ impl<'t> Tokens<'t> {
                                 name,
                                 span: name_span,
                                 dot_span: punct_span,
+                                is_from_alias: false,
                             },
                         };
                         continue;

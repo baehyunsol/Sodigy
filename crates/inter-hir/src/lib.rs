@@ -5,8 +5,8 @@ use sodigy_hir::{
     Expr,
     Func,
     FuncArgDef,
+    GenericDef,
     Let,
-    Pattern,
     Session as HirSession,
     StructFieldDef,
     Type,
@@ -15,7 +15,7 @@ use sodigy_hir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -113,6 +113,7 @@ impl Session {
     pub fn resolve_alias(&mut self) -> Result<(), ()> {
         let mut nested_name_aliases = HashMap::new();
         let mut nested_type_aliases = HashMap::new();
+        let mut name_aliases_to_type_aliases = vec![];
         let mut suspicious_spans = vec![];
         let mut has_error = false;
 
@@ -139,7 +140,7 @@ impl Session {
             for (name_span, mut r#use) in self.name_aliases.clone().into_iter() {
                 let mut alias_log = vec![];
 
-                if let Err(()) = self.resolve_use(&mut r#use, &mut alias_log) {
+                if let Err(()) = self.resolve_use(&mut r#use, &mut name_aliases_to_type_aliases, &mut alias_log) {
                     has_error = true;
                 }
 
@@ -191,6 +192,11 @@ impl Session {
                 for (name_span, alias) in nested_type_aliases.drain() {
                     let old_alias = self.type_aliases.get_mut(&name_span).unwrap();
                     old_alias.r#type = alias;
+                }
+
+                for (name_span, type_alias) in name_aliases_to_type_aliases.drain(..) {
+                    self.name_aliases.remove(&name_span);
+                    self.type_aliases.insert(name_span, type_alias);
                 }
             }
 
@@ -310,7 +316,7 @@ impl Session {
 
     // If `x` in `use x.y.z as w;` is an alias, it resolves `x`.
     // If `x` is a module in `use x.y as w;`, it finds the def_span of `y` and
-    // replaces the alias with `use y as w;`
+    // replaces the alias with `use y as w;`.
     //
     // There may be multiple levels of aliases in `use`. This function only resolves
     // one level of alias. `resolve_alias` will call this function multiple times
@@ -319,23 +325,45 @@ impl Session {
     // `log` does 2 things:
     //     1. It tells whether the function has resolved something. If `log` is not empty, something has happened.
     //     2. When the solver throws `AliasResolveRecursionLimitReached` error, it looks at `log` to create an error message.
-    pub fn resolve_use(&mut self, r#use: &mut Use, log: &mut Vec<Span>) -> Result<(), ()> {
+    pub fn resolve_use(
+        &mut self,
+        r#use: &mut Use,
+        name_aliases_to_type_aliases: &mut Vec<(Span, Alias)>,
+        log: &mut Vec<Span>,
+    ) -> Result<(), ()> {
         match self.name_aliases.get(&r#use.root.def_span) {
             // r#use: `use x.y.z as w;`
             // alias: `use a.b.c as x;`
             // ->
             // `use a.b.c.y.z as w;`
+            // `a`, `b` and `c` in the new `use` statement inherit spans
+            // from `x`, for better error messages.
             Some(alias) => {
+                let alias_fields = alias.fields.iter().map(
+                    |field| match field {
+                        Field::Name { name, .. } => Field::Name {
+                            name: *name,
+                            span: r#use.root.span,
+                            dot_span: r#use.root.span,
+                            is_from_alias: true,
+                        },
+                        _ => unreachable!(),
+                    }
+                ).collect();
                 *r#use = Use {
                     fields: vec![
-                        alias.fields.clone(),
+                        alias_fields,
                         r#use.fields.clone(),
                     ].concat(),
-                    root: alias.root,
+                    root: IdentWithOrigin {
+                        def_span: alias.root.def_span,
+                        origin: alias.root.origin,
+                        ..r#use.root
+                    },
                     ..r#use.clone()
                 };
                 log.push(r#use.name_span);
-                log.push(r#use.root.span);
+                log.push(r#use.root.def_span);
                 return Ok(());
             },
             None => {},
@@ -351,75 +379,125 @@ impl Session {
                         // `use a.y.z as w;`
                         Type::Identifier(alias_id) => {
                             *r#use = Use {
-                                root: *alias_id,
+                                root: IdentWithOrigin {
+                                    def_span: alias_id.def_span,
+                                    origin: alias_id.origin,
+                                    ..r#use.root
+                                },
                                 ..r#use.clone()
                             };
                             log.push(r#use.name_span);
-                            log.push(r#use.root.span);
+                            log.push(alias_id.span);
                             return Ok(());
                         },
                         // r#use: `use x.y.z as w;`
                         // alias: `type x = a.b.c;`
                         // ->
                         // `use a.b.c.y.z as w;`
+                        // `a`, `b` and `c` in the new `use` statement inherit spans
+                        // from `x`, for better error messages.
                         Type::Path { id: alias_id, fields: alias_fields } => {
+                            let alias_fields = alias_fields.iter().map(
+                                |field| match field {
+                                    Field::Name { name, .. } => Field::Name {
+                                        name: *name,
+                                        span: r#use.root.span,
+                                        dot_span: r#use.root.span,
+                                        is_from_alias: true,
+                                    },
+                                    _ => unreachable!(),
+                                }
+                            ).collect();
                             *r#use = Use {
                                 fields: vec![
-                                    alias_fields.clone(),
+                                    alias_fields,
                                     r#use.fields.clone(),
                                 ].concat(),
-                                root: *alias_id,
+                                root: IdentWithOrigin {
+                                    def_span: alias_id.def_span,
+                                    origin: alias_id.origin,
+                                    ..r#use.root
+                                },
                                 ..r#use.clone()
                             };
                             log.push(r#use.name_span);
-                            log.push(r#use.root.span);
+                            log.push(alias_id.span);
                             return Ok(());
                         },
 
-                        // ... is this an error??
-                        Type::Param { r#type, args, .. } => todo!(),
-
-                        // error
-                        Type::Tuple { .. } | Type::Func { .. } |
-                        Type::Wildcard(_) | Type::Never(_) => todo!(),
+                        // We have to convert a name alias into a type alias.
+                        // `type Tuple2 = (Int, Int);`
+                        // `use Tuple2 as MyTuple;`
+                        // ->
+                        // `type MyTuple = (Int, Int);`
+                        Type::Param { .. } |
+                        Type::Tuple { .. } |
+                        Type::Func { .. } |
+                        Type::Wildcard(_) |
+                        Type::Never(_) => {
+                            log.push(r#use.name_span);
+                            log.push(r#use.root.span);
+                            name_aliases_to_type_aliases.push((
+                                r#use.name_span,
+                                Alias {
+                                    visibility: r#use.visibility.clone(),
+                                    keyword_span: r#use.keyword_span,
+                                    name: r#use.name,
+                                    name_span: r#use.name_span,
+                                    generics: vec![],
+                                    group_span: None,
+                                    r#type: alias.r#type.clone(),
+                                    foreign_names: alias.foreign_names.clone(),
+                                },
+                            ));
+                        },
                     }
                 }
 
-                // r#use: `use x.y.z as w;`
-                // alias: `type x<T> = _;`
                 else {
-                    self.errors.push(Error {
-                        kind: ErrorKind::MissingTypeArgument {
-                            expected: alias.generics.len(),
-                            got: 0,
-                        },
-                        spans: vec![
-                            RenderableSpan {
-                                span: r#use.root.def_span,
-                                auxiliary: true,
-                                note: Some(format!(
-                                    "It expects {} argument{}.",
-                                    alias.generics.len(),
-                                    if alias.generics.len() == 1 { "" } else { "s" },
-                                )),
+                    // We have to convert a name alias into a type alias.
+                    // r#use: `use x as w;`
+                    // alias: `type x<T> = Option<T>;`
+                    // ->
+                    // `type w<T> = Option<T>;`
+                    if r#use.fields.is_empty() {
+                        log.push(r#use.name_span);
+                        log.push(r#use.root.span);
+                        name_aliases_to_type_aliases.push((
+                            r#use.name_span,
+                            Alias {
+                                visibility: r#use.visibility.clone(),
+                                keyword_span: r#use.keyword_span,
+                                name: r#use.name,
+                                name_span: r#use.name_span,
+                                generics: alias.generics.iter().map(
+                                    |generic| GenericDef {
+                                        name: generic.name,
+                                        name_span: r#use.root.span,
+                                        // TODO: we need an extra field that it's from an alias
+                                    }
+                                ).collect(),
+                                group_span: Some(r#use.root.span),
+                                r#type: alias.r#type.clone(),
+                                foreign_names: alias.foreign_names.clone(),
                             },
-                            RenderableSpan {
-                                span: r#use.root.span,
-                                auxiliary: false,
-                                note: Some(String::from("It has 0 arguments.")),
-                            },
-                        ],
-                        note: None,
-                    });
-                    return Err(());
+                        ));
+                    }
+
+                    // r#use: `use x.y.z as w;`
+                    // alias: `type x<T> = _;`
+                    // -> error
+                    else {
+                        todo!()
+                    }
                 }
             },
             None => {},
         }
 
         if let Some(field) = r#use.fields.get(0) {
-            let (field_name, field_span) = match field {
-                Field::Name { name, span, .. } => (*name, *span),
+            let (field_name, field_span, is_from_alias) = match field {
+                Field::Name { name, span, is_from_alias, .. } => (*name, *span, *is_from_alias),
                 _ => unreachable!(),
             };
 
@@ -447,15 +525,22 @@ impl Session {
                     // r#use: `use x.y.z as w;`
                     // `x` is a module, but `x` doesn't have an item named `y`.
                     None => {
-                        self.errors.push(Error {
-                            kind: ErrorKind::UndefinedName(field_name),
-                            spans: field_span.simple_error(),
-                            note: Some(format!(
-                                "Module `{}` doesn't have an item named `{}`.",
-                                String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
-                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
-                            )),
-                        });
+                        // al1: `use x.y.z as w;`
+                        // al2: `use w as k;`
+                        // Let's say `x` doesn't have an item named `y`.
+                        // We have to throw UndefinedName error only once: only at al1, not at al2.
+                        if !is_from_alias {
+                            self.errors.push(Error {
+                                kind: ErrorKind::UndefinedName(field_name),
+                                spans: field_span.simple_error(),
+                                note: Some(format!(
+                                    "Module `{}` doesn't have an item named `{}`.",
+                                    String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
+                                    String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                )),
+                            });
+                        }
+
                         return Err(());
                     },
                 },
@@ -480,7 +565,11 @@ impl Session {
                         if alias.fields.is_empty() {
                             log.push(id.span);
                             log.push(id.def_span);
-                            *r#type = Type::Identifier(alias.root);
+                            *r#type = Type::Identifier(IdentWithOrigin {
+                                def_span: alias.root.def_span,
+                                origin: alias.root.origin,
+                                ..*id
+                            });
                         }
 
                         // r#type: `type x = y;`
@@ -491,8 +580,22 @@ impl Session {
                             log.push(id.span);
                             log.push(id.def_span);
                             *r#type = Type::Path {
-                                id: alias.root,
-                                fields: alias.fields.clone(),
+                                id: IdentWithOrigin {
+                                    def_span: alias.root.def_span,
+                                    origin: alias.root.origin,
+                                    ..*id
+                                },
+                                fields: alias.fields.iter().map(
+                                    |field| match field {
+                                        Field::Name { name, .. } => Field::Name {
+                                            name: *name,
+                                            span: id.span,
+                                            dot_span: id.span,
+                                            is_from_alias: true,
+                                        },
+                                        _ => unreachable!(),
+                                    }
+                                ).collect(),
                             };
                         }
 
@@ -511,7 +614,11 @@ impl Session {
                             if alias.generics.is_empty() {
                                 log.push(id.span);
                                 log.push(id.def_span);
-                                *r#type = Type::Identifier(*alias_id);
+                                *r#type = Type::Identifier(IdentWithOrigin {
+                                    def_span: alias_id.def_span,
+                                    origin: alias_id.origin,
+                                    ..*id
+                                });
                             }
 
                             // r#type: `type x = y;`
@@ -566,7 +673,11 @@ impl Session {
                                 log.push(id.span);
                                 log.push(id.def_span);
                                 *r#type = Type::Param {
-                                    r#type: Box::new(Type::Identifier(alias.root)),
+                                    r#type: Box::new(Type::Identifier(IdentWithOrigin {
+                                        def_span: alias.root.def_span,
+                                        origin: alias.root.origin,
+                                        ..*id
+                                    })),
                                     args: args.clone(),
                                     group_span: *group_span,
                                 };
@@ -581,8 +692,22 @@ impl Session {
                                 log.push(id.def_span);
                                 *r#type = Type::Param {
                                     r#type: Box::new(Type::Path {
-                                        id: alias.root,
-                                        fields: alias.fields.clone(),
+                                        id: IdentWithOrigin {
+                                            def_span: alias.root.def_span,
+                                            origin: alias.root.origin,
+                                            ..*id
+                                        },
+                                        fields: alias.fields.iter().map(
+                                            |field| match field {
+                                                Field::Name { name, .. } => Field::Name {
+                                                    name: *name,
+                                                    span: id.span,
+                                                    dot_span: id.span,
+                                                    is_from_alias: true,
+                                                },
+                                                _ => unreachable!(),
+                                            }
+                                        ).collect(),
                                     }),
                                     args: args.clone(),
                                     group_span: *group_span,

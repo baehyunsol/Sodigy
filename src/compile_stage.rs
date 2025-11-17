@@ -22,3 +22,14 @@ pub enum CompileStage {
     Bytecode,
     CodeGen,
 }
+
+pub const COMPILE_STAGES: [CompileStage; 8] = [
+    CompileStage::Lex,
+    CompileStage::Parse,
+    CompileStage::Hir,
+    CompileStage::InterHir,
+    CompileStage::Mir,
+    CompileStage::TypeCheck,
+    CompileStage::Bytecode,
+    CompileStage::CodeGen,
+];

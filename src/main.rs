@@ -3,6 +3,7 @@ use sodigy::{
     CliCommand,
     Command,
     CompileStage,
+    COMPILE_STAGES,
     EmitIrOption,
     Error,
     Optimization,
@@ -762,6 +763,10 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
 
     if !exists(&ir_dir) {
         create_dir_all(&ir_dir)?;
+
+        for stage in COMPILE_STAGES {
+            create_dir(&join(&ir_dir, &format!("{stage:?}").to_lowercase())?)?;
+        }
     }
 
     File::clear_cache(0 /* project id */, intermediate_dir)?;

@@ -172,6 +172,7 @@ impl<'t> Tokens<'t> {
                                             name: *id,
                                             span: *id_span,
                                             dot_span: *dot_span,
+                                            is_from_alias: false,
                                         },
                                     ).collect(),
                                 }),
@@ -194,6 +195,7 @@ impl<'t> Tokens<'t> {
                                         name: *id,
                                         span: *id_span,
                                         dot_span: *dot_span,
+                                        is_from_alias: false,
                                     },
                                 ).collect(),
                             });
