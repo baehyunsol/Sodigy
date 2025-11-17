@@ -77,32 +77,29 @@ pub fn render_spans(
         }
     }
 
-    // TODO: sort groups
-    //       1. a group with non-auxiliary spans has to come before auxiliary-only group
-    //       2. if there are ties, they're ordered by y-position
     let mut groups = Vec::with_capacity(spans_by_file.len());
 
     for span in files_with_empty_rects.values() {
-        groups.push(render_close_spans(&[span.clone()], option, session));
+        groups.push(vec![span.clone()]);
     }
 
     for (file, spans) in spans_by_file.into_iter() {
         match spans.len() {
             0 => {},
             1 => {
-                groups.push(render_close_spans(&[spans[0].0.clone()], option, session));
+                groups.push(vec![spans[0].0.clone()]);
             },
             2 => {
                 let merged_rect = merge_rects(spans[0].1, spans[1].1);
                 let (merged_w, merged_h) = (merged_rect.2 - merged_rect.0, merged_rect.3 - merged_rect.1);
 
                 if merged_w > option.max_width || merged_h > option.max_height {
-                    groups.push(render_close_spans(&[spans[0].0.clone()], option, session));
-                    groups.push(render_close_spans(&[spans[1].0.clone()], option, session));
+                    groups.push(vec![spans[0].0.clone()]);
+                    groups.push(vec![spans[1].0.clone()]);
                 }
 
                 else {
-                    groups.push(render_close_spans(&[spans[0].0.clone(), spans[1].0.clone()], option, session));
+                    groups.push(vec![spans[0].0.clone(), spans[1].0.clone()]);
                 }
             },
             3.. => {
@@ -120,15 +117,34 @@ pub fn render_spans(
                 }
 
                 else {
-                    groups.push(render_close_spans(&spans.iter().map(|(span, _)| span.clone()).collect::<Vec<_>>(), option, session));
+                    groups.push(spans.iter().map(|(span, _)| span.clone()).collect::<Vec<_>>());
                 }
             },
         }
     }
 
-    groups = groups.into_iter().filter(|g| !g.is_empty()).collect();
+    // 1. auxiliary spans come after important ones
+    // 2. other than that, groups are sorted by the first span
+    groups.sort_by_key(|spans| spans[0].span);
+    groups.sort_by_key(|spans| !spans.iter().any(|span| !span.auxiliary) as u8);
+
+    let mut rendered_groups = Vec::with_capacity(groups.len());
+    let mut label_index_offset = 0;
+
+    for spans in groups.iter() {
+        rendered_groups.push(render_close_spans(
+            spans,
+            option,
+            session,
+            label_index_offset,
+        ));
+
+        label_index_offset += spans.iter().map(|span| if span.note.is_some() { 1 } else { 0 }).sum::<usize>();
+    }
+
+    rendered_groups = rendered_groups.into_iter().filter(|g| !g.is_empty()).collect();
     let delim = option.group_delim.as_ref().map(|(delim, color)| color.render_fg(delim)).unwrap_or_else(|| String::from("\n\n"));
-    groups.join(&delim)
+    rendered_groups.join(&delim)
 }
 
 // It assumes that all the spans are close together, and tries to render all spans in a single window.
@@ -137,6 +153,7 @@ fn render_close_spans(
     spans: &[RenderableSpan],
     option: &RenderSpanOption,
     session: &mut RenderSpanSession,
+    label_index_offset: usize,
 ) -> String {
     let (primary_color, auxiliary_color, info_color) = match &option.color {
         Some(ColorOption { primary, auxiliary, info }) => (*primary, *auxiliary, *info),
@@ -255,6 +272,8 @@ fn render_close_spans(
             primary_color,
             auxiliary_color,
             info_color,
+            option.max_width,
+            label_index_offset,
         )
     };
 
@@ -283,11 +302,13 @@ fn render_span_worker(
     primary_color: Color,
     auxiliary_color: Color,
     info_color: Color,
+    max_width: usize,
+    label_index_offset: usize,
 ) -> String {
     let mut code_lines = vec![];
     let mut note_lines = vec![];
     let (top, bottom, left, right) = rect;
-    let mut label_index = 0;
+    let mut label_index = label_index_offset;
 
     for (row, line) in lines.iter().enumerate() {
         if row < top {
@@ -382,49 +403,62 @@ fn render_span_worker(
                     },
                 }
 
-                // TODO: automatically break lines if a note is too long
-                note_lines.push(auxiliary_color.render_fg(&format!("({}): {note}", label_index + i)));
+                let note_no = format!("({}): ", label_index + i);
+                let line_max_width = (max_width.max(note_no.len()) - note_no.len()).max(20);
+
+                for (j, note_line) in break_lines(note, line_max_width).iter().enumerate() {
+                    note_lines.push(auxiliary_color.render_fg(&format!(
+                        "{}{note_line}",
+                        if j == 0 {
+                            note_no.clone()
+                        } else {
+                            " ".repeat(note_no.len())
+                        },
+                    )));
+                }
             }
 
             let mut label_lines = vec![vec![b' '; line.content.len() + 7]; max_depth * 2];
 
             for label in labels.iter() {
+                let x = label.x - left;
+
                 for y in 0..(label.depth * 2 - 1) {
-                    label_lines[y][label.x] = b'|';
+                    label_lines[y][x] = b'|';
                 }
 
                 if label.asterisk {
-                    label_lines[label.depth * 2 - 1][label.x] = b'*';
-                    label_lines[label.depth * 2 - 1][label.x + 1] = b'-';
-                    label_lines[label.depth * 2 - 1][label.x + 2] = b'-';
-                    label_lines[label.depth * 2 - 1][label.x + 3] = b'(';
+                    label_lines[label.depth * 2 - 1][x] = b'*';
+                    label_lines[label.depth * 2 - 1][x + 1] = b'-';
+                    label_lines[label.depth * 2 - 1][x + 2] = b'-';
+                    label_lines[label.depth * 2 - 1][x + 3] = b'(';
 
-                    // I guess there's not gonna be more than 100 labels... right?
+                    // I guess there's not gonna be more than 99 labels... right?
                     if label_index >= 10 {
-                        label_lines[label.depth * 2 - 1][label.x + 4] = (label_index as u8 / 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 5] = (label_index as u8 % 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 6] = b')';
+                        label_lines[label.depth * 2 - 1][x + 4] = (label_index as u8 / 10 % 10) + b'0';
+                        label_lines[label.depth * 2 - 1][x + 5] = (label_index as u8 % 10) + b'0';
+                        label_lines[label.depth * 2 - 1][x + 6] = b')';
                     }
 
                     else {
-                        label_lines[label.depth * 2 - 1][label.x + 4] = label_index as u8 + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 5] = b')';
+                        label_lines[label.depth * 2 - 1][x + 4] = label_index as u8 + b'0';
+                        label_lines[label.depth * 2 - 1][x + 5] = b')';
                     }
                 }
 
                 else {
-                    label_lines[label.depth * 2 - 1][label.x - 1] = b'(';
+                    label_lines[label.depth * 2 - 1][x - 1] = b'(';
 
-                    // I guess there's not gonna be more than 100 labels... right?
+                    // I guess there's not gonna be more than 99 labels... right?
                     if label_index >= 10 {
-                        label_lines[label.depth * 2 - 1][label.x] = (label_index as u8 / 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 1] = (label_index as u8 % 10) + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 2] = b')';
+                        label_lines[label.depth * 2 - 1][x] = (label_index as u8 / 10 % 10) + b'0';
+                        label_lines[label.depth * 2 - 1][x + 1] = (label_index as u8 % 10) + b'0';
+                        label_lines[label.depth * 2 - 1][x + 2] = b')';
                     }
 
                     else {
-                        label_lines[label.depth * 2 - 1][label.x] = label_index as u8 + b'0';
-                        label_lines[label.depth * 2 - 1][label.x + 1] = b')';
+                        label_lines[label.depth * 2 - 1][x] = label_index as u8 + b'0';
+                        label_lines[label.depth * 2 - 1][x + 1] = b')';
                     }
                 }
 
@@ -458,4 +492,38 @@ fn merge_rects(r1: (usize, usize, usize, usize), r2: (usize, usize, usize, usize
         r1.2.max(r2.2),
         r1.3.max(r2.3),
     )
+}
+
+fn break_lines(s: &str, max_width: usize) -> Vec<String> {
+    let mut curr_line = vec![];
+    let mut lines = vec![];
+    let long_enough = (max_width.max(8) - 8).max(max_width * 4 / 5);
+
+    // It assumes that every character has the same width.
+    // It assumes that there's no newline character.
+    for ch in s.chars() {
+        if curr_line.len() >= max_width {
+            lines.push(curr_line);
+            curr_line = vec![];
+
+            if ch != ' ' {
+                curr_line.push(ch);
+            }
+        }
+
+        else if curr_line.len() >= long_enough && ch == ' ' {
+            lines.push(curr_line);
+            curr_line = vec![];
+        }
+
+        else {
+            curr_line.push(ch);
+        }
+    }
+
+    if !curr_line.is_empty() {
+        lines.push(curr_line);
+    }
+
+    lines.into_iter().map(|chs| chs.into_iter().collect()).collect()
 }

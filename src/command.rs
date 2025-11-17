@@ -15,7 +15,7 @@ pub enum Command {
     InitIrDir {
         intermediate_dir: String,
     },
-    Compile {
+    PerFileIr {
         // A module is (almost always) a file.
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
         input_file_path: FileOrStd,
@@ -29,22 +29,23 @@ pub enum Command {
         find_modules: bool,
 
         emit_ir_options: Vec<EmitIrOption>,
-
-        // It's for debugging the compiler.
-        // I'll make a CLI option for this, someday.
-        dump_type_info: bool,
-
-        // You can quit termination after emitting irs.
-        output_path: Option<String>,
-
         stop_after: CompileStage,
-        backend: Backend,
-        profile: Profile,
-        optimization: Optimization,
     },
+    // Run this after you have hir of all the modules.
     InterHir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
+    },
+    // Run this after you have mir of all the modules.
+    InterMir {
+        modules: HashMap<ModulePath, Span>,
+        intermediate_dir: String,
+        stop_after: CompileStage,
+        emit_ir_options: Vec<EmitIrOption>,
+        output_path: Option<String>,
+        backend: Backend,
+        profile: Profile,
+        optimization: Optimization,
     },
     Interpret {
         bytecodes_path: StoreIrAt,

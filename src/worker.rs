@@ -40,6 +40,10 @@ impl Channel {
     pub fn try_recv(&self) -> Result<MessageToMain, mpsc::TryRecvError> {
         self.rx_to_main.try_recv()
     }
+
+    pub fn recv(&self) -> Result<MessageToMain, mpsc::RecvError> {
+        self.rx_to_main.recv()
+    }
 }
 
 pub fn init_workers(n: u32) -> Vec<Channel> {

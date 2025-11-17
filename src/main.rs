@@ -34,6 +34,7 @@ use sodigy_fs_api::{
 };
 use sodigy_hir as hir;
 use sodigy_lir::Executable;
+use sodigy_mir::Session as MirSession;
 use sodigy_session::Session;
 use sodigy_span::Span;
 use sodigy_string::unintern_string;
@@ -83,7 +84,7 @@ fn main() -> Result<(), Error> {
                         Command::InitIrDir {
                             intermediate_dir: String::from("target"),
                         },
-                        Command::Compile {
+                        Command::PerFileIr {
                             input_file_path,
                             input_module_path,
                             intermediate_dir: String::from("target"),
@@ -113,15 +114,7 @@ fn main() -> Result<(), Error> {
                                     human_readable: false,
                                 },
                             ],
-
-                            // It's for debugging the compiler
-                            dump_type_info: true,
-
-                            output_path: None,
-                            backend: Backend::Bytecode,  // doesn't matter
                             stop_after: CompileStage::Hir,
-                            profile: Profile::Test,
-                            optimization,
                         },
                     ],
                     id: run_id,
@@ -135,7 +128,7 @@ fn main() -> Result<(), Error> {
                     generated_hirs.insert(input_module_path.clone(), Span::Std);
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
                         commands: vec![
-                            Command::Compile {
+                            Command::PerFileIr {
                                 input_file_path,
                                 input_module_path,
                                 intermediate_dir: String::from("target"),
@@ -148,12 +141,7 @@ fn main() -> Result<(), Error> {
                                         human_readable: false,
                                     },
                                 ],
-                                dump_type_info: false,
-                                output_path: None,
-                                backend: Backend::Bytecode,  // doesn't matter
                                 stop_after: CompileStage::Hir,
-                                profile: Profile::Test,
-                                optimization,
                             },
                         ],
                         id: run_id,
@@ -181,7 +169,7 @@ fn main() -> Result<(), Error> {
                                             }
                                         ).continue_or_dump_error("target")?;
                                         workers[run_id % workers.len()].send(MessageToWorker::Run {
-                                            commands: vec![Command::Compile {
+                                            commands: vec![Command::PerFileIr {
                                                 input_file_path: file_path,
                                                 input_module_path: path,
                                                 intermediate_dir: String::from("target"),
@@ -193,12 +181,7 @@ fn main() -> Result<(), Error> {
                                                         human_readable: false,
                                                     },
                                                 ],
-                                                dump_type_info: true,
-                                                output_path: None,
-                                                backend: Backend::Bytecode,
                                                 stop_after: CompileStage::Hir,
-                                                profile: Profile::Test,
-                                                optimization,
                                             }],
                                             id: run_id,
                                         })?;
@@ -214,7 +197,7 @@ fn main() -> Result<(), Error> {
 
                                     // Kinda graceful shutdown, so that workers can dump their error messages
                                     if !unfinished_runs.is_empty() {
-                                        thread::sleep(Duration::from_millis(200));
+                                        thread::sleep(Duration::from_millis(500));
                                     }
 
                                     return Err(e);
@@ -231,7 +214,7 @@ fn main() -> Result<(), Error> {
                         break;
                     }
 
-                    thread::sleep(Duration::from_millis(200));
+                    thread::sleep(Duration::from_millis(100));
                 }
 
                 workers[run_id % workers.len()].send(MessageToWorker::Run {
@@ -258,7 +241,7 @@ fn main() -> Result<(), Error> {
 
                                     // Kinda graceful shutdown, so that workers can dump their error messages
                                     if !unfinished_runs.is_empty() {
-                                        thread::sleep(Duration::from_millis(200));
+                                        thread::sleep(Duration::from_millis(500));
                                     }
 
                                     return Err(e);
@@ -275,7 +258,7 @@ fn main() -> Result<(), Error> {
                         break;
                     }
 
-                    thread::sleep(Duration::from_millis(200));
+                    thread::sleep(Duration::from_millis(100));
                 }
 
                 for (path, span) in generated_hirs.iter() {
@@ -287,7 +270,7 @@ fn main() -> Result<(), Error> {
                         }
                     ).continue_or_dump_error("target")?;
                     workers[run_id % workers.len()].send(MessageToWorker::Run {
-                        commands: vec![Command::Compile {
+                        commands: vec![Command::PerFileIr {
                             input_file_path: file_path,
                             input_module_path: path.clone(),
                             intermediate_dir: String::from("target"),
@@ -306,12 +289,7 @@ fn main() -> Result<(), Error> {
                                     human_readable: true,
                                 },
                             ],
-                            dump_type_info: true,
-                            output_path: None,
-                            backend: Backend::Bytecode,  // doesn't matter
                             stop_after: CompileStage::Mir,
-                            profile: Profile::Test,
-                            optimization,
                         }],
                         id: run_id,
                     })?;
@@ -333,7 +311,7 @@ fn main() -> Result<(), Error> {
 
                                     // Kinda graceful shutdown, so that workers can dump their error messages
                                     if !unfinished_runs.is_empty() {
-                                        thread::sleep(Duration::from_millis(200));
+                                        thread::sleep(Duration::from_millis(500));
                                     }
 
                                     return Err(e);
@@ -350,7 +328,37 @@ fn main() -> Result<(), Error> {
                         break;
                     }
 
-                    thread::sleep(Duration::from_millis(200));
+                    thread::sleep(Duration::from_millis(100));
+                }
+
+                workers[0].send(MessageToWorker::Run {
+                    commands: vec![
+                        Command::InterMir {
+                            modules: generated_hirs.clone(),
+                            intermediate_dir: String::from("target"),
+                            stop_after: CompileStage::CodeGen,
+                            emit_ir_options: vec![],
+                            output_path: None,
+                            backend: Backend::Bytecode,
+                            profile: Profile::Test,
+                            optimization: Optimization::None,
+                        },
+                        Command::Interpret {
+                            bytecodes_path: StoreIrAt::Memory,
+                            profile: Profile::Test,
+                        },
+                    ],
+                    id: run_id,
+                })?;
+                run_id += 1;
+
+                match workers[0].recv() {
+                    Ok(msg) => match msg {
+                        _ => todo!(),
+                    },
+                    Err(_) => {
+                        return Err(Error::MpscError);
+                    },
                 }
 
                 Ok(())
@@ -436,18 +444,13 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
             Command::InitIrDir {
                 intermediate_dir,
             } => init_ir_dir(&intermediate_dir)?,
-            Command::Compile {
+            Command::PerFileIr {
                 input_file_path,
                 input_module_path,
                 intermediate_dir,
                 find_modules,
                 emit_ir_options,
-                dump_type_info,
-                output_path,
                 stop_after,
-                backend,
-                profile,
-                optimization,
             } => {
                 let (is_std, file) = match &input_file_path {
                     FileOrStd::File(path) => (
@@ -573,7 +576,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     &mir_session,
                     &emit_ir_options,
                     CompileStage::Mir,
-                    None,
+                    Some(content_hash),
                     &intermediate_dir,
                     &mut memory,
                 )?;
@@ -581,67 +584,6 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 if let CompileStage::Mir = stop_after {
                     continue;
-                }
-
-                // TODO: dump type_solver
-                let (mut mir_session, type_solver) = sodigy_mir_type::solve(mir_session);
-                mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
-
-                if dump_type_info {
-                    sodigy_mir_type::dump(&mut mir_session, &type_solver);
-                }
-
-                if let CompileStage::TypeCheck = stop_after {
-                    continue;
-                }
-
-                let mut lir_session = sodigy_lir::lower(mir_session);
-                emit_irs_if_has_to(
-                    &lir_session,
-                    &emit_ir_options,
-                    CompileStage::Bytecode,
-                    None,
-                    &intermediate_dir,
-                    &mut memory,
-                )?;
-                lir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
-
-                if let CompileStage::Bytecode = stop_after {
-                    continue;
-                }
-
-                let executable = lir_session.into_executable(optimization == Optimization::None);
-
-                let result = match backend {
-                    Backend::Python => sodigy_backend::python_code_gen(
-                        &executable,
-                        &sodigy_backend::CodeGenConfig {
-                            intermediate_dir: intermediate_dir.clone(),
-                            label_help_comment: true,
-                            mode: profile.into(),
-                        },
-                    )?,
-                    Backend::Bytecode => executable.encode(),
-                    _ => todo!(),
-                };
-
-                emit_irs_if_has_to(
-                    &result,
-                    &emit_ir_options,
-                    CompileStage::CodeGen,
-                    None,
-                    &intermediate_dir,
-                    &mut memory,
-                )?;
-
-                lir_session.dump_warnings();
-
-                if let Some(output_path) = output_path {
-                    write_bytes(
-                        &output_path,
-                        &result,
-                        WriteMode::CreateOrTruncate,
-                    )?;
                 }
             },
             Command::InterHir {
@@ -697,6 +639,108 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     &mut memory,
                 )?;
                 inter_hir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+            },
+            Command::InterMir {
+                modules,
+                intermediate_dir,
+                stop_after,
+                emit_ir_options,
+                output_path,
+                backend,
+                profile,
+                optimization,
+            } => {
+                let mut merged_mir_session: Option<MirSession> = None;
+
+                for path in modules.keys() {
+                    let file = File::from_module_path(
+                        0,  // project_id
+                        &path.to_string(),
+                        &intermediate_dir,
+                    )?.unwrap();  // TODO: throw an ICE instead of unwrapping it
+                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let mir_session_bytes = get_cached_ir(
+                        &intermediate_dir,
+                        CompileStage::Mir,
+                        Some(content_hash),
+                    )?;
+
+                    let mut mir_session = match mir_session_bytes.map(|bytes| sodigy_mir::Session::decode(&bytes)) {
+                        Some(Ok(session)) => session,
+
+                        // TODO: It's kinda ICE, but there's no interface for ICE yet
+                        _ => todo!(),
+                    };
+                    mir_session.intermediate_dir = intermediate_dir.clone();
+
+                    match &mut merged_mir_session {
+                        Some(s) => {
+                            s.merge(mir_session);
+                        },
+                        None => {
+                            merged_mir_session = Some(mir_session);
+                        },
+                    }
+                }
+
+                let mir_session = merged_mir_session.unwrap();
+
+                // TODO: dump type_solver
+                let (mir_session, type_solver) = sodigy_mir_type::solve(mir_session);
+                mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+
+                if let CompileStage::TypeCheck = stop_after {
+                    continue;
+                }
+
+                let mut lir_session = sodigy_lir::lower(mir_session);
+                emit_irs_if_has_to(
+                    &lir_session,
+                    &emit_ir_options,
+                    CompileStage::Bytecode,
+                    None,
+                    &intermediate_dir,
+                    &mut memory,
+                )?;
+                lir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+
+                if let CompileStage::Bytecode = stop_after {
+                    continue;
+                }
+
+                let executable = lir_session.into_executable(optimization == Optimization::None);
+
+                let result = match backend {
+                    Backend::Python => sodigy_backend::python_code_gen(
+                        &executable,
+                        &sodigy_backend::CodeGenConfig {
+                            intermediate_dir: intermediate_dir.clone(),
+                            label_help_comment: true,
+                            mode: profile.into(),
+                        },
+                    )?,
+                    Backend::Bytecode => executable.encode(),
+                    _ => todo!(),
+                };
+
+                emit_irs_if_has_to(
+                    &result,
+                    &emit_ir_options,
+                    CompileStage::CodeGen,
+                    None,
+                    &intermediate_dir,
+                    &mut memory,
+                )?;
+
+                lir_session.dump_warnings();
+
+                if let Some(output_path) = output_path {
+                    write_bytes(
+                        &output_path,
+                        &result,
+                        WriteMode::CreateOrTruncate,
+                    )?;
+                }
             },
             Command::Interpret {
                 bytecodes_path,

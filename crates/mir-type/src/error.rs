@@ -71,6 +71,8 @@ pub enum TypeError {
 #[derive(Clone, Copy, Debug)]
 pub enum ErrorContext {
     AssertConditionBool,
+    ShortCircuitAndBool,
+    ShortCircuitOrBool,
     IfConditionBool,
     IfValueEqual,
     InferTypeAnnotation,
@@ -90,6 +92,8 @@ impl ErrorContext {
     pub fn note(&self) -> Option<&'static str> {
         match self {
             ErrorContext::AssertConditionBool => Some("An assertion must be a boolean."),
+            ErrorContext::ShortCircuitAndBool => Some("Lhs and rhs of `&&` operator must be booleans."),
+            ErrorContext::ShortCircuitOrBool => Some("Lhs and rhs of `||` operator must be booleans."),
             ErrorContext::IfConditionBool => Some("A condition of an `if` expression must be a boolean."),
             ErrorContext::IfValueEqual => Some("All branches of an `if` expression must have the same type."),
             ErrorContext::InferTypeAnnotation => Some("There's an error while doing type-inference."),

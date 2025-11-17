@@ -72,6 +72,17 @@ impl Session {
             None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }
+
+    pub fn merge(&mut self, mut s: Session) {
+        self.generic_def_span_rev.extend(s.generic_def_span_rev.drain());
+        self.lets.extend(s.lets.drain(..));
+        self.funcs.extend(s.funcs.drain(..));
+        self.asserts.extend(s.asserts.drain(..));
+        self.types.extend(s.types.drain());
+        self.generic_instances.extend(s.generic_instances.drain());
+        self.errors.extend(s.errors.drain(..));
+        self.warnings.extend(s.warnings.drain(..));
+    }
 }
 
 impl SodigySession for Session {

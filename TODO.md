@@ -1,3 +1,47 @@
+# 83. unused warnings
+
+1. 한 함수에서 arg 3개 정의하고 셋다 안 쓰면? 경고를 한번에 날리는게 낫지 않나?
+  - unused arguments: `a`, `b` and `c`
+  - span도 한번에 보여주는게 더 이쁨!
+  - 근데... 한 함수인지 아닌지를 어떻게 판별해? 함수가 아니라 use같은 경우에도 `use std.prelude.{A, B, C};`에서 경고 뜨면 합치고 싶음!!
+  - 단순히 span이 가까운지로 확인하기?? vs 한 group에 속하는지를 꼼꼼히 검사하기
+    - 한 group에 속하고 span도 가까운 경우: 합치는게 맞음!
+    - 한 group에 속하는데 span이 먼 경우: 합쳐도 그만 안 합쳐도 그만
+      - 근데, 한 group에 경고가 여러개 뜨면 걔네가 전부 하나로 합쳐지거나 전부 갈라지거나 해야 예쁘지 애매하게 합치면 이상할 거 같은데?
+    - 다른 group에 속하는데 span이 가까운 경우: 합치면 무지 이상함
+    - 가까운지 아닌지 확인하는 것도 매우 애매: 함수 arg에서는 type annotation이랑 default value때문에 거리가 꽤 멂...
+      - 더 깊게 들어가자면, 나처럼 arg 목록에서 newline을 남발하는 사람들은 span이 아무리 멀어도 하나로 합치면 이뻐짐 ㅋㅋㅋ
+  - 잠깐 관찰해보니 rust는 함수 arg는 안 합치고 use는 합치네.
+2. top-level에서 정의된 item인 경우 unused인지 아닌지 알기 빡셈
+  - 완전 private한 경우, 지금의 logic으로 다 잡을 수 있음!!
+    - 아닌가, 생각해보니까 private이어도 하위 모듈에서는 쓸 수 있잖아...ㅜㅜ
+  - public한 경우, 다른 module에서 어떻게 쓰는지 다 뒤져봐야함.
+    - 지금은 이거 검사할 수 있는 장소가 아예 없음...!!
+    - 그나마 inter-hir?? inter-hir에 visibility 검사 자세하게 하도록 수정하면 검사할 수 있을 듯!
+  - 어차피 inter-module로 검사할 거면 intra-module에서 검사할 필요가 없는 거 아님..?? ㅋㅋㅋ
+
+# 82. inter-mir
+
+1. in order to type-check,
+  - it needs `types: HashMap<Span, Type>`, `generic_instances: HashMap<(Span, Span), Type>`, `solver`, `lang_items: HashMap<String, Span>` and items (`&[Func]`, `&[Let]`, ...).
+    - `types` and `solver` must be separated in order to avoid mut-ref issues.
+    - `generic_instances` and `solver` must be separated for the same reason.
+    - currently, `solver` has `lang_items` field. It doesn't matter who has this field.
+    - currently, `solver` collects the errors and warnings, and passes it to mir-session in the end.
+    - mir-session or `solver` might have to create `span_string_map` for error messages
+      - the map is global, and has to be generated once (or never).
+    - `types` and `generic_instances` have to be global, while items can be local.
+    - we can't run it in parallel, because the global `types` and `generic_instances` have to be updated.
+2. We might do extra checks or analysis. We have to implement that in inter-mir pass.
+3. All the optimizations must come after type-check, hence in inter-mir.
+
+---
+
+그럼 inter_mir_session이랑 mir_session이랑 type_solver를 다 따로 해야할 거 같은데?? ㅜㅜㅜ
+
+생각해보니까 items가 `&[Item]`이 아니고 `&mut Vec<Item>`임!! monomorphize를 하거나 optimization을 하면 수정해야하잖아...
+그럼 좀 나음. mir_session을 하나로 합쳐버린 다음에 작업하면 됨!!
+
 # 81. new issues in inter-hir
 
 ```

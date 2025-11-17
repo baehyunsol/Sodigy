@@ -269,4 +269,34 @@ impl Type {
             },
         }
     }
+
+    pub fn substitute_generic_def(&mut self, call: Span, generics: &[Span]) {
+        match self {
+            Type::GenericDef(g) => {
+                if generics.contains(g) {
+                    *self = Type::GenericInstance { call, generic: *g };
+                }
+            },
+            Type::Static(_) |
+            Type::Unit(_) |
+            Type::Never(_) |
+            Type::Var { .. } |
+            Type::GenericInstance { .. } => {},
+            Type::Param {
+                r#type: t,
+                args,
+                ..
+            } | Type::Func {
+                r#return: t,
+                args,
+                ..
+            } => {
+                for arg in args.iter_mut() {
+                    arg.substitute_generic_def(call, generics);
+                }
+
+                t.substitute_generic_def(call, generics);
+            },
+        }
+    }
 }

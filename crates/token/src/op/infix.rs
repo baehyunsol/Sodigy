@@ -55,13 +55,13 @@ impl InfixOp {
 
     pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
         match self {
-            InfixOp::Add => vec!["op.add.generic.0", "op.add.generic.1", "op.add.generic.1"],
-            InfixOp::Sub => vec!["op.sub.generic.0", "op.sub.generic.1", "op.sub.generic.1"],
-            InfixOp::Mul => vec!["op.mul.generic.0", "op.mul.generic.1", "op.mul.generic.1"],
-            InfixOp::Div => vec!["op.div.generic.0", "op.div.generic.1", "op.div.generic.1"],
-            InfixOp::Rem => vec!["op.rem.generic.0", "op.rem.generic.1", "op.rem.generic.1"],
-            InfixOp::Shl => vec!["op.shl.generic.0", "op.shl.generic.1", "op.shl.generic.1"],
-            InfixOp::Shr => vec!["op.shr.generic.0", "op.shr.generic.1", "op.shr.generic.1"],
+            InfixOp::Add => vec!["op.add.generic.0", "op.add.generic.1", "op.add.generic.2"],
+            InfixOp::Sub => vec!["op.sub.generic.0", "op.sub.generic.1", "op.sub.generic.2"],
+            InfixOp::Mul => vec!["op.mul.generic.0", "op.mul.generic.1", "op.mul.generic.2"],
+            InfixOp::Div => vec!["op.div.generic.0", "op.div.generic.1", "op.div.generic.2"],
+            InfixOp::Rem => vec!["op.rem.generic.0", "op.rem.generic.1", "op.rem.generic.2"],
+            InfixOp::Shl => vec!["op.shl.generic.0", "op.shl.generic.1", "op.shl.generic.2"],
+            InfixOp::Shr => vec!["op.shr.generic.0", "op.shr.generic.1", "op.shr.generic.2"],
             InfixOp::Lt => vec!["op.lt.generic.0"],
             InfixOp::Eq => vec!["op.eq.generic.0"],
             InfixOp::Gt => vec!["op.gt.generic.0"],

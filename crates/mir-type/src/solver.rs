@@ -365,43 +365,49 @@ impl Solver {
                 }
 
                 else if !*is_return1 && !*is_return2 {
-                    if let Some(type1) = types.get(v1) {
-                        let type1 = type1.clone();
-                        self.solve_subtype(
-                            &type1,
-                            t2,
-                            types,
-                            generic_instances,
-                            is_checking_argument,
-                            expected_span,
-                            subtype_span,
-                            ErrorContext::Deep,
-                        )
+                    match types.get(v1) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(type1) => {
+                            let type1 = type1.clone();
+                            return self.solve_subtype(
+                                &type1,
+                                t2,
+                                types,
+                                generic_instances,
+                                is_checking_argument,
+                                expected_span,
+                                subtype_span,
+                                ErrorContext::Deep,
+                            );
+                        },
+                        None => {},
                     }
 
-                    else if let Some(type2) = types.get(v2) {
-                        let type2 = type2.clone();
-                        self.solve_subtype(
-                            t1,
-                            &type2,
-                            types,
-                            generic_instances,
-                            is_checking_argument,
-                            expected_span,
-                            subtype_span,
-                            ErrorContext::Deep,
-                        )
+                    match types.get(v2) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(type2) => {
+                            let type2 = type2.clone();
+                            return self.solve_subtype(
+                                t1,
+                                &type2,
+                                types,
+                                generic_instances,
+                                is_checking_argument,
+                                expected_span,
+                                subtype_span,
+                                ErrorContext::Deep,
+                            );
+                        },
+                        None => {},
                     }
 
-                    else {
-                        types.insert(*v1, t2.clone());
-                        self.add_type_var(t1.clone(), None);
-                        self.add_type_var_ref(t1.clone(), t2.clone());
-                        types.insert(*v2, t1.clone());
-                        self.add_type_var(t2.clone(), None);
-                        self.add_type_var_ref(t2.clone(), t1.clone());
-                        Ok(t1.clone())
-                    }
+                    types.insert(*v1, t2.clone());
+                    self.add_type_var(t1.clone(), None);
+                    self.add_type_var_ref(t1.clone(), t2.clone());
+                    types.insert(*v2, t1.clone());
+                    self.add_type_var(t2.clone(), None);
+                    self.add_type_var_ref(t2.clone(), t1.clone());
+                    Ok(t1.clone())
                 }
 
                 else {
@@ -414,43 +420,49 @@ impl Solver {
                 }
 
                 else {
-                    if let Some(type1) = generic_instances.get(&(*c1, *g1)) {
-                        let type1 = type1.clone();
-                        self.solve_subtype(
-                            &type1,
-                            t2,
-                            types,
-                            generic_instances,
-                            is_checking_argument,
-                            expected_span,
-                            subtype_span,
-                            ErrorContext::Deep,
-                        )
+                    match generic_instances.get(&(*c1, *g1)) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(type1) => {
+                            let type1 = type1.clone();
+                            return self.solve_subtype(
+                                &type1,
+                                t2,
+                                types,
+                                generic_instances,
+                                is_checking_argument,
+                                expected_span,
+                                subtype_span,
+                                ErrorContext::Deep,
+                            );
+                        },
+                        None => {},
                     }
 
-                    else if let Some(type2) = generic_instances.get(&(*c2, *g2)) {
-                        let type2 = type2.clone();
-                        self.solve_subtype(
-                            t1,
-                            &type2,
-                            types,
-                            generic_instances,
-                            is_checking_argument,
-                            expected_span,
-                            subtype_span,
-                            ErrorContext::Deep,
-                        )
+                    match generic_instances.get(&(*c2, *g2)) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(type2) => {
+                            let type2 = type2.clone();
+                            return self.solve_subtype(
+                                t1,
+                                &type2,
+                                types,
+                                generic_instances,
+                                is_checking_argument,
+                                expected_span,
+                                subtype_span,
+                                ErrorContext::Deep,
+                            );
+                        },
+                        None => {},
                     }
 
-                    else {
-                        generic_instances.insert((*c1, *g1), t2.clone());
-                        self.add_type_var(t1.clone(), None);
-                        self.add_type_var_ref(t1.clone(), t2.clone());
-                        generic_instances.insert((*c2, *g2), t1.clone());
-                        self.add_type_var(t2.clone(), None);
-                        self.add_type_var_ref(t2.clone(), t1.clone());
-                        Ok(t1.clone())
-                    }
+                    generic_instances.insert((*c1, *g1), t2.clone());
+                    self.add_type_var(t1.clone(), None);
+                    self.add_type_var_ref(t1.clone(), t2.clone());
+                    generic_instances.insert((*c2, *g2), t1.clone());
+                    self.add_type_var(t2.clone(), None);
+                    self.add_type_var_ref(t2.clone(), t1.clone());
+                    Ok(t1.clone())
                 }
             },
             (Type::GenericDef(_), _) | (_, Type::GenericDef(_)) => {
@@ -589,23 +601,41 @@ impl Solver {
                     (subtype_span, expected_span)
                 };
 
-                if let Some(tv_concrete) = types.get(def_span) {
-                    let tv_concrete = tv_concrete.clone();
-                    self.solve_subtype(
-                        &tv_concrete,
-                        gi,
-                        types,
-                        generic_instances,
-                        is_checking_argument,
-                        tv_span,
-                        gi_span,
-                        ErrorContext::Deep,
-                    )
+                match types.get(def_span) {
+                    Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                    Some(tv_concrete) => {
+                        let tv_concrete = tv_concrete.clone();
+                        return self.solve_subtype(
+                            &tv_concrete,
+                            gi,
+                            types,
+                            generic_instances,
+                            is_checking_argument,
+                            tv_span,
+                            gi_span,
+                            ErrorContext::Deep,
+                        );
+                    },
+                    None => {},
                 }
 
-                // It's complicated due to the `is_return` field...
+                // TODO: I want to `match generic_instances.get(&(*call, *generic))`, but it's
+                //       complicated due to the `is_return` field...
+
+                if !*is_return {
+                    types.insert(*def_span, gi.clone());
+                    self.add_type_var(tv.clone(), None);
+                    self.add_type_var_ref(tv.clone(), gi.clone());
+                    generic_instances.insert((*call, *generic), tv.clone());
+                    self.add_type_var(gi.clone(), None);
+                    self.add_type_var_ref(gi.clone(), tv.clone());
+                    Ok(tv.clone())
+                }
+
                 else {
-                    todo!()
+                    // TODO: I want to create more type expressions here, but it's complicated
+                    //       due to the `is_return` field...
+                    Ok(expected_type.clone())
                 }
             },
         }
@@ -659,7 +689,10 @@ impl Solver {
                     let r#type = types.get(def_span).unwrap().clone();
                     self.substitute(type_var, &r#type, types, generic_instances);
                 },
-                Type::GenericInstance { call, generic } => todo!(),
+                Type::GenericInstance { call, generic } => {
+                    let r#type = generic_instances.get_mut(&(*call, *generic)).unwrap().clone();
+                    self.substitute(type_var, &r#type, types, generic_instances);
+                },
                 _ => unreachable!(),
             }
         }
@@ -668,7 +701,7 @@ impl Solver {
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
         match self.lang_items.get(lang_item) {
             Some(s) => *s,
-            None => unreachable!(),
+            None => panic!("TODO: {lang_item:?}"),
         }
     }
 }

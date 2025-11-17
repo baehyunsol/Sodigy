@@ -48,8 +48,9 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
 
     // TODO: structs and enums
 
-    if !generic_funcs.is_empty() {
-        todo!()
+    // TODO: monomorphize generic funcs
+    for generic_func in generic_funcs.iter() {
+        println!("TODO: generic function {:?}", generic_func.name);
     }
 
     solver.apply_never_types(

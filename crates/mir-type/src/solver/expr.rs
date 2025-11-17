@@ -1,7 +1,7 @@
 use super::Solver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
-use sodigy_mir::Callable;
+use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -92,6 +92,43 @@ impl Solver {
                 self.solve_expr(block.value.as_ref(), types, generic_instances)
             },
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
+            Expr::ShortCircuit { lhs, rhs, kind, .. } => {
+                let bool_type = Type::Static(self.get_lang_item_span("type.Bool"));
+                let context = match kind {
+                    ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
+                    ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
+                };
+                let lhs_type = self.solve_expr(lhs.as_ref(), types, generic_instances)?;
+                let err1 = self.solve_subtype(
+                    &bool_type,
+                    &lhs_type,
+                    types,
+                    generic_instances,
+                    false,
+                    None,
+                    Some(lhs.error_span()),
+                    context,
+                ).is_err();
+                let rhs_type = self.solve_expr(rhs.as_ref(), types, generic_instances)?;
+                let err2 = self.solve_subtype(
+                    &bool_type,
+                    &rhs_type,
+                    types,
+                    generic_instances,
+                    false,
+                    None,
+                    Some(rhs.error_span()),
+                    context,
+                ).is_err();
+
+                if err1 || err2 {
+                    Err(())
+                }
+
+                else {
+                    Ok(bool_type)
+                }
+            },
             // ---- draft ----
             // 1. we can solve types of args
             // 2. if callable is...
@@ -101,7 +138,7 @@ impl Solver {
             //    - a generic function
             //      - it first converts `Generic` to `GenericInstance` and does what
             //        a non-generic function does
-            Expr::Call { func, args, generic_defs, given_keyword_arguments } if generic_defs.is_empty() => {
+            Expr::Call { func, args, generic_defs, given_keyword_arguments } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -129,9 +166,17 @@ impl Solver {
                             r#return,
                             ..
                         }) => {
-                            let arg_defs = arg_defs.clone();
-                            let return_type: Type = *r#return.clone();
+                            let mut arg_defs = arg_defs.clone();
+                            let mut return_type: Type = *r#return.clone();
                             let span = *span;
+
+                            if !generic_defs.is_empty() {
+                                for arg_def in arg_defs.iter_mut() {
+                                    arg_def.substitute_generic_def(expr.error_span(), &generic_defs);
+                                }
+
+                                return_type.substitute_generic_def(expr.error_span(), &generic_defs);
+                            }
 
                             // It doesn't check arg types if there are wrong number of args.
                             // Whether or not there're type errors with args, it returns the return type.
@@ -190,6 +235,7 @@ impl Solver {
                         // this is for the type annotation, hence None
                         group_span: Span::None,
                     }),
+                    // TODO: handle generics like how `Callable::Static` does
                     Callable::ListInit { group_span } => {
                         // We can treat a list initialization (`[1, 2, 3]`) like calling a
                         // function with variadic arguments (`list.init(1, 2, 3)`).

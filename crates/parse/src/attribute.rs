@@ -108,6 +108,10 @@ impl<'t> Tokens<'t> {
                             });
                             module_doc_error = true;
                         }
+
+                        if top_level && !*top_level_ {
+                            break;
+                        }
                     }
 
                     doc_comments.push(DocCommentLine::new(*doc, *span));
@@ -125,6 +129,10 @@ impl<'t> Tokens<'t> {
                             spans: span.simple_error(),
                             note: None,
                         });
+                    }
+
+                    else if top_level && !top_level_ {
+                        break;
                     }
 
                     let group_span = *span;
