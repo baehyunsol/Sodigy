@@ -1,3 +1,19 @@
+# 84. methods and traits
+
+1. syntax
+  - `impl<T> Option<T> { .. }`, `impl Option<Int> { .. }`
+  - `#[impl(Option<T>)] fn map<T>(opt: Option<T>, f: Fn(T) -> U) -> Option<U>;`
+2. adding a method to a foreign type
+3. traits
+  - we need composition or inheritance if we want BIG sodigy projects
+4. If there're same methods for `Option<T>` and `Option<Int>`, I want the compiler to choose more concrete one.
+5. How about generic-based type classes?
+  - Generic functions are compile-time-type-checked-duck-typing. Let's say `map(s)` expects `s` to implement some methods and some fields. Then the programmer calls `map(3)`. If `Int` satisfies all the requirements, there'd be no compile error. Otherwise, the compiler will give a very nice error message.
+  - This is nice, but, there's a problem. I want the functions to be chained with dots, like `a.b().c().d()`, but with this approach, I'll fall into a parenthesis hell...
+  - How about a syntax that turns an arbitrary function into a method (connecting a function with a type)
+6. struct-constants, like `impl f32 { const PI: f32 = 3.1415; }` in Rust.
+  - how about struct-structs, struct-enums, etc?
+
 # 83. unused warnings
 
 1. 한 함수에서 arg 3개 정의하고 셋다 안 쓰면? 경고를 한번에 날리는게 낫지 않나?
