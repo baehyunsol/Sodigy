@@ -18,7 +18,10 @@ pub struct Func {
     pub generics: Vec<GenericDef>,
     pub args: Vec<FuncArgDef>,
     pub r#type: Option<Type>,
-    pub value: Expr,
+
+    // A poly or built-in may not have a body.
+    pub value: Option<Expr>,
+
     pub attribute: Attribute,
 }
 
@@ -67,9 +70,31 @@ impl<'t> Tokens<'t> {
             _ => None,
         };
 
-        self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-        let value = self.parse_expr()?;
-        self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
+        let value = match self.peek() {
+            Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }) => {
+                self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
+                let value = Some(self.parse_expr()?);
+                self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
+                value
+            },
+            Some(Token { kind: TokenKind::Punct(Punct::Semicolon), .. }) => {
+                self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
+                None
+            },
+            Some(t) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::UnexpectedToken {
+                        expected: ErrorToken::AssignOrSemicolon,
+                        got: (&t.kind).into(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                }]);
+            },
+            None => {
+                return Err(vec![self.unexpected_end(ErrorToken::AssignOrSemicolon)]);
+            },
+        };
 
         Ok(Func {
             keyword_span,

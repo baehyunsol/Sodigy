@@ -1,11 +1,25 @@
-use std.Int;
+use std.{Bool, Int};
 
 #[built_in]
 #[any_type(T, U)]
-fn read_compound<T, U>(a: T, b: Int) -> U = 0;
+fn read_compound<T, U>(a: T, b: Int) -> U;
 
 #[built_in]
-fn panic() -> ! = 0;
+fn panic() -> !;
 
 #[built_in]
-fn div_int(a: Int, b: Int) -> Int = 0;
+#[impl(std.op.mul)]
+fn mul_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.div)]
+fn div_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.eq)]
+fn eq_int(a: Int, b: Int) -> Bool;
+
+#[built_in]
+#[lang_item("fn.init_list")]
+#[lang_item_generics("fn.init_list.generic.0")]
+fn init_list<T>(/* varargs */) -> [T];

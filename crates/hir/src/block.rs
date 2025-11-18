@@ -11,9 +11,8 @@ use crate::{
     Struct,
     Use,
 };
-use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{
-    Counter,
     NameKind,
     Namespace,
     UseCount,

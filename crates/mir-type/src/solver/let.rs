@@ -11,8 +11,9 @@ impl Solver {
         r#let: &Let,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
-    ) -> Result<Type, ()> {
-        let infered_type = self.solve_expr(&r#let.value, types, generic_instances)?;
+    ) -> (Option<Type>, bool /* has_error */) {
+        let (infered_type, mut has_error) = self.solve_expr(&r#let.value, types, generic_instances);
+
         let (
             annotated_type,
             value_span,
@@ -39,17 +40,26 @@ impl Solver {
             ),
         };
 
-        self.solve_subtype(
-            &annotated_type,
-            &infered_type,
-            types,
-            generic_instances,
-            false,
-            annotation_span,
-            Some(value_span),
-            context,
-        )?;
+        let infered_type = match infered_type {
+            Some(infered_type) => {
+                if let Err(()) = self.solve_subtype(
+                    &annotated_type,
+                    &infered_type,
+                    types,
+                    generic_instances,
+                    false,
+                    annotation_span,
+                    Some(value_span),
+                    context,
+                ) {
+                    has_error = true;
+                }
+            },
+            None => {
+                has_error = true;
+            },
+        };
 
-        Ok(infered_type)
+        (Some(annotated_type), has_error)
     }
 }

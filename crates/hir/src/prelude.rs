@@ -54,12 +54,20 @@ pub(crate) fn use_prelude(name: InternedString) -> Use {
         keyword_span: Span::None,
         name,
         name_span: Span::Prelude(name),
-        fields: vec![Field::Name {
-            name: prelude,
-            span: Span::None,
-            dot_span: Span::None,
-            is_from_alias: false,
-        }],
+        fields: vec![
+            Field::Name {
+                name: prelude,
+                span: Span::None,
+                dot_span: Span::None,
+                is_from_alias: false,
+            },
+            Field::Name {
+                name,
+                span: Span::None,
+                dot_span: Span::None,
+                is_from_alias: false,
+            },
+        ],
         root: IdentWithOrigin {
             id: std,
             span: Span::None,

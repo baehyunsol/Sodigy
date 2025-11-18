@@ -237,7 +237,7 @@ impl Expr {
                     generics: vec![],
                     args: args.clone(),
                     r#type: r#type.as_ref().clone(),
-                    value: value.as_ref().clone(),
+                    value: Some(value.as_ref().clone()),
                     attribute: ast::Attribute::new(),
                 };
 
@@ -290,7 +290,18 @@ impl Expr {
         match self {
             Expr::Identifier(IdentWithOrigin { span, .. }) |
             Expr::Number { span, .. } |
-            Expr::String { span, .. } => *span,
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } => *span,
+            Expr::Path { lhs, fields } => {
+                let mut span = lhs.error_span();
+
+                for field in fields.iter() {
+                    span = span.merge(field.unwrap_span());
+                }
+
+                span
+            },
             _ => todo!(),
         }
     }

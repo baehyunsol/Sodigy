@@ -1,7 +1,5 @@
 use crate::{Expr, FullPattern, Session};
-use sodigy_error::{Warning, WarningKind};
 use sodigy_name_analysis::{
-    Counter,
     NameKind,
     Namespace,
     UseCount,

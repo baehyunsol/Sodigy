@@ -1,7 +1,7 @@
 use sodigy_token::{Delim, Keyword, Punct, TokenKind};
 
 // TokenKind for error variants
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ErrorToken {
     Nothing,
     Any,
@@ -17,9 +17,11 @@ pub enum ErrorToken {
     TypeAnnotation,
     Declaration,
     Expr,
+    Path,  // and identifier or a path
     Block,
     Operator,
     AssignOrLt,
+    AssignOrSemicolon,
     BraceOrCommaOrParenthesis,
     BraceOrParenthesis,
     ColonOrComma,

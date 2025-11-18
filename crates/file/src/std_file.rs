@@ -24,14 +24,14 @@ pub(crate) const STD_FILES: [(
         include_bytes!("../../../std/built_in/fns.sdg"),
         1002,
     ), (
-        "@std.lib.built_in.traits",
-        "@std/built_in/traits.sdg",
-        include_bytes!("../../../std/built_in/traits.sdg"),
-        1003,
-    ), (
         "@std.lib.built_in.types",
         "@std/built_in/types.sdg",
         include_bytes!("../../../std/built_in/types.sdg"),
+        1003,
+    ), (
+        "@std.lib.op",
+        "@std/op.sdg",
+        include_bytes!("../../../std/op.sdg"),
         1004,
     ), (
         "@std.lib.prelude",

@@ -1,7 +1,7 @@
 use crate::Session;
 use sodigy_endec::{DecodeError, DumpIr, Endec};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{FuncArgDef, GenericDef, StructFieldDef};
+use sodigy_hir::{Expr, FuncArgDef, GenericDef, Poly, StructFieldDef};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -19,6 +19,8 @@ impl Endec for Session {
 
         self.module_name_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
+        self.polys.encode_impl(buffer);
+        self.poly_impls.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -30,6 +32,8 @@ impl Endec for Session {
         let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (module_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
+        let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
+        let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -43,6 +47,8 @@ impl Endec for Session {
                 type_aliases,
                 module_name_map,
                 lang_items,
+                polys,
+                poly_impls,
                 errors,
                 warnings,
             },

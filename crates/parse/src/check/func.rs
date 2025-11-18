@@ -91,8 +91,10 @@ impl Func {
             }
         }
 
-        if let Err(e) = self.value.check(session) {
-            errors.extend(e);
+        if let Some(value) = &self.value {
+            if let Err(e) = value.check(session) {
+                errors.extend(e);
+            }
         }
 
         if errors.is_empty() {

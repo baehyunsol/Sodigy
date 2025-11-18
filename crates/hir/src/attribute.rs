@@ -418,6 +418,8 @@ impl Attribute {
                                     decorators.insert(
                                         ast_decorator.name,
                                         Decorator {
+                                            name: ast_decorator.name,
+                                            name_span: ast_decorator.name_span,
                                             args,
                                             keyword_args,
                                         },
@@ -437,6 +439,8 @@ impl Attribute {
                             decorators.insert(
                                 ast_decorator.name,
                                 Decorator {
+                                    name: ast_decorator.name,
+                                    name_span: ast_decorator.name_span,
                                     args: vec![],
                                     keyword_args: HashMap::new(),
                                 },
@@ -495,12 +499,8 @@ impl Attribute {
         }
     }
 
-    pub fn built_in(&self, intermediate_dir: &str) -> bool {
-        self.decorators.contains_key(&intern_string(b"built_in", intermediate_dir).unwrap())
-    }
-
-    pub fn any_type(&self, intermediate_dir: &str) -> bool {
-        self.decorators.contains_key(&intern_string(b"any_type", intermediate_dir).unwrap())
+    pub fn get_decorator<'a>(&'a self, key: &[u8], intermediate_dir: &str) -> Option<&'a Decorator> {
+        self.decorators.get(&intern_string(key, intermediate_dir).unwrap())
     }
 
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
@@ -536,6 +536,8 @@ pub struct AttributeRule {
 }
 
 impl AttributeRule {
+    // TODO: we need std_rules based on AttributeKind
+    //       for example, `trait` is only allowed for functions
     pub fn add_std_rules(&mut self, intermediate_dir: &str) {
         for (name, mut decorator) in [
             (
@@ -625,6 +627,8 @@ impl Visibility {
 
 #[derive(Clone, Debug)]
 pub struct Decorator {
+    pub name: InternedString,
+    pub name_span: Span,
     pub args: Vec<Expr>,
     pub keyword_args: HashMap<InternedString, Expr>,
 }
@@ -670,9 +674,10 @@ pub struct KeywordArgRule {
 
 #[derive(Clone, Copy, Debug)]
 pub enum ArgType {
+    Expr,
     StringLiteral,
     Generic,
-    Expr,
+    Path,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -704,6 +709,19 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
                     expected: ErrorToken::Generic,
+                    got: ErrorToken::Expr,
+                },
+                spans: arg.error_span().simple_error(),
+                note: error_note.clone(),
+            });
+            Err(())
+        },
+        (ArgType::Path, Expr::Identifier(_)) => Ok(()),
+        (ArgType::Path, Expr::Path { lhs, .. }) if matches!(&**lhs, Expr::Identifier(_)) => Ok(()),
+        (ArgType::Path, _) => {
+            session.errors.push(Error {
+                kind: ErrorKind::UnexpectedToken {
+                    expected: ErrorToken::Path,
                     got: ErrorToken::Expr,
                 },
                 spans: arg.error_span().simple_error(),

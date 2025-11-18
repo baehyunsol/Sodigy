@@ -1,18 +1,21 @@
 use crate::{
+    ArgCount,
+    ArgType,
     Attribute,
     AttributeKind,
     AttributeRule,
+    DecoratorRule,
     Expr,
     Let,
     LetOrigin,
+    Poly,
     Requirement,
     Session,
     Type,
     Visibility,
 };
-use sodigy_error::{Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{
-    Counter,
     IdentWithOrigin,
     Namespace,
     NameKind,
@@ -21,7 +24,7 @@ use sodigy_name_analysis::{
 };
 use sodigy_parse::{self as ast, GenericDef};
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -35,6 +38,7 @@ pub struct Func {
     pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
+    pub built_in: bool,
 
     // We have to distinguish closures and lambda functions
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
@@ -114,10 +118,35 @@ impl Func {
             },
         };
         let visibility = attribute.visibility.clone();
+        let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
+        let any_type = attribute.get_decorator(b"any_type", &session.intermediate_dir).is_some();
 
-        // TODO: what are we gonna do with these?
-        let built_in = attribute.built_in(&session.intermediate_dir);
-        let any_type = attribute.any_type(&session.intermediate_dir);
+        let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
+            Some(d) => {
+                session.polys.insert(ast_func.name_span, Poly {
+                    decorator_span: d.name_span,
+                    name: ast_func.name,
+                    name_span: ast_func.name_span,
+                    has_default_impl: ast_func.value.is_some(),
+                    impls: vec![],
+                });
+                true
+            },
+            None => false,
+        };
+
+        let is_impl = match attribute.get_decorator(b"impl", &session.intermediate_dir) {
+            Some(d) => {
+                session.poly_impls.push((d.args[0].clone(), ast_func.name_span));
+                true
+            },
+            None => false,
+        };
+
+        if is_poly || is_impl {
+            // TODO: make sure that it has a complete type annotation
+            // TODO: warn if it's a poly and has no generic args
+        }
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
@@ -161,20 +190,49 @@ impl Func {
             }
         }
 
-        let value = match Expr::from_ast(&ast_func.value, session) {
-            Ok(v) => Some(v),
-            Err(()) => {
-                has_error = true;
-                None
+        let value = match &ast_func.value {
+            Some(v) => match Expr::from_ast(v, session) {
+                // TODO: warn if a built_in func has a body
+                Ok(v) => Some(v),
+                Err(()) => {
+                    has_error = true;
+                    None
+                },
+            },
+            None => {
+                if is_poly || built_in {
+                    // nobody cares!
+                    Some(Expr::Char { ch: 0, span: Span::None })
+                }
+
+                else {
+                    has_error = true;
+                    session.errors.push(Error {
+                        kind: ErrorKind::FunctionWithoutBody,
+                        spans: ast_func.name_span.simple_error(),
+                        note: None,
+                    });
+                    None
+                }
             },
         };
 
         let mut use_counts = HashMap::new();
         let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
-        session.warn_unused_names(&names);
+
+        for (name, (_, _, count)) in names.iter() {
+            use_counts.insert(*name, *count);
+        }
+
+        if ast_func.value.is_some() {
+            session.warn_unused_names(&names);
+        }
 
         let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
-        session.warn_unused_names(&names);
+
+        if ast_func.value.is_some() {
+            session.warn_unused_names(&names);
+        }
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
 
@@ -193,6 +251,7 @@ impl Func {
                 r#type,
                 value: value.unwrap(),
                 origin,
+                built_in,
                 foreign_names,
                 use_counts,
             })
@@ -205,7 +264,29 @@ impl Func {
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
-            decorators: HashMap::new(),
+            decorators: vec![
+                (
+                    intern_string(b"poly", &session.intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"poly", &session.intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Never,
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"impl", &session.intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"impl", &session.intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_count_error_note: Some(String::from("It can implement exactly 1 poly.")),
+                        arg_type: ArgType::Path,
+                        arg_type_error_note: Some(String::from("Please specify which poly it implements.")),
+                        ..DecoratorRule::default()
+                    },
+                ),
+            ].into_iter().collect(),
         };
 
         if is_std {

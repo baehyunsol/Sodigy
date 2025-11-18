@@ -1,12 +1,14 @@
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{
     Alias,
     Assert,
     Expr,
+    FullPattern,
     Func,
     FuncArgDef,
     GenericDef,
     Let,
+    Pattern,
     Session as HirSession,
     StructFieldDef,
     Type,
@@ -95,6 +97,9 @@ impl Session {
         for alias in hir_session.aliases.drain(..) {
             self.type_aliases.insert(alias.name_span, alias);
         }
+
+        self.polys.extend(hir_session.polys.drain());
+        self.poly_impls.extend(hir_session.poly_impls.drain(..));
     }
 
     // Aliases might be nested. e.g.
@@ -206,6 +211,36 @@ impl Session {
         }
 
         Ok(())
+    }
+
+    pub fn resolve_poly(&mut self) -> Result<(), ()> {
+        let mut has_error = false;
+
+        for (mut path, impl_span) in self.poly_impls.clone().into_iter() {
+            let error_span = path.error_span();
+
+            if let Err(()) = self.resolve_expr(&mut path) {
+                has_error = true;
+            }
+
+            match path {
+                Expr::Identifier(id) => match self.polys.get_mut(&id.def_span) {
+                    Some(poly) => {
+                        poly.impls.push(impl_span);
+                    },
+                    None => todo!(),  // err
+                },
+                _ => todo!(),  // err
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
     }
 
     pub fn resolve_module(&mut self, hir_session: &mut HirSession) -> Result<(), ()> {
@@ -511,9 +546,7 @@ impl Session {
                             root: IdentWithOrigin {
                                 id: field_name,
                                 span: field_span,
-                                origin: NameOrigin::Foreign {
-                                    kind: *item_kind,
-                                },
+                                origin: NameOrigin::Foreign { kind: *item_kind },
                                 def_span: *item_span,
                             },
                             ..r#use.clone()
@@ -798,7 +831,37 @@ impl Session {
                 (Ok(()), Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
-            Expr::Match(r#match) => todo!(),
+            Expr::Match(r#match) => {
+                let mut has_error = false;
+
+                if let Err(()) = self.resolve_expr(&mut r#match.value) {
+                    has_error = true;
+                }
+
+                for branch in r#match.branches.iter_mut() {
+                    if let Err(()) = self.resolve_full_pattern(&mut branch.pattern) {
+                        has_error = true;
+                    }
+
+                    if let Some(cond) = &mut branch.cond {
+                        if let Err(()) = self.resolve_expr(cond) {
+                            has_error = true;
+                        }
+                    }
+
+                    if let Err(()) = self.resolve_expr(&mut branch.value) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             Expr::Block(block) => {
                 let mut has_error = false;
 
@@ -865,6 +928,58 @@ impl Session {
                     Ok(())
                 }
             },
+            Expr::Path { lhs, fields } => {
+                self.resolve_expr(lhs)?;
+
+                match &**lhs {
+                    Expr::Identifier(id) => match self.module_name_map.get(&id.def_span) {
+                        Some((_, items)) => {
+                            let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+
+                            match items.get(&field_name) {
+                                Some((item, kind)) => {
+                                    let new_root = Expr::Identifier(IdentWithOrigin {
+                                        id: field_name,
+                                        span: field_span,
+                                        origin: NameOrigin::Foreign { kind: *kind },
+                                        def_span: *item,
+                                    });
+
+                                    if fields.len() == 1 {
+                                        *expr = new_root;
+                                        Ok(())
+                                    }
+
+                                    else {
+                                        *expr = Expr::Path {
+                                            lhs: Box::new(new_root),
+                                            fields: fields[1..].to_vec(),
+                                        };
+                                        self.resolve_expr(expr)
+                                    }
+                                },
+                                None => {
+                                    self.errors.push(Error {
+                                        kind: ErrorKind::UndefinedName(field_name),
+                                        spans: field_span.simple_error(),
+                                        note: Some(format!(
+                                            "Module `{}` doesn't have an item named `{}`.",
+                                            String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                            String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                        )),
+                                    });
+                                    Err(())
+                                },
+                            }
+                        },
+                        None => Ok(()),
+                    },
+                    Expr::Path { .. } => todo!(),
+
+                    // `(1 + 2).a.b` -> `a` and `b` are fields
+                    _ => Ok(()),
+                }
+            },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
             Expr::InfixOp { lhs, rhs, .. } => match (
@@ -876,5 +991,31 @@ impl Session {
             },
             _ => panic!("TODO: {expr:?}"),
         }
+    }
+
+    pub fn resolve_full_pattern(&mut self, full_pattern: &mut FullPattern) -> Result<(), ()> {
+        let mut has_error = false;
+
+        if let Some(r#type) = &mut full_pattern.r#type {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                has_error = true;
+            }
+        }
+
+        if let Err(()) = self.resolve_pattern(&mut full_pattern.pattern) {
+            has_error = true;
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_pattern(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
+        todo!()
     }
 }

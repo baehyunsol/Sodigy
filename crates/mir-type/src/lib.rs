@@ -11,6 +11,7 @@ use sodigy_span::{
 use sodigy_string::unintern_string;
 
 mod error;
+mod mono;
 mod solver;
 
 pub use error::{ErrorContext, RenderTypeError, TypeError};
@@ -22,20 +23,24 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
     let mut generic_funcs = vec![];
 
     for func in session.funcs.iter() {
-        if func.generics.is_empty() {
-            if let Err(()) = solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
-                has_error = true;
-            }
+        if !func.generics.is_empty() {
+            // we'll solve this after monomorphization
+            generic_funcs.push(func);
+        }
+
+        else if func.built_in {
+            continue;
         }
 
         else {
-            // we'll solve this after monomorphization
-            generic_funcs.push(func);
+            if let (_, true) = solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
+                has_error = true;
+            }
         }
     }
 
     for r#let in session.lets.iter() {
-        if let Err(()) = solver.solve_let(r#let, &mut session.types, &mut session.generic_instances) {
+        if let (_, true) = solver.solve_let(r#let, &mut session.types, &mut session.generic_instances) {
             has_error = true;
         }
     }
@@ -49,8 +54,8 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
     // TODO: structs and enums
 
     // TODO: monomorphize generic funcs
-    for generic_func in generic_funcs.iter() {
-        println!("TODO: generic function {:?}", generic_func.name);
+    if let Err(()) = solver.monomorphize(&mut session) {
+        has_error = true;
     }
 
     solver.apply_never_types(

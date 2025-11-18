@@ -25,6 +25,7 @@ impl Endec for Func {
         self.r#type.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
+        self.built_in.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
         self.use_counts.encode_impl(buffer);
     }
@@ -39,6 +40,7 @@ impl Endec for Func {
         let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
+        let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
         let (use_counts, cursor) = HashMap::<InternedString, UseCount>::decode_impl(buffer, cursor)?;
 
@@ -53,6 +55,7 @@ impl Endec for Func {
                 r#type,
                 value,
                 origin,
+                built_in,
                 foreign_names,
                 use_counts,
             },

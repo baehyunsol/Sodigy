@@ -4,10 +4,12 @@ use crate::{
     AttributeRule,
     AttributeRuleKey,
     Enum,
+    Expr,
     Func,
     Let,
     LetOrigin,
     Module,
+    Poly,
     Struct,
     Use,
     prelude::prelude_namespace,
@@ -17,7 +19,7 @@ use sodigy_name_analysis::{Counter, NameKind, Namespace, UseCount};
 use sodigy_parse::Session as ParseSession;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {
@@ -54,8 +56,10 @@ pub struct Session {
     // modules are always top-level
     pub modules: Vec<Module>,
 
-    // inter-hir will collect this
+    // inter-hir will collect these
     pub lang_items: HashMap<String, Span>,
+    pub polys: HashMap<Span, Poly>,
+    pub poly_impls: Vec<(Expr /* path to the poly */, Span /* def_span of implementation */)>,
 
     // TODO: attribute for the current module
 
@@ -65,10 +69,25 @@ pub struct Session {
 
 impl Session {
     pub fn from_parse_session(parse_session: &ParseSession) -> Self {
+        let std_and_lib = Namespace::Block {
+            names: vec![
+                (
+                    intern_string(b"std", &parse_session.intermediate_dir).unwrap(),
+                    (Span::Std, NameKind::Module, UseCount::new()),
+                ),
+                (
+                    intern_string(b"lib", &parse_session.intermediate_dir).unwrap(),
+                    (Span::Lib, NameKind::Module, UseCount::new()),
+                ),
+            ].into_iter().collect::<HashMap<_, _>>(),
+        };
         let name_stack = if parse_session.is_std {
-            vec![]
+            vec![std_and_lib]
         } else {
-            vec![prelude_namespace(&parse_session.intermediate_dir)]
+            vec![
+                std_and_lib,
+                prelude_namespace(&parse_session.intermediate_dir),
+            ]
         };
 
         Session {
@@ -87,6 +106,8 @@ impl Session {
             uses: vec![],
             modules: vec![],
             lang_items: HashMap::new(),
+            polys: HashMap::new(),
+            poly_impls: vec![],
             errors: parse_session.errors.clone(),
             warnings: parse_session.warnings.clone(),
         }

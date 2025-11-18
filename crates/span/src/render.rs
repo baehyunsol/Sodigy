@@ -8,7 +8,7 @@ mod session;
 pub use color::Color;
 pub use session::Session as RenderSpanSession;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RenderableSpan {
     pub span: Span,
     pub auxiliary: bool,

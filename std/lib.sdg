@@ -1,13 +1,26 @@
 mod built_in;
+mod op;
 mod prelude;
 
-use built_in.types.{Bool, Byte, Char, Int};
+use built_in.types.{Byte, Char, Int, List};
 
 #[lang_item("type.String")]
 type String = [Char];
 
 #[lang_item("type.Bytes")]
 type Bytes = [Byte];
+
+#[lang_item("type.Bool")]
+pub enum Bool = {
+    True,
+    False,
+};
+
+#[lang_item("type.Number")]
+pub struct Number = {
+    numer: Int,
+    denom: Int,
+};
 
 // TODO: methods are not implemented yet
 /*

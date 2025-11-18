@@ -7,10 +7,10 @@ use crate::{
     Visibility,
 };
 use sodigy_error::{Error, ErrorKind};
-use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
+use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, intern_string};
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 // If it's `use a.b.c as x;`,
@@ -74,13 +74,7 @@ impl Use {
                 def_span,
             },
             _ => {
-                let (origin, def_span) = if name == intern_string(b"std", "").unwrap() {
-                    (NameOrigin::Foreign { kind: NameKind::Module }, Span::Std)
-                } else if name == intern_string(b"lib", "").unwrap() {
-                    (NameOrigin::Foreign { kind: NameKind::Module }, Span::Lib)
-                } else {
-                    (NameOrigin::External, Span::None)
-                };
+                let (origin, def_span) = (NameOrigin::External, Span::None);
 
                 IdentWithOrigin {
                     id: name,

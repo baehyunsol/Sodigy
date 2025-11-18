@@ -11,6 +11,7 @@ pub struct Func {
     pub args: Vec<FuncArgDef>,
     pub type_annotation_span: Option<Span>,
     pub value: Expr,
+    pub built_in: bool,
 }
 
 impl Func {
@@ -103,6 +104,7 @@ impl Func {
                 args,
                 type_annotation_span,
                 value: value.unwrap(),
+                built_in: hir_func.built_in,
             })
         }
     }

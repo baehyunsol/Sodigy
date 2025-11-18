@@ -573,8 +573,8 @@ impl Solver {
                 Ok(maybe_concrete.clone())
             },
             (
-                t1 @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
-                t2 @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. }),
+                Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
+                Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
             ) => {
                 if !is_checking_argument {
                     self.errors.push(TypeError::UnexpectedType {

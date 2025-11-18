@@ -1,8 +1,8 @@
 // Decorators for built-ins.
 // 1. `#[built_in]`: The compiler doesn't check the body of the func/enum/struct.
+//                   Also, it doesn't generate unused name warnings for the item.
 // 2. `#[any_type(T)]`: The generic parameter `T` can be anytype. The type checker and the inference engine
 //                      doesn't care about the exact type of `T`.
 
 mod fns;
-mod traits;
 mod types;

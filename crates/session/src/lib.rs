@@ -7,6 +7,7 @@ use sodigy_span::{
     Span,
     render_spans,
 };
+use std::collections::HashSet;
 
 pub trait Session {
     fn get_errors(&self) -> &[Error];
@@ -43,6 +44,12 @@ pub trait Session {
 }
 
 fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
+    // It has to deduplicate. Imagine
+    // 1. inter-hir generates warnings but no errors.
+    // 2. per-file hir will clone the warnings in inter-hir and continue
+    // 3. now we have duplicates of warnings, per file!
+    errors = errors.into_iter().collect::<HashSet<_>>().into_iter().collect();
+
     errors.sort_by_key(|e| e.spans.get(0).map(|s| s.span).unwrap_or(Span::None));
     // warnings come before errors
     errors.sort_by_key(

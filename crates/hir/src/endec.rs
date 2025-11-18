@@ -10,6 +10,7 @@ mod r#let;
 mod r#match;
 mod module;
 mod pattern;
+mod poly;
 mod session;
 mod r#struct;
 mod r#use;

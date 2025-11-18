@@ -1,5 +1,5 @@
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{Alias, FuncArgDef, GenericDef, StructFieldDef, Use};
+use sodigy_hir::{Alias, Expr, FuncArgDef, GenericDef, Poly, StructFieldDef, Use};
 use sodigy_name_analysis::NameKind;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
@@ -29,6 +29,11 @@ pub struct Session {
     // For example, you can get def_span of `Int` from this map by querying `lang_items.get("type.Int")`.
     pub lang_items: HashMap<String, Span>,
 
+    // It collects the polys from each module. After it ingested all the modules,
+    // it resolves paths in `poly_impls` and fills `.impls` fields in polys.
+    pub polys: HashMap<Span, Poly>,
+    pub poly_impls: Vec<(Expr, Span)>,
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -43,6 +48,8 @@ impl Session {
             type_aliases: HashMap::new(),
             module_name_map: HashMap::new(),
             lang_items: HashMap::new(),
+            polys: HashMap::new(),
+            poly_impls: vec![],
             errors: vec![],
             warnings: vec![],
         }

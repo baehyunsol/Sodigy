@@ -8,8 +8,7 @@ use crate::{
     Type,
     Visibility,
 };
-use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{Counter, Namespace, NameKind, UseCount};
+use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, GenericDef};
 use sodigy_span::Span;
 use sodigy_string::InternedString;

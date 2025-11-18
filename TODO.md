@@ -1,3 +1,65 @@
+# 86. more general generic system
+
+```
+#[poly]
+fn print<T>(v: T) -> String = v.to_string();
+
+#[impl(print)]
+fn print_int(n: Int) -> String = f"int: {n}";
+```
+
+When you call `print("100")`, it will use the default implementation in the body of `print`. If you call `print(3)`, it'll call `print_int`.
+
+You can also call `print_int` like normal functions.
+
+```
+#[poly]
+fn to_string<T>(v: T) -> String;
+
+#[impl(to_string)]
+fn to_string_int(n: Int) -> String = match n {
+    0 => "0",
+    1 => "1",
+    2 => "2",
+    _ => panic(),
+};
+```
+
+In this case, `to_string(0.5)` is a compile error because there's no implementation of `to_string` for `Fn(Number) -> String`.
+
+```
+// std
+#[poly]
+fn add<T, U, V>(a: T, b: U) -> V;
+
+#[built_in]
+#[impl(add)]
+fn add_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(add)]
+fn add_number(a: Number, b: Number) -> Number;
+
+// user
+3 + 4
+```
+
+It'll first convert `3 + 4` to `add(3, 4)`. The remaining is the same as user-defined polys.
+
+---
+
+1. Let's say there are 2 implementations for `add`: `Fn(Int, Int) -> Int` and `Fn(Number, Number) -> Number`.
+  - When `Fn(Int, Int) -> Int` is given, ... easy!
+  - When `Fn(Int, TypeVar(x)) -> Int` is given, it founds out that there's only 1 possible candidate. It also adds another type expression `TypeVar(x) = Int`.
+  - When `Fn(Int, Number) -> TypeVar(x)` is given, it founds out that there's no possible candidate. We have to be very careful when generating error messages
+2. Let's say there are 2 implementations for `index`: `Fn([T], Int) -> T` and `Fn(Map<K, V>, K) -> V` (TODO: generics in `Fn` types)
+  - We have to build a statemachine for this...
+3. Let's say there are a lot of implementations for `map` and 2 of them are `Fn(Option<T>, Fn(T) -> U) -> U` and `Fn(Option<Int>, Fn(Int) -> T) -> T`.
+  - When `Fn(Option<Int>, Fn(Int) -> TypeVar(x)) -> TypeVar(x)` is given, we have _ choices:
+    - silently choose more concrete one
+    - asks the user to specify one
+    - throw a compile error (there are multiple candidates)
+
 # 84. methods and traits
 
 1. syntax
@@ -13,6 +75,10 @@
   - How about a syntax that turns an arbitrary function into a method (connecting a function with a type)
 6. struct-constants, like `impl f32 { const PI: f32 = 3.1415; }` in Rust.
   - how about struct-structs, struct-enums, etc?
+
+아니면 이건 ㅇㄸ `a.b(c).d(e)`는 `d(b(a, c), e)`의 syntax sugar임 -> 무조건 풀고 시작하는 거!!
+-> 사실 이거는 단점이 너무 뚜렷함. syntax sugar로 써버리면 똑같은 namespace를 공유해야하잖아 ㅠㅠ
+-> 86번에서 논의 중인 trait system을 잘 활용하면 namespace 문제가 없을 수도 있음!!
 
 # 83. unused warnings
 

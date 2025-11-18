@@ -6,7 +6,7 @@ use sodigy_token::InfixOp;
 
 mod render;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum ErrorKind {
     InvalidNumberLiteral,
     InvalidStringLiteralPrefix,
@@ -52,6 +52,7 @@ pub enum ErrorKind {
     ModuleDecoratorNotAtTop,
     MissingVisibility,
     CannotBePublic,
+    FunctionWithoutBody,
     BlockWithoutValue,
     StructWithoutField,
     EmptyCurlyBraceBlock,

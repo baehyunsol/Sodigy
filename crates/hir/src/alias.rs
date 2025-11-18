@@ -8,9 +8,8 @@ use crate::{
     Session,
     Visibility,
 };
-use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{
-    Counter,
     IdentWithOrigin,
     Namespace,
     NameKind,

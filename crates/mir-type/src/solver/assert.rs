@@ -12,9 +12,9 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> Result<(), ()> {
-        let mut has_error = false;
+        let (assertion_type, mut has_error) = self.solve_expr(&assert.value, types, generic_instances);
 
-        if let Ok(assertion_type) = self.solve_expr(&assert.value, types, generic_instances) {
+        if let Some(assertion_type) = assertion_type {
             if let Err(()) = self.solve_subtype(
                 &Type::Static(self.get_lang_item_span("type.Bool")),
                 &assertion_type,
@@ -29,12 +29,11 @@ impl Solver {
             }
         }
 
-        else {
-            has_error = true;
-        }
-
         if let Some(note) = &assert.note {
-            if let Ok(note_type) = self.solve_expr(note, types, generic_instances) {
+            let (note_type, e) = self.solve_expr(note, types, generic_instances);
+            has_error |= e;
+
+            if let Some(note_type) = note_type {
                 if let Err(()) = self.solve_subtype(
                     &Type::Static(self.get_lang_item_span("type.String")),
                     &note_type,
@@ -47,10 +46,6 @@ impl Solver {
                 ) {
                     has_error = true;
                 }
-            }
-
-            else {
-                has_error = true;
             }
         }
 

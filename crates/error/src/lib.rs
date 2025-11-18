@@ -11,7 +11,7 @@ pub use level::ErrorLevel;
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Error {
     pub kind: ErrorKind,
 

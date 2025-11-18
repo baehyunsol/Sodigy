@@ -11,76 +11,80 @@ impl Solver {
     // It can solve type of any expression, but the result maybe `Type::Var`.
     // If it finds new type equations while solving, it adds them to `type_equations`.
     //
-    // It tries to find as many errors as possible before it returns.
-    // Sometimes, it can solve the expr even though there's an error.
-    // For example, `if 3 { 0 } else { 1 }` has an error, but its type
-    // is definitely an integer. In this case, it pushes the error to the
-    // solver and returns `Ok(Int)`.
+    // If there's no error, it must return the type of the expr: `(Some(ty), false)`.
+    // If there're errors, it'll still try to return the type, so that it
+    // can find more type errors (only obvious ones).
     pub fn solve_expr(
         &mut self,
         expr: &Expr,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
-    ) -> Result<Type, ()> {
+    ) -> (Option<Type>, bool /* has_error */) {
         match expr {
             Expr::Identifier(id) => match types.get(&id.def_span) {
-                Some(r#type) => Ok(r#type.clone()),
+                Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
-                    Ok(Type::Var {
-                        def_span: id.def_span,
-                        is_return: false,
-                    })
+                    (
+                        Some(Type::Var {
+                            def_span: id.def_span,
+                            is_return: false,
+                        }),
+                        false,
+                    )
                 },
             },
             Expr::Number { n, .. } => match n.is_integer {
-                true => Ok(Type::Static(self.get_lang_item_span("type.Int"))),
-                false => Ok(Type::Static(self.get_lang_item_span("type.Number"))),
+                true => (Some(Type::Static(self.get_lang_item_span("type.Int"))), false),
+                false => (Some(Type::Static(self.get_lang_item_span("type.Number"))), false),
             },
             Expr::String { binary, .. } => match *binary {
-                true => Ok(Type::Static(self.get_lang_item_span("type.Bytes"))),
-                false => Ok(Type::Static(self.get_lang_item_span("type.String"))),
+                true => (Some(Type::Static(self.get_lang_item_span("type.Bytes"))), false),
+                false => (Some(Type::Static(self.get_lang_item_span("type.String"))), false),
             },
             Expr::If(r#if) => {
-                let cond_type = self.solve_expr(r#if.cond.as_ref(), types, generic_instances)?;
-                let _ = self.solve_subtype(
-                    &Type::Static(self.get_lang_item_span("type.Bool")),
-                    &cond_type,
-                    types,
-                    generic_instances,
-                    false,
-                    None,
-                    Some(r#if.cond.error_span()),
-                    ErrorContext::IfConditionBool,
-                );
+                let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
+                if let Some(cond_type) = cond_type {
+                    if let Err(()) = self.solve_subtype(
+                        &Type::Static(self.get_lang_item_span("type.Bool")),
+                        &cond_type,
+                        types,
+                        generic_instances,
+                        false,
+                        None,
+                        Some(r#if.cond.error_span()),
+                        ErrorContext::IfConditionBool,
+                    ) {
+                        has_error = true;
+                    }
+                }
 
                 match (
                     self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
                     self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
                 ) {
-                    (Ok(true_type), Ok(false_type)) => {
-                        let expr_type = self.solve_subtype(
-                            &true_type,
-                            &false_type,
-                            types,
-                            generic_instances,
-                            false,
-                            Some(r#if.true_value.error_span()),
-                            Some(r#if.false_value.error_span()),
-                            ErrorContext::IfValueEqual,
-                        )?;
-                        Ok(expr_type)
+                    ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_subtype(
+                        &true_type,
+                        &false_type,
+                        types,
+                        generic_instances,
+                        false,
+                        Some(r#if.true_value.error_span()),
+                        Some(r#if.false_value.error_span()),
+                        ErrorContext::IfValueEqual,
+                    ) {
+                        Ok(expr_type) => (Some(expr_type), has_error | e1 | e2),
+                        Err(()) => (None, true),
                     },
-                    _ => Err(()),
+                    _ => (None, true),
                 }
             },
             Expr::Block(block) => {
                 let mut has_error = false;
 
                 for r#let in block.lets.iter() {
-                    if let Err(()) = self.solve_let(r#let, types, generic_instances) {
-                        has_error = true;
-                    }
+                    let (_, e) = self.solve_let(r#let, types, generic_instances);
+                    has_error |= e;
                 }
 
                 for assert in block.asserts.iter() {
@@ -89,7 +93,8 @@ impl Solver {
                     }
                 }
 
-                self.solve_expr(block.value.as_ref(), types, generic_instances)
+                let (expr_type, e) = self.solve_expr(block.value.as_ref(), types, generic_instances);
+                (expr_type, e || has_error)
             },
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
             Expr::ShortCircuit { lhs, rhs, kind, .. } => {
@@ -98,36 +103,43 @@ impl Solver {
                     ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
                     ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
                 };
-                let lhs_type = self.solve_expr(lhs.as_ref(), types, generic_instances)?;
-                let err1 = self.solve_subtype(
-                    &bool_type,
-                    &lhs_type,
-                    types,
-                    generic_instances,
-                    false,
-                    None,
-                    Some(lhs.error_span()),
-                    context,
-                ).is_err();
-                let rhs_type = self.solve_expr(rhs.as_ref(), types, generic_instances)?;
-                let err2 = self.solve_subtype(
-                    &bool_type,
-                    &rhs_type,
-                    types,
-                    generic_instances,
-                    false,
-                    None,
-                    Some(rhs.error_span()),
-                    context,
-                ).is_err();
+                let mut has_error = false;
+                let (lhs_type, e1) = self.solve_expr(lhs.as_ref(), types, generic_instances);
+                has_error |= e1;
+                let (rhs_type, e2) = self.solve_expr(rhs.as_ref(), types, generic_instances);
+                has_error |= e2;
 
-                if err1 || err2 {
-                    Err(())
+                if let Some(lhs_type) = lhs_type {
+                    if let Err(()) = self.solve_subtype(
+                        &bool_type,
+                        &lhs_type,
+                        types,
+                        generic_instances,
+                        false,
+                        None,
+                        Some(lhs.error_span()),
+                        context,
+                    ) {
+                        has_error = true;
+                    }
                 }
 
-                else {
-                    Ok(bool_type)
+                if let Some(rhs_type) = rhs_type {
+                    if let Err(()) = self.solve_subtype(
+                        &bool_type,
+                        &rhs_type,
+                        types,
+                        generic_instances,
+                        false,
+                        None,
+                        Some(rhs.error_span()),
+                        context,
+                    ) {
+                        has_error = true;
+                    }
                 }
+
+                (Some(bool_type), has_error)
             },
             // ---- draft ----
             // 1. we can solve types of args
@@ -144,17 +156,18 @@ impl Solver {
 
                 for arg in args.iter() {
                     match self.solve_expr(arg, types, generic_instances) {
-                        Ok(arg_type) => {
+                        (Some(arg_type), e) => {
                             arg_types.push(arg_type);
+                            has_error |= e;
                         },
-                        Err(()) => {
-                            has_error = true;
+                        (None, e) => {
+                            has_error = e;
                         },
                     }
                 }
 
                 if has_error {
-                    return Err(());
+                    return (None, true);
                 }
 
                 match func {
@@ -172,15 +185,20 @@ impl Solver {
 
                             if !generic_defs.is_empty() {
                                 for arg_def in arg_defs.iter_mut() {
-                                    arg_def.substitute_generic_def(expr.error_span(), &generic_defs);
+                                    arg_def.substitute_generic_def(span, &generic_defs);
                                 }
 
-                                return_type.substitute_generic_def(expr.error_span(), &generic_defs);
+                                return_type.substitute_generic_def(span, &generic_defs);
+
+                                for generic_def in generic_defs.iter() {
+                                    self.add_type_var(Type::GenericInstance { call: span, generic: *generic_def }, None);
+                                }
                             }
 
                             // It doesn't check arg types if there are wrong number of args.
                             // Whether or not there're type errors with args, it returns the return type.
                             if arg_types.len() != arg_defs.len() {
+                                has_error = true;
                                 self.errors.push(TypeError::WrongNumberOfArguments {
                                     expected: arg_defs,
                                     got: arg_types,
@@ -192,7 +210,7 @@ impl Solver {
 
                             else {
                                 for (i, arg_def) in arg_defs.iter().enumerate() {
-                                    let _ = self.solve_subtype(
+                                    if let Err(()) = self.solve_subtype(
                                         arg_def,
                                         &arg_types[i],
                                         types,
@@ -201,11 +219,13 @@ impl Solver {
                                         None,
                                         Some(args[i].error_span()),
                                         ErrorContext::FuncArgs,
-                                    );
+                                    ) {
+                                        has_error = true;
+                                    }
                                 }
                             }
 
-                            Ok(return_type)
+                            (Some(return_type), has_error)
                         },
                         // We're sure that `f` is not a function.
                         // For example, `let f = 3; f()`.
@@ -214,28 +234,30 @@ impl Solver {
                                 r#type: t.clone(),
                                 func_span: *span,
                             });
-                            Err(())
+                            (None, true)
                         },
                         // We only type check/infer monomorphized functions.
                         Some(Type::GenericDef(_)) => unreachable!(),
                         // This is not a type error because `!` is subtype of every type.
-                        Some(t @ Type::Never(_)) => Ok(t.clone()),
+                        Some(t @ Type::Never(_)) => (Some(t.clone()), has_error),
                         // `let foo = bar(); foo()`.
                         // We're solving the expression `foo()`, we don't know the exact type
                         // of `foo` and `bar()`, but we now know that they have the same type.
                         Some(Type::Var { .. } | Type::GenericInstance { .. }) => todo!(),
                         None => todo!(),
                     },
-                    Callable::TupleInit { group_span } => Ok(Type::Param {
-                        // `Type::Unit`'s `group_span` is of type annotation,
-                        // and `Callable::TupleInit`'s `group_span` is of the expression/
-                        r#type: Box::new(Type::Unit(Span::None)),
-                        args: arg_types,
+                    Callable::TupleInit { group_span } => (
+                        Some(Type::Param {
+                            // `Type::Unit`'s `group_span` is of type annotation,
+                            // and `Callable::TupleInit`'s `group_span` is of the expression/
+                            r#type: Box::new(Type::Unit(Span::None)),
+                            args: arg_types,
 
-                        // this is for the type annotation, hence None
-                        group_span: Span::None,
-                    }),
-                    // TODO: handle generics like how `Callable::Static` does
+                            // this is for the type annotation, hence None
+                            group_span: Span::None,
+                        }),
+                        has_error,
+                    ),
                     Callable::ListInit { group_span } => {
                         // We can treat a list initialization (`[1, 2, 3]`) like calling a
                         // function with variadic arguments (`list.init(1, 2, 3)`).
@@ -243,20 +265,22 @@ impl Solver {
                         // Then, an empty initialization is like calling a generic function
                         // but we don't know its generic yet.
                         if arg_types.is_empty() {
-                            let type_var = Type::GenericInstance { call: *group_span, generic: Span::None };
+                            let type_var = Type::GenericInstance { call: *group_span, generic: self.get_lang_item_span("fn.init_list.generic.0") };
                             self.add_type_var(type_var.clone(), None);
 
-                            Ok(Type::Param {
+                            let r#type = Type::Param {
                                 r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
                                 args: vec![type_var],
 
                                 // this is for the type annotation, hence None
                                 group_span: Span::None,
-                            })
+                            };
+                            (Some(r#type), false)
                         }
 
                         else {
                             let mut elem_type = arg_types[0].clone();
+                            let mut has_error = false;
 
                             for i in 1..arg_types.len() {
                                 if let Ok(new_elem_type) = self.solve_subtype(
@@ -271,19 +295,29 @@ impl Solver {
                                 ) {
                                     elem_type = new_elem_type;
                                 }
+
+                                else {
+                                    has_error = true;
+                                }
                             }
 
-                            Ok(Type::Param {
+                            let r#type = Type::Param {
                                 r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
                                 args: vec![elem_type],
 
                                 // this is for the type annotation, hence None
                                 group_span: Span::None,
-                            })
+                            };
+                            (Some(r#type), has_error)
                         }
                     },
                     Callable::Dynamic(func) => {
-                        let func_type = self.solve_expr(func, types, generic_instances)?;
+                        let (func_type, mut has_error) = match self.solve_expr(func, types, generic_instances) {
+                            (Some(func_type), has_error) => (func_type, has_error),
+                            (None, has_error) => {
+                                return (None, has_error);
+                            },
+                        };
 
                         match func_type {
                             // TODO: What if there's a callable `Type::Static()` or `Type::Param {}`?
@@ -292,7 +326,7 @@ impl Solver {
                                     r#type: func_type.clone(),
                                     func_span: func.error_span(),
                                 });
-                                return Err(());
+                                return (None, true);
                             },
 
                             // We'll only type check/infer monomorphized functions.
@@ -302,6 +336,7 @@ impl Solver {
                                 // It doesn't check arg types if there are wrong number of args.
                                 // Whether or not there're type errors with args, it returns the return type.
                                 if arg_types.len() != arg_defs.len() {
+                                    has_error = true;
                                     self.errors.push(TypeError::WrongNumberOfArguments {
                                         expected: arg_defs,
                                         got: arg_types,
@@ -313,7 +348,7 @@ impl Solver {
 
                                 else {
                                     for i in 0..arg_defs.len() {
-                                        let _ = self.solve_subtype(
+                                        if let Err(()) = self.solve_subtype(
                                             &arg_defs[i],
                                             &arg_types[i],
                                             types,
@@ -322,11 +357,13 @@ impl Solver {
                                             None,
                                             Some(args[i].error_span()),
                                             ErrorContext::FuncArgs,
-                                        );
+                                        ) {
+                                            has_error = true;
+                                        }
                                     }
                                 }
 
-                                Ok(*r#return.clone())
+                                (Some(*r#return.clone()), has_error)
                             },
                             _ => panic!("TODO: {func:?}"),
                         }

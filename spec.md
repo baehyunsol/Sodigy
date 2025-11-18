@@ -275,6 +275,64 @@ Syntactically, type annotations are always optional. It won't throw any syntax e
 - `Fn(Int, Int) -> Int`: A function that takes 2 integers and returns 1 integer.
 - `Result<_, _>`: You can omit a part of a type annotation.
 
+## Generics
+
+TODO: documentation
+
+## More generics
+
+NOTE: It's a dark magic. DO NOT USE THIS.
+
+You can make generic functions even more generic with `#[poly]` decorator.
+
+```sodigy
+// A polymorphic generic doesn't require a body.
+#[poly]
+fn greet<T>(v: T) -> String;
+
+#[impl(greet)]
+fn greet_int(n: Int) -> String = f"Hello, integer {n}!";
+
+#[impl(greet)]
+fn greet_number(n: Number) -> String = f"Hello, number {n}!";
+
+assert greet(3) == "Hello, integer 3!";
+assert greet(3.0) == "Hello, number 3.0!";
+
+#[note("You can explicitly call impls.")]
+assert greet_int(3) == "Hello, integer 3!";
+
+// This is a type error.
+// assert greet_number(3) == "Hello, number 3!";
+```
+
+When you call `greet`, the compiler tries to find an implementation that matches the types of the arguments. If it can't find one, that's a type error. If it finds multiple, (TODO: what should I do?).
+
+You can provide the default implementation of `poly`. If the compiler cannot find an implementation, it'll use the default implementation.
+
+```sodigy
+#[poly]
+fn greet<T>(v: T) -> String = f"Hello, {v}!";
+
+#[impl(greet)]
+fn greet_int(n: Int) -> String = "Hello, number {n}!";
+
+assert greet("World") == "Hello, World!";
+assert greet(3) == "Hello, number 3!";
+```
+
+Since `greet` has type `Fn(T) -> String`, all its impls must return `String`. That saying, type signature of implementations of a poly generic must be compatible with the poly generic.
+
+For example, below does not compile because `first` expects the return type and the first argument's type to be the same, but `first_int` takes `(Int, String)` as inputs and returns `String`.
+
+```sodigy, assert_compile_error
+#[poly]
+fn first<T, U>(x: T, y: U) -> T;
+
+#[impl(first)]
+fn first_int(x: Int, y: String) -> String = y;
+```
+
 ## Tests
 
 TODO: documentation

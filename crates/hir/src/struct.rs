@@ -9,8 +9,7 @@ use crate::{
     Session,
     Visibility,
 };
-use sodigy_error::{Warning, WarningKind};
-use sodigy_name_analysis::{Counter, Namespace, NameKind, UseCount};
+use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;

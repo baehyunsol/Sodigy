@@ -40,6 +40,7 @@ impl ErrorLevel {
             ErrorKind::ModuleDecoratorNotAtTop |
             ErrorKind::MissingVisibility |
             ErrorKind::CannotBePublic |
+            ErrorKind::FunctionWithoutBody |
             ErrorKind::BlockWithoutValue |
             ErrorKind::StructWithoutField |
             ErrorKind::EmptyCurlyBraceBlock |

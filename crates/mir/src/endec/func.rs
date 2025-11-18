@@ -12,6 +12,7 @@ impl Endec for Func {
         self.args.encode_impl(buffer);
         self.type_annotation_span.encode_impl(buffer);
         self.value.encode_impl(buffer);
+        self.built_in.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -21,6 +22,7 @@ impl Endec for Func {
         let (args, cursor) = Vec::<FuncArgDef>::decode_impl(buffer, cursor)?;
         let (type_annotation_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
+        let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
             Func {
@@ -30,6 +32,7 @@ impl Endec for Func {
                 args,
                 type_annotation_span,
                 value,
+                built_in,
             },
             cursor,
         ))

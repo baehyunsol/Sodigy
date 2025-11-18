@@ -341,7 +341,7 @@ fn main() -> Result<(), Error> {
                             output_path: None,
                             backend: Backend::Bytecode,
                             profile: Profile::Test,
-                            optimization: Optimization::None,
+                            optimization,
                         },
                         Command::Interpret {
                             bytecodes_path: StoreIrAt::Memory,
@@ -350,18 +350,15 @@ fn main() -> Result<(), Error> {
                     ],
                     id: run_id,
                 })?;
-                run_id += 1;
 
                 match workers[0].recv() {
                     Ok(msg) => match msg {
-                        _ => todo!(),
+                        MessageToMain::FoundModuleDef { .. } => unreachable!(),
+                        MessageToMain::RunComplete { .. } => Ok(()),
+                        MessageToMain::Error { e, .. } => Err(e),
                     },
-                    Err(_) => {
-                        return Err(Error::MpscError);
-                    },
+                    Err(_) => Err(Error::MpscError),
                 }
-
-                Ok(())
             },
             _ => panic!("TODO: {command:?}"),
         },
@@ -617,6 +614,8 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 }
 
                 let _ = inter_hir_session.resolve_alias();
+                let _ = inter_hir_session.resolve_poly();
+
                 emit_irs_if_has_to(
                     &inter_hir_session,
                     &[

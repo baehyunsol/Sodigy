@@ -11,8 +11,8 @@ impl Solver {
         func: &Func,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
-    ) -> Result<Type, ()> {
-        let infered_type = self.solve_expr(&func.value, types, generic_instances)?;
+    ) -> (Option<Type>, bool /* has_error */) {
+        let (infered_type, mut has_error) = self.solve_expr(&func.value, types, generic_instances);
         let mut span_to_name_map = vec![(func.name_span, func.name)];
 
         for arg in func.args.iter() {
@@ -46,17 +46,21 @@ impl Solver {
             _ => unreachable!(),
         };
 
-        self.solve_subtype(
-            &annotated_type,
-            &infered_type,
-            types,
-            generic_instances,
-            false,
-            annotation_span,
-            Some(value_span),
-            context,
-        )?;
+        if let Some(infered_type) = infered_type {
+            if let Err(()) = self.solve_subtype(
+                &annotated_type,
+                &infered_type,
+                types,
+                generic_instances,
+                false,
+                annotation_span,
+                Some(value_span),
+                context,
+            ) {
+                has_error = true;
+            }
+        }
 
-        Ok(infered_type)
+        (Some(*annotated_type), has_error)
     }
 }
