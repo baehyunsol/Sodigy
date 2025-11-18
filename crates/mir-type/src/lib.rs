@@ -12,9 +12,12 @@ use sodigy_string::unintern_string;
 
 mod error;
 mod mono;
+mod poly;
 mod solver;
 
 pub use error::{ErrorContext, RenderTypeError, TypeError};
+pub(crate) use mono::GenericCall;
+pub(crate) use poly::SolvePolyResult;
 use solver::Solver;
 
 pub fn solve(mut session: Session) -> (Session, Solver) {

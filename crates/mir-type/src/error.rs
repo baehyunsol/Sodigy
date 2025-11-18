@@ -66,6 +66,8 @@ pub enum TypeError {
         r#type: Type,
         func_span: Span,
     },
+    // TODO: more info
+    CannotSpecializePolyGeneric,
 }
 
 #[derive(Clone, Copy, Debug)]

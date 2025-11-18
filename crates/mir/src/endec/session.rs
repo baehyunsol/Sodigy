@@ -1,7 +1,7 @@
 use crate::{Assert, Func, Let, Session, Type};
 use sodigy_endec::{DecodeError, DumpIr, Endec};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{FuncArgDef, GenericDef, StructFieldDef};
+use sodigy_hir::{FuncArgDef, GenericDef, Poly, StructFieldDef};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -28,6 +28,7 @@ impl Endec for Session {
         // self.span_string_map.encode_impl(buffer);
 
         self.lang_items.encode_impl(buffer);
+        self.polys.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -42,6 +43,7 @@ impl Endec for Session {
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_instances, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
+        let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -59,6 +61,7 @@ impl Endec for Session {
                 generic_instances,
                 span_string_map: None,
                 lang_items,
+                polys,
                 errors,
                 warnings,
             },

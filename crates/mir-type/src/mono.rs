@@ -1,58 +1,74 @@
-use crate::Solver;
+use crate::{SolvePolyResult, Solver};
+use sodigy_hir::Poly;
 use sodigy_mir::{Session, Type};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Solver {
     pub fn monomorphize(&mut self, session: &mut Session) -> Result<(), ()> {
-        // let mut generic_calls = HashMap::new();
-        // let operators = _;
+        let poly_solver = self.init_poly_solvers(session)?;
+        let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
+        let mut has_error = false;
 
-        // for type_var in self.type_vars.keys() {
-        //     match type_var {
-        //         Type::GenericInstance { call, generic } => match generic_calls.entry(*call) {
-        //             Entry::Occupied(_) => {},
-        //             Entry::Vacant(e) => {
-        //                 e.insert(GenericCall {
-        //                     call: *call,
-        //                     def: *session.generic_def_span_rev.get(generic).unwrap(),
-        //                 });
-        //             },
-        //         },
-        //         _ => {},
-        //     }
-        // }
+        for type_var in self.type_vars.keys() {
+            match type_var {
+                Type::GenericInstance { call, generic } => {
+                    let r#type = session.generic_instances.get(&(*call, *generic)).unwrap().clone();
 
-        // if generic_calls.is_empty() {
-        //     return Ok(());
-        // }
+                    match generic_calls.entry(*call) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().generics.insert(*generic, r#type);
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert(GenericCall {
+                                call: *call,
+                                def: *session.generic_def_span_rev.get(generic).unwrap(),
+                                generics: [(*generic, r#type)].into_iter().collect(),
+                            });
+                        },
+                    }
+                },
+                _ => {},
+            }
+        }
 
-        // for generic_call in generic_calls.iter() {
-        //     if let Some(_) = operators.get(&generic_call.def) {
-        //         let generic_types = vec![];
+        if generic_calls.is_empty() {
+            return Ok(());
+        }
 
-        //         for generic_def in _.generic_defs.iter() {
-        //             match session.generic_instances.get(&(generic_call.call, *generic_def)) {}
-        //         }
-        //     }
+        for (_, generic_call) in generic_calls.iter() {
+            match self.try_solve_poly(&session.polys, &poly_solver, generic_call) {
+                Ok(SolvePolyResult::NotPoly) => {
+                    // a normal generic function
+                    todo!()
+                },
+                Ok(_) => todo!(),
+                Err(()) => {
+                    has_error = true;
+                },
+            }
+        }
 
-        //     // 1. if it's an operator,...
-        //     //    get the list of the implementations of the operator
-        //     //        -> problem is that, each implementation may have generic arguments
-        //     // 2. if it's a function,...
-        //     //    get the list of generic_def_spans of the function
-        //     //    and check if all the generic args have the type
-        //     //       if so: monomorphize it
-        //     //       if not: push this to queue
-        //     // 3. if it's a struct,...
-        // }
+        if has_error {
+            Err(())
+        }
 
-        Ok(())
+        else {
+            Ok(())
+        }
     }
 }
 
+// Let's say there're
+// `fn add<T, U, V>(a: T, b: U) -> V;`
+// and
+// `let x = add(3, 4);`
+//
+// This would be
+// `GenericCall { call: span_of_add_in_expr, def: span_of_add_in_definition, generics: { T: Int, U: Int, V: TypeVar(V) } }`
 #[derive(Clone, Debug)]
-struct GenericCall {
+pub struct GenericCall {
     pub call: Span,
     pub def: Span,
+    pub generics: HashMap<Span, Type>,
 }

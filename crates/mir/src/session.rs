@@ -1,6 +1,6 @@
 use crate::{Assert, Func, Let, Type};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, FuncArgDef, GenericDef, StructFieldDef};
+use sodigy_hir::{self as hir, FuncArgDef, GenericDef, Poly, StructFieldDef};
 use sodigy_inter_hir as inter_hir;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
@@ -40,6 +40,7 @@ pub struct Session {
     pub span_string_map: Option<HashMap<Span, InternedString>>,
 
     pub lang_items: HashMap<String, Span>,
+    pub polys: HashMap<Span, Poly>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -61,6 +62,7 @@ impl Session {
             generic_instances: HashMap::new(),
             span_string_map: Some(HashMap::new()),
             lang_items: inter_hir_session.lang_items.clone(),
+            polys: inter_hir_session.polys.clone(),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
         }
