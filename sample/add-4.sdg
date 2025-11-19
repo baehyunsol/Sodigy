@@ -19,7 +19,7 @@ fn adder_test(x, y) = {
     let answer = x + y;
 
     if result != answer {
-        panic(f"got: {x} + {y},result: {result}, answer: {answer}")
+        panic(f"got: {x} + {y}, result: {result}, answer: {answer}")
     } else {
         ()
     }

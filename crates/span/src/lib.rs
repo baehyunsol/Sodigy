@@ -100,6 +100,16 @@ impl Span {
         }
     }
 
+    pub fn offset(&mut self, offset: usize) {
+        match self {
+            Span::Range { start, end, .. } => {
+                *start += offset;
+                *end += offset;
+            },
+            _ => {},
+        }
+    }
+
     /// An error takes `Vec<RenderableSpan>` as an input,
     /// but we're too lazy to instantiate one.
     pub fn simple_error(&self) -> Vec<RenderableSpan> {

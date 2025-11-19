@@ -29,6 +29,33 @@ impl Token {
     pub fn expr_begin(&self) -> bool {
         self.kind.expr_begin()
     }
+
+    pub fn offset_span(&mut self, offset: usize) {
+        match &mut self.kind {
+            TokenKind::FormattedString { elements, .. } => {
+                for element in elements.iter_mut() {
+                    match element {
+                        TokensOrString::Tokens { tokens, span } => {
+                            for token in tokens.iter_mut() {
+                                token.offset_span(offset);
+                            }
+
+                            span.offset(offset);
+                        },
+                        _ => {},
+                    }
+                }
+            },
+            TokenKind::Group { tokens, .. } => {
+                for token in tokens.iter_mut() {
+                    token.offset_span(offset);
+                }
+            },
+            _ => {},
+        }
+
+        self.span.offset(offset);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -36,9 +63,6 @@ pub enum TokenKind {
     Keyword(Keyword),
     Identifier(InternedString),
     Number(InternedNumber),
-
-    // TODO: I want the spans of formatted strings and binary strings to include
-    // their prefixes (`f` and `b`), but they don't.
     String {
         binary: bool,
         raw: bool,
@@ -50,6 +74,13 @@ pub enum TokenKind {
     // `181b` is a valid byte, but `b'µ'` is not.
     // The `b'_'` syntax is only valid for ascii characters.
     Byte(u8),
+    FormattedString {
+        raw: bool,
+
+        // It filters out empty strings.
+        // For example, `f""`'s `elements` is `vec![]`.
+        elements: Vec<TokensOrString>,
+    },
     FieldModifier(InternedString),
     DocComment {
         // `//!`
@@ -102,6 +133,7 @@ impl TokenKind {
             TokenKind::Char(_) |
             TokenKind::Byte(_) => true,
 
+            TokenKind::FormattedString { .. } |
             TokenKind::Keyword(_) |
             TokenKind::FieldModifier(_) |
             TokenKind::DocComment { .. } |
@@ -132,7 +164,8 @@ impl TokenKind {
             TokenKind::Number(_) |
             TokenKind::String { .. } |
             TokenKind::Char(_) |
-            TokenKind::Byte(_) => true,
+            TokenKind::Byte(_) |
+            TokenKind::FormattedString { .. } => true,
 
             TokenKind::FieldModifier(_) |
             TokenKind::DocComment { .. } |
@@ -160,4 +193,13 @@ impl TokenKind {
             TokenKind::Group { .. } => true,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum TokensOrString {
+    Tokens {
+        tokens: Vec<Token>,
+        span: Span,
+    },
+    String(InternedString),
 }

@@ -1,5 +1,5 @@
 use super::check_call_args;
-use crate::{Expr, Session};
+use crate::{Expr, ExprOrString, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -25,6 +25,25 @@ impl Expr {
 
                 if let Err(e) = check_call_args(args, session) {
                     errors.extend(e);
+                }
+
+                if errors.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    Err(errors)
+                }
+            },
+            Expr::FormattedString { elements, .. } => {
+                let mut errors = vec![];
+
+                for element in elements.iter() {
+                    if let ExprOrString::Expr(expr) = element {
+                        if let Err(e) = expr.check(session) {
+                            errors.extend(e);
+                        }
+                    }
                 }
 
                 if errors.is_empty() {

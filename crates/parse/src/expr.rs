@@ -21,6 +21,7 @@ use sodigy_token::{
     Punct,
     Token,
     TokenKind,
+    TokensOrString,
 };
 
 #[derive(Clone, Debug)]
@@ -56,6 +57,11 @@ pub enum Expr {
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
+    },
+    FormattedString {
+        raw: bool,
+        elements: Vec<ExprOrString>,
+        span: Span,
     },
     Tuple {
         elements: Vec<Expr>,
@@ -233,6 +239,32 @@ impl<'t> Tokens<'t> {
                 let (b, span) = (*b, *span);
                 self.cursor += 1;
                 Expr::Byte { b, span }
+            },
+            Some(Token { kind: TokenKind::FormattedString { raw, elements: token_elements }, span }) => {
+                let (raw, span) = (*raw, *span);
+                let mut elements = Vec::with_capacity(token_elements.len());
+
+                for element in token_elements.iter() {
+                    match element {
+                        TokensOrString::String(s) => {
+                            elements.push(ExprOrString::String(*s));
+                        },
+                        TokensOrString::Tokens { tokens, span } => {
+                            let mut tokens = Tokens::new(tokens, span.end());
+                            let expr = tokens.parse_expr()?;
+
+                            // TODO: make sure that there's no remaining tokens
+                            elements.push(ExprOrString::Expr(expr));
+                        },
+                    }
+                }
+
+                self.cursor += 1;
+                Expr::FormattedString {
+                    raw,
+                    elements,
+                    span,
+                }
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
             Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),
@@ -516,6 +548,9 @@ impl<'t> Tokens<'t> {
 
                             let mut tokens = Tokens::new(tokens, span.end());
                             let rhs = tokens.parse_expr()?;
+
+                            // TODO: make sure that there's no remaining tokens
+
                             self.cursor += 1;
                             lhs = Expr::InfixOp {
                                 op: InfixOp::Index,
@@ -608,6 +643,12 @@ impl<'t> Tokens<'t> {
 
         Ok(exprs)
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum ExprOrString {
+    Expr(Expr),
+    String(InternedString),
 }
 
 fn path_binding_power() -> (u32, u32) {

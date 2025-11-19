@@ -13,6 +13,7 @@ pub enum ErrorKind {
     InvalidCharacterInIdentifier(char),
     WrongNumberOfQuotesInRawStringLiteral,
     UnterminatedStringLiteral,
+    NotAllowedCharInFString(u8),
     InvalidCharLiteral,
     InvalidCharLiteralPrefix,
     UnterminatedCharLiteral,

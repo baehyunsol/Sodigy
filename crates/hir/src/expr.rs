@@ -136,6 +136,7 @@ impl Expr {
                     _ => Err(()),
                 }
             },
+            ast::Expr::FormattedString { .. } => todo!(),
             ast::Expr::Tuple { elements, group_span } |
             ast::Expr::List { elements, group_span } => {
                 let is_tuple = matches!(ast_expr, ast::Expr::Tuple { .. });

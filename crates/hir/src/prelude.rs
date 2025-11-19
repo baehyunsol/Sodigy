@@ -10,6 +10,7 @@ use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 
+// TODO: read `std/prelude.sdg` and actually import names from the file.
 // TODO: I want to call `intern_string(b"Int")`, but it's not a const function.
 //       I can solve it by importing lazy_static, but I don't want external dependencies.
 const PRELUDES: [&'static [u8]; 11] = [

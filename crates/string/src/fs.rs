@@ -54,7 +54,7 @@ pub fn read_fs_map(dir: &str, id: InternedString) -> Result<Option<Vec<u8>>, Fil
     let lock_file = File::create(&lock_file_path).map_err(|e| FileError::from_std(e, &lock_file_path))?;
     lock_file.lock().map_err(|e| FileError::from_std(e, &lock_file_path))?;
 
-    let result = if id.length() >= 256 {
+    let result = if id.len() >= 256 {
         let stored_at = join(dir, &format!("{:x}", id.0))?;
 
         if exists(&stored_at) {

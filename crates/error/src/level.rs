@@ -15,6 +15,7 @@ impl ErrorLevel {
             ErrorKind::InvalidCharacterInIdentifier(_) |
             ErrorKind::WrongNumberOfQuotesInRawStringLiteral |
             ErrorKind::UnterminatedStringLiteral |
+            ErrorKind::NotAllowedCharInFString(_) |
             ErrorKind::InvalidCharLiteral |
             ErrorKind::InvalidCharLiteralPrefix |
             ErrorKind::UnterminatedCharLiteral |

@@ -6,7 +6,7 @@ use sodigy_file::File;
 use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
+use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind, TokensOrString};
 
 mod endec;
 mod session;
@@ -27,16 +27,13 @@ pub(crate) enum LexState {
         raw: bool,
     },
     String {
+        format: bool,
         binary: bool,
         raw: bool,
         quote_count: usize,
     },
     Char {
         binary: bool,
-    },
-    FormattedString {
-        raw: bool,
-        quote_count: usize,
     },
 
     Identifier,
@@ -68,6 +65,7 @@ pub fn lex(
         token_start: 0,
         buffer1: vec![],
         buffer2: vec![],
+        fstring_buffer: vec![],
         errors: vec![],
         warnings: vec![],
     };
@@ -97,6 +95,9 @@ impl Session {
                 (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(b'"' | b'\'')) |
                 (Some(b'a'..=b'z'), Some(b'"' | b'\''), _) |
                 (Some(b'"' | b'\''), _, _) => {
+                    self.buffer1.clear();
+                    self.fstring_buffer.clear();
+                    self.token_start = self.cursor;
                     self.state = LexState::StringPrefix;
                 },
                 (Some(x @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _, _) => {
@@ -705,24 +706,12 @@ impl Session {
 
                         // start of a literal
                         _ => {
-                            self.token_start = self.cursor;
-
-                            if format {
-                                self.state = LexState::FormattedString {
-                                    raw,
-                                    quote_count,
-                                };
-                            }
-
-                            else {
-                                self.buffer1.clear();
-                                self.state = LexState::String {
-                                    binary,
-                                    raw,
-                                    quote_count,
-                                };
-                            }
-
+                            self.state = LexState::String {
+                                format,
+                                binary,
+                                raw,
+                                quote_count,
+                            };
                             self.cursor += quote_count;
                         },
                     }
@@ -730,8 +719,10 @@ impl Session {
                 // an empty string literal
                 (Some(b'"'), Some(b'"'), _) => {
                     let token_kind = if format {
-                        // TokenKind::FormattedString {}
-                        todo!()
+                        TokenKind::FormattedString {
+                            raw,
+                            elements: vec![],
+                        }
                     } else {
                         TokenKind::String {
                             binary,
@@ -763,54 +754,70 @@ impl Session {
                     });
                 },
                 (Some(b'"'), _, _) => {
-                    self.buffer1.clear();
-                    self.token_start = self.cursor;
-
-                    if format {
-                        self.state = LexState::FormattedString {
-                            raw,
-                            quote_count: 1,
-                        };
-                    }
-
-                    else {
-                        self.state = LexState::String {
-                            binary,
-                            raw,
-                            quote_count: 1,
-                        };
-                    }
-
+                    self.state = LexState::String {
+                        format,
+                        binary,
+                        raw,
+                        quote_count: 1,
+                    };
                     self.cursor += 1;
                 },
                 (Some(b'\''), _, _) => {
-                    self.token_start = self.cursor;
                     self.state = LexState::Char { binary };
                     self.cursor += 1;
                 },
                 _ => unreachable!(),
             },
-            LexState::String { binary, raw: true, quote_count } => match (
+            LexState::String { format, binary, raw: true, quote_count } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
             ) {
+                (Some(b'{'), _, _) if format => {
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
+                    self.fstring_buffer.push(TokensOrString::String(interned));
+                    self.lex_formatted_string()?;
+                    self.buffer1.clear();
+                },
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
-                    self.tokens.push(Token {
-                        kind: TokenKind::String {
-                            binary,
-                            raw: true,
-                            s: interned,
-                        },
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor,
-                        ),
-                    });
+                    if format {
+                        self.fstring_buffer.push(TokensOrString::String(interned));
+                        self.tokens.push(Token {
+                            kind: TokenKind::FormattedString {
+                                raw: true,
+                                elements: self.fstring_buffer.drain(..).filter(
+                                    |t| match t {
+                                        TokensOrString::String(s) if s.len() == 0 => false,
+                                        _ => true,
+                                    }
+                                ).collect(),
+                            },
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor,
+                            ),
+                        });
+                    }
+
+                    else {
+                        self.tokens.push(Token {
+                            kind: TokenKind::String {
+                                binary,
+                                raw: true,
+                                s: interned,
+                            },
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor,
+                            ),
+                        });
+                    }
+
                     self.state = LexState::Init;
                     self.cursor += 1;
                 },
@@ -846,16 +853,22 @@ impl Session {
                             self.token_start,
                             self.token_start + quote_count,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
             },
-            LexState::String { binary, raw: false, quote_count } => match (
+            LexState::String { format, binary, raw: false, quote_count } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
                 self.input_bytes.get(self.cursor + 3),
             ) {
+                (Some(b'{'), _, _, _) if format => {
+                    let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
+                    self.fstring_buffer.push(TokensOrString::String(interned));
+                    self.lex_formatted_string()?;
+                    self.buffer1.clear();
+                },
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), _, _) => {
                     let byte = match *y {
@@ -886,18 +899,42 @@ impl Session {
                 },
                 (Some(b'"'), _, _, _) if quote_count == 1 => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
-                    self.tokens.push(Token {
-                        kind: TokenKind::String {
-                            binary,
-                            raw: false,
-                            s: interned,
-                        },
-                        span: Span::range(
-                            self.file,
-                            self.token_start,
-                            self.cursor + 1,
-                        ),
-                    });
+
+                    if format {
+                        self.fstring_buffer.push(TokensOrString::String(interned));
+                        self.tokens.push(Token {
+                            kind: TokenKind::FormattedString {
+                                raw: false,
+                                elements: self.fstring_buffer.drain(..).filter(
+                                    |t| match t {
+                                        TokensOrString::String(s) if s.len() == 0 => false,
+                                        _ => true,
+                                    }
+                                ).collect(),
+                            },
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor,
+                            ),
+                        });
+                    }
+
+                    else {
+                        self.tokens.push(Token {
+                            kind: TokenKind::String {
+                                binary,
+                                raw: false,
+                                s: interned,
+                            },
+                            span: Span::range(
+                                self.file,
+                                self.token_start,
+                                self.cursor + 1,
+                            ),
+                        });
+                    }
+
                     self.state = LexState::Init;
                     self.cursor += 1;
                 },
@@ -947,9 +984,6 @@ impl Session {
                         ..Error::default()
                     });
                 },
-            },
-            LexState::FormattedString { raw, quote_count } => {
-                return Err(Error::todo(66818, "lexing formatted string", Span::range(self.file, self.token_start, self.token_start + 1)));
             },
             // NOTE: empty char literals are already filtered out!
             // NOTE: the cursor is pointing at the first byte of the content (not the quote)
@@ -1583,17 +1617,92 @@ impl Session {
         Ok(false)
     }
 
+    fn lex_formatted_string(&mut self) -> Result<(), Error> {
+        assert!(matches!(self.input_bytes.get(self.cursor), Some(b'{')));
+        let mut value_end = 0;
+
+        for i in (self.cursor + 1).. {
+            match self.input_bytes.get(i) {
+                Some(x @ (b'{' | b'\\' | b'"')) => {
+                    return Err(Error {
+                        kind: ErrorKind::NotAllowedCharInFString(*x),
+                        spans: Span::range(
+                            self.file,
+                            self.cursor + 1 + i,
+                            self.cursor + 2 + i,
+                        ).simple_error(),
+                        note: None,
+                    });
+                },
+                Some(b'}') => {
+                    value_end = i;
+                    break;
+                },
+                Some(_) => {},
+                None => {
+                    return Err(Error {
+                        kind: ErrorKind::UnterminatedStringLiteral,
+                        spans: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.token_start + 1,
+                        ).simple_error(),
+                        note: None,
+                    });
+                },
+            }
+        }
+
+        let mut tmp_session = lex(
+            self.file,
+            self.input_bytes[(self.cursor + 1)..value_end].to_vec(),
+            self.intermediate_dir.clone(),
+            self.is_std,
+        );
+        tmp_session.offset_spans(self.cursor + 1);
+
+        if !tmp_session.errors.is_empty() {
+            return Err(tmp_session.errors[0].clone());
+        }
+
+        if tmp_session.tokens.is_empty() {
+            // an empty value in fstring is an error
+            todo!()
+        }
+
+        self.fstring_buffer.push(TokensOrString::Tokens{
+            tokens: tmp_session.tokens,
+            span: Span::range(
+                self.file,
+                self.cursor,
+                value_end,
+            ),
+        });
+
+        // points to the byte after '}'
+        self.cursor = value_end + 1;
+        Ok(())
+    }
+
     fn group_tokens(&mut self) {
         self.tokens = group_tokens_recursive(&self.tokens);
     }
+
+    fn offset_spans(&mut self, offset: usize) {
+        for token in self.tokens.iter_mut() {
+            token.offset_span(offset);
+        }
+
+        for error in self.errors.iter_mut().chain(self.warnings.iter_mut()) {
+            for span in error.spans.iter_mut() {
+                span.span.offset(offset);
+            }
+        }
+    }
 }
 
-// If there's more than 255 quotes, it dies. There's a reason:
-// Sodigy-compiler may or may not load the entire file at once.
-// So, if it reaches the end of buffer while counting quotes, that
-// would be real eof or not-loaded-yet. But it's guaranteed that there's
-// at least 255 remaining bytes in the buffer (otherwise eof), so it's
-// safe to count quotes up to 255.
+// There's a historical reason why it doesn't allow using more than 255 quotes.
+// The reason is irrelevant now, but I like it filtering too many quotes.
 fn count_quotes(buffer: &[u8], mut cursor: usize) -> Result<usize, ()> {
     let mut count = 0;
 

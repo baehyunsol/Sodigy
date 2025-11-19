@@ -26,7 +26,7 @@ pub use assert::Assert;
 pub use attribute::{Attribute, Decorator, DocComment, DocCommentLine, Visibility};
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariantArgs, EnumVariantDef};
-pub use expr::{Expr, Field};
+pub use expr::{Expr, ExprOrString, Field};
 pub use func::{CallArg, Func, FuncArgDef};
 pub use r#if::If;
 pub use r#let::Let;

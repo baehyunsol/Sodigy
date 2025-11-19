@@ -1,4 +1,4 @@
-use crate::LexState;
+use crate::{LexState, TokensOrString};
 use sodigy_error::{Error, Warning};
 use sodigy_file::File;
 use sodigy_session::Session as SodigySession;
@@ -25,6 +25,7 @@ pub struct Session {
     // fraction
     pub(crate) buffer2: Vec<u8>,
 
+    pub(crate) fstring_buffer: Vec<TokensOrString>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }

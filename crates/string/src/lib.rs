@@ -37,7 +37,7 @@ impl InternedString {
         Some(bytes[1..(1 + length)].to_vec())
     }
 
-    pub fn length(&self) -> usize {
+    pub fn len(&self) -> usize {
         if self.is_short_string() {
             (self.0 >> 120) as usize
         }
