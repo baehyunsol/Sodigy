@@ -2,6 +2,7 @@ use super::Solver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_mir::{Callable, ShortCircuitKind};
+use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -24,6 +25,17 @@ impl Solver {
             Expr::Identifier(id) => match types.get(&id.def_span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
+                    match id.origin {
+                        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                            // `False` in `Bool.False` has type `Bool`.
+                            NameKind::EnumVariant { parent } => {
+                                return (Some(Type::Static(parent)), false);
+                            },
+                            _ => panic!("{id:?}"),
+                        },
+                        _ => {},
+                    }
+
                     self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
                     (
                         Some(Type::Var {
@@ -161,7 +173,7 @@ impl Solver {
                             has_error |= e;
                         },
                         (None, e) => {
-                            has_error = e;
+                            has_error |= e;
                         },
                     }
                 }

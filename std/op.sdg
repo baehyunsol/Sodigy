@@ -1,5 +1,8 @@
 use std.Bool;
 
+#[lang_item("op.not")]
+fn not(x: Bool) -> Bool = if x { Bool.False } else { Bool.True };
+
 #[poly]
 #[lang_item("op.add")]
 #[lang_item_generics("op.add.generic.0", "op.add.generic.1", "op.add.generic.2")]
@@ -21,6 +24,11 @@ fn mul<T, U, V>(a: T, b: U) -> V;
 fn div<T, U, V>(a: T, b: U) -> V;
 
 #[poly]
+#[lang_item("op.rem")]
+#[lang_item_generics("op.rem.generic.0", "op.rem.generic.1", "op.rem.generic.2")]
+fn rem<T, U, V>(a: T, b: U) -> V;
+
+#[poly]
 #[lang_item("op.index")]
 #[lang_item_generics("op.index.generic.0", "op.index.generic.1", "op.index.generic.2")]
 fn index<T, U, V>(ls: T, i: U) -> V;
@@ -40,7 +48,17 @@ fn eq<T>(lhs: T, rhs: T) -> Bool;
 #[lang_item_generics("op.gt.generic.0")]
 fn gt<T>(lhs: T, rhs: T) -> Bool;
 
-#[poly]
+/// You can't implement `<=` operator. It's always a negation of `>` operator.
+#[lang_item("op.leq")]
+#[lang_item_generics("op.leq.generic.0")]
+fn leq<T>(lhs: T, rhs: T) -> Bool = !gt(lhs, rhs);
+
+/// You can't implement `!=` operator. It's always a negation of `==` operator.
 #[lang_item("op.neq")]
 #[lang_item_generics("op.neq.generic.0")]
-fn neq<T>(lhs: T, rhs: T) -> Bool;
+fn neq<T>(lhs: T, rhs: T) -> Bool = !eq(lhs, rhs);
+
+/// You can't implement `>=` operator. It's always a negation of `<` operator.
+#[lang_item("op.geq")]
+#[lang_item_generics("op.geq.generic.0")]
+fn geq<T>(lhs: T, rhs: T) -> Bool = !lt(lhs, rhs);

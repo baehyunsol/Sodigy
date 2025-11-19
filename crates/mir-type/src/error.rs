@@ -4,6 +4,7 @@ use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum TypeError {
@@ -47,27 +48,16 @@ pub enum TypeError {
         func_def: Option<Span>,
         r#type: Type,
     },
-    CannotApplyPrefixOp {
-        op: PrefixOp,
-        op_span: Span,
-        arg_types: Vec<Type>,
-    },
-    CannotApplyInfixOp {
-        op: InfixOp,
-        op_span: Span,
-        arg_types: Vec<Type>,
-    },
-    CannotApplyPostfixOp {
-        op: PostfixOp,
-        op_span: Span,
-        arg_types: Vec<Type>,
-    },
     NotCallable {
         r#type: Type,
         func_span: Span,
     },
-    // TODO: more info
-    CannotSpecializePolyGeneric,
+    CannotSpecializePolyGeneric {
+        call: Span,
+        poly_def: Span,
+        generics: HashMap<Span, Type>,
+        num_candidates: usize,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -236,12 +226,38 @@ impl RenderTypeError for MirSession {
                     _ => unreachable!(),
                 }
             },
-            TypeError::CannotApplyInfixOp { op, op_span, arg_types } => Error {
-                kind: ErrorKind::CannotApplyInfixOp {
-                    op: *op,
-                    arg_types: arg_types.iter().map(|t| self.render_type(t)).collect(),
+            // TODO: based on the poly's def_span, I want it to throw
+            //       `CannotApplyInfixOp` or so.
+            TypeError::CannotSpecializePolyGeneric {
+                call,
+                poly_def,
+                generics,
+                num_candidates,
+            } => Error {
+                kind: ErrorKind::CannotSpecializePolyGeneric {
+                    num_candidates: *num_candidates,
                 },
-                spans: op_span.simple_error(),
+                spans: vec![
+                    vec![
+                        RenderableSpan {
+                            span: *call,
+                            auxiliary: false,
+                            note: Some(format!("Cannot specialize `{}` here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                        },
+                        RenderableSpan {
+                            span: *poly_def,
+                            auxiliary: true,
+                            note: Some(format!("`{}` is defined here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                        },
+                    ],
+                    generics.iter().map(
+                        |(span, r#type)| RenderableSpan {
+                            span: *span,
+                            auxiliary: true,
+                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(*span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
+                        }
+                    ).collect(),
+                ].concat(),
                 note: None,
             },
             _ => todo!(),

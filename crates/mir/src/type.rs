@@ -299,4 +299,32 @@ impl Type {
             },
         }
     }
+
+    pub fn generic_to_type_var(&mut self) {
+        match self {
+            Type::GenericDef(g) => {
+                *self = Type::Var { def_span: *g, is_return: false };
+            },
+            Type::Static(_) |
+            Type::Unit(_) |
+            Type::Never(_) |
+            Type::Var { .. } |
+            Type::GenericInstance { .. } => {},
+            Type::Param {
+                r#type: t,
+                args,
+                ..
+            } | Type::Func {
+                r#return: t,
+                args,
+                ..
+            } => {
+                for arg in args.iter_mut() {
+                    arg.generic_to_type_var();
+                }
+
+                t.generic_to_type_var();
+            },
+        }
+    }
 }

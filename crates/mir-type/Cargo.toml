@@ -7,6 +7,7 @@ edition = "2024"
 sodigy-error = { version = "0.1.0", path = "../error" }
 sodigy-hir = { version = "0.1.0", path = "../hir" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
+sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }

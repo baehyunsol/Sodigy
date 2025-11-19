@@ -78,13 +78,35 @@ impl Session {
             children.insert(name, (span, kind));
         }
 
-        self.module_name_map.insert(
+        self.item_name_map.insert(
             module_span,
             (
                 NameKind::Module,
                 children,
             ),
         );
+
+        for r#enum in hir_session.enums.into_iter() {
+            let mut variants = HashMap::new();
+
+            for variant in r#enum.variants.iter() {
+                variants.insert(
+                    variant.name,
+                    (
+                        variant.name_span,
+                        NameKind::EnumVariant { parent: r#enum.name_span },
+                    ),
+                );
+            }
+
+            self.item_name_map.insert(
+                r#enum.name_span,
+                (
+                    NameKind::Enum,
+                    variants,
+                ),
+            );
+        }
 
         for (name, span) in hir_session.lang_items.into_iter() {
             self.lang_items.insert(name, span);
@@ -536,8 +558,8 @@ impl Session {
                 _ => unreachable!(),
             };
 
-            match self.module_name_map.get(&r#use.root.def_span) {
-                Some((_, items)) => match items.get(&field_name) {
+            match self.item_name_map.get(&r#use.root.def_span) {
+                Some((NameKind::Module, items)) => match items.get(&field_name) {
                     // r#use: `use x.y.z as w;`
                     // `x` is a module, and `y`'s def_span is `item_span`.
                     Some((item_span, item_kind)) => {
@@ -577,6 +599,7 @@ impl Session {
                         return Err(());
                     },
                 },
+                Some((_, _)) => todo!(),
                 None => {},
             }
         }
@@ -812,12 +835,28 @@ impl Session {
             Expr::Byte { .. } => Ok(()),
             Expr::Identifier(id) => {
                 match self.name_aliases.get(&id.def_span) {
-                    Some(alias) => todo!(),
+                    Some(alias) => {
+                        // expr: `Bool`
+                        // alias: `use x as Bool;`
+                        if alias.fields.is_empty() {
+                            *id = IdentWithOrigin {
+                                def_span: alias.root.def_span,
+                                origin: alias.root.origin,
+                                ..*id
+                            };
+                        }
+
+                        // expr: `Bool`
+                        // alias: `use std.Bool as Bool;`
+                        else {
+                            todo!()
+                        }
+                    },
                     None => {},
                 }
 
                 match self.type_aliases.get(&id.def_span) {
-                    Some(alias) => todo!(),
+                    Some(alias) => panic!("id: {id:?}, alias: {alias:?}"),
                     None => {},
                 }
 
@@ -932,16 +971,16 @@ impl Session {
                 self.resolve_expr(lhs)?;
 
                 match &**lhs {
-                    Expr::Identifier(id) => match self.module_name_map.get(&id.def_span) {
-                        Some((_, items)) => {
+                    Expr::Identifier(id) => match self.item_name_map.get(&id.def_span) {
+                        Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
                             let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
 
                             match items.get(&field_name) {
-                                Some((item, kind)) => {
+                                Some((item, item_kind)) => {
                                     let new_root = Expr::Identifier(IdentWithOrigin {
                                         id: field_name,
                                         span: field_span,
-                                        origin: NameOrigin::Foreign { kind: *kind },
+                                        origin: NameOrigin::Foreign { kind: *item_kind },
                                         def_span: *item,
                                     });
 
@@ -959,19 +998,30 @@ impl Session {
                                     }
                                 },
                                 None => {
-                                    self.errors.push(Error {
-                                        kind: ErrorKind::UndefinedName(field_name),
-                                        spans: field_span.simple_error(),
-                                        note: Some(format!(
+                                    let error_message = match kind {
+                                        NameKind::Module => format!(
                                             "Module `{}` doesn't have an item named `{}`.",
                                             String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
                                             String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
-                                        )),
+                                        ),
+                                        NameKind::Enum => format!(
+                                            "Enum `{}` doesn't have a variant named `{}`.",
+                                            String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                            String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                        ),
+                                        _ => unreachable!(),
+                                    };
+
+                                    self.errors.push(Error {
+                                        kind: ErrorKind::UndefinedName(field_name),
+                                        spans: field_span.simple_error(),
+                                        note: Some(error_message),
                                     });
                                     Err(())
                                 },
                             }
                         },
+                        Some((_, _)) => todo!(),
                         None => Ok(()),
                     },
                     Expr::Path { .. } => todo!(),

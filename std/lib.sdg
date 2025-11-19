@@ -24,6 +24,7 @@ pub struct Number = {
 
 // TODO: methods are not implemented yet
 /*
+#[impl(op.index)]
 fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
         // The first element is for the length of the list
@@ -40,6 +41,7 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
     }
 };
 
+#[impl(op.div)]
 fn div_int(a: Int, b: Int) -> Int = {
     if b == 0 {
         // TODO: error message

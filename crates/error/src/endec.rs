@@ -277,26 +277,30 @@ impl Endec for ErrorKind {
                 op.encode_impl(buffer);
                 arg_types.encode_impl(buffer);
             },
-            ErrorKind::MultipleModuleFiles { module, found_files } => {
+            ErrorKind::CannotSpecializePolyGeneric { num_candidates } => {
                 buffer.push(70);
+                num_candidates.encode_impl(buffer);
+            },
+            ErrorKind::MultipleModuleFiles { module, found_files } => {
+                buffer.push(71);
                 module.encode_impl(buffer);
                 found_files.encode_impl(buffer);
             },
             ErrorKind::ModuleFileNotFound { module, candidates } => {
-                buffer.push(71);
+                buffer.push(72);
                 module.encode_impl(buffer);
                 candidates.encode_impl(buffer);
             },
             ErrorKind::LibFileNotFound => {
-                buffer.push(72);
+                buffer.push(73);
             },
             ErrorKind::UnusedNames { names, kind } => {
-                buffer.push(73);
+                buffer.push(74);
                 names.encode_impl(buffer);
                 kind.encode_impl(buffer);
             },
             ErrorKind::Todo { id, message } => {
-                buffer.push(74);
+                buffer.push(75);
                 id.encode_impl(buffer);
                 message.encode_impl(buffer);
             },
@@ -483,27 +487,31 @@ impl Endec for ErrorKind {
                 Ok((ErrorKind::CannotApplyInfixOp { op, arg_types }, cursor))
             },
             Some(70) => {
+                let (num_candidates, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                Ok((ErrorKind::CannotSpecializePolyGeneric { num_candidates }, cursor))
+            },
+            Some(71) => {
                 let (module, cursor) = ModulePath::decode_impl(buffer, cursor + 1)?;
                 let (found_files, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::MultipleModuleFiles { module, found_files }, cursor))
             },
-            Some(71) => {
+            Some(72) => {
                 let (module, cursor) = ModulePath::decode_impl(buffer, cursor + 1)?;
                 let (candidates, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::ModuleFileNotFound { module, candidates }, cursor))
             },
-            Some(72) => Ok((ErrorKind::LibFileNotFound, cursor + 1)),
-            Some(73) => {
+            Some(73) => Ok((ErrorKind::LibFileNotFound, cursor + 1)),
+            Some(74) => {
                 let (names, cursor) = Vec::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 let (kind, cursor) = NameKind::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::UnusedNames { names, kind }, cursor))
             },
-            Some(74) => {
+            Some(75) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 let (message, cursor) = String::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::Todo { id, message }, cursor))
             },
-            Some(n @ 75..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 76..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

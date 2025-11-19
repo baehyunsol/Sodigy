@@ -1,3 +1,11 @@
+# 87. 용어 정리
+
+지금까지 "argument"랑 "parameter"를 혼용하고 있었음... `fn add(x, y)`가 있고 `add(100, 200)`이 있을 때 `x`와 `y`는 parameter, `100`과 `200`은 argument!!
+
+이거 싹다 정리하기!!
+
+그리고, `T` in `fn add<T>`는 type parameter라고 부르자!
+
 # 86. more general generic system
 
 ```
@@ -333,7 +341,8 @@ inter-hir이 너무 더러워지고 있음. 걍 싹다 날리고 새로 짤까?
 
 가라로 하던 거 업보 청산할 시간...
 
-1. 지금은 inter-hir에서 `iter_public_names`를 한 다음에, public한 name들만 module_name_map에 올려둠.
+1. 지금은 inter-hir에서 `iter_public_names`를 한 다음에, public한 name들만 item_name_map에 올려둠.
+  - 코드가 돌아야하니까 지금은 일단 모든 item을 public하다고 가정하고 풀어버리는 중!
 2. 즉, 완전 public한 애들만 resolve를 하기 때문에 딴 애들은 ... 건들지도 않음 ㅠㅠ
 3. 일단, private한 애들도 resolve를 하긴 해야함.
 4. 지금은 public/private만 구분을 하고 있는데 module 단위로 visibility를 따로 확인해야함!

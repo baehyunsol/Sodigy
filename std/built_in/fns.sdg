@@ -8,6 +8,10 @@ fn read_compound<T, U>(a: T, b: Int) -> U;
 fn panic() -> !;
 
 #[built_in]
+#[impl(std.op.add)]
+fn add_int(a: Int, b: Int) -> Int;
+
+#[built_in]
 #[impl(std.op.mul)]
 fn mul_int(a: Int, b: Int) -> Int;
 

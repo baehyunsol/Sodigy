@@ -73,6 +73,7 @@ pub enum NameKind {
     Func,
     Struct,
     Enum,
+    EnumVariant { parent: Span },
     Alias,
     Module,
     Use,

@@ -23,19 +23,10 @@ use solver::Solver;
 pub fn solve(mut session: Session) -> (Session, Solver) {
     let mut has_error = false;
     let mut solver = Solver::new(session.lang_items.clone());
-    let mut generic_funcs = vec![];
 
     for func in session.funcs.iter() {
-        if !func.generics.is_empty() {
-            // we'll solve this after monomorphization
-            generic_funcs.push(func);
-        }
-
-        else if func.built_in {
-            continue;
-        }
-
-        else {
+        // We'll check generic functions after monomorphization.
+        if func.generics.is_empty() && !func.built_in {
             if let (_, true) = solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
                 has_error = true;
             }

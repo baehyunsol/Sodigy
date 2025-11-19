@@ -1,5 +1,4 @@
-use crate::{SolvePolyResult, Solver};
-use sodigy_hir::Poly;
+use crate::{SolvePolyResult, Solver, TypeError};
 use sodigy_mir::{Session, Type};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
@@ -36,18 +35,34 @@ impl Solver {
             return Ok(());
         }
 
+        // It's key is the call span,
+        // and the value is the def_span of the monomorphized function.
+        let mut mono_map: HashMap<Span, Span> = HashMap::new();
+
         for (_, generic_call) in generic_calls.iter() {
             match self.try_solve_poly(&session.polys, &poly_solver, generic_call) {
-                Ok(SolvePolyResult::NotPoly) => {
+                SolvePolyResult::NotPoly => {
                     // a normal generic function
-                    todo!()
+                    panic!("TODO: {generic_call:?}")
                 },
-                Ok(_) => todo!(),
-                Err(()) => {
+                SolvePolyResult::NoCandidates => {
                     has_error = true;
+                    self.errors.push(TypeError::CannotSpecializePolyGeneric {
+                        call: generic_call.call,
+                        poly_def: generic_call.def,
+                        generics: generic_call.generics.clone(),
+                        num_candidates: 0,
+                    });
                 },
+                SolvePolyResult::DefaultImpl(p) |
+                SolvePolyResult::OneCandidate(p) => {
+                    mono_map.insert(generic_call.call, p);
+                },
+                r => panic!("TODO: {r:?}"),
             }
         }
+
+        // TODO: apply mono_map and loop
 
         if has_error {
             Err(())

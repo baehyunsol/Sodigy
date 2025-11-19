@@ -84,6 +84,7 @@ impl ErrorLevel {
             ErrorKind::CannotInferGenericType { .. } |
             ErrorKind::PartiallyInferedGenericType { .. } |
             ErrorKind::CannotApplyInfixOp { .. } |
+            ErrorKind::CannotSpecializePolyGeneric { .. } |
             ErrorKind::MultipleModuleFiles { .. } |
             ErrorKind::ModuleFileNotFound { .. } |
             ErrorKind::LibFileNotFound |

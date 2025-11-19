@@ -9,31 +9,36 @@ pub(crate) const STD_FILES: [(
     u128,           // content_hash
 ); 6] = [
     (
-        "@std.lib",
-        "@std/lib.sdg",
-        include_bytes!("../../../std/lib.sdg"),
-        1000,
-    ), (
-        "@std.lib.built_in",
-        "@std/built_in.sdg",
-        include_bytes!("../../../std/built_in.sdg"),
-        1001,
-    ), (
         "@std.lib.built_in.fns",
         "@std/built_in/fns.sdg",
         include_bytes!("../../../std/built_in/fns.sdg"),
-        1002,
-    ), (
+        1000,
+    ),
+    (
         "@std.lib.built_in.types",
         "@std/built_in/types.sdg",
         include_bytes!("../../../std/built_in/types.sdg"),
+        1001,
+    ),
+    (
+        "@std.lib.built_in",
+        "@std/built_in.sdg",
+        include_bytes!("../../../std/built_in.sdg"),
+        1002,
+    ),
+    (
+        "@std.lib",
+        "@std/lib.sdg",
+        include_bytes!("../../../std/lib.sdg"),
         1003,
-    ), (
+    ),
+    (
         "@std.lib.op",
         "@std/op.sdg",
         include_bytes!("../../../std/op.sdg"),
         1004,
-    ), (
+    ),
+    (
         "@std.lib.prelude",
         "@std/prelude.sdg",
         include_bytes!("../../../std/prelude.sdg"),
@@ -47,6 +52,6 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
             path: vec![],
             is_std: true,
         },
-        FileOrStd::Std(0),
+        FileOrStd::Std(3),
     )
 }

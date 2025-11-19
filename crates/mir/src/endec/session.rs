@@ -1,4 +1,4 @@
-use crate::{Assert, Func, Let, Session, Type};
+use crate::{Assert, Enum, Func, Let, Session, Struct, Type};
 use sodigy_endec::{DecodeError, DumpIr, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{FuncArgDef, GenericDef, Poly, StructFieldDef};
@@ -17,6 +17,8 @@ impl Endec for Session {
 
         self.lets.encode_impl(buffer);
         self.funcs.encode_impl(buffer);
+        self.enums.encode_impl(buffer);
+        self.structs.encode_impl(buffer);
         self.asserts.encode_impl(buffer);
 
         // These 2 are likely to be empty... but encoding/decoding an empty
@@ -39,6 +41,8 @@ impl Endec for Session {
         let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
+        let (enums, cursor) = Vec::<Enum>::decode_impl(buffer, cursor)?;
+        let (structs, cursor) = Vec::<Struct>::decode_impl(buffer, cursor)?;
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_instances, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
@@ -56,6 +60,8 @@ impl Endec for Session {
                 generic_def_span_rev,
                 lets,
                 funcs,
+                enums,
+                structs,
                 asserts,
                 types,
                 generic_instances,

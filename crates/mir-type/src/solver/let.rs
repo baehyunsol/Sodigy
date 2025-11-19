@@ -40,7 +40,7 @@ impl Solver {
             ),
         };
 
-        let infered_type = match infered_type {
+        match infered_type {
             Some(infered_type) => {
                 if let Err(()) = self.solve_subtype(
                     &annotated_type,
@@ -58,7 +58,7 @@ impl Solver {
             None => {
                 has_error = true;
             },
-        };
+        }
 
         (Some(annotated_type), has_error)
     }

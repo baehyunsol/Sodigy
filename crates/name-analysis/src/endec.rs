@@ -97,23 +97,27 @@ impl Endec for NameKind {
             NameKind::Enum => {
                 buffer.push(4);
             },
-            NameKind::Alias => {
+            NameKind::EnumVariant { parent } => {
                 buffer.push(5);
+                parent.encode_impl(buffer);
             },
-            NameKind::Module => {
+            NameKind::Alias => {
                 buffer.push(6);
             },
-            NameKind::Use => {
+            NameKind::Module => {
                 buffer.push(7);
             },
-            NameKind::FuncArg => {
+            NameKind::Use => {
                 buffer.push(8);
             },
-            NameKind::Generic => {
+            NameKind::FuncArg => {
                 buffer.push(9);
             },
-            NameKind::PatternNameBind => {
+            NameKind::Generic => {
                 buffer.push(10);
+            },
+            NameKind::PatternNameBind => {
+                buffer.push(11);
             },
         }
     }
@@ -125,13 +129,17 @@ impl Endec for NameKind {
             Some(2) => Ok((NameKind::Func, cursor + 1)),
             Some(3) => Ok((NameKind::Struct, cursor + 1)),
             Some(4) => Ok((NameKind::Enum, cursor + 1)),
-            Some(5) => Ok((NameKind::Alias, cursor + 1)),
-            Some(6) => Ok((NameKind::Module, cursor + 1)),
-            Some(7) => Ok((NameKind::Use, cursor + 1)),
-            Some(8) => Ok((NameKind::FuncArg, cursor + 1)),
-            Some(9) => Ok((NameKind::Generic, cursor + 1)),
-            Some(10) => Ok((NameKind::PatternNameBind, cursor + 1)),
-            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(5) => {
+                let (parent, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((NameKind::EnumVariant { parent }, cursor))
+            },
+            Some(6) => Ok((NameKind::Alias, cursor + 1)),
+            Some(7) => Ok((NameKind::Module, cursor + 1)),
+            Some(8) => Ok((NameKind::Use, cursor + 1)),
+            Some(9) => Ok((NameKind::FuncArg, cursor + 1)),
+            Some(10) => Ok((NameKind::Generic, cursor + 1)),
+            Some(11) => Ok((NameKind::PatternNameBind, cursor + 1)),
+            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

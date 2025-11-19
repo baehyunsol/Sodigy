@@ -151,6 +151,9 @@ pub enum ErrorKind {
         op: InfixOp,
         arg_types: Vec<String>,
     },
+    CannotSpecializePolyGeneric {
+        num_candidates: usize,
+    },
     MultipleModuleFiles {
         module: ModulePath,
         found_files: Vec<String>,

@@ -16,6 +16,7 @@ impl ErrorKind {
                     NameKind::Func => "function",
                     NameKind::Struct => "struct",
                     NameKind::Enum => "enum",
+                    NameKind::EnumVariant { .. } => "enum variant",
                     NameKind::Alias => "type alias",
                     NameKind::Module => "module",
                     NameKind::Use => "import",

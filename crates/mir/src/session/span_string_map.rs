@@ -1,5 +1,6 @@
 use super::Session;
-use crate::{Assert, Callable, Expr, Func, Let};
+use crate::{Assert, Callable, Enum, Expr, Func, Let, Struct};
+use sodigy_hir::EnumVariantArgs;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -18,6 +19,14 @@ impl Session {
 
         for func in self.funcs.iter() {
             self.init_span_string_map_func(func, &mut result);
+        }
+
+        for r#struct in self.structs.iter() {
+            self.init_span_string_map_struct(r#struct, &mut result);
+        }
+
+        for r#enum in self.enums.iter() {
+            self.init_span_string_map_enum(r#enum, &mut result);
         }
 
         for assert in self.asserts.iter() {
@@ -44,6 +53,36 @@ impl Session {
         }
 
         self.init_span_string_map_expr(&func.value, result);
+    }
+
+    pub fn init_span_string_map_enum(&self, r#enum: &Enum, result: &mut HashMap<Span, InternedString>) {
+        result.insert(r#enum.name_span, r#enum.name);
+
+        for variant in r#enum.variants.iter() {
+            result.insert(variant.name_span, variant.name);
+
+            if let EnumVariantArgs::Struct(args) = &variant.args {
+                for arg in args.iter() {
+                    todo!()
+                }
+            }
+        }
+
+        for generic in r#enum.generics.iter() {
+            result.insert(generic.name_span, generic.name);
+        }
+    }
+
+    pub fn init_span_string_map_struct(&self, r#struct: &Struct, result: &mut HashMap<Span, InternedString>) {
+        result.insert(r#struct.name_span, r#struct.name);
+
+        for field in r#struct.fields.iter() {
+            result.insert(field.name_span, field.name);
+        }
+
+        for generic in r#struct.generics.iter() {
+            result.insert(generic.name_span, generic.name);
+        }
     }
 
     pub fn init_span_string_map_assert(&self, assert: &Assert, result: &mut HashMap<Span, InternedString>) {

@@ -1,4 +1,4 @@
-use crate::{Assert, Func, Let, Type};
+use crate::{Assert, Enum, Func, Let, Struct, Type};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncArgDef, GenericDef, Poly, StructFieldDef};
 use sodigy_inter_hir as inter_hir;
@@ -19,6 +19,8 @@ pub struct Session {
 
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
+    pub enums: Vec<Enum>,
+    pub structs: Vec<Struct>,
     pub asserts: Vec<Assert>,
 
     // It's `def_span -> type_annotation` map.
@@ -57,6 +59,11 @@ impl Session {
             generic_def_span_rev: HashMap::new(),
             lets: vec![],
             funcs: vec![],
+
+            // TODO: actually lower these
+            enums: hir_session.enums.clone(),
+            structs: hir_session.structs.clone(),
+
             asserts: vec![],
             types: HashMap::new(),
             generic_instances: HashMap::new(),
@@ -79,6 +86,8 @@ impl Session {
         self.generic_def_span_rev.extend(s.generic_def_span_rev.drain());
         self.lets.extend(s.lets.drain(..));
         self.funcs.extend(s.funcs.drain(..));
+        self.enums.extend(s.enums.drain(..));
+        self.structs.extend(s.structs.drain(..));
         self.asserts.extend(s.asserts.drain(..));
         self.types.extend(s.types.drain());
         self.generic_instances.extend(s.generic_instances.drain());

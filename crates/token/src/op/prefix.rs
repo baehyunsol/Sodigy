@@ -16,7 +16,7 @@ impl PrefixOp {
 
     pub fn get_generic_lang_items(&self) -> Vec<&'static str> {
         match self {
-            PrefixOp::Not => vec!["op.not.generic.0", "op.not.generic.1"],
+            PrefixOp::Not => vec![],
             PrefixOp::Neg => vec!["op.neg.generic.0", "op.neg.generic.1"],
         }
     }

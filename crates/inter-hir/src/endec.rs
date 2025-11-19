@@ -17,7 +17,7 @@ impl Endec for Session {
         self.name_aliases.encode_impl(buffer);
         self.type_aliases.encode_impl(buffer);
 
-        self.module_name_map.encode_impl(buffer);
+        self.item_name_map.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
@@ -30,7 +30,7 @@ impl Endec for Session {
         let (struct_shapes, cursor) = HashMap::<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>::decode_impl(buffer, cursor)?;
         let (name_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
-        let (module_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
+        let (item_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
@@ -45,7 +45,7 @@ impl Endec for Session {
                 struct_shapes,
                 name_aliases,
                 type_aliases,
-                module_name_map,
+                item_name_map,
                 lang_items,
                 polys,
                 poly_impls,
@@ -60,11 +60,15 @@ impl Endec for Session {
 impl DumpIr for Session {
     fn dump_ir(&self) -> Vec<u8> {
         let s = format!(
-            "{}func_shapes: {:?}, struct_shapes: {:?}, module_name_map: {:?}{}",
+            "{}func_shapes: {:?}, struct_shapes: {:?}, name_aliases: {:?}, type_aliases: {:?}, item_name_map: {:?}, lang_items: {:?}, polys: {:?}{}",
             "{",
             self.func_shapes,
             self.struct_shapes,
-            self.module_name_map,
+            self.name_aliases,
+            self.type_aliases,
+            self.item_name_map,
+            self.lang_items,
+            self.polys,
             "}",
         );
         let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());

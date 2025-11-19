@@ -16,6 +16,7 @@ use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 // TODO: attributes
+#[derive(Clone, Debug)]
 pub struct Struct {
     pub visibility: Visibility,
     pub keyword_span: Span,

@@ -385,23 +385,29 @@ fn render_span_worker(
 
             // notes are always sorted by x
             for (i, (x, note)) in line.notes.iter().enumerate() {
-                let x = *x;
+                fn make_labels_deeper(
+                    labels: &mut Vec<Label>,
+                    mut curr_x: usize,
+                    mut curr_depth: usize,
+                ) -> usize {
+                    for Label { x, depth, asterisk } in labels.iter_mut().rev() {
+                        if *x + 6 >= curr_x {
+                            *depth += 1;
+                            *asterisk = true;
+                            curr_x = *x;
+                            curr_depth = *depth;
+                        }
 
-                match labels.last_mut() {
-                    Some(Label { x: last_x, .. }) if *last_x + 6 < x => {
-                        labels.push(Label { depth: 1, x, asterisk: false });
-                    },
-                    // TODO: I know it'll be broken if more than 3 spans are very close to each other... but I'm too lazy to fix it.
-                    Some(Label { depth, asterisk, .. }) => {
-                        *depth += 1;
-                        *asterisk = true;
-                        max_depth = max_depth.max(*depth);
-                        labels.push(Label { depth: 1, x, asterisk: true });
-                    },
-                    None => {
-                        labels.push(Label { depth: 1, x, asterisk: x == 0 });
-                    },
+                        else {
+                            return curr_depth;
+                        }
+                    }
+
+                    curr_depth
                 }
+
+                max_depth = make_labels_deeper(&mut labels, *x, 1).max(max_depth);
+                labels.push(Label { depth: 1, x: *x, asterisk: *x == 0 });
 
                 let note_no = format!("({}): ", label_index + i);
                 let line_max_width = (max_width.max(note_no.len()) - note_no.len()).max(20);
