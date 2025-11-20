@@ -117,13 +117,14 @@ pub fn interpret(
                     _ => unreachable!(),
                 },
                 Bytecode::Intrinsic(intrinsic) => match intrinsic {
-                    Intrinsic::IntegerAdd |
-                    Intrinsic::IntegerSub |
-                    Intrinsic::IntegerMul |
-                    Intrinsic::IntegerDiv |
-                    Intrinsic::IntegerEq |
-                    Intrinsic::IntegerGt |
-                    Intrinsic::IntegerLt => {
+                    Intrinsic::AddInt |
+                    Intrinsic::SubInt |
+                    Intrinsic::MulInt |
+                    Intrinsic::DivInt |
+                    Intrinsic::RemInt |
+                    Intrinsic::LtInt |
+                    Intrinsic::EqInt |
+                    Intrinsic::GtInt => {
                         let (a, b) = (
                             *stacks.get(&Register::Call(0)).unwrap().last().unwrap(),
                             *stacks.get(&Register::Call(1)).unwrap().last().unwrap(),

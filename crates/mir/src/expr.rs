@@ -9,6 +9,8 @@ use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::InfixOp;
 use std::collections::hash_map::{Entry, HashMap};
 
+mod dispatch;
+
 #[derive(Clone, Debug)]
 pub enum Expr {
     Identifier(IdentWithOrigin),
@@ -81,13 +83,6 @@ pub enum Callable {
     ListInit {
         group_span: Span,
     },
-
-    // TODO: do we need this?
-    Intrinsic {
-        intrinsic: Intrinsic,
-        span: Span,
-    },
-
     // It's a functor and can only be evaluated at runtime.
     Dynamic(Box<Expr>),
 }
@@ -141,31 +136,34 @@ impl Expr {
                 let mut generic_defs = vec![];
                 let mut given_keyword_arguments = vec![];
 
-                let func = match Expr::from_hir(func, session) {
-                    Ok(Expr::Identifier(id)) => match id.origin {
+                let (call_span, func) = match Expr::from_hir(func, session) {
+                    Ok(e @ Expr::Identifier(id)) => match id.origin {
                         NameOrigin::Local { kind } |
                         NameOrigin::Foreign { kind } => match kind {
                             NameKind::Func => {
                                 def_span = Some(id.def_span);
-                                Callable::Static {
-                                    def_span: id.def_span,
-                                    span: id.span,
-                                }
+                                (
+                                    id.span,
+                                    Callable::Static {
+                                        def_span: id.def_span,
+                                        span: id.span,
+                                    },
+                                )
                             },
                             // The programmer defines a functor using `let` keyword
                             // and calls it. In this case, we have to dynamically call the
                             // function on runtime. (Maybe we can do some optimizations and turn it into a static call?)
                             NameKind::Let { .. } => {
                                 def_span = Some(id.def_span);
-                                Callable::Dynamic(Box::new(Expr::Identifier(id)))
+                                (id.span, Callable::Dynamic(Box::new(e)))
                             },
                             _ => panic!("TODO: {kind:?}"),
                         },
-                        NameOrigin::FuncArg { .. } => todo!(),
+                        NameOrigin::FuncArg { .. } => (id.span, Callable::Dynamic(Box::new(e))),
                         NameOrigin::Generic { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
-                    Ok(func) => Callable::Dynamic(Box::new(func)),
+                    Ok(func) => (func.error_span(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
                         has_error = true;
                         todo!()
@@ -177,17 +175,15 @@ impl Expr {
                 let mut mir_args = match def_span {
                     Some(def_span) => match session.func_shapes.get(&def_span) {
                         Some((arg_defs, generic_defs_)) => {
-                            if !generic_defs_.is_empty() {
-                                for generic_def in generic_defs_.iter() {
-                                    session.generic_instances.insert(
-                                        (func.error_span(), generic_def.name_span),
-                                        Type::GenericInstance {
-                                            call: func.error_span(),
-                                            generic: generic_def.name_span,
-                                        },
-                                    );
-                                    generic_defs.push(generic_def.name_span);
-                                }
+                            for generic_def in generic_defs_.iter() {
+                                session.generic_instances.insert(
+                                    (call_span, generic_def.name_span),
+                                    Type::GenericInstance {
+                                        call: call_span,
+                                        generic: generic_def.name_span,
+                                    },
+                                );
+                                generic_defs.push(generic_def.name_span);
                             }
 
                             let arg_defs = arg_defs.to_vec();
@@ -742,8 +738,7 @@ impl Callable {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
             Callable::TupleInit { group_span: span } |
-            Callable::ListInit { group_span: span } |
-            Callable::Intrinsic { span, .. } => *span,
+            Callable::ListInit { group_span: span } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
         }
     }

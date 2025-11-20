@@ -559,9 +559,11 @@ impl Session {
             };
 
             match self.item_name_map.get(&r#use.root.def_span) {
-                Some((NameKind::Module, items)) => match items.get(&field_name) {
+                Some((kind @ (NameKind::Module | NameKind::Enum), items)) => match items.get(&field_name) {
                     // r#use: `use x.y.z as w;`
                     // `x` is a module, and `y`'s def_span is `item_span`.
+                    // or,
+                    // `x` is an enum and `y` is a variant. again, `y`'s def_span is `item_span`.
                     Some((item_span, item_kind)) => {
                         *r#use = Use {
                             fields: r#use.fields[1..].to_vec(),
@@ -585,14 +587,24 @@ impl Session {
                         // Let's say `x` doesn't have an item named `y`.
                         // We have to throw UndefinedName error only once: only at al1, not at al2.
                         if !is_from_alias {
-                            self.errors.push(Error {
-                                kind: ErrorKind::UndefinedName(field_name),
-                                spans: field_span.simple_error(),
-                                note: Some(format!(
+                            let error_message = match kind {
+                                NameKind::Module => format!(
                                     "Module `{}` doesn't have an item named `{}`.",
                                     String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
                                     String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
-                                )),
+                                ),
+                                NameKind::Enum => format!(
+                                    "Enum `{}` doesn't have a variant named `{}`.",
+                                    String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
+                                    String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                ),
+                                _ => unreachable!(),
+                            };
+
+                            self.errors.push(Error {
+                                kind: ErrorKind::UndefinedName(field_name),
+                                spans: field_span.simple_error(),
+                                note: Some(error_message),
                             });
                         }
 

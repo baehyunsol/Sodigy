@@ -135,7 +135,7 @@ pub enum Constraint {
     },
 }
 
-enum CheckResult {
+pub enum CheckResult {
     Pass,
     Maybe,
     Fail,

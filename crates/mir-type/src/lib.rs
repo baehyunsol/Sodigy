@@ -9,6 +9,7 @@ use sodigy_span::{
     render_spans,
 };
 use sodigy_string::unintern_string;
+use std::collections::{HashMap, HashSet};
 
 mod error;
 mod mono;
@@ -17,50 +18,84 @@ mod solver;
 
 pub use error::{ErrorContext, RenderTypeError, TypeError};
 pub(crate) use mono::GenericCall;
-pub(crate) use poly::SolvePolyResult;
+pub(crate) use poly::{PolySolver, SolvePolyResult};
 use solver::Solver;
 
 pub fn solve(mut session: Session) -> (Session, Solver) {
     let mut has_error = false;
-    let mut solver = Solver::new(session.lang_items.clone());
+    let mut type_solver = Solver::new(session.lang_items.clone());
+    let mut poly_solver = HashMap::new();
 
-    for func in session.funcs.iter() {
-        // We'll check generic functions after monomorphization.
-        if func.generics.is_empty() && !func.built_in {
-            if let (_, true) = solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
+    // It does 2 things.
+    // 1. It prevents the compiler from dispatching the same call (with the same dispatch) multiple times.
+    // 2. If a call is dispatched, we shouldn't throw `CannotInferGeneric` error for the call.
+    //    -> this happens for poly generics. You can dispatch a poly generic with partially infered types!
+    let mut dispatched_calls = HashSet::new();
+
+    loop {
+        for func in session.funcs.iter() {
+            // We'll check generic functions after monomorphization.
+            if func.generics.is_empty() && !func.built_in {
+                if let (_, true) = type_solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
+                    has_error = true;
+                }
+            }
+        }
+
+        for r#let in session.lets.iter() {
+            if let (_, true) = type_solver.solve_let(r#let, &mut session.types, &mut session.generic_instances) {
                 has_error = true;
             }
         }
-    }
 
-    for r#let in session.lets.iter() {
-        if let (_, true) = solver.solve_let(r#let, &mut session.types, &mut session.generic_instances) {
-            has_error = true;
+        for assert in session.asserts.iter() {
+            if let Err(()) = type_solver.solve_assert(assert, &mut session.types, &mut session.generic_instances) {
+                has_error = true;
+            }
+        }
+
+        // TODO: structs and enums
+
+        // If we initialize it at every iteration, that'd be too expensive.
+        // If we initialize it before the first iteration, we have too small type information to use.
+        if poly_solver.is_empty() {
+            poly_solver = match type_solver.init_poly_solvers(&session) {
+                Ok(s) => s,
+                Err(()) => {
+                    has_error = true;
+                    break;
+                },
+            };
+        }
+
+        match type_solver.get_mono_plan(&poly_solver, &mut dispatched_calls, &session) {
+            Ok(mono) => {
+                if mono.is_empty() {
+                    break;
+                }
+
+                else {
+                    session.dispatch(&mono.dispatch_map);
+                    // TODO: do we have to invalidate previous `generic_instances` after dispatching?
+                }
+            },
+            Err(()) => {
+                has_error = true;
+                break;
+            },
         }
     }
 
-    for assert in session.asserts.iter() {
-        if let Err(()) = solver.solve_assert(assert, &mut session.types, &mut session.generic_instances) {
-            has_error = true;
-        }
-    }
-
-    // TODO: structs and enums
-
-    // TODO: monomorphize generic funcs
-    if let Err(()) = solver.monomorphize(&mut session) {
-        has_error = true;
-    }
-
-    solver.apply_never_types(
+    type_solver.apply_never_types(
         &mut session.types,
         &mut session.generic_instances,
     );
 
-    if let Err(()) = solver.check_all_types_infered(
+    if let Err(()) = type_solver.check_all_types_infered(
         &session.types,
         &session.generic_instances,
         &session.generic_def_span_rev,
+        &dispatched_calls,
     ) {
         has_error = true;
     }
@@ -70,12 +105,12 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
         // But that's very expensive operation, so we initialize this map only when there's an error.
         session.init_span_string_map();
 
-        for error in solver.errors.iter() {
+        for error in type_solver.errors.iter() {
             session.errors.push(session.type_error_to_general_error(error));
         }
     }
 
-    (session, solver)
+    (session, type_solver)
 }
 
 // It's very expensive and should be used only for debugging the compiler.

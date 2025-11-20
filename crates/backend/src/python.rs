@@ -115,26 +115,29 @@ pub fn python_code_gen(
                     _ => unreachable!(),
                 },
                 Bytecode::Intrinsic(intrinsic) => match intrinsic {
-                    Intrinsic::IntegerAdd => {
+                    Intrinsic::AddInt => {
                         lines.push(format!("{indent}ret=c0[-1]+c1[-1]"));
                     },
-                    Intrinsic::IntegerSub => {
+                    Intrinsic::SubInt => {
                         lines.push(format!("{indent}ret=c0[-1]-c1[-1]"));
                     },
-                    Intrinsic::IntegerMul => {
+                    Intrinsic::MulInt => {
                         lines.push(format!("{indent}ret=c0[-1]*c1[-1]"));
                     },
-                    Intrinsic::IntegerDiv => {
+                    Intrinsic::DivInt => {
                         lines.push(format!("{indent}ret=c0[-1]//c1[-1]"));
                     },
-                    Intrinsic::IntegerEq => {
+                    Intrinsic::RemInt => {
+                        lines.push(format!("{indent}ret=c0[-1]%c1[-1]"));
+                    },
+                    Intrinsic::LtInt => {
+                        lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
+                    },
+                    Intrinsic::EqInt => {
                         lines.push(format!("{indent}ret=c0[-1]==c1[-1]"));
                     },
-                    Intrinsic::IntegerGt => {
+                    Intrinsic::GtInt => {
                         lines.push(format!("{indent}ret=c0[-1]>c1[-1]"));
-                    },
-                    Intrinsic::IntegerLt => {
-                        lines.push(format!("{indent}ret=c0[-1]<c1[-1]"));
                     },
                     Intrinsic::Panic => {
                         lines.push(format!("{indent}return False"));

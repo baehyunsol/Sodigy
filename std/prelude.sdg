@@ -1,4 +1,4 @@
-pub use std.bool.Bool;
+pub use std.bool.{Bool, Bool.True, Bool.False};
 pub use std.byte.Byte;
 pub use std.bytes.Bytes;
 pub use std.char.Char;

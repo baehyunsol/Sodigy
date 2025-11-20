@@ -202,18 +202,6 @@ pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecodes: &m
                         bytecodes.push(Bytecode::Return);
                     }
                 },
-                Callable::Intrinsic { intrinsic, .. } => {
-                    bytecodes.push(Bytecode::Intrinsic(*intrinsic));
-
-                    for i in 0..args.len() {
-                        bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
-                    }
-
-                    if is_tail_call {
-                        session.pop_all_locals(bytecodes);
-                        bytecodes.push(Bytecode::Return);
-                    }
-                },
                 _ => panic!("TODO: {func:?}"),
             }
         },

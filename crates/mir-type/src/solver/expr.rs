@@ -51,8 +51,22 @@ impl Solver {
                 false => (Some(Type::Static(self.get_lang_item_span("type.Number"))), false),
             },
             Expr::String { binary, .. } => match *binary {
-                true => (Some(Type::Static(self.get_lang_item_span("type.Bytes"))), false),
-                false => (Some(Type::Static(self.get_lang_item_span("type.String"))), false),
+                true => (
+                    Some(Type::Param {
+                        r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
+                        args: vec![Type::Static(self.get_lang_item_span("type.Byte"))],
+                        group_span: Span::None,
+                    }),
+                    false,
+                ),
+                false => (
+                    Some(Type::Param {
+                        r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
+                        args: vec![Type::Static(self.get_lang_item_span("type.Char"))],
+                        group_span: Span::None,
+                    }),
+                    false,
+                ),
             },
             Expr::If(r#if) => {
                 let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
@@ -153,11 +167,10 @@ impl Solver {
 
                 (Some(bool_type), has_error)
             },
-            // ---- draft ----
             // 1. we can solve types of args
             // 2. if callable is...
             //    - a function without generic
-            //      - every arg must have a concrete type, so is the return type
+            //      - every arg must have a concrete type, so does the return type
             //      - it calls `equal` for all args, and returns the return type
             //    - a generic function
             //      - it first converts `Generic` to `GenericInstance` and does what
@@ -277,7 +290,7 @@ impl Solver {
                         // Then, an empty initialization is like calling a generic function
                         // but we don't know its generic yet.
                         if arg_types.is_empty() {
-                            let type_var = Type::GenericInstance { call: *group_span, generic: self.get_lang_item_span("fn.init_list.generic.0") };
+                            let type_var = Type::GenericInstance { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Param {

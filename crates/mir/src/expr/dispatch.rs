@@ -1,0 +1,92 @@
+use super::Expr;
+use crate::{Callable, Session, Type};
+use sodigy_hir::{FuncArgDef, GenericDef};
+use sodigy_span::Span;
+use std::collections::HashMap;
+
+impl Expr {
+    pub fn dispatch(
+        &mut self,
+        map: &HashMap<Span, Span>,
+        func_shapes: &HashMap<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
+    ) {
+        match self {
+            // TODO: I guess we have to dispatch identifiers, too?
+            //       e.g. let's say `add` is a generic function
+            //       `let x: [Fn(Int, Int) -> Int] = [add, sub, mul, div];`
+            //       Then we have to dispatch the identifiers in the list.
+            Expr::Identifier(_) => {},
+            Expr::Number { .. } |
+            Expr::String { .. } |
+            Expr::Char { .. } |
+            Expr::Byte { .. } => {},
+            Expr::If(r#if) => {
+                r#if.cond.dispatch(map, func_shapes, generic_instances);
+                r#if.true_value.dispatch(map, func_shapes, generic_instances);
+                r#if.false_value.dispatch(map, func_shapes, generic_instances);
+            },
+            Expr::Match(r#match) => todo!(),
+            Expr::Block(block) => {
+                for r#let in block.lets.iter_mut() {
+                    r#let.value.dispatch(map, func_shapes, generic_instances);
+                }
+
+                for assert in block.asserts.iter_mut() {
+                    assert.value.dispatch(map, func_shapes, generic_instances);
+
+                    if let Some(note) = &mut assert.note {
+                        note.dispatch(map, func_shapes, generic_instances);
+                    }
+                }
+
+                block.value.dispatch(map, func_shapes, generic_instances);
+            },
+            Expr::Path { lhs, .. } => {
+                lhs.dispatch(map, func_shapes, generic_instances);
+            },
+            Expr::FieldModifier { lhs, rhs, .. } |
+            Expr::ShortCircuit { lhs, rhs, .. } => {
+                lhs.dispatch(map, func_shapes, generic_instances);
+                rhs.dispatch(map, func_shapes, generic_instances);
+            },
+            Expr::Call { func, args, generic_defs, .. } => {
+                let dispatch = match func {
+                    Callable::Static { def_span, span } => match map.get(span) {
+                        Some(new_def_span) => Some((*new_def_span, *span)),
+                        None => None,
+                    },
+                    _ => None,
+                };
+
+                if let Some((def_span, span)) = dispatch {
+                    *func = Callable::Static { def_span, span };
+
+                    let mut new_generic_defs = vec![];
+
+                    match func_shapes.get(&def_span) {
+                        Some((_, generic_defs_)) => {
+                            for generic_def in generic_defs_.iter() {
+                                generic_instances.insert(
+                                    (span, generic_def.name_span),
+                                    Type::GenericInstance {
+                                        call: span,
+                                        generic: generic_def.name_span,
+                                    },
+                                );
+                                new_generic_defs.push(generic_def.name_span);
+                            }
+                        },
+                        None => unreachable!(),
+                    }
+
+                    *generic_defs = new_generic_defs;
+                }
+
+                for arg in args.iter_mut() {
+                    arg.dispatch(map, func_shapes, generic_instances);
+                }
+            },
+        }
+    }
+}

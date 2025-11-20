@@ -11,7 +11,7 @@ use crate::{
 };
 use sodigy_error::{Error, Warning};
 use sodigy_session::Session as SodigySession;
-use sodigy_mir as mir;
+use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 use std::collections::{HashMap, HashSet};
@@ -26,6 +26,9 @@ pub struct Session {
     // def_span to register map
     pub local_registers: HashMap<Span, Register>,
 
+    // key: def_span of the built-in function (in sodigy std)
+    pub intrinsics: HashMap<Span, Intrinsic>,
+
     pub funcs: Vec<Func>,
     pub lets: Vec<Let>,
     pub asserts: Vec<Assert>,
@@ -35,11 +38,19 @@ pub struct Session {
 
 impl Session {
     pub fn from_mir_session(mir_session: &mir::Session) -> Self {
+        let intrinsics = Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
+            |(intrinsic, lang_item)| match mir_session.lang_items.get(*lang_item) {
+                Some(span) => (*span, *intrinsic),
+                None => panic!("lang item not found: {lang_item:?}"),
+            }
+        ).collect();
+
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             func_arg_count: 0,
             label_counter: 0,
             local_registers: HashMap::new(),
+            intrinsics,
             funcs: vec![],
             lets: vec![],
             asserts: vec![],

@@ -1,13 +1,15 @@
+use std.bool.Bool;
+
 #[built_in]
 #[lang_item("type.List")]
 pub struct List = { _ };
 
 #[built_in]
-#[lang_item("fn.init_list")]
-#[lang_item_generics("fn.init_list.generic.0")]
+#[lang_item("built_in.init_list")]
+#[lang_item_generics("built_in.init_list.generic.0")]
 fn init_list<T>(/* varargs */) -> [T];
 
-// TODO: The compiler isn't strong enough to compile this function.
+// TODO: The compiler isn't strong enough to compile these functions.
 /*
 #[impl(op.index)]
 fn index_list<T>(ls: [T], i: Int) -> T = {
@@ -24,5 +26,12 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
         // TODO: error message
         std.panic()
     }
+};
+
+#[impl(std.op.eq)]
+fn eq_list<T>(a: [T], b: [T]) -> Bool = match (a, b) {
+    ([], []) => Bool.True,
+    ([], _) | (_, []) => Bool.False,
+    (a ++ ar, b ++ br) => a == b && ar == br,
 };
 */

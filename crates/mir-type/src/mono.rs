@@ -1,18 +1,58 @@
-use crate::{SolvePolyResult, Solver, TypeError};
+use crate::{PolySolver, SolvePolyResult, Solver, TypeError};
 use sodigy_mir::{Session, Type};
 use sodigy_span::Span;
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
+pub struct MonomorphizePlan {
+    // key: call span
+    // value: def_span of the monomorphized function
+    pub dispatch_map: HashMap<Span, Span>,
+}
+
+impl MonomorphizePlan {
+    pub fn is_empty(&self) -> bool {
+        self.dispatch_map.is_empty()
+    }
+}
+
 impl Solver {
-    pub fn monomorphize(&mut self, session: &mut Session) -> Result<(), ()> {
+    pub fn get_mono_plan(
+        &mut self,
+        poly_solver: &HashMap<Span, PolySolver>,
+        already_dispatched: &mut HashSet<(Span /* call */, Span /* generic */)>,
+        session: &Session,
+    ) -> Result<MonomorphizePlan, ()> {
         let poly_solver = self.init_poly_solvers(session)?;
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
+        // We can infer/monomorphize poly generics even if the type info is incomplete.
+        // Let's say there's `3 + a` and we don't know the type of `a`. We can still
+        // dispatch the `add` poly because there's only one instance of `add` whose
+        // first argument is an integer.
+        let mut incomplete_generics = HashSet::new();
+
         for type_var in self.type_vars.keys() {
             match type_var {
                 Type::GenericInstance { call, generic } => {
-                    let r#type = session.generic_instances.get(&(*call, *generic)).unwrap().clone();
+                    if already_dispatched.contains(&(*call, *generic)) {
+                        continue;
+                    }
+
+                    let r#type = match session.generic_instances.get(&(*call, *generic)) {
+                        Some(r#type) => {
+                            if !r#type.get_type_vars().is_empty() {
+                                incomplete_generics.insert(*call);
+                            }
+
+                            r#type.clone()
+                        },
+                        None => {
+                            incomplete_generics.insert(*call);
+                            type_var.clone()
+                        },
+                    };
 
                     match generic_calls.entry(*call) {
                         Entry::Occupied(mut e) => {
@@ -31,17 +71,17 @@ impl Solver {
             }
         }
 
-        if generic_calls.is_empty() {
-            return Ok(());
-        }
-
-        // It's key is the call span,
+        // Its key is the call span,
         // and the value is the def_span of the monomorphized function.
-        let mut mono_map: HashMap<Span, Span> = HashMap::new();
+        let mut dispatch_map: HashMap<Span, Span> = HashMap::new();
 
         for (_, generic_call) in generic_calls.iter() {
             match self.try_solve_poly(&session.polys, &poly_solver, generic_call) {
                 SolvePolyResult::NotPoly => {
+                    if incomplete_generics.contains(&generic_call.call) {
+                        continue;
+                    }
+
                     // a normal generic function
                     panic!("TODO: {generic_call:?}")
                 },
@@ -56,20 +96,26 @@ impl Solver {
                 },
                 SolvePolyResult::DefaultImpl(p) |
                 SolvePolyResult::OneCandidate(p) => {
-                    mono_map.insert(generic_call.call, p);
+                    for generic in generic_call.generics.keys() {
+                        already_dispatched.insert((generic_call.call, *generic));
+                    }
+
+                    dispatch_map.insert(generic_call.call, p);
                 },
                 r => panic!("TODO: {r:?}"),
             }
         }
 
-        // TODO: apply mono_map and loop
+        // TODO: apply dispatch_map and loop
 
         if has_error {
             Err(())
         }
 
         else {
-            Ok(())
+            Ok(MonomorphizePlan {
+                dispatch_map,
+            })
         }
     }
 }

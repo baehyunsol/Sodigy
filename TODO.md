@@ -1,3 +1,32 @@
+# 90. enum representation
+
+1. 첫번째 field에 variant가 들어가고, 나머지에 실제 값이 들어감
+2. field를 하나만 쓸 거면 굳이 heap에 올릴 필요가 없음, 그냥 scalar값 하나 (32bit)만 써도 됨!
+3. 더 최적화 하자면, `Option<Bool>`같은 애들도 variant 3개짜리 enum으로 취급해버리면 전부 scalar로 표현 가능!!
+
+# 89. More on explainability
+
+1. Type infer 할 때 기록 남기는 옵션 추가
+  - type var에 정보를 추가할 때마다 그게 기록으로 남음
+  - `solve_subtype()`이랑 `substitute()`에서만 호출해도 충분함!
+2. dispatch_map이 생성될 때마다 기록 남기는 옵션 추가
+3. 설명을 듣고 싶은 span을 고르면 전체 기록에서 그 span과 관련있는 기록만 뽑아냄
+  - 이걸 시간 순으로 쭉 보면 뭐가 어떻게 되는지 쉽게 알 수 있을 듯?
+4. 아니면, type error가 발생하면 기록 남기는 옵션을 켠 다음에 처음부터 mir-type을 다시 돌리는 거임!
+  - 그럼 아주아주 자세한 에러 메시지를 남길 수 있음...
+
+# 88. More on scalability
+
+Inheritance도 아니고 composition도 아닌 새로운 방식을 택할 거임.
+
+1. generic function은 C++처럼 ad-hoc으로 monomorphize하는 방식임. 그대신 컴파일 에러를 예쁘게 내려고 노력할 거임!!
+2. poly generic은 지금 그대로
+3. 어떤 type에 method를 추가하는 거는, 그 type이 정의된 project 안에서만 가능함!
+4. extension이라는 개념이 있음. 어떤 type에 extension을 붙이면 그 type에 method를 추가할 수 있음.
+  - 다른 project에서 정의된 type에도 extension을 붙일 수 있음.
+  - extension으로 추가된 method를 사용하려면 그 extension을 import 해야함.
+  - 서로 다른 extension이 동일한 method를 추가하면, 그 extension들을 동시에 import 하면 오류남!
+
 # 87. 용어 정리
 
 지금까지 "argument"랑 "parameter"를 혼용하고 있었음... `fn add(x, y)`가 있고 `add(100, 200)`이 있을 때 `x`와 `y`는 parameter, `100`과 `200`은 argument!!
@@ -377,21 +406,6 @@ Wildcard 사용처를 생각해보자
 
 그럼 `_`로 시작하는 이름은 unused_name 안 날리는 것만 구현하자!
 
-# 69. trait/method/operator overloading
-
-1. std에 `index`가 있고 `index_list`가 있지? 둘을 어떻게 연결시킬까? -> 여기서 모든 고민이 시작됨.
-2. operator overloading을 구현할 거임?
-  - 이거는 살짝 반대임
-3. trait (a.k.a. type class)를 구현할 거임?
-  - 언젠간 구현하고 싶긴 함. 다만 지금 하기에는 너무 벅찰 뿐...
-4. method는 어떻게 표시?
-  - Rust랑 비슷하게 하려면 `impl Person {}`을 하면 됨!
-    - 이러면 `self` keyword도 쓰는 거지?? 그러려면 parser를 좀 수정해야함 ㅠㅠ
-    - `self`가 안 붙으면 class method가 되나??
-    - 그럼 `impl<T> Option<T> {}`하고 `impl Option<Int> {}`하고 구분해야겠네??
-      - 그럼 orphan rule도 만들어야 하는 거 아님??
-  - 옛날 sodigy에서는 decorator로 type을 연결시키려 했는데... 별로였음!!
-
 # 68. turbofish operator
 
 1. Samples
@@ -427,18 +441,6 @@ Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!
 2. `as` operator
   - 이것도 마찬가지, `300 as Byte`를 하면 `Result<Byte, _>`를 반환해? 그건 좀...
 3. `.into()`
-
-# 62. format string
-
-Lexer도 아직 못 짬 -> 너무 복잡해서 아직 손댈 엄두를 못 내는 중
-
-1. rust 방식
-  - {} 안에 들어갈 수 있는 token이 아주 제한됨. 그대신 뒤에 arg로 줄 수 있음. arg는 문법이 아주 풍부. 그대신 `format!`과 `println!`이 compiler-built-in임...
-2. python 방식
-  - {} 안에 들어갈 수 있는 token에 제한이 거의 없음. 그대신 parsing이 빡세고 가끔 비직관적인 일이 일어남 (`:`를 썼는데 의미가 애매해진다든가...)
-3. 절충안
-  - 몇몇 token만 허용하기? identifier, comma, dot, parenthesis
-  - quote랑 curly brace 빼고 다 허용하기? colon도 허용하면 안될듯
 
 # 61. more on purity
 
@@ -497,17 +499,7 @@ heap
     - We can do this at MIR.
   - In the current version, when you want to push a constant to `Stack::Call(1)`, you first push it to `Stack::Return` and clone it to `Stack::Call(1)`. It's damn inefficient. You can pass an argument to `lir::lower_expr`, which stack it should push the result. It's not even an optimization. It's just an implementation, but it's a huge gain.
 
-# 58. unnecessary parenthesis warning
-
-심심해서 구버전 Sodigy에서 내던 warning이 뭐가 있는지 찾아봤거든? 그나마 건질만한게 저거밖에 없음.
-
-1. curly brace도 잡기?
-  - `if cond {{{var}}}` -> 이런 말같지도 않은 상황을 상상해볼 수도 있음 ㅋㅋ
-2. unnecessary한지 아닌지 어떻게 판단?
-  - `if (cond) { .. }` -> 이거 unnecessary? 가독성에 도움될 수도 있잖아.
-  - `if cond {(var)}` -> 이거 unnecessary? 이건 unnecessary 해보이긴 함 ㅋㅋㅋ
-  - `let x = (var);` -> 이거 unnecessary? var가 길면 가독성에 도움될 수도 있잖아...
-  - `foo(x, y, (var), z)` -> 이거 unnecessary??
+-> stack 2개만 쓰자... 굳이 scalar랑 ptr이랑 구분할 필요 없음!! 어차피 컴파일하면서 누가 ptr인지 다 파악해서 dec_rc 넣어줄 거잖아!!
 
 # 57. `mod` and `use`
 

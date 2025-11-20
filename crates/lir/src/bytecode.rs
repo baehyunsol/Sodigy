@@ -92,13 +92,14 @@ impl Bytecode {
             Bytecode::Intrinsic(intrinsic) => match intrinsic {
                 Intrinsic::Panic |
                 Intrinsic::Exit => true,
-                Intrinsic::IntegerAdd |
-                Intrinsic::IntegerSub |
-                Intrinsic::IntegerMul |
-                Intrinsic::IntegerDiv |
-                Intrinsic::IntegerEq |
-                Intrinsic::IntegerGt |
-                Intrinsic::IntegerLt |
+                Intrinsic::AddInt |
+                Intrinsic::SubInt |
+                Intrinsic::MulInt |
+                Intrinsic::DivInt |
+                Intrinsic::RemInt |
+                Intrinsic::LtInt |
+                Intrinsic::EqInt |
+                Intrinsic::GtInt |
                 Intrinsic::Print |
                 Intrinsic::EPrint => false,
             },

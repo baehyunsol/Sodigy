@@ -1,4 +1,7 @@
-// Items in std can use a special decorator: `#[built_in]`.
+// Items in std can use special decorators:
+//   - `#[built_in]`.
+//   - `#[lang_item]`
+//   - `#[lang_item_generics]`
 
 mod bool;
 mod byte;
@@ -14,7 +17,21 @@ mod string;
 use std.int.Int;
 
 #[built_in]
+#[lang_item("built_in.exit")]
+fn exit() -> !;
+
+#[built_in]
+#[lang_item("built_in.panic")]
 fn panic() -> !;
 
 #[built_in]
+#[lang_item("built_in.print")]
+fn print<T>(v: T) -> T;
+
+#[built_in]
+#[lang_item("built_in.eprint")]
+fn eprint<T>(v: T) -> T;
+
+#[built_in]
+#[lang_item("built_in.read_compound")]
 fn read_compound<T, U>(a: T, b: Int) -> U;

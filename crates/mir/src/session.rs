@@ -94,6 +94,25 @@ impl Session {
         self.errors.extend(s.errors.drain(..));
         self.warnings.extend(s.warnings.drain(..));
     }
+
+    // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
+    pub fn dispatch(&mut self, map: &HashMap<Span, Span>) {
+        for r#let in self.lets.iter_mut() {
+            r#let.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+        }
+
+        for func in self.funcs.iter_mut() {
+            func.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+        }
+
+        for assert in self.asserts.iter_mut() {
+            assert.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+
+            if let Some(note) = &mut assert.note {
+                note.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+            }
+        }
+    }
 }
 
 impl SodigySession for Session {
