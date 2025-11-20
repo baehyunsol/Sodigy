@@ -200,17 +200,17 @@ impl Solver {
                     Callable::Static { def_span, span } => match types.get(def_span) {
                         // `f` is a function and we have enough information.
                         Some(Type::Func {
-                            args: arg_defs,
+                            params,
                             r#return,
                             ..
                         }) => {
-                            let mut arg_defs = arg_defs.clone();
+                            let mut params = params.clone();
                             let mut return_type: Type = *r#return.clone();
                             let span = *span;
 
                             if !generic_defs.is_empty() {
-                                for arg_def in arg_defs.iter_mut() {
-                                    arg_def.substitute_generic_def(span, &generic_defs);
+                                for param in params.iter_mut() {
+                                    param.substitute_generic_def(span, &generic_defs);
                                 }
 
                                 return_type.substitute_generic_def(span, &generic_defs);
@@ -222,10 +222,10 @@ impl Solver {
 
                             // It doesn't check arg types if there are wrong number of args.
                             // Whether or not there're type errors with args, it returns the return type.
-                            if arg_types.len() != arg_defs.len() {
+                            if arg_types.len() != params.len() {
                                 has_error = true;
                                 self.errors.push(TypeError::WrongNumberOfArguments {
-                                    expected: arg_defs,
+                                    expected: params,
                                     got: arg_types,
                                     given_keyword_arguments: given_keyword_arguments.to_vec(),
                                     func_span: func.error_span(),
@@ -234,9 +234,9 @@ impl Solver {
                             }
 
                             else {
-                                for (i, arg_def) in arg_defs.iter().enumerate() {
+                                for (i, param) in params.iter().enumerate() {
                                     if let Err(()) = self.solve_subtype(
-                                        arg_def,
+                                        param,
                                         &arg_types[i],
                                         types,
                                         generic_instances,
@@ -357,13 +357,13 @@ impl Solver {
                             // We'll only type check/infer monomorphized functions.
                             Type::GenericDef(_) => unreachable!(),
 
-                            Type::Func { args: arg_defs, r#return, .. } => {
+                            Type::Func { params, r#return, .. } => {
                                 // It doesn't check arg types if there are wrong number of args.
                                 // Whether or not there're type errors with args, it returns the return type.
-                                if arg_types.len() != arg_defs.len() {
+                                if arg_types.len() != params.len() {
                                     has_error = true;
                                     self.errors.push(TypeError::WrongNumberOfArguments {
-                                        expected: arg_defs,
+                                        expected: params,
                                         got: arg_types,
                                         given_keyword_arguments: given_keyword_arguments.to_vec(),
                                         func_span: func.error_span(),
@@ -372,9 +372,9 @@ impl Solver {
                                 }
 
                                 else {
-                                    for i in 0..arg_defs.len() {
+                                    for i in 0..params.len() {
                                         if let Err(()) = self.solve_subtype(
-                                            &arg_defs[i],
+                                            &params[i],
                                             &arg_types[i],
                                             types,
                                             generic_instances,

@@ -25,18 +25,18 @@ pub use alias::Alias;
 pub use assert::Assert;
 pub use attribute::{Attribute, Decorator, DocComment, DocCommentLine, Visibility};
 pub use block::Block;
-pub use r#enum::{Enum, EnumVariantArgs, EnumVariantDef};
+pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use expr::{Expr, ExprOrString, Field};
-pub use func::{CallArg, Func, FuncArgDef};
+pub use func::{CallArg, Func, FuncParam};
 pub use r#if::If;
 pub use r#let::Let;
 pub use r#match::{Match, MatchBranch};
 pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use session::Session;
-pub use r#struct::{Struct, StructInitField, StructFieldDef};
+pub use r#struct::{Struct, StructField, StructInitField};
 pub(crate) use tokens::Tokens;
-pub use r#type::{GenericDef, Type};
+pub use r#type::{Generic, Type};
 pub use r#use::Use;
 
 pub fn parse(lex_session: LexSession) -> Session {

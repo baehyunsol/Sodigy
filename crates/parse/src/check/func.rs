@@ -1,4 +1,4 @@
-use crate::{Func, FuncArgDef, Session};
+use crate::{Func, FuncParam, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -16,7 +16,7 @@ impl Func {
         }
 
         // for error messages
-        let mut span_of_arg_with_default_value = None;
+        let mut span_of_param_with_default_value = None;
 
         for generic in self.generics.iter() {
             match spans_by_name.entry(generic.name) {
@@ -29,40 +29,40 @@ impl Func {
             }
         }
 
-        for arg in self.args.iter() {
-            if let Some(span) = span_of_arg_with_default_value && arg.default_value.is_none() {
+        for param in self.params.iter() {
+            if let Some(span) = span_of_param_with_default_value && param.default_value.is_none() {
                 errors.push(Error {
                     kind: ErrorKind::NonDefaultValueAfterDefaultValue,
                     spans: vec![
                         RenderableSpan {
-                            span: arg.name_span,
+                            span: param.name_span,
                             auxiliary: false,
-                            note: Some(String::from("This argument must have a default value.")),
+                            note: Some(String::from("This parameter must have a default value.")),
                         },
                         RenderableSpan {
                             span,
                             auxiliary: true,
-                            note: Some(String::from("This argument has a default value.")),
+                            note: Some(String::from("This parameter has a default value.")),
                         },
                     ],
                     note: None,
                 });
             }
 
-            if let Err(e) = arg.check(session) {
+            if let Err(e) = param.check(session) {
                 errors.extend(e);
             }
 
-            if arg.default_value.is_some() {
-                span_of_arg_with_default_value = Some(arg.name_span);
+            if param.default_value.is_some() {
+                span_of_param_with_default_value = Some(param.name_span);
             }
 
-            match spans_by_name.entry(arg.name) {
+            match spans_by_name.entry(param.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(arg.name_span);
+                    e.get_mut().push(param.name_span);
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![arg.name_span]);
+                    e.insert(vec![param.name_span]);
                 },
             }
         }
@@ -107,7 +107,7 @@ impl Func {
     }
 }
 
-impl FuncArgDef {
+impl FuncParam {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 

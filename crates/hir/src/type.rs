@@ -8,10 +8,15 @@ use sodigy_string::intern_string;
 #[derive(Clone, Debug)]
 pub enum Type {
     Identifier(IdentWithOrigin),
+
+    // A type with dotted-identifiers (e.g. `std.bool.Bool`).
+    // It'll eventually be lowered to `Type::Identifier`, otherwise an error.
     Path {
         id: IdentWithOrigin,
         fields: Vec<Field>,
     },
+
+    // A type with parameters (e.g. `Result<T, U>`)
     Param {
         r#type: Box<Type>,
         args: Vec<Type>,
@@ -24,7 +29,7 @@ pub enum Type {
     Func {
         fn_span: Span,
         group_span: Span,
-        args: Vec<Type>,
+        params: Vec<Type>,
         r#return: Box<Type>,
     },
     Wildcard(Span),
@@ -149,11 +154,11 @@ impl Type {
                     })
                 }
             },
-            ast::Type::Func { r#type, group_span, args: ast_args, r#return: ast_return } => {
+            ast::Type::Func { r#type, group_span, params: ast_params, r#return: ast_return } => {
                 let mut fn_span = Span::None;
                 let mut has_error = false;
                 let mut has_wrong_identifier = false;
-                let mut args = Vec::with_capacity(ast_args.len());
+                let mut params = Vec::with_capacity(ast_params.len());
 
                 match Type::from_ast(r#type, session) {
                     Ok(Type::Identifier(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
@@ -181,10 +186,10 @@ impl Type {
                     has_error = true;
                 }
 
-                for ast_arg in ast_args.iter() {
-                    match Type::from_ast(ast_arg, session) {
-                        Ok(arg) => {
-                            args.push(arg);
+                for ast_param in ast_params.iter() {
+                    match Type::from_ast(ast_param, session) {
+                        Ok(param) => {
+                            params.push(param);
                         },
                         Err(()) => {
                             has_error = true;
@@ -208,7 +213,7 @@ impl Type {
                     Ok(Type::Func {
                         fn_span,
                         group_span: *group_span,
-                        args,
+                        params,
                         r#return: Box::new(r#return.unwrap()),
                     })
                 }

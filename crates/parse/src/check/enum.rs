@@ -1,4 +1,4 @@
-use crate::{Enum, EnumVariantDef, Session};
+use crate::{Enum, EnumVariant, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -69,7 +69,7 @@ impl Enum {
     }
 }
 
-impl EnumVariantDef {
+impl EnumVariant {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         self.attribute.check(session)
     }

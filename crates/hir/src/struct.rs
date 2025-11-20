@@ -3,8 +3,8 @@ use crate::{
     AttributeKind,
     AttributeRule,
     Expr,
-    FuncArgDef,
-    GenericDef,
+    FuncParam,
+    Generic,
     Requirement,
     Session,
     Visibility,
@@ -22,12 +22,12 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub fields: Vec<StructFieldDef>,
+    pub generics: Vec<Generic>,
+    pub fields: Vec<StructField>,
 }
 
 // TODO: attributes
-pub type StructFieldDef = FuncArgDef;
+pub type StructField = FuncParam;
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {
@@ -81,7 +81,7 @@ impl Struct {
         }
 
         for field in ast_struct.fields.iter() {
-            match StructFieldDef::from_ast(field, session, is_top_level) {
+            match StructField::from_ast(field, session, is_top_level) {
                 Ok(field) => {
                     fields.push(field);
                 },

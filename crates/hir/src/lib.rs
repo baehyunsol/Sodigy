@@ -45,9 +45,9 @@ pub use attribute::{
     Visibility,
 };
 pub use block::Block;
-pub use r#enum::{Enum, EnumVariantArgs, EnumVariantDef};
+pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use expr::Expr;
-pub use func::{CallArg, Func, FuncArgDef, FuncOrigin};
+pub use func::{CallArg, Func, FuncParam, FuncOrigin};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::{Match, MatchBranch};
@@ -55,11 +55,11 @@ pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use poly::Poly;
 pub use session::Session;
-pub use r#struct::{Struct, StructFieldDef, StructInitField};
+pub use r#struct::{Struct, StructField, StructInitField};
 pub use r#type::Type;
 pub use r#use::Use;
 
-pub use sodigy_parse::GenericDef;
+pub use sodigy_parse::Generic;
 
 pub fn lower(parse_session: ParseSession) -> Session {
     let mut session = Session::from_parse_session(&parse_session);

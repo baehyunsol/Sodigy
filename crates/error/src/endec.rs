@@ -172,139 +172,149 @@ impl Endec for ErrorKind {
                 buffer.push(44);
                 s.encode_impl(buffer);
             },
-            ErrorKind::CannotBindNameToAnotherName(s) => {
+            ErrorKind::MissingDecoratorArgument { expected, got } => {
                 buffer.push(45);
+                expected.encode_impl(buffer);
+                got.encode_impl(buffer);
+            },
+            ErrorKind::UnexpectedDecoratorArgument { expected, got } => {
+                buffer.push(46);
+                expected.encode_impl(buffer);
+                got.encode_impl(buffer);
+            },
+            ErrorKind::CannotBindNameToAnotherName(s) => {
+                buffer.push(47);
                 s.encode_impl(buffer);
             },
             ErrorKind::CannotAnnotateType => {
-                buffer.push(46);
+                buffer.push(48);
             },
             ErrorKind::RedundantNameBinding(a, b) => {
-                buffer.push(47);
+                buffer.push(49);
                 a.encode_impl(buffer);
                 b.encode_impl(buffer);
             },
             ErrorKind::NameCollision { name } => {
-                buffer.push(48);
+                buffer.push(50);
                 name.encode_impl(buffer);
             },
             ErrorKind::CyclicLet { names } => {
-                buffer.push(49);
+                buffer.push(51);
                 names.encode_impl(buffer);
             },
             ErrorKind::CyclicAlias { names } => {
-                buffer.push(50);
+                buffer.push(52);
                 names.encode_impl(buffer);
             },
             ErrorKind::UndefinedName(s) => {
-                buffer.push(51);
+                buffer.push(53);
                 s.encode_impl(buffer);
             },
             ErrorKind::KeywordArgumentRepeated(s) => {
-                buffer.push(52);
+                buffer.push(54);
                 s.encode_impl(buffer);
             },
             ErrorKind::KeywordArgumentNotAllowed => {
-                buffer.push(53);
+                buffer.push(55);
             },
             ErrorKind::AliasResolveRecursionLimitReached => {
-                buffer.push(54);
+                buffer.push(56);
             },
-            ErrorKind::MissingTypeArgument { expected, got } => {
-                buffer.push(55);
+            ErrorKind::MissingTypeParameter { expected, got } => {
+                buffer.push(57);
                 expected.encode_impl(buffer);
                 got.encode_impl(buffer);
             },
-            ErrorKind::UnexpectedTypeArgument { expected, got } => {
-                buffer.push(56);
+            ErrorKind::UnexpectedTypeParameter { expected, got } => {
+                buffer.push(58);
                 expected.encode_impl(buffer);
                 got.encode_impl(buffer);
             },
             ErrorKind::MissingKeywordArgument(s) => {
-                buffer.push(57);
+                buffer.push(59);
                 s.encode_impl(buffer);
             },
             ErrorKind::InvalidKeywordArgument(s) => {
-                buffer.push(58);
+                buffer.push(60);
                 s.encode_impl(buffer);
             },
-            ErrorKind::MissingArgument { expected, got } => {
-                buffer.push(59);
+            ErrorKind::MissingFunctionParameter { expected, got } => {
+                buffer.push(61);
                 expected.encode_impl(buffer);
                 got.encode_impl(buffer);
             },
-            ErrorKind::UnexpectedArgument { expected, got } => {
-                buffer.push(60);
+            ErrorKind::UnexpectedFunctionParameter { expected, got } => {
+                buffer.push(62);
                 expected.encode_impl(buffer);
                 got.encode_impl(buffer);
             },
             ErrorKind::StructFieldRepeated(s) => {
-                buffer.push(61);
-                s.encode_impl(buffer);
-            },
-            ErrorKind::MissingStructField(s) => {
-                buffer.push(62);
-                s.encode_impl(buffer);
-            },
-            ErrorKind::InvalidStructField(s) => {
                 buffer.push(63);
                 s.encode_impl(buffer);
             },
-            ErrorKind::DependentTypeNotAllowed => {
+            ErrorKind::MissingStructField(s) => {
                 buffer.push(64);
+                s.encode_impl(buffer);
+            },
+            ErrorKind::InvalidStructField(s) => {
+                buffer.push(65);
+                s.encode_impl(buffer);
+            },
+            ErrorKind::DependentTypeNotAllowed => {
+                buffer.push(66);
             },
             ErrorKind::UnexpectedType { expected, got } => {
-                buffer.push(65);
+                buffer.push(67);
                 expected.encode_impl(buffer);
                 got.encode_impl(buffer);
             },
             ErrorKind::CannotInferType { id } => {
-                buffer.push(66);
-                id.encode_impl(buffer);
-            },
-            ErrorKind::PartiallyInferedType { id, r#type } => {
-                buffer.push(67);
-                id.encode_impl(buffer);
-                r#type.encode_impl(buffer);
-            },
-            ErrorKind::CannotInferGenericType { id } => {
                 buffer.push(68);
                 id.encode_impl(buffer);
             },
-            ErrorKind::PartiallyInferedGenericType { id, r#type } => {
+            ErrorKind::PartiallyInferedType { id, r#type } => {
                 buffer.push(69);
                 id.encode_impl(buffer);
                 r#type.encode_impl(buffer);
             },
-            ErrorKind::CannotApplyInfixOp { op, arg_types } => {
+            ErrorKind::CannotInferGenericType { id } => {
                 buffer.push(70);
+                id.encode_impl(buffer);
+            },
+            ErrorKind::PartiallyInferedGenericType { id, r#type } => {
+                buffer.push(71);
+                id.encode_impl(buffer);
+                r#type.encode_impl(buffer);
+            },
+            ErrorKind::CannotApplyInfixOp { op, arg_types } => {
+                buffer.push(72);
                 op.encode_impl(buffer);
                 arg_types.encode_impl(buffer);
             },
             ErrorKind::CannotSpecializePolyGeneric { num_candidates } => {
-                buffer.push(71);
+                buffer.push(73);
                 num_candidates.encode_impl(buffer);
             },
             ErrorKind::MultipleModuleFiles { module, found_files } => {
-                buffer.push(72);
+                buffer.push(74);
                 module.encode_impl(buffer);
                 found_files.encode_impl(buffer);
             },
             ErrorKind::ModuleFileNotFound { module, candidates } => {
-                buffer.push(73);
+                buffer.push(75);
                 module.encode_impl(buffer);
                 candidates.encode_impl(buffer);
             },
             ErrorKind::LibFileNotFound => {
-                buffer.push(74);
+                buffer.push(76);
             },
             ErrorKind::UnusedNames { names, kind } => {
-                buffer.push(75);
+                buffer.push(77);
                 names.encode_impl(buffer);
                 kind.encode_impl(buffer);
             },
             ErrorKind::Todo { id, message } => {
-                buffer.push(76);
+                buffer.push(78);
                 id.encode_impl(buffer);
                 message.encode_impl(buffer);
             },
@@ -394,132 +404,142 @@ impl Endec for ErrorKind {
                 Ok((ErrorKind::InvalidDecorator(s), cursor))
             },
             Some(45) => {
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::MissingDecoratorArgument { expected, got }, cursor))
+            },
+            Some(46) => {
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::UnexpectedDecoratorArgument { expected, got }, cursor))
+            },
+            Some(47) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CannotBindNameToAnotherName(s), cursor))
             },
-            Some(46) => Ok((ErrorKind::CannotAnnotateType, cursor + 1)),
-            Some(47) => {
+            Some(48) => Ok((ErrorKind::CannotAnnotateType, cursor + 1)),
+            Some(49) => {
                 let (a, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 let (b, cursor) = InternedString::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::RedundantNameBinding(a, b), cursor))
             },
-            Some(48) => {
+            Some(50) => {
                 let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::NameCollision { name }, cursor))
             },
-            Some(49) => {
+            Some(51) => {
                 let (names, cursor) = Vec::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CyclicLet { names }, cursor))
             },
-            Some(50) => {
+            Some(52) => {
                 let (names, cursor) = Vec::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CyclicAlias { names }, cursor))
             },
-            Some(51) => {
+            Some(53) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::UndefinedName(s), cursor))
             },
-            Some(52) => {
+            Some(54) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::KeywordArgumentRepeated(s), cursor))
             },
-            Some(53) => Ok((ErrorKind::KeywordArgumentNotAllowed, cursor + 1)),
-            Some(54) => Ok((ErrorKind::AliasResolveRecursionLimitReached, cursor + 1)),
-            Some(55) => {
-                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((ErrorKind::MissingTypeArgument { expected, got }, cursor))
-            },
-            Some(56) => {
-                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((ErrorKind::UnexpectedTypeArgument { expected, got }, cursor))
-            },
+            Some(55) => Ok((ErrorKind::KeywordArgumentNotAllowed, cursor + 1)),
+            Some(56) => Ok((ErrorKind::AliasResolveRecursionLimitReached, cursor + 1)),
             Some(57) => {
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::MissingTypeParameter { expected, got }, cursor))
+            },
+            Some(58) => {
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::UnexpectedTypeParameter { expected, got }, cursor))
+            },
+            Some(59) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::MissingKeywordArgument(s), cursor))
             },
-            Some(58) => {
+            Some(60) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::InvalidKeywordArgument(s), cursor))
             },
-            Some(59) => {
-                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((ErrorKind::MissingArgument { expected, got }, cursor))
-            },
-            Some(60) => {
-                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
-                Ok((ErrorKind::UnexpectedArgument { expected, got }, cursor))
-            },
             Some(61) => {
-                let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((ErrorKind::StructFieldRepeated(s), cursor))
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::MissingFunctionParameter { expected, got }, cursor))
             },
             Some(62) => {
-                let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((ErrorKind::MissingStructField(s), cursor))
+                let (expected, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (got, cursor) = usize::decode_impl(buffer, cursor)?;
+                Ok((ErrorKind::UnexpectedFunctionParameter { expected, got }, cursor))
             },
             Some(63) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((ErrorKind::StructFieldRepeated(s), cursor))
+            },
+            Some(64) => {
+                let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((ErrorKind::MissingStructField(s), cursor))
+            },
+            Some(65) => {
+                let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::InvalidStructField(s), cursor))
             },
-            Some(64) => Ok((ErrorKind::DependentTypeNotAllowed, cursor + 1)),
-            Some(65) => {
+            Some(66) => Ok((ErrorKind::DependentTypeNotAllowed, cursor + 1)),
+            Some(67) => {
                 let (expected, cursor) = String::decode_impl(buffer, cursor + 1)?;
                 let (got, cursor) = String::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::UnexpectedType { expected, got }, cursor))
             },
-            Some(66) => {
+            Some(68) => {
                 let (id, cursor) = Option::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CannotInferType { id }, cursor))
             },
-            Some(67) => {
+            Some(69) => {
                 let (id, cursor) = Option::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 let (r#type, cursor) = String::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::PartiallyInferedType { id, r#type }, cursor))
             },
-            Some(68) => {
+            Some(70) => {
                 let (id, cursor) = Option::<String>::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CannotInferGenericType { id }, cursor))
             },
-            Some(69) => {
+            Some(71) => {
                 let (id, cursor) = Option::<String>::decode_impl(buffer, cursor + 1)?;
                 let (r#type, cursor) = String::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::PartiallyInferedGenericType { id, r#type }, cursor))
             },
-            Some(70) => {
+            Some(72) => {
                 let (op, cursor) = InfixOp::decode_impl(buffer, cursor + 1)?;
                 let (arg_types, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::CannotApplyInfixOp { op, arg_types }, cursor))
             },
-            Some(71) => {
+            Some(73) => {
                 let (num_candidates, cursor) = usize::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorKind::CannotSpecializePolyGeneric { num_candidates }, cursor))
             },
-            Some(72) => {
+            Some(74) => {
                 let (module, cursor) = ModulePath::decode_impl(buffer, cursor + 1)?;
                 let (found_files, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::MultipleModuleFiles { module, found_files }, cursor))
             },
-            Some(73) => {
+            Some(75) => {
                 let (module, cursor) = ModulePath::decode_impl(buffer, cursor + 1)?;
                 let (candidates, cursor) = Vec::<String>::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::ModuleFileNotFound { module, candidates }, cursor))
             },
-            Some(74) => Ok((ErrorKind::LibFileNotFound, cursor + 1)),
-            Some(75) => {
+            Some(76) => Ok((ErrorKind::LibFileNotFound, cursor + 1)),
+            Some(77) => {
                 let (names, cursor) = Vec::<InternedString>::decode_impl(buffer, cursor + 1)?;
                 let (kind, cursor) = NameKind::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::UnusedNames { names, kind }, cursor))
             },
-            Some(76) => {
+            Some(78) => {
                 let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 let (message, cursor) = String::decode_impl(buffer, cursor)?;
                 Ok((ErrorKind::Todo { id, message }, cursor))
             },
-            Some(n @ 77..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 79..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

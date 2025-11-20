@@ -4,12 +4,12 @@ use crate::{
     AttributeRule,
     Requirement,
     Session,
-    StructFieldDef,
+    StructField,
     Type,
     Visibility,
 };
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
-use sodigy_parse::{self as ast, GenericDef};
+use sodigy_parse::{self as ast, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -21,24 +21,24 @@ pub struct Enum {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub variants: Vec<EnumVariantDef>,
+    pub generics: Vec<Generic>,
+    pub variants: Vec<EnumVariant>,
 }
 
 // TODO: attributes
 #[derive(Clone, Debug)]
-pub struct EnumVariantDef {
+pub struct EnumVariant {
     pub name: InternedString,
     pub name_span: Span,
-    pub args: EnumVariantArgs,
+    pub fields: EnumVariantFields,
 }
 
 // TODO: attributes
 #[derive(Clone, Debug)]
-pub enum EnumVariantArgs {
+pub enum EnumVariantFields {
     None,
     Tuple(Vec<Type>),
-    Struct(Vec<StructFieldDef>),
+    Struct(Vec<StructField>),
 }
 
 impl Enum {
@@ -86,7 +86,7 @@ impl Enum {
         }
 
         for ast_variant in ast_enum.variants.iter() {
-            match EnumVariantDef::from_ast(ast_variant, session, is_top_level) {
+            match EnumVariant::from_ast(ast_variant, session, is_top_level) {
                 Ok(variant) => {
                     variants.push(variant);
                 },
@@ -132,16 +132,16 @@ impl Enum {
     }
 }
 
-impl EnumVariantDef {
+impl EnumVariant {
     pub fn from_ast(
-        ast_variant: &ast::EnumVariantDef,
+        ast_variant: &ast::EnumVariant,
         session: &mut Session,
         is_top_level: bool,
-    ) -> Result<EnumVariantDef, ()> {
+    ) -> Result<EnumVariant, ()> {
         let mut has_error = false;
-        let args = match &ast_variant.args {
-            ast::EnumVariantArgs::None => EnumVariantArgs::None,
-            ast::EnumVariantArgs::Tuple(ast_types) => {
+        let fields = match &ast_variant.fields {
+            ast::EnumVariantFields::None => EnumVariantFields::None,
+            ast::EnumVariantFields::Tuple(ast_types) => {
                 let mut types = Vec::with_capacity(ast_types.len());
 
                 // TODO: attribute
@@ -156,14 +156,14 @@ impl EnumVariantDef {
                     }
                 }
 
-                EnumVariantArgs::Tuple(types)
+                EnumVariantFields::Tuple(types)
             },
-            ast::EnumVariantArgs::Struct(ast_fields) => {
+            ast::EnumVariantFields::Struct(ast_fields) => {
                 let mut fields = Vec::with_capacity(ast_fields.len());
 
                 // TODO: attribute
                 for ast_field in ast_fields.iter() {
-                    match StructFieldDef::from_ast(ast_field, session, is_top_level) {
+                    match StructField::from_ast(ast_field, session, is_top_level) {
                         Ok(field) => {
                             fields.push(field);
                         },
@@ -173,7 +173,7 @@ impl EnumVariantDef {
                     }
                 }
 
-                EnumVariantArgs::Struct(fields)
+                EnumVariantFields::Struct(fields)
             },
         };
 
@@ -182,10 +182,10 @@ impl EnumVariantDef {
         }
 
         else {
-            Ok(EnumVariantDef {
+            Ok(EnumVariant {
                 name: ast_variant.name,
                 name_span: ast_variant.name_span,
-                args,
+                fields,
             })
         }
     }

@@ -1,6 +1,6 @@
 use super::Session;
 use crate::{Assert, Callable, Enum, Expr, Func, Let, Struct};
-use sodigy_hir::EnumVariantArgs;
+use sodigy_hir::EnumVariantFields;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -44,8 +44,8 @@ impl Session {
     pub fn init_span_string_map_func(&self, func: &Func, result: &mut HashMap<Span, InternedString>) {
         result.insert(func.name_span, func.name);
 
-        for arg in func.args.iter() {
-            result.insert(arg.name_span, arg.name);
+        for param in func.params.iter() {
+            result.insert(param.name_span, param.name);
         }
 
         for generic in func.generics.iter() {
@@ -61,8 +61,8 @@ impl Session {
         for variant in r#enum.variants.iter() {
             result.insert(variant.name_span, variant.name);
 
-            if let EnumVariantArgs::Struct(args) = &variant.args {
-                for arg in args.iter() {
+            if let EnumVariantFields::Struct(fields) = &variant.fields {
+                for field in fields.iter() {
                     todo!()
                 }
             }

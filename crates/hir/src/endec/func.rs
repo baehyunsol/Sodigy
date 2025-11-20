@@ -2,14 +2,14 @@ use crate::{
     CallArg,
     Expr,
     Func,
-    FuncArgDef,
     FuncOrigin,
+    FuncParam,
     Type,
     Visibility,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin, UseCount};
-use sodigy_parse::GenericDef;
+use sodigy_parse::Generic;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ impl Endec for Func {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
         self.generics.encode_impl(buffer);
-        self.args.encode_impl(buffer);
+        self.params.encode_impl(buffer);
         self.r#type.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
@@ -35,8 +35,8 @@ impl Endec for Func {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (generics, cursor) = Vec::<GenericDef>::decode_impl(buffer, cursor)?;
-        let (args, cursor) = Vec::<FuncArgDef>::decode_impl(buffer, cursor)?;
+        let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
         let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
@@ -51,7 +51,7 @@ impl Endec for Func {
                 name,
                 name_span,
                 generics,
-                args,
+                params,
                 r#type,
                 value,
                 origin,
@@ -64,7 +64,7 @@ impl Endec for Func {
     }
 }
 
-impl Endec for FuncArgDef {
+impl Endec for FuncParam {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -79,7 +79,7 @@ impl Endec for FuncArgDef {
         let (default_value, cursor) = Option::<IdentWithOrigin>::decode_impl(buffer, cursor)?;
 
         Ok((
-            FuncArgDef {
+            FuncParam {
                 name,
                 name_span,
                 r#type,

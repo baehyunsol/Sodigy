@@ -4,7 +4,7 @@ use crate::{
     Enum,
     Expr,
     Func,
-    GenericDef,
+    Generic,
     Let,
     Module,
     Session,
@@ -60,7 +60,7 @@ impl Session {
         &mut self,
         attribute: &Attribute,
         lang_item_span: Span,
-        generic_defs: Option<&[GenericDef]>,
+        generic_defs: Option<&[Generic]>,
     ) -> Result<(), ()> {
         if let Some(lang_item) = attribute.lang_item(&self.intermediate_dir) {
             self.lang_items.insert(lang_item, lang_item_span);
@@ -218,7 +218,7 @@ impl Attribute {
                         (Requirement::Must, None) => {
                             has_error = true;
                             session.errors.push(Error {
-                                kind: ErrorKind::MissingArgument {
+                                kind: ErrorKind::MissingDecoratorArgument {
                                     expected: 1,  // how many?
                                     got: 0,
                                 },
@@ -229,7 +229,7 @@ impl Attribute {
                         (Requirement::Never, Some(ast_args)) => {
                             has_error = true;
                             session.errors.push(Error {
-                                kind: ErrorKind::UnexpectedArgument {
+                                kind: ErrorKind::UnexpectedDecoratorArgument {
                                     expected: 0,
                                     got: ast_args.len(),
                                 },
@@ -340,7 +340,7 @@ impl Attribute {
 
                             let count_rule = match (rule.arg_count, positional_args.len()) {
                                 (ArgCount::Zero, 1..) => Err((
-                                    ErrorKind::UnexpectedArgument {
+                                    ErrorKind::UnexpectedDecoratorArgument {
                                         expected: 0,
                                         got: positional_args.len(),
                                     },
@@ -353,14 +353,14 @@ impl Attribute {
                                     ).collect(),
                                 )),
                                 (ArgCount::Eq(n), m) if n > m => Err((
-                                    ErrorKind::MissingArgument {
+                                    ErrorKind::MissingDecoratorArgument {
                                         expected: n,
                                         got: m,
                                     },
                                     ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Eq(n), m) if n < m => Err((
-                                    ErrorKind::UnexpectedArgument {
+                                    ErrorKind::UnexpectedDecoratorArgument {
                                         expected: n,
                                         got: m,
                                     },
@@ -373,14 +373,14 @@ impl Attribute {
                                     ).collect(),
                                 )),
                                 (ArgCount::Gt(n), m) if n >= m => Err((
-                                    ErrorKind::MissingArgument {
+                                    ErrorKind::MissingDecoratorArgument {
                                         expected: n + 1,
                                         got: m,
                                     },
                                     ast_decorator.name_span.simple_error(),
                                 )),
                                 (ArgCount::Lt(n), m) if n <= m => Err((
-                                    ErrorKind::UnexpectedArgument {
+                                    ErrorKind::UnexpectedDecoratorArgument {
                                         expected: n - 1,
                                         got: m,
                                     },

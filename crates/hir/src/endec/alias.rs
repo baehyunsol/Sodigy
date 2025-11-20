@@ -1,4 +1,4 @@
-use crate::{Alias, GenericDef, Type, Visibility};
+use crate::{Alias, Generic, Type, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::NameOrigin;
 use sodigy_span::Span;
@@ -22,7 +22,7 @@ impl Endec for Alias {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (generics, cursor) = Vec::<GenericDef>::decode_impl(buffer, cursor)?;
+        let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (r#type, cursor) = Type::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;

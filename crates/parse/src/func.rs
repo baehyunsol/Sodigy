@@ -1,7 +1,7 @@
 use crate::{
     Attribute,
     Expr,
-    GenericDef,
+    Generic,
     Tokens,
     Type,
 };
@@ -15,8 +15,8 @@ pub struct Func {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub args: Vec<FuncArgDef>,
+    pub generics: Vec<Generic>,
+    pub params: Vec<FuncParam>,
     pub r#type: Option<Type>,
 
     // A poly or built-in may not have a body.
@@ -26,7 +26,7 @@ pub struct Func {
 }
 
 #[derive(Clone, Debug)]
-pub struct FuncArgDef {
+pub struct FuncParam {
     pub name: InternedString,
     pub name_span: Span,
     pub r#type: Option<Type>,
@@ -54,13 +54,13 @@ impl<'t> Tokens<'t> {
             self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
         }
 
-        let arg_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
-        let arg_tokens_inner = match &arg_tokens.kind {
+        let param_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
+        let param_tokens_inner = match &param_tokens.kind {
             TokenKind::Group { tokens, .. } => tokens,
             _ => unreachable!(),
         };
-        let mut arg_tokens = Tokens::new(arg_tokens_inner, arg_tokens.span.end());
-        let args = arg_tokens.parse_func_arg_defs()?;
+        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end());
+        let params = param_tokens.parse_func_params()?;
 
         let r#type = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::ReturnType), ..}) => {
@@ -101,21 +101,21 @@ impl<'t> Tokens<'t> {
             name,
             name_span,
             generics,
-            args,
+            params,
             r#type,
             value,
             attribute: Attribute::new(),
         })
     }
 
-    pub fn parse_func_arg_defs(&mut self) -> Result<Vec<FuncArgDef>, Vec<Error>> {
-        let mut args = vec![];
+    pub fn parse_func_params(&mut self) -> Result<Vec<FuncParam>, Vec<Error>> {
+        let mut params = vec![];
 
         if self.peek().is_none() {
-            return Ok(args);
+            return Ok(params);
         }
 
-        'args: loop {
+        'params: loop {
             let attribute = self.collect_attribute(false /* top_level */)?;
             let (name, name_span) = self.pop_name_and_span()?;
             let mut r#type = None;
@@ -186,7 +186,7 @@ impl<'t> Tokens<'t> {
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {
-                        args.push(FuncArgDef {
+                        params.push(FuncParam {
                             name,
                             name_span,
                             r#type,
@@ -197,10 +197,10 @@ impl<'t> Tokens<'t> {
                         match self.tokens.get(self.cursor + 1) {
                             Some(_) => {
                                 self.cursor += 1;
-                                continue 'args;
+                                continue 'params;
                             },
                             None => {
-                                break 'args;
+                                break 'params;
                             },
                         }
                     },
@@ -218,7 +218,7 @@ impl<'t> Tokens<'t> {
             }
         }
 
-        Ok(args)
+        Ok(params)
     }
 
     // (3, 4, x = 4, y = 5)

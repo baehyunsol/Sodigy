@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 
 pub struct Session {
     pub intermediate_dir: String,
-    pub func_arg_count: usize,
+    pub func_param_count: usize,
 
     // for creating tmp labels
     pub label_counter: u32,
@@ -47,7 +47,7 @@ impl Session {
 
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
-            func_arg_count: 0,
+            func_param_count: 0,
             label_counter: 0,
             local_registers: HashMap::new(),
             intrinsics,
@@ -77,7 +77,7 @@ impl Session {
     }
 
     pub fn enter_func(&mut self) {
-        self.func_arg_count = 0;
+        self.func_param_count = 0;
         self.label_counter = 0;
         self.local_registers = HashMap::new();
     }

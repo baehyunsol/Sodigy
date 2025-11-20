@@ -160,7 +160,7 @@ assert "abc" <+ 'd' == "abcd";
 
 ## Functions
 
-Use `fn` keyword to define a function. The keyword is followed by a name of the function, a list of arguments (a parenthesis), an assignment (`=`), its return value, and a semicolon.
+Use `fn` keyword to define a function. The keyword is followed by a name of the function, a list of parameters (a parenthesis), an assignment (`=`), its return value, and a semicolon.
 
 ```sodigy
 assert add(3, 4) == 7;

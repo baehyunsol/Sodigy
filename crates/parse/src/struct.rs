@@ -1,8 +1,8 @@
 use crate::{
     Attribute,
     Expr,
-    FuncArgDef,
-    GenericDef,
+    FuncParam,
+    Generic,
     Tokens,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
@@ -15,12 +15,12 @@ pub struct Struct {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub fields: Vec<StructFieldDef>,
+    pub generics: Vec<Generic>,
+    pub fields: Vec<StructField>,
     pub attribute: Attribute,
 }
 
-pub type StructFieldDef = FuncArgDef;
+pub type StructField = FuncParam;
 
 #[derive(Clone, Debug)]
 pub struct StructInitField {
@@ -64,8 +64,8 @@ impl<'t> Tokens<'t> {
         })
     }
 
-    pub fn parse_struct_fields(&mut self) -> Result<Vec<StructFieldDef>, Vec<Error>> {
-        self.parse_func_arg_defs()
+    pub fn parse_struct_fields(&mut self) -> Result<Vec<StructField>, Vec<Error>> {
+        self.parse_func_params()
     }
 
     // In Sodigy, curly braces following an identifier can be either

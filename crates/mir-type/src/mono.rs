@@ -30,7 +30,7 @@ impl Solver {
         // We can infer/monomorphize poly generics even if the type info is incomplete.
         // Let's say there's `3 + a` and we don't know the type of `a`. We can still
         // dispatch the `add` poly because there's only one instance of `add` whose
-        // first argument is an integer.
+        // first parameter is an integer.
         let mut incomplete_generics = HashSet::new();
 
         for type_var in self.type_vars.keys() {

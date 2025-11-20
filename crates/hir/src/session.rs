@@ -150,7 +150,7 @@ impl Session {
         self.func_default_values.last_mut().unwrap().push(default_value);
     }
 
-    // If a function has 5 arguments and 3 are unused, it throws 1 warning instead of 3.
+    // If a function has 5 params and 3 are unused, it throws 1 warning instead of 3.
     // If you want to throw multiple times, call this function multiple times with each name.
     pub fn warn_unused_names(&mut self, names: &HashMap<InternedString, (Span, NameKind, UseCount)>) {
         let mut names_by_kind: HashMap<(NameKind, bool), Vec<(InternedString, Span)>> = HashMap::new();

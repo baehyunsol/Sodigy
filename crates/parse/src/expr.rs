@@ -1,7 +1,7 @@
 use crate::{
     Block,
     CallArg,
-    FuncArgDef,
+    FuncParam,
     If,
     Match,
     StructInitField,
@@ -86,7 +86,7 @@ pub enum Expr {
         rhs: Box<Expr>,
     },
     Lambda {
-        args: Vec<FuncArgDef>,
+        params: Vec<FuncParam>,
         r#type: Box<Option<Type>>,
         value: Box<Expr>,
         group_span: Span,
@@ -272,7 +272,7 @@ impl<'t> Tokens<'t> {
                 Delim::Lambda => {
                     let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end());
-                    let args = tokens.parse_func_arg_defs()?;
+                    let params = tokens.parse_func_params()?;
                     self.cursor += 1;
                     let mut r#type = None;
 
@@ -288,7 +288,7 @@ impl<'t> Tokens<'t> {
                     let value = self.parse_expr()?;
 
                     Expr::Lambda {
-                        args,
+                        params,
                         r#type: Box::new(r#type),
                         value: Box::new(value),
                         group_span: span,

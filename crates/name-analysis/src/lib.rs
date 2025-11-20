@@ -9,7 +9,7 @@ pub enum Namespace {
         is_func: bool,
         foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
     },
-    FuncArg {
+    FuncParam {
         names: HashMap<InternedString, (Span, NameKind, UseCount)>,
         index: HashMap<InternedString, usize>,
     },
@@ -27,7 +27,7 @@ pub enum Namespace {
 
 pub enum NamespaceKind {
     Prelude,
-    FuncArg,
+    FuncParam,
     Generic,
     Block,  // declarations in a block
     Local,  // anything other than the above
@@ -46,7 +46,7 @@ pub struct IdentWithOrigin {
 #[derive(Clone, Copy, Debug)]
 pub enum NameOrigin {
     // If funcs are nested, only the inner-most function counts.
-    FuncArg {
+    FuncParam {
         index: usize,
     },
     // If funcs are nested, only the inner-most function counts.
@@ -77,7 +77,7 @@ pub enum NameKind {
     Alias,
     Module,
     Use,
-    FuncArg,
+    FuncParam,
     Generic,
     PatternNameBind,
 }

@@ -20,8 +20,8 @@ impl ErrorKind {
                     NameKind::Alias => "type alias",
                     NameKind::Module => "module",
                     NameKind::Use => "import",
-                    NameKind::FuncArg => "argument",
-                    NameKind::Generic => "generic argument",
+                    NameKind::FuncParam => "function parameter",
+                    NameKind::Generic => "generic parameter",
                     NameKind::PatternNameBind => "name binding",
                 };
 

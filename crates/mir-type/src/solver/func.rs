@@ -15,8 +15,8 @@ impl Solver {
         let (infered_type, mut has_error) = self.solve_expr(&func.value, types, generic_instances);
         let mut span_to_name_map = vec![(func.name_span, func.name)];
 
-        for arg in func.args.iter() {
-            span_to_name_map.push((arg.name_span, arg.name));
+        for param in func.params.iter() {
+            span_to_name_map.push((param.name_span, param.name));
         }
 
         let span_to_name_map = span_to_name_map.into_iter().collect::<HashMap<_, _>>();
@@ -42,7 +42,7 @@ impl Solver {
             },
 
             // even though there's no type annotation at all, the mir pass will create the type annotation
-            // e.g. `fn add(x, y) = x + y;` has type `Type::Func { args: [Type::Var(x), Type::Var(y)], return: Type::Var(add) }`
+            // e.g. `fn add(x, y) = x + y;` has type `Type::Func { params: [Type::Var(x), Type::Var(y)], return: Type::Var(add) }`
             _ => unreachable!(),
         };
 

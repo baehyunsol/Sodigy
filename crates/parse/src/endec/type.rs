@@ -1,4 +1,4 @@
-use crate::{GenericDef, Type};
+use crate::{Generic, Type};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -13,7 +13,7 @@ impl Endec for Type {
     }
 }
 
-impl Endec for GenericDef {
+impl Endec for Generic {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
@@ -24,7 +24,7 @@ impl Endec for GenericDef {
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
 
         Ok((
-            GenericDef {
+            Generic {
                 name,
                 name_span,
             },

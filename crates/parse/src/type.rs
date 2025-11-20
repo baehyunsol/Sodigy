@@ -5,21 +5,21 @@ use sodigy_string::InternedString;
 use sodigy_token::{Delim, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
-pub struct GenericDef {
+pub struct Generic {
     pub name: InternedString,
     pub name_span: Span,
 }
 
 impl<'t> Tokens<'t> {
-    pub fn parse_generic_def(&mut self) -> Result<GenericDef, Vec<Error>> {
+    pub fn parse_generic_def(&mut self) -> Result<Generic, Vec<Error>> {
         let (name, name_span) = self.pop_name_and_span()?;
-        Ok(GenericDef {
+        Ok(Generic {
             name,
             name_span,
         })
     }
 
-    pub fn parse_generic_defs(&mut self) -> Result<Vec<GenericDef>, Vec<Error>> {
+    pub fn parse_generic_defs(&mut self) -> Result<Vec<Generic>, Vec<Error>> {
         let mut generics = vec![];
 
         loop {
@@ -103,7 +103,7 @@ pub enum Type {
         // of `(Int, Int)`
         group_span: Span,
 
-        args: Vec<Type>,
+        params: Vec<Type>,
         r#return: Box<Type>,
     },
     // `_` in `[_]`
@@ -229,8 +229,8 @@ impl<'t> Tokens<'t> {
             ) => {
                 let (name, name_span) = (*id, *span1);
                 let group_span = *span2;
-                let mut arg_tokens = Tokens::new(tokens, span2.end());
-                let args = arg_tokens.parse_types(StopAt::Eof)?;
+                let mut param_tokens = Tokens::new(tokens, span2.end());
+                let params = param_tokens.parse_types(StopAt::Eof)?;
 
                 self.cursor += 2;
                 self.match_and_pop(TokenKind::Punct(Punct::ReturnType))?;
@@ -242,7 +242,7 @@ impl<'t> Tokens<'t> {
                         span: name_span,
                     }),
                     group_span,
-                    args,
+                    params,
                     r#return: Box::new(r#return),
                 })
             },

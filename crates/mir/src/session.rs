@@ -1,6 +1,6 @@
 use crate::{Assert, Enum, Func, Let, Struct, Type};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, FuncArgDef, GenericDef, Poly, StructFieldDef};
+use sodigy_hir::{self as hir, FuncParam, Generic, Poly, StructField};
 use sodigy_inter_hir as inter_hir;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
@@ -11,8 +11,8 @@ mod span_string_map;
 
 pub struct Session {
     pub intermediate_dir: String,
-    pub func_shapes: HashMap<Span, (Vec<FuncArgDef>, Vec<GenericDef>)>,
-    pub struct_shapes: HashMap<Span, (Vec<StructFieldDef>, Vec<GenericDef>)>,
+    pub func_shapes: HashMap<Span, (Vec<FuncParam>, Vec<Generic>)>,
+    pub struct_shapes: HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
 
     // generic def span to func def span (or struct def span) map
     pub generic_def_span_rev: HashMap<Span, Span>,

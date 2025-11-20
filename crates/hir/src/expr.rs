@@ -227,7 +227,7 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
-            ast::Expr::Lambda { args, r#type, value, group_span } => {
+            ast::Expr::Lambda { params, r#type, value, group_span } => {
                 let span = group_span.begin();
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
@@ -236,7 +236,7 @@ impl Expr {
                     name,
                     name_span: span,
                     generics: vec![],
-                    args: args.clone(),
+                    params: params.clone(),
                     r#type: r#type.as_ref().clone(),
                     value: Some(value.as_ref().clone()),
                     attribute: ast::Attribute::new(),

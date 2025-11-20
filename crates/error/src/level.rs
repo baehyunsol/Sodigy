@@ -55,6 +55,8 @@ impl ErrorLevel {
             ErrorKind::EmptyMatchStatement |
             ErrorKind::RedundantDecorator(_) |
             ErrorKind::InvalidDecorator(_) |
+            ErrorKind::MissingDecoratorArgument { .. } |
+            ErrorKind::UnexpectedDecoratorArgument { .. } |
             ErrorKind::CannotBindNameToAnotherName(_) |
             ErrorKind::CannotAnnotateType |
 
@@ -69,12 +71,12 @@ impl ErrorLevel {
             ErrorKind::KeywordArgumentRepeated(_) |
             ErrorKind::KeywordArgumentNotAllowed |
             ErrorKind::AliasResolveRecursionLimitReached |
-            ErrorKind::MissingTypeArgument { .. } |
-            ErrorKind::UnexpectedTypeArgument { .. } |
+            ErrorKind::MissingTypeParameter { .. } |
+            ErrorKind::UnexpectedTypeParameter { .. } |
             ErrorKind::MissingKeywordArgument(_) |
             ErrorKind::InvalidKeywordArgument(_) |
-            ErrorKind::MissingArgument { .. } |
-            ErrorKind::UnexpectedArgument { .. } |
+            ErrorKind::MissingFunctionParameter { .. } |
+            ErrorKind::UnexpectedFunctionParameter { .. } |
             ErrorKind::StructFieldRepeated(_) |
             ErrorKind::MissingStructField(_) |
             ErrorKind::InvalidStructField(_) |

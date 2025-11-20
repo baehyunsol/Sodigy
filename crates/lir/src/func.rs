@@ -34,10 +34,10 @@ impl Func {
     pub fn from_mir(mir_func: &mir::Func, session: &mut Session) -> Func {
         let mut bytecodes = vec![];
         session.enter_func();
-        session.func_arg_count = mir_func.args.len();
+        session.func_param_count = mir_func.params.len();
 
-        for (i, arg) in mir_func.args.iter().enumerate() {
-            let dst = session.register_local_name(arg.name_span);
+        for (i, param) in mir_func.params.iter().enumerate() {
+            let dst = session.register_local_name(param.name_span);
             bytecodes.push(Bytecode::Push {
                 src: Register::Call(i as u32),
                 dst,

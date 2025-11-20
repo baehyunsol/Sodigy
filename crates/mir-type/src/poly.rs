@@ -230,18 +230,18 @@ pub enum SolvePolyError {
         impl_type: Type,
 
         // If it's None, it's the return value.
-        arg_index: Option<usize>,
+        param_index: Option<usize>,
     },
 }
 
 pub struct FuncType {
-    pub args: Vec<Type>,
+    pub params: Vec<Type>,
     pub r#return: Type,
 }
 
 impl FuncType {
     pub fn has_type_var(&self) -> bool {
-        for r#type in self.args.iter().chain(std::iter::once(&self.r#return)) {
+        for r#type in self.params.iter().chain(std::iter::once(&self.r#return)) {
             if !r#type.get_type_vars().is_empty() {
                 return true;
             }
@@ -251,24 +251,24 @@ impl FuncType {
     }
 
     pub fn generics_to_type_vars(&mut self) {
-        for r#type in self.args.iter_mut().chain(std::iter::once(&mut self.r#return)) {
+        for r#type in self.params.iter_mut().chain(std::iter::once(&mut self.r#return)) {
             r#type.generic_to_type_var();
         }
     }
 }
 
 fn get_func_type(f: &Func, types: &HashMap<Span, Type>) -> FuncType {
-    let (r#return, mut args) = match types.get(&f.name_span) {
-        Some(Type::Func { r#return, args, .. }) => (*r#return.clone(), args.clone()),
+    let (r#return, mut params) = match types.get(&f.name_span) {
+        Some(Type::Func { r#return, params, .. }) => (*r#return.clone(), params.clone()),
         _ => unreachable!(),
     };
 
-    for arg in args.iter_mut() {
-        match arg {
+    for param in params.iter_mut() {
+        match param {
             Type::Var { def_span, is_return: false } => match types.get(def_span) {
                 Some(Type::Var { .. }) | None => {},
                 Some(v) => {
-                    *arg = v.clone();
+                    *param = v.clone();
                 },
             },
             _ => {},
@@ -276,7 +276,7 @@ fn get_func_type(f: &Func, types: &HashMap<Span, Type>) -> FuncType {
     }
 
     FuncType {
-        args,
+        params,
         r#return,
     }
 }
@@ -296,7 +296,7 @@ fn solve_fn_types(
     // for the type solver
     lang_items: HashMap<String, Span>,
 ) -> Result<Vec<Constraint>, Vec<SolvePolyError>> {
-    if def.args.len() != r#impl.args.len() {
+    if def.params.len() != r#impl.params.len() {
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
@@ -305,8 +305,8 @@ fn solve_fn_types(
     let mut constraints = vec![];
     let mut errors = vec![];
 
-    for (i, (def_type, impl_type)) in (0..def.args.len()).map(
-        |i| (&def.args[i], &r#impl.args[i])
+    for (i, (def_type, impl_type)) in (0..def.params.len()).map(
+        |i| (&def.params[i], &r#impl.params[i])
     ).chain(std::iter::once((&def.r#return, &r#impl.r#return))).enumerate() {
         // Solves `?T = Int`, `?U = Int` and `Int = Int`.
         if let Err(()) = solver.solve_subtype(
@@ -328,7 +328,7 @@ fn solve_fn_types(
             errors.push(SolvePolyError::CannotImplPoly {
                 def_type: def_type.clone(),
                 impl_type: impl_type.clone(),
-                arg_index: if i < def.args.len() { Some(i) } else { None },
+                param_index: if i < def.params.len() { Some(i) } else { None },
             });
         }
     }

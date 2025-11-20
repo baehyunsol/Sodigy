@@ -22,7 +22,7 @@ use sodigy_name_analysis::{
     NameOrigin,
     UseCount,
 };
-use sodigy_parse::{self as ast, GenericDef};
+use sodigy_parse::{self as ast, Generic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
@@ -33,8 +33,8 @@ pub struct Func {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub args: Vec<FuncArgDef>,
+    pub generics: Vec<Generic>,
+    pub params: Vec<FuncParam>,
     pub r#type: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
@@ -43,14 +43,14 @@ pub struct Func {
     // We have to distinguish closures and lambda functions
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
 
-    // It only counts `args`.
+    // It only counts `params`.
     // It's later used for optimization.
     pub use_counts: HashMap<InternedString, UseCount>,
 }
 
 // TODO: attributes
 #[derive(Clone, Debug)]
-pub struct FuncArgDef {
+pub struct FuncParam {
     pub name: InternedString,
     pub name_span: Span,
     pub r#type: Option<Type>,
@@ -81,14 +81,14 @@ impl Func {
         is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
-        let mut func_arg_names = HashMap::new();
-        let mut func_arg_index = HashMap::new();
+        let mut func_param_names = HashMap::new();
+        let mut func_param_index = HashMap::new();
         let mut generic_names = HashMap::new();
         let mut generic_index = HashMap::new();
 
-        for (index, arg) in ast_func.args.iter().enumerate() {
-            func_arg_names.insert(arg.name, (arg.name_span, NameKind::FuncArg, UseCount::new()));
-            func_arg_index.insert(arg.name, index);
+        for (index, param) in ast_func.params.iter().enumerate() {
+            func_param_names.insert(param.name, (param.name_span, NameKind::FuncParam, UseCount::new()));
+            func_param_index.insert(param.name, index);
         }
 
         for (index, generic) in ast_func.generics.iter().enumerate() {
@@ -144,8 +144,7 @@ impl Func {
         };
 
         if is_poly || is_impl {
-            // TODO: make sure that it has a complete type annotation
-            // TODO: warn if it's a poly and has no generic args
+            // TODO: error if it's a poly and has no generic args
         }
 
         if let Err(()) = session.collect_lang_items(
@@ -156,15 +155,15 @@ impl Func {
             has_error = true;
         }
 
-        // We have to lower args before pushing args to the name_stack because
+        // We have to lower params before pushing params to the name_stack because
         // 1. Sodigy doesn't allow dependent types.
-        // 2. An arg's default value should not reference other args.
-        let mut args = Vec::with_capacity(ast_func.args.len());
+        // 2. A param's default value should not reference other params.
+        let mut params = Vec::with_capacity(ast_func.params.len());
 
-        for arg in ast_func.args.iter() {
-            match FuncArgDef::from_ast(arg, session, is_top_level) {
-                Ok(arg) => {
-                    args.push(arg);
+        for param in ast_func.params.iter() {
+            match FuncParam::from_ast(param, session, is_top_level) {
+                Ok(param) => {
+                    params.push(param);
                 },
                 Err(()) => {
                     has_error = true;
@@ -172,9 +171,9 @@ impl Func {
             }
         }
 
-        session.name_stack.push(Namespace::FuncArg {
-            names: func_arg_names,
-            index: func_arg_index,
+        session.name_stack.push(Namespace::FuncParam {
+            names: func_param_names,
+            index: func_param_index,
         });
 
         let mut r#type = None;
@@ -218,7 +217,7 @@ impl Func {
         };
 
         let mut use_counts = HashMap::new();
-        let Some(Namespace::FuncArg { names, .. }) = session.name_stack.pop() else { unreachable!() };
+        let Some(Namespace::FuncParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         for (name, (_, _, count)) in names.iter() {
             use_counts.insert(*name, *count);
@@ -247,7 +246,7 @@ impl Func {
                 name: ast_func.name,
                 name_span: ast_func.name_span,
                 generics: ast_func.generics.clone(),
-                args,
+                params,
                 r#type,
                 value: value.unwrap(),
                 origin,
@@ -297,19 +296,19 @@ impl Func {
     }
 }
 
-impl FuncArgDef {
+impl FuncParam {
     pub fn from_ast(
-        ast_arg: &ast::FuncArgDef,
+        ast_param: &ast::FuncParam,
         session: &mut Session,
 
         // whether the function or the function-like object is defined in the top-level block
         is_top_level: bool,
-    ) -> Result<FuncArgDef, ()> {
+    ) -> Result<FuncParam, ()> {
         let mut r#type = None;
         let mut default_value = None;
         let mut has_error = false;
 
-        if let Some(ast_type) = &ast_arg.r#type {
+        if let Some(ast_type) = &ast_param.r#type {
             match Type::from_ast(ast_type, session) {
                 Ok(t) => {
                     r#type = Some(t);
@@ -320,7 +319,7 @@ impl FuncArgDef {
             }
         }
 
-        if let Some(ast_default_value) = &ast_arg.default_value {
+        if let Some(ast_default_value) = &ast_param.default_value {
             session.name_stack.push(Namespace::ForeignNameCollector {
                 is_func: false,
                 foreign_names: HashMap::new(),
@@ -332,8 +331,8 @@ impl FuncArgDef {
                     session.push_func_default_value(Let {
                         visibility: Visibility::private(),
                         keyword_span: Span::None,
-                        name: ast_arg.name,
-                        name_span: ast_arg.name_span,
+                        name: ast_param.name,
+                        name_span: ast_param.name_span,
                         r#type: r#type.clone(),
                         value: v,
                         origin: LetOrigin::FuncDefaultValue,
@@ -341,12 +340,12 @@ impl FuncArgDef {
                     });
 
                     default_value = Some(IdentWithOrigin {
-                        id: ast_arg.name,
-                        span: ast_arg.name_span,
+                        id: ast_param.name,
+                        span: ast_param.name_span,
                         origin: NameOrigin::Local {
                             kind: NameKind::Let { is_top_level },
                         },
-                        def_span: ast_arg.name_span,
+                        def_span: ast_param.name_span,
                     });
                 },
                 Err(()) => {
@@ -361,9 +360,9 @@ impl FuncArgDef {
         }
 
         else {
-            Ok(FuncArgDef {
-                name: ast_arg.name,
-                name_span: ast_arg.name_span,
+            Ok(FuncParam {
+                name: ast_param.name,
+                name_span: ast_param.name_span,
                 r#type,
                 default_value,
             })

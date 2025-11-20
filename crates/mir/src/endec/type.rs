@@ -27,11 +27,11 @@ impl Endec for Type {
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Type::Func { fn_span, group_span, args, r#return } => {
+            Type::Func { fn_span, group_span, params, r#return } => {
                 buffer.push(5);
                 fn_span.encode_impl(buffer);
                 group_span.encode_impl(buffer);
-                args.encode_impl(buffer);
+                params.encode_impl(buffer);
                 r#return.encode_impl(buffer);
             },
             Type::Var { def_span, is_return } => {
@@ -74,9 +74,9 @@ impl Endec for Type {
             Some(5) => {
                 let (fn_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
+                let (params, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (r#return, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
-                Ok((Type::Func { fn_span, group_span, args, r#return }, cursor))
+                Ok((Type::Func { fn_span, group_span, params, r#return }, cursor))
             },
             Some(6) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

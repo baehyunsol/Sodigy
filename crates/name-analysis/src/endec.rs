@@ -32,7 +32,7 @@ impl Endec for IdentWithOrigin {
 impl Endec for NameOrigin {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            NameOrigin::FuncArg { index } => {
+            NameOrigin::FuncParam { index } => {
                 buffer.push(0);
                 index.encode_impl(buffer);
             },
@@ -58,7 +58,7 @@ impl Endec for NameOrigin {
         match buffer.get(cursor) {
             Some(0) => {
                 let (index, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                Ok((NameOrigin::FuncArg { index }, cursor))
+                Ok((NameOrigin::FuncParam { index }, cursor))
             },
             Some(1) => {
                 let (index, cursor) = usize::decode_impl(buffer, cursor + 1)?;
@@ -110,7 +110,7 @@ impl Endec for NameKind {
             NameKind::Use => {
                 buffer.push(8);
             },
-            NameKind::FuncArg => {
+            NameKind::FuncParam => {
                 buffer.push(9);
             },
             NameKind::Generic => {
@@ -136,7 +136,7 @@ impl Endec for NameKind {
             Some(6) => Ok((NameKind::Alias, cursor + 1)),
             Some(7) => Ok((NameKind::Module, cursor + 1)),
             Some(8) => Ok((NameKind::Use, cursor + 1)),
-            Some(9) => Ok((NameKind::FuncArg, cursor + 1)),
+            Some(9) => Ok((NameKind::FuncParam, cursor + 1)),
             Some(10) => Ok((NameKind::Generic, cursor + 1)),
             Some(11) => Ok((NameKind::PatternNameBind, cursor + 1)),
             Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),

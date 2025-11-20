@@ -151,7 +151,7 @@ impl RenderTypeError for MirSession {
                 func_span,
                 arg_spans,
             } => {
-                // With those information, we can guess which argument is missing (or unnecessary)
+                // With those information, we can guess which parameter is missing (or unnecessary)
                 //
                 // 1. If the user has used keyword arguments, that cannot be a missing or an unnecessary argument.
                 //    We have to filter them out.
@@ -286,10 +286,10 @@ impl RenderTypeError for MirSession {
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", "),
             ),
-            Type::Func { args, r#return, .. } => format!(
+            Type::Func { params, r#return, .. } => format!(
                 "Fn({}) -> {}",
-                args.iter().map(
-                    |arg| self.render_type(arg)
+                params.iter().map(
+                    |param| self.render_type(param)
                 ).collect::<Vec<_>>().join(", "),
                 self.render_type(r#return.as_ref()),
             ),

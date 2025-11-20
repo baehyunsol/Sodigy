@@ -2,7 +2,7 @@ use crate::{
     Attribute,
     AttributeKind,
     AttributeRule,
-    GenericDef,
+    Generic,
     Type,
     Requirement,
     Session,
@@ -27,7 +27,7 @@ pub struct Alias {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
+    pub generics: Vec<Generic>,
     pub group_span: Option<Span>,
     pub r#type: Type,
 
@@ -45,7 +45,7 @@ impl Alias {
         let mut generic_names = HashMap::new();
         let mut generic_index = HashMap::new();
 
-        for (index, GenericDef { name, name_span }) in ast_alias.generics.iter().enumerate() {
+        for (index, Generic { name, name_span }) in ast_alias.generics.iter().enumerate() {
             generic_names.insert(*name, (*name_span, NameKind::Generic, UseCount::new()));
             generic_index.insert(*name, index);
         }
@@ -177,11 +177,11 @@ fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentW
                 find_ids_with_def_span(r#type, def_span, result);
             }
         },
-        Type::Func { args, r#return, .. } => {
+        Type::Func { params, r#return, .. } => {
             find_ids_with_def_span(r#return, def_span, result);
 
-            for arg in args.iter() {
-                find_ids_with_def_span(arg, def_span, result);
+            for param in params.iter() {
+                find_ids_with_def_span(param, def_span, result);
             }
         },
         Type::Wildcard(_) | Type::Never(_) => {},

@@ -2,7 +2,7 @@ use crate::{CallArg, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::RenderableSpan;
 
-// If new names are defined (e.g. function arg defs, struct field defs), it checks name collisions.
+// If new names are defined (e.g. function params, struct field defs), it checks name collisions.
 // If defined names are used (e.g. calling a function with keyword args, initializing a struct), it doesn't check name collisions.
 
 mod attribute;

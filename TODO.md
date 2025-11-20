@@ -27,14 +27,6 @@ Inheritance도 아니고 composition도 아닌 새로운 방식을 택할 거임
   - extension으로 추가된 method를 사용하려면 그 extension을 import 해야함.
   - 서로 다른 extension이 동일한 method를 추가하면, 그 extension들을 동시에 import 하면 오류남!
 
-# 87. 용어 정리
-
-지금까지 "argument"랑 "parameter"를 혼용하고 있었음... `fn add(x, y)`가 있고 `add(100, 200)`이 있을 때 `x`와 `y`는 parameter, `100`과 `200`은 argument!!
-
-이거 싹다 정리하기!!
-
-그리고, `T` in `fn add<T>`는 type parameter라고 부르자!
-
 # 86. more general generic system
 
 ```
@@ -119,8 +111,8 @@ It'll first convert `3 + 4` to `add(3, 4)`. The remaining is the same as user-de
 
 # 83. unused warnings
 
-1. 한 함수에서 arg 3개 정의하고 셋다 안 쓰면? 경고를 한번에 날리는게 낫지 않나?
-  - unused arguments: `a`, `b` and `c`
+1. 한 함수에서 param 3개 정의하고 셋다 안 쓰면? 경고를 한번에 날리는게 낫지 않나?
+  - unused params: `a`, `b` and `c`
   - span도 한번에 보여주는게 더 이쁨!
   - 근데... 한 함수인지 아닌지를 어떻게 판별해? 함수가 아니라 use같은 경우에도 `use std.prelude.{A, B, C};`에서 경고 뜨면 합치고 싶음!!
   - 단순히 span이 가까운지로 확인하기?? vs 한 group에 속하는지를 꼼꼼히 검사하기
@@ -128,9 +120,9 @@ It'll first convert `3 + 4` to `add(3, 4)`. The remaining is the same as user-de
     - 한 group에 속하는데 span이 먼 경우: 합쳐도 그만 안 합쳐도 그만
       - 근데, 한 group에 경고가 여러개 뜨면 걔네가 전부 하나로 합쳐지거나 전부 갈라지거나 해야 예쁘지 애매하게 합치면 이상할 거 같은데?
     - 다른 group에 속하는데 span이 가까운 경우: 합치면 무지 이상함
-    - 가까운지 아닌지 확인하는 것도 매우 애매: 함수 arg에서는 type annotation이랑 default value때문에 거리가 꽤 멂...
-      - 더 깊게 들어가자면, 나처럼 arg 목록에서 newline을 남발하는 사람들은 span이 아무리 멀어도 하나로 합치면 이뻐짐 ㅋㅋㅋ
-  - 잠깐 관찰해보니 rust는 함수 arg는 안 합치고 use는 합치네.
+    - 가까운지 아닌지 확인하는 것도 매우 애매: 함수 param에서는 type annotation이랑 default value때문에 거리가 꽤 멂...
+      - 더 깊게 들어가자면, 나처럼 param 목록에서 newline을 남발하는 사람들은 span이 아무리 멀어도 하나로 합치면 이뻐짐 ㅋㅋㅋ
+  - 잠깐 관찰해보니 rust는 함수 param은 안 합치고 use는 합치네.
 2. top-level에서 정의된 item인 경우 unused인지 아닌지 알기 빡셈
   - 완전 private한 경우, 지금의 logic으로 다 잡을 수 있음!!
     - 아닌가, 생각해보니까 private이어도 하위 모듈에서는 쓸 수 있잖아...ㅜㅜ
@@ -318,7 +310,7 @@ It'd be nice to have multithread/multiprocess capabilities, but it's not just ab
   - `Never` is a subtype of everything
   - `Never`를 위한 variant와 (`Type::Never`) notation (`!`)을 새로 만들어야 함
   - assertion이나 if처럼 특정 type을 기대하는 경우: 해당 type의 subtype이 나오면 맞다고 하고 넘어가기
-    - 함수 arg도 이에 해당
+    - 함수 param도 이에 해당
   - list처럼 여러 type이 동일하기를 기대하는 경우
     - 각 type을 전부 subtype으로 묶은 다음에 가장 concrete한 type을 만들어서 전체의 type으로 처리
     - 묶는데 실패하면 오류
@@ -394,10 +386,10 @@ Wildcard 사용처를 생각해보자
 1. pattern matching
   - `_`로 시작하는 이름은 unused_name 안 날리기? -> 이거 구현하면 사실 그냥 identifer랑 다를게 없음
     - 아니다 살짝 다르네, `_`로 name binding 여러개 해도 오류 날리면 안되니까!!
-2. function argument
+2. function parameter
   - `_`로 시작하는 이름은 unused_name 안 날리기? -> 이거 구현하면 사실 그냥 identifer랑 다를게 없음
-  - 이것도 살짝 더 생각해야함. `_`로 된 func arg 여러개 선언하면 오류 날릴 거임?
-    - 와 rust에서는 `_`로 된 func arg 여러개 선언하는 거 가능하네!!
+  - 이것도 살짝 더 생각해야함. `_`로 된 func param 여러개 선언하면 오류 날릴 거임?
+    - 와 rust에서는 `_`로 된 func param 여러개 선언하는 거 가능하네!!
   - 그럼 `foo(3, _=4, _=5)` 하면 오류 날려야하는데??
 3. type annotation
   - 여기서는 좀 special treatment가 필요함! 어차피 special treatment 할 거면 아예 구분하자 이거지
@@ -559,7 +551,7 @@ fn bar(..) = baz(foo.<Int>(..), ..);
 - 만족이 되면 `foo.<Int>` instance를 만드는 거고, 그렇지 않으면 에러를 내야함. 에러 메시지를 만들 때는 `bar` 안에 있는 `foo.<Int>`의 invocation을 콕 찝어줘야함.
 - `foo.<Int>` instance를 만들었으면 코드 안에서 등장하는 `foo.<Int>`를 찾아서 걔네를 바꿔줘야함.
   - 이거 할 때 operator도 전부 갈아주자!
-  - 그러려면 operator도 일반 generic function처럼 처리해야함. 그러려면 operator의 generic argument의 def_span을 나타낼 방법이 있어야 함!!
+  - 그러려면 operator도 일반 generic function처럼 처리해야함. 그러려면 operator의 generic parameter의 def_span을 나타낼 방법이 있어야 함!!
   - 이렇게 하면 코드가 훨씬 간단해짐 `infix_op_type_signatures` 이딴 거 없어도 되거든 ㅋㅋㅋ
   - 생각해보니까 이거 하면 `Callable::GenericInfixOp`도 사라짐!!
     - 오
@@ -628,13 +620,13 @@ fn div_int(a: Int, b: Int) -> Int = {
   - 이거는 자동으로 할 방법이 없음. `Int`에다가 `#[lang_item("Int")]`라고 붙여주고 type-infer engine이 `lang_item("Int")`를 사용하면 됨.
 3. type-checking을 할 때는 `Int`의 def_span을 쓸 거임.
   - 이거는 1번과 마찬가지로 자동으로 해결됨.
-4. mir expr lowering에서 `a[0]`을 보면 `index(a, 0)`으로 바꿔야함. 또한, `index`의 generic arg로 `T`, `U`, `V`가 있다는 사실도 써야함.
+4. mir expr lowering에서 `a[0]`을 보면 `index(a, 0)`으로 바꿔야함. 또한, `index`의 generic param `T`, `U`, `V`가 있다는 사실도 써야함.
   - 이때, `index`의 def_span과 `T`, `U`, `V`의 def_span이 필요함.
   - 나중에 `index`를 다시 `index_list`로 바꿔야함.
   - `index_list`는 함수 정의가 Sodigy로 돼 있고, 컴파일러가 이 정의를 볼 수 있어야함.
   - `index_list`는 여전히 generic function이므로 generic function 푸는 과정을 한번 더 거쳐야함!
     - `T`, `U`, `V`의 정보가 이미 다 있으니까 풀기 쉬울 듯... 아닌가?
-5. mir expr lowering에서 `a / b`를 보면 `div(a, b)`로 바꾸고 generic arg `T`, `U`, `V`를 전부 주면됨!!
+5. mir expr lowering에서 `a / b`를 보면 `div(a, b)`로 바꾸고 generic param `T`, `U`, `V`를 전부 주면됨!!
 
 참고: Rust compiler를 뒤져봄.
 
@@ -760,9 +752,9 @@ Things that I need: read/write/append to files (including stdin/stdout/stderr). 
 1. pipe operator
   - `$in`으로 이전에서 넘어온 값 받게 하자... cause I don't like being implicit
   - `$in`이 들어갈 자리가 명확하면 생략가능하게 하자!
-2. args and flags
-  - a command takes a small number of args (can be zero) and a lot of flags
-  - you can use parenthesis to make args less ambiguous
+2. params and flags
+  - a command takes a small number of params (can be zero) and a lot of flags
+  - you can use parenthesis to make params less ambiguous
 3. command
   - a command may 1) return a value or 2) fail
     - it must return a single value. there's no tuple in sdgsh

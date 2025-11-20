@@ -1,7 +1,7 @@
 use crate::{
     Attribute,
-    GenericDef,
-    StructFieldDef,
+    Generic,
+    StructField,
     Tokens,
     Type,
 };
@@ -21,24 +21,24 @@ pub struct Enum {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
-    pub variants: Vec<EnumVariantDef>,
+    pub generics: Vec<Generic>,
+    pub variants: Vec<EnumVariant>,
     pub attribute: Attribute,
 }
 
 #[derive(Clone, Debug)]
-pub struct EnumVariantDef {
+pub struct EnumVariant {
     pub name: InternedString,
     pub name_span: Span,
-    pub args: EnumVariantArgs,
+    pub fields: EnumVariantFields,
     pub attribute: Attribute,
 }
 
 #[derive(Clone, Debug)]
-pub enum EnumVariantArgs {
+pub enum EnumVariantFields {
     None,
     Tuple(Vec<(Type, Attribute)>),
-    Struct(Vec<StructFieldDef>),
+    Struct(Vec<StructField>),
 }
 
 impl<'t> Tokens<'t> {
@@ -76,7 +76,7 @@ impl<'t> Tokens<'t> {
         })
     }
 
-    pub fn parse_enum_variants(&mut self) -> Result<Vec<EnumVariantDef>, Vec<Error>> {
+    pub fn parse_enum_variants(&mut self) -> Result<Vec<EnumVariant>, Vec<Error>> {
         let mut variants = vec![];
 
         if self.peek().is_none() {
@@ -89,10 +89,10 @@ impl<'t> Tokens<'t> {
 
             match self.peek() {
                 Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {
-                    variants.push(EnumVariantDef {
+                    variants.push(EnumVariant {
                         name,
                         name_span,
-                        args: EnumVariantArgs::None,
+                        fields: EnumVariantFields::None,
                         attribute,
                     });
                     self.cursor += 1;
@@ -104,10 +104,10 @@ impl<'t> Tokens<'t> {
                 Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
                     let mut struct_body_tokens = Tokens::new(tokens, span.end());
                     let fields = struct_body_tokens.parse_struct_fields()?;
-                    variants.push(EnumVariantDef {
+                    variants.push(EnumVariant {
                         name,
                         name_span,
-                        args: EnumVariantArgs::Struct(fields),
+                        fields: EnumVariantFields::Struct(fields),
                         attribute,
                     });
                     self.cursor += 1;
@@ -135,10 +135,10 @@ impl<'t> Tokens<'t> {
                     let mut tuple_body_tokens = Tokens::new(tokens, span.end());
 
                     if tuple_body_tokens.is_empty() {
-                        variants.push(EnumVariantDef {
+                        variants.push(EnumVariant {
                             name,
                             name_span,
-                            args: EnumVariantArgs::Tuple(vec![]),
+                            fields: EnumVariantFields::Tuple(vec![]),
                             attribute,
                         });
                     }
@@ -171,10 +171,10 @@ impl<'t> Tokens<'t> {
                             }
                         }
 
-                        variants.push(EnumVariantDef {
+                        variants.push(EnumVariant {
                             name,
                             name_span,
-                            args: EnumVariantArgs::Tuple(fields),
+                            fields: EnumVariantFields::Tuple(fields),
                             attribute,
                         });
                     }

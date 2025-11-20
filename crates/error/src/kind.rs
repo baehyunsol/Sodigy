@@ -70,6 +70,14 @@ pub enum ErrorKind {
     // TODO: suggest similar names
     // TODO: tell what it's trying to decorator
     InvalidDecorator(InternedString),
+    MissingDecoratorArgument {
+        expected: usize,
+        got: usize,
+    },
+    UnexpectedDecoratorArgument {
+        expected: usize,
+        got: usize,
+    },
 
     // Syntax errors in patterns
     CannotBindNameToAnotherName(InternedString),
@@ -95,11 +103,11 @@ pub enum ErrorKind {
     KeywordArgumentRepeated(InternedString),
     KeywordArgumentNotAllowed,
     AliasResolveRecursionLimitReached,
-    MissingTypeArgument {
+    MissingTypeParameter {
         expected: usize,
         got: usize,
     },
-    UnexpectedTypeArgument {
+    UnexpectedTypeParameter {
         expected: usize,
         got: usize,
     },
@@ -109,12 +117,12 @@ pub enum ErrorKind {
     InvalidKeywordArgument(InternedString),
 
     // TODO: We need more helpful error variants
-    //       e.g. if we know the types, we can guess which argument is missing, or surplus, or in different order
-    MissingArgument {
+    //       e.g. if we know the types, we can guess which parameter is missing, or surplus, or in different order
+    MissingFunctionParameter {
         expected: usize,
         got: usize,
     },
-    UnexpectedArgument {
+    UnexpectedFunctionParameter {
         expected: usize,
         got: usize,
     },
@@ -167,7 +175,7 @@ pub enum ErrorKind {
 
     // --- warnings from here ---
 
-    // If a function has 5 arguments and 3 of them are unused,
+    // If a function has 5 parameters and 3 of them are unused,
     // it throws 1 warning instead of 3.
     UnusedNames {
         names: Vec<InternedString>,

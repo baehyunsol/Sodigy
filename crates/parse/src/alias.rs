@@ -1,4 +1,4 @@
-use crate::{Attribute, GenericDef, Tokens, Type};
+use crate::{Attribute, Generic, Tokens, Type};
 use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -9,7 +9,7 @@ pub struct Alias {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub generics: Vec<GenericDef>,
+    pub generics: Vec<Generic>,
     pub group_span: Option<Span>,
     pub r#type: Type,
     pub attribute: Attribute,

@@ -1,4 +1,4 @@
-use crate::{Block, Intrinsic, If, Match, Session, Type};
+use crate::{Block, If, Match, Session, Type};
 use sodigy_error::{Error, ErrorKind, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -159,7 +159,7 @@ impl Expr {
                             },
                             _ => panic!("TODO: {kind:?}"),
                         },
-                        NameOrigin::FuncArg { .. } => (id.span, Callable::Dynamic(Box::new(e))),
+                        NameOrigin::FuncParam { .. } => (id.span, Callable::Dynamic(Box::new(e))),
                         NameOrigin::Generic { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
@@ -174,7 +174,7 @@ impl Expr {
                 // we know the exact definition of the function, and can process keyword arguments and default values.
                 let mut mir_args = match def_span {
                     Some(def_span) => match session.func_shapes.get(&def_span) {
-                        Some((arg_defs, generic_defs_)) => {
+                        Some((params, generic_defs_)) => {
                             for generic_def in generic_defs_.iter() {
                                 session.generic_instances.insert(
                                     (call_span, generic_def.name_span),
@@ -186,11 +186,11 @@ impl Expr {
                                 generic_defs.push(generic_def.name_span);
                             }
 
-                            let arg_defs = arg_defs.to_vec();
-                            let mut mir_args: Vec<Option<Expr>> = vec![None; arg_defs.len().max(hir_args.len())];
+                            let params = params.to_vec();
+                            let mut mir_args: Vec<Option<Expr>> = vec![None; params.len().max(hir_args.len())];
 
                             // used for error messages
-                            let mut given_keyword_arguments_ = vec![None; arg_defs.len().max(hir_args.len())];
+                            let mut given_keyword_arguments_ = vec![None; params.len().max(hir_args.len())];
 
                             // Positional args cannot come after a keyword arg, and hir guarantees that.
                             let mut positional_arg_cursor = 0;
@@ -204,8 +204,8 @@ impl Expr {
                                         let mut arg_index = None;
 
                                         // It's O(n), but n is very small
-                                        for (i, arg_def) in arg_defs.iter().enumerate() {
-                                            if arg_def.name == keyword {
+                                        for (i, param) in params.iter().enumerate() {
+                                            if param.name == keyword {
                                                 arg_index = Some(i);
                                                 break;
                                             }
@@ -331,8 +331,8 @@ impl Expr {
                                 });
                             }
 
-                            for i in 0..arg_defs.len() {
-                                match (&mir_args[i], &arg_defs[i].default_value) {
+                            for i in 0..params.len() {
+                                match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
                                         mir_args[i] = Some(Expr::Identifier(*default_value));
                                     },

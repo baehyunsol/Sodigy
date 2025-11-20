@@ -5,12 +5,12 @@ use sodigy_hir::{
     Expr,
     FullPattern,
     Func,
-    FuncArgDef,
-    GenericDef,
+    FuncParam,
+    Generic,
     Let,
     Pattern,
     Session as HirSession,
-    StructFieldDef,
+    StructField,
     Type,
     Use,
 };
@@ -34,23 +34,23 @@ impl Session {
         module_span: Span,  // of this hir
         mut hir_session: sodigy_hir::Session,
     ) {
-        for (def_span, (args, generics)) in hir_session.funcs.iter().map(
+        for (def_span, (params, generics)) in hir_session.funcs.iter().map(
             |func| (
                 func.name_span,
                 (
-                    func.args.iter().map(
-                        |arg| FuncArgDef {
-                            name: arg.name,
-                            name_span: arg.name_span,
+                    func.params.iter().map(
+                        |param| FuncParam {
+                            name: param.name,
+                            name_span: param.name_span,
                             r#type: None,
-                            default_value: arg.default_value,
+                            default_value: param.default_value,
                         }
                     ).collect(),
                     func.generics.clone(),
                 ),
             )
         ) {
-            self.func_shapes.insert(def_span, (args, generics));
+            self.func_shapes.insert(def_span, (params, generics));
         }
 
         for (def_span, (fields, generics)) in hir_session.structs.iter().map(
@@ -58,7 +58,7 @@ impl Session {
                 r#struct.name_span,
                 (
                     r#struct.fields.iter().map(
-                        |field| StructFieldDef {
+                        |field| StructField {
                             name: field.name,
                             name_span: field.name_span,
                             r#type: None,
@@ -322,8 +322,8 @@ impl Session {
     pub fn resolve_func(&mut self, func: &mut Func) -> Result<(), ()> {
         let mut has_error = false;
 
-        for arg in func.args.iter_mut() {
-            if let Some(r#type) = &mut arg.r#type {
+        for param in func.params.iter_mut() {
+            if let Some(r#type) = &mut param.r#type {
                 if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
                     has_error = true;
                 }
@@ -528,7 +528,7 @@ impl Session {
                                 name: r#use.name,
                                 name_span: r#use.name_span,
                                 generics: alias.generics.iter().map(
-                                    |generic| GenericDef {
+                                    |generic| Generic {
                                         name: generic.name,
                                         name_span: r#use.root.span,
                                         // TODO: we need an extra field that it's from an alias
@@ -694,7 +694,7 @@ impl Session {
                             // error!
                             else {
                                 self.errors.push(Error {
-                                    kind: ErrorKind::MissingTypeArgument {
+                                    kind: ErrorKind::MissingTypeParameter {
                                         expected: alias.generics.len(),
                                         got: 0,
                                     },
@@ -703,7 +703,7 @@ impl Session {
                                             span: id.def_span,
                                             auxiliary: true,
                                             note: Some(format!(
-                                                "It expects {} argument{}.",
+                                                "It has {} parameter{}.",
                                                 alias.generics.len(),
                                                 if alias.generics.len() == 1 { "" } else { "s" },
                                             )),
@@ -711,7 +711,7 @@ impl Session {
                                         RenderableSpan {
                                             span: id.span,
                                             auxiliary: false,
-                                            note: Some(String::from("It has 0 arguments.")),
+                                            note: Some(String::from("There are 0 arguments.")),
                                         },
                                     ],
                                     note: None,
@@ -797,15 +797,15 @@ impl Session {
                 Type::Path { id, fields } => todo!(),
                 _ => unreachable!(),
             },
-            Type::Func { r#return, args, .. } => {
+            Type::Func { r#return, params, .. } => {
                 let mut has_error = false;
 
                 if let Err(()) = self.resolve_type(r#return, log) {
                     has_error = true;
                 }
 
-                for arg in args.iter_mut() {
-                    if let Err(()) = self.resolve_type(arg, log) {
+                for param in params.iter_mut() {
+                    if let Err(()) = self.resolve_type(param, log) {
                         has_error = true;
                     }
                 }

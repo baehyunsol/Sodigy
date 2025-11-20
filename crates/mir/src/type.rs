@@ -25,14 +25,14 @@ pub enum Type {
     // Tuple also has this type: `Param { type: Unit, args: [..] }`
     Param {
         r#type: Box<Type>,  // `Result`
-        args: Vec<Type>,    // `[Int, String]`
+        args: Vec<Type>,    // `<Int, String>`
         group_span: Span,
     },
 
     Func {
         fn_span: Span,
         group_span: Span,
-        args: Vec<Type>,
+        params: Vec<Type>,
         r#return: Box<Type>,
     },
 
@@ -45,7 +45,7 @@ pub enum Type {
 
         // If `is_return` is false, `types.get(def_span)` will give you `Type::Var { def_span }`
         // If `is_return` is true, `types.get(def_span)`
-        //     will give you `Type::Func { args: [..], return: Type::Var { def_span } }`
+        //     will give you `Type::Func { params: [..], return: Type::Var { def_span } }`
         // You have to be careful when you update `types`.
         is_return: bool,
     },
@@ -75,20 +75,20 @@ impl Type {
     pub fn from_hir(hir_type: &hir::Type, session: &mut Session) -> Result<Type, ()> {
         match hir_type {
             hir::Type::Identifier(id) => match id.origin {
-                NameOrigin::FuncArg { .. } => {
-                    let arg_name = String::from_utf8_lossy(&unintern_string(id.id, &session.intermediate_dir).unwrap().unwrap()).to_string();
+                NameOrigin::FuncParam { .. } => {
+                    let param_name = String::from_utf8_lossy(&unintern_string(id.id, &session.intermediate_dir).unwrap().unwrap()).to_string();
                     session.errors.push(Error {
                         kind: ErrorKind::DependentTypeNotAllowed,
                         spans: vec![
                             RenderableSpan {
                                 span: id.span,
                                 auxiliary: false,
-                                note: Some(format!("The type annotation is using the name `{arg_name}`, which is a function argument.")),
+                                note: Some(format!("The type annotation is using the name `{param_name}`, which is a function parameter.")),
                             },
                             RenderableSpan {
                                 span: id.def_span,
                                 auxiliary: true,
-                                note: Some(format!("The argument `{arg_name}` is defined here.")),
+                                note: Some(format!("The parameter `{param_name}` is defined here.")),
                             },
                         ],
                         note: None,
@@ -145,17 +145,17 @@ impl Type {
                     })
                 }
             },
-            hir::Type::Tuple { types, group_span } => {
-                if types.is_empty() {
+            hir::Type::Tuple { types: hir_types, group_span } => {
+                if hir_types.is_empty() {
                     Ok(Type::Unit(*group_span))
                 } else {
                     let mut has_error = false;
-                    let mut args = Vec::with_capacity(types.len());
+                    let mut types = Vec::with_capacity(hir_types.len());
 
-                    for r#type in types.iter() {
-                        match Type::from_hir(r#type, session) {
+                    for hir_type in hir_types.iter() {
+                        match Type::from_hir(hir_type, session) {
                             Ok(r#type) => {
-                                args.push(r#type);
+                                types.push(r#type);
                             },
                             Err(()) => {
                                 has_error = true;
@@ -170,13 +170,13 @@ impl Type {
                     else {
                         Ok(Type::Param {
                             r#type: Box::new(Type::Unit(*group_span)),
-                            args,
+                            args: types,
                             group_span: *group_span,
                         })
                     }
                 }
             },
-            hir::Type::Func { fn_span, group_span, args: hir_args, r#return } => {
+            hir::Type::Func { fn_span, group_span, params: hir_params, r#return } => {
                 let mut has_error = false;
                 let r#return = match Type::from_hir(r#return, session) {
                     Ok(r#type) => Some(r#type),
@@ -185,12 +185,12 @@ impl Type {
                         None
                     },
                 };
-                let mut args = Vec::with_capacity(hir_args.len());
+                let mut params = Vec::with_capacity(hir_params.len());
 
-                for hir_arg in hir_args.iter() {
-                    match Type::from_hir(hir_arg, session) {
-                        Ok(arg) => {
-                            args.push(arg);
+                for hir_param in hir_params.iter() {
+                    match Type::from_hir(hir_param, session) {
+                        Ok(param) => {
+                            params.push(param);
                         },
                         Err(()) => {
                             has_error = true;
@@ -206,7 +206,7 @@ impl Type {
                     Ok(Type::Func {
                         fn_span: *fn_span,
                         group_span: *group_span,
-                        args,
+                        params,
                         r#return: Box::new(r#return.unwrap()),
                     })
                 }
@@ -228,7 +228,7 @@ impl Type {
             Type::Unit(_) |
             Type::Never(_) => vec![],
             Type::Param { r#type: t, args, .. } |
-            Type::Func { r#return: t, args, .. } => {
+            Type::Func { r#return: t, params: args, .. } => {
                 let mut result = t.get_type_vars();
 
                 for arg in args.iter() {
@@ -253,7 +253,7 @@ impl Type {
                 ..
             } | Type::Func {
                 r#return: t,
-                args,
+                params: args,
                 ..
             } => {
                 for arg in args.iter_mut() {
@@ -288,7 +288,7 @@ impl Type {
                 ..
             } | Type::Func {
                 r#return: t,
-                args,
+                params: args,
                 ..
             } => {
                 for arg in args.iter_mut() {
@@ -316,7 +316,7 @@ impl Type {
                 ..
             } | Type::Func {
                 r#return: t,
-                args,
+                params: args,
                 ..
             } => {
                 for arg in args.iter_mut() {

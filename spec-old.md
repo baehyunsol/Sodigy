@@ -45,7 +45,7 @@ type EmptyResult<E> = Result<(), E>;
 
 Decorators are like attributes in Rust. But there're only built-in decorators, no custom ones.
 
-A decorator decorates `let`, `func`, `assert`, args of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
+A decorator decorates `let`, `func`, `assert`, params of `func`, `struct`, fields of `struct`, `enum` and variants of `enum`. There are 2 types of decorators:
 
 1. `#[always]` (no arguments)
 2. `#[name("test1")]` (with arguments)
