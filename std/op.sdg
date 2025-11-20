@@ -1,4 +1,4 @@
-use std.Bool;
+use std.bool.Bool;
 
 #[lang_item("op.not")]
 fn not(x: Bool) -> Bool = if x { Bool.False } else { Bool.True };

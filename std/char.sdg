@@ -1,0 +1,3 @@
+#[built_in]
+#[lang_item("type.Char")]
+pub enum Char = { _ };

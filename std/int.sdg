@@ -1,0 +1,56 @@
+use std.bool.Bool;
+
+#[built_in]
+#[lang_item("type.Int")]
+pub enum Int = { _ };
+
+#[built_in]
+#[impl(std.op.add)]
+fn add_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.sub)]
+fn sub_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.mul)]
+fn mul_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.div)]
+fn div_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.rem)]
+fn rem_int(a: Int, b: Int) -> Int;
+
+#[built_in]
+#[impl(std.op.lt)]
+fn lt_int(a: Int, b: Int) -> Bool;
+
+#[built_in]
+#[impl(std.op.eq)]
+fn eq_int(a: Int, b: Int) -> Bool;
+
+#[built_in]
+#[impl(std.op.gt)]
+fn gt_int(a: Int, b: Int) -> Bool;
+
+// TODO: this should be the implementation of `div_int`,
+//       but the compiler isn't smart enough to compile this.
+/*
+#[impl(std.op.div)]
+fn div_int_impl(a: Int, b: Int) -> Int = {
+    if b == 0 {
+        // TODO: error message
+        std.panic()
+    }
+
+    else {
+        div_int(a, b)
+    }
+};
+
+#[built_in]
+fn div_int(a: Int, b: Int) -> Int;
+*/

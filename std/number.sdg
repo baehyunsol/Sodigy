@@ -1,0 +1,7 @@
+use std.int.Int;
+
+#[lang_item("type.Number")]
+pub struct Number = {
+    numer: Int,
+    denom: Int,
+};

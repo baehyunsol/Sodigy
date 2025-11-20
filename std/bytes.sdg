@@ -1,0 +1,4 @@
+use std.byte.Byte;
+
+#[lang_item("type.Bytes")]
+type Bytes = [Byte];

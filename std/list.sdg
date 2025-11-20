@@ -1,0 +1,28 @@
+#[built_in]
+#[lang_item("type.List")]
+pub struct List = { _ };
+
+#[built_in]
+#[lang_item("fn.init_list")]
+#[lang_item_generics("fn.init_list.generic.0")]
+fn init_list<T>(/* varargs */) -> [T];
+
+// TODO: The compiler isn't strong enough to compile this function.
+/*
+#[impl(op.index)]
+fn index_list<T>(ls: [T], i: Int) -> T = {
+    if 0 <= i && i < ls.len() {
+        // The first element is for the length of the list
+        std.read_compound(ls, i + 1)
+    }
+
+    else if -ls.len() <= i {
+        std.read_compound(ls, i + ls.len() + 1)
+    }
+
+    else {
+        // TODO: error message
+        std.panic()
+    }
+};
+*/

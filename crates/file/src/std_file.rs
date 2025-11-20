@@ -7,42 +7,72 @@ pub(crate) const STD_FILES: [(
     &'static str,   // file_path
     &'static [u8],  // contents
     u128,           // content_hash
-); 6] = [
+); 11] = [
     (
-        "@std.lib.built_in.fns",
-        "@std/built_in/fns.sdg",
-        include_bytes!("../../../std/built_in/fns.sdg"),
+        "@std.lib.bool",
+        "@std/bool.sdg",
+        include_bytes!("../../../std/bool.sdg"),
         1000,
     ),
     (
-        "@std.lib.built_in.types",
-        "@std/built_in/types.sdg",
-        include_bytes!("../../../std/built_in/types.sdg"),
+        "@std.lib.byte",
+        "@std/byte.sdg",
+        include_bytes!("../../../std/byte.sdg"),
         1001,
     ),
     (
-        "@std.lib.built_in",
-        "@std/built_in.sdg",
-        include_bytes!("../../../std/built_in.sdg"),
+        "@std.lib.bytes",
+        "@std/bytes.sdg",
+        include_bytes!("../../../std/bytes.sdg"),
         1002,
+    ),
+    (
+        "@std.lib.char",
+        "@std/char.sdg",
+        include_bytes!("../../../std/char.sdg"),
+        1003,
+    ),
+    (
+        "@std.lib.int",
+        "@std/int.sdg",
+        include_bytes!("../../../std/int.sdg"),
+        1004,
     ),
     (
         "@std.lib",
         "@std/lib.sdg",
         include_bytes!("../../../std/lib.sdg"),
-        1003,
+        1005,
+    ),
+    (
+        "@std.lib.list",
+        "@std/list.sdg",
+        include_bytes!("../../../std/list.sdg"),
+        1006,
+    ),
+    (
+        "@std.lib.number",
+        "@std/number.sdg",
+        include_bytes!("../../../std/number.sdg"),
+        1007,
     ),
     (
         "@std.lib.op",
         "@std/op.sdg",
         include_bytes!("../../../std/op.sdg"),
-        1004,
+        1008,
     ),
     (
         "@std.lib.prelude",
         "@std/prelude.sdg",
         include_bytes!("../../../std/prelude.sdg"),
-        1005,
+        1009,
+    ),
+    (
+        "@std.lib.string",
+        "@std/string.sdg",
+        include_bytes!("../../../std/string.sdg"),
+        1010,
     ),
 ];
 
@@ -52,6 +82,6 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
             path: vec![],
             is_std: true,
         },
-        FileOrStd::Std(3),
+        FileOrStd::Std(5),
     )
 }

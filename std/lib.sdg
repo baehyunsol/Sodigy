@@ -1,55 +1,20 @@
-mod built_in;
+// Items in std can use a special decorator: `#[built_in]`.
+
+mod bool;
+mod byte;
+mod bytes;
+mod char;
+mod int;
+mod list;
+mod number;
 mod op;
 mod prelude;
+mod string;
 
-use built_in.types.{Byte, Char, Int, List};
+use std.int.Int;
 
-#[lang_item("type.String")]
-type String = [Char];
+#[built_in]
+fn panic() -> !;
 
-#[lang_item("type.Bytes")]
-type Bytes = [Byte];
-
-#[lang_item("type.Bool")]
-pub enum Bool = {
-    True,
-    False,
-};
-
-#[lang_item("type.Number")]
-pub struct Number = {
-    numer: Int,
-    denom: Int,
-};
-
-// TODO: methods are not implemented yet
-/*
-#[impl(op.index)]
-fn index_list<T>(ls: [T], i: Int) -> T = {
-    if 0 <= i && i < ls.len() {
-        // The first element is for the length of the list
-        built_in.fns.read_compound(ls, i + 1)
-    }
-
-    else if -ls.len() <= i {
-        built_in.fns.read_compound(ls, i + ls.len() + 1)
-    }
-
-    else {
-        // TODO: error message
-        built_in.fns.panic()
-    }
-};
-
-#[impl(op.div)]
-fn div_int(a: Int, b: Int) -> Int = {
-    if b == 0 {
-        // TODO: error message
-        built_in.fns.panic()
-    }
-
-    else {
-        built_in.fns.div_int(a, b)
-    }
-};
-*/
+#[built_in]
+fn read_compound<T, U>(a: T, b: Int) -> U;

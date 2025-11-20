@@ -1,0 +1,5 @@
+#[lang_item("type.Bool")]
+pub enum Bool = {
+    True,
+    False,
+};

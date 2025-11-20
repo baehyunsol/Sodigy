@@ -1,0 +1,3 @@
+#[built_in]
+#[lang_item("type.Byte")]
+pub enum Byte = { _ };
