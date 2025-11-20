@@ -300,7 +300,7 @@ fn solve_fn_types(
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
-    let mut solver = Solver::new(lang_items);
+    let mut solver = Solver::new(lang_items, false);
     let mut types = HashMap::new();
     let mut constraints = vec![];
     let mut errors = vec![];

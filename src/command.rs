@@ -42,6 +42,7 @@ pub enum Command {
         intermediate_dir: String,
         stop_after: CompileStage,
         emit_ir_options: Vec<EmitIrOption>,
+        dump_type_info: bool,
         output_path: Option<String>,
         backend: Backend,
         profile: Profile,

@@ -3,7 +3,6 @@ use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
-use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -279,6 +278,7 @@ impl RenderTypeError for MirSession {
                 ).collect::<Vec<_>>().join(", "),
                 if args.len() == 1 { "," } else { "" },
             ),
+            // TODO: alias `List<T>` to `[T]`?
             Type::Param { r#type, args, .. } => format!(
                 "{}<{}>",
                 self.render_type(r#type),

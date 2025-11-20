@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{Type, TypeLog};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -51,16 +51,23 @@ pub struct Solver {
 
     pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
+
+    // It logs everything the type solver does. It's used for
+    // 1. debugging the compiler
+    // 2. maybe the programmer wants to know this!
+    // It's really expensive, so think twice before you enable this.
+    pub log: Option<Vec<TypeLog>>,
 }
 
 impl Solver {
-    pub fn new(lang_items: HashMap<String, Span>) -> Self {
+    pub fn new(lang_items: HashMap<String, Span>, log: bool) -> Self {
         Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),
             lang_items,
             errors: vec![],
+            log: if log { Some(vec![]) } else { None },
         }
     }
 
@@ -77,6 +84,10 @@ impl Solver {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
                         if let Some(never_type) = self.maybe_never_type.get(type_var) {
                             never_types.push((type_var.clone(), never_type.clone()));
+
+                            if let Some(log) = &mut self.log {
+                                log.push(TypeLog::NeverType(type_var.clone()));
+                            }
                         }
                     },
                     _ => {},
@@ -85,6 +96,10 @@ impl Solver {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
                         if let Some(never_type) = self.maybe_never_type.get(type_var) {
                             never_types.push((type_var.clone(), never_type.clone()));
+
+                            if let Some(log) = &mut self.log {
+                                log.push(TypeLog::NeverType(type_var.clone()));
+                            }
                         }
                     },
                     _ => {},
@@ -247,6 +262,22 @@ impl Solver {
         subtype_span: Option<Span>,
         context: ErrorContext,
     ) -> Result<Type, ()> {
+        if let Some(log) = &mut self.log {
+            match (expected_type, subtype) {
+                (Type::Var { .. } | Type::GenericInstance { .. }, _) |
+                (_, Type::Var { .. } | Type::GenericInstance { .. }) => {
+                    log.push(TypeLog::SolveSubtype {
+                        expected_type: expected_type.clone(),
+                        subtype: subtype.clone(),
+                        expected_span,
+                        subtype_span,
+                        context,
+                    });
+                },
+                _ => {},
+            }
+        }
+
         match (expected_type, subtype) {
             (Type::Static(exp_def), Type::Static(sub_def)) => {
                 if *exp_def == *sub_def {
@@ -430,8 +461,8 @@ impl Solver {
 
                     match (&**r1, &**r2) {
                         (
-                            (Type::Var { .. } | Type::GenericInstance { .. }),
-                            (Type::Var { .. } | Type::GenericInstance { .. }),
+                            Type::Var { .. } | Type::GenericInstance { .. },
+                            Type::Var { .. } | Type::GenericInstance { .. },
                         ) => {},
                         (r1, r2) => {
                             let r1 = r1.clone();

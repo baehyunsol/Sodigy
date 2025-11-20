@@ -271,7 +271,7 @@ impl Solver {
                         Some(Type::Var { .. } | Type::GenericInstance { .. }) => todo!(),
                         None => todo!(),
                     },
-                    Callable::TupleInit { group_span } => (
+                    Callable::TupleInit { .. } => (
                         Some(Type::Param {
                             // `Type::Unit`'s `group_span` is of type annotation,
                             // and `Callable::TupleInit`'s `group_span` is of the expression/

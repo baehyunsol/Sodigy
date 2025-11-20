@@ -338,6 +338,7 @@ fn main() -> Result<(), Error> {
                             intermediate_dir: String::from("target"),
                             stop_after: CompileStage::CodeGen,
                             emit_ir_options: vec![],
+                            dump_type_info: true,  // for debugging the type checker!
                             output_path: None,
                             backend: Backend::Bytecode,
                             profile: Profile::Test,
@@ -644,6 +645,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 intermediate_dir,
                 stop_after,
                 emit_ir_options,
+                dump_type_info,
                 output_path,
                 backend,
                 profile,
@@ -685,7 +687,12 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let mir_session = merged_mir_session.unwrap();
 
                 // TODO: dump type_solver
-                let (mir_session, type_solver) = sodigy_mir_type::solve(mir_session);
+                let (mut mir_session, type_solver) = sodigy_mir_type::solve(mir_session, dump_type_info);
+
+                if dump_type_info {
+                    sodigy_mir_type::dump(&mut mir_session, &type_solver);
+                }
+
                 mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
                 if let CompileStage::TypeCheck = stop_after {

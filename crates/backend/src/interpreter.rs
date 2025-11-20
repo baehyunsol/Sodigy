@@ -27,9 +27,7 @@ pub fn interpret(
     let mut ret = NULL;
 
     'outer: loop {
-        // println!("label: {curr_label}");
         for bytecode in bytecodes.get(&curr_label).unwrap().iter() {
-            // println!("{bytecode:?}");
             match bytecode {
                 Bytecode::Push { src, dst } => {
                     let ptr = match src {

@@ -12,18 +12,20 @@ use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 
 mod error;
+mod log;
 mod mono;
 mod poly;
 mod solver;
 
 pub use error::{ErrorContext, RenderTypeError, TypeError};
+pub use log::TypeLog;
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 use solver::Solver;
 
-pub fn solve(mut session: Session) -> (Session, Solver) {
+pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
     let mut has_error = false;
-    let mut type_solver = Solver::new(session.lang_items.clone());
+    let mut type_solver = Solver::new(session.lang_items.clone(), log);
     let mut poly_solver = HashMap::new();
 
     // It does 2 things.
@@ -116,73 +118,136 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
 // It's very expensive and should be used only for debugging the compiler.
 pub fn dump(session: &mut Session, solver: &Solver) {
     session.init_span_string_map();
-    let mut renders = vec![];
     let mut render_span_session = RenderSpanSession::new(&session.intermediate_dir);
+    let render_span_option = RenderSpanOption {
+        max_width: 88,
+        max_height: 10,
+        render_source: true,
+        color: Some(ColorOption {
+            primary: Color::Blue,
+            auxiliary: Color::Blue,
+            info: Color::Green,
+        }),
+        group_delim: None,
+    };
 
-    for (type_var, id) in solver.type_vars.iter() {
-        let mut id = id.map(
-            |id| unintern_string(id, &session.intermediate_dir)
-                    .unwrap()
-                    .unwrap_or(b"????".to_vec())
-        );
-        let span;
+    for (i, log) in solver.log.as_ref().unwrap().iter().enumerate() {
+        println!("-------------");
+        println!("--- #{i:04} ---");
+        println!("-------------");
 
-        let r#type = match type_var {
-            Type::Var { def_span, .. } => {
-                span = Some(*def_span);
+        match log {
+            TypeLog::SolveSubtype {
+                expected_type,
+                subtype,
+                expected_span,
+                subtype_span,
+                context,
+            } => {
+                println!("{expected_type:?} = {subtype:?}");
+                println!("context: {context:?}");
 
-                match session.types.get(def_span) {
-                    Some(t) => t.clone(),
-                    None => type_var.clone(),
+                for (title, r#type, span) in [
+                    ("expected", expected_type, expected_span),
+                    ("subtype", subtype, subtype_span),
+                ] {
+                    println!("--- {title}: {} ---", session.render_type(r#type));
+
+                    match r#type {
+                        Type::Var { def_span, is_return } => {
+                            println!("--- type var definition ---");
+                            println!("is_return: {is_return}");
+                            println!(
+                                "{}",
+                                render_spans(
+                                    &[RenderableSpan {
+                                        span: *def_span,
+                                        auxiliary: false,
+                                        note: None,
+                                    }],
+                                    &render_span_option,
+                                    &mut render_span_session,
+                                ),
+                            );
+                        },
+                        Type::GenericInstance { call, generic } => {
+                            println!("--- generic call ---");
+                            println!(
+                                "{}",
+                                render_spans(
+                                    &[
+                                        RenderableSpan {
+                                            span: *call,
+                                            auxiliary: false,
+                                            note: Some(String::from("call")),
+                                        },
+                                        RenderableSpan {
+                                            span: *generic,
+                                            auxiliary: false,
+                                            note: Some(String::from("generic")),
+                                        },
+                                    ],
+                                    &render_span_option,
+                                    &mut render_span_session,
+                                ),
+                            );
+                        },
+                        _ => {},
+                    }
+
+                    match span {
+                        Some(span) => {
+                            println!("--- span ---");
+                            println!(
+                                "{}",
+                                render_spans(
+                                    &[RenderableSpan {
+                                        span: *span,
+                                        auxiliary: false,
+                                        note: None,
+                                    }],
+                                    &render_span_option,
+                                    &mut render_span_session,
+                                ),
+                            );
+                        },
+                        None => {
+                            println!("span: None");
+                        },
+                    }
                 }
             },
-            Type::GenericInstance { call, generic } => {
-                span = Some(*call);
+            TypeLog::Dispatch { call, def, generics } => {
+                println!("--- dispatch ---");
+                println!(
+                    "{}",
+                    render_spans(
+                        &[
+                            RenderableSpan {
+                                span: *call,
+                                auxiliary: false,
+                                note: Some(String::from("call")),
+                            },
+                            RenderableSpan {
+                                span: *def,
+                                auxiliary: false,
+                                note: Some(String::from("def")),
+                            },
+                        ],
+                        &render_span_option,
+                        &mut render_span_session,
+                    ),
+                );
 
-                if id.is_none() {
-                    id = session.span_to_string(*generic).map(|s| s.into_bytes());
-                }
+                if !generics.is_empty() {
+                    println!("--- generics ---");
 
-                match session.generic_instances.get(&(*call, *generic)) {
-                    Some(t) => t.clone(),
-                    None => type_var.clone(),
+                    for (span, r#type) in generics.iter() {
+                        println!("{}: {}", session.span_to_string(*span).unwrap_or(String::from("????")), session.render_type(r#type));
+                    }
                 }
             },
-            _ => unreachable!(),
-        };
-
-        let span = span.unwrap();
-
-        let rendered = format!(
-            "{}: {}\n{}\n\n",
-            String::from_utf8_lossy(&id.unwrap_or(b"????".to_vec())).to_string(),
-            session.render_type(&r#type),
-            render_spans(
-                &[RenderableSpan {
-                    span,
-                    auxiliary: false,
-                    note: None,
-                }],
-                &RenderSpanOption {
-                    max_width: 88,
-                    max_height: 10,
-                    render_source: true,
-                    color: Some(ColorOption {
-                        primary: Color::Blue,
-                        auxiliary: Color::Blue,
-                        info: Color::Green,
-                    }),
-                    group_delim: None,
-                },
-                &mut render_span_session,
-            ),
-        );
-        renders.push((span, rendered));
-    }
-
-    renders.sort_by_key(|(span, _)| *span);
-
-    for (_, r) in renders.iter() {
-        println!("{r}");
+            _ => todo!(),
+        }
     }
 }
