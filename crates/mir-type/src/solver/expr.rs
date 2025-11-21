@@ -31,7 +31,7 @@ impl Solver {
                             NameKind::EnumVariant { parent } => {
                                 return (Some(Type::Static(parent)), false);
                             },
-                            _ => panic!("{id:?}"),
+                            _ => panic!("TODO: {id:?}"),
                         },
                         _ => {},
                     }

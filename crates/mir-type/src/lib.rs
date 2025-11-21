@@ -8,7 +8,6 @@ use sodigy_span::{
     RenderableSpan,
     render_spans,
 };
-use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 
 mod error;

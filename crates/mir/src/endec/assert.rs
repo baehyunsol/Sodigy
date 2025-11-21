@@ -9,8 +9,8 @@ impl Endec for Assert {
         self.keyword_span.encode_impl(buffer);
         self.always.encode_impl(buffer);
         self.note.encode_impl(buffer);
+        self.note_decorator_span.encode_impl(buffer);
         self.value.encode_impl(buffer);
-        self.exec.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -18,8 +18,8 @@ impl Endec for Assert {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (always, cursor) = bool::decode_impl(buffer, cursor)?;
         let (note, cursor) = Option::<Expr>::decode_impl(buffer, cursor)?;
+        let (note_decorator_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
-        let (exec, cursor) = Expr::decode_impl(buffer, cursor)?;
 
         Ok((
             Assert {
@@ -27,8 +27,8 @@ impl Endec for Assert {
                 keyword_span,
                 always,
                 note,
+                note_decorator_span,
                 value,
-                exec,
             },
             cursor,
         ))

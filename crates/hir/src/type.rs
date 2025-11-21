@@ -3,7 +3,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::Span;
-use sodigy_string::intern_string;
+use sodigy_string::{InternedString, intern_string};
 
 #[derive(Clone, Debug)]
 pub enum Type {
@@ -248,6 +248,47 @@ impl Type {
                 span.merge(r#return.error_span())
             },
             Type::Wildcard(span) | Type::Never(span) => *span,
+        }
+    }
+
+    // Let's say there's an alias `type OI = Option<Int>;` and a type annotation `let x: OI;`
+    // In order for the alias to work, we have to replace the defspan of `OI`.
+    // If something's wrong with `x`'s type, the compiler would underline the type annotation of
+    // `x`, which is `OI`. So we should not change its span. Otherwise the compiler would underline
+    // `Option<Int>`, which is very far from `x`.
+    // We do this in the opposite way. We first clone `Option<Int>`, and replace every name and
+    // span in it with `OI`'s.
+    pub fn replace_name_and_span(&mut self, name: InternedString, span: Span) {
+        match self {
+            Type::Identifier(id) => {
+                id.id = name;
+                id.span = span;
+            },
+            Type::Path { id, fields } => {
+                id.id = name;
+                id.span = span;
+                *fields = fields.iter().map(
+                    |field| match field {
+                        Field::Name { name, .. } => Field::Name {
+                            name: *name,
+                            span: span,
+                            dot_span: span,
+                            is_from_alias: true,
+                        },
+                        _ => unreachable!(),
+                    }
+                ).collect();
+            },
+            Type::Param { r#type, args, group_span } => {
+                r#type.replace_name_and_span(name, span);
+
+                for arg in args.iter_mut() {
+                    arg.replace_name_and_span(name, span);
+                }
+
+                *group_span = span;
+            },
+            _ => todo!(),
         }
     }
 }

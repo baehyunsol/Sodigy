@@ -1,3 +1,54 @@
+# 93. update_compound, read_compound
+
+1. 이름 변경: update_compound -> store, read_compound -> load
+2. intrinsic으로도 두고 (sodigy가 직접 쓸 때도 있음), Bytecode로도 만들자 (최적화 용이)
+  - `Bytecode::Store { ptr: Memory, offset: MemoryOrStatic, value: Memory }`
+  - `Bytecode::Load { ptr: Memory, offset: MemoryOrStatic, dst: Memory }`
+
+# 92. whether to drop
+
+1. 함수에서 나가거나 block에서 나갈 때 일괄적으로 drop을 해야함
+  - 함수 param type과 block let type은 접근이 쉽기 때문에 결정하기 쉬움
+2. intrinsic을 호출한 다음에 arg를 즉시 drop해야함
+  - 몇몇 intrinsic (AddInt, LtInt, ...)은 type을 알기 때문에 drop 할지말지 결정이 쉬움!
+  - `fn init_list<T>(/* varargs */) -> [T]` -> 얘는??
+    - 얘는 애초에 stack 쓰지말고 heap에다가 바로 올리고 싶은데?? 지금 bytecode로는 불가능!!
+    - `Memory::Return`에다가 element 올리고, update_compound로 올리고... 이러면 불필요한 inc_rc, dec_rc가 들어감 ㅠㅠ
+3. drop도 여러 종류가 있음 (아래 enum 참고)
+
+```rs
+enum DropType {
+    // Byte, Char
+    // No need for drop
+    Scalar,
+
+    // Int, (Byte, Byte)
+    // Just decrement its rc.
+    SimpleCompound,
+
+    // List is very special because it
+    //   1. has an arbitrary number of arguments
+    //   2. has an integer for length
+    // So, it has to drop the integer (which is SimpleCompound),
+    // and the elements with the given DropType.
+    List(Box<DropType>),
+
+    // (Byte, [Char]), (Int, Int)
+    Compound(Vec<DropType>),
+}
+```
+
+# 91. `todo!()`, `panic!()`, `unreachable!()`
+
+Rust에서 쟤네를 많이 쓰기 때문에 Sodigy에도 넣고 싶음!!
+
+1. rust에서는 macro로 쓰는데 Sodigy에서는 굳이...
+  - function으로 써도 되고 value로 써도 됨 (어차피 `!` value이니까)
+2. Rust에서는 string formatting을 어떻게 하냐의 차이가 있지만, sodigy에서는 그런 차이 안 둘 거임!!
+3. string을 optional하게 받기는 할 거임
+4. panic하면 span도 보여줄 거야?? 어떻게 보여줌??
+5. `todo()`가 있으면 compiler warning을 날릴까?? 괜찮은 듯?
+
 # 90. enum representation
 
 1. 첫번째 field에 variant가 들어가고, 나머지에 실제 값이 들어감

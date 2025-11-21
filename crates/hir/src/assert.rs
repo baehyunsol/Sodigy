@@ -34,6 +34,7 @@ pub struct Assert {
     // 3. `#[note]` must be very flexible.
     pub name: Option<InternedString>,
     pub note: Option<Expr>,
+    pub note_decorator_span: Option<Span>,
 
     pub keyword_span: Span,
     pub value: Expr,
@@ -85,6 +86,7 @@ impl Assert {
             Ok(Assert {
                 name: attribute.name,
                 note: attribute.note,
+                note_decorator_span: attribute.note_decorator_span,
                 keyword_span: ast_assert.keyword_span,
                 value: value.unwrap(),
                 always: attribute.always,
@@ -143,6 +145,7 @@ impl Assert {
 pub struct AssertAttribute {
     pub name: Option<InternedString>,
     pub note: Option<Expr>,
+    pub note_decorator_span: Option<Span>,
     pub always: bool,
 }
 
@@ -151,6 +154,7 @@ impl Default for AssertAttribute {
         AssertAttribute {
             name: None,
             note: None,
+            note_decorator_span: None,
             always: false,
         }
     }
@@ -164,6 +168,7 @@ impl AssertAttribute {
     ) -> AssertAttribute {
         let mut name = None;
         let mut note = None;
+        let mut note_decorator_span = None;
         let mut always = false;
 
         if let Some(name_) = attribute.decorators.get(&intern_string(b"name", &session.intermediate_dir).unwrap()) {
@@ -178,6 +183,7 @@ impl AssertAttribute {
         if let Some(note_) = attribute.decorators.get(&intern_string(b"note", &session.intermediate_dir).unwrap()) {
             match note_.args.get(0) {
                 Some(e) => {
+                    note_decorator_span = Some(note_.name_span);
                     note = Some(e.clone());
                 },
                 _ => unreachable!(),
@@ -188,6 +194,6 @@ impl AssertAttribute {
             always = true;
         }
 
-        AssertAttribute { name, note, always }
+        AssertAttribute { name, note, note_decorator_span, always }
     }
 }

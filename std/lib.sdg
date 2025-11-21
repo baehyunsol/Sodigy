@@ -15,6 +15,7 @@ mod prelude;
 mod string;
 
 use std.int.Int;
+use std.string.String;
 
 #[built_in]
 #[lang_item("built_in.exit")]
@@ -24,13 +25,15 @@ fn exit() -> !;
 #[lang_item("built_in.panic")]
 fn panic() -> !;
 
+// TODO: implement high-level `print<T>(v: T) -> T;`
 #[built_in]
 #[lang_item("built_in.print")]
-fn print<T>(v: T) -> T;
+fn print(v: String) -> Int;
 
+// TODO: implement high-level `eprint<T>(v: T) -> T;`
 #[built_in]
 #[lang_item("built_in.eprint")]
-fn eprint<T>(v: T) -> T;
+fn eprint(v: String) -> Int;
 
 #[built_in]
 #[lang_item("built_in.read_compound")]

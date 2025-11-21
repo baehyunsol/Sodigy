@@ -682,16 +682,16 @@ impl Session {
                             if alias.generics.is_empty() {
                                 log.push(id.span);
                                 log.push(id.def_span);
-                                *r#type = Type::Identifier(IdentWithOrigin {
-                                    def_span: alias_id.def_span,
-                                    origin: alias_id.origin,
-                                    ..*id
-                                });
+                                let mut alias = alias.r#type.clone();
+                                alias.replace_name_and_span(id.id, id.span);
+                                *r#type = alias;
                             }
 
                             // r#type: `type x = y;`
                             // alias: `type y<T> = a;`
                             // error!
+                            // TODO: It's not an error, it's just an alias!!
+                            //       But this function cannot make this alias...
                             else {
                                 self.errors.push(Error {
                                     kind: ErrorKind::MissingTypeParameter {
@@ -720,7 +720,25 @@ impl Session {
                             }
                         },
                         Type::Path { id: alias_id, fields: alias_fields } => todo!(),
-                        Type::Param { r#type: alias_t, args, .. } => todo!(),
+                        Type::Param { .. } => {
+                            // r#type: `type x = y;`
+                            // alias: `type y = Option<Int>`
+                            if alias.generics.is_empty() {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                let mut alias = alias.r#type.clone();
+                                alias.replace_name_and_span(id.id, id.span);
+                                *r#type = alias;
+                            }
+
+                            // r#type: `type x = y;`
+                            // alias: `type y<T> = Option<T>`
+                            // TODO: This is not an error, it's just an alias.
+                            //       But this function cannot make this kinda alias.
+                            else {
+                                todo!()
+                            }
+                        },
                         _ => todo!(),
                     },
                     None => {},
@@ -728,74 +746,80 @@ impl Session {
 
                 Ok(())
             },
-            Type::Path { id, fields } => todo!(),
-            Type::Param { r#type: p_type, args, group_span } => match &**p_type {
-                Type::Identifier(id) => {
-                    match self.name_aliases.get(&id.def_span) {
-                        Some(alias) => {
-                            // r#type: `type x = y<Int>;`
-                            // alias: `use a as y;`
-                            // ->
-                            // `type x = a<Int>;`
-                            if alias.fields.is_empty() {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                *r#type = Type::Param {
-                                    r#type: Box::new(Type::Identifier(IdentWithOrigin {
-                                        def_span: alias.root.def_span,
-                                        origin: alias.root.origin,
-                                        ..*id
-                                    })),
-                                    args: args.clone(),
-                                    group_span: *group_span,
-                                };
-                            }
-
-                            // r#type: `type x = y<Int>;`
-                            // alias: `use a.b.c as y;`
-                            // ->
-                            // `type x = a.b.c<Int>;`
-                            else {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                *r#type = Type::Param {
-                                    r#type: Box::new(Type::Path {
-                                        id: IdentWithOrigin {
+            Type::Path { id, fields } => panic!("TODO: {type:?}"),
+            Type::Param { r#type: p_type, args, group_span } => {
+                match &**p_type {
+                    Type::Identifier(id) => {
+                        match self.name_aliases.get(&id.def_span) {
+                            Some(alias) => {
+                                // r#type: `type x = y<Int>;`
+                                // alias: `use a as y;`
+                                // ->
+                                // `type x = a<Int>;`
+                                if alias.fields.is_empty() {
+                                    log.push(id.span);
+                                    log.push(id.def_span);
+                                    *r#type = Type::Param {
+                                        r#type: Box::new(Type::Identifier(IdentWithOrigin {
                                             def_span: alias.root.def_span,
                                             origin: alias.root.origin,
                                             ..*id
-                                        },
-                                        fields: alias.fields.iter().map(
-                                            |field| match field {
-                                                Field::Name { name, .. } => Field::Name {
-                                                    name: *name,
-                                                    span: id.span,
-                                                    dot_span: id.span,
-                                                    is_from_alias: true,
-                                                },
-                                                _ => unreachable!(),
-                                            }
-                                        ).collect(),
-                                    }),
-                                    args: args.clone(),
-                                    group_span: *group_span,
-                                };
-                            }
+                                        })),
+                                        args: args.clone(),
+                                        group_span: *group_span,
+                                    };
+                                }
 
-                            return Ok(());
-                        },
-                        None => {},
-                    }
+                                // r#type: `type x = y<Int>;`
+                                // alias: `use a.b.c as y;`
+                                // ->
+                                // `type x = a.b.c<Int>;`
+                                else {
+                                    log.push(id.span);
+                                    log.push(id.def_span);
+                                    *r#type = Type::Param {
+                                        r#type: Box::new(Type::Path {
+                                            id: IdentWithOrigin {
+                                                def_span: alias.root.def_span,
+                                                origin: alias.root.origin,
+                                                ..*id
+                                            },
+                                            fields: alias.fields.iter().map(
+                                                |field| match field {
+                                                    Field::Name { name, .. } => Field::Name {
+                                                        name: *name,
+                                                        span: id.span,
+                                                        dot_span: id.span,
+                                                        is_from_alias: true,
+                                                    },
+                                                    _ => unreachable!(),
+                                                }
+                                            ).collect(),
+                                        }),
+                                        args: args.clone(),
+                                        group_span: *group_span,
+                                    };
+                                }
 
-                    match self.type_aliases.get(&id.def_span) {
-                        Some(alias) => todo!(),
-                        None => {},
-                    }
+                                return Ok(());
+                            },
+                            None => {},
+                        }
 
-                    Ok(())
-                },
-                Type::Path { id, fields } => todo!(),
-                _ => unreachable!(),
+                        match self.type_aliases.get(&id.def_span) {
+                            Some(alias) => todo!(),
+                            None => {},
+                        }
+                    },
+                    Type::Path { id, fields } => todo!(),
+                    _ => unreachable!(),
+                }
+
+                for arg in args.iter_mut() {
+                    self.resolve_type(arg, log)?;
+                }
+
+                Ok(())
             },
             Type::Func { r#return, params, .. } => {
                 let mut has_error = false;

@@ -1,7 +1,6 @@
 use crate::ErrorContext;
 use sodigy_mir::Type;
 use sodigy_span::Span;
-use std::collections::HashMap;
 
 pub enum TypeLog {
     // either `expected_type` or `subtype` is a type var

@@ -1,5 +1,5 @@
 use super::Expr;
-use crate::{Callable, Session, Type};
+use crate::{Callable, Type};
 use sodigy_hir::{FuncParam, Generic};
 use sodigy_span::Span;
 use std::collections::HashMap;
