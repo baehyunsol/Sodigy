@@ -1,3 +1,13 @@
+# 94. trait system
+
+How about an ad-hoc trait system?
+
+A trait defines methods (without body) and fields (only types).
+
+You don't explicitly implement a trait. If a type implements all the methods and fields, the type implicitly implements the trait.
+
+It can help generate more readable error messages.
+
 # 93. update_compound, read_compound
 
 1. 이름 변경: update_compound -> store, read_compound -> load
