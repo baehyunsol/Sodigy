@@ -1,61 +1,114 @@
-use crate::{
-    Bytecode,
-    Const,
-    Register,
-    Session,
-    lower_mir_expr,
-};
+use crate::{Bytecode, Const, Memory, Session, lower_expr};
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 
-#[derive(Clone, Debug)]
 pub struct Assert {
-    pub name: Option<InternedString>,
     pub keyword_span: Span,
 
-    // When you evaluate this it might 1) eprint error and panic (if the assertion is False) or 2) do nothing.
-    pub bytecodes: Vec<Bytecode>,
+    // If the user didn't specify, it's "unnamed-assertion".
+    pub name: InternedString,
 
-    // After calling `session.make_labels_static`, every object will be mapped to a `Label::Static(id)`.
-    // This is the id of the label.
-    pub label_id: Option<u32>,
+    pub bytecodes: Vec<Bytecode>,
 }
 
 impl Assert {
     pub fn from_mir(mir_assert: &mir::Assert, session: &mut Session, is_top_level: bool) -> Assert {
-        session.label_counter = 0;
-        let mut bytecodes = vec![];
-        lower_mir_expr(&mir_assert.value, session, &mut bytecodes, false /* tail_call */);
+        if is_top_level {
+            session.label_counter = 0;
+        }
 
-        let no_panic = session.get_tmp_label();
+        let mut bytecodes = vec![];
+
+        let name = match &mir_assert.name {
+            Some(name) => *name,
+            None => intern_string(b"unnamed-assertion", &session.intermediate_dir).unwrap(),
+        };
+        bytecodes.push(Bytecode::Const {
+            value: Const::Span(mir_assert.keyword_span),
+            dst: Memory::Return,
+        });
+        bytecodes.push(Bytecode::PushAssertionMetadata {
+            kind: AssertionMetadataKind::KeywordSpan,
+            src: Memory::Return,
+        });
+
+        bytecodes.push(Bytecode::Const {
+            value: Const::String(name),
+            dst: Memory::Return,
+        });
+        bytecodes.push(Bytecode::PushAssertionMetadata {
+            kind: AssertionMetadataKind::Name,
+            src: Memory::Return,
+        });
+
+        if let (Some(note), Some(note_decorator_span)) = (&mir_assert.note, &mir_assert.note_decorator_span) {
+            // If it panics while evaluating `note`, the runtime will see the
+            // `NoteDecoratorSpan` and throw an according error message.
+            bytecodes.push(Bytecode::Const {
+                value: Const::Span(*note_decorator_span),
+                dst: Memory::Return,
+            });
+            bytecodes.push(Bytecode::PushAssertionMetadata {
+                kind: AssertionMetadataKind::NoteDecoratorSpan,
+                src: Memory::Return,
+            });
+
+            lower_expr(
+                note,
+                session,
+                &mut bytecodes,
+                Memory::Return,
+                /* is_tail_call: */ false,
+            );
+            bytecodes.push(Bytecode::PushAssertionMetadata {
+                kind: AssertionMetadataKind::Note,
+                src: Memory::Return,
+            });
+        }
+
+        lower_expr(
+            &mir_assert.value,
+            session,
+            &mut bytecodes,
+            Memory::Return,
+            /* is_tail_call: */ false,
+        );
+
+        let no_panic = session.get_local_label();
         bytecodes.push(Bytecode::JumpIf {
-            value: Register::Return,
+            value: Memory::Return,
             label: no_panic,
         });
 
-        // TODO: print error message
-        // bytecodes.push(Bytecode::PushConst {
-        //     value: Const::String {
-        //         s: mir_assert.error_message,
-        //         binary: false,
-        //     },
-        //     dst: Register::Call(0),
-        // });
-        // bytecodes.push(Bytecode::Intrinsic(Intrinsic::EPrint));
-        // bytecodes.push(Bytecode::Pop(Register::Call(0)));
-        // bytecodes.push(Bytecode::Intrinsic(Intrinsic::Panic));
-        // bytecodes.push(Bytecode::Label(no_panic));
+        // When it panics, the runtime will see the values in the AssertionMetadata stack
+        // and throw an error message.
+        bytecodes.push(Bytecode::Intrinsic {
+            intrinsic: Intrinsic::Panic,
+            stack_offset: 0,  // don't care
+            dst: Memory::Return,  // don't care
+        });
+        bytecodes.push(Bytecode::Label(no_panic));
 
         if is_top_level {
-            bytecodes.push(Bytecode::Intrinsic(Intrinsic::Exit));
+            bytecodes.push(Bytecode::Intrinsic {
+                intrinsic: Intrinsic::Exit,
+                stack_offset: 0,  // don't care
+                dst: Memory::Return,  // don't care
+            });
         }
 
         Assert {
-            name: mir_assert.name,
+            name,
             keyword_span: mir_assert.keyword_span,
             bytecodes,
-            label_id: None,
         }
     }
+}
+
+pub enum AssertionMetadataKind {
+    KeywordSpan,
+    Name,
+    NoteDecoratorSpan,
+    Note,
 }

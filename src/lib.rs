@@ -1,5 +1,3 @@
-use sodigy_backend::CodeGenMode;
-
 mod cli;
 mod command;
 mod compile_stage;
@@ -37,16 +35,6 @@ pub enum Backend {
 pub enum Profile {
     Script,
     Test,
-}
-
-// TODO: just use the same enum...
-impl From<Profile> for CodeGenMode {
-    fn from(p: Profile) -> CodeGenMode {
-        match p {
-            Profile::Script => CodeGenMode::Binary,
-            Profile::Test => CodeGenMode::Test,
-        }
-    }
 }
 
 /// The compiler stores irs (or result) in various places.

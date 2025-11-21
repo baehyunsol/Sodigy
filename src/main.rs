@@ -33,7 +33,6 @@ use sodigy_fs_api::{
     write_string,
 };
 use sodigy_hir as hir;
-use sodigy_lir::Executable;
 use sodigy_mir::Session as MirSession;
 use sodigy_session::Session;
 use sodigy_span::Span;
@@ -714,80 +713,80 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     continue;
                 }
 
-                let executable = lir_session.into_executable(optimization == Optimization::None);
+                // let executable = lir_session.into_executable(optimization == Optimization::None);
 
-                let result = match backend {
-                    Backend::Python => sodigy_backend::python_code_gen(
-                        &executable,
-                        &sodigy_backend::CodeGenConfig {
-                            intermediate_dir: intermediate_dir.clone(),
-                            label_help_comment: true,
-                            mode: profile.into(),
-                        },
-                    )?,
-                    Backend::Bytecode => executable.encode(),
-                    _ => todo!(),
-                };
+                // let result = match backend {
+                //     Backend::Python => sodigy_backend::python_code_gen(
+                //         &executable,
+                //         &sodigy_backend::CodeGenConfig {
+                //             intermediate_dir: intermediate_dir.clone(),
+                //             label_help_comment: true,
+                //             mode: profile.into(),
+                //         },
+                //     )?,
+                //     Backend::Bytecode => executable.encode(),
+                //     _ => todo!(),
+                // };
 
-                emit_irs_if_has_to(
-                    &result,
-                    &emit_ir_options,
-                    CompileStage::CodeGen,
-                    None,
-                    &intermediate_dir,
-                    &mut memory,
-                )?;
+                // emit_irs_if_has_to(
+                //     &result,
+                //     &emit_ir_options,
+                //     CompileStage::CodeGen,
+                //     None,
+                //     &intermediate_dir,
+                //     &mut memory,
+                // )?;
 
-                lir_session.dump_warnings();
+                // lir_session.dump_warnings();
 
-                if let Some(output_path) = output_path {
-                    write_bytes(
-                        &output_path,
-                        &result,
-                        WriteMode::CreateOrTruncate,
-                    )?;
-                }
+                // if let Some(output_path) = output_path {
+                //     write_bytes(
+                //         &output_path,
+                //         &result,
+                //         WriteMode::CreateOrTruncate,
+                //     )?;
+                // }
             },
             Command::Interpret {
                 bytecodes_path,
                 profile,
             } => {
-                let bytecodes_bytes = match bytecodes_path {
-                    StoreIrAt::File(path) => read_bytes(&path)?,
-                    // TODO: raise a FileNotFound error instead of unwrapping it
-                    StoreIrAt::Memory => memory.clone().unwrap(),
-                    StoreIrAt::IntermediateDir => todo!(),
-                };
-                let bytecodes = Executable::decode(&bytecodes_bytes)?;
+                // let bytecodes_bytes = match bytecodes_path {
+                //     StoreIrAt::File(path) => read_bytes(&path)?,
+                //     // TODO: raise a FileNotFound error instead of unwrapping it
+                //     StoreIrAt::Memory => memory.clone().unwrap(),
+                //     StoreIrAt::IntermediateDir => todo!(),
+                // };
+                // let bytecodes = Executable::decode(&bytecodes_bytes)?;
 
-                match profile {
-                    Profile::Test => {
-                        let mut failed = false;
+                // match profile {
+                //     Profile::Test => {
+                //         let mut failed = false;
 
-                        // TODO: it has to capture stderr and stdout
-                        for (id, name) in bytecodes.asserts.iter() {
-                            if let Err(_) = sodigy_backend::interpret(
-                                &bytecodes.bytecodes,
-                                *id,
-                            ) {
-                                println!("{name}: \x1b[31mFail\x1b[0m");
-                                failed = true;
-                            }
+                //         // TODO: it has to capture stderr and stdout
+                //         for (id, name) in bytecodes.asserts.iter() {
+                //             if let Err(_) = sodigy_backend::interpret(
+                //                 &bytecodes.bytecodes,
+                //                 *id,
+                //             ) {
+                //                 println!("{name}: \x1b[31mFail\x1b[0m");
+                //                 failed = true;
+                //             }
 
-                            else {
-                                println!("{name}: \x1b[32mPass\x1b[0m");
-                            }
-                        }
+                //             else {
+                //                 println!("{name}: \x1b[32mPass\x1b[0m");
+                //             }
+                //         }
 
-                        if failed {
-                            return Err(Error::TestError);
-                        }
-                    },
-                    // It's TODO until we design and implement the impure part
-                    _ => {
-                        todo!()
-                    },
-                }
+                //         if failed {
+                //             return Err(Error::TestError);
+                //         }
+                //     },
+                //     // It's TODO until we design and implement the impure part
+                //     _ => {
+                //         todo!()
+                //     },
+                // }
             },
             Command::Help(doc) => match doc {
                 _ => todo!(),

@@ -2,209 +2,182 @@ use crate::{
     Assert,
     Bytecode,
     Const,
-    ConstOrRegister,
-    InPlaceOrRegister,
     Label,
-    Offset,
-    Register,
+    Memory,
     Session,
 };
-use sodigy_mir::{self as mir, Callable};
-use sodigy_name_analysis::{
-    NameKind,
-    NameOrigin,
-};
-use sodigy_number::InternedNumber;
+use sodigy_mir::{Block, Callable, Expr, If, Match};
 
-// It pushes the expr to `Register::Return`.
-// If it's a tail-call, it jumps to another function after evaluating the expr.
-pub fn lower_mir_expr(mir_expr: &mir::Expr, session: &mut Session, bytecodes: &mut Vec<Bytecode>, is_tail_call: bool) {
-    match mir_expr {
-        mir::Expr::Identifier(id) => {
-            let src = match session.local_registers.get(&id.def_span) {
-                Some(src) => *src,
-                None => match id.origin {
-                    // top-level `let` statements are always lazily evaluated.
-                    NameOrigin::Local { kind: NameKind::Let { is_top_level: true } } |
-                    NameOrigin::Foreign { kind: NameKind::Let { is_top_level: true } } => {
-                        let return_from_const = session.get_tmp_label();
-                        let const_is_already_init = session.get_tmp_label();
-                        // NOTE: top-level `let` statements are always lazy-evaluated.
-                        bytecodes.push(Bytecode::JumpIfInit {
-                            reg: Register::Const(id.def_span),
-                            label: const_is_already_init,
-                        });
+// caller is responsible for inc/decrementing the stack pointer
+// callee is responsible for dropping the local values
 
-                        bytecodes.push(Bytecode::PushCallStack(return_from_const));
-                        bytecodes.push(Bytecode::Goto(Label::Const(id.def_span)));
-                        bytecodes.push(Bytecode::Label(return_from_const));
-                        bytecodes.push(Bytecode::PopCallStack);
-                        bytecodes.push(Bytecode::Label(const_is_already_init));
-
-                        Register::Const(id.def_span)
-                    },
-                    NameOrigin::Foreign { .. } => panic!("TODO: {id:?}"),
-
-                    // Otherwise, it's a local value, so it must be at `session.local_registers`.
-                    _ => unreachable!(),
-                },
+// It generates bytecodes that
+//    1) evaluates the expr
+//    2) pushes the value to `dst`
+pub fn lower_expr(
+    expr: &Expr,
+    session: &mut Session,
+    bytecodes: &mut Vec<Bytecode>,
+    dst: Memory,
+    is_tail_call: bool,
+) {
+    match expr {
+        Expr::Identifier(id) => {
+            let src = match session.local_values.get(&id.def_span) {
+                Some(src) => Memory::Stack(*src),
+                None => panic!("TODO: {id:?}"),
             };
 
-            bytecodes.push(Bytecode::Push {
-                src,
-                dst: Register::Return,
-            });
+            if src != dst {
+                bytecodes.push(Bytecode::Copy {
+                    src,
+                    dst,
+                })
+            }
 
             if is_tail_call {
-                session.pop_all_locals(bytecodes);
+                session.drop_all_locals(bytecodes);
                 bytecodes.push(Bytecode::Return);
             }
         },
-        mir::Expr::Number { n, .. } => {
-            bytecodes.push(Bytecode::PushConst {
+        Expr::Number { n, .. } => {
+            bytecodes.push(Bytecode::Const {
                 value: Const::Number(n.clone()),
-                dst: Register::Return,
+                dst,
             });
 
             if is_tail_call {
-                session.pop_all_locals(bytecodes);
+                session.drop_all_locals(bytecodes);
                 bytecodes.push(Bytecode::Return);
             }
         },
-        mir::Expr::String { s, binary, .. } => {
-            bytecodes.push(Bytecode::PushConst {
-                value: Const::String { s: *s, binary: *binary },
-                dst: Register::Return,
-            });
-
-            if is_tail_call {
-                session.pop_all_locals(bytecodes);
-                bytecodes.push(Bytecode::Return);
-            }
-        },
-        mir::Expr::If(mir::If { cond, true_value, false_value, .. }) => {
-            let eval_true_value = session.get_tmp_label();
-            let return_expr = session.get_tmp_label();
-            lower_mir_expr(cond, session, bytecodes, false /* is_tail_call */);
+        Expr::String { s, binary, .. } => todo!(),
+        Expr::Char { ch, .. } => todo!(),
+        Expr::Byte { b, .. } => todo!(),
+        Expr::If(If { cond, true_value, false_value, .. }) => {
+            let eval_true_value = session.get_local_label();
+            let return_expr = session.get_local_label();
+            lower_expr(
+                cond,
+                session,
+                bytecodes,
+                Memory::Return,
+                /* is_tail_call: */ false,
+            );
             bytecodes.push(Bytecode::JumpIf {
-                value: Register::Return,
+                value: Memory::Return,
                 label: eval_true_value,
             });
-            bytecodes.push(Bytecode::Pop(Register::Return));
+
+            // We don't drop `cond` because it's a boolean!!
 
             // If it `is_tail_call`, it'll exit after evaluating `false_value`,
             // so we don't have to care about it.
             // Otherwise, we have to skip evaluating `true_value`.
-            lower_mir_expr(false_value, session, bytecodes, is_tail_call);
+            lower_expr(false_value, session, bytecodes, dst, is_tail_call);
             bytecodes.push(Bytecode::Goto(return_expr));
 
             bytecodes.push(Bytecode::Label(eval_true_value));
-            bytecodes.push(Bytecode::Pop(Register::Return));
-            lower_mir_expr(true_value, session, bytecodes, is_tail_call);
+            lower_expr(true_value, session, bytecodes, dst, is_tail_call);
             bytecodes.push(Bytecode::Label(return_expr));
         },
-        mir::Expr::Block(mir::Block { lets, asserts, value, .. }) => {
-            // TODO: it assumes that there's no dependency between `let` statements and
-            //       everything is eager-evaluated.
+        Expr::Match(Match { .. }) => todo!(),
+        Expr::Block(Block { lets, asserts, value, .. }) => {
+            let mut local_names = vec![];
+
             for r#let in lets.iter() {
+                // The session will remember whether it should drop this value.
                 let dst = session.register_local_name(r#let.name_span);
-                lower_mir_expr(&r#let.value, session, bytecodes, false /* is_tail_call */);
-                bytecodes.push(Bytecode::Push {
-                    src: Register::Return,
+                local_names.push(r#let.name_span);
+                lower_expr(
+                    &r#let.value,
+                    session,
+                    bytecodes,
                     dst,
-                });
-                bytecodes.push(Bytecode::Pop(Register::Return));
+                    /* is_tail_call: */ false,
+                );
             }
 
-            // TODO: when we have clear rules for lazy-evaluating let statements (and dependencies),
-            //       we might have to modify this
             for assert in asserts.iter() {
-                let assert = Assert::from_mir(assert, session, false /* is_top_level */);
-                bytecodes.extend(assert.bytecodes);
+                Assert::from_mir(assert, session, /* is_top_level: */ false);
             }
 
-            lower_mir_expr(value, session, bytecodes, is_tail_call);
+            lower_expr(value, session, bytecodes, dst, is_tail_call);
+
+            if !is_tail_call {
+                session.drop_block(&local_names);
+            }
         },
-        mir::Expr::Call { func, args, .. } => {
+        Expr::Call { func, args, .. } => {
             for (i, arg) in args.iter().enumerate() {
-                lower_mir_expr(arg, session, bytecodes, false /* is_tail_call */);
-                bytecodes.push(Bytecode::Push {
-                    src: Register::Return,
-                    dst: Register::Call(i as u32),
-                });
-                bytecodes.push(Bytecode::Pop(Register::Return));
+                lower_expr(
+                    arg,
+                    session,
+                    bytecodes,
+                    // TODO: better place?
+                    Memory::Stack(i + session.local_values.len()),
+                    /* is_tail_call: */ false,
+                );
             }
 
             match func {
-                Callable::Static { def_span, .. } => {
-                    let func = Label::Func(*def_span);
-
-                    if is_tail_call {
-                        session.pop_all_locals(bytecodes);
-                        bytecodes.push(Bytecode::Goto(func));
-                    }
-
-                    else {
-                        let label = session.get_tmp_label();
-                        bytecodes.push(Bytecode::PushCallStack(label));
-                        bytecodes.push(Bytecode::Goto(func));
-                        bytecodes.push(Bytecode::Label(label));
-                        bytecodes.push(Bytecode::PopCallStack);
-                    }
-                },
-                Callable::TupleInit { .. } => {
-                    bytecodes.push(Bytecode::PushConst {
-                        value: Const::Compound(args.len() as u32),
-                        dst: Register::Return,
-                    });
-
-                    for i in 0..args.len() {
-                        bytecodes.push(Bytecode::UpdateCompound {
-                            src: Register::Return,
-                            offset: Offset::Static(i as u32),
-                            value: ConstOrRegister::Register(Register::Call(i as u32)),
-                            dst: InPlaceOrRegister::InPlace,
+                Callable::Static { def_span, .. } => match session.intrinsics.get(def_span) {
+                    Some(intrinsic) => {
+                        bytecodes.push(Bytecode::Intrinsic {
+                            intrinsic: *intrinsic,
+                            stack_offset: session.local_values.len(),
+                            dst,
                         });
-                        bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
-                    }
 
-                    if is_tail_call {
-                        session.pop_all_locals(bytecodes);
-                        bytecodes.push(Bytecode::Return);
-                    }
+                        // TODO: how do we know whether we should drop the args?
+                        for (i, arg) in args.iter().enumerate() {
+                            // if has_to_drop(arg) {
+                            //     drop Memory::Stack(i + session.local_values.len())
+                            // }
+                        }
+
+                        if is_tail_call {
+                            session.drop_all_locals(bytecodes);
+                            bytecodes.push(Bytecode::Return);
+                        }
+                    },
+                    None => {
+                        let func = Label::Func(*def_span);
+
+                        if is_tail_call {
+                            session.drop_all_locals(bytecodes);
+
+                            for i in 0..args.len() {
+                                bytecodes.push(Bytecode::Move {
+                                    src: Memory::Stack(i + session.local_values.len()),
+                                    dst: Memory::Stack(i),
+                                });
+                            }
+
+                            bytecodes.push(Bytecode::Goto(func));
+                        }
+
+                        else {
+                            let return_label = session.get_local_label();
+                            bytecodes.push(Bytecode::PushCallStack(return_label));
+                            bytecodes.push(Bytecode::IncStackPointer(session.local_values.len()));
+                            bytecodes.push(Bytecode::Goto(func));
+                            bytecodes.push(Bytecode::Label(return_label));
+                            bytecodes.push(Bytecode::DecStackPointer(session.local_values.len()));
+                            bytecodes.push(Bytecode::PopCallStack);
+
+                            if dst != Memory::Return {
+                                bytecodes.push(Bytecode::Move {
+                                    src: Memory::Return,
+                                    dst,
+                                });
+                            }
+                        }
+                    },
                 },
-                // The first element is the length of the list.
-                Callable::ListInit { .. } => {
-                    bytecodes.push(Bytecode::PushConst {
-                        value: Const::Compound(args.len() as u32 + 1),
-                        dst: Register::Return,
-                    });
-
-                    bytecodes.push(Bytecode::UpdateCompound {
-                        src: Register::Return,
-                        offset: Offset::Static(0),
-                        value: ConstOrRegister::Const(Const::Number(InternedNumber::from_u32(args.len() as u32, true /* is_integer */))),
-                        dst: InPlaceOrRegister::InPlace,
-                    });
-
-                    for i in 0..args.len() {
-                        bytecodes.push(Bytecode::UpdateCompound {
-                            src: Register::Return,
-                            offset: Offset::Static(i as u32 + 1),
-                            value: ConstOrRegister::Register(Register::Call(i as u32)),
-                            dst: InPlaceOrRegister::InPlace,
-                        });
-                        bytecodes.push(Bytecode::Pop(Register::Call(i as u32)));
-                    }
-
-                    if is_tail_call {
-                        session.pop_all_locals(bytecodes);
-                        bytecodes.push(Bytecode::Return);
-                    }
-                },
-                _ => panic!("TODO: {func:?}"),
+                _ => todo!(),
             }
         },
-        _ => panic!("TODO: {mir_expr:?}"),
+        _ => panic!("TODO: {expr:?}"),
     }
 }
