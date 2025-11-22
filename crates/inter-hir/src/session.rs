@@ -3,7 +3,7 @@ use sodigy_hir::{Alias, Expr, FuncParam, Generic, Poly, StructField, Use};
 use sodigy_name_analysis::NameKind;
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
 
 pub struct Session {
@@ -42,11 +42,21 @@ pub struct Session {
 
 impl Session {
     pub fn new(intermediate_dir: &str) -> Session {
+        let mut name_aliases = HashMap::new();
+
+        // Per-file hir can use prelude names without knowing the defspan of the names.
+        // They use special span `Span::Prelude(name)`. Inter-hir will find such spans and
+        // replace them with the actual def_span.
+        for prelude in sodigy_hir::PRELUDES {
+            let name_alias = sodigy_hir::use_prelude(intern_string(prelude, intermediate_dir).unwrap());
+            name_aliases.insert(name_alias.name_span, name_alias);
+        }
+
         Session {
             intermediate_dir: intermediate_dir.to_string(),
             func_shapes: HashMap::new(),
             struct_shapes: HashMap::new(),
-            name_aliases: HashMap::new(),
+            name_aliases,
             type_aliases: HashMap::new(),
             item_name_map: HashMap::new(),
             lang_items: HashMap::new(),

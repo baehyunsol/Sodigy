@@ -119,6 +119,8 @@ impl Type {
                     id: list_id,
                     span: *group_span,
                     origin: NameOrigin::Foreign { kind: NameKind::Struct },
+                    // NOTE: It has to be session.lang_items.get("type.List"), but we don't have the lang item yet.
+                    //       So we first use Prelude, then inter-hir will replace it with the lang item.
                     def_span: Span::Prelude(list_id),
                 });
 

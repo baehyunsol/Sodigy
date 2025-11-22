@@ -746,10 +746,86 @@ impl Session {
 
                 Ok(())
             },
-            Type::Path { id, fields } => panic!("TODO: {type:?}"),
+            Type::Path { id, fields } => {
+                match self.name_aliases.get(&id.def_span) {
+                    Some(alias) => {
+                        // r#type: `type x = y.z;`
+                        // alias: `use a as y;`
+                        if alias.fields.is_empty() {
+                            todo!()
+                        }
+
+                        // r#type: `type x = y.z;`
+                        // alias: `use a.b as y;`
+                        else {
+                            todo!()
+                        }
+                    },
+                    None => {},
+                }
+
+                match self.type_aliases.get(&id.def_span) {
+                    Some(alias) => todo!(),
+                    None => {},
+                }
+
+                match self.item_name_map.get(&id.def_span) {
+                    Some((NameKind::Module, items)) => {
+                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+
+                        match items.get(&field_name) {
+                            Some((item, item_kind)) => {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                let new_id = IdentWithOrigin {
+                                    id: field_name,
+                                    span: field_span,
+                                    origin: NameOrigin::Foreign { kind: *item_kind },
+                                    def_span: *item,
+                                };
+
+                                if fields.len() == 1 {
+                                    *r#type = Type::Identifier(new_id);
+                                    Ok(())
+                                }
+
+                                else {
+                                    *r#type = Type::Path {
+                                        id: new_id,
+                                        fields: fields[1..].to_vec(),
+                                    };
+                                    self.resolve_type(r#type, log)
+                                }
+                            },
+                            None => {
+                                self.errors.push(Error {
+                                    kind: ErrorKind::UndefinedName(field_name),
+                                    spans: field_span.simple_error(),
+                                    note: Some(format!(
+                                        "Module `{}` doesn't have an item named `{}`.",
+                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                        String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                    )),
+                                });
+                                Err(())
+                            },
+                        }
+                    },
+                    // an enum variant cannot be a type... but we don't have an error variant for this!
+                    Some((NameKind::Enum, _)) => todo!(),
+                    Some((_, _)) => unreachable!(),
+                    None => Ok(()),
+                }
+            },
             Type::Param { r#type: p_type, args, group_span } => {
+                for arg in args.iter_mut() {
+                    self.resolve_type(arg, log)?;
+                }
+
                 match &**p_type {
                     Type::Identifier(id) => {
+                        let id = *id;
+
                         match self.name_aliases.get(&id.def_span) {
                             Some(alias) => {
                                 // r#type: `type x = y<Int>;`
@@ -763,7 +839,7 @@ impl Session {
                                         r#type: Box::new(Type::Identifier(IdentWithOrigin {
                                             def_span: alias.root.def_span,
                                             origin: alias.root.origin,
-                                            ..*id
+                                            ..id
                                         })),
                                         args: args.clone(),
                                         group_span: *group_span,
@@ -782,7 +858,7 @@ impl Session {
                                             id: IdentWithOrigin {
                                                 def_span: alias.root.def_span,
                                                 origin: alias.root.origin,
-                                                ..*id
+                                                ..id
                                             },
                                             fields: alias.fields.iter().map(
                                                 |field| match field {
@@ -800,8 +876,6 @@ impl Session {
                                         group_span: *group_span,
                                     };
                                 }
-
-                                return Ok(());
                             },
                             None => {},
                         }
@@ -811,12 +885,75 @@ impl Session {
                             None => {},
                         }
                     },
-                    Type::Path { id, fields } => todo!(),
-                    _ => unreachable!(),
-                }
+                    // r#type: `type x = std.prelude.Option<Int>`
+                    Type::Path { id, fields } => {
+                        match self.name_aliases.get(&id.def_span) {
+                            Some(alias) => todo!(),
+                            None => {},
+                        }
 
-                for arg in args.iter_mut() {
-                    self.resolve_type(arg, log)?;
+                        match self.type_aliases.get(&id.def_span) {
+                            Some(alias) => todo!(),
+                            None => {},
+                        }
+
+                        match self.item_name_map.get(&id.def_span) {
+                            Some((NameKind::Module, items)) => {
+                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+
+                                match items.get(&field_name) {
+                                    Some((item, item_kind)) => {
+                                        log.push(id.span);
+                                        log.push(id.def_span);
+                                        let new_id = IdentWithOrigin {
+                                            id: field_name,
+                                            span: field_span,
+                                            origin: NameOrigin::Foreign { kind: *item_kind },
+                                            def_span: *item,
+                                        };
+
+                                        if fields.len() == 1 {
+                                            *r#type = Type::Param {
+                                                r#type: Box::new(Type::Identifier(new_id)),
+                                                args: args.clone(),
+                                                group_span: *group_span,
+                                            };
+                                        }
+
+                                        else {
+                                            *r#type = Type::Param {
+                                                r#type: Box::new(Type::Path {
+                                                    id: new_id,
+                                                    fields: fields[1..].to_vec(),
+                                                }),
+                                                args: args.clone(),
+                                                group_span: *group_span,
+                                            };
+                                        }
+
+                                        return self.resolve_type(r#type, log);
+                                    },
+                                    None => {
+                                        self.errors.push(Error {
+                                            kind: ErrorKind::UndefinedName(field_name),
+                                            spans: field_span.simple_error(),
+                                            note: Some(format!(
+                                                "Module `{}` doesn't have an item named `{}`.",
+                                                String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                            )),
+                                        });
+                                        return Err(());
+                                    },
+                                }
+                            },
+                            // an enum variant cannot be a type... but we don't have an error variant for this!
+                            Some((NameKind::Enum, _)) => todo!(),
+                            Some((_, _)) => unreachable!(),
+                            None => {},
+                        }
+                    },
+                    _ => unreachable!(),
                 }
 
                 Ok(())

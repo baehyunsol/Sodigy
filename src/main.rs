@@ -613,8 +613,9 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     inter_hir_session.ingest(*span, hir_session);
                 }
 
-                let _ = inter_hir_session.resolve_alias();
-                let _ = inter_hir_session.resolve_poly();
+                if let Ok(()) = inter_hir_session.resolve_alias() {
+                    let _ = inter_hir_session.resolve_poly();
+                }
 
                 emit_irs_if_has_to(
                     &inter_hir_session,

@@ -54,6 +54,7 @@ pub use r#match::{Match, MatchBranch};
 pub use module::Module;
 pub use pattern::{FullPattern, Pattern};
 pub use poly::Poly;
+pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
 pub use r#type::Type;
@@ -80,18 +81,6 @@ pub fn lower(parse_session: ParseSession) -> Session {
 
     for assert in top_level_block.asserts.drain(..) {
         session.asserts.push(assert);
-    }
-
-    // std does not have preludes
-    if !session.is_std {
-        let Namespace::Block { names } = session.name_stack.pop().unwrap() else { unreachable!() };
-
-        // If the code ever mentions `Int`, we have to add `use std.preludes.Int;`.
-        for (name, (_, _, count)) in names.iter() {
-            if !count.never_ever() {
-                session.uses.push(prelude::use_prelude(*name));
-            }
-        }
     }
 
     session

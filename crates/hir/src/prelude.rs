@@ -13,7 +13,7 @@ use sodigy_string::{InternedString, intern_string};
 // TODO: read `std/prelude.sdg` and actually import names from the file.
 // TODO: I want to call `intern_string(b"Int")`, but it's not a const function.
 //       I can solve it by importing lazy_static, but I don't want external dependencies.
-const PRELUDES: [&'static [u8]; 11] = [
+pub const PRELUDES: [&'static [u8]; 10] = [
     b"Int",
     b"Number",
     b"Bool",
@@ -24,7 +24,6 @@ const PRELUDES: [&'static [u8]; 11] = [
     b"Byte",
     b"True",   // `use Bool.True;`
     b"False",  // `use Bool.True;`
-    b"Fn",     // in type signatures
 ];
 
 pub(crate) fn prelude_namespace(intermediate_dir: &str) -> Namespace {
@@ -45,7 +44,7 @@ pub(crate) fn prelude_namespace(intermediate_dir: &str) -> Namespace {
     }
 }
 
-pub(crate) fn use_prelude(name: InternedString) -> Use {
+pub fn use_prelude(name: InternedString) -> Use {
     // These are short strings, hence never fail.
     let prelude = intern_string(b"prelude", "").unwrap();
     let std = intern_string(b"std", "").unwrap();
