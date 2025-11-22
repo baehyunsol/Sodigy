@@ -1,3 +1,28 @@
+# 96. Defspan dependency graph in MIR level
+
+We draw the dependency graph between def_spans, in MIR level. By doing this we can
+
+1. warn unused names that are not checked in hir
+2. maybe useful for some optimizations?
+  - e.g. some context for inlining
+
+# 95. dumping warning/errors
+
+I implemented a deduplication for warnings/errors, but I just realized that it's useless.
+
+Each process will dump errors and quit, so if different processes have the same error, we'll see duplicated errors!
+
+Also, if there're 2 processes and one has warnings and the other has warnings and errors, we'll not see the warnings from the un-error process.
+
+What I propose is:
+
+1. Each session sends errors and warnings to the main process
+2. the main process may dump the errors immediately, or defer
+  - the main process deduplicates the errors
+3. each session still remembers the errors and warnings after sending them to the main process, and they're encoded to the ir-cache
+  - so that, it can retrieve warnings from cached sessions
+  - we have to rely on the main process' deduplication!
+
 # 94. trait system
 
 How about an ad-hoc trait system?

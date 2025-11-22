@@ -1,6 +1,6 @@
 use crate::{Bytecode, DropType, Label, Memory};
 use sodigy_error::{Error, Warning};
-use sodigy_mir::Intrinsic;
+use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -25,6 +25,17 @@ pub struct Session {
 }
 
 impl Session {
+    pub fn from_mir_session(mir_session: &MirSession) -> Self {
+        Session {
+            intermediate_dir: mir_session.intermediate_dir.to_string(),
+            label_counter: 0,
+            func_param_count: 0,
+            local_values: HashMap::new(),
+            drop_types: HashMap::new(),
+            intrinsics: HashMap::new(),
+        }
+    }
+
     pub fn get_local_label(&mut self) -> Label {
         self.label_counter += 1;
         Label::Local(self.label_counter - 1)

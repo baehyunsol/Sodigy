@@ -199,10 +199,15 @@ impl Block {
 
         // TODO: it has to warn unused names...
         //       but we need specs for visibility
-        for (name, (span, kind, count)) in names.iter() {
+        for (name, (_, kind, count)) in names.iter() {
             if let NameKind::Let { .. } = kind {
                 use_counts.insert(*name, *count);
             }
+        }
+
+        // If it's top-level, mir will check unused names.
+        if !is_top_level {
+            session.warn_unused_names(&names);
         }
 
         for func_default_value in session.func_default_values.pop().unwrap() {

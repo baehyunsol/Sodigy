@@ -77,5 +77,14 @@ pub enum DropType {
 }
 
 pub fn lower(mir_session: MirSession) -> Session {
-    todo!()
+    let mut session = Session::from_mir_session(&mir_session);
+    let mut funcs = Vec::with_capacity(mir_session.funcs.len());
+
+    for func in mir_session.funcs.iter() {
+        funcs.push(Func::from_mir(func, &mut session));
+    }
+
+    // TODO: lets and asserts
+
+    session
 }
