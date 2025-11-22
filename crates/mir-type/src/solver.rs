@@ -271,7 +271,7 @@ impl Solver {
                         subtype: subtype.clone(),
                         expected_span,
                         subtype_span,
-                        context,
+                        context: context.clone(),
                     });
                 },
                 _ => {},
@@ -291,7 +291,7 @@ impl Solver {
                             expected_span: expected_span,
                             got: subtype.clone(),
                             got_span: subtype_span,
-                            context,
+                            context: context.clone(),
                         });
                     }
 
@@ -310,7 +310,7 @@ impl Solver {
                     true,  // is_checking_argument
                     None,
                     None,
-                    context,
+                    context.clone(),
                 ) {
                     Ok(t) => t,
                     Err(()) => {
@@ -320,7 +320,7 @@ impl Solver {
                                 expected_span: expected_span,
                                 got: subtype.clone(),
                                 got_span: subtype_span,
-                                context,
+                                context: context.clone(),
                             });
                         }
 
@@ -335,7 +335,7 @@ impl Solver {
                             expected_span: expected_span,
                             got: subtype.clone(),
                             got_span: subtype_span,
-                            context,
+                            context: context.clone(),
                         });
                     }
 
@@ -367,7 +367,7 @@ impl Solver {
                                         expected_span: expected_span,
                                         got: subtype.clone(),
                                         got_span: subtype_span,
-                                        context,
+                                        context: context.clone(),
                                     });
                                 }
                                 has_error = true;
@@ -568,7 +568,37 @@ impl Solver {
                 concrete @ (Type::Static(_) | Type::Unit(_)),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
+                let concrete_span = if let Type::Var { .. } = expected_type {
+                    subtype_span
+                } else {
+                    expected_span
+                };
+
                 if *is_return {
+                    // If previously infered type and newly infered type are different,
+                    // that's an error!
+                    match types.get(def_span) {
+                        Some(Type::Func { r#return, .. }) => match &**r#return {
+                            Type::Var { .. } | Type::GenericInstance { .. } => {},
+                            prev_infered => {
+                                let prev_infered = prev_infered.clone();
+
+                                if let Err(()) = self.solve_subtype(
+                                    &prev_infered,
+                                    concrete,
+                                    types,
+                                    generic_instances,
+                                    false,
+                                    None,
+                                    concrete_span,
+                                    ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                ) {
+                                    return Err(());
+                                }
+                            },
+                        },
+                        _ => unreachable!(),
+                    }
                     match types.get_mut(def_span) {
                         Some(Type::Func { r#return, .. }) => {
                             *r#return = Box::new(concrete.clone());
@@ -578,6 +608,29 @@ impl Solver {
                 }
 
                 else {
+                    // If previously infered type and newly infered type are different,
+                    // that's an error!
+                    match types.get(def_span) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(prev_infered) => {
+                            let prev_infered = prev_infered.clone();
+
+                            if let Err(()) = self.solve_subtype(
+                                &prev_infered,
+                                concrete,
+                                types,
+                                generic_instances,
+                                false,
+                                None,
+                                concrete_span,
+                                ErrorContext::InferedAgain { type_var: type_var.clone() },
+                            ) {
+                                return Err(());
+                            }
+                        },
+                        _ => {},
+                    }
+
                     types.insert(*def_span, concrete.clone());
                 }
 
@@ -592,9 +645,38 @@ impl Solver {
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
+                let concrete_span = if let Type::Var { .. } = expected_type {
+                    subtype_span
+                } else {
+                    expected_span
+                };
 
-                // TODO: what if there's already an entry for this type_var?
                 if *is_return {
+                    // If previously infered type and newly infered type are different,
+                    // that's an error!
+                    match types.get(def_span) {
+                        Some(Type::Func { r#return, .. }) => match &**r#return {
+                            Type::Var { .. } | Type::GenericInstance { .. } => {},
+                            prev_infered => {
+                                let prev_infered = prev_infered.clone();
+
+                                if let Err(()) = self.solve_subtype(
+                                    &prev_infered,
+                                    maybe_concrete,
+                                    types,
+                                    generic_instances,
+                                    false,
+                                    None,
+                                    concrete_span,
+                                    ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                ) {
+                                    return Err(());
+                                }
+                            },
+                        },
+                        _ => unreachable!(),
+                    }
+
                     match types.get_mut(def_span) {
                         Some(Type::Func { r#return, .. }) => {
                             *r#return = Box::new(maybe_concrete.clone());
@@ -604,6 +686,29 @@ impl Solver {
                 }
 
                 else {
+                    // If previously infered type and newly infered type are different,
+                    // that's an error!
+                    match types.get(def_span) {
+                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                        Some(prev_infered) => {
+                            let prev_infered = prev_infered.clone();
+
+                            if let Err(()) = self.solve_subtype(
+                                &prev_infered,
+                                maybe_concrete,
+                                types,
+                                generic_instances,
+                                false,
+                                None,
+                                concrete_span,
+                                ErrorContext::InferedAgain { type_var: type_var.clone() },
+                            ) {
+                                return Err(());
+                            }
+                        },
+                        None => {},
+                    }
+
                     types.insert(*def_span, maybe_concrete.clone());
                 }
 
@@ -626,6 +731,33 @@ impl Solver {
                 concrete @ (Type::Static(_) | Type::Unit(_)),
                 type_var @ Type::GenericInstance { call, generic },
             ) => {
+                let concrete_span = if let Type::Var { .. } = expected_type {
+                    subtype_span
+                } else {
+                    expected_span
+                };
+
+                match generic_instances.get(&(*call, *generic)) {
+                    Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                    Some(prev_infered) => {
+                        let prev_infered = prev_infered.clone();
+
+                        if let Err(()) = self.solve_subtype(
+                            &prev_infered,
+                            concrete,
+                            types,
+                            generic_instances,
+                            false,
+                            None,
+                            concrete_span,
+                            ErrorContext::InferedAgain { type_var: type_var.clone() },
+                        ) {
+                            return Err(());
+                        }
+                    },
+                    None => {},
+                }
+
                 generic_instances.insert((*call, *generic), concrete.clone());
                 self.substitute(type_var, concrete, types, generic_instances);
                 Ok(concrete.clone())
@@ -638,8 +770,33 @@ impl Solver {
                 type_var @ Type::GenericInstance { call, generic },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
+                let concrete_span = if let Type::Var { .. } = expected_type {
+                    subtype_span
+                } else {
+                    expected_span
+                };
 
-                // TODO: what if there's already an entry for this type_var?
+                match generic_instances.get(&(*call, *generic)) {
+                    Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
+                    Some(prev_infered) => {
+                        let prev_infered = prev_infered.clone();
+
+                        if let Err(()) = self.solve_subtype(
+                            &prev_infered,
+                            maybe_concrete,
+                            types,
+                            generic_instances,
+                            false,
+                            None,
+                            concrete_span,
+                            ErrorContext::InferedAgain { type_var: type_var.clone() },
+                        ) {
+                            return Err(());
+                        }
+                    },
+                    None => {},
+                }
+
                 generic_instances.insert((*call, *generic), maybe_concrete.clone());
 
                 if ref_type_vars.is_empty() {

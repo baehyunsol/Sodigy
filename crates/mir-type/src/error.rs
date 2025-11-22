@@ -59,7 +59,7 @@ pub enum TypeError {
     },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum ErrorContext {
     AssertConditionBool,
     ShortCircuitAndBool,
@@ -72,6 +72,11 @@ pub enum ErrorContext {
     FuncArgs,
     EqValueEqual,
     NeqValueEqual,
+
+    // It infered the type of the same type var multiple times,
+    // and got different result.
+    InferedAgain { type_var: Type },
+
     Deep,
 
     // If there's nothing special about the context,
@@ -93,6 +98,7 @@ impl ErrorContext {
             ErrorContext::FuncArgs => Some("Arguments of this function are incorrect."),
             ErrorContext::EqValueEqual => Some("Lhs and rhs of `==` operator must have the same type."),
             ErrorContext::NeqValueEqual => Some("Lhs and rhs of `!=` operator must have the same type."),
+            ErrorContext::InferedAgain { .. } => Some("I infered a type of the same value multiple times, and got different results."),
             ErrorContext::Deep => Some("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location."),
             ErrorContext::None => None,
         }
@@ -119,20 +125,76 @@ impl RenderTypeError for MirSession {
                 let expected_type = self.render_type(expected);
                 let got_type = self.render_type(got);
 
-                if let Some(span) = *expected_span {
-                    spans.push(RenderableSpan {
-                        span,
-                        auxiliary: true,
-                        note: Some(format!("This value has type `{expected_type}`.")),
-                    });
+                if let ErrorContext::InferedAgain { type_var } = context {
+                    match type_var {
+                        Type::Var { def_span, is_return } => {
+                            spans.push(RenderableSpan {
+                                span: *def_span,
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "You didn't annotate the {}, so I tried to infer it. Some information says the type is `{}`, while another information says it's `{}`. Perhaps add a type annotation?",
+                                    if *is_return { "return type of thie function" } else { "type of this value" },
+                                    expected_type,
+                                    got_type,
+                                )),
+                            });
+                        },
+                        Type::GenericInstance { call, generic } => {
+                            spans.push(RenderableSpan {
+                                span: *call,
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "This is a generic function, so I tried to figure out its type arguments. There's a problem with the type parameter `{}`. Some information says `{}`'s type is `{}`, while another information says it's `{}`.",
+                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    expected_type,
+                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    got_type,
+                                )),
+                            });
+                        },
+                        _ => unreachable!(),
+                    }
+
+                    if let Some(span) = *expected_span {
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: false,
+                            note: Some(format!("This information says the type is `{expected_type}`.")),
+                        });
+                    }
+
+                    if let Some(span) = *got_span {
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: false,
+                            note: Some(format!("This information says the type is `{got_type}`.")),
+                        });
+                    }
                 }
 
-                if let Some(span) = *got_span {
-                    spans.push(RenderableSpan {
-                        span,
-                        auxiliary: false,
-                        note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
-                    });
+                else {
+                    if let Some(span) = *expected_span {
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: true,
+                            note: Some(format!(
+                                "This value has type `{expected_type}`{}.",
+                                if let ErrorContext::VerifyTypeAnnotation = context {
+                                    ", says this type annotation"
+                                } else {
+                                    ""
+                                },
+                            )),
+                        });
+                    }
+
+                    if let Some(span) = *got_span {
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: false,
+                            note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
+                        });
+                    }
                 }
 
                 Error {

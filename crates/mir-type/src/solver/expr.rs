@@ -68,6 +68,8 @@ impl Solver {
                     false,
                 ),
             },
+            Expr::Char { .. } => (Some(Type::Static(self.get_lang_item_span("type.Char"))), false),
+            Expr::Byte { .. } => (Some(Type::Static(self.get_lang_item_span("type.Byte"))), false),
             Expr::If(r#if) => {
                 let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
                 if let Some(cond_type) = cond_type {
@@ -144,7 +146,7 @@ impl Solver {
                         false,
                         None,
                         Some(lhs.error_span()),
-                        context,
+                        context.clone(),
                     ) {
                         has_error = true;
                     }
@@ -159,7 +161,7 @@ impl Solver {
                         false,
                         None,
                         Some(rhs.error_span()),
-                        context,
+                        context.clone(),
                     ) {
                         has_error = true;
                     }
