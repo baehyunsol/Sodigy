@@ -1,4 +1,4 @@
-use crate::{Bytecode, Const, Memory, Session, lower_expr};
+use crate::{Bytecode, Memory, Session, Value, lower_expr};
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
@@ -25,7 +25,7 @@ impl Assert {
             None => intern_string(b"unnamed-assertion", &session.intermediate_dir).unwrap(),
         };
         bytecodes.push(Bytecode::Const {
-            value: Const::Span(mir_assert.keyword_span),
+            value: Value::Span(mir_assert.keyword_span),
             dst: Memory::Return,
         });
         bytecodes.push(Bytecode::PushAssertionMetadata {
@@ -34,7 +34,7 @@ impl Assert {
         });
 
         bytecodes.push(Bytecode::Const {
-            value: Const::String(name),
+            value: session.string_to_value(name, /* binary: */ false),
             dst: Memory::Return,
         });
         bytecodes.push(Bytecode::PushAssertionMetadata {
@@ -46,7 +46,7 @@ impl Assert {
             // If it panics while evaluating `note`, the runtime will see the
             // `NoteDecoratorSpan` and throw an according error message.
             bytecodes.push(Bytecode::Const {
-                value: Const::Span(*note_decorator_span),
+                value: Value::Span(*note_decorator_span),
                 dst: Memory::Return,
             });
             bytecodes.push(Bytecode::PushAssertionMetadata {
@@ -106,6 +106,7 @@ impl Assert {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum AssertionMetadataKind {
     KeywordSpan,
     Name,

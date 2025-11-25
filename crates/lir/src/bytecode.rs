@@ -1,9 +1,17 @@
-use crate::{AssertionMetadataKind, Const, InPlaceOrMemory, Label, Memory, Offset};
+use crate::{
+    AssertionMetadataKind,
+    InPlaceOrMemory,
+    Label,
+    Memory,
+    Offset,
+    Value,
+};
 use sodigy_mir::Intrinsic;
 
+#[derive(Clone, Debug)]
 pub enum Bytecode {
     Const {
-        value: Const,
+        value: Value,
         dst: Memory,
     },
     Copy {
@@ -48,6 +56,10 @@ pub enum Bytecode {
     Goto(Label),
     JumpIf {
         value: Memory,
+        label: Label,
+    },
+    JumpIfUninit {
+        src: Memory,
         label: Label,
     },
 

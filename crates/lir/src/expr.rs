@@ -1,12 +1,13 @@
 use crate::{
     Assert,
     Bytecode,
-    Const,
     Label,
     Memory,
     Session,
+    Value,
 };
 use sodigy_mir::{Block, Callable, Expr, If, Match};
+use sodigy_name_analysis::{NameKind, NameOrigin};
 
 // caller is responsible for inc/decrementing the stack pointer
 // callee is responsible for dropping the local values
@@ -25,7 +26,47 @@ pub fn lower_expr(
         Expr::Identifier(id) => {
             let src = match session.local_values.get(&id.def_span) {
                 Some(src) => Memory::Stack(*src),
-                None => panic!("TODO: {id:?}"),
+                None => match id.origin {
+                    NameOrigin::Foreign { kind } | NameOrigin::Local { kind } => match kind {
+                        NameKind::EnumVariant { .. } => {
+                            if session.get_lang_item_span("variant.Bool.True") == id.def_span {
+                                // TODO: How do I force that every `Bool.True` is represented like this?
+                                bytecodes.push(Bytecode::Const {
+                                    value: Value::Scalar(1),
+                                    dst,
+                                });
+
+                                if is_tail_call {
+                                    session.drop_all_locals(bytecodes);
+                                    bytecodes.push(Bytecode::Return);
+                                }
+
+                                return;
+                            }
+
+                            else if session.get_lang_item_span("variant.Bool.False") == id.def_span {
+                                // TODO: How do I force that every `Bool.False` is represented like this?
+                                bytecodes.push(Bytecode::Const {
+                                    value: Value::Scalar(0),
+                                    dst,
+                                });
+
+                                if is_tail_call {
+                                    session.drop_all_locals(bytecodes);
+                                    bytecodes.push(Bytecode::Return);
+                                }
+
+                                return;
+                            }
+
+                            else {
+                                todo!()
+                            }
+                        },
+                        _ => panic!("TODO: {id:?}"),
+                    },
+                    _ => unreachable!(),
+                },
             };
 
             if src != dst {
@@ -40,20 +81,25 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Return);
             }
         },
-        Expr::Number { n, .. } => {
-            bytecodes.push(Bytecode::Const {
-                value: Const::Number(n.clone()),
-                dst,
-            });
+        Expr::Number { .. } |
+        Expr::String { .. } |
+        Expr::Char { .. } |
+        Expr::Byte { .. } => {
+            let value = match expr {
+                Expr::Number { n, .. } => session.number_to_value(n.clone()),
+                Expr::String { s, binary, .. } => session.string_to_value(*s, *binary),
+                Expr::Char { ch, .. } => Value::Scalar(*ch as u32),
+                Expr::Byte { b, .. } => Value::Scalar(*b as u32),
+                _ => unreachable!(),
+            };
+
+            bytecodes.push(Bytecode::Const { value, dst });
 
             if is_tail_call {
                 session.drop_all_locals(bytecodes);
                 bytecodes.push(Bytecode::Return);
             }
         },
-        Expr::String { s, binary, .. } => todo!(),
-        Expr::Char { ch, .. } => todo!(),
-        Expr::Byte { b, .. } => todo!(),
         Expr::If(If { cond, true_value, false_value, .. }) => {
             let eval_true_value = session.get_local_label();
             let return_expr = session.get_local_label();

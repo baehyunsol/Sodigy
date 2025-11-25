@@ -32,7 +32,7 @@ pub fn lower(
     hir_session: HirSession,
     inter_hir_session: &InterHirSession,
 ) -> Session {
-    let mut session = Session::from_hir_session(&hir_session, inter_hir_session);
+    let mut session = Session::from_hir(&hir_session, inter_hir_session);
 
     for hir_let in hir_session.lets.iter() {
         if let Ok(r#let) = Let::from_hir(hir_let, &mut session) {

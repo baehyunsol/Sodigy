@@ -1,4 +1,4 @@
-use crate::{Bytecode, DropType, Label, Memory};
+use crate::{Assert, Bytecode, DropType, Func, Label, Let, Memory};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
@@ -8,7 +8,12 @@ use std::collections::HashMap;
 pub struct Session {
     pub intermediate_dir: String,
     pub label_counter: u32,
-    pub func_param_count: usize,
+
+    pub funcs: Vec<Func>,
+
+    // only top-level ones
+    pub asserts: Vec<Assert>,
+    pub lets: Vec<Let>,
 
     // `Span` is the name span of func param or local value (`let`).
     // It'll give you the stack offset.
@@ -22,17 +27,28 @@ pub struct Session {
 
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
+    pub lang_items: HashMap<String, Span>,
 }
 
 impl Session {
-    pub fn from_mir_session(mir_session: &MirSession) -> Self {
+    pub fn from_mir(mir_session: &MirSession) -> Self {
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             label_counter: 0,
-            func_param_count: 0,
+            funcs: vec![],
+            asserts: vec![],
+            lets: vec![],
             local_values: HashMap::new(),
             drop_types: HashMap::new(),
             intrinsics: HashMap::new(),
+            lang_items: mir_session.lang_items.clone(),
+        }
+    }
+
+    pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
+        match self.lang_items.get(lang_item) {
+            Some(s) => *s,
+            None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }
 
@@ -42,7 +58,14 @@ impl Session {
     }
 
     pub fn register_local_name(&mut self, name: Span) -> Memory {
-        todo!()
+        let i = self.local_values.len();
+        self.local_values.insert(name, i);
+
+        // TODO: we have to insert the actual drop type
+        //       currently, it doesn't drop anything at all!
+        self.drop_types.insert(name, DropType::Scalar);
+
+        Memory::Stack(i)
     }
 
     pub fn drop_block(&mut self, names: &[Span]) {
@@ -50,7 +73,19 @@ impl Session {
     }
 
     pub fn drop_all_locals(&mut self, bytecodes: &mut Vec<Bytecode>) {
-        todo!()
+        let local_values = self.drop_types.drain().map(
+            |(name, drop_type)| (name, *self.local_values.get(&name).unwrap(), drop_type)
+        ).collect::<Vec<_>>();
+
+        for (name, index, drop_type) in local_values.iter() {
+            match drop_type {
+                DropType::Scalar => {},  // no drop
+                _ => todo!(),
+            }
+        }
+
+        self.local_values = HashMap::new();
+        self.drop_types = HashMap::new();
     }
 }
 

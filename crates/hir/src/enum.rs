@@ -139,6 +139,30 @@ impl EnumVariant {
         is_top_level: bool,
     ) -> Result<EnumVariant, ()> {
         let mut has_error = false;
+
+        let attribute = match session.lower_attribute(
+            &ast_variant.attribute,
+            AttributeKind::EnumVariant,
+
+            // TODO: it has to be keyword_span, but a variant doesn't have a keyword_span!!
+            ast_variant.name_span,
+            is_top_level,
+        ) {
+            Ok(attribute) => attribute,
+            Err(()) => {
+                has_error = true;
+                Attribute::new()
+            },
+        };
+
+        if let Err(()) = session.collect_lang_items(
+            &attribute,
+            ast_variant.name_span,
+            None,
+        ) {
+            has_error = true;
+        }
+
         let fields = match &ast_variant.fields {
             ast::EnumVariantFields::None => EnumVariantFields::None,
             ast::EnumVariantFields::Tuple(ast_types) => {
@@ -188,5 +212,22 @@ impl EnumVariant {
                 fields,
             })
         }
+    }
+
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
+            doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
+            doc_comment_error_note: Some(String::from("TODO: I'm not sure whether I should allow adding doc comments to inline items... maybe I have to do so?")),
+            visibility: Requirement::Never,
+            visibility_error_note: Some(String::from("You cannot set visibility of individual variants. If the enum is public, all the variants are public, and vice versa.")),
+            decorators: HashMap::new(),
+        };
+
+        // TODO: we only need `lang_item`, not the others
+        if is_std {
+            attribute_rule.add_std_rules(&session.intermediate_dir);
+        }
+
+        attribute_rule
     }
 }

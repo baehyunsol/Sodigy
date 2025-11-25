@@ -12,7 +12,6 @@ pub struct Func {
 
 impl Func {
     pub fn from_mir(mir_func: &mir::Func, session: &mut Session) -> Func {
-        session.func_param_count = mir_func.params.len();
         session.label_counter = 0;
         session.local_values = HashMap::new();
         session.drop_types = HashMap::new();

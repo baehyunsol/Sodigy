@@ -1,4 +1,3 @@
-use sodigy_name_analysis::Namespace;
 use sodigy_parse::Session as ParseSession;
 
 // In sodigy_lex and sodigy_parse, the functions return `Result<T, Vec<Error>>`, and errors are handled by `?` operator.

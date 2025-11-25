@@ -1,3 +1,32 @@
+# 97. more on bytecodes
+
+1. `Const`를 어떤 식으로 저장?
+  - Integer
+    - `Const::Integer`를 할지 `Const::Compound`를 할지를 결정해야함
+    - 동일한 integer literal이 여러번 나올 확률이 높음. 그럼 interning을 해야함?
+  - Number
+    - 일반적인 sodigy-struct랑 동일하게 처리할지, Number를 위한 variant를 추가할지를 결정해야함
+    - number 구현을 바꾸는 compiler flag도 추가하고 싶음. 기본적으로는 ratio를 쓰지만 fixed point나 (software-implemented) floating point를 쓸 수도 있게...
+  - Byte/Char
+    - `Const::Byte`를 할지 `Const::Scalar`를 할지를 결정해야함
+  - String
+    - 일반적인 list랑 동일하게 처리할지, string을 위한 variant를 추가할지를 결정해야함
+    - string을 위한 특수 처리를 한다면, utf-32를 쓸지 utf-8을 쓸지도 결정해야함
+      - utf-8을 쓰면 runtime performance가 떨어지는 대신에 executable 크기가 작아짐
+      - 둘다 가능하게 만들고 compile option에 따라서 바꿔쓸까?
+    - 동일한 string literal이 여러번 나올 확률이 높음. 그럼 interning을 해야함?
+  - Span
+    - 일반적인 sodigy-struct랑 동일한 구조를 가졌으면 좋겠음... 아직 sodigy-struct의 구조가 확정이 안돼서 문제
+  - Boolean
+    - `Bool.True`는 항상 scalar 1이고, `Bool.False`는 항상 scalar 0이었으면 좋겠음...
+2. executable에 들어가야 하는 정보에는 뭐뭐가 있지?
+  - 각 func/assert/(top-level-)let의 bytecode
+  - 모든 label을 static하게 만들기 vs `Label::Func(Span)`으로 남겨두기
+    - 전자가 성능은 더 좋음. 차이 많이 날 듯?
+    - 후자가 더 코드가 깔끔함. 후자가 library化가 쉬움.
+  - entry point
+    - top-level assertion의 위치들, main 함수
+
 # 96. Defspan dependency graph in MIR level
 
 We draw the dependency graph between def_spans, in MIR level. By doing this we can

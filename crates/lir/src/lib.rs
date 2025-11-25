@@ -1,21 +1,23 @@
 use sodigy_mir::Session as MirSession;
-use sodigy_number::InternedNumber;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
 
 mod assert;
 mod bytecode;
 mod endec;
 mod expr;
 mod func;
+mod r#let;
 mod session;
+mod value;
 
 pub use assert::Assert;
 pub (crate) use assert::AssertionMetadataKind;
 pub(crate) use expr::lower_expr;
 pub use bytecode::Bytecode;
 pub use func::Func;
+pub use r#let::Let;
 pub use session::Session;
+pub use value::Value;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Memory {
@@ -31,15 +33,6 @@ pub enum Memory {
 pub enum Label {
     Local(u32),
     Func(Span),
-}
-
-#[derive(Clone, Debug)]
-pub enum Const {
-    String(InternedString),
-    Number(InternedNumber),
-
-    // for panics and assertions
-    Span(Span),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -77,14 +70,26 @@ pub enum DropType {
 }
 
 pub fn lower(mir_session: MirSession) -> Session {
-    let mut session = Session::from_mir_session(&mir_session);
+    let mut session = Session::from_mir(&mir_session);
+    let mut lets = Vec::with_capacity(mir_session.lets.len());
     let mut funcs = Vec::with_capacity(mir_session.funcs.len());
+    let mut asserts = Vec::with_capacity(mir_session.asserts.len());
+
+    for r#let in mir_session.lets.iter() {
+        lets.push(Let::from_mir(r#let, &mut session));
+    }
 
     for func in mir_session.funcs.iter() {
         funcs.push(Func::from_mir(func, &mut session));
     }
 
-    // TODO: lets and asserts
+    for assert in mir_session.asserts.iter() {
+        asserts.push(Assert::from_mir(assert, &mut session, true /* is_top_level */));
+    }
+
+    session.lets = lets;
+    session.funcs = funcs;
+    session.asserts = asserts;
 
     session
 }

@@ -48,7 +48,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn from_hir_session(
+    pub fn from_hir(
         hir_session: &hir::Session,
         inter_hir_session: &inter_hir::Session,
     ) -> Session {

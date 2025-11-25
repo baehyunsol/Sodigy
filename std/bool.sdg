@@ -1,5 +1,8 @@
 #[lang_item("type.Bool")]
 pub enum Bool = {
+    #[lang_item("variant.Bool.True")]
     True,
+
+    #[lang_item("variant.Bool.False")]
     False,
 };
