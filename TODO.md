@@ -1,3 +1,54 @@
+# 101. code generator for error variants
+
+1. It's way tooooo bothering to add/remove an error variant.
+  - ErrorLevel and Endec
+2. I want a map (ErrorKind <-> Int) and want to reuse the index used by Endec
+3. I want the script file to read the definition of `ErrorKind`, in `crates/error/src/kind.rs`, and generate the other code, automatically.
+4. First write it in Python, then replace it with Sodigy.
+
+# 100. `set!` and `map!`
+
+In order to use Sodigy as a config language, we need map and set!
+
+Let's use Rusty syntax: `map!( k1: v1, k2: v2 )` and `set!(v1, v2, v3)`...
+
+Maybe we can do a pattern matching with these?
+
+# 99. panicking is impure!!
+
+```
+fn check_all(xs) = match xs {
+  [] => True,
+  [x] ++ xs => {
+    // `check` might panic
+    let _ = check(x);
+    check_all(xs)
+  },
+};
+```
+
+for 문이 없으니까 `check`를 저런 식으로 호출하고 싶은 유혹에 빠질 수 있음!! 근데 dead-code elimination을 하면 `check`를 호출을 안하고 넘어가게 되잖아? 그럼 안되지...
+
+저렇게 하려면 `let _ = check(x);`대신 `assert check(x);`를 써야함!!
+
+근데 이거를 사용자한테 알려주는게 무지하게 빡셈.
+
+1. unused value에다가 무조건 이런 warning을 띄우면 오히려 더 헷갈림.
+2. panickable function...을 추적하는 건 가능하지만 사실상 모든 함수가 panickable할 거여서 별 의미는 없음.
+
+# 98. more on debugging
+
+코드를 짜다 보니...
+
+1. assert_panic이 필요함!! 옛날에 이런 이슈 있었던 거 같은데 ㅋㅋㅋ
+2. debug 함수가 더 많이 필요 -> 이것도 분명히 옛날에 이슈 있었는데??
+  - 일단, 아무 위치에서나 print 찍을 수 있게 만들어야 함!!
+  - 옛날에 얘기 나왔던게, `echo` statement (not expression)를 만들까...였는데, 저거 만들면 분명 사람들이 `print`처럼 쓸 거여서 보류했음.
+    - 아니면 이름은 `debug`라고 짓는 거임 ㅋㅋㅋ
+  - 일단, 함수 진입할 때 log 찍는 decorator는 추가해야함!!
+    - 근데 이것도 똑같은 문제 있는 거 아님?? 이것도 print처럼 쓸텐데 그럼 `echo`랑 뭐가 달라? 오히려 더 불편한 거 아님?? ㅋㅋㅋ ㅠㅠ
+  - 그럼, 사람들이 `print`처럼 쓰면 문제가 뭐임??
+
 # 97. more on bytecodes
 
 1. `Const`를 어떤 식으로 저장?
@@ -607,6 +658,8 @@ heap
   - In the current version, when you want to push a constant to `Stack::Call(1)`, you first push it to `Stack::Return` and clone it to `Stack::Call(1)`. It's damn inefficient. You can pass an argument to `lir::lower_expr`, which stack it should push the result. It's not even an optimization. It's just an implementation, but it's a huge gain.
 
 -> stack 2개만 쓰자... 굳이 scalar랑 ptr이랑 구분할 필요 없음!! 어차피 컴파일하면서 누가 ptr인지 다 파악해서 dec_rc 넣어줄 거잖아!!
+
+-> stack 하나만 쓰기로 함 ㅋㅋㅋ
 
 # 57. `mod` and `use`
 

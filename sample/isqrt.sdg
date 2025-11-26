@@ -1,37 +1,128 @@
-let SQUARES = [
-      0,   1,   4,   9,  16,
-     25,  36,  49,  64,  81,
-    100, 121, 144, 169, 196,
-    225, 256, 289, 324, 361,
-    400, 441, 484, 529, 576,
+// TODO: It has to be in std, when it's stable enough.
+
+let SQRT_TABLE = [
+    0x08_0000,  // isqrt(0x40_0000_0000)
+    0x08_0ff0,  // isqrt(0x41_0000_0000)
+    0x08_1fc0,  // isqrt(0x42_0000_0000)
+    0x08_2f73,  // isqrt(0x43_0000_0000)
+    0x08_3f07,  // isqrt(0x44_0000_0000)
+    0x08_4e7e,  // isqrt(0x45_0000_0000)
+    0x08_5dd9,  // isqrt(0x46_0000_0000)
+    0x08_6d18,  // isqrt(0x47_0000_0000)
+    0x08_7c3b,  // isqrt(0x48_0000_0000)
+    0x08_8b43,  // isqrt(0x49_0000_0000)
+    0x08_9a31,  // isqrt(0x4a_0000_0000)
+    0x08_a906,  // isqrt(0x4b_0000_0000)
+    0x08_b7c1,  // isqrt(0x4c_0000_0000)
+    0x08_c664,  // isqrt(0x4d_0000_0000)
+    0x08_d4ee,  // isqrt(0x4e_0000_0000)
+    0x08_e360,  // isqrt(0x4f_0000_0000)
+    0x08_f1bb,  // isqrt(0x50_0000_0000)
+    0x09_0000,  // isqrt(0x51_0000_0000)
+    0x09_0e2d,  // isqrt(0x52_0000_0000)
+    0x09_1c45,  // isqrt(0x53_0000_0000)
+    0x09_2a47,  // isqrt(0x54_0000_0000)
+    0x09_3834,  // isqrt(0x55_0000_0000)
+    0x09_460b,  // isqrt(0x56_0000_0000)
+    0x09_53cf,  // isqrt(0x57_0000_0000)
+    0x09_617e,  // isqrt(0x58_0000_0000)
+    0x09_6f19,  // isqrt(0x59_0000_0000)
+    0x09_7ca1,  // isqrt(0x5a_0000_0000)
+    0x09_8a15,  // isqrt(0x5b_0000_0000)
+    0x09_9777,  // isqrt(0x5c_0000_0000)
+    0x09_a4c6,  // isqrt(0x5d_0000_0000)
+    0x09_b203,  // isqrt(0x5e_0000_0000)
+    0x09_bf2d,  // isqrt(0x5f_0000_0000)
+    0x09_cc47,  // isqrt(0x60_0000_0000)
+    0x09_d94e,  // isqrt(0x61_0000_0000)
+    0x09_e645,  // isqrt(0x62_0000_0000)
+    0x09_f32a,  // isqrt(0x63_0000_0000)
+    0x0a_0000,  // isqrt(0x64_0000_0000)
+    0x0a_0cc4,  // isqrt(0x65_0000_0000)
+    0x0a_1979,  // isqrt(0x66_0000_0000)
+    0x0a_261d,  // isqrt(0x67_0000_0000)
+    0x0a_32b2,  // isqrt(0x68_0000_0000)
+    0x0a_3f38,  // isqrt(0x69_0000_0000)
+    0x0a_4bae,  // isqrt(0x6a_0000_0000)
+    0x0a_5815,  // isqrt(0x6b_0000_0000)
+    0x0a_646e,  // isqrt(0x6c_0000_0000)
+    0x0a_70b7,  // isqrt(0x6d_0000_0000)
+    0x0a_7cf3,  // isqrt(0x6e_0000_0000)
+    0x0a_8920,  // isqrt(0x6f_0000_0000)
+    0x0a_953f,  // isqrt(0x70_0000_0000)
+    0x0a_a151,  // isqrt(0x71_0000_0000)
+    0x0a_ad55,  // isqrt(0x72_0000_0000)
+    0x0a_b94b,  // isqrt(0x73_0000_0000)
+    0x0a_c534,  // isqrt(0x74_0000_0000)
+    0x0a_d110,  // isqrt(0x75_0000_0000)
+    0x0a_dcdf,  // isqrt(0x76_0000_0000)
+    0x0a_e8a1,  // isqrt(0x77_0000_0000)
+    0x0a_f456,  // isqrt(0x78_0000_0000)
+    0x0b_0000,  // isqrt(0x79_0000_0000)
+    0x0b_0b9c,  // isqrt(0x7a_0000_0000)
+    0x0b_172d,  // isqrt(0x7b_0000_0000)
+    0x0b_22b2,  // isqrt(0x7c_0000_0000)
+    0x0b_2e2a,  // isqrt(0x7d_0000_0000)
+    0x0b_3997,  // isqrt(0x7e_0000_0000)
+    0x0b_44f9,  // isqrt(0x7f_0000_0000)
+    0x0b_504f,  // isqrt(0x80_0000_0000)
 ];
 
+// NOTE: This implementation has an error. We need an extra step to catch it.
+//       - isqrt(144) is supposed to be 12, but it returns 11.
+//         144 is the smallest number that makes isqrt erroneous.
+//       - isqrt(256) is correct. 256 is the smallest square number
+//         that is not in SQRT_TABLE that doesn't make isqrt erroneous
+//       - isqrt(131770) is supposed to be 363, but it returns 362.
+//         131770 is the smallest non-square number that makes isqrt erroneous
+//       - isqrt(34483747204) is supposed to be 185698 but it returns 185696.
+//         34483747204 is the smallest number whose error's absolute value is
+//         greater than 1.
+//       - isqrt(137934988816) is supposed to be 371396, but it returns 371393.
+//         137934988816 is the smallest number whose error's absolute value is
+//         greater than 2.
+//       - isqrt(275967406276) is supposed to be 525326, but it returns 525322.
+//         275967406276 is the smallest number whose error's absolute value is
+//         greater than 3.
+//       - It's interesting that 185698 times 2 is 371396, but 185698 times 3 is
+//         not 525326.
 fn isqrt(n: Int) -> Int = match n {
     ..0 => panic(),
-    ..625 => match SQUARES.binary_search(n) {
-        Ok(sq) | Err(sq + 1) => sq,
-    },
-    ..160_000 => {
-        let sub = isqrt(n >> 4) << 2;
-
-        if (sub + 3) * (sub + 3) <= n {
-            sub + 3
-        } else if (sub + 2) * (sub + 2) <= n {
-            sub + 2
-        } else if (sub + 1) * (sub + 1) <= n {
-            sub + 1
-        } else {
-            sub
-        }
-    },
+    0 | 1 => n,
+    2..4 => 1,
+    4..9 => 2,
+    9..16 => 3,
+    16..25 => 4,
+    25..36 => 5,
+    36..49 => 6,
+    49..64 => 7,
+    0x40..=0x80 => SQRT_TABLE[n - 0x40] >> 16,
     _ => {
-        let lo = isqrt(n >> 8) << 4;
-        let hi = lo + 16;
+        // n = mantissa * 2^(exp - 6)
+        // sqrt(n) = sqrt(mantissa) * 2^(exp / 2 - 3)
+        let exp = n.ilog2();
+        let mantissa = n >> (exp - 6);
 
-        let lo_d = n - lo * lo;
-        let hi_d = hi * hi - n;
+        // sqrt_mantissa = floor(sqrt(mantissa) * 2^16 * d)
+        // sqrt_mantissa_lo <= sqrt_mantissa < sqrt_mantissa_hi
+        let (sqrt_mantissa_lo, sqrt_mantissa_hi) = if exp & 1 == 1 {
+            // isqrt(0x2_0000_0000) = 0x01_6a09
+            (
+                (SQRT_TABLE[mantissa - 0x40] * 0x01_6a09) >> 16,
+                ((SQRT_TABLE[mantissa - 0x40 + 1] + 1) * 0x01_6a0a) >> 16,
+            )
+        } else {
+            (SQRT_TABLE[mantissa - 0x40], SQRT_TABLE[mantissa - 0x40 + 1] + 1)
+        };
 
-        lo + lo_d * 16 / (lo_d + hi_d)
+        // sqrt_lo <= sqrt(n) * 2^19 < sqrt_hi
+        let sqrt_lo = sqrt_mantissa_lo << (exp >> 1);
+        let sqrt_hi = sqrt_mantissa_hi << (exp >> 1);
+
+        let lo_d = (n << 38) - sqrt_lo * sqrt_lo;
+        let hi_d = sqrt_hi * sqrt_hi - (n << 38);
+
+        (sqrt_lo + lo_d * (sqrt_hi - sqrt_lo) / (lo_d + hi_d)) >> 19
     },
 };
 
@@ -71,12 +162,6 @@ assert check_isqrt_multi([
     (1 << 36) - 1, 1 << 36, (1 << 36) + 1,
 ]);
 
-// bounding values
-assert check_isqrt_multi([
-    623, 624, 625, 626, 627,
-    159_998, 159_999, 160_000, 160_001, 160_002,
-]);
-
 assert check_isqrt(1_000);
 assert check_isqrt(100_000);
 assert check_isqrt(10_000_000);
@@ -88,6 +173,9 @@ assert check_isqrt(100_000_000_000_000_000);
 assert check_isqrt(10_000_000_000_000_000_000);
 assert check_isqrt(1_000_000_000_000_000_000_000);
 assert check_isqrt(100_000_000_000_000_000_000_000);
+assert check_isqrt(10_000_000_000_000_000_000_000_000);
+assert check_isqrt(1_000_000_000_000_000_000_000_000_000);
+assert check_isqrt(100_000_000_000_000_000_000_000_000_000);
 
 fn check_isqrt(n: Int) -> Bool = {
     let s = isqrt(n);

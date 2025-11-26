@@ -1,7 +1,284 @@
 use std.int.Int;
+use std.bool.Bool.{False, True};
 
+// 1. `denom` is always greater than or equal to 0.
+// 2. `numer` and `denom` are always coprime.
+// 3. If `numer` is 0, `denom` must be 1.
+// 4. If `denom` is 0, `numer` must be 1 or -1.
+//    -> inf
 #[lang_item("type.Number")]
 pub struct Number = {
     numer: Int,
     denom: Int,
+};
+
+fn gcd(a: Int, b: Int) -> Int = match b {
+    0 => a,
+    _ => gcd(b, a % b),
+};
+
+// TODO: It has to be a method
+fn normalize(n: Number) -> Number = {
+    let is_neg = n.numer < 0 != n.denom < 0;
+    let numer_abs = n.numer.abs();
+    let denom_abs = n.denom.abs();
+
+    let (numer, denom) = match (numer_abs, denom_abs) {
+        (0, _) => (0, 1),
+        (_, 0) => (1, 0),
+
+        // If the numbers are large, it truncates the result!
+        // Otherwise, irrational functions would make the numbers
+        // exponentially large.
+        // It tries its best to make the truncation unnoticeable.
+
+        // If *both* are large, it truncates both.
+        ((1 << 129).., (1 << 129)..) => {
+            let e_min = numer_abs.ilog2().min(denom_abs.ilog2());
+            (numer_abs >> (e_min - 128), denom_abs >> (e_min - 128))
+        },
+
+        // If denom is very large, it's just 0.
+        // There's no negative 0.
+        (_, (1 << 2048)..) => (0, 1),
+
+        // inf
+        ((1 << 2048).., _) => (1, 0),
+
+        (n, d) => (n, d),
+    };
+
+    Number {
+        numer: if is_neg { -numer } else { numer },
+        denom: denom,
+    }
+};
+
+
+#[impl(std.op.add)]
+fn add_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        todo()
+    }
+
+    else {
+        let new_numer = a.numer * b.denom + b.numer * a.denom;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        normalize(result)
+    }
+};
+
+#[impl(std.op.sub)]
+fn sub_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        todo()
+    }
+
+    else {
+        let new_numer = a.numer * b.denom - b.numer * a.denom;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        normalize(result)
+    }
+};
+
+#[impl(std.op.mul)]
+fn mul_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        todo()
+    }
+
+    else {
+        let new_numer = a.numer * b.numer;
+        let new_denom = a.denom * b.denom;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        normalize(result)
+    }
+};
+
+#[impl(std.op.div)]
+fn div_number(a: Number, b: Number) -> Number = {
+    if a.is_inf() || b.is_inf() {
+        todo()
+    }
+
+    else {
+        let new_numer = a.numer * b.denom;
+        let new_denom = a.denom * b.numer;
+        let r = gcd(new_numer, new_denom);
+
+        let result = Number {
+            denom: new_denom / r,
+            numer: new_numer / r,
+        };
+
+        normalize(result)
+    }
+};
+
+/// It panics if the number is negative (including negative inf).
+/// It guarantees that
+/// 1. If you convert it to decimal, the first 19 digits must be correct.
+/// 2. `sqrt(n * n) == n` unless `n * n` panics.
+///    - TODO: I'm not sure about this for truncated numbers.
+fn sqrt(n: Number) -> Number = {
+    // if `n` is `-inf`, `.isqrt()` would panic.
+    // if `n` is `inf`, `denom_sqrt` would be 0 and the result would be `inf`.
+    let numer_sqrt = (n.numer << 128).isqrt();
+    let denom_sqrt = (n.denom << 128).isqrt();
+    let r = gcd(numer_sqrt, denom_sqrt);
+
+    let result = Number {
+        numer: numer_sqrt / r,
+        denom: denom_sqrt / r,
+    };
+
+    normalize(result)
+};
+
+let EXP_TABLE = [
+    (1_000_000_000_000_000_000_000, 0),
+    (2_000_000_000_000_000_000_000, 0),
+    (4_000_000_000_000_000_000_000, 0),
+    (8_000_000_000_000_000_000_000, 0),
+    (1_600_000_000_000_000_000_000, 1),
+    (3_200_000_000_000_000_000_000, 1),
+    (6_400_000_000_000_000_000_000, 1),
+    (1_280_000_000_000_000_000_000, 2),
+    (2_560_000_000_000_000_000_000, 2),
+    (5_120_000_000_000_000_000_000, 2),
+    (1_024_000_000_000_000_000_000, 3),
+    (2_048_000_000_000_000_000_000, 3),
+    (4_096_000_000_000_000_000_000, 3),
+    (8_192_000_000_000_000_000_000, 3),
+    (1_638_400_000_000_000_000_000, 4),
+    (3_276_800_000_000_000_000_000, 4),
+    (6_553_600_000_000_000_000_000, 4),
+    (1_310_720_000_000_000_000_000, 5),
+    (2_621_440_000_000_000_000_000, 5),
+    (5_242_880_000_000_000_000_000, 5),
+    (1_048_576_000_000_000_000_000, 6),
+    (2_097_152_000_000_000_000_000, 6),
+    (4_194_304_000_000_000_000_000, 6),
+    (8_388_608_000_000_000_000_000, 6),
+    (1_677_721_600_000_000_000_000, 7),
+    (3_355_443_200_000_000_000_000, 7),
+    (6_710_886_400_000_000_000_000, 7),
+    (1_342_177_280_000_000_000_000, 8),
+    (2_684_354_560_000_000_000_000, 8),
+    (5_368_709_120_000_000_000_000, 8),
+    (1_073_741_824_000_000_000_000, 9),
+    (2_147_483_648_000_000_000_000, 9),
+    (4_294_967_296_000_000_000_000, 9),
+    (8_589_934_592_000_000_000_000, 9),
+    (1_717_986_918_400_000_000_000, 10),
+    (3_435_973_836_800_000_000_000, 10),
+    (6_871_947_673_600_000_000_000, 10),
+    (1_374_389_534_720_000_000_000, 11),
+    (2_748_779_069_440_000_000_000, 11),
+    (5_497_558_138_880_000_000_000, 11),
+    (1_099_511_627_776_000_000_000, 12),
+    (2_199_023_255_552_000_000_000, 12),
+    (4_398_046_511_104_000_000_000, 12),
+    (8_796_093_022_208_000_000_000, 12),
+    (1_759_218_604_441_600_000_000, 13),
+    (3_518_437_208_883_200_000_000, 13),
+    (7_036_874_417_766_400_000_000, 13),
+    (1_407_374_883_553_280_000_000, 14),
+    (2_814_749_767_106_560_000_000, 14),
+    (5_629_499_534_213_120_000_000, 14),
+    (1_125_899_906_842_624_000_000, 15),
+    (2_251_799_813_685_248_000_000, 15),
+    (4_503_599_627_370_496_000_000, 15),
+    (9_007_199_254_740_992_000_000, 15),
+    (1_801_439_850_948_198_400_000, 16),
+    (3_602_879_701_896_396_800_000, 16),
+    (7_205_759_403_792_793_600_000, 16),
+    (1_441_151_880_758_558_720_000, 17),
+    (2_882_303_761_517_117_440_000, 17),
+    (5_764_607_523_034_234_880_000, 17),
+    (1_152_921_504_606_846_976_000, 18),
+    (2_305_843_009_213_693_952_000, 18),
+    (4_611_686_018_427_387_904_000, 18),
+    (9_223_372_036_854_775_808_000, 18),
+    (1_844_674_407_370_955_161_600, 19),
+    (3_689_348_814_741_910_323_200, 19),
+    (7_378_697_629_483_820_646_400, 19),
+    (1_475_739_525_896_764_129_280, 20),
+    (2_951_479_051_793_528_258_560, 20),
+    (5_902_958_103_587_056_517_120, 20),
+    (1_180_591_620_717_411_303_424, 21),
+    (2_361_183_241_434_822_606_848, 21),
+    (4_722_366_482_869_645_213_696, 21),
+    (9_444_732_965_739_290_427_392, 21),
+    (1_888_946_593_147_858_085_478, 22),
+    (3_777_893_186_295_716_170_956, 22),
+    (7_555_786_372_591_432_341_913, 22),
+    (1_511_157_274_518_286_468_382, 23),
+    (3_022_314_549_036_572_936_765, 23),
+    (6_044_629_098_073_145_873_530, 23),
+    (1_208_925_819_614_629_174_706, 24),
+];
+
+// TODO: poly generic for `to_string` function
+/// It may use scientific notation or a decimal notation.
+/// When using a decimal notation, there must be a decimal point.
+fn to_string(n: Number) -> String = {
+    assert (1 << 64) <= numer_mantissa && numer_mantissa < (1 << 65);
+    // numer = numer_mantissa * 2^(numer_exp + 64)
+    let (numer_mantissa, numer_exp) = match n.numer.ilog2() {
+        e @ ..64 => (n.numer << (64 - e), e - 64),
+        e @ 65.. => (n.numer >> (e - 64), e - 64),
+        _ => (n.numer, 0),
+    };
+
+    assert (1 << 64) <= denom_mantissa && denom_mantissa < (1 << 65);
+    // denom = denom_mantissa * 2^(denom_exp + 64)
+    let (denom_mantissa, denom_exp) = match n.denom.ilog2() {
+        e @ ..64 => (n.denom << (64 - e), e - 64),
+        e @ 65.. => (n.denom >> (e - 64), e - 64),
+        _ => (n.denom, 0),
+    };
+
+    assert 500_000_000_000_000_000_000 < mantissa_digits && mantissa_digits < 2_000_000_000_000_000_000_000;
+    // first 21 digits
+    let mantissa_digits = numer_mantissa * 1_000_000_000_000_000_000_000 / denom_mantissa;
+
+    let (exp_digits, exp_exp) = match numer_exp - denom_exp {
+        e @ -80..0 => {
+            let (reci_digits, reci_exp) = EXP_TABLE[-e];
+            // TODO: divide 10^43 by reci_digits to get digits
+            todo()
+        },
+        e @ 0..81 => EXP_TABLE[e],
+        e @ 81..161 => {
+            let (d1, e1) = EXP_TABLE[e / 2];
+            let (d2, e2) = EXP_TABLE[e / 2 + e % 2];
+            // TODO: do `d1 * d2 / 10^21` to get digits
+            todo()
+        },
+        // It seems like we need a recursive function
+        _ => todo(),
+    };
+
+    todo()
 };
