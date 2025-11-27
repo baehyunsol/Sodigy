@@ -51,7 +51,7 @@ pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::{Match, MatchBranch};
 pub use module::Module;
-pub use pattern::{FullPattern, Pattern};
+pub use pattern::{Pattern, PatternKind};
 pub use poly::Poly;
 pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;

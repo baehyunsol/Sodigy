@@ -1,4 +1,4 @@
-use crate::{Expr, FullPattern, If};
+use crate::{Expr, If, Pattern};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 
@@ -15,7 +15,7 @@ impl Endec for If {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (if_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (cond, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-        let (pattern, cursor) = Option::<FullPattern>::decode_impl(buffer, cursor)?;
+        let (pattern, cursor) = Option::<Pattern>::decode_impl(buffer, cursor)?;
         let (else_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (true_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (false_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;

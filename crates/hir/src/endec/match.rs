@@ -1,4 +1,4 @@
-use crate::{Expr, FullPattern, Match, MatchBranch};
+use crate::{Expr, Match, MatchBranch, Pattern};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 
@@ -33,7 +33,7 @@ impl Endec for MatchBranch {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (pattern, cursor) = FullPattern::decode_impl(buffer, cursor)?;
+        let (pattern, cursor) = Pattern::decode_impl(buffer, cursor)?;
         let (cond, cursor) = Option::<Expr>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
 

@@ -97,6 +97,7 @@ pub enum PatternKind {
     },
     // `if let Some(x + 1) = foo() { x }`
     InfixOp {
+        op: InfixOp,
         lhs: Box<Pattern>,
         rhs: Box<Pattern>,
         op_span: Span,
@@ -340,9 +341,9 @@ impl<'t> Tokens<'t> {
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
-                let group_span = *span;
+                let (group_span, delim) = (*span, *delim);
                 let mut tokens = Tokens::new(tokens, span.end());
-                let (elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
+                let (mut elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
 
                 // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
                 let mut is_tuple = elements.len() != 1 || dot_dot_span.is_some();
@@ -387,6 +388,7 @@ impl<'t> Tokens<'t> {
                     Delim::ModuleDecorator => todo!(),
                 }
             },
+            _ => todo!(),
         };
 
         loop {
@@ -533,7 +535,25 @@ impl<'t> Tokens<'t> {
                         Punct::DotDot | Punct::DotDotEq => todo!(),
                         p => match InfixOp::try_from(p) {
                             Ok(op) => {
-                                let (l_bp, r_bp) = infix_binding_power(op);
+                                let (l_bp, r_bp) = match infix_binding_power(op) {
+                                    Some((l, r)) => (l, r),
+                                    None => {
+                                        let expected_token = match context {
+                                            ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
+                                            ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
+                                            ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
+                                        };
+
+                                        return Err(vec![Error {
+                                            kind: ErrorKind::UnexpectedToken {
+                                                expected: expected_token,
+                                                got: ErrorToken::Punct(p),
+                                            },
+                                            spans: op_span.simple_error(),
+                                            note: None,
+                                        }]);
+                                    },
+                                };
 
                                 if l_bp < min_bp {
                                     break;
@@ -546,6 +566,7 @@ impl<'t> Tokens<'t> {
                                     name_span: None,
                                     r#type: None,
                                     kind: PatternKind::InfixOp {
+                                        op,
                                         lhs: Box::new(lhs),
                                         rhs: Box::new(rhs),
                                         op_span,
@@ -560,6 +581,7 @@ impl<'t> Tokens<'t> {
                         },
                     }
                 },
+                _ => todo!(),
             }
         }
 
@@ -633,3 +655,30 @@ impl<'t> Tokens<'t> {
         Ok((patterns, prev_dot_dot_span))
     }
 }
+
+fn infix_binding_power(op: InfixOp) -> Option<(u32, u32)> {
+    match op {
+        InfixOp::Mul | InfixOp::Div | InfixOp::Rem => Some((MUL, MUL + 1)),
+        InfixOp::Add | InfixOp::Sub => Some((ADD, ADD + 1)),
+        InfixOp::Shl | InfixOp::Shr => Some((SHIFT, SHIFT + 1)),
+        InfixOp::Concat => Some((CONCAT, CONCAT + 1)),
+        _ => None,
+    }
+}
+
+fn name_binding_binding_power() -> (u32, u32) {
+    (NAME_BINDING, NAME_BINDING + 1)
+}
+
+fn or_binding_power() -> (u32, u32) {
+    (OR, OR + 1)
+}
+
+const NAME_BINDING: u32 = 27;
+const MUL: u32 = 25;  // a * b, a / b, a % b
+const ADD: u32 = 23;  // a + b, a - b
+const SHIFT: u32 = 21;  // a << b, a >> b
+
+// RANGE: a..b, a..=b, a.., ..a
+const CONCAT: u32 = 19; const RANGE: u32 = 19;
+const OR: u32 = 17;

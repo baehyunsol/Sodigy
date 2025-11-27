@@ -1,4 +1,4 @@
-use crate::{Expr, FullPattern, Session};
+use crate::{Expr, Pattern, Session};
 use sodigy_name_analysis::{
     NameKind,
     Namespace,
@@ -16,7 +16,7 @@ pub struct Match {
 
 #[derive(Clone, Debug)]
 pub struct MatchBranch {
-    pub pattern: FullPattern,
+    pub pattern: Pattern,
     pub cond: Option<Expr>,
     pub value: Expr,
 }
@@ -35,7 +35,7 @@ impl Match {
         };
 
         for ast_branch in ast_match.branches.iter() {
-            let pattern = match FullPattern::from_ast(&ast_branch.pattern, session) {
+            let pattern = match Pattern::from_ast(&ast_branch.pattern, session) {
                 Ok(pattern) => Some(pattern),
                 Err(()) => {
                     has_error = true;

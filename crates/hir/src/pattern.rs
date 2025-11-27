@@ -1,34 +1,56 @@
 use crate::{Session, Type};
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use sodigy_token::InfixOp;
 
 #[derive(Clone, Debug)]
-pub struct FullPattern {
+pub struct Pattern {
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
     pub r#type: Option<Type>,
-    pub pattern: Pattern,
+    pub kind: PatternKind,
 }
 
 #[derive(Clone, Debug)]
-pub enum Pattern {
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
+pub enum PatternKind {
     Identifier {
         id: InternedString,
         span: Span,
     },
-    Wildcard(Span),
+    DollarIdentifier(IdentWithOrigin),
+    Number {
+        n: InternedNumber,
+        span: Span,
+    },
+    String {
+        binary: bool,
+        s: InternedString,
+        span: Span,
+    },
+    Regex {
+        s: InternedString,
+        span: Span,
+    },
+    Char {
+        ch: u32,
+        span: Span,
+    },
+    Byte {
+        b: u8,
+        span: Span,
+    },
+    Path(Vec<(InternedString, Span)>),
     Tuple {
-        elements: Vec<FullPattern>,
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
         group_span: Span,
     },
     List {
-        elements: Vec<FullPattern>,
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
         group_span: Span,
     },
     Range {
@@ -37,20 +59,22 @@ pub enum Pattern {
         op_span: Span,
         is_inclusive: bool,
     },
+    InfixOp {
+        op: InfixOp,
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
     Or {
         lhs: Box<Pattern>,
         rhs: Box<Pattern>,
         op_span: Span,
     },
-    Concat {
-        lhs: Box<FullPattern>,
-        rhs: Box<FullPattern>,
-        op_span: Span,
-    },
+    Wildcard(Span),
 }
 
-impl FullPattern {
-    pub fn from_ast(ast_pattern: &ast::FullPattern, session: &mut Session) -> Result<FullPattern, ()> {
+impl Pattern {
+    pub fn from_ast(ast_pattern: &ast::Pattern, session: &mut Session) -> Result<Pattern, ()> {
         let mut has_error = false;
         let r#type = match ast_pattern.r#type.as_ref().map(|r#type| Type::from_ast(r#type, session)) {
             Some(Ok(r#type)) => Some(r#type),
@@ -60,8 +84,8 @@ impl FullPattern {
             },
             None => None,
         };
-        let pattern = match Pattern::from_ast(&ast_pattern.pattern, session) {
-            Ok(pattern) => Some(pattern),
+        let kind = match PatternKind::from_ast(&ast_pattern.kind, session) {
+            Ok(kind) => Some(kind),
             Err(()) => {
                 has_error = true;
                 None
@@ -73,30 +97,30 @@ impl FullPattern {
         }
 
         else {
-            Ok(FullPattern {
+            Ok(Pattern {
                 name: ast_pattern.name,
                 name_span: ast_pattern.name_span,
                 r#type,
-                pattern: pattern.unwrap(),
+                kind: kind.unwrap(),
             })
         }
     }
 }
 
-impl Pattern {
-    pub fn from_ast(ast_pattern: &ast::Pattern, session: &mut Session) -> Result<Pattern, ()> {
+impl PatternKind {
+    pub fn from_ast(ast_pattern: &ast::PatternKind, session: &mut Session) -> Result<PatternKind, ()> {
         match ast_pattern {
-            ast::Pattern::Number { n, span } => Ok(Pattern::Number { n: n.clone(), span: *span }),
-            ast::Pattern::Identifier { id, span } => Ok(Pattern::Identifier { id: *id, span: *span }),
-            ast::Pattern::Wildcard(span) => Ok(Pattern::Wildcard(*span)),
-            ast::Pattern::Tuple { elements: ast_elements, group_span } |
-            ast::Pattern::List { elements: ast_elements, group_span } => {
-                let is_tuple = matches!(ast_pattern, ast::Pattern::Tuple { .. });
+            ast::PatternKind::Identifier { id, span } => Ok(PatternKind::Identifier { id: *id, span: *span }),
+            ast::PatternKind::Number { n, span } => Ok(PatternKind::Number { n: n.clone(), span: *span }),
+            ast::PatternKind::String { binary, s, span } => Ok(PatternKind::String { binary: *binary, s: *s, span: *span }),
+            ast::PatternKind::Tuple { elements: ast_elements, dot_dot_span, group_span } |
+            ast::PatternKind::List { elements: ast_elements, dot_dot_span, group_span } => {
+                let is_tuple = matches!(ast_pattern, ast::PatternKind::Tuple { .. });
                 let mut has_error = false;
                 let mut elements = Vec::with_capacity(ast_elements.len());
 
                 for ast_element in ast_elements.iter() {
-                    match FullPattern::from_ast(ast_element, session) {
+                    match Pattern::from_ast(ast_element, session) {
                         Ok(pattern) => {
                             elements.push(pattern);
                         },
@@ -111,47 +135,49 @@ impl Pattern {
                 }
 
                 else if is_tuple {
-                    Ok(Pattern::Tuple { elements, group_span: *group_span })
+                    Ok(PatternKind::Tuple { elements, dot_dot_span: *dot_dot_span, group_span: *group_span })
                 }
 
                 else {
-                    Ok(Pattern::List { elements, group_span: *group_span })
+                    Ok(PatternKind::List { elements, dot_dot_span: *dot_dot_span, group_span: *group_span })
                 }
             },
-            ast::Pattern::Range { lhs, rhs, op_span, is_inclusive } => match (
+            ast::PatternKind::Range { lhs, rhs, op_span, is_inclusive } => match (
                 lhs.as_ref().map(|lhs| Pattern::from_ast(lhs, session)),
                 rhs.as_ref().map(|rhs| Pattern::from_ast(rhs, session)),
             ) {
                 (Some(Err(())), _) | (_, Some(Err(()))) => Err(()),
-                (lhs, rhs) => Ok(Pattern::Range {
+                (lhs, rhs) => Ok(PatternKind::Range {
                     lhs: lhs.map(|lhs| Box::new(lhs.unwrap())),
                     rhs: rhs.map(|rhs| Box::new(rhs.unwrap())),
                     op_span: *op_span,
                     is_inclusive: *is_inclusive,
                 }),
             },
-            ast::Pattern::Or { lhs, rhs, op_span } => match (
+            ast::PatternKind::InfixOp { op, lhs, rhs, op_span } => match (
                 Pattern::from_ast(lhs, session),
                 Pattern::from_ast(rhs, session),
             ) {
                 (Err(()), _) | (_, Err(())) => Err(()),
-                (lhs, rhs) => Ok(Pattern::Or {
+                (lhs, rhs) => Ok(PatternKind::InfixOp {
+                    op: *op,
                     lhs: Box::new(lhs.unwrap()),
                     rhs: Box::new(rhs.unwrap()),
                     op_span: *op_span,
                 }),
             },
-            ast::Pattern::Concat { lhs, rhs, op_span } => match (
-                FullPattern::from_ast(lhs, session),
-                FullPattern::from_ast(rhs, session),
+            ast::PatternKind::Or { lhs, rhs, op_span } => match (
+                Pattern::from_ast(lhs, session),
+                Pattern::from_ast(rhs, session),
             ) {
                 (Err(()), _) | (_, Err(())) => Err(()),
-                (lhs, rhs) => Ok(Pattern::Concat {
+                (lhs, rhs) => Ok(PatternKind::Or {
                     lhs: Box::new(lhs.unwrap()),
                     rhs: Box::new(rhs.unwrap()),
                     op_span: *op_span,
                 }),
             },
+            ast::PatternKind::Wildcard(span) => Ok(PatternKind::Wildcard(*span)),
             _ => panic!("TODO: {ast_pattern:?}"),
         }
     }

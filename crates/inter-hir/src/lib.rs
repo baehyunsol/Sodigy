@@ -3,12 +3,12 @@ use sodigy_hir::{
     Alias,
     Assert,
     Expr,
-    FullPattern,
     Func,
     FuncParam,
     Generic,
     Let,
     Pattern,
+    PatternKind,
     Session as HirSession,
     StructField,
     Type,
@@ -1040,7 +1040,15 @@ impl Session {
                 self.resolve_expr(&mut r#if.true_value),
                 self.resolve_expr(&mut r#if.false_value),
             ) {
-                (Ok(()), Ok(()), Ok(())) => Ok(()),
+                (Ok(()), Ok(()), Ok(())) => {
+                    if let Some(pattern) = &mut r#if.pattern {
+                        self.resolve_pattern(pattern)
+                    }
+
+                    else {
+                        Ok(())
+                    }
+                },
                 _ => Err(()),
             },
             Expr::Match(r#match) => {
@@ -1051,7 +1059,7 @@ impl Session {
                 }
 
                 for branch in r#match.branches.iter_mut() {
-                    if let Err(()) = self.resolve_full_pattern(&mut branch.pattern) {
+                    if let Err(()) = self.resolve_pattern(&mut branch.pattern) {
                         has_error = true;
                     }
 
@@ -1216,16 +1224,16 @@ impl Session {
         }
     }
 
-    pub fn resolve_full_pattern(&mut self, full_pattern: &mut FullPattern) -> Result<(), ()> {
+    pub fn resolve_pattern(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
         let mut has_error = false;
 
-        if let Some(r#type) = &mut full_pattern.r#type {
+        if let Some(r#type) = &mut pattern.r#type {
             if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
                 has_error = true;
             }
         }
 
-        if let Err(()) = self.resolve_pattern(&mut full_pattern.pattern) {
+        if let Err(()) = self.resolve_pattern_kind(&mut pattern.kind) {
             has_error = true;
         }
 
@@ -1238,7 +1246,7 @@ impl Session {
         }
     }
 
-    pub fn resolve_pattern(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
+    pub fn resolve_pattern_kind(&mut self, kind: &mut PatternKind) -> Result<(), ()> {
         todo!()
     }
 }
