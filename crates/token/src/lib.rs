@@ -127,34 +127,7 @@ impl TokenKind {
     // A token that can be a beginning of a pattern.
     pub fn pattern_begin(&self) -> bool {
         match self {
-            TokenKind::Identifier(_) |
-            TokenKind::Number(_) |
-            TokenKind::String { .. } |
-            TokenKind::Char(_) |
-            TokenKind::Byte(_) => true,
-
-            TokenKind::FormattedString { .. } |
-            TokenKind::Keyword(_) |
-            TokenKind::FieldModifier(_) |
-            TokenKind::DocComment { .. } |
-            TokenKind::GroupDelim { delim: None, .. } => false,
-
-            TokenKind::Punct(p) => match p {
-                Punct::Dollar |
-                Punct::DotDot |
-                Punct::DotDotEq => true,
-                _ => false,
-            },
-
-            TokenKind::GroupDelim { delim: Some(delim), .. } |
-            TokenKind::Group { delim, .. } => match delim {
-                Delim::Parenthesis |
-                Delim::Bracket => true,
-                Delim::Brace |
-                Delim::Lambda |
-                Delim::Decorator |
-                Delim::ModuleDecorator => false,
-            },
+            _ => todo!(),
         }
     }
 

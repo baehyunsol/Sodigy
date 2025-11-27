@@ -152,7 +152,7 @@ impl Endec for ErrorKind {
             ErrorKind::InclusiveRangeWithNoEnd => {
                 buffer.push(38);
             },
-            ErrorKind::AstPatternTypeError => {
+            ErrorKind::DotDotDotDot => {
                 buffer.push(39);
             },
             ErrorKind::DifferentNameBindingsInOrPattern => {
@@ -391,7 +391,7 @@ impl Endec for ErrorKind {
             Some(36) => Ok((ErrorKind::NonDefaultValueAfterDefaultValue, cursor + 1)),
             Some(37) => Ok((ErrorKind::CannotDeclareInlineModule, cursor + 1)),
             Some(38) => Ok((ErrorKind::InclusiveRangeWithNoEnd, cursor + 1)),
-            Some(39) => Ok((ErrorKind::AstPatternTypeError, cursor + 1)),
+            Some(39) => Ok((ErrorKind::DotDotDotDot, cursor + 1)),
             Some(40) => Ok((ErrorKind::DifferentNameBindingsInOrPattern, cursor + 1)),
             Some(41) => Ok((ErrorKind::InvalidFnType, cursor + 1)),
             Some(42) => Ok((ErrorKind::EmptyMatchStatement, cursor + 1)),
@@ -597,35 +597,38 @@ impl Endec for ErrorToken {
             ErrorToken::Path => {
                 buffer.push(14);
             },
-            ErrorToken::Block => {
+            ErrorToken::Pattern => {
                 buffer.push(15);
             },
-            ErrorToken::Operator => {
+            ErrorToken::Block => {
                 buffer.push(16);
             },
-            ErrorToken::AssignOrLt => {
+            ErrorToken::Operator => {
                 buffer.push(17);
             },
-            ErrorToken::AssignOrSemicolon => {
+            ErrorToken::AssignOrLt => {
                 buffer.push(18);
             },
-            ErrorToken::BraceOrCommaOrParenthesis => {
+            ErrorToken::AssignOrSemicolon => {
                 buffer.push(19);
             },
-            ErrorToken::BraceOrParenthesis => {
+            ErrorToken::BraceOrCommaOrParenthesis => {
                 buffer.push(20);
             },
-            ErrorToken::ColonOrComma => {
+            ErrorToken::BraceOrParenthesis => {
                 buffer.push(21);
             },
-            ErrorToken::CommaOrDot => {
+            ErrorToken::ColonOrComma => {
                 buffer.push(22);
             },
-            ErrorToken::CommaOrGt => {
+            ErrorToken::CommaOrDot => {
                 buffer.push(23);
             },
-            ErrorToken::DotOrSemicolon => {
+            ErrorToken::CommaOrGt => {
                 buffer.push(24);
+            },
+            ErrorToken::DotOrSemicolon => {
+                buffer.push(25);
             },
         }
     }
@@ -659,17 +662,18 @@ impl Endec for ErrorToken {
             Some(12) => Ok((ErrorToken::Declaration, cursor + 1)),
             Some(13) => Ok((ErrorToken::Expr, cursor + 1)),
             Some(14) => Ok((ErrorToken::Path, cursor + 1)),
-            Some(15) => Ok((ErrorToken::Block, cursor + 1)),
-            Some(16) => Ok((ErrorToken::Operator, cursor + 1)),
-            Some(17) => Ok((ErrorToken::AssignOrLt, cursor + 1)),
-            Some(18) => Ok((ErrorToken::AssignOrSemicolon, cursor + 1)),
-            Some(19) => Ok((ErrorToken::BraceOrCommaOrParenthesis, cursor + 1)),
-            Some(20) => Ok((ErrorToken::BraceOrParenthesis, cursor + 1)),
-            Some(21) => Ok((ErrorToken::ColonOrComma, cursor + 1)),
-            Some(22) => Ok((ErrorToken::CommaOrDot, cursor + 1)),
-            Some(23) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
-            Some(24) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
-            Some(n @ 25..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(15) => Ok((ErrorToken::Pattern, cursor + 1)),
+            Some(16) => Ok((ErrorToken::Block, cursor + 1)),
+            Some(17) => Ok((ErrorToken::Operator, cursor + 1)),
+            Some(18) => Ok((ErrorToken::AssignOrLt, cursor + 1)),
+            Some(19) => Ok((ErrorToken::AssignOrSemicolon, cursor + 1)),
+            Some(20) => Ok((ErrorToken::BraceOrCommaOrParenthesis, cursor + 1)),
+            Some(21) => Ok((ErrorToken::BraceOrParenthesis, cursor + 1)),
+            Some(22) => Ok((ErrorToken::ColonOrComma, cursor + 1)),
+            Some(23) => Ok((ErrorToken::CommaOrDot, cursor + 1)),
+            Some(24) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
+            Some(25) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
+            Some(n @ 26..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -1,4 +1,4 @@
-use crate::{Expr, FullPattern, Tokens};
+use crate::{Expr, ParsePatternContext, Pattern, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
@@ -11,7 +11,7 @@ pub struct If {
     pub if_span: Span,
 
     pub cond: Box<Expr>,
-    pub pattern: Option<FullPattern>,  // `if let Some((x, _)) = foo() { x + 1 }`
+    pub pattern: Option<Pattern>,  // `if let Some((x, _)) = foo() { x + 1 }`
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.
@@ -33,7 +33,7 @@ impl<'t> Tokens<'t> {
             ) => {
                 let span = span1.merge(*span2);
                 self.cursor += 2;
-                pattern = Some(self.parse_full_pattern()?);
+                pattern = Some(self.parse_pattern(ParsePatternContext::IfLet)?);
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
                 (span, self.parse_expr()?)
             },

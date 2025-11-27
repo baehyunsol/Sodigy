@@ -1,3 +1,35 @@
+# 103. `ast::FullPattern::check()`
+
+1. `CannotAnnotateType`
+2. `NameCollision` -> same name is bound multiple times
+3. `RedundantNameBinding` -> `a @ b`
+4. `InclusiveRangeWithNoEnd`
+5. `AstPatternTypeError`
+  - `1..2..(3..4)`, `1..(2 | 3)`, `1..(2 ++ 3)`
+    - 이건 어쨌든 ast에서 잡아야함. 별개의 ErrorKind를 만들까?
+    - 생각해보니까 `1..(2 ++ 3)`은 나중에도 잡을 수 있는 거 아님??
+    - 생각을 해보니까 `..`의 lhs/rhs로 올 수 있는 것들이 엄청나게 제한됨!!
+      - wildcard는 못 오고 (와도 의미가 없으니 그냥 거절해버리자)
+      - name binding도 못 오고
+      - ... 걍 literal밖에 못 올 거 같은데? 그나마 dollar-ident 정도까지는 될 듯?
+  - 잘 설계하면 전부 다 나중에 잡을 수 있는 거 아님??
+  - `1..'a'`, `[] ++ 'a'`, `(1, 'a')`
+    - 이런 건 전부 다 나중에 잡을 수 있음!!
+6. `DifferentNameBindingsInOrPattern`
+
+# 102. const expr in patterns
+
+1. Parser는 arbitrary infix op를 처리 가능. error는 나중에 날릴 거임.
+  - infix-op의 경우, `-`만 처리 -> 이거는 literal처럼 취급할 거임
+  - `ast::Pattern::Concat`을 `ast::Pattern::InfixOp`로 바꾸면 됨.
+2. 단, range는 여전히 지금처럼 처리. or도 여전히 지금처럼 처리 (이건 infix-op가 아님!).
+3. 실제로 지원되는 infix op는 제약이 심함
+  - lhs와 rhs가 모두 const인 경우 -> hir이나 mir에서 eval 해버리고 진행할 거임!
+    - name binding이 붙어있으면 어떻게 뺄 거임??
+  - lhs와 rhs 중 하나가 (ident | dollar ident)이고 나머지 하나가 literal인 경우
+  - op가 concat이고 lhs와 rhs가 모두 list인 경우
+  - op가 concat이고 lhs와 rhs 중 하나가 list이고 나머지 하나가 (ident | dollar ident)인 경우
+
 # 101. code generator for error variants
 
 1. It's way tooooo bothering to add/remove an error variant.

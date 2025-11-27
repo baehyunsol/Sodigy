@@ -1,50 +1,123 @@
-// - FULL_PATTERN
-//   - IDENT (COLON TYPE)
-//   - IDENT (COLON TYPE) AT PATTERN
-//   - PATTERN
-// - PATTERN
-//   - LITERAL
-//   - REGEX
-//   - IDENT (DOT IDENT)*
-//   - DOLLAR INDENT
-//   - WILDCARD
-//   - IDENT (DOT IDENT)* STRUCT_PATTERN
-//   - (IDENT (DOT IDENT)*)? TUPLE_PATTERN
-//   - LIST_PATTERN
-//   - OPEN_PAREN PATTERN CLOSE_PAREN
-//   - PATTERN? (DOTDOT | DOTDOT_EQ) PATTERN
-//   - PATTERN OR PATTERN
-//     - You cannot bind name like `a @ 0 | b @ 1`, but you can do `a @ (0 | 1)` or `(a @ 0, 1) | (a @ 2, 3)`.
-//   - FULL_PATTERN CONCAT FULL_PATTERN
-// - TUPLE_PATTERN
-//   - OPEN_PAREN CLOSE_PAREN
-//   - OPEN_PAREN FULL_PATTERN (COMMA FULL_PATTERN)+ CLOSE_PAREN
-// - LIST_PATTERN
-//   - OPEN_BRACKET CLOSE_BRACKET
-//   - OPEN_BRACKET FULL_PATTERN (COMMA FULL_PATTERN)* CLOSE_BRACKET
-// - STRUCT_PATTERN
-//   - OPEN_BRACE FIELD_PATTERN (COMMA FIELD_PATTERN)* CLOSE_BRACE
-// - FIELD_PATTERN
-//   - IDENT
-//   - IDENT COLON PATTERN
-//   - DOTDOT
-
 use crate::{Tokens, Type};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, Punct, Token, TokenKind};
+use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
+
+// TODO: I guess I have to rewrite everything from scratch.
+// 1. There's just PATTERN. No more FULL_PATTERN.
+//    - Syntactically, every pattern can have a name binding. It'll reject redundant bindings while parsing.
+//    - You can still annotate types on a name binding (not on pattern).
+// 2. I have to do a pratt parsing. It treats name bindings (`@`), or patterns (`|`), range operators as operators.
+//    - We don't treat type annotations (`:`) as operators -> its rhs is not a pattern!!
 
 #[derive(Clone, Debug)]
-pub struct FullPattern {
+pub struct Pattern {
+    // `name` and `name_span` are for extra name bindings, like `x @ 0..10`.
+    // So, `PatternKind::Identifier` doesn't have these fields.
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
+
+    // You can add a type annotation only if its kind is `PatternKind::Identifier`.
     pub r#type: Option<Type>,
-    pub pattern: Pattern,
+
+    pub kind: PatternKind,
 }
 
-impl FullPattern {
+#[derive(Clone, Debug)]
+pub enum PatternKind {
+    // A name binding.
+    // `if let x = foo() { .. }`
+    Identifier {
+        id: InternedString,
+        span: Span,
+    },
+    // Capturing a name.
+    // `let x = 3; if let $x = foo() { .. }` matches if `foo()` is `3`.
+    DollarIdentifier {
+        id: InternedString,
+        span: Span,
+    },
+    Number {
+        n: InternedNumber,
+        span: Span,
+    },
+    String {
+        binary: bool,
+        s: InternedString,
+        span: Span,
+    },
+    // An r-prefixed string.
+    Regex {
+        s: InternedString,
+        span: Span,
+    },
+    Char {
+        ch: u32,
+        span: Span,
+    },
+    Byte {
+        b: u8,
+        span: Span,
+    },
+    Path(Vec<(InternedString, Span)>),
+    Struct {
+        r#struct: Vec<(InternedString, Span)>,
+        fields: Vec<StructFieldPattern>,
+        dot_dot_span: Option<Span>,
+        group_span: Span,
+    },
+    TupleStruct {
+        r#struct: Vec<(InternedString, Span)>,
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
+        group_span: Span,
+    },
+    Tuple {
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
+        group_span: Span,
+    },
+    List {
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
+        group_span: Span,
+    },
+    // `1..10`
+    // `1..=9`
+    // `1..`
+    // `..10`
+    // `..` -> it's invalid
+    Range {
+        lhs: Option<Box<Pattern>>,
+        rhs: Option<Box<Pattern>>,
+        op_span: Span,
+        is_inclusive: bool,
+    },
+    // `if let Some(x + 1) = foo() { x }`
+    InfixOp {
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
+    Or {
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
+    Wildcard(Span),
+}
+
+#[derive(Clone, Debug)]
+pub struct StructFieldPattern {
+    pub name: InternedString,
+    pub span: Span,
+    pub pattern: Pattern,
+    pub is_shorthand: bool,
+}
+
+impl Pattern {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         let mut result = vec![];
 
@@ -52,97 +125,40 @@ impl FullPattern {
             result.push((name, name_span));
         }
 
-        result.extend(self.pattern.bound_names());
+        result.extend(self.kind.bound_names());
         result
     }
 
     pub fn error_span(&self) -> Span {
         if let Some(name_span) = self.name_span {
-            name_span.merge(self.pattern.error_span())
+            name_span.merge(self.kind.error_span())
         }
 
         else {
-            self.pattern.error_span()
+            self.kind.error_span()
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Pattern {
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    Byte {
-        n: u8,
-        span: Span,
-    },
-    Identifier {
-        id: InternedString,
-        span: Span,
-    },
-    Path(Vec<(InternedString, Span)>),
-    Wildcard(Span),
-    Struct {
-        r#struct: Vec<(InternedString, Span)>,
-        fields: Vec<StructFieldPattern>,
-        dot_dot: bool,
-        group_span: Span,
-    },
-    TupleStruct {
-        r#struct: Vec<(InternedString, Span)>,
-        elements: Vec<FullPattern>,
-        group_span: Span,
-    },
-    Tuple {
-        elements: Vec<FullPattern>,
-        group_span: Span,
-    },
-    List {
-        elements: Vec<FullPattern>,
-        group_span: Span,
-    },
-    Range {
-        lhs: Option<Box<Pattern>>,
-        rhs: Option<Box<Pattern>>,
-        op_span: Span,
-        is_inclusive: bool,
-    },
-    Or {
-        lhs: Box<Pattern>,
-        rhs: Box<Pattern>,
-        op_span: Span,
-    },
-    Concat {
-        lhs: Box<FullPattern>,
-        rhs: Box<FullPattern>,
-        op_span: Span,
-    },
-}
-
-#[derive(Clone, Debug)]
-pub struct StructFieldPattern {
-    pub name: InternedString,
-    pub span: Span,
-    pub pattern: FullPattern,
-    pub is_shorthand: bool,
-}
-
-impl Pattern {
+impl PatternKind {
     pub fn error_span(&self) -> Span {
         match self {
-            Pattern::Number { span, .. } |
-            Pattern::Byte { span, .. } |
-            Pattern::Identifier { span, .. } |
-            Pattern::Wildcard(span) |
-            Pattern::Tuple { group_span: span, .. } |
-            Pattern::List { group_span: span, .. } |
-            Pattern::Range { op_span: span, .. } |
-            Pattern::Or { op_span: span, .. } |
-            Pattern::Concat { op_span: span, .. } => *span,
-            Pattern::Path(path) |
-            Pattern::Struct { r#struct: path, .. } |
-            Pattern::TupleStruct { r#struct: path, .. } => {
+            PatternKind::Number { span, .. } |
+            PatternKind::String { span, .. } |
+            PatternKind::Regex { span, .. } |
+            PatternKind::Char { span, .. } |
+            PatternKind::Byte { span, .. } |
+            PatternKind::Identifier { span, .. } |
+            PatternKind::Wildcard(span) |
+            PatternKind::DollarIdentifier { span, .. } |
+            PatternKind::Tuple { group_span: span, .. } |
+            PatternKind::List { group_span: span, .. } |
+            PatternKind::Range { op_span: span, .. } |
+            PatternKind::Or { op_span: span, .. } |
+            PatternKind::InfixOp { op_span: span, .. } => *span,
+            PatternKind::Path(path) |
+            PatternKind::Struct { r#struct: path, .. } |
+            PatternKind::TupleStruct { r#struct: path, .. } => {
                 let mut result = path[0].1;
 
                 for (_, span) in path.iter() {
@@ -156,16 +172,20 @@ impl Pattern {
 
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
-            Pattern::Number { .. } |
-            Pattern::Byte { .. } |
-            Pattern::Wildcard(_) |
-            Pattern::Path(_) => vec![],
-            Pattern::Identifier { id, span } => vec![(*id, *span)],
-            Pattern::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
-            Pattern::TupleStruct { elements, .. } |
-            Pattern::Tuple { elements, .. } |
-            Pattern::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
-            Pattern::Range { lhs, rhs, .. } => {
+            PatternKind::Number { .. } |
+            PatternKind::String { .. } |
+            PatternKind::Regex { .. } |
+            PatternKind::Char { .. } |
+            PatternKind::Byte { .. } |
+            PatternKind::Path(_) |
+            PatternKind::Wildcard(_) |
+            PatternKind::DollarIdentifier { .. } => vec![],
+            PatternKind::Identifier { id, span } => vec![(*id, *span)],
+            PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
+            PatternKind::TupleStruct { elements, .. } |
+            PatternKind::Tuple { elements, .. } |
+            PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
+            PatternKind::Range { lhs, rhs, .. } => {
                 let mut result = vec![];
 
                 if let Some(lhs) = lhs {
@@ -182,8 +202,8 @@ impl Pattern {
             //       same name bindings, otherwise a compile error. But
             //       checking the compile error is not a responsibility of
             //       this function, and it just assumes that there's no error.
-            Pattern::Or { lhs, .. } => lhs.bound_names(),
-            Pattern::Concat { lhs, rhs, .. } => vec![
+            PatternKind::Or { lhs, .. } => lhs.bound_names(),
+            PatternKind::InfixOp { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),
             ].concat(),
@@ -191,162 +211,143 @@ impl Pattern {
     }
 }
 
-impl<'t> Tokens<'t> {
-    // It only does necessary checks. All the other checks are done by `FullPattern::check()`.
-    pub fn parse_full_pattern(&mut self) -> Result<FullPattern, Vec<Error>> {
-        let mut name = None;
-        let mut name_span = None;
-        let mut r#type = None;
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ParsePatternContext {
+    MatchArm,
+    IfLet,
+    Let,
 
-        match self.peek2() {
+    // Inside parenthesis or brackets
+    Group,
+}
+
+impl<'t> Tokens<'t> {
+    pub fn parse_pattern(&mut self, context: ParsePatternContext) -> Result<Pattern, Vec<Error>> {
+        self.pratt_parse_pattern(context, 0)
+    }
+
+    // It only catches errors that make it im-parse-able.
+    // All the other checks are done by `Pattern::check()`.
+    fn pratt_parse_pattern(&mut self, context: ParsePatternContext, min_bp: u32) -> Result<Pattern, Vec<Error>> {
+        let mut lhs = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Identifier(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
             ) => {
-                name = Some(*id);
-                name_span = Some(*span);
+                let (id, span) = (*id, *span);
                 self.cursor += 2;
-                r#type = Some(self.parse_type()?);
+                let r#type = self.parse_type()?;
 
-                match self.peek() {
-                    Some(Token { kind: TokenKind::Punct(Punct::At), .. }) => {
-                        self.cursor += 1;
-                    },
-                    _ => {
-                        return Ok(FullPattern {
-                            name,
-                            name_span,
-                            r#type,
-
-                            // It treats `x: Int` like `x: Int @ _`.
-                            pattern: Pattern::Wildcard(Span::None),
-                        });
-                    },
-                }
-            },
-            (
-                Some(Token { kind: TokenKind::Identifier(id), span }),
-                Some(Token { kind: TokenKind::Punct(Punct::At), .. }),
-            ) => {
-                name = Some(*id);
-                name_span = Some(*span);
-                self.cursor += 2;
-            },
-            _ => {},
-        }
-
-        let pattern = self.parse_pattern()?;
-        let lhs = FullPattern {
-            name,
-            name_span,
-            r#type,
-            pattern,
-        };
-
-        match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Concat), span }) => {
-                let op_span = *span;
-                self.cursor += 1;
-                let rhs = self.parse_full_pattern()?;
-
-                // How can we bind a name to a concat pattern?
-                Ok(FullPattern {
+                Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
-                    pattern: Pattern::Concat {
-                        lhs: Box::new(lhs),
-                        rhs: Box::new(rhs),
-                        op_span,
-                    },
-                })
+                    r#type: Some(r#type),
+                    kind: PatternKind::Identifier { id, span },
+                }
             },
-            _ => Ok(lhs),
-        }
-    }
-
-    pub fn parse_full_patterns(&mut self) -> Result<Vec<FullPattern>, Vec<Error>> {
-        if self.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut patterns = vec![];
-
-        loop {
-            patterns.push(self.parse_full_pattern()?);
-
-            match self.peek2() {
-                (
-                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
-                    None,
-                ) => {
-                    self.cursor += 1;
-                    return Ok(patterns);
-                },
-                (
-                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
-                    Some(_),
-                ) => {
-                    self.cursor += 1;
-                },
-                (Some(_), _) => {},
-                (None, _) => {
-                    return Ok(patterns);
-                },
-            }
-        }
-    }
-
-    pub fn parse_pattern(&mut self) -> Result<Pattern, Vec<Error>> {
-        let lhs = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Identifier(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
             ) => todo!(),
-            (
-                Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
-                Some(Token { kind: TokenKind::Group { delim, tokens }, span: span2 }),
-            ) => match *delim {
-                Delim::Parenthesis => todo!(),
-                Delim::Brace => todo!(),
-                Delim::Bracket | Delim::Lambda => {
-                    return Err(vec![Error {
-                        kind: ErrorKind::UnexpectedToken {
-                            expected: ErrorToken::BraceOrParenthesis,
-                            got: ErrorToken::Group(*delim),
-                        },
-                        spans: span2.simple_error(),
-                        note: None,
-                    }]);
-                },
-                Delim::Decorator | Delim::ModuleDecorator => {
-                    return Err(vec![Error {
-                        kind: ErrorKind::UnexpectedToken {
-                            expected: ErrorToken::BraceOrParenthesis,
-                            got: ErrorToken::Group(*delim),
-                        },
-                        spans: span2.simple_error(),
-                        note: Some(String::from("You cannot decorate a pattern.")),
-                    }]);
-                },
-            },
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
-
-                match id.try_unintern_short_string() {
-                    Some(id) if id == b"_" => Pattern::Wildcard(span),
-                    _ => Pattern::Identifier { id, span },
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Identifier { id, span },
                 }
             },
-            (Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }), _) => {
-                let span = *span;
-                let mut tokens = Tokens::new(tokens, span.end());
-                let elements = tokens.parse_full_patterns()?;
-                let mut is_tuple = elements.len() != 1;
+            (
+                Some(Token { kind: TokenKind::Punct(Punct::Dollar), .. }),
+                Some(Token { kind: TokenKind::Identifier(id), span }),
+            ) => {
+                let (id, span) = (*id, *span);
+                self.cursor += 2;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Identifier { id, span },
+                }
+            },
+            (
+                Some(Token { kind: TokenKind::Punct(Punct::Sub), span: op_span }),
+                Some(Token { kind: TokenKind::Number(n), span: n_span }),
+            ) => {
+                let (mut n, op_span, n_span) = (n.clone(), *op_span, *n_span);
+                n.negate_mut();
+                let span = op_span.merge(n_span);
+                self.cursor += 2;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Number { n, span },
+                }
+            },
+            (Some(Token { kind: TokenKind::Number(n), span }), _) => {
+                let (mut n, span) = (n.clone(), *span);
+                self.cursor += 1;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Number { n, span },
+                }
+            },
+            (Some(Token { kind: TokenKind::String { binary, raw, s }, span }), _) => {
+                let (binary, raw, s, span) = (*binary, *raw, *s, *span);
+                self.cursor += 1;
 
-                // `(a)` is not a tuple pattern, it's just a name binding
-                if elements.len() == 1 && matches!(
+                if raw {
+                    Pattern {
+                        name: None,
+                        name_span: None,
+                        r#type: None,
+                        kind: PatternKind::Regex { s, span },
+                    }
+                }
+
+                else {
+                    Pattern {
+                        name: None,
+                        name_span: None,
+                        r#type: None,
+                        kind: PatternKind::String { binary, s, span },
+                    }
+                }
+            },
+            (Some(Token { kind: TokenKind::Char(ch), span }), _) => {
+                let (ch, span) = (*ch, *span);
+                self.cursor += 1;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Char { ch, span },
+                }
+            },
+            (Some(Token { kind: TokenKind::Byte(b), span }), _) => {
+                let (b, span) = (*b, *span);
+                self.cursor += 1;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Byte { b, span },
+                }
+            },
+            (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
+                let group_span = *span;
+                let mut tokens = Tokens::new(tokens, span.end());
+                let (elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
+
+                // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
+                let mut is_tuple = elements.len() != 1 || dot_dot_span.is_some();
+
+                if !is_tuple && matches!(
                     tokens.last(),
                     Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
                 ) {
@@ -355,116 +356,280 @@ impl<'t> Tokens<'t> {
 
                 self.cursor += 1;
 
-                if is_tuple {
-                    Pattern::Tuple {
-                        elements,
-                        group_span: span,
-                    }
+                match delim {
+                    Delim::Parenthesis => if is_tuple {
+                        Pattern {
+                            name: None,
+                            name_span: None,
+                            r#type: None,
+                            kind: PatternKind::Tuple {
+                                elements,
+                                group_span,
+                                dot_dot_span,
+                            },
+                        }
+                    } else {
+                        elements.remove(0)
+                    },
+                    Delim::Bracket => Pattern {
+                        name: None,
+                        name_span: None,
+                        r#type: None,
+                        kind: PatternKind::List {
+                            elements,
+                            group_span,
+                            dot_dot_span,
+                        },
+                    },
+                    Delim::Brace |
+                    Delim::Lambda |
+                    Delim::Decorator |
+                    Delim::ModuleDecorator => todo!(),
                 }
+            },
+        };
 
-                else {
-                    let mut errors = vec![];
+        loop {
+            match self.peek() {
+                Some(Token { kind: TokenKind::Punct(p), span }) => {
+                    let (p, op_span) = (*p, *span);
 
-                    if let (Some(name), Some(name_span)) = (elements[0].name, elements[0].name_span) {
-                        errors.push(Error {
-                            kind: ErrorKind::CannotBindNameToAnotherName(name),
-                            spans: name_span.simple_error(),
-                            ..Error::default()
-                        });
+                    match p {
+                        Punct::At => {
+                            let (l_bp, r_bp) = name_binding_binding_power();
+
+                            if l_bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+
+                            let mut rhs = self.pratt_parse_pattern(context, r_bp)?;
+                            let mut name_binding = None;
+                            let mut errors = vec![];
+
+                            match lhs {
+                                Pattern {
+                                    name,
+                                    name_span,
+                                    r#type,
+                                    kind: PatternKind::Identifier { id, span },
+                                } => {
+                                    name_binding = Some((id, span));
+
+                                    // `a @ b @ 1..2`
+                                    if let (Some(name), Some(name_span)) = (name, name_span) {
+                                        errors.push(Error {
+                                            kind: ErrorKind::RedundantNameBinding(name, id),
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: name_span,
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                                RenderableSpan {
+                                                    span,
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                            ],
+                                            note: None,
+                                        });
+                                    }
+
+                                    if let Some(r#type) = r#type {
+                                        errors.push(Error {
+                                            kind: ErrorKind::CannotAnnotateType,
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: lhs.kind.error_span(),
+                                                    auxiliary: true,
+                                                    note: Some(String::from("You cannot add type annotation to this.")),
+                                                },
+                                                RenderableSpan {
+                                                    span: r#type.error_span(),
+                                                    auxiliary: false,
+                                                    note: Some(String::from("Remove this type annotation.")),
+                                                },
+                                            ],
+                                            note: None,
+                                        });
+                                    }
+                                },
+                                _ => {
+                                    let expected_token = match context {
+                                        ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
+                                        ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
+                                        ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
+                                    };
+
+                                    return Err(vec![Error {
+                                        kind: ErrorKind::UnexpectedToken {
+                                            expected: expected_token,
+                                            got: ErrorToken::Punct(Punct::At),
+                                        },
+                                        spans: op_span.simple_error(),
+                                        note: None,
+                                    }]);
+                                },
+                            }
+
+                            match &rhs {
+                                // `a @ b @ 1..2`
+                                Pattern { name: Some(name), name_span: Some(name_span), .. } |
+                                // `a @ b`
+                                Pattern { kind: PatternKind::Identifier { id: name, span: name_span }, .. } => {
+                                    let (prev_name, prev_name_span) = name_binding.unwrap();
+                                    errors.push(Error {
+                                        kind: ErrorKind::RedundantNameBinding(*name, prev_name),
+                                        spans: vec![
+                                            RenderableSpan {
+                                                span: *name_span,
+                                                auxiliary: false,
+                                                note: Some(String::from("It binds a name, so you don't have to bind again.")),
+                                            },
+                                            RenderableSpan {
+                                                span: prev_name_span,
+                                                auxiliary: false,
+                                                note: None,
+                                            },
+                                        ],
+                                        note: None,
+                                    });
+                                },
+                                _ => {
+                                    let (name, name_span) = name_binding.unwrap();
+                                    rhs.name = Some(name);
+                                    rhs.name_span = Some(name_span);
+                                },
+                            }
+
+                            if !errors.is_empty() {
+                                return Err(errors);
+                            }
+
+                            lhs = rhs;
+                        },
+                        Punct::Or => {
+                            let (l_bp, r_bp) = or_binding_power();
+
+                            if l_bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+                            let rhs = self.pratt_parse_pattern(context, r_bp)?;
+                            lhs = Pattern {
+                                name: None,
+                                name_span: None,
+                                r#type: None,
+                                kind: PatternKind::Or {
+                                    lhs: Box::new(lhs),
+                                    rhs: Box::new(rhs),
+                                    op_span,
+                                },
+                            };
+                        },
+                        Punct::DotDot | Punct::DotDotEq => todo!(),
+                        p => match InfixOp::try_from(p) {
+                            Ok(op) => {
+                                let (l_bp, r_bp) = infix_binding_power(op);
+
+                                if l_bp < min_bp {
+                                    break;
+                                }
+
+                                self.cursor += 1;
+                                let rhs = self.pratt_parse_pattern(context, r_bp)?;
+                                lhs = Pattern {
+                                    name: None,
+                                    name_span: None,
+                                    r#type: None,
+                                    kind: PatternKind::InfixOp {
+                                        lhs: Box::new(lhs),
+                                        rhs: Box::new(rhs),
+                                        op_span,
+                                    },
+                                };
+                                continue;
+                            },
+                            Err(_) => {
+                                // Okay, `p` is not an operator. we should not touch this.
+                                break;
+                            },
+                        },
+                    }
+                },
+            }
+        }
+
+        Ok(lhs)
+    }
+
+    pub fn parse_patterns(&mut self, may_have_dot_dot: bool) -> Result<(Vec<Pattern>, Option<Span>), Vec<Error>> {
+        let mut prev_dot_dot_span = None;
+        let mut patterns = vec![];
+
+        loop {
+            match self.peek2() {
+                (
+                    Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                ) => {
+                    if !may_have_dot_dot {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::Pattern,
+                                got: ErrorToken::Punct(Punct::DotDot),
+                            },
+                            spans: span.simple_error(),
+                            note: Some(String::from("You cannot use a rest pattern (`..`) here. If you intended a range without ends, that's still invalid. A range must have at least one end, otherwise, just use a wildcard pattern.")),
+                        }]);
                     }
 
-                    if let Some(r#type) = &elements[0].r#type {
-                        errors.push(Error {
-                            kind: ErrorKind::CannotAnnotateType,
-                            spans: r#type.error_span().simple_error(),
-                            ..Error::default()
-                        });
-                    }
-
-                    if errors.is_empty() {
-                        elements[0].pattern.clone()
+                    else if let Some(prev_dot_dot_span) = prev_dot_dot_span {
+                        return Err(vec![Error {
+                            kind: ErrorKind::DotDotDotDot,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: *span,
+                                    auxiliary: false,
+                                    note: None,
+                                },
+                                RenderableSpan {
+                                    span: prev_dot_dot_span,
+                                    auxiliary: true,
+                                    note: None,
+                                },
+                            ],
+                            note: None,
+                        }]);
                     }
 
                     else {
-                        return Err(errors);
+                        prev_dot_dot_span = Some(*span);
+                        self.cursor += 2;
                     }
-                }
-            },
-            (Some(Token { kind: TokenKind::Group { delim: Delim::Bracket, tokens }, span }), _) => {
-                let span = *span;
-                let mut tokens = Tokens::new(tokens, span.end());
-                let elements = tokens.parse_full_patterns()?;
-                self.cursor += 1;
-                Pattern::List {
-                    elements,
-                    group_span: span,
-                }
-            },
-            (Some(Token { kind: TokenKind::Number(n), span }), _) => {
-                let (n, span) = (n.clone(), *span);
-                self.cursor += 1;
-                Pattern::Number { n, span }
-            },
-            (Some(Token { kind: TokenKind::Byte(n), span }), _) => {
-                let (n, span) = (*n, *span);
-                self.cursor += 1;
-                Pattern::Byte { n, span }
-            },
-            // `..3`
-            (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
-                let op_span = *span;
-                let is_inclusive = matches!(p, Punct::DotDotEq);
-                self.cursor += 1;
+                },
+                (Some(_), _) => {
+                    patterns.push(self.parse_pattern(ParsePatternContext::Group)?);
 
-                let rhs = self.parse_pattern()?;
-                Pattern::Range {
-                    lhs: None,
-                    rhs: Some(Box::new(rhs)),
-                    op_span,
-                    is_inclusive,
-                }
-            },
-            (t1, t2) => panic!("TODO: ({t1:?}, {t2:?})"),
-        };
-
-        match self.peek() {
-            Some(Token { kind: TokenKind::Punct(Punct::Or), span }) => {
-                let op_span = *span;
-                self.cursor += 1;
-
-                let rhs = self.parse_pattern()?;
-                Ok(Pattern::Or {
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                    op_span,
-                })
-            },
-            Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }) => {
-                let op_span = *span;
-                let is_inclusive = matches!(p, Punct::DotDotEq);
-                self.cursor += 1;
-
-                if let Some(true) = self.peek().map(|t| t.pattern_begin()) {
-                    let rhs = self.parse_pattern()?;
-
-                    Ok(Pattern::Range {
-                        lhs: Some(Box::new(lhs)),
-                        rhs: Some(Box::new(rhs)),
-                        op_span,
-                        is_inclusive,
-                    })
-                }
-
-                else {
-                    Ok(Pattern::Range {
-                        lhs: Some(Box::new(lhs)),
-                        rhs: None,
-                        op_span,
-                        is_inclusive,
-                    })
-                }
-            },
-            _ => Ok(lhs),
+                    match self.peek2() {
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) | (None, _) => {
+                            break;
+                        },
+                        (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
+                            self.cursor += 1;
+                        },
+                        (Some(t), _) => todo!(),
+                    }
+                },
+                (None, _) => {
+                    break;
+                },
+            }
         }
+
+        Ok((patterns, prev_dot_dot_span))
     }
 }

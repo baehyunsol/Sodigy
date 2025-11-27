@@ -18,6 +18,7 @@ pub enum ErrorToken {
     Declaration,
     Expr,
     Path,  // and identifier or a path
+    Pattern,
     Block,
     Operator,
     AssignOrLt,

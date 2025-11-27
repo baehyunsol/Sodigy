@@ -1,4 +1,4 @@
-use crate::{Expr, FullPattern, Tokens};
+use crate::{Expr, ParsePatternContext, Pattern, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
@@ -12,7 +12,7 @@ pub struct Match {
 
 #[derive(Clone, Debug)]
 pub struct MatchBranch {
-    pub pattern: FullPattern,
+    pub pattern: Pattern,
     pub cond: Option<Expr>,
     pub value: Expr,
 }
@@ -40,7 +40,7 @@ impl<'t> Tokens<'t> {
         let mut branches = vec![];
 
         loop {
-            let pattern = self.parse_full_pattern()?;
+            let pattern = self.parse_pattern(ParsePatternContext::MatchArm)?;
 
             let cond = match self.peek() {
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {

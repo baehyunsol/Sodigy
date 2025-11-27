@@ -1,4 +1,4 @@
-use crate::{Attribute, Expr, Tokens, Type};
+use crate::{Attribute, Expr, ParsePatternContext, Tokens, Type};
 use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -56,7 +56,7 @@ impl<'t> Tokens<'t> {
     // It destructures a pattern into multiple `let` statements.
     fn parse_let_multiple(&mut self) -> Result<Vec<Let>, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
-        let pattern = self.parse_full_pattern()?;
+        let pattern = self.parse_pattern(ParsePatternContext::Let)?;
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
         let value = self.parse_expr()?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;

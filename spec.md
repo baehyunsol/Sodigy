@@ -262,7 +262,25 @@ assert y == 100;
 
 ## Pattern Matchings
 
-TODO: documentation
+Sodigy has a very flexible and expressive pattern matching system. The syntax resembles that of Rust.
+
+Use `match` keyword to match a pattern. The keyword is followed by a value, and curly braces. The curly braces contain match arms.
+
+```sodigy
+fn to_string(n: Int) -> String = match n {
+    0 => "zero",
+    1 => "one",
+    2 => "two",
+
+    // `_` is a wildcard. It matches every value.
+    _ => "very large number",
+};
+
+assert to_string(0) == "zero";
+assert to_string(1) == "one";
+assert to_string(2) == "two";
+assert to_string(100) == "very large number";
+```
 
 ## Type Annotations
 

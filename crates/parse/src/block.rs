@@ -284,7 +284,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(t) => {
+                Some(_) => {
                     if let Some(doc_comment) = &attribute.doc_comment {
                         errors.push(Error {
                             kind: ErrorKind::DocCommentNotAllowed,

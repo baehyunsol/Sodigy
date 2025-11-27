@@ -40,6 +40,24 @@ impl InternedNumber {
             is_integer,
         }
     }
+
+    pub fn negate_mut(&mut self) {
+        match &mut self.value {
+            InternedNumberValue::SmallInt(n) => match n.checked_neg() {
+                Some(nn) => {
+                    *n = nn;
+                },
+                None => todo!(),
+            },
+            InternedNumberValue::SmallRatio { numer, .. } => match numer.checked_neg() {
+                Some(nn) => {
+                    *numer = nn;
+                },
+                None => todo!(),
+            },
+            _ => todo!(),
+        }
+    }
 }
 
 /// Lexer must guarantee that it's parse-able.
