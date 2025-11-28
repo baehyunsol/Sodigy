@@ -193,7 +193,7 @@ impl Session {
                         note: None,
                     }
                 ).collect(),
-                note: None,
+                note,
             });
         }
     }

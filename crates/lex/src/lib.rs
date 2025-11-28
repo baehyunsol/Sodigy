@@ -1463,10 +1463,14 @@ impl Session {
                     self.state = LexState::Init;
                 },
             },
-            LexState::Integer(base) => match self.input_bytes.get(self.cursor) {
+            LexState::Integer(base) => match (
+                self.input_bytes.get(self.cursor),
+                self.input_bytes.get(self.cursor + 1),
+                self.input_bytes.get(self.cursor + 2),
+            ) {
                 // `b'g'..=b'z'` is always error, but it matches the
                 // range so that it can generate a better error message
-                Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')) => {
+                (Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), _, _) => {
                     if !base.is_valid_digit(*x) {
                         return Err(Error {
                             kind: ErrorKind::InvalidNumberLiteral,
@@ -1482,10 +1486,31 @@ impl Session {
                     self.buffer1.push(*x);
                     self.cursor += 1;
                 },
-                Some(b'_') => {
+                (Some(b'_'), _, _) => {
                     self.cursor += 1;
                 },
-                Some(b'.') => match base {
+                // perhaps the user intends decimal point (the first dot) + range (2nd and 3rd dots),
+                // but it's an ambiguous syntax, so we just reject this
+                (Some(b'.'), Some(b'.'), Some(b'.')) => {
+                    // I want to tell the user that it's an ambiuous syntax, but there's no error variant for that
+                    todo!()
+                },
+
+                // `64..` is a range pattern/expr. The dots are not decimal points!
+                (Some(b'.'), Some(b'.'), _) => {
+                    let interned = intern_number(base, &self.buffer1, &self.buffer2, true /* is_integer */);
+
+                    self.tokens.push(Token {
+                        kind: TokenKind::Number(interned),
+                        span: Span::range(
+                            self.file,
+                            self.token_start,
+                            self.cursor,
+                        ),
+                    });
+                    self.state = LexState::Init;
+                },
+                (Some(b'.'), _, _) => match base {
                     Base::Decimal => {
                         self.buffer2.clear();
                         self.state = LexState::Fraction;
@@ -1503,7 +1528,7 @@ impl Session {
                         });
                     },
                 },
-                Some(_) | None => {
+                _ => {
                     let interned = intern_number(base, &self.buffer1, &self.buffer2, true /* is_integer */);
 
                     self.tokens.push(Token {

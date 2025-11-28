@@ -19,6 +19,7 @@ pub struct RenderableSpan {
 pub struct RenderSpanOption {
     pub max_height: usize,
     pub max_width: usize,
+    pub context: usize,
     pub render_source: bool,
     pub color: Option<ColorOption>,
 
@@ -256,11 +257,7 @@ fn render_close_spans(
     }
 
     let rendered_span = {
-        let (top, bottom) = match (top, bottom) {
-            (0, _) => (0, 2),
-            (1, _) => (0, 3),
-            _ => (top - 2, bottom + 2),
-        };
+        let (top, bottom) = (top.max(option.context) - option.context, bottom + option.context);
         let (left, right) = match (left, right) {
             (_, r) if r < option.max_width - 20 => (0, option.max_width - 10),
             _ => (right + 20 - option.max_width, right + 10),

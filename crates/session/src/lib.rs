@@ -77,6 +77,7 @@ fn dump_errors(mut errors: Vec<Error>, intermediate_dir: &str) {
             &RenderSpanOption {
                 max_width: 88,
                 max_height: 10,
+                context: 2,
                 render_source: true,
                 color: Some(ColorOption {
                     primary: level.color(),

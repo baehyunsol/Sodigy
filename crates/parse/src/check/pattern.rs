@@ -71,6 +71,24 @@ impl Pattern {
             Err(errors)
         }
     }
+
+    pub fn check_range_argument(&self) -> Result<(), Vec<Error>> {
+        match &self.kind {
+            PatternKind::DollarIdentifier { .. } |
+            PatternKind::Number { .. } |
+            PatternKind::Char { .. } |
+            PatternKind::Byte { .. } => Ok(()),
+
+            // I want to give a nice error message, informing that
+            // in order to use an open-ended range, just open the end...
+            PatternKind::Wildcard(_) => todo!(),
+
+            // TODO: If it's PatternKind::InfixOp and all the operands are const, ... it's valid!
+
+            // there's no error variant for this, yet
+            _ => todo!(),
+        }
+    }
 }
 
 impl PatternKind {
@@ -145,11 +163,31 @@ impl PatternKind {
                 //       lhs and rhs can only be
                 //       literal or dollar-ident
                 if let Some(lhs) = lhs {
-                    todo!()
+                    if let Err(e) = lhs.check_range_argument() {
+                        errors.extend(e)
+                    }
+
+                    if let Err(e) = lhs.check(
+                        /* allow type annotation: */ false,
+                        /* is_inner_pattern: */ true,
+                        session,
+                    ) {
+                        errors.extend(e);
+                    }
                 }
 
                 if let Some(rhs) = rhs {
-                    todo!()
+                    if let Err(e) = rhs.check_range_argument() {
+                        errors.extend(e)
+                    }
+
+                    if let Err(e) = rhs.check(
+                        /* allow type annotation: */ false,
+                        /* is_inner_pattern: */ true,
+                        session,
+                    ) {
+                        errors.extend(e);
+                    }
                 }
 
                 if errors.is_empty() {

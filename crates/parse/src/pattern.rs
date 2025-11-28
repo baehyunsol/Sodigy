@@ -388,7 +388,25 @@ impl<'t> Tokens<'t> {
                     Delim::ModuleDecorator => todo!(),
                 }
             },
-            _ => todo!(),
+            (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
+                let is_inclusive = matches!(p, Punct::DotDotEq);
+                let op_span = *span;
+                self.cursor += 1;
+                let rhs = self.parse_pattern(context)?;
+
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::Range {
+                        lhs: None,
+                        rhs: Some(Box::new(rhs)),
+                        op_span,
+                        is_inclusive,
+                    },
+                }
+            },
+            ts => panic!("TODO: {ts:?}"),
         };
 
         loop {
@@ -532,7 +550,33 @@ impl<'t> Tokens<'t> {
                                 },
                             };
                         },
-                        Punct::DotDot | Punct::DotDotEq => todo!(),
+                        Punct::DotDot | Punct::DotDotEq => {
+                            let (l_bp, r_bp) = range_binding_power();
+                            let is_inclusive = matches!(p, Punct::DotDotEq);
+
+                            if l_bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+
+                            match self.peek().map(|t| t.pattern_begin()) {
+                                Some(true) => todo!(),
+                                _ => {
+                                    lhs = Pattern {
+                                        name: None,
+                                        name_span: None,
+                                        r#type: None,
+                                        kind: PatternKind::Range {
+                                            lhs: Some(Box::new(lhs)),
+                                            rhs: None,
+                                            op_span,
+                                            is_inclusive,
+                                        },
+                                    };
+                                },
+                            }
+                        },
                         p => match InfixOp::try_from(p) {
                             Ok(op) => {
                                 let (l_bp, r_bp) = match infix_binding_power(op) {
@@ -581,7 +625,10 @@ impl<'t> Tokens<'t> {
                         },
                     }
                 },
-                _ => todo!(),
+                Some(t) => panic!("TODO: {t:?}"),
+                None => {
+                    break;
+                },
             }
         }
 
@@ -674,11 +721,14 @@ fn or_binding_power() -> (u32, u32) {
     (OR, OR + 1)
 }
 
+fn range_binding_power() -> (u32, u32) {
+    (RANGE, RANGE + 1)
+}
+
+const RANGE: u32 = 29;
 const NAME_BINDING: u32 = 27;
 const MUL: u32 = 25;  // a * b, a / b, a % b
 const ADD: u32 = 23;  // a + b, a - b
 const SHIFT: u32 = 21;  // a << b, a >> b
-
-// RANGE: a..b, a..=b, a.., ..a
-const CONCAT: u32 = 19; const RANGE: u32 = 19;
+const CONCAT: u32 = 19;
 const OR: u32 = 17;

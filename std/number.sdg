@@ -12,6 +12,7 @@ pub struct Number = {
     denom: Int,
 };
 
+/*
 fn gcd(a: Int, b: Int) -> Int = match b {
     0 => a,
     _ => gcd(b, a % b),
@@ -137,7 +138,7 @@ fn div_number(a: Number, b: Number) -> Number = {
 
 /// It panics if the number is negative (including negative inf).
 /// It guarantees that
-/// 1. If you convert it to decimal, the first 19 digits must be correct.
+/// 1. If you convert it to decimal, at least 19 digits are correct.
 /// 2. `sqrt(n * n) == n` unless `n * n` panics.
 ///    - TODO: I'm not sure about this for truncated numbers.
 fn sqrt(n: Number) -> Number = {
@@ -236,49 +237,76 @@ let EXP_TABLE = [
     (1_511_157_274_518_286_468_382, 23),
     (3_022_314_549_036_572_936_765, 23),
     (6_044_629_098_073_145_873_530, 23),
-    (1_208_925_819_614_629_174_706, 24),
 ];
 
 // TODO: poly generic for `to_string` function
 /// It may use scientific notation or a decimal notation.
 /// When using a decimal notation, there must be a decimal point.
-fn to_string(n: Number) -> String = {
-    assert (1 << 64) <= numer_mantissa && numer_mantissa < (1 << 65);
-    // numer = numer_mantissa * 2^(numer_exp + 64)
-    let (numer_mantissa, numer_exp) = match n.numer.ilog2() {
-        e @ ..64 => (n.numer << (64 - e), e - 64),
-        e @ 65.. => (n.numer >> (e - 64), e - 64),
-        _ => (n.numer, 0),
-    };
+fn to_string(n: Number) -> String = match (n.numer, n.denom) {
+    (0, _) => "0",
+    (1, 0) => "inf",
+    (-1, 0) => "-inf",
+    (numer, denom) => {
+        assert (1 << 80) <= numer_mantissa && numer_mantissa < (1 << 81);
+        // numer = numer_mantissa * 2^(numer_exp + 80)
+        let (numer_mantissa, numer_exp) = match numer.ilog2() {
+            e @ ..80 => (numer << (80 - e), e - 80),
+            e @ 81.. => (numer >> (e - 80), e - 80),
+            _ => (numer, 0),
+        };
 
-    assert (1 << 64) <= denom_mantissa && denom_mantissa < (1 << 65);
-    // denom = denom_mantissa * 2^(denom_exp + 64)
-    let (denom_mantissa, denom_exp) = match n.denom.ilog2() {
-        e @ ..64 => (n.denom << (64 - e), e - 64),
-        e @ 65.. => (n.denom >> (e - 64), e - 64),
-        _ => (n.denom, 0),
-    };
+        assert (1 << 80) <= denom_mantissa && denom_mantissa < (1 << 81);
+        // denom = denom_mantissa * 2^(denom_exp + 80)
+        let (denom_mantissa, denom_exp) = match denom.ilog2() {
+            e @ ..80 => (denom << (80 - e), e - 80),
+            e @ 81.. => (denom >> (e - 80), e - 80),
+            _ => (denom, 0),
+        };
 
-    assert 500_000_000_000_000_000_000 < mantissa_digits && mantissa_digits < 2_000_000_000_000_000_000_000;
-    // first 21 digits
-    let mantissa_digits = numer_mantissa * 1_000_000_000_000_000_000_000 / denom_mantissa;
+        assert 500_000_000_000_000_000_000 < mantissa_digits && mantissa_digits < 2_000_000_000_000_000_000_000;
+        // first 21 digits
+        let mantissa_digits = numer_mantissa * 1_000_000_000_000_000_000_000 / denom_mantissa;
 
-    let (exp_digits, exp_exp) = match numer_exp - denom_exp {
-        e @ -80..0 => {
-            let (reci_digits, reci_exp) = EXP_TABLE[-e];
-            // TODO: divide 10^43 by reci_digits to get digits
-            todo()
-        },
-        e @ 0..81 => EXP_TABLE[e],
-        e @ 81..161 => {
-            let (d1, e1) = EXP_TABLE[e / 2];
-            let (d2, e2) = EXP_TABLE[e / 2 + e % 2];
-            // TODO: do `d1 * d2 / 10^21` to get digits
-            todo()
-        },
-        // It seems like we need a recursive function
-        _ => todo(),
-    };
+        // first 21 digits + exp
+        let (exp_digits, exp_exp) = get_decimal_digits(numer_exp - denom_exp);
+
+        // first 42 digits
+        let (digits, exp) = match mantissa_digits * exp_digits {
+            d @ 10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (d / 10, exp_exp + 1),
+            d => (d, exp_exp),
+        };
+
+        let digits_rem = digits % 1_000;
+        let digits_rounded = if digits_rem >= 500 { digits + 1 } else { digits };
+
+        // first 39 digits
+        let (digits_off, exp_off) = match digits_rounded {
+            10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (digits_rounded / 10_000, exp + 1),
+            _ => (digits_rounded / 1_000, exp),
+        };
+
+        render_digits(digits_off, exp_off)
+    },
+};
+
+// returns the first 21 digits and number of digits of `2^exp`.
+fn get_decimal_digits(exp: Int) -> (Int, Int) = match exp {
+    ..0 => {
+        let (r_digits, r_exp) = get_decimal_digits(-exp);
+        (10_000_000_000_000_000_000_000_000_000_000_000_000_000_000 / r_digits, -r_exp - 1)
+    },
+    0..80 => EXP_TABLE[exp],
+    80.. => {
+        let (p_digits, p_exp) = get_decimal_digits(exp - 80);
+        (p_digits * 1_208_925_819_614_629_174_706 / 1_000_000_000_000_000_000_000, p_exp + 24)
+    },
+};
+
+fn render_digits(digits: Int, exp: Int) -> String = {
+    assert digits.len() == 40;
+    assert digits[0] == '1';
+    let digits = f"{digits}";
 
     todo()
 };
+*/

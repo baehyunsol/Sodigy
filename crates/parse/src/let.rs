@@ -1,5 +1,5 @@
 use crate::{Attribute, Expr, ParsePatternContext, Tokens, Type};
-use sodigy_error::Error;
+use sodigy_error::{Error, ErrorKind};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{Keyword, Punct, Token, TokenKind};
@@ -65,6 +65,6 @@ impl<'t> Tokens<'t> {
         // TODO: make sure that the pattern is irrefutable
         // TODO: it might need type-checks (e.g. count the number of elements in tuple)
         //       we have to store the info somewhere, so that mir can check types
-        todo!()
+        Err(vec![Error { kind: ErrorKind::Todo { id: 58657, message: String::from("patterns in `let`") }, spans: keyword_span.simple_error(), note: None }])
     }
 }

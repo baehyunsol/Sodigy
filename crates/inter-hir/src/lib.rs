@@ -1247,6 +1247,57 @@ impl Session {
     }
 
     pub fn resolve_pattern_kind(&mut self, kind: &mut PatternKind) -> Result<(), ()> {
-        todo!()
+        match kind {
+            PatternKind::Identifier { .. } |
+            PatternKind::Number { .. } |
+            PatternKind::String { .. } |
+            PatternKind::Regex { .. } |
+            PatternKind::Char { .. } |
+            PatternKind::Byte { .. } |
+            PatternKind::Wildcard(_) => Ok(()),
+            PatternKind::Path(_) => todo!(),
+            PatternKind::Tuple { elements, .. } |
+            PatternKind::List { elements, .. } => {
+                let mut has_error = false;
+
+                for element in elements.iter_mut() {
+                    if let Err(()) = self.resolve_pattern(element) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            PatternKind::Range { lhs, rhs, .. } => {
+                let mut has_error = false;
+
+                if let Some(lhs) = lhs {
+                    if let Err(()) = self.resolve_pattern(lhs) {
+                        has_error = true;
+                    }
+                }
+
+                if let Some(rhs) = rhs {
+                    if let Err(()) = self.resolve_pattern(rhs) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            _ => panic!("TODO: {kind:?}"),
+        }
     }
 }

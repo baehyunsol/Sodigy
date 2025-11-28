@@ -121,6 +121,7 @@ pub fn dump(session: &mut Session, solver: &Solver) {
     let render_span_option = RenderSpanOption {
         max_width: 88,
         max_height: 10,
+        context: 2,
         render_source: true,
         color: Some(ColorOption {
             primary: Color::Blue,

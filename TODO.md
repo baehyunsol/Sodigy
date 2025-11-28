@@ -1,3 +1,51 @@
+# 105. tmp name binding in patterns
+
+```rs
+enum Expr {
+    Infix { op: Op, lhs: Option<Expr>, rhs: Option<Expr> },
+    Postfix { op: Op, lhs: Option<Expr> },
+}
+```
+
+가 있다고 치자. `Infix`하고 `Postfix`한테 아주 비슷한 작업을 동시에 하고 싶을 때가 있음. 그러면 `Postfix`한테 `rhs = None`을 주고 작업해버리면 됨... 근데 rust 문법에서는 이게 안됨!!
+
+# 104. let-destructures
+
+참고로 Rust에서는 `let (Ok(y) | Err(y)) = x;` 할 수 있음...!! 즉, type-check를 하고 나서 destructure를 함...
+
+InfixOp를 허용하면 `let x + 1 = y + 1;`도 되겠네? ㅋㅋㅋ 말도 안돼...
+
+내 원래 계획은, `let (x, y, _) = foo();`가 있으면, 얘를 `let tmp = foo(); let x = tmp._0; let y = tmp._1;`로 바꾸는 거였음. 이렇게 하면 문제가
+
+1. 유저가 만들지 않은 코드를 에러메시지에서 언급하면 유저가 헷갈림.
+2. type check, refutability check를 위해서는 mir이 끝날 때까지 원본을 들고 있어야 함.
+3. tuple이야 쉽게 destructure가 되지만, `let (Ok((y, z)) | Err((y, z))) = x;`같은 거는 어떻게 풀 건데?
+  - 이거 하는 김에 `Field::Name`도 좀 없애버릴까? 이거 때매 생기는 unwrap이 장난 아니게 많음...
+
+destructure를 *안* 하면 문제가
+
+1. hir이 돌기 위해서는 선언된 이름의 목록이 필요함!!
+2. patterned-let을 저장하기 위해서 field를 추가하면... 뒤로 줄줄이 복잡해짐 ㅠㅠ
+
+---
+
+타협안
+
+`let (x, y, _) = foo();`를 `let (x, y) = match foo() { (x, y, _) => (x, y) };`로 바꾸고
+
+`let (Ok(y) | Err(y + 1)) = foo();`를 `let y = match foo() { Ok(y) | Err(y + 1) => y };`로 바꾸고
+
+`let Person { name: _, age: x } = foo();`를 `let x = match foo() { Person { name: _, age: x } => x };`로 바꾸는 거임...
+
+1. 일단 pattern에 bind된 name의 목록을 쭉 가져온 다음에 그 이름들만 가지고 tuple로 만드는 거지
+2. `match`문 안에 pattern이 살아있기 때문에 mir에서 모든 검사를 다 할 수 있음.
+3. 어쨌든 multi-name let을 만들어야 하니까 새로운 type이 필요하긴 함...
+4. ...이렇게 할 바에는 그냥 `match`로 바꾸지 말고 `PatternLet { names: Vec<(InternedString, Span)>, value: Expr, pattern: Pattern }`하는게 낫지 않음??
+
+---
+
+이거랑 별개로, let destructure에도 type annotation 붙일 수 있게 하고 싶음... rust에서는 `let (x, y): (u32, u32) = foo();`처럼 함.
+
 # 103. `ast::FullPattern::check()`
 
 1. `CannotAnnotateType`
