@@ -45,8 +45,7 @@ impl Expr {
             Expr::Path { lhs, .. } => {
                 lhs.dispatch(map, func_shapes, generic_instances);
             },
-            Expr::FieldModifier { lhs, rhs, .. } |
-            Expr::ShortCircuit { lhs, rhs, .. } => {
+            Expr::FieldModifier { lhs, rhs, .. } => {
                 lhs.dispatch(map, func_shapes, generic_instances);
                 rhs.dispatch(map, func_shapes, generic_instances);
             },

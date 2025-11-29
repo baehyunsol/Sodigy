@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_number::{InternedNumber, InternedNumberValue};
+use sodigy_number::{BigInt, InternedNumber, InternedNumberValue};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 
@@ -16,11 +16,12 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn list(elems: Vec<Value>) -> Value {
+    pub fn list(elems: Vec<Value>, session: &Session) -> Value {
         let mut result = Vec::with_capacity(elems.len() + 1);
-
-        // TODO: push length of the list
-        // result.push();
+        result.push(session.number_to_value(InternedNumber::from_u32(
+            elems.len() as u32,
+            /* is_integer: */ true,
+        )));
 
         result.extend(elems);
         Value::Compound(result)
@@ -30,7 +31,19 @@ impl Value {
 impl Session {
     pub fn number_to_value(&self, n: InternedNumber) -> Value {
         match n {
-            InternedNumber { value: InternedNumberValue::SmallInt(i @ 0..), is_integer: true } => panic!("TODO: {n:?}"),
+            InternedNumber { value: InternedNumberValue::SmallInt(i @ 0..), is_integer: true } => Value::Compound(vec![
+                Value::Scalar(1),
+                Value::Scalar(i as u32),
+            ]),
+            InternedNumber { value: InternedNumberValue::BigInt(BigInt { is_neg: false, nums }), is_integer: true } => {
+                let mut result = vec![Value::Scalar(nums.len() as u32)];
+
+                for n in nums.iter() {
+                    result.push(Value::Scalar(*n));
+                }
+
+                Value::Compound(result)
+            },
             _ => panic!("TODO: {n:?}"),
         }
     }
@@ -49,6 +62,6 @@ impl Session {
             ).collect()
         };
 
-        Value::list(elems)
+        Value::list(elems, self)
     }
 }

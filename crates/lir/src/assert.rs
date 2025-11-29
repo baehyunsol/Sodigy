@@ -3,6 +3,7 @@ use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 
+#[derive(Clone, Debug)]
 pub struct Assert {
     pub keyword_span: Span,
 

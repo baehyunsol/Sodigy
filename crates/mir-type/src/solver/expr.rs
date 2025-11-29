@@ -70,42 +70,82 @@ impl Solver {
             },
             Expr::Char { .. } => (Some(Type::Static(self.get_lang_item_span("type.Char"))), false),
             Expr::Byte { .. } => (Some(Type::Static(self.get_lang_item_span("type.Byte"))), false),
-            Expr::If(r#if) => {
-                let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
-                if let Some(cond_type) = cond_type {
-                    if let Err(()) = self.solve_subtype(
-                        &Type::Static(self.get_lang_item_span("type.Bool")),
-                        &cond_type,
-                        types,
-                        generic_instances,
-                        false,
-                        None,
-                        Some(r#if.cond.error_span()),
-                        ErrorContext::IfConditionBool,
-                    ) {
-                        has_error = true;
-                    }
-                }
+            Expr::If(r#if) => match r#if.from_short_circuit {
+                Some(s) => {
+                    let mut has_error = false;
+                    let bool_type = Type::Static(self.get_lang_item_span("type.Bool"));
+                    let context = match s {
+                        ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
+                        ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
+                    };
 
-                match (
-                    self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
-                    self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
-                ) {
-                    ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_subtype(
-                        &true_type,
-                        &false_type,
-                        types,
-                        generic_instances,
-                        false,
-                        Some(r#if.true_value.error_span()),
-                        Some(r#if.false_value.error_span()),
-                        ErrorContext::IfValueEqual,
+                    for v in [
+                        &r#if.cond,
+                        &r#if.true_value,
+                        &r#if.false_value,
+                    ] {
+                        let (v_type, e) = self.solve_expr(v, types, generic_instances);
+
+                        if e {
+                            has_error = true;
+                        }
+
+                        if let Some(v_type) = v_type {
+                            if let Err(()) = self.solve_subtype(
+                                &bool_type,
+                                &v_type,
+                                types,
+                                generic_instances,
+                                false,
+                                None,
+                                Some(v.error_span()),
+                                context.clone(),
+                            ) {
+                                has_error = true;
+                            }
+                        }
+                    }
+
+                    (Some(bool_type), has_error)
+                },
+                None => {
+                    let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
+
+                    if let Some(cond_type) = cond_type {
+                        if let Err(()) = self.solve_subtype(
+                            &Type::Static(self.get_lang_item_span("type.Bool")),
+                            &cond_type,
+                            types,
+                            generic_instances,
+                            false,
+                            None,
+                            Some(r#if.cond.error_span()),
+                            ErrorContext::IfConditionBool,
+                        ) {
+                            has_error = true;
+                        }
+                    }
+
+                    match (
+                        self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
+                        self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
                     ) {
-                        Ok(expr_type) => (Some(expr_type), has_error | e1 | e2),
-                        Err(()) => (None, true),
-                    },
-                    _ => (None, true),
-                }
+                        ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_subtype(
+                            &true_type,
+                            &false_type,
+                            types,
+                            generic_instances,
+                            false,
+                            Some(r#if.true_value.error_span()),
+                            Some(r#if.false_value.error_span()),
+                            ErrorContext::IfValueEqual,
+                        ) {
+                            Ok(expr_type) => (Some(expr_type), has_error | e1 | e2),
+                            Err(()) => (None, true),
+                        },
+                        _ => (None, true),
+                    }
+                },
             },
             Expr::Block(block) => {
                 let mut has_error = false;
@@ -125,50 +165,6 @@ impl Solver {
                 (expr_type, e || has_error)
             },
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
-            Expr::ShortCircuit { lhs, rhs, kind, .. } => {
-                let bool_type = Type::Static(self.get_lang_item_span("type.Bool"));
-                let context = match kind {
-                    ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
-                    ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
-                };
-                let mut has_error = false;
-                let (lhs_type, e1) = self.solve_expr(lhs.as_ref(), types, generic_instances);
-                has_error |= e1;
-                let (rhs_type, e2) = self.solve_expr(rhs.as_ref(), types, generic_instances);
-                has_error |= e2;
-
-                if let Some(lhs_type) = lhs_type {
-                    if let Err(()) = self.solve_subtype(
-                        &bool_type,
-                        &lhs_type,
-                        types,
-                        generic_instances,
-                        false,
-                        None,
-                        Some(lhs.error_span()),
-                        context.clone(),
-                    ) {
-                        has_error = true;
-                    }
-                }
-
-                if let Some(rhs_type) = rhs_type {
-                    if let Err(()) = self.solve_subtype(
-                        &bool_type,
-                        &rhs_type,
-                        types,
-                        generic_instances,
-                        false,
-                        None,
-                        Some(rhs.error_span()),
-                        context.clone(),
-                    ) {
-                        has_error = true;
-                    }
-                }
-
-                (Some(bool_type), has_error)
-            },
             // 1. we can solve types of args
             // 2. if callable is...
             //    - a function without generic

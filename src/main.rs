@@ -336,8 +336,15 @@ fn main() -> Result<(), Error> {
                             modules: generated_hirs.clone(),
                             intermediate_dir: String::from("target"),
                             stop_after: CompileStage::CodeGen,
-                            emit_ir_options: vec![],
-                            dump_type_info: true,  // for debugging the type checker!
+                            emit_ir_options: vec![
+                                // for debugging
+                                EmitIrOption {
+                                    stage: CompileStage::Bytecode,
+                                    store: StoreIrAt::IntermediateDir,
+                                    human_readable: true,
+                                },
+                            ],
+                            dump_type_info: false,  // enable this to debug the type checker!
                             output_path: None,
                             backend: Backend::Bytecode,
                             profile: Profile::Test,

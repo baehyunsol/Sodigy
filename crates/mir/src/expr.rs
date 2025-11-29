@@ -5,7 +5,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::InfixOp;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -41,13 +41,6 @@ pub enum Expr {
     },
     FieldModifier {
         fields: Vec<(InternedString, Span)>,
-        lhs: Box<Expr>,
-        rhs: Box<Expr>,
-    },
-    // `&&` and `||` have to be lazily evaluated!
-    ShortCircuit {
-        kind: ShortCircuitKind,
-        op_span: Span,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -656,12 +649,42 @@ impl Expr {
                 ) {
                     (Ok(lhs), Ok(rhs)) => {
                         match op {
-                            InfixOp::LogicAnd | InfixOp::LogicOr => Ok(Expr::ShortCircuit {
-                                kind: ShortCircuitKind::from(*op),
-                                op_span: *op_span,
-                                lhs: Box::new(lhs),
-                                rhs: Box::new(rhs),
-                            }),
+                            // `lhs && rhs` -> `if lhs { rhs } else { False }`
+                            InfixOp::LogicAnd => Ok(Expr::If(If {
+                                if_span: *op_span,
+                                cond: Box::new(lhs),
+                                else_span: Span::None,
+                                true_value: Box::new(rhs),
+                                false_value: Box::new(Expr::Identifier(IdentWithOrigin {
+                                    id: intern_string(b"False", &session.intermediate_dir).unwrap(),
+                                    span: Span::None,
+                                    origin: NameOrigin::Foreign {
+                                        kind: NameKind::EnumVariant {
+                                            parent: session.get_lang_item_span("type.Bool"),
+                                        },
+                                    },
+                                    def_span: session.get_lang_item_span("variant.Bool.False"),
+                                })),
+                                from_short_circuit: Some(ShortCircuitKind::And),
+                            })),
+                            // `lhs || rhs` -> `if lhs { True } else { rhs }`
+                            InfixOp::LogicOr => Ok(Expr::If(If {
+                                if_span: *op_span,
+                                cond: Box::new(lhs),
+                                else_span: Span::None,
+                                true_value: Box::new(Expr::Identifier(IdentWithOrigin {
+                                    id: intern_string(b"True", &session.intermediate_dir).unwrap(),
+                                    span: Span::None,
+                                    origin: NameOrigin::Foreign {
+                                        kind: NameKind::EnumVariant {
+                                            parent: session.get_lang_item_span("type.Bool"),
+                                        },
+                                    },
+                                    def_span: session.get_lang_item_span("variant.Bool.True"),
+                                })),
+                                false_value: Box::new(rhs),
+                                from_short_circuit: Some(ShortCircuitKind::Or),
+                            })),
                             _ => {
                                 let func = Callable::Static {
                                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
@@ -725,7 +748,6 @@ impl Expr {
 
                 merged_span
             },
-            Expr::ShortCircuit { op_span, .. } => *op_span,
             Expr::Call { func, .. } => func.error_span(),
         }
     }
@@ -740,16 +762,6 @@ impl Callable {
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
-        }
-    }
-}
-
-impl From<InfixOp> for ShortCircuitKind {
-    fn from(op: InfixOp) -> ShortCircuitKind {
-        match op {
-            InfixOp::LogicAnd => ShortCircuitKind::And,
-            InfixOp::LogicOr => ShortCircuitKind::Or,
-            _ => panic!(),
         }
     }
 }

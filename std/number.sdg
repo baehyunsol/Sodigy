@@ -12,6 +12,7 @@ pub struct Number = {
     denom: Int,
 };
 
+// TODO: The compiler isn't strong enough to compile these functions.
 /*
 fn gcd(a: Int, b: Int) -> Int = match b {
     0 => a,

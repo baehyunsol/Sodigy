@@ -40,7 +40,9 @@ impl Session {
             lets: vec![],
             local_values: HashMap::new(),
             drop_types: HashMap::new(),
-            intrinsics: HashMap::new(),
+            intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
+                |(intrinsic, lang_item)| (*mir_session.lang_items.get(*lang_item).unwrap(), *intrinsic)
+            ).collect(),
             lang_items: mir_session.lang_items.clone(),
         }
     }
@@ -69,7 +71,14 @@ impl Session {
     }
 
     pub fn drop_block(&mut self, names: &[Span]) {
-        todo!()
+        for name in names.iter() {
+            let i = self.local_values.remove(name).unwrap();
+
+            match self.drop_types.remove(name).unwrap() {
+                DropType::Scalar => {},  // no drop
+                _ => todo!(),
+            }
+        }
     }
 
     pub fn drop_all_locals(&mut self, bytecodes: &mut Vec<Bytecode>) {

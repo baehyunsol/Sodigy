@@ -27,6 +27,9 @@ pub enum Memory {
     // The runtime has a stack pointer.
     // Use Bytecode::IncStackPointer or Bytecode::DecStackPointer.
     Stack(usize /* offset */),
+
+    // Top-level `let` statements.
+    Global(Span),
 }
 
 #[derive(Clone, Copy, Debug)]

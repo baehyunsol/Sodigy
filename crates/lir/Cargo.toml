@@ -9,6 +9,7 @@ sodigy-error = { version = "0.1.0", path = "../error" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-number = { version = "0.1.0", path = "../number" }
+sodigy-prettify = { version = "0.1.0", path = "../prettify" }
 sodigy-session = { version = "0.1.0", path = "../session" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }

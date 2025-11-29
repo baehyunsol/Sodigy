@@ -4,6 +4,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
 pub struct Func {
     pub name: InternedString,
     pub name_span: Span,

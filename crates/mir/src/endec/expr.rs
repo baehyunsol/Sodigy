@@ -66,15 +66,8 @@ impl Endec for Expr {
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
-            Expr::ShortCircuit { kind, op_span, lhs, rhs } => {
-                buffer.push(10);
-                kind.encode_impl(buffer);
-                op_span.encode_impl(buffer);
-                lhs.encode_impl(buffer);
-                rhs.encode_impl(buffer);
-            },
             Expr::Call { func, args, generic_defs, given_keyword_arguments } => {
-                buffer.push(11);
+                buffer.push(10);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 generic_defs.encode_impl(buffer);
@@ -134,20 +127,13 @@ impl Endec for Expr {
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
             },
             Some(10) => {
-                let (kind, cursor) = ShortCircuitKind::decode_impl(buffer, cursor + 1)?;
-                let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                Ok((Expr::ShortCircuit { kind, op_span, lhs, rhs }, cursor))
-            },
-            Some(11) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (generic_defs, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
                 let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, generic_defs, given_keyword_arguments }, cursor))
             },
-            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -187,6 +173,7 @@ impl Endec for If {
         self.else_span.encode_impl(buffer);
         self.true_value.encode_impl(buffer);
         self.false_value.encode_impl(buffer);
+        self.from_short_circuit.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -195,6 +182,7 @@ impl Endec for If {
         let (else_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (true_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (false_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (from_short_circuit, cursor) = Option::<ShortCircuitKind>::decode_impl(buffer, cursor)?;
 
         Ok((
             If {
@@ -203,6 +191,7 @@ impl Endec for If {
                 else_span,
                 true_value,
                 false_value,
+                from_short_circuit,
             },
             cursor,
         ))
