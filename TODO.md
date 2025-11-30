@@ -1,8 +1,18 @@
+# 107. top-level let eval strategy
+
+1. lazy, but static
+2. lazy, but ref-counted
+3. eager, before the main function
+4. compile time evaluated
+  - `#[comptime]` decorator?
+
 # 106. Sub-enums
 
 어떤 함수가 `hir::Expr`을 반환함. 근데 얘가 항상 `hir::Expr::Number`나 `hir::Expr::String`만 반환하는 거야! 그러면 match를 해서 저 둘만 잡고 나머지는 전부 `unreachable!`을 때리겠지? 이거를 type-system 차원에서 할 방법이 없을까?
 
 특정 variant만 갖는 enum을 sub-enum으로 정의하는 거임
+
+https://gist.github.com/joboet/0cecbce925ee2ad1ee3e5520cec81e30
 
 # 105. tmp name binding in patterns
 

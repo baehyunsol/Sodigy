@@ -1,4 +1,13 @@
-use crate::{Assert, Bytecode, DropType, Func, Label, Let, Memory};
+use crate::{
+    Assert,
+    Bytecode,
+    DropType,
+    Executable,
+    Func,
+    Label,
+    Let,
+    Memory,
+};
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
@@ -95,6 +104,11 @@ impl Session {
 
         self.local_values = HashMap::new();
         self.drop_types = HashMap::new();
+    }
+
+    // Once you call this function, you can't do anything else with the session!!
+    pub fn into_executable(&mut self) -> Executable {
+        todo!()
     }
 }
 

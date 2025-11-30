@@ -4,6 +4,7 @@ use sodigy_span::Span;
 mod assert;
 mod bytecode;
 mod endec;
+mod executable;
 mod expr;
 mod func;
 mod r#let;
@@ -12,6 +13,7 @@ mod value;
 
 pub use assert::Assert;
 pub (crate) use assert::AssertionMetadataKind;
+pub use executable::Executable;
 pub(crate) use expr::lower_expr;
 pub use bytecode::Bytecode;
 pub use func::Func;

@@ -6,7 +6,6 @@ use sodigy::{
     COMPILE_STAGES,
     EmitIrOption,
     Error,
-    Optimization,
     Profile,
     QuickError,
     StoreIrAt,
@@ -337,6 +336,11 @@ fn main() -> Result<(), Error> {
                             intermediate_dir: String::from("target"),
                             stop_after: CompileStage::CodeGen,
                             emit_ir_options: vec![
+                                EmitIrOption {
+                                    stage: CompileStage::CodeGen,
+                                    store: StoreIrAt::Memory,
+                                    human_readable: false,
+                                },
                                 // for debugging
                                 EmitIrOption {
                                     stage: CompileStage::Bytecode,
@@ -721,51 +725,51 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     continue;
                 }
 
-                // let executable = lir_session.into_executable(optimization == Optimization::None);
+                let executable = lir_session.into_executable();
 
-                // let result = match backend {
-                //     Backend::Python => sodigy_backend::python_code_gen(
-                //         &executable,
-                //         &sodigy_backend::CodeGenConfig {
-                //             intermediate_dir: intermediate_dir.clone(),
-                //             label_help_comment: true,
-                //             mode: profile.into(),
-                //         },
-                //     )?,
-                //     Backend::Bytecode => executable.encode(),
-                //     _ => todo!(),
-                // };
+                let result = match backend {
+                    // Backend::Python => sodigy_backend::python_code_gen(
+                    //     &executable,
+                    //     &sodigy_backend::CodeGenConfig {
+                    //         intermediate_dir: intermediate_dir.clone(),
+                    //         label_help_comment: true,
+                    //         mode: profile.into(),
+                    //     },
+                    // )?,
+                    Backend::Bytecode => executable.encode(),
+                    _ => todo!(),
+                };
 
-                // emit_irs_if_has_to(
-                //     &result,
-                //     &emit_ir_options,
-                //     CompileStage::CodeGen,
-                //     None,
-                //     &intermediate_dir,
-                //     &mut memory,
-                // )?;
+                emit_irs_if_has_to(
+                    &result,
+                    &emit_ir_options,
+                    CompileStage::CodeGen,
+                    None,
+                    &intermediate_dir,
+                    &mut memory,
+                )?;
 
-                // lir_session.dump_warnings();
+                lir_session.dump_warnings();
 
-                // if let Some(output_path) = output_path {
-                //     write_bytes(
-                //         &output_path,
-                //         &result,
-                //         WriteMode::CreateOrTruncate,
-                //     )?;
-                // }
+                if let Some(output_path) = output_path {
+                    write_bytes(
+                        &output_path,
+                        &result,
+                        WriteMode::CreateOrTruncate,
+                    )?;
+                }
             },
             Command::Interpret {
                 bytecodes_path,
                 profile,
             } => {
-                // let bytecodes_bytes = match bytecodes_path {
-                //     StoreIrAt::File(path) => read_bytes(&path)?,
-                //     // TODO: raise a FileNotFound error instead of unwrapping it
-                //     StoreIrAt::Memory => memory.clone().unwrap(),
-                //     StoreIrAt::IntermediateDir => todo!(),
-                // };
-                // let bytecodes = Executable::decode(&bytecodes_bytes)?;
+                let bytecodes_bytes = match bytecodes_path {
+                    StoreIrAt::File(path) => read_bytes(&path)?,
+                    // TODO: raise a FileNotFound error instead of unwrapping it
+                    StoreIrAt::Memory => memory.clone().unwrap(),
+                    StoreIrAt::IntermediateDir => todo!(),
+                };
+                let bytecodes = sodigy_lir::Session::decode(&bytecodes_bytes)?;
 
                 // match profile {
                 //     Profile::Test => {
