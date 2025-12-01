@@ -68,13 +68,16 @@ impl InternedNumber {
 pub fn intern_number(
     base: Base,
     integer: &[u8],
+
+    // `frac` is always decimal
     frac: &[u8],
+    exp: i64,
 
     // of the original literal
     is_integer: bool,
 ) -> InternedNumber {
-    match (base, frac.len()) {
-        (Base::Hexadecimal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 16) {
+    match (base, frac.len(), exp) {
+        (Base::Hexadecimal, 0, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 16) {
             Ok(n) => InternedNumber {
                 value: InternedNumberValue::SmallInt(n),
                 is_integer,
@@ -84,8 +87,8 @@ pub fn intern_number(
                 is_integer,
             },
         },
-        (Base::Hexadecimal, _) => unreachable!(),
-        (Base::Decimal, 0) => match String::from_utf8_lossy(integer).parse::<i64>() {
+        (Base::Hexadecimal, _, _) => unreachable!(),
+        (Base::Decimal, 0, 0) => match String::from_utf8_lossy(integer).parse::<i64>() {
             Ok(n) => InternedNumber {
                 value: InternedNumberValue::SmallInt(n),
                 is_integer,
@@ -95,7 +98,26 @@ pub fn intern_number(
                 is_integer,
             },
         },
-        (Base::Decimal, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
+        (Base::Decimal, 0, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
+            Ok(integer) => match exp {
+                0..0xffff_ffff => match 10u64.checked_pow(exp as u32) {
+                    Some(exp) => match integer.checked_mul(exp) {
+                        Some(n) => match i64::try_from(n) {
+                            Ok(n) => InternedNumber {
+                                value: InternedNumberValue::SmallInt(n),
+                                is_integer,
+                            },
+                            Err(_) => todo!(),
+                        },
+                        None => todo!(),
+                    },
+                    None => todo!(),
+                },
+                _ => todo!(),
+            },
+            Err(e) => todo!(),
+        },
+        (Base::Decimal, _, 0) => match String::from_utf8_lossy(integer).parse::<u64>() {
             Ok(int_numer) => {
                 let mut frac_vec = frac.to_vec();
 
@@ -111,7 +133,7 @@ pub fn intern_number(
                             value: InternedNumberValue::SmallInt(n),
                             is_integer,
                         },
-                        Err(_) => intern_number(base, integer, b"", is_integer),
+                        Err(_) => intern_number(base, integer, b"", 0, is_integer),
                     },
                     1..=16 => {
                         let mut frac_numer = String::from_utf8_lossy(&frac_vec).parse::<u64>().unwrap();
@@ -141,24 +163,25 @@ pub fn intern_number(
                     17.. => todo!(),
                 }
             },
-            Err(_) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
+            Err(_) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?}, exp: {exp:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
         },
-        (Base::Octal, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
+        (Base::Decimal, _, _) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?}, exp: {exp:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
+        (Base::Octal, 0, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
             Ok(n) => InternedNumber {
                 value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
             Err(_) => todo!(),
         },
-        (Base::Octal, _) => unreachable!(),
-        (Base::Binary, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 2) {
+        (Base::Octal, _, _) => unreachable!(),
+        (Base::Binary, 0, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 2) {
             Ok(n) => InternedNumber {
                 value: InternedNumberValue::SmallInt(n),
                 is_integer,
             },
             Err(_) => todo!(),
         },
-        (Base::Binary, _) => unreachable!(),
+        (Base::Binary, _, _) => unreachable!(),
     }
 }
 

@@ -97,3 +97,28 @@ pub fn rem_bi(
 pub fn rem_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     todo!()
 }
+
+pub fn shl_ubi(n: &[u32], other: u32) -> Vec<u32> {
+    match other {
+        0 => n.to_vec(),
+        1..32 => {
+            let mut result = vec![0; n.len() + 1];
+
+            for (i, n) in n.iter().enumerate() {
+                let tail = (n & ((1 << (32 - other)) - 1)) << other;
+                let head = n >> (32 - other);
+                result[i] |= tail;
+                result[i + 1] |= head;
+            }
+
+            remove_suffix_0(&mut result);
+            result
+        },
+        32 => todo!(),
+        _ => todo!(),
+    }
+}
+
+pub fn shr_ubi(n: &[u32], other: u32) -> Vec<u32> {
+    todo!()
+}

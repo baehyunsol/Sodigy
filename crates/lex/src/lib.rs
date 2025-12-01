@@ -7,6 +7,7 @@ use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind, TokensOrString};
+use std::num::IntErrorKind;
 
 mod endec;
 mod session;
@@ -40,6 +41,7 @@ pub(crate) enum LexState {
     FieldModifier,
     Integer(Base),
     Fraction,
+    Exp,
     LineComment,
     DocComment {
         top_level: bool,
@@ -128,8 +130,18 @@ impl Session {
                     });
                     self.cursor += 1;
                 },
-                (Some(b'0'), Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B'), _) => {
-                    return Err(Error::todo(38837, "lexing non-decimal integer", Span::range(self.file, self.cursor, self.cursor + 2)));
+                (Some(b'0'), Some(y @ (b'x' | b'X' | b'o' | b'O' | b'b' | b'B')), _) => {
+                    let base = match y {
+                        b'x' | b'X' => Base::Hexadecimal,
+                        b'o' | b'O' => Base::Octal,
+                        b'b' | b'B' => Base::Binary,
+                        _ => unreachable!(),
+                    };
+
+                    self.buffer1.clear();
+                    self.token_start = self.cursor;
+                    self.state = LexState::Integer(base);
+                    self.cursor += 2;
                 },
                 (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
                     return Err(Error {
@@ -207,9 +219,15 @@ impl Session {
                     let mut base = Base::Decimal;
                     let mut buffer = vec![];
 
-                    if let Some(b'x' | b'X' | b'o' | b'O' | b'b' | b'B') = self.input_bytes.get(self.cursor) {
+                    if let Some(x @ (b'x' | b'X' | b'o' | b'O' | b'b' | b'B')) = self.input_bytes.get(self.cursor) {
+                        base = match x {
+                            b'x' | b'X' => Base::Hexadecimal,
+                            b'o' | b'O' => Base::Octal,
+                            b'b' | b'B' => Base::Binary,
+                            _ => unreachable!(),
+                        };
+
                         self.cursor += 1;
-                        base = todo!();
                     }
 
                     loop {
@@ -253,7 +271,7 @@ impl Session {
                         });
                     }
 
-                    let n = intern_number(base, &buffer, &[], true /* is_integer */);
+                    let n = intern_number(base, &buffer, &[], 0, true /* is_integer */);
 
                     match n.value {
                         InternedNumberValue::SmallInt(n @ 0..=255) => {
@@ -1468,6 +1486,12 @@ impl Session {
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
             ) {
+                // 123e4 == 1230000.0
+                (Some(b'e' | b'E'), _, _) if base == Base::Decimal => {
+                    self.cursor += 1;
+                    self.state = LexState::Exp;
+                },
+
                 // `b'g'..=b'z'` is always error, but it matches the
                 // range so that it can generate a better error message
                 (Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z')), _, _) => {
@@ -1498,7 +1522,7 @@ impl Session {
 
                 // `64..` is a range pattern/expr. The dots are not decimal points!
                 (Some(b'.'), Some(b'.'), _) => {
-                    let interned = intern_number(base, &self.buffer1, &self.buffer2, true /* is_integer */);
+                    let interned = intern_number(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1529,7 +1553,7 @@ impl Session {
                     },
                 },
                 _ => {
-                    let interned = intern_number(base, &self.buffer1, &self.buffer2, true /* is_integer */);
+                    let interned = intern_number(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1550,10 +1574,13 @@ impl Session {
                 Some(b'_') => {
                     self.cursor += 1;
                 },
-                Some(b'e' | b'E') => todo!(),
+                Some(b'e' | b'E') => {
+                    self.cursor += 1;
+                    self.state = LexState::Exp;
+                },
                 Some(_) | None => {
                     // At this point, `Base` must be Decimal. (otherwise lex error)
-                    let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, false /* is_integer */);
+                    let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, 0, false /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1565,6 +1592,60 @@ impl Session {
                     });
                     self.state = LexState::Init;
                 },
+            },
+            LexState::Exp => {
+                let is_neg = if let Some(b'-') = self.input_bytes.get(self.cursor) {
+                    self.cursor += 1;
+                    true
+                } else {
+                    false
+                };
+
+                // There're only two buffers in the session :(
+                let mut e_buffer = vec![];
+
+                loop {
+                    match self.input_bytes.get(self.cursor) {
+                        Some(x @ b'0'..=b'9') => {
+                            e_buffer.push(*x);
+                            self.cursor += 1;
+                        },
+                        _ => {
+                            break;
+                        },
+                    }
+                }
+
+                let mut exp: i64 = match String::from_utf8(e_buffer).unwrap().parse() {
+                    Ok(n) => n,
+                    Err(e) => match e.kind() {
+                        IntErrorKind::Empty => todo!(),
+                        IntErrorKind::PosOverflow => todo!(),
+                        _ => unreachable!(),
+                    },
+                };
+
+                if is_neg {
+                    match exp.checked_neg() {
+                        Some(n) => {
+                            exp = n;
+                        },
+                        None => todo!(),
+                    }
+                }
+
+                // At this point, `Base` must be Decimal. (otherwise lex error)
+                let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, exp, false /* is_integer */);
+
+                self.tokens.push(Token {
+                    kind: TokenKind::Number(interned),
+                    span: Span::range(
+                        self.file,
+                        self.token_start,
+                        self.cursor,
+                    ),
+                });
+                self.state = LexState::Init;
             },
             LexState::LineComment => match self.input_bytes.get(self.cursor) {
                 Some(b'\n') => {
