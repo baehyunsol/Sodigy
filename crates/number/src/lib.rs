@@ -5,7 +5,11 @@ mod error;
 mod ratio;
 
 pub use base::Base;
-pub use big_int::BigInt;
+pub use big_int::{
+    BigInt,
+    cmp::*,
+    op::*,
+};
 pub(crate) use error::ParseIntError;
 pub use ratio::Ratio;
 

@@ -11,6 +11,7 @@ sodigy-file = { version = "0.1.0", path = "crates/file" }
 sodigy-fs-api = { version = "0.1.0", path = "crates/fs-api" }
 sodigy-hir = { version = "0.1.0", path = "crates/hir" }
 sodigy-inter-hir = { version = "0.1.0", path = "crates/inter-hir" }
+sodigy-interpreter = { version = "0.1.0", path = "crates/interpreter" }
 sodigy-lex = { version = "0.1.0", path = "crates/lex" }
 sodigy-lir = { version = "0.1.0", path = "crates/lir" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }

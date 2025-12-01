@@ -1,5 +1,5 @@
 use crate::{
-    AssertionMetadataKind,
+    DebugInfoKind,
     InPlaceOrMemory,
     Label,
     Memory,
@@ -14,13 +14,10 @@ pub enum Bytecode {
         value: Value,
         dst: Memory,
     },
-    Copy {
-        src: Memory,
-        dst: Memory,
-    },
     Move {
         src: Memory,
         dst: Memory,
+        inc_rc: bool,
     },
 
     Update {
@@ -53,7 +50,7 @@ pub enum Bytecode {
     // TODO: drop semantics
     Drop(Memory),
 
-    Goto(Label),
+    Jump(Label),
     JumpIf {
         value: Memory,
         label: Label,
@@ -89,7 +86,7 @@ pub enum Bytecode {
     // error message when an assertion fails?
     //
     // 1. The runtime evaluates the name of the assertion -> it never panics.
-    // 2. It pushes the name to AssertionMetadataStack.
+    // 2. It pushes the name to DebugInfoStack.
     // 3. If the assertion has a `note`,
     //   3-1. The runtime pushes the span of the note to the stack.
     //   3-2. The runtime evaluates the note -> it may panic.
@@ -103,8 +100,9 @@ pub enum Bytecode {
     // Same for the step 4.
     //
     // It moves the data, not copying it.
-    PushAssertionMetadata {
-        kind: AssertionMetadataKind,
+    PushDebugInfo {
+        kind: DebugInfoKind,
         src: Memory,
     },
+    PopDebugInfo,
 }

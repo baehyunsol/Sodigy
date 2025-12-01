@@ -1,5 +1,10 @@
 use crate::error::ParseIntError;
 
+pub mod op;
+pub mod cmp;
+
+use op::{add_ubi, mul_ubi};
+
 #[derive(Clone, Debug)]
 pub struct BigInt {
     pub is_neg: bool,
@@ -16,65 +21,12 @@ impl BigInt {
         }
     }
 
-    pub fn add_u32_mut(&mut self, n: u32) {
-        if self.is_neg {
-            todo!()
-        }
-
-        else {
-            match self.nums[0].checked_add(n) {
-                Some(n) => {
-                    self.nums[0] = n;
-                },
-                None => {
-                    let mut self_data = v32_to_v64(&self.nums);
-                    self_data[0] += n as u64;
-
-                    self.nums = v64_to_v32(self_data);
-                },
-            }
-        }
-
-        #[cfg(test)] { self.assert_valid(); }
-    }
-
-    pub fn mul_u32_mut(&mut self, n: u32) {
-        let mut carry = 0;
-
-        for i in 0..self.nums.len() {
-            match self.nums[i].checked_mul(n) {
-                Some(n) => match n.checked_add(carry as u32) {
-                    Some(n) => {
-                        self.nums[i] = n;
-                        carry = 0;
-                    },
-                    None => {
-                        self.nums[i] = ((n as u64 + carry) & 0xffff_ffff) as u32;
-                        carry = (n as u64 + carry) >> 32;
-                    },
-                },
-                None => {
-                    let curr = self.nums[i] as u64 * n as u64 + carry;
-                    carry = curr >> 32;
-                    self.nums[i] = (curr & 0xffff_ffff) as u32;
-                },
-            }
-        }
-
-        if carry > 0 {
-            self.nums.push(carry as u32);
-        }
-
-        remove_suffix_0(&mut self.nums);
-        #[cfg(test)] { self.assert_valid(); }
-    }
-
     pub fn parse_positive_hex(bytes: &[u8]) -> Result<BigInt, ParseIntError> {
         todo!()
     }
 
     pub fn parse_positive_decimal(bytes: &[u8]) -> Result<BigInt, ParseIntError> {
-        let mut result = BigInt::zero();
+        let mut result = vec![0];
         let mut buffer = 0;
         let mut counter = 0;
 
@@ -86,8 +38,8 @@ impl BigInt {
                     counter += 1;
 
                     if counter == 8 {
-                        result.mul_u32_mut(100_000_000);
-                        result.add_u32_mut(buffer);
+                        result = mul_ubi(&result, &[100_000_000]);
+                        result = add_ubi(&result, &[buffer]);
                         counter = 0;
                         buffer = 0;
                     }
@@ -99,11 +51,14 @@ impl BigInt {
         }
 
         if counter != 0 {
-            result.mul_u32_mut(10u32.pow(counter));
-            result.add_u32_mut(buffer);
+            result = mul_ubi(&result, &[10u32.pow(counter)]);
+            result = add_ubi(&result, &[buffer]);
         }
 
-        Ok(result)
+        Ok(BigInt {
+            is_neg: false,
+            nums: result,
+        })
     }
 }
 

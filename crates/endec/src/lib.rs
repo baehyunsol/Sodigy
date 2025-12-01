@@ -1,6 +1,9 @@
 mod error;
 mod impls;
 
+#[cfg(test)]
+mod tests;
+
 pub use error::DecodeError;
 
 pub trait Endec {

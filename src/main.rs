@@ -769,7 +769,12 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     StoreIrAt::Memory => memory.clone().unwrap(),
                     StoreIrAt::IntermediateDir => todo!(),
                 };
-                let bytecodes = sodigy_lir::Session::decode(&bytecodes_bytes)?;
+                let bytecodes_bytes = Vec::<u8>::decode(&bytecodes_bytes).unwrap();
+                let executable = sodigy_lir::Executable::decode(&bytecodes_bytes)?;
+
+                for (name, label) in executable.asserts.iter() {
+                    sodigy_interpreter::interpret(&executable, *label).unwrap();
+                }
 
                 // match profile {
                 //     Profile::Test => {

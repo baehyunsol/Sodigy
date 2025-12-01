@@ -18,10 +18,10 @@ pub enum Value {
 impl Value {
     pub fn list(elems: Vec<Value>, session: &Session) -> Value {
         let mut result = Vec::with_capacity(elems.len() + 1);
-        result.push(session.number_to_value(InternedNumber::from_u32(
+        result.push((&InternedNumber::from_u32(
             elems.len() as u32,
             /* is_integer: */ true,
-        )));
+        )).into());
 
         result.extend(elems);
         Value::Compound(result)
@@ -29,25 +29,6 @@ impl Value {
 }
 
 impl Session {
-    pub fn number_to_value(&self, n: InternedNumber) -> Value {
-        match n {
-            InternedNumber { value: InternedNumberValue::SmallInt(i @ 0..), is_integer: true } => Value::Compound(vec![
-                Value::Scalar(1),
-                Value::Scalar(i as u32),
-            ]),
-            InternedNumber { value: InternedNumberValue::BigInt(BigInt { is_neg: false, nums }), is_integer: true } => {
-                let mut result = vec![Value::Scalar(nums.len() as u32)];
-
-                for n in nums.iter() {
-                    result.push(Value::Scalar(*n));
-                }
-
-                Value::Compound(result)
-            },
-            _ => panic!("TODO: {n:?}"),
-        }
-    }
-
     // TODO: we need some kinda intern mechanism here... again!
     // FIXME: so many unwraps!
     pub fn string_to_value(&self, s: InternedString, binary: bool) -> Value {
@@ -63,5 +44,45 @@ impl Session {
         };
 
         Value::list(elems, self)
+    }
+}
+
+impl From<&InternedNumber> for Value {
+    fn from(n: &InternedNumber) -> Value {
+        match n {
+            InternedNumber {
+                value: InternedNumberValue::SmallInt(n),
+                is_integer: true,
+            } => {
+                let is_neg = *n < 0;
+                let abs = n.abs() as u64;
+
+                match abs {
+                    0..=0xffff_ffff => Value::Compound(vec![
+                        Value::Scalar(if is_neg { 0x8000_0001 } else { 1 }),
+                        Value::Scalar(abs as u32),
+                    ]),
+                    _ => Value::Compound(vec![
+                        Value::Scalar(if is_neg { 0x8000_0002 } else { 2 }),
+                        Value::Scalar((abs & 0xffff_ffff) as u32),
+                        Value::Scalar((abs >> 32) as u32),
+                    ]),
+                }
+            },
+            InternedNumber {
+                value: InternedNumberValue::BigInt(n),
+                is_integer: true,
+            } => {
+                let mut value = vec![
+                    Value::Scalar(if n.is_neg { 0x8000_0000 | n.nums.len() as u32 } else { n.nums.len() as u32 }),
+                ];
+                value.extend(n.nums.iter().map(
+                    |n| Value::Scalar(*n)
+                ).collect::<Vec<_>>());
+
+                Value::Compound(value)
+            },
+            _ => todo!(),
+        }
     }
 }

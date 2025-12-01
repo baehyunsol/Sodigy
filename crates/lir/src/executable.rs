@@ -1,6 +1,8 @@
-use crate::{Bytecode, Label};
-use std::collections::HashMap;
+use crate::Bytecode;
 
 pub struct Executable {
-    labels: HashMap<Label, Vec<Bytecode>>,
+    pub asserts: Vec<(/* name: */ String, /* label: */ usize)>,
+    pub bytecodes: Vec<Bytecode>,
 }
+
+impl Executable {}

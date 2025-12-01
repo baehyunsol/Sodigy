@@ -70,9 +70,12 @@ pub fn lower_expr(
             };
 
             if src != dst {
-                bytecodes.push(Bytecode::Copy {
+                bytecodes.push(Bytecode::Move {
                     src,
                     dst,
+
+                    // TODO: we have to check the type of `src` and inc_rc if necessary
+                    inc_rc: false,
                 })
             }
 
@@ -86,7 +89,7 @@ pub fn lower_expr(
         Expr::Char { .. } |
         Expr::Byte { .. } => {
             let value = match expr {
-                Expr::Number { n, .. } => session.number_to_value(n.clone()),
+                Expr::Number { n, .. } => n.into(),
                 Expr::String { s, binary, .. } => session.string_to_value(*s, *binary),
                 Expr::Char { ch, .. } => Value::Scalar(*ch as u32),
                 Expr::Byte { b, .. } => Value::Scalar(*b as u32),
@@ -121,7 +124,7 @@ pub fn lower_expr(
             // so we don't have to care about it.
             // Otherwise, we have to skip evaluating `true_value`.
             lower_expr(false_value, session, bytecodes, dst, is_tail_call);
-            bytecodes.push(Bytecode::Goto(return_expr));
+            bytecodes.push(Bytecode::Jump(return_expr));
 
             bytecodes.push(Bytecode::Label(eval_true_value));
             lower_expr(true_value, session, bytecodes, dst, is_tail_call);
@@ -188,7 +191,7 @@ pub fn lower_expr(
                         }
                     },
                     None => {
-                        let func = Label::Func(*def_span);
+                        let func = Label::Global(*def_span);
 
                         if is_tail_call {
                             session.drop_all_locals(bytecodes);
@@ -197,17 +200,20 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Move {
                                     src: Memory::Stack(i + session.local_values.len()),
                                     dst: Memory::Stack(i),
+
+                                    // TODO: we have to check the type of arg and inc_rc if necessary
+                                    inc_rc: false,
                                 });
                             }
 
-                            bytecodes.push(Bytecode::Goto(func));
+                            bytecodes.push(Bytecode::Jump(func));
                         }
 
                         else {
                             let return_label = session.get_local_label();
                             bytecodes.push(Bytecode::PushCallStack(return_label));
                             bytecodes.push(Bytecode::IncStackPointer(session.local_values.len()));
-                            bytecodes.push(Bytecode::Goto(func));
+                            bytecodes.push(Bytecode::Jump(func));
                             bytecodes.push(Bytecode::Label(return_label));
                             bytecodes.push(Bytecode::DecStackPointer(session.local_values.len()));
                             bytecodes.push(Bytecode::PopCallStack);
@@ -216,6 +222,9 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Move {
                                     src: Memory::Return,
                                     dst,
+
+                                    // TODO: we have to check the type of value and inc_rc if necessary
+                                    inc_rc: false,
                                 });
                             }
                         }

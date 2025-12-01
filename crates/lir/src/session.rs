@@ -12,6 +12,7 @@ use sodigy_error::{Error, Warning};
 use sodigy_mir::{Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
+use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 pub struct Session {
@@ -106,9 +107,75 @@ impl Session {
         self.drop_types = HashMap::new();
     }
 
-    // Once you call this function, you can't do anything else with the session!!
-    pub fn into_executable(&mut self) -> Executable {
-        todo!()
+    pub fn into_executable(&self) -> Executable {
+        let mut result = vec![];
+        let mut label_map = HashMap::new();
+
+        for (def_span, bytecodes) in self.asserts.iter().map(
+            |assert| (assert.keyword_span, &assert.bytecodes)
+        ).chain(
+            self.lets.iter().map(
+                |r#let| (r#let.name_span, &r#let.bytecodes)
+            )
+        ).chain(
+            self.funcs.iter().map(
+                |func| (func.name_span, &func.bytecodes)
+            )
+        ) {
+            let mut curr_label = (def_span, Label::Global(def_span));
+            let mut last_index = 0;
+
+            // It does nothing in runtime, but we need this in order to flatten the labels.
+            result.push(Bytecode::Label(Label::Global(def_span)));
+
+            for (i, bytecode) in bytecodes.iter().enumerate() {
+                match bytecode {
+                    Bytecode::Label(label) => {
+                        label_map.insert(curr_label, result.len());
+                        result.extend(bytecodes[last_index..i].to_vec());
+                        last_index = i + 1;
+                        curr_label = (def_span, *label);
+                    },
+                    _ => {},
+                }
+            }
+
+            label_map.insert(curr_label, result.len());
+            result.extend(bytecodes[last_index..].to_vec());
+        }
+
+        let mut curr_item_span = Span::None;
+
+        for bytecode in result.iter_mut() {
+            match bytecode {
+                Bytecode::Jump(label) |
+                Bytecode::JumpIf { label, .. } |
+                Bytecode::JumpIfUninit { label, .. } |
+                Bytecode::PushCallStack(label) => {
+                    let flattened_index = match *label {
+                        Label::Local(ll) => label_map.get(&(curr_item_span, *label)).unwrap(),
+                        Label::Global(s) => label_map.get(&(s, Label::Global(s))).unwrap(),
+                        Label::Flatten(_) => unreachable!(),
+                    };
+
+                    *label = Label::Flatten(*flattened_index);
+                },
+                Bytecode::Label(Label::Global(def_span)) => {
+                    curr_item_span = *def_span;
+                },
+                _ => {},
+            }
+        }
+
+        Executable {
+            asserts: self.asserts.iter().map(
+                |assert| (
+                    String::from_utf8_lossy(&unintern_string(assert.name, &self.intermediate_dir).unwrap().unwrap()).to_string(),
+                    *label_map.get(&(assert.keyword_span, Label::Global(assert.keyword_span))).unwrap(),
+                )
+            ).collect(),
+            bytecodes: result,
+        }
     }
 }
 

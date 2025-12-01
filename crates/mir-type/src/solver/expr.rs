@@ -164,6 +164,9 @@ impl Solver {
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), types, generic_instances);
                 (expr_type, e || has_error)
             },
+            // 1. Make sure that `lhs` has the fields.
+            // 2. Make sure that the field's type and `rhs`' type are the same.
+            // 3. Return the type of `lhs`.
             Expr::FieldModifier { fields, lhs, rhs } => todo!(),
             // 1. we can solve types of args
             // 2. if callable is...

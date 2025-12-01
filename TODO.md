@@ -1,10 +1,15 @@
 # 107. top-level let eval strategy
 
-1. lazy, but static
-2. lazy, but ref-counted
-3. eager, before the main function
-4. compile time evaluated
-  - `#[comptime]` decorator?
+By default, every value (whether it's inline or top-level) is lazy-evaluated, and ref-counted. The optimizer might try to make the value eager-evaluated or static. The user can force the value to be static using `#[static]` decorator, but they cannot control whether it's eager or lazy.
+
+Let's add 2 decorators: `#[comptime]` and `#[static]`.
+
+- With `#[comptime]`, the value is evaluated at compile time.
+  - If it panics, it's a compile error.
+  - Even though there's no `#[comptime]`, the compiler might try to evaluate the value at compile time.
+- With `#[static]`, the evaluated value leaves forever.
+  - ... what if it's an inline block?
+  - ... what if the value depends on a func argument?
 
 # 106. Sub-enums
 

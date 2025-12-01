@@ -12,7 +12,6 @@ mod session;
 mod value;
 
 pub use assert::Assert;
-pub (crate) use assert::AssertionMetadataKind;
 pub use executable::Executable;
 pub(crate) use expr::lower_expr;
 pub use bytecode::Bytecode;
@@ -34,10 +33,14 @@ pub enum Memory {
     Global(Span),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Label {
     Local(u32),
-    Func(Span),
+    Global(Span /* def_span of the item */),
+
+    // Labels are flattened by `Session::into_exeutable`.
+    // After flattened, every label in the executable has a unique id.
+    Flatten(usize),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -72,6 +75,14 @@ pub enum DropType {
 
     // (Byte, [Char]), (Int, Int)
     Compound(Vec<DropType>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DebugInfoKind {
+    AssertionKeywordSpan,
+    AssertionName,
+    AssertionNoteDecoratorSpan,
+    AssertionNote,
 }
 
 pub fn lower(mir_session: MirSession) -> Session {
