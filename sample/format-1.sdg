@@ -1,3 +1,14 @@
 assert add(3, 4) == "3 + 4 = 7";
 assert add(100, 200) == "100 + 200 = 300";
 fn add(x, y) = f"{x} + {y} = {x + y}";
+
+let x = 300;
+assert f"{x}" == "30";
+assert f"{{x}}" == "{x}";
+assert f"{{{x}}}" == "{30}";
+assert f"{{{{x}}}}" == "{{x}}";
+
+assert f"{{" == "{";
+assert f"}}" == "}";
+
+assert f"{0.123 * 0.123}" == "0.015129";

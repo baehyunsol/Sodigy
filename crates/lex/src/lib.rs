@@ -791,14 +791,21 @@ impl Session {
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
             ) {
-                // TODO: `{{}}` for escapes...
-                // TODO: `(Some(b'}'), _, _) if format` is an error in Rust and Python, should it be also an error in Sodigy?
+                (Some(b'{'), Some(b'{'), _) if format => {
+                    self.buffer1.push(b'{');
+                    self.cursor += 2;
+                },
+                (Some(b'}'), Some(b'}'), _) if format => {
+                    self.buffer1.push(b'}');
+                    self.cursor += 2;
+                },
                 (Some(b'{'), _, _) if format => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
                     self.fstring_buffer.push(TokensOrString::String(interned));
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
+                (Some(b'}'), _, _) if format => todo!(),  // an error
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
@@ -883,12 +890,21 @@ impl Session {
                 self.input_bytes.get(self.cursor + 2),
                 self.input_bytes.get(self.cursor + 3),
             ) {
+                (Some(b'{'), Some(b'{'), _, _) if format => {
+                    self.buffer1.push(b'{');
+                    self.cursor += 2;
+                },
+                (Some(b'}'), Some(b'}'), _, _) if format => {
+                    self.buffer1.push(b'}');
+                    self.cursor += 2;
+                },
                 (Some(b'{'), _, _, _) if format => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
                     self.fstring_buffer.push(TokensOrString::String(interned));
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
+                (Some(b'}'), _, _, _) if format => todo!(),  // an error
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), _, _) => {
                     let byte = match *y {
@@ -1736,8 +1752,8 @@ impl Session {
                         kind: ErrorKind::NotAllowedCharInFString(*x),
                         spans: Span::range(
                             self.file,
-                            self.cursor + 1 + i,
-                            self.cursor + 2 + i,
+                            i,
+                            i + 1,
                         ).simple_error(),
                         note: None,
                     });
