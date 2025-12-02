@@ -24,3 +24,7 @@ sodigy-string = { version = "0.1.0", path = "crates/string" }
 
 # TODO: I want everything to be inside this repository
 ragit-cli = "0.4.4"
+
+[features]
+debug-bytecode = ["sodigy-interpreter/debug-bytecode"]
+debug-heap = ["sodigy-interpreter/debug-heap"]

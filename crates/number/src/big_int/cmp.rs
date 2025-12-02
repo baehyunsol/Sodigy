@@ -7,6 +7,7 @@ pub fn lt_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> bool {
+    // println!("{:?} < {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     if lhs_neg != rhs_neg {
         lhs_neg
     }
@@ -27,7 +28,27 @@ pub fn lt_bi(
 }
 
 pub fn lt_ubi(lhs: &[u32], rhs: &[u32]) -> bool {
-    todo!()
+    if lhs.len() < rhs.len() {
+        true
+    }
+
+    else if lhs.len() > rhs.len() {
+        false
+    }
+
+    else {
+        for i in 1..(lhs.len() + 1) {
+            if lhs[lhs.len() - i] < rhs[rhs.len() - i] {
+                return true;
+            }
+
+            else if lhs[lhs.len() - i] > rhs[rhs.len() - i] {
+                return false;
+            }
+        }
+
+        false
+    }
 }
 
 pub fn eq_bi(
@@ -36,6 +57,7 @@ pub fn eq_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> bool {
+    // println!("{:?} == {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     lhs_neg == rhs_neg && eq_ubi(lhs, rhs)
 }
 

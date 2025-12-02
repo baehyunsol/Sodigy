@@ -1,15 +1,59 @@
+# 110. lessen cyclic let detections
+
+`let f1 = \(_) => _; let f2 = \(_) => _;`처럼 돼 있으면 `f1`이랑 `f2`랑 서로 언급하더라도 봐주자...
+
+1. 이건 hir level의 단순한 휴리스틱임: rhs가 `Expr::Lambda`면 걍 봐주는 거임 ㅋㅋㅋ
+2. 한가지 예외가 있음... 만약 f1이나 f2가 default value로 서로룰 언급하면 cycle이 생길 수 있음
+  - 이거는 다른 방식으로 막자. lambda는 default value를 선언하는 거 자체를 못하게 할 거임. 어차피 lambda에서는 default value가 의미가 없거든 (애초에 compiler 차원에서 추적이 불가능함.)
+
+# 109. `JumpIfUninit`
+
+1. 해당 위치에 들어있는 값이 null인지 아닌지 확인해서 해당 값을 eval함.
+  - 여기서의 null은 sodigy와는 별개로 runtime 자체에서 쓰는 null value임!!!
+  - 그래서 문제... arbitrary u32를 보고 이게 null인지 scalar/ptr인지를 구분해야함.
+    - u32가 ptr인 경우는 null인지 구분하기 쉬움. `heap.alloc()`이 무조건 non-zero를 반환하게 만든 다음에 0을 nullptr로 쓰면 됨.
+    - 해당 위치에 scalar가 들어있을 경우... 쉽지 않음 ㅠㅠ
+2. 아니면... u32::MAX를 nullptr로 정의한 다음에 ptr이랑 scalar가 저 값을 못 가지도록 잘 막을까??
+  - 지금은 괜찮지만 잠재적인 문제: integer 안에 들어있는 값들이 u32::MAX를 피하게 하는게 무지 빡셈.
+    지금이야 integer 안에 있는 scalar를 읽을 일이 없지만 나중에 문제가 될 수도 ㅠㅠ
+3. 좀 더 무식한 방법: ... init된 애들의 목록을 따로 갖고 있기??
+  - 이건 개오바 ㅋㅋㅋ
+  - jump_if_uninit에 대해서만 목록을 관리할까??
+    - top-level let은 목록 관리가 쉬운데, inline let이 무지 빡셈. 똑같은 block을 2번 밟으면 구분이 안됨... 구분하려면 block에 들어올 때마다 목록을 초기화해줘야함 ㅠㅠ
+4. 여전히 무식한 방법: init 됐는지 아닌지를 관리하는 flag를 sodigy 차원에서 하나 더 만드는 거임!!
+  - 이러면 `Bytecode::JumpIfUninit`은 더이상 없음. 오직 `Bytecode::JumpIf`만 존재. init하기 전에 해당 flag가 1인지 확인하고, init을 한 다음에 해당 flag를 1로 바꿔버리면 됨!!
+  - 이러면 block 들어갈 때마다 flag를 싹다 초기화해야한다는 문제가 있음...
+  - 걍 이렇게 할까?? 이렇게 한 다음에 최적화를 잘 해서 let 개수를 최대한 줄이면 되지!!
+  - 최적화하면서 eager/lazy evaluation을 고르게 할까??
+5. 아 그리고 보니까 애초에 inline block은 eager-eval을 하고 있네?? 이것도 문제임 ㅠㅠ
+  - inline block이 lazy-eval을 하려면, ... ㅋㅋㅋ 쉽지 않네
+  - 왜냐면 inline block에 있는 서로 다른 let들을 구분해야하는데, ㅋㅋㅋ 구분할 방법이 없는데??
+  - 심지어 지금은 eager-eval / lazy-eval이 섞여있음. 기본으로는 eager-eval인데 최적화를 하면 lazy-eval로 바뀔 수 있거든. 이러면 문제인게, 사람들이 lazy-eval이라고 생각하면서 쓰다가 갑자기 eager-eval을 만나서 죽을 수도 있음 ㅠㅠ
+  - 그냥 문서에다가 lazy-eval / eager-eval 섞여있고 어떻게 될지 보장 못한다고 쓸까??
+
+# 108. 찾았다 내버그
+
+1. `f(g(x), h(x))`을 한다고 쳐봐.
+  - stack(0)에는 x가 들어있음
+  - 먼저, `g(x)`를 할 거임. 그럼 stack(1)에다가 x를 넣고, 결과물을 stack(?1)에다가 넣어야 함.
+  - 그다음에, `h(x)`를 할 거임. 그럼 stack(1)에다가 x를 넣고, 결과물을 stack(?2)에다가 넣어야 함.
+  - stack(?1)과 stack(?2)를 이용해서 f()를 호출하면 됨...
+  - 그럼 반대로 해야겠네 f()를 위한 stack을 먼저 잡아놓고, 그 뒤에다가 `g(x)`랑 `h(x)`를 해야겠네...
+2. 그럼 f()를 먼저 잡으면, block이 local value 할당을 어떻게 해?
+  - 그럼 들어가기 전에 local value 개수를 미리 세놓고 lowering해야겠네??
+    - 여기도 문제. 무식하게 local value 세면 stack이 엄청 커질 거임... 안 겹치는 value들은 동일한 위치에 들어가도록 계산해야함!!
+3. 일단, `lir::Func::from_mir` 들어가자마자 local name binding을 다 세서 name_map을 미리 만들어놓고 시작
+  - 만들면서 이름끼리 안 겹치게 잘 피하셈...
+  - 그래도 block 나가면서 drop은 다 호출해야함!!
+  - `fn f(x) = a(b(x), c(x))`라고 하고, `f`를 위한 stack이 `0..=5`에 있다고 하자. 당연히 `x`는 stack(0)에 있음
+    - 일단 `a()`를 위해서 arg가 2개가 필요하지? 그럼 stack(6)이랑 stack(7)을 비워두고, stack(8)을 이용해서 `b(x)`를 호출할 거임. `b(x)`의 결과물은 stack(6)에 들어갈 거임.
+    - 마찬가지로 stack(8)을 이용해서 `c(x)`를 호출하고 결과물은 stack(7)에 넣을 거임.
+
 # 107. top-level let eval strategy
 
-By default, every value (whether it's inline or top-level) is lazy-evaluated, and ref-counted. The optimizer might try to make the value eager-evaluated or static. The user can force the value to be static using `#[static]` decorator, but they cannot control whether it's eager or lazy.
+top-level let statements are lazy-evaluated and static (once evaluated, it lasts in memory forever).
 
-Let's add 2 decorators: `#[comptime]` and `#[static]`.
-
-- With `#[comptime]`, the value is evaluated at compile time.
-  - If it panics, it's a compile error.
-  - Even though there's no `#[comptime]`, the compiler might try to evaluate the value at compile time.
-- With `#[static]`, the evaluated value leaves forever.
-  - ... what if it's an inline block?
-  - ... what if the value depends on a func argument?
+The optimizer might choose to evaluate the value at compile time. What if I add a decorator that forces the value to be evaluated at compile time?
 
 # 106. Sub-enums
 

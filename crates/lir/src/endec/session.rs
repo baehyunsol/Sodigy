@@ -18,7 +18,7 @@ impl Endec for Session {
 
         // tmp data
         // self.local_values.encode_impl(buffer);
-        // self.drop_types.encode_impl(buffer);
+        // self.stack_offset.encode_impl(buffer);
 
         self.intrinsics.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
@@ -45,7 +45,7 @@ impl Endec for Session {
 
                 // tmp data
                 local_values: HashMap::new(),
-                drop_types: HashMap::new(),
+                stack_offset: 0,
 
                 intrinsics,
                 lang_items,

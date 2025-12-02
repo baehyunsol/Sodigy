@@ -51,18 +51,19 @@ macro_rules! intrinsics {
 
 // You can find the documents in the sodigy std source code (search by their lang items!).
 intrinsics!(
-    (AddInt , "built_in.add_int" , 0),
-    (SubInt , "built_in.sub_int" , 1),
-    (MulInt , "built_in.mul_int" , 2),
-    (DivInt , "built_in.div_int" , 3),
-    (RemInt , "built_in.rem_int" , 4),
-    (LtInt  , "built_in.lt_int"  , 5),
-    (EqInt  , "built_in.eq_int"  , 6),
-    (GtInt  , "built_in.gt_int"  , 7),
-    (Exit   , "built_in.exit"    , 8),
-    (Panic  , "built_in.panic"   , 9),
-    (Print  , "built_in.print"   , 10),
-    (EPrint , "built_in.eprint"  , 11),
+    (NegInt , "built_in.neg_int" , 0),
+    (AddInt , "built_in.add_int" , 1),
+    (SubInt , "built_in.sub_int" , 2),
+    (MulInt , "built_in.mul_int" , 3),
+    (DivInt , "built_in.div_int" , 4),
+    (RemInt , "built_in.rem_int" , 5),
+    (LtInt  , "built_in.lt_int"  , 6),
+    (EqInt  , "built_in.eq_int"  , 7),
+    (GtInt  , "built_in.gt_int"  , 8),
+    (Exit   , "built_in.exit"    , 9),
+    (Panic  , "built_in.panic"   , 10),
+    (Print  , "built_in.print"   , 11),
+    (EPrint , "built_in.eprint"  , 12),
 //   ^^^^^^   ^^^^^^^^^^^^^^^^^    ^^
 //   |        |                    |
 //  (0)      (1)                  (2)

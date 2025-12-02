@@ -9,6 +9,7 @@ use crate::{
 use sodigy_mir::{self as mir, Intrinsic};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Assert {
@@ -24,6 +25,12 @@ impl Assert {
     pub fn from_mir(mir_assert: &mir::Assert, session: &mut Session, is_top_level: bool) -> Assert {
         if is_top_level {
             session.label_counter = 0;
+            session.local_values = HashMap::new();
+
+            session.collect_local_names(&mir_assert.value, 0);
+            session.stack_offset = session.local_values.values().map(
+                |local_value| local_value.stack_offset + 1
+            ).max().unwrap_or(0);
         }
 
         let mut bytecodes = vec![];

@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_number::{BigInt, InternedNumber, InternedNumberValue};
+use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
 

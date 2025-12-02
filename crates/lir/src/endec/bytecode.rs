@@ -9,6 +9,7 @@ use crate::{
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_mir::Intrinsic;
+use sodigy_span::Span;
 
 impl Endec for Bytecode {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -58,9 +59,9 @@ impl Endec for Bytecode {
                 value.encode_impl(buffer);
                 label.encode_impl(buffer);
             },
-            Bytecode::JumpIfUninit { src, label } => {
+            Bytecode::LazyEvalGlobal { def_span, label } => {
                 buffer.push(9);
-                src.encode_impl(buffer);
+                def_span.encode_impl(buffer);
                 label.encode_impl(buffer);
             },
             Bytecode::Label(label) => {
@@ -142,9 +143,9 @@ impl Endec for Bytecode {
                 Ok((Bytecode::JumpIf { value, label }, cursor))
             },
             Some(9) => {
-                let (src, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (label, cursor) = Label::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::JumpIfUninit { src, label }, cursor))
+                Ok((Bytecode::LazyEvalGlobal { def_span, label }, cursor))
             },
             Some(10) => {
                 let (label, cursor) = Label::decode_impl(buffer, cursor + 1)?;

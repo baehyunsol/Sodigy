@@ -1,3 +1,4 @@
+#[name("4 digits")]
 assert {
     let s = 3162;
     let ss = s + 1;
@@ -5,6 +6,7 @@ assert {
     s * s < 10_000_000 && 10_000_000 < ss * ss
 };
 
+#[name("5 digits")]
 assert {
     let s = 31622;
     let ss = s + 1;
@@ -12,6 +14,7 @@ assert {
     s * s < 1_000_000_000 && 1_000_000_000 < ss * ss
 };
 
+#[name("6 digits")]
 assert {
     let s = 316227;
     let ss = s + 1;
@@ -19,6 +22,7 @@ assert {
     s * s < 100_000_000_000 && 100_000_000_000 < ss * ss
 };
 
+#[name("7 digits")]
 assert {
     let s = 3162277;
     let ss = s + 1;
@@ -26,6 +30,7 @@ assert {
     s * s < 10_000_000_000_000 && 10_000_000_000_000 < ss * ss
 };
 
+#[name("8 digits")]
 assert {
     let s = 31622776;
     let ss = s + 1;
@@ -33,6 +38,7 @@ assert {
     s * s < 1_000_000_000_000_000 && 1_000_000_000_000_000 < ss * ss
 };
 
+#[name("9 digits")]
 assert {
     let s = 316227766;
     let ss = s + 1;
@@ -40,6 +46,7 @@ assert {
     s * s < 100_000_000_000_000_000 && 100_000_000_000_000_000 < ss * ss
 };
 
+#[name("10 digits")]
 assert {
     let s = 3162277660;
     let ss = s + 1;
@@ -47,6 +54,7 @@ assert {
     s * s < 10_000_000_000_000_000_000 && 10_000_000_000_000_000_000 < ss * ss
 };
 
+#[name("11 digits")]
 assert {
     let s = 31622776601;
     let ss = s + 1;
@@ -54,6 +62,7 @@ assert {
     s * s < 1_000_000_000_000_000_000_000 && 1_000_000_000_000_000_000_000 < ss * ss
 };
 
+#[name("12 digits")]
 assert {
     let s = 316227766016;
     let ss = s + 1;

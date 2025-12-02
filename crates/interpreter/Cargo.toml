@@ -9,3 +9,7 @@ sodigy-lir = { version = "0.1.0", path = "../lir" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-number = { version = "0.1.0", path = "../number" }
 sodigy-span = { version = "0.1.0", path = "../span" }
+
+[features]
+debug-bytecode = []
+debug-heap = []

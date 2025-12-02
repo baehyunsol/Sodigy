@@ -69,4 +69,4 @@ let pi_approx_spigot = {
     let (numer, denom) = spigot(0, 1, 7);
     numer * 1_000_000_000_000 / denom
 };
-assert 3_1415_9265_358 < pi_approx_spigot && pi_approx_spigot < 3_1415_9265_359
+assert 3_1415_9265_358 < pi_approx_spigot && pi_approx_spigot < 3_1415_9265_359;

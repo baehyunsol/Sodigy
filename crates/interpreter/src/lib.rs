@@ -15,6 +15,7 @@ use sodigy_number::{
     gt_bi,
     lt_bi,
     mul_bi,
+    neg_bi,
     rem_bi,
     sub_bi,
 };
@@ -29,11 +30,17 @@ pub fn interpret(executable: &Executable, label: usize) -> Result<(), ()> {
     let mut stack = Stack::with_capacity(65536);  // TODO: make the stack size configurable
     let mut heap = Heap::new();
 
-    match execute(&mut stack, &mut heap, executable, label) {
+    let result = execute(&mut stack, &mut heap, executable, label);
+    
+    #[cfg(feature="debug-heap")] {
+        heap.check_integrity();
+    }
+
+    match result {
         Ok(()) => Ok(()),
 
-        // dump debug info!
-        Err(()) => todo!(),
+        // TODO: dump debug info!
+        Err(()) => Err(()),
     }
 }
 
@@ -46,7 +53,9 @@ fn execute(
     let mut cursor = label;
 
     loop {
-        // debug(stack, heap, &executable.bytecodes, cursor);
+        #[cfg(feature="debug-bytecode")] {
+            debug(stack, heap, &executable.bytecodes, cursor);
+        }
 
         match &executable.bytecodes[cursor] {
             Bytecode::Const { value, dst } => {
@@ -59,14 +68,16 @@ fn execute(
                     Memory::Stack(i) => {
                         stack.stack[stack.stack_pointer + i] = value;
                     },
-                    Memory::Global(s) => todo!(),
+                    Memory::Global(s) => {
+                        heap.global_values.insert(*s, value);
+                    },
                 }
             },
             Bytecode::Move { src, dst, inc_rc } => {
                 let src = match src {
                     Memory::Return => stack.r#return,
                     Memory::Stack(i) => stack.stack[stack.stack_pointer + i],
-                    Memory::Global(s) => todo!(),
+                    Memory::Global(s) => *heap.global_values.get(s).unwrap(),
                 };
 
                 if *inc_rc {
@@ -80,7 +91,9 @@ fn execute(
                     Memory::Stack(i) => {
                         stack.stack[stack.stack_pointer + i] = src;
                     },
-                    Memory::Global(s) => todo!(),
+                    Memory::Global(s) => {
+                        heap.global_values.insert(*s, src);
+                    },
                 }
             },
             Bytecode::IncStackPointer(n) => {
@@ -113,6 +126,17 @@ fn execute(
                     }
                 }
             },
+            Bytecode::LazyEvalGlobal { def_span, label } => {
+                if !heap.global_values.contains_key(def_span) {
+                    match label {
+                        Label::Flatten(i) => {
+                            cursor = *i;
+                            continue;
+                        },
+                        _ => unreachable!(),
+                    }
+                }
+            },
             Bytecode::PushCallStack(label) => {
                 let Label::Flatten(n) = label else { unreachable!() };
                 stack.call_stack.push(*n);
@@ -123,8 +147,39 @@ fn execute(
             Bytecode::Return => {
                 let dst = *stack.call_stack.last().unwrap();
                 cursor = dst;
+                continue;
             },
             Bytecode::Intrinsic { intrinsic, stack_offset, dst } => match intrinsic {
+                Intrinsic::NegInt => {
+                    let rhs_ptr = stack.stack[stack.stack_pointer + *stack_offset] as usize;
+                    let rhs_meta = heap.data[rhs_ptr + 2];
+                    let rhs_neg = rhs_meta > 0x7fff_ffff;
+                    let rhs_len = rhs_meta & 0x7fff_ffff;
+                    let rhs = &heap.data[(rhs_ptr + 3)..(rhs_ptr + 3 + rhs_len as usize)];
+                    let (is_neg, nums) = neg_bi(rhs_neg, rhs);
+
+                    let v = InternedNumber {
+                        value: InternedNumberValue::BigInt(BigInt {
+                            is_neg,
+                            nums,
+                        }),
+                        is_integer: true,
+                    };
+
+                    let ptr = heap.alloc_value(&(&v).into());
+
+                    match dst {
+                        Memory::Return => {
+                            stack.r#return = ptr;
+                        },
+                        Memory::Stack(i) => {
+                            stack.stack[stack.stack_pointer + i] = ptr;
+                        },
+                        Memory::Global(s) => {
+                            heap.global_values.insert(*s, ptr);
+                        },
+                    }
+                },
                 Intrinsic::AddInt |
                 Intrinsic::SubInt |
                 Intrinsic::MulInt |
@@ -135,13 +190,13 @@ fn execute(
                 Intrinsic::GtInt => {
                     let lhs_ptr = stack.stack[stack.stack_pointer + *stack_offset] as usize;
                     let lhs_meta = heap.data[lhs_ptr + 2];
-                    let lhs_sign = lhs_meta > 0x7fff_ffff;
+                    let lhs_neg = lhs_meta > 0x7fff_ffff;
                     let lhs_len = lhs_meta & 0x7fff_ffff;
                     let lhs = &heap.data[(lhs_ptr + 3)..(lhs_ptr + 3 + lhs_len as usize)];
 
                     let rhs_ptr = stack.stack[stack.stack_pointer + *stack_offset + 1] as usize;
                     let rhs_meta = heap.data[rhs_ptr + 2];
-                    let rhs_sign = rhs_meta > 0x7fff_ffff;
+                    let rhs_neg = rhs_meta > 0x7fff_ffff;
                     let rhs_len = rhs_meta & 0x7fff_ffff;
                     let rhs = &heap.data[(rhs_ptr + 3)..(rhs_ptr + 3 + rhs_len as usize)];
 
@@ -152,11 +207,11 @@ fn execute(
                         Intrinsic::DivInt |
                         Intrinsic::RemInt => {
                             let (is_neg, nums) = match intrinsic {
-                                Intrinsic::AddInt => add_bi(lhs_sign, lhs, rhs_sign, rhs),
-                                Intrinsic::SubInt => sub_bi(lhs_sign, lhs, rhs_sign, rhs),
-                                Intrinsic::MulInt => mul_bi(lhs_sign, lhs, rhs_sign, rhs),
-                                Intrinsic::DivInt => div_bi(lhs_sign, lhs, rhs_sign, rhs),
-                                Intrinsic::RemInt => rem_bi(lhs_sign, lhs, rhs_sign, rhs),
+                                Intrinsic::AddInt => add_bi(lhs_neg, lhs, rhs_neg, rhs),
+                                Intrinsic::SubInt => sub_bi(lhs_neg, lhs, rhs_neg, rhs),
+                                Intrinsic::MulInt => mul_bi(lhs_neg, lhs, rhs_neg, rhs),
+                                Intrinsic::DivInt => div_bi(lhs_neg, lhs, rhs_neg, rhs),
+                                Intrinsic::RemInt => rem_bi(lhs_neg, lhs, rhs_neg, rhs),
                                 _ => unreachable!(),
                             };
                             let v = InternedNumber {
@@ -169,9 +224,9 @@ fn execute(
                             let ptr = heap.alloc_value(&(&v).into());
                             ptr
                         },
-                        Intrinsic::LtInt => if lt_bi(lhs_sign, lhs, rhs_sign, rhs) { 1 } else { 0 },
-                        Intrinsic::EqInt => if eq_bi(lhs_sign, lhs, rhs_sign, rhs) { 1 } else { 0 },
-                        Intrinsic::GtInt => if gt_bi(lhs_sign, lhs, rhs_sign, rhs) { 1 } else { 0 },
+                        Intrinsic::LtInt => if lt_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
+                        Intrinsic::EqInt => if eq_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
+                        Intrinsic::GtInt => if gt_bi(lhs_neg, lhs, rhs_neg, rhs) { 1 } else { 0 },
                         _ => unreachable!(),
                     };
 
@@ -182,7 +237,9 @@ fn execute(
                         Memory::Stack(i) => {
                             stack.stack[stack.stack_pointer + i] = result;
                         },
-                        Memory::Global(s) => todo!(),
+                        Memory::Global(s) => {
+                            heap.global_values.insert(*s, result);
+                        },
                     }
                 },
                 Intrinsic::Exit => {
@@ -214,6 +271,7 @@ fn execute(
     }
 }
 
+#[cfg(feature="debug-bytecode")]
 fn debug(
     stack: &Stack,
     heap: &Heap,
@@ -223,10 +281,19 @@ fn debug(
     println!("-------");
     println!("return: 0x{:08x}", stack.r#return);
     println!(
-        "stack: {}...",
+        "stack pointer: {:04x}\nstack: {}...",
+        stack.stack_pointer,
         stack.stack.iter().skip(stack.stack_pointer).take(5).map(
             |v| format!("0x{v:08x}")
         ).collect::<Vec<_>>().join(", "),
+    );
+    println!(
+        "call_stack: {:?}",
+        if stack.call_stack.len() > 10 {
+            &stack.call_stack[(stack.call_stack.len() - 10)..]
+        } else {
+            &stack.call_stack
+        },
     );
     println!("- heap");
 

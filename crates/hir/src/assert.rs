@@ -54,7 +54,7 @@ impl Assert {
 
         let attribute = match session.lower_attribute(
             &ast_assert.attribute,
-            AttributeKind::Enum,
+            AttributeKind::Assert,
             ast_assert.keyword_span,
             is_top_level,
         ) {

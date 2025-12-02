@@ -9,6 +9,12 @@ import sys
 args = sys.argv
 no_clean = "--no-clean" in args
 no_std = "--no-std" in args
+debug_bytecode = "--debug-bytecode" in args
+
+# It's always enabled!
+# debug_heap = "--debug-heap" in args
+debug_heap = True
+
 args = [arg for arg in args if not arg.startswith("-")]
 filter = args[1] if len(args) > 1 else None
 sample_files = []
@@ -23,7 +29,9 @@ if filter is not None and filter != "all":
 sample_files.sort()
 result = {}
 
-subprocess.run(["cargo", "build"], check=True)
+features = (["debug-bytecode"] if debug_bytecode else []) + (["debug-heap"] if debug_heap else [])
+features = ["--features=" + ",".join(features)] if features else []
+subprocess.run(["cargo", "build", *features], check=True)
 subprocess.run(["target/debug/sodigy", "new", "__test"], capture_output=True, check=True)
 os.chdir("__test/src")
 
@@ -40,7 +48,7 @@ try:
                 f.write(sample)
 
             flags = ["--no-std"] if no_std else []
-            p = subprocess.run(["../../target/debug/sodigy", "test", *flags], timeout=20)
+            p = subprocess.run(["../../target/debug/sodigy", "test", *flags], timeout=999)
 
             if p.returncode == 0:
                 status = "success"

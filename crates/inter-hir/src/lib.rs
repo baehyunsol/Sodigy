@@ -1297,6 +1297,14 @@ impl Session {
                     Ok(())
                 }
             },
+            PatternKind::InfixOp { lhs, rhs, .. } |
+            PatternKind::Or { lhs, rhs, .. } => match (
+                self.resolve_pattern(lhs),
+                self.resolve_pattern(rhs),
+            ) {
+                (Ok(()), Ok(())) => Ok(()),
+                _ => Err(()),
+            },
             _ => panic!("TODO: {kind:?}"),
         }
     }

@@ -6,10 +6,9 @@ use crate::{
     Func,
     Label,
     Let,
-    Memory,
 };
 use sodigy_error::{Error, Warning};
-use sodigy_mir::{Intrinsic, Session as MirSession};
+use sodigy_mir::{Callable, Expr, Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::unintern_string;
@@ -26,18 +25,26 @@ pub struct Session {
     pub lets: Vec<Let>,
 
     // `Span` is the name span of func param or local value (`let`).
-    // It'll give you the stack offset.
-    pub local_values: HashMap<Span, usize>,
+    pub local_values: HashMap<Span, LocalValue>,
 
-    // When you `register_local_name`, the session remembers
-    // how it should drop the local value.
-    // When you `drop_all_locals`, the session drops all the
-    // locals in this map.
-    pub drop_types: HashMap<Span, DropType>,
+    // When you call another function, you push the args to
+    // `stack[stack_offset + i]` and increment the stack pointer
+    // by `stack_offset`.
+    pub stack_offset: usize,
 
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
     pub lang_items: HashMap<String, Span>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LocalValue {
+    pub stack_offset: usize,
+
+    // we have to drop it only once!
+    pub dropped: bool,
+
+    pub drop_type: DropType,
 }
 
 impl Session {
@@ -49,7 +56,7 @@ impl Session {
             asserts: vec![],
             lets: vec![],
             local_values: HashMap::new(),
-            drop_types: HashMap::new(),
+            stack_offset: 0,
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (*mir_session.lang_items.get(*lang_item).unwrap(), *intrinsic)
             ).collect(),
@@ -69,42 +76,101 @@ impl Session {
         Label::Local(self.label_counter - 1)
     }
 
-    pub fn register_local_name(&mut self, name: Span) -> Memory {
-        let i = self.local_values.len();
-        self.local_values.insert(name, i);
-
-        // TODO: we have to insert the actual drop type
-        //       currently, it doesn't drop anything at all!
-        self.drop_types.insert(name, DropType::Scalar);
-
-        Memory::Stack(i)
-    }
-
     pub fn drop_block(&mut self, names: &[Span]) {
         for name in names.iter() {
-            let i = self.local_values.remove(name).unwrap();
-
-            match self.drop_types.remove(name).unwrap() {
-                DropType::Scalar => {},  // no drop
-                _ => todo!(),
+            match self.local_values.get_mut(name) {
+                Some(LocalValue { dropped: false, drop_type, stack_offset }) => {
+                    match drop_type {
+                        DropType::Scalar => {},  // no drop
+                        _ => todo!(),
+                    }
+                },
+                _ => unreachable!(),
             }
         }
     }
 
     pub fn drop_all_locals(&mut self, bytecodes: &mut Vec<Bytecode>) {
-        let local_values = self.drop_types.drain().map(
-            |(name, drop_type)| (name, *self.local_values.get(&name).unwrap(), drop_type)
-        ).collect::<Vec<_>>();
+        for local_value in self.local_values.values_mut() {
+            let LocalValue { dropped, drop_type, stack_offset } = local_value;
 
-        for (name, index, drop_type) in local_values.iter() {
-            match drop_type {
-                DropType::Scalar => {},  // no drop
-                _ => todo!(),
+            if !*dropped {
+                match drop_type {
+                    DropType::Scalar => {},  // no drop
+                    _ => todo!(),
+                }
             }
-        }
 
-        self.local_values = HashMap::new();
-        self.drop_types = HashMap::new();
+            *dropped = true;
+        }
+    }
+
+    pub fn collect_local_names(&mut self, expr: &Expr, offset: usize) {
+        match expr {
+            Expr::Identifier(_) |
+            Expr::Number { .. } |
+            Expr::String { .. } |
+            Expr::Char { .. } |
+            Expr::Byte { .. } => {},
+            Expr::If(r#if) => {
+                // `if let Some(x) = foo() {}`
+                // name bindings in the pattern cannot be used in condition
+                self.collect_local_names(&r#if.cond, offset);
+
+                // name bindings in the pattern can be used in true_value
+                if let Some(pattern) = &r#if.pattern {
+                    todo!()
+                }
+
+                else {
+                    self.collect_local_names(&r#if.true_value, offset);
+                }
+
+                // name bindings in the pattern cannot be used in false_value
+                self.collect_local_names(&r#if.false_value, offset);
+            },
+            Expr::Match(r#match) => todo!(),
+            Expr::Block(block) => {
+                for (i, r#let) in block.lets.iter().enumerate() {
+                    self.local_values.insert(
+                        r#let.name_span,
+                        LocalValue {
+                            stack_offset: offset + i,
+                            dropped: false,
+
+                            // TODO: drop value!!!
+                            drop_type: DropType::Scalar,
+                        });
+                    self.collect_local_names(&r#let.value, offset + block.lets.len());
+                }
+
+                for assert in block.asserts.iter() {
+                    if let Some(note) = &assert.note {
+                        self.collect_local_names(note, offset + block.lets.len());
+                    }
+
+                    self.collect_local_names(&assert.value, offset + block.lets.len());
+                }
+
+                self.collect_local_names(&block.value, offset + block.lets.len());
+            },
+            Expr::Path { lhs, .. } => {
+                self.collect_local_names(lhs, offset);
+            },
+            Expr::FieldModifier { lhs, rhs, .. } => {
+                self.collect_local_names(lhs, offset);
+                self.collect_local_names(rhs, offset);
+            },
+            Expr::Call { func, args, .. } => {
+                if let Callable::Dynamic(func) = func {
+                    self.collect_local_names(func, offset);
+                }
+
+                for arg in args.iter() {
+                    self.collect_local_names(arg, offset);
+                }
+            },
+        }
     }
 
     pub fn into_executable(&self) -> Executable {
@@ -150,11 +216,14 @@ impl Session {
             match bytecode {
                 Bytecode::Jump(label) |
                 Bytecode::JumpIf { label, .. } |
-                Bytecode::JumpIfUninit { label, .. } |
+                Bytecode::LazyEvalGlobal { label, .. } |
                 Bytecode::PushCallStack(label) => {
                     let flattened_index = match *label {
                         Label::Local(ll) => label_map.get(&(curr_item_span, *label)).unwrap(),
-                        Label::Global(s) => label_map.get(&(s, Label::Global(s))).unwrap(),
+                        Label::Global(s) => match label_map.get(&(s, Label::Global(s))) {
+                            Some(i) => i,
+                            None => panic!("Internal Compiler Error: Cannot find bytecode of {s:?}. Perhaps it's defined as a built-in in Sodigy, but not implemented in the compiler?"),
+                        },
                         Label::Flatten(_) => unreachable!(),
                     };
 

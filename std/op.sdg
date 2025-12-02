@@ -1,5 +1,10 @@
 use std.bool.Bool;
 
+#[poly]
+#[lang_item("op.neg")]
+#[lang_item_generics("op.neg.generic.0")]
+fn neg<T>(x: T) -> T;
+
 #[lang_item("op.not")]
 fn not(x: Bool) -> Bool = if x { Bool.False } else { Bool.True };
 

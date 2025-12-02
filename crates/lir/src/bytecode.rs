@@ -7,6 +7,7 @@ use crate::{
     Value,
 };
 use sodigy_mir::Intrinsic;
+use sodigy_span::Span;
 
 #[derive(Clone, Debug)]
 pub enum Bytecode {
@@ -55,8 +56,14 @@ pub enum Bytecode {
         value: Memory,
         label: Label,
     },
-    JumpIfUninit {
-        src: Memory,
+
+    // It'll jump to `Label::Global(def_span)` if `Memory::Global(def_span)` is not init.
+    // Otherwise, it does nothing.
+    LazyEvalGlobal {
+        def_span: Span,
+
+        // If you jump here, it'll evaluate the value and push the result to
+        // `Memory::Global(def_span)`.
         label: Label,
     },
 

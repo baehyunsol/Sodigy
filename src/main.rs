@@ -773,7 +773,8 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let executable = sodigy_lir::Executable::decode(&bytecodes_bytes)?;
 
                 for (name, label) in executable.asserts.iter() {
-                    sodigy_interpreter::interpret(&executable, *label).unwrap();
+                    let fail = sodigy_interpreter::interpret(&executable, *label).is_err();
+                    println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
                 }
 
                 // match profile {

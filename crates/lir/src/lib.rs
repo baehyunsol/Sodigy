@@ -17,7 +17,7 @@ pub(crate) use expr::lower_expr;
 pub use bytecode::Bytecode;
 pub use func::Func;
 pub use r#let::Let;
-pub use session::Session;
+pub use session::{LocalValue, Session};
 pub use value::Value;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -96,6 +96,10 @@ pub fn lower(mir_session: MirSession) -> Session {
     }
 
     for func in mir_session.funcs.iter() {
+        if func.built_in {
+            continue;
+        }
+
         funcs.push(Func::from_mir(func, &mut session));
     }
 

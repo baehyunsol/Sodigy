@@ -4,6 +4,12 @@ use std.bool.Bool;
 #[lang_item("type.Int")]
 pub enum Int = { _ };
 
+// I wanted `fn neg_int(x) = x * -1;`... but that's an infinite recursion!
+#[built_in]
+#[impl(std.op.neg)]
+#[lang_item("built_in.neg_int")]
+fn neg_int(a: Int) -> Int;
+
 #[built_in]
 #[impl(std.op.add)]
 #[lang_item("built_in.add_int")]

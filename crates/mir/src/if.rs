@@ -1,4 +1,4 @@
-use crate::{Expr, Session, ShortCircuitKind};
+use crate::{Expr, Pattern, Session, ShortCircuitKind};
 use sodigy_hir as hir;
 use sodigy_span::Span;
 
@@ -8,7 +8,7 @@ use sodigy_span::Span;
 pub struct If {
     pub if_span: Span,
     pub cond: Box<Expr>,
-    // pub pattern: Option<Pattern>,
+    pub pattern: Option<Pattern>,
     pub else_span: Span,
     pub true_value: Box<Expr>,
     pub false_value: Box<Expr>,
@@ -37,6 +37,7 @@ impl If {
         Ok(If {
             if_span: hir_if.if_span,
             cond: Box::new(cond),
+            pattern: None,  // TODO
             else_span: hir_if.else_span,
             true_value: Box::new(true_value),
             false_value: Box::new(false_value),

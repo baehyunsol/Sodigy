@@ -1,4 +1,18 @@
-use super::{remove_suffix_0, v64_to_v32};
+use super::{
+    cmp::lt_ubi,
+    remove_suffix_0,
+    v64_to_v32,
+};
+
+pub fn neg_bi(rhs_neg: bool, rhs: &[u32]) -> (bool, Vec<u32>) {
+    if rhs == &[0] {
+        (false, vec![0])
+    }
+
+    else {
+        (!rhs_neg, rhs.to_vec())
+    }
+}
 
 pub fn add_bi(
     lhs_neg: bool,
@@ -6,9 +20,10 @@ pub fn add_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
+    // println!("{:?} + {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     match (lhs_neg, rhs_neg) {
         (true, true) | (false, false) => (lhs_neg, add_ubi(lhs, rhs)),
-        _ => todo!(),
+        (true, false) | (false, true) => sub_bi(lhs_neg, lhs, !rhs_neg, rhs),
     }
 }
 
@@ -40,11 +55,82 @@ pub fn sub_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
-    todo!()
+    // println!("{:?} - {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
+    match (lhs_neg, rhs_neg) {
+        (true, false) | (false, true) => (
+            lhs_neg,
+            add_ubi(lhs, rhs),
+        ),
+        _ => {
+            let lhs_less = lt_ubi(lhs, rhs);
+            let abs_diff = if lhs_less {
+                sub_ubi(rhs, lhs)
+            } else {
+                sub_ubi(lhs, rhs)
+            };
+
+            if &abs_diff == &[0] {
+                (false, abs_diff)
+            } else {
+                // lhs  -  rhs    lhs_less     lhs_neg      result
+                //   3  -  4        true        false    ( true, abs_diff)
+                //   4  -  3        false       false    (false, abs_diff)
+                // (-3) - (-4)      true        true     (false, abs_diff)
+                // (-4) - (-3)      false       true     ( true, abs_diff)
+                (lhs_less ^ lhs_neg, abs_diff)
+            }
+        },
+    }
 }
 
+/// It panics if `lhs < rhs`.
 pub fn sub_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
-    todo!()
+    let mut result = lhs.to_vec();
+    let mut carry = false;
+
+    for i in 0..rhs.len() {
+        if carry {
+            if rhs[i] != u32::MAX && result[i] >= rhs[i] + 1 {
+                result[i] -= rhs[i] + 1;
+                carry = false;
+            }
+
+            else {
+                result[i] = u32::MAX - (rhs[i] - result[i]);
+            }
+        }
+
+        else {
+            if result[i] >= rhs[i] {
+                result[i] -= rhs[i];
+            }
+
+            else {
+                result[i] = u32::MAX - (rhs[i] - result[i]) + 1;
+                carry = true;
+            }
+        }
+    }
+
+    if carry {
+        if result.len() <= rhs.len() {
+            panic!();
+        }
+
+        for i in rhs.len()..result.len() {
+            if result[i] > 0 {
+                result[i] -= 1;
+                break;
+            }
+
+            else {
+                result[i] = u32::MAX;
+            }
+        }
+    }
+
+    remove_suffix_0(&mut result);
+    result
 }
 
 pub fn mul_bi(
@@ -53,6 +139,7 @@ pub fn mul_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
+    // println!("{:?} * {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     (lhs_neg ^ rhs_neg, mul_ubi(lhs, rhs))
 }
 

@@ -653,6 +653,7 @@ impl Expr {
                             InfixOp::LogicAnd => Ok(Expr::If(If {
                                 if_span: *op_span,
                                 cond: Box::new(lhs),
+                                pattern: None,
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
                                 false_value: Box::new(Expr::Identifier(IdentWithOrigin {
@@ -671,6 +672,7 @@ impl Expr {
                             InfixOp::LogicOr => Ok(Expr::If(If {
                                 if_span: *op_span,
                                 cond: Box::new(lhs),
+                                pattern: None,
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Identifier(IdentWithOrigin {
                                     id: intern_string(b"True", &session.intermediate_dir).unwrap(),

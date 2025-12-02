@@ -1,0 +1,13 @@
+// A simple code that ????????? can run.
+
+#[name("fibo(9)")]
+assert fibo(9) == 55;
+fn fibo(n) = if n < 2 { 1 } else { fibo(n - 1) + fibo(n - 2) };
+
+#[name("add(10, 20)")]
+assert add(10, 20) == 30;
+fn add(x: Int, y: Int) -> Int = if x == 0 { y } else { add(x - 1, y) + 1 };
+
+#[name("fac(5)")]
+assert fac(5) == 120;
+fn fac(n) = if n < 2 { 1 } else { fac(n - 1) * n };
