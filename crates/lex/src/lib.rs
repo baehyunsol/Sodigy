@@ -791,6 +791,8 @@ impl Session {
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
             ) {
+                // TODO: `{{}}` for escapes...
+                // TODO: `(Some(b'}'), _, _) if format` is an error in Rust and Python, should it be also an error in Sodigy?
                 (Some(b'{'), _, _) if format => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
                     self.fstring_buffer.push(TokensOrString::String(interned));

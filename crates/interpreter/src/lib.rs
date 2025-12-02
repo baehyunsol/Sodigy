@@ -66,7 +66,7 @@ fn execute(
                         stack.r#return = value;
                     },
                     Memory::Stack(i) => {
-                        stack.stack[stack.stack_pointer + i] = value;
+                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = value;
                     },
                     Memory::Global(s) => {
                         heap.global_values.insert(*s, value);
@@ -76,8 +76,8 @@ fn execute(
             Bytecode::Move { src, dst, inc_rc } => {
                 let src = match src {
                     Memory::Return => stack.r#return,
-                    Memory::Stack(i) => stack.stack[stack.stack_pointer + i],
-                    Memory::Global(s) => *heap.global_values.get(s).unwrap(),
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
                 };
 
                 if *inc_rc {
@@ -89,7 +89,7 @@ fn execute(
                         stack.r#return = src;
                     },
                     Memory::Stack(i) => {
-                        stack.stack[stack.stack_pointer + i] = src;
+                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = src;
                     },
                     Memory::Global(s) => {
                         heap.global_values.insert(*s, src);
@@ -112,8 +112,8 @@ fn execute(
             Bytecode::JumpIf { value, label } => {
                 let value = match value {
                     Memory::Return => stack.r#return,
-                    Memory::Stack(i) => stack.stack[stack.stack_pointer + i],
-                    Memory::Global(s) => todo!(),
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
                 };
 
                 if value == 1 {
@@ -151,11 +151,8 @@ fn execute(
             },
             Bytecode::Intrinsic { intrinsic, stack_offset, dst } => match intrinsic {
                 Intrinsic::NegInt => {
-                    let rhs_ptr = stack.stack[stack.stack_pointer + *stack_offset] as usize;
-                    let rhs_meta = heap.data[rhs_ptr + 2];
-                    let rhs_neg = rhs_meta > 0x7fff_ffff;
-                    let rhs_len = rhs_meta & 0x7fff_ffff;
-                    let rhs = &heap.data[(rhs_ptr + 3)..(rhs_ptr + 3 + rhs_len as usize)];
+                    let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let (rhs_neg, rhs) = inspect_int(&heap.data[..], rhs_ptr);
                     let (is_neg, nums) = neg_bi(rhs_neg, rhs);
 
                     let v = InternedNumber {
@@ -173,7 +170,7 @@ fn execute(
                             stack.r#return = ptr;
                         },
                         Memory::Stack(i) => {
-                            stack.stack[stack.stack_pointer + i] = ptr;
+                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = ptr;
                         },
                         Memory::Global(s) => {
                             heap.global_values.insert(*s, ptr);
@@ -188,17 +185,11 @@ fn execute(
                 Intrinsic::LtInt |
                 Intrinsic::EqInt |
                 Intrinsic::GtInt => {
-                    let lhs_ptr = stack.stack[stack.stack_pointer + *stack_offset] as usize;
-                    let lhs_meta = heap.data[lhs_ptr + 2];
-                    let lhs_neg = lhs_meta > 0x7fff_ffff;
-                    let lhs_len = lhs_meta & 0x7fff_ffff;
-                    let lhs = &heap.data[(lhs_ptr + 3)..(lhs_ptr + 3 + lhs_len as usize)];
+                    let lhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let (lhs_neg, lhs) = inspect_int(&heap.data[..], lhs_ptr);
 
-                    let rhs_ptr = stack.stack[stack.stack_pointer + *stack_offset + 1] as usize;
-                    let rhs_meta = heap.data[rhs_ptr + 2];
-                    let rhs_neg = rhs_meta > 0x7fff_ffff;
-                    let rhs_len = rhs_meta & 0x7fff_ffff;
-                    let rhs = &heap.data[(rhs_ptr + 3)..(rhs_ptr + 3 + rhs_len as usize)];
+                    let rhs_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow") as usize;
+                    let (rhs_neg, rhs) = inspect_int(&heap.data[..], rhs_ptr);
 
                     let result = match intrinsic {
                         Intrinsic::AddInt |
@@ -235,7 +226,7 @@ fn execute(
                             stack.r#return = result;
                         },
                         Memory::Stack(i) => {
-                            stack.stack[stack.stack_pointer + i] = result;
+                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
                         },
                         Memory::Global(s) => {
                             heap.global_values.insert(*s, result);
@@ -250,13 +241,29 @@ fn execute(
                     // TODO: clean up stack and heap
                     return Err(());
                 },
-                _ => todo!(),
+                Intrinsic::Print | Intrinsic::EPrint => {
+                    let chars_ptr = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow") as usize;
+                    let chars = inspect_list(&heap.data[..], chars_ptr);
+                    let chars = chars.iter().map(
+                        |ch| char::from_u32(*ch).expect("invalid char point")
+                    ).collect::<Vec<_>>().into_iter().collect::<String>();
+
+                    match intrinsic {
+                        Intrinsic::Print => {
+                            print!("{chars}");
+                        },
+                        Intrinsic::EPrint => {
+                            eprint!("{chars}");
+                        },
+                        _ => unreachable!(),
+                    }
+                },
             },
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = match src {
                     Memory::Return => stack.r#return,
                     Memory::Stack(i) => stack.stack[stack.stack_pointer + i],
-                    Memory::Global(s) => todo!(),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
                 };
 
                 heap.debug_info.push((*kind, src));
@@ -333,4 +340,23 @@ fn debug(
     }
 
     std::io::stdin().read_line(&mut String::new()).unwrap();
+}
+
+fn inspect_int(heap: &[u32], ptr: usize) -> (bool, &[u32]) {
+    let metadata = heap[ptr + 2];
+    let is_neg = metadata > 0x7fff_ffff;
+    let length = metadata & 0x7fff_ffff;
+    let nums = &heap[(ptr + 3)..(ptr + 3 + length as usize)];
+    (is_neg, nums)
+}
+
+fn inspect_list(heap: &[u32], ptr: usize) -> &[u32] {
+    let len_ptr = heap[ptr + 2];
+    let (is_neg, length) = inspect_int(heap, len_ptr as usize);
+
+    // TODO: should I do the runtime checks..??
+    assert!(!is_neg);
+    assert_eq!(length.len(), 1);
+
+    &heap[(ptr + 3)..(ptr + 3 + length[0] as usize)]
 }
