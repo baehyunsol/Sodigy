@@ -1,4 +1,4 @@
-// A simple code that ????????? can run.
+// A simple code that 7abd6c400 can run.
 
 #[name("fibo(9)")]
 assert fibo(9) == 55;
