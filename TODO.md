@@ -16,6 +16,8 @@
 
 2번이 젤 나아보이긴 하지만, 어디까지 built-in으로 처리하고 어디부터 sodigy로 할지도 애매함. 예를 들어서, pattern matching에서 `[a] ++ r`이 있으면 저기 있는 `[a]`는 slice야? vector야?
 
+아니면 2번을 아예 builtin으로 처리해버려?? ptr, start: scalar, end: scalar로 돼 있는 struct인데 runtime level에서 다 관리되는 거임. 이게 되려면 위에서 나열한 operation들 전부 builtin으로 구현해야함 ㅋㅋㅋ
+
 # 111. more diverse `Span::None`
 
 compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
@@ -30,6 +32,8 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 2. `to_string(a)`에서 오류가 날 경우, span이 있어야 설명이 가능
   - 근데 어떻게 설명함??
   - `a`에다가 밑줄을 긋고 ... 뭐라고 알려주지? ㅋㅋㅋ
+3. 하는 김에 generic monomorphization도 이걸로 해버려??
+  - generic monomorphization은 여러 단계로 할 수 있기때문에 그거 고려해야함
 
 # 110. lessen cyclic let detections
 
