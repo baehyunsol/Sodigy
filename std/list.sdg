@@ -29,9 +29,15 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
 };
 
 #[impl(std.op.eq)]
-fn eq_list<T>(a: [T], b: [T]) -> Bool = match (a, b) {
+fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
     ([], []) => Bool.True,
     ([], _) | (_, []) => Bool.False,
-    (a ++ ar, b ++ br) => a == b && ar == br,
+    ([l] ++ lhs, [r] ++ rhs_r) => l == r && lhs == rhs,
+};
+
+#[impl(std.op.concat)]
+fn concat_list<T>(lhs: [T], rhs: [T]) -> [T] = match rhs {
+    [] => lhs,
+    [r] ++ rhs => (lhs <+ [r]) ++ rhs,
 };
 */

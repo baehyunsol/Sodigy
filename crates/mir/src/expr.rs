@@ -398,6 +398,67 @@ impl Expr {
                     Ok(Expr::Call { func, args, generic_defs, given_keyword_arguments })
                 }
             },
+            // converts `f"{x} + {y} = {x + y}"` to `to_string(x) ++ " + " ++ to_string(y) ++ " = " ++ to_string(x + y)`
+            hir::Expr::FormattedString { raw, elements: hir_elements, span } => {
+                let mut has_error = false;
+                let mut elements = Vec::with_capacity(hir_elements.len());
+
+                // We don't do any optimizations here (e.g. skipping an empty string).
+                // There's a dedicated optimization pass in the mir (WIP).
+                for hir_element in hir_elements.iter() {
+                    match hir_element {
+                        hir::ExprOrString::String(s) => {
+                            let e = Expr::String {
+                                binary: false,
+                                s: *s,
+                                span: if hir_elements.len() == 1 { *span } else { Span::None },
+                            };
+
+                            elements.push(e);
+                        },
+                        hir::ExprOrString::Expr(e) => match Expr::from_hir(e, session) {
+                            Ok(e) => {
+                                // converts `x` to `to_string(x)`.
+                                let e = Expr::Call {
+                                    func: Callable::Static {
+                                        def_span: session.get_lang_item_span("fn.to_string"),
+
+                                        // If it's `Span::None`, the type-checker and generic solver will not work.
+                                        // If we use `e.error_span()` and if `e` already is a call span of another generic function,
+                                        // the generic solver will get confused.
+                                        span: todo!(),
+                                    },
+                                    args: vec![e],
+                                    generic_defs: vec![session.get_lang_item_span("fn.to_string.generic.0")],
+                                    given_keyword_arguments: vec![],
+                                };
+
+                                elements.push(e);
+                            },
+                            Err(()) => {
+                                has_error = true;
+                            },
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    match elements.len() {
+                        // is this possible?
+                        0 => Ok(Expr::String {
+                            binary: false,
+                            s: InternedString::empty(),
+                            span: *span,
+                        }),
+                        1 => Ok(elements.remove(0)),
+                        _ => Ok(concat_strings(elements, session)),
+                    }
+                }
+            },
             hir::Expr::List { elements, group_span } |
             hir::Expr::Tuple { elements, group_span } => {
                 let mut has_error = false;
@@ -765,5 +826,53 @@ impl Callable {
             Callable::ListInit { group_span: span } => *span,
             Callable::Dynamic(expr) => expr.error_span(),
         }
+    }
+}
+
+// TODO: can we do some optimizations here?
+fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
+    let def_span = session.get_lang_item_span(InfixOp::Concat.get_def_lang_item());
+    let generic_defs = InfixOp::Concat.get_generic_lang_items().iter().map(
+        |lang_item| session.get_lang_item_span(lang_item)
+    ).collect();
+
+    match strings.len() {
+        0 | 1 => unreachable!(),
+        2 => {
+            let rhs = strings.pop().unwrap();
+            let lhs = strings.pop().unwrap();
+
+            Expr::Call {
+                func: Callable::Static {
+                    def_span,
+
+                    // If it's `Span::None`, the type-checker and generic solver will not work.
+                    // If we use `rhs.error_span()` and if `rhs` already is a call span of another generic function,
+                    // the generic solver will get confused.
+                    span: todo!(),
+                },
+                args: vec![lhs, rhs],
+                generic_defs,
+                given_keyword_arguments: vec![],
+            }
+        },
+        _ => {
+            let tail = strings.pop().unwrap();
+            let head = concat_strings(strings, session);
+
+            Expr::Call {
+                func: Callable::Static {
+                    def_span,
+
+                    // If it's `Span::None`, the type-checker and generic solver will not work.
+                    // If we use `tail.error_span()` and if `tail` already is a call span of another generic function,
+                    // the generic solver will get confused.
+                    span: todo!(),
+                },
+                args: vec![head, tail],
+                generic_defs,
+                given_keyword_arguments: vec![],
+            }
+        },
     }
 }

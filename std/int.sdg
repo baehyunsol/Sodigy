@@ -69,3 +69,21 @@ fn div_int_impl(a: Int, b: Int) -> Int = {
 #[lang_item("built_in.div_int")]
 fn div_int(a: Int, b: Int) -> Int;
 */
+
+// TODO: match is not implemented yet...
+/*
+fn to_string(n: Int) -> std.string.String = match n {
+    ..0 => "-" ++ to_string(-n),
+    0 => "0",
+    1 => "1",
+    2 => "2",
+    3 => "3",
+    4 => "4",
+    5 => "5",
+    6 => "6",
+    7 => "7",
+    8 => "8",
+    9 => "9",
+    _ => to_string(n / 10) ++ to_string(n % 10),
+};
+*/

@@ -1,4 +1,12 @@
-use crate::{Block, CallArg, Expr, If, Match, StructInitField};
+use crate::{
+    Block,
+    CallArg,
+    Expr,
+    ExprOrString,
+    If,
+    Match,
+    StructInitField,
+};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_number::InternedNumber;
@@ -52,48 +60,54 @@ impl Endec for Expr {
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
             },
-            Expr::Tuple { elements, group_span } => {
+            Expr::FormattedString { raw, elements, span } => {
                 buffer.push(9);
+                raw.encode_impl(buffer);
                 elements.encode_impl(buffer);
-                group_span.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
-            Expr::List { elements, group_span } => {
+            Expr::Tuple { elements, group_span } => {
                 buffer.push(10);
                 elements.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::StructInit { r#struct, fields, group_span } => {
+            Expr::List { elements, group_span } => {
                 buffer.push(11);
+                elements.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
+            Expr::StructInit { r#struct, fields, group_span } => {
+                buffer.push(12);
                 r#struct.encode_impl(buffer);
                 fields.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
             Expr::Path { lhs, fields } => {
-                buffer.push(12);
+                buffer.push(13);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
             Expr::FieldModifier { fields, lhs, rhs } => {
-                buffer.push(13);
+                buffer.push(14);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::PrefixOp { op, op_span, rhs } => {
-                buffer.push(14);
+                buffer.push(15);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::InfixOp { op, op_span, lhs, rhs } => {
-                buffer.push(15);
+                buffer.push(16);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::PostfixOp { op, op_span, lhs } => {
-                buffer.push(16);
+                buffer.push(17);
                 op.encode_impl(buffer);
                 op_span.encode_impl(buffer);
                 lhs.encode_impl(buffer);
@@ -146,52 +160,88 @@ impl Endec for Expr {
                 Ok((Expr::Call { func, args }, cursor))
             },
             Some(9) => {
-                let (elements, cursor) = Vec::<Expr>::decode_impl(buffer, cursor + 1)?;
-                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::Tuple { elements, group_span }, cursor))
+                let (raw, cursor) = bool::decode_impl(buffer, cursor + 1)?;
+                let (elements, cursor) = Vec::<ExprOrString>::decode_impl(buffer, cursor)?;
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::FormattedString { raw, elements, span }, cursor))
             },
             Some(10) => {
                 let (elements, cursor) = Vec::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::List { elements, group_span }, cursor))
+                Ok((Expr::Tuple { elements, group_span }, cursor))
             },
             Some(11) => {
+                let (elements, cursor) = Vec::<Expr>::decode_impl(buffer, cursor + 1)?;
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::List { elements, group_span }, cursor))
+            },
+            Some(12) => {
                 let (r#struct, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructInitField>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Expr::StructInit { r#struct, fields, group_span }, cursor))
             },
-            Some(12) => {
+            Some(13) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Path { lhs, fields }, cursor))
             },
-            Some(13) => {
+            Some(14) => {
                 let (fields, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
             },
-            Some(14) => {
+            Some(15) => {
                 let (op, cursor) = PrefixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::PrefixOp { op, op_span, rhs }, cursor))
             },
-            Some(15) => {
+            Some(16) => {
                 let (op, cursor) = InfixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::InfixOp { op, op_span, lhs, rhs }, cursor))
             },
-            Some(16) => {
+            Some(17) => {
                 let (op, cursor) = PostfixOp::decode_impl(buffer, cursor + 1)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::PostfixOp { op, op_span, lhs }, cursor))
             },
-            Some(n @ 17..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 18..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for ExprOrString {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            ExprOrString::Expr(e) => {
+                buffer.push(0);
+                e.encode_impl(buffer);
+            },
+            ExprOrString::String(s) => {
+                buffer.push(1);
+                s.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (e, cursor) = Expr::decode_impl(buffer, cursor + 1)?;
+                Ok((ExprOrString::Expr(e), cursor))
+            },
+            Some(1) => {
+                let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((ExprOrString::String(s), cursor))
+            },
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

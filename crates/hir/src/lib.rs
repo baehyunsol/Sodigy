@@ -45,7 +45,7 @@ pub use attribute::{
 };
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
-pub use expr::Expr;
+pub use expr::{Expr, ExprOrString};
 pub use func::{CallArg, Func, FuncParam, FuncOrigin};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};

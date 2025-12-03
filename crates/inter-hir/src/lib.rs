@@ -3,6 +3,7 @@ use sodigy_hir::{
     Alias,
     Assert,
     Expr,
+    ExprOrString,
     Func,
     FuncParam,
     Generic,
@@ -1119,6 +1120,25 @@ impl Session {
                 for arg in args.iter_mut() {
                     if let Err(()) = self.resolve_expr(&mut arg.arg) {
                         has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            Expr::FormattedString { elements, .. } => {
+                let mut has_error = false;
+
+                for element in elements.iter_mut() {
+                    if let ExprOrString::Expr(e) = element {
+                        if let Err(()) = self.resolve_expr(e) {
+                            has_error = true;
+                        }
                     }
                 }
 

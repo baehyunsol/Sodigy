@@ -67,3 +67,8 @@ fn neq<T>(lhs: T, rhs: T) -> Bool = !eq(lhs, rhs);
 #[lang_item("op.geq")]
 #[lang_item_generics("op.geq.generic.0")]
 fn geq<T>(lhs: T, rhs: T) -> Bool = !lt(lhs, rhs);
+
+#[poly]
+#[lang_item("op.concat")]
+#[lang_item_generics("op.concat.generic.0", "op.concat.generic.1", "op.concat.generic.2")]
+fn concat<T, U, V>(lhs: T, rhs: U) -> V;

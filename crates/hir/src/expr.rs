@@ -43,6 +43,11 @@ pub enum Expr {
         func: Box<Expr>,
         args: Vec<CallArg>,
     },
+    FormattedString {
+        raw: bool,
+        elements: Vec<ExprOrString>,
+        span: Span,
+    },
     Tuple {
         elements: Vec<Expr>,
         group_span: Span,
@@ -136,7 +141,38 @@ impl Expr {
                     _ => Err(()),
                 }
             },
-            ast::Expr::FormattedString { .. } => todo!(),
+            ast::Expr::FormattedString { raw, elements: ast_elements, span } => {
+                let mut has_error = false;
+                let mut elements = Vec::with_capacity(ast_elements.len());
+
+                for ast_element in ast_elements.iter() {
+                    match ast_element {
+                        ast::ExprOrString::Expr(e) => match Expr::from_ast(e, session) {
+                            Ok(e) => {
+                                elements.push(ExprOrString::Expr(e));
+                            },
+                            Err(()) => {
+                                has_error = true;
+                            },
+                        },
+                        ast::ExprOrString::String(s) => {
+                            elements.push(ExprOrString::String(*s));
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Expr::FormattedString {
+                        raw: *raw,
+                        elements,
+                        span: *span,
+                    })
+                }
+            },
             ast::Expr::Tuple { elements, group_span } |
             ast::Expr::List { elements, group_span } => {
                 let is_tuple = matches!(ast_expr, ast::Expr::Tuple { .. });
@@ -312,4 +348,10 @@ fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     // TODO: But I want some kinda unique identifier for debugging.
     intern_string(b"lambda_func", map_dir).unwrap()
+}
+
+#[derive(Clone, Debug)]
+pub enum ExprOrString {
+    Expr(Expr),
+    String(InternedString),
 }
