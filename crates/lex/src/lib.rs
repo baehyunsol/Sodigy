@@ -963,7 +963,7 @@ impl Session {
                 (Some(b'\\'), Some(b'x'), Some(z @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')), Some(w @ (b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F'))) => todo!(),
                 // TODO: unicode escape
                 // invalid escape
-                (Some(b'\\'), Some(y), _, _) => {
+                (Some(b'\\'), Some(_), _, _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidEscape,
                         spans: Span::range(

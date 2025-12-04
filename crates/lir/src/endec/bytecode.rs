@@ -59,7 +59,7 @@ impl Endec for Bytecode {
                 value.encode_impl(buffer);
                 label.encode_impl(buffer);
             },
-            Bytecode::LazyEvalGlobal { def_span, label } => {
+            Bytecode::JumpIfUninit { def_span, label } => {
                 buffer.push(9);
                 def_span.encode_impl(buffer);
                 label.encode_impl(buffer);
@@ -145,7 +145,7 @@ impl Endec for Bytecode {
             Some(9) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (label, cursor) = Label::decode_impl(buffer, cursor)?;
-                Ok((Bytecode::LazyEvalGlobal { def_span, label }, cursor))
+                Ok((Bytecode::JumpIfUninit { def_span, label }, cursor))
             },
             Some(10) => {
                 let (label, cursor) = Label::decode_impl(buffer, cursor + 1)?;

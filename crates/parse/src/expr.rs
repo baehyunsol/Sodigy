@@ -185,7 +185,7 @@ impl<'t> Tokens<'t> {
 
     fn pratt_parse(&mut self, min_bp: u32) -> Result<Expr, Vec<Error>> {
         let mut lhs = match self.peek() {
-            Some(Token { kind: tk @ TokenKind::Punct(p), span }) => {
+            Some(Token { kind: TokenKind::Punct(p), span }) => {
                 let punct = *p;
                 let punct_span = *span;
 

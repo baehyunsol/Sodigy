@@ -16,7 +16,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn list(elems: Vec<Value>, session: &Session) -> Value {
+    pub fn list(elems: Vec<Value>) -> Value {
         let mut result = Vec::with_capacity(elems.len() + 1);
         result.push((&InternedNumber::from_u32(
             elems.len() as u32,
@@ -43,7 +43,7 @@ impl Session {
             ).collect()
         };
 
-        Value::list(elems, self)
+        Value::list(elems)
     }
 }
 

@@ -59,11 +59,11 @@ pub enum Bytecode {
 
     // It'll jump to `Label::Global(def_span)` if `Memory::Global(def_span)` is not init.
     // Otherwise, it does nothing.
-    LazyEvalGlobal {
+    JumpIfUninit {
         def_span: Span,
 
         // If you jump here, it'll evaluate the value and push the result to
-        // `Memory::Global(def_span)`.
+        // `Memory::Global(def_span)`, then return.
         label: Label,
     },
 

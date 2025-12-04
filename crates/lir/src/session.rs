@@ -230,7 +230,7 @@ impl Session {
             match bytecode {
                 Bytecode::Jump(label) |
                 Bytecode::JumpIf { label, .. } |
-                Bytecode::LazyEvalGlobal { label, .. } |
+                Bytecode::JumpIfUninit { label, .. } |
                 Bytecode::PushCallStack(label) => {
                     let flattened_index = match *label {
                         Label::Local(ll) => label_map.get(&(curr_item_span, *label)).unwrap(),

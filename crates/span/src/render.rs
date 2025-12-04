@@ -352,8 +352,6 @@ fn render_span_worker(
             ));
         }
 
-        // TODO: add labels and write notes underneath
-        //
         // 1. when the labels are far from each other
         //         ^^^        ^^^
         //         |          |

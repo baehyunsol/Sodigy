@@ -289,7 +289,7 @@ impl<'t> Tokens<'t> {
                 }
             },
             (Some(Token { kind: TokenKind::Number(n), span }), _) => {
-                let (mut n, span) = (n.clone(), *span);
+                let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
                 Pattern {
                     name: None,

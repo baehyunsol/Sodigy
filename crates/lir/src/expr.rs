@@ -66,7 +66,7 @@ pub fn lower_expr(
                         NameKind::Let { is_top_level: true } => {
                             let value_inited = session.get_local_label();
                             bytecodes.push(Bytecode::PushCallStack(value_inited));
-                            bytecodes.push(Bytecode::LazyEvalGlobal {
+                            bytecodes.push(Bytecode::JumpIfUninit {
                                 def_span: id.def_span,
                                 label: Label::Global(id.def_span),
                             });

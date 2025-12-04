@@ -126,7 +126,7 @@ fn execute(
                     }
                 }
             },
-            Bytecode::LazyEvalGlobal { def_span, label } => {
+            Bytecode::JumpIfUninit { def_span, label } => {
                 if !heap.global_values.contains_key(def_span) {
                     match label {
                         Label::Flatten(i) => {
