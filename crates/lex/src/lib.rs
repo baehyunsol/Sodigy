@@ -18,7 +18,7 @@ pub use session::Session;
 pub(crate) enum LexState {
     Init,
 
-    // `StringPrefix` first parses prefix `b`, `f` or `r` before the literal
+    // `StringPrefix` first parses prefix `b`, `f`, `r` or `re` before the literal
     // then `StringInit` counts the number of double quote characters
     // then `String` parses the content of the literal
     StringPrefix,
@@ -26,12 +26,21 @@ pub(crate) enum LexState {
         binary: bool,
         format: bool,
         raw: bool,
+
+        // If regex is set, it implies that
+        // binary is false
+        // format is false
+        // raw is true
+        regex: bool,
     },
     String {
         format: bool,
         binary: bool,
         raw: bool,
         quote_count: usize,
+
+        // It doesn't affect the parsing. It only affects the result.
+        regex: bool,
     },
     Char {
         binary: bool,
@@ -503,6 +512,7 @@ impl Session {
             // b'a' -> binary char
             // f"abc" -> formatted string
             // r"abc" -> raw string
+            // re"abc" -> regex
             // br"abc", rb"abc" -> binary raw string
             // fr"abc", rf"abc" -> formatted raw string
             LexState::StringPrefix => match (self.input_bytes.get(self.cursor), self.input_bytes.get(self.cursor + 1), self.input_bytes.get(self.cursor + 2)) {
@@ -544,6 +554,7 @@ impl Session {
                         binary: true,
                         format: false,
                         raw: true,
+                        regex: false,
                     };
                     self.cursor += 2;
                 },
@@ -575,6 +586,7 @@ impl Session {
                         binary: false,
                         format: true,
                         raw: true,
+                        regex: false,
                     };
                     self.cursor += 2;
                 },
@@ -591,11 +603,33 @@ impl Session {
                         ..Error::default()
                     });
                 },
+                (Some(b'r'), Some(b'e'), Some(b'"')) => {
+                    self.state = LexState::StringInit {
+                        binary: false,
+                        format: false,
+                        raw: true,
+                        regex: true,
+                    };
+                    self.cursor += 2;
+                },
+                // `re` is invalid for a char literal
+                (Some(b'r'), Some(b'e'), Some(b'\'')) => {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 2,
+                        ).simple_error(),
+                        ..Error::default()
+                    });
+                },
                 (Some(x @ (b'b' | b'f' | b'r')), Some(b'"'), _) => {
                     self.state = LexState::StringInit {
                         binary: *x == b'b',
                         format: *x == b'f',
                         raw: *x == b'r',
+                        regex: false,
                     };
                     self.cursor += 1;
                 },
@@ -604,6 +638,7 @@ impl Session {
                         binary: true,
                         format: false,
                         raw: false,
+                        regex: false,
                     };
                     self.cursor += 1;
                 },
@@ -623,6 +658,7 @@ impl Session {
                         binary: false,
                         format: false,
                         raw: false,
+                        regex: false,
                     };
                 },
                 (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
@@ -659,7 +695,7 @@ impl Session {
             },
             // `LexState::StringInit` doesn't care even if a char literal has multiple characters.
             // `LexState::Char` will throw an error for that.
-            LexState::StringInit { binary, format, raw } => match (
+            LexState::StringInit { binary, format, raw, regex } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
@@ -692,6 +728,7 @@ impl Session {
                                 TokenKind::String {
                                     binary,
                                     raw,
+                                    regex,
                                     s: InternedString::empty(),
                                 }
                             };
@@ -729,6 +766,7 @@ impl Session {
                                 binary,
                                 raw,
                                 quote_count,
+                                regex,
                             };
                             self.cursor += quote_count;
                         },
@@ -745,6 +783,7 @@ impl Session {
                         TokenKind::String {
                             binary,
                             raw,
+                            regex,
                             s: InternedString::empty(),
                         }
                     };
@@ -777,6 +816,7 @@ impl Session {
                         binary,
                         raw,
                         quote_count: 1,
+                        regex,
                     };
                     self.cursor += 1;
                 },
@@ -786,7 +826,7 @@ impl Session {
                 },
                 _ => unreachable!(),
             },
-            LexState::String { format, binary, raw: true, quote_count } => match (
+            LexState::String { format, binary, raw: true, quote_count, regex } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
@@ -835,6 +875,7 @@ impl Session {
                             kind: TokenKind::String {
                                 binary,
                                 raw: true,
+                                regex,
                                 s: interned,
                             },
                             span: Span::range(
@@ -884,7 +925,7 @@ impl Session {
                     });
                 },
             },
-            LexState::String { format, binary, raw: false, quote_count } => match (
+            LexState::String { format, binary, raw: false, quote_count, regex } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
@@ -961,6 +1002,7 @@ impl Session {
                             kind: TokenKind::String {
                                 binary,
                                 raw: false,
+                                regex,
                                 s: interned,
                             },
                             span: Span::range(

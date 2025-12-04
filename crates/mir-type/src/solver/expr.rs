@@ -31,6 +31,9 @@ impl Solver {
                             NameKind::EnumVariant { parent } => {
                                 return (Some(Type::Static(parent)), false);
                             },
+                            NameKind::PatternNameBind => {
+                                self.pattern_name_bindings.insert(id.def_span);
+                            },
                             _ => panic!("TODO: {id:?}"),
                         },
                         _ => {},
@@ -147,6 +150,85 @@ impl Solver {
                     }
                 },
             },
+            // 1. value_type == pattern_type
+            //    - but we don't check the types of patterns here
+            //    - MatchFsm will do that
+            // 2. guard_type == bool
+            // 3. arm_type == all the other arm_types
+            // 4. arm_type == expr_type
+            Expr::Match(r#match) => {
+                let (value_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), types, generic_instances);
+                let mut arm_types = Vec::with_capacity(r#match.arms.len());
+
+                // TODO: it's okay to fail to infer the types of name bindings
+                //       we need some kinda skip list
+                for arm in r#match.arms.iter() {
+                    if let Some(guard) = &arm.guard {
+                        let (guard_type, e) = self.solve_expr(guard, types, generic_instances);
+                        has_error |= e;
+
+                        if let Some(guard_type) = guard_type {
+                            if let Err(()) = self.solve_subtype(
+                                &Type::Static(self.get_lang_item_span("type.Bool")),
+                                &guard_type,
+                                types,
+                                generic_instances,
+                                false,
+                                None,
+                                Some(guard.error_span()),
+                                ErrorContext::MatchGuardBool,
+                            ) {
+                                has_error = true;
+                            }
+                        }
+                    }
+
+                    let (arm_type, e) = self.solve_expr(&arm.value, types, generic_instances);
+                    has_error |= e;
+
+                    if let Some(arm_type) = arm_type {
+                        arm_types.push(arm_type);
+                    }
+                }
+
+                if has_error {
+                    (None, true)
+                }
+
+                else {
+                    // parser guarantees that there's at least 1 arm
+                    let mut expr_type = arm_types[0].clone();
+                    let mut has_error = false;
+
+                    for i in 1..arm_types.len() {
+                        if let Ok(new_expr_type) = self.solve_subtype(
+                            &expr_type,
+                            &arm_types[i],
+                            types,
+                            generic_instances,
+                            false,
+                            Some(r#match.arms[0].value.error_span()),
+                            Some(r#match.arms[i].value.error_span()),
+                            ErrorContext::MatchArmEqual,
+                        ) {
+                            expr_type = new_expr_type;
+                        }
+
+                        else {
+                            has_error = true;
+                        }
+                    }
+
+                    if has_error {
+                        (None, true)
+                    }
+
+                    else {
+                        (Some(expr_type), false)
+                    }
+                }
+            },
+            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 let mut has_error = false;
 
@@ -164,6 +246,7 @@ impl Solver {
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), types, generic_instances);
                 (expr_type, e || has_error)
             },
+            Expr::Path { .. } => todo!(),
             // 1. Make sure that `lhs` has the fields.
             // 2. Make sure that the field's type and `rhs`' type are the same.
             // 3. Return the type of `lhs`.
@@ -397,7 +480,6 @@ impl Solver {
                     _ => panic!("TODO: {func:?}"),
                 }
             },
-            _ => panic!("TODO: {expr:?}"),
         }
     }
 }

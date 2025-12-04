@@ -26,7 +26,18 @@ impl Expr {
                 r#if.true_value.dispatch(map, func_shapes, generic_instances);
                 r#if.false_value.dispatch(map, func_shapes, generic_instances);
             },
-            Expr::Match(r#match) => todo!(),
+            Expr::Match(r#match) => {
+                r#match.scrutinee.dispatch(map, func_shapes, generic_instances);
+
+                for arm in r#match.arms.iter_mut() {
+                    if let Some(guard) = &mut arm.guard {
+                        guard.dispatch(map, func_shapes, generic_instances);
+                    }
+
+                    arm.value.dispatch(map, func_shapes, generic_instances);
+                }
+            },
+            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for r#let in block.lets.iter_mut() {
                     r#let.value.dispatch(map, func_shapes, generic_instances);

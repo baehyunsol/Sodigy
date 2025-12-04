@@ -49,6 +49,10 @@ pub struct Solver {
     // is in this set, the type variable has `Type::Never`.
     pub maybe_never_type: HashMap<Type /* TypeVar */, Type /* Type::Never */>,
 
+    // We might fail to infer type of name bindings in patterns, because
+    // we don't solve the types of patterns (will later be done by MatchFsm).
+    pub pattern_name_bindings: HashSet<Span>,
+
     pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
 
@@ -65,6 +69,7 @@ impl Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),
+            pattern_name_bindings: HashSet::new(),
             lang_items,
             errors: vec![],
             log: if log { Some(vec![]) } else { None },
@@ -150,6 +155,10 @@ impl Solver {
             match type_var {
                 Type::Var { def_span, .. } => match types.get(def_span) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
+                        if self.pattern_name_bindings.contains(def_span) {
+                            continue;
+                        }
+
                         has_error = true;
                         self.errors.push(TypeError::CannotInferType {
                             id: *id,
@@ -489,8 +498,9 @@ impl Solver {
                     Ok(t1.clone())
                 }
 
+                // `fn foo() = x;`, and we don't know the return type of `foo` and type of `x`.
                 else {
-                    todo!()
+                    panic!("TODO: {t1:?}, {t2:?}")
                 }
             },
             (t1 @ Type::GenericInstance { call: c1, generic: g1 }, t2 @ Type::GenericInstance { call: c2, generic: g2 }) => {

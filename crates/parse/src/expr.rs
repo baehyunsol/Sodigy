@@ -222,11 +222,12 @@ impl<'t> Tokens<'t> {
                 self.cursor += 1;
                 Expr::Number { n, span }
             },
-            Some(Token { kind: TokenKind::String { binary, s, .. }, span }) => {
+            Some(Token { kind: TokenKind::String { binary, regex: false, s, .. }, span }) => {
                 let (binary, s, span) = (*binary, *s, *span);
                 self.cursor += 1;
                 Expr::String { binary, s, span }
             },
+            Some(Token { kind: TokenKind::String { regex: true, s, .. }, span }) => todo!(),
             Some(Token { kind: TokenKind::Char(ch), span }) => {
                 let (ch, span) = (*ch, *span);
                 self.cursor += 1;

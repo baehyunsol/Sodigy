@@ -6,48 +6,48 @@ use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct Match {
     pub keyword_span: Span,
-    pub value: Box<Expr>,
-    pub branches: Vec<MatchBranch>,
+    pub scrutinee: Box<Expr>,
+    pub arms: Vec<MatchArm>,
 }
 
 #[derive(Clone, Debug)]
-pub struct MatchBranch {
+pub struct MatchArm {
     pub pattern: Pattern,
-    pub cond: Option<Expr>,
+    pub guard: Option<Expr>,
     pub value: Expr,
 }
 
 impl<'t> Tokens<'t> {
     pub fn parse_match_expr(&mut self) -> Result<Match, Vec<Error>> {
         let keyword = self.match_and_pop(TokenKind::Keyword(Keyword::Match))?;
-        let value = self.parse_expr()?;
+        let scrutinee = self.parse_expr()?;
 
         let Token {
             kind: TokenKind::Group { tokens, .. },
             span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut branch_tokens = Tokens::new(tokens, span.end());
-        let branches = branch_tokens.parse_match_branches()?;
+        let mut arm_tokens = Tokens::new(tokens, span.end());
+        let arms = arm_tokens.parse_match_arms()?;
 
         Ok(Match {
             keyword_span: keyword.span,
-            value: Box::new(value),
-            branches,
+            scrutinee: Box::new(scrutinee),
+            arms,
         })
     }
 
-    pub fn parse_match_branches(&mut self) -> Result<Vec<MatchBranch>, Vec<Error>> {
-        let mut branches = vec![];
+    pub fn parse_match_arms(&mut self) -> Result<Vec<MatchArm>, Vec<Error>> {
+        let mut arms = vec![];
 
         loop {
             let pattern = self.parse_pattern(ParsePatternContext::MatchArm)?;
 
-            let cond = match self.peek() {
+            let guard = match self.peek() {
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {
                     self.cursor += 1;
-                    let cond = self.parse_expr()?;
+                    let guard = self.parse_expr()?;
                     self.match_and_pop(TokenKind::Punct(Punct::Arrow))?;
-                    Some(cond)
+                    Some(guard)
                 },
                 Some(Token { kind: TokenKind::Punct(Punct::Arrow), .. }) => {
                     self.cursor += 1;
@@ -60,9 +60,9 @@ impl<'t> Tokens<'t> {
             };
 
             let value = self.parse_expr()?;
-            branches.push(MatchBranch {
+            arms.push(MatchArm {
                 pattern,
-                cond,
+                guard,
                 value,
             });
 
@@ -95,6 +95,6 @@ impl<'t> Tokens<'t> {
             }
         }
 
-        Ok(branches)
+        Ok(arms)
     }
 }

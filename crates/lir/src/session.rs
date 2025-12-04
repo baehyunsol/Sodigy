@@ -113,23 +113,37 @@ impl Session {
             Expr::Char { .. } |
             Expr::Byte { .. } => {},
             Expr::If(r#if) => {
-                // `if let Some(x) = foo() {}`
-                // name bindings in the pattern cannot be used in condition
                 self.collect_local_names(&r#if.cond, offset);
-
-                // name bindings in the pattern can be used in true_value
-                if let Some(pattern) = &r#if.pattern {
-                    todo!()
-                }
-
-                else {
-                    self.collect_local_names(&r#if.true_value, offset);
-                }
-
-                // name bindings in the pattern cannot be used in false_value
+                self.collect_local_names(&r#if.true_value, offset);
                 self.collect_local_names(&r#if.false_value, offset);
             },
-            Expr::Match(r#match) => todo!(),
+            Expr::Match(r#match) => {
+                self.collect_local_names(&r#match.scrutinee, offset);
+
+                for arm in r#match.arms.iter() {
+                    let pattern_name_bindings = arm.pattern.bound_names();
+
+                    for (i, (_, def_span)) in pattern_name_bindings.iter().enumerate() {
+                        self.local_values.insert(
+                            *def_span,
+                            LocalValue {
+                                stack_offset: offset + i,
+                                dropped: false,
+
+                                // TODO: drop value!!!
+                                drop_type: DropType::Scalar,
+                            },
+                        );
+                    }
+
+                    if let Some(guard) = &arm.guard {
+                        self.collect_local_names(guard, offset + pattern_name_bindings.len());
+                    }
+
+                    self.collect_local_names(&arm.value, offset + pattern_name_bindings.len());
+                }
+            },
+            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for (i, r#let) in block.lets.iter().enumerate() {
                     self.local_values.insert(

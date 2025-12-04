@@ -1,17 +1,86 @@
+# 115. Span tester
+
+text file이랑 span을 주고, render-span 호출할 수 있게하는 pipeline 만들자!
+
+# 114. regex patterns
+
+`r""`를 raw string으로도 쓰고 regex pattern으로도 쓰는 거는 너무 헷갈릴 듯??
+
+차라리 `re""`를 만들어서 regex pattern으로 쓰자!!
+
+pattern에서는 `re""`가 regex고... expression에서는??
+
+1. `r""`이랑 동일하게 취급하기
+2. 에러 날리기
+3. `Regex`라는 type 새로 만들어서 그걸로 취급하기
+  - regex library 사용해도 저 type이 나옴
+  - regex literal은 반드시 compile time에 eval됨!
+
+```
+In Sodigy, regular expressions are first-class citizens! I know you guys (especially PL folks) are gonna hate this, but please listen to me.
+```
+
+# 113. match
+
+이제 match를 뜯어야 함...
+
+1. exhaustiveness check
+  - struct/tuple: field, element 단위로, element 개수를 미리 앎
+  - string/list: element 개수 기준으로 먼저 잡고, 각 개수마다 element 단위로 다 잡아야 함!
+  - integer: -inf에서 inf까지 다 잡으면 됨, 불연속
+  - enum: discriminant 단위로 잡은 다음에 각각을 다시 잡아야함 -> recursion?
+  - number: -inf에서 inf까지 다 잡으면 됨, 연속
+2. type check
+3. lowering to mir/lir
+  - mir에서도 hir이랑 비슷한 모양을 쓸지??
+  - 실제 execution에서는 어떻게 동작할지??
+
+---
+
+무식한 draft
+
+1. mir에서도 hir이랑 비슷한 모양을 사용. type-check도 이 모양으로 함.
+  - type-check 할 때는 pattern은 안 건드릴 거임 (그게 가능할지는 모르겠지만...)
+  - arm에 있는 expr은 정상적으로 type-check 하면 되고, pattern에 있는 name binding도 type-infer가 가능!!
+    - pattern에 있는 name-binding은 type-infer에 실패하더라도 type error를 내면 안됨.
+    - 일단, name-binding에 type annotation 붙일 방법도 없고
+    - pattern을 제외한 type-infer에 성공하면 pattern name-binding의 type infer도 반드시 성공해야하거든...
+2. tree of simple-matches
+  - type-check가 선행되어야 가능함
+  - expr이 enum일 경우
+    - enum.discriminant로 match를 하고, 각각의 arm에서 variant 내부를 갖고 match
+  - expr이 tuple일 경우
+    - 첫번째 element로 match를 하고, 각각의 arm에서 2번째 element로 match
+  - expr이 struct일 경우
+    - 첫번째 field로 match를 하고, 각각의 arm에서 2번째 field로 match
+  - 이 방식으로 exhaustiveness check도 가능!
+
+```
+// v: (MessageOrOutput, Person)
+match v._0.discriminant {
+    // Message { a, b }
+    0 => match v._0.a {},
+    // Output(v)
+    1 => match v._0._0 {},
+    // None
+    2 => match v._1.age {},
+}
+```
+
 # 112. lists
 
 이거 분명히 옛날에 issue 있었는데...
 
-`a ++ b`, `a[i..j]`, `a[i]`, `a <+ x`, `x +> a`, `a.pop_front()`, `a.pop_back()`, `a.update(i, x)` 중에서 몇개를 O(n)으로 만들고 몇개를 O(1)으로 만들지를 결정해야함.
+`a ++ b`, `a[i..j]`, `a[i]`, `a <+ x`, `x +> a`, `a.pop_front()`, `a.pop_back()`, `a.update(i, x), a.len()` 중에서 몇개를 O(n)으로 만들고 몇개를 O(1)으로 만들지를 결정해야함.
 
 1. Rust vector 형식으로 저장
-  - O(n), O(n), O(1), O(n), O(n), O(n), O(n), O(n)
+  - O(n), O(n), O(1), O(n), O(n), O(n), O(n), O(n), O(1)
 2. Rust slice 형식으로 저장
-  - O(n), O(1), O(1), O(n), O(n), O(1), O(1), O(n)
+  - O(n), O(1), O(1), O(n), O(n), O(1), O(1), O(n), O(1)
   - 1번에 비해서 모든 연산이 조금씩 느려짐 (time complexity가 동일할 때)
 3. singly linked list 형식으로 저장
-  - O(1), O(n), O(n), O(n), O(1), O(1), O(n), O(n)
-  - 1번에 비해서 모든 연산이 조금씩 느려짐 (tim complexity가 동일할 때)
+  - O(1), O(n), O(n), O(n), O(1), O(1), O(n), O(n), O(n)
+  - 1번에 비해서 모든 연산이 조금씩 느려짐 (time complexity가 동일할 때)
   - 이렇게 하면 string이 너무 느려짐...
 
 2번이 젤 나아보이긴 하지만, 어디까지 built-in으로 처리하고 어디부터 sodigy로 할지도 애매함. 예를 들어서, pattern matching에서 `[a] ++ r`이 있으면 저기 있는 `[a]`는 slice야? vector야?

@@ -1,4 +1,4 @@
-use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
     Assert,
@@ -1055,22 +1055,22 @@ impl Session {
             Expr::Match(r#match) => {
                 let mut has_error = false;
 
-                if let Err(()) = self.resolve_expr(&mut r#match.value) {
+                if let Err(()) = self.resolve_expr(&mut r#match.scrutinee) {
                     has_error = true;
                 }
 
-                for branch in r#match.branches.iter_mut() {
-                    if let Err(()) = self.resolve_pattern(&mut branch.pattern) {
+                for arm in r#match.arms.iter_mut() {
+                    if let Err(()) = self.resolve_pattern(&mut arm.pattern) {
                         has_error = true;
                     }
 
-                    if let Some(cond) = &mut branch.cond {
-                        if let Err(()) = self.resolve_expr(cond) {
+                    if let Some(guard) = &mut arm.guard {
+                        if let Err(()) = self.resolve_expr(guard) {
                             has_error = true;
                         }
                     }
 
-                    if let Err(()) = self.resolve_expr(&mut branch.value) {
+                    if let Err(()) = self.resolve_expr(&mut arm.value) {
                         has_error = true;
                     }
                 }

@@ -30,7 +30,7 @@ pub use expr::{Expr, ExprOrString, Field};
 pub use func::{CallArg, Func, FuncParam};
 pub use r#if::If;
 pub use r#let::Let;
-pub use r#match::{Match, MatchBranch};
+pub use r#match::{Match, MatchArm};
 pub use module::Module;
 pub use pattern::{Pattern, PatternKind};
 pub(crate) use pattern::ParsePatternContext;

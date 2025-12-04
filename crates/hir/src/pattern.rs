@@ -1,4 +1,5 @@
 use crate::{Session, Type};
+use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
@@ -105,14 +106,53 @@ impl Pattern {
             })
         }
     }
+
+    pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
+        let mut result = vec![];
+
+        if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
+            result.push((name, name_span));
+        }
+
+        result.extend(self.kind.bound_names());
+        result
+    }
 }
 
 impl PatternKind {
     pub fn from_ast(ast_pattern: &ast::PatternKind, session: &mut Session) -> Result<PatternKind, ()> {
         match ast_pattern {
             ast::PatternKind::Identifier { id, span } => Ok(PatternKind::Identifier { id: *id, span: *span }),
+            ast::PatternKind::DollarIdentifier { id, span } => match session.find_origin_and_count_usage(*id) {
+                Some((origin, def_span)) => {
+                    Ok(PatternKind::DollarIdentifier(IdentWithOrigin {
+                        id: *id,
+                        span: *span,
+                        origin,
+                        def_span,
+                    }))
+                },
+                None => {
+                    session.errors.push(Error {
+                        kind: ErrorKind::UndefinedName(*id),
+                        spans: span.simple_error(),
+                        note: None,
+                    });
+                    Err(())
+                },
+            },
             ast::PatternKind::Number { n, span } => Ok(PatternKind::Number { n: n.clone(), span: *span }),
             ast::PatternKind::String { binary, s, span } => Ok(PatternKind::String { binary: *binary, s: *s, span: *span }),
+            ast::PatternKind::Regex { s, span } => {
+                session.errors.push(Error::todo(
+                    18211,
+                    "regex pattern",
+                    *span,
+                ));
+                Err(())
+            },
+            ast::PatternKind::Char { ch, span } => Ok(PatternKind::Char { ch: *ch, span: *span }),
+            ast::PatternKind::Byte { b, span } => Ok(PatternKind::Byte { b: *b, span: *span }),
             ast::PatternKind::Tuple { elements: ast_elements, dot_dot_span, group_span } |
             ast::PatternKind::List { elements: ast_elements, dot_dot_span, group_span } => {
                 let is_tuple = matches!(ast_pattern, ast::PatternKind::Tuple { .. });
@@ -179,6 +219,21 @@ impl PatternKind {
             },
             ast::PatternKind::Wildcard(span) => Ok(PatternKind::Wildcard(*span)),
             _ => panic!("TODO: {ast_pattern:?}"),
+        }
+    }
+
+    pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
+        match self {
+            PatternKind::Number { .. } |
+            PatternKind::String { .. } |
+            PatternKind::Regex { .. } |
+            PatternKind::Char { .. } |
+            PatternKind::Byte { .. } |
+            PatternKind::Path(_) |
+            PatternKind::Wildcard(_) |
+            PatternKind::DollarIdentifier { .. } => vec![],
+            PatternKind::Identifier { id, span } => vec![(*id, *span)],
+            _ => todo!(),
         }
     }
 }

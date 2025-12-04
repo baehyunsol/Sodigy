@@ -1,4 +1,4 @@
-use crate::{Block, If, Match, Session, Type};
+use crate::{Block, If, Match, MatchFsm, Session, Type, lower_hir_if};
 use sodigy_error::{Error, ErrorKind, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -33,7 +33,11 @@ pub enum Expr {
         span: Span,
     },
     If(If),
+
+    // See `crates/mir/src/match.rs` to see the difference.
     Match(Match),
+    MatchFsm(MatchFsm),
+
     Block(Block),
     Path {
         lhs: Box<Expr>,
@@ -108,18 +112,11 @@ impl Expr {
                 span: *span,
             }),
 
-            hir::Expr::If(r#if) => match If::from_hir(r#if, session) {
-                Ok(r#if) => Ok(Expr::If(r#if)),
-                Err(()) => Err(()),
-            },
-            hir::Expr::Match(r#match) => match Match::from_hir(r#match, session) {
-                Ok(r#match) => Ok(Expr::Match(r#match)),
-                Err(()) => Err(()),
-            },
-            hir::Expr::Block(block) => match Block::from_hir(block, session) {
-                Ok(block) => Ok(Expr::Block(block)),
-                Err(()) => Err(()),
-            },
+            // `if let` is `hir::If`, but is lowered to `mir::Match`.
+            hir::Expr::If(r#if) => Ok(lower_hir_if(r#if, session)?),
+
+            hir::Expr::Match(r#match) => Ok(Expr::Match(Match::from_hir(r#match, session)?)),
+            hir::Expr::Block(block) => Ok(Expr::Block(Block::from_hir(block, session)?)),
             hir::Expr::Call {
                 func,
                 args: hir_args,
@@ -714,7 +711,6 @@ impl Expr {
                             InfixOp::LogicAnd => Ok(Expr::If(If {
                                 if_span: *op_span,
                                 cond: Box::new(lhs),
-                                pattern: None,
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
                                 false_value: Box::new(Expr::Identifier(IdentWithOrigin {
@@ -733,7 +729,6 @@ impl Expr {
                             InfixOp::LogicOr => Ok(Expr::If(If {
                                 if_span: *op_span,
                                 cond: Box::new(lhs),
-                                pattern: None,
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Identifier(IdentWithOrigin {
                                     id: intern_string(b"True", &session.intermediate_dir).unwrap(),
@@ -798,7 +793,8 @@ impl Expr {
             Expr::Char { span, .. } |
             Expr::Byte { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
-            Expr::Match(r#match) => todo!(),
+            Expr::Match(r#match) => r#match.keyword_span,
+            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => block.group_span,
             // Let's hope it doesn't panic...
             Expr::Path { fields, .. } => fields[0].dot_span().unwrap(),

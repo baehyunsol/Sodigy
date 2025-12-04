@@ -66,6 +66,7 @@ pub enum TokenKind {
     String {
         binary: bool,
         raw: bool,
+        regex: bool,  // it implies `raw = true` and `binary = false`
         s: InternedString,
     },
     // `'a'`

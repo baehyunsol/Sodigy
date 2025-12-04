@@ -98,13 +98,23 @@ impl Session {
             Expr::Byte { .. } |
             Expr::Path { .. } |
             Expr::FieldModifier { .. } => {},
-
             Expr::If(r#if) => {
                 self.init_span_string_map_expr(&r#if.cond, result);
                 self.init_span_string_map_expr(&r#if.true_value, result);
                 self.init_span_string_map_expr(&r#if.false_value, result);
             },
-            Expr::Match(r#match) => todo!(),
+            Expr::Match(r#match) => {
+                self.init_span_string_map_expr(&r#match.scrutinee, result);
+
+                for arm in r#match.arms.iter() {
+                    if let Some(guard) = &arm.guard {
+                        self.init_span_string_map_expr(guard, result);
+                    }
+
+                    self.init_span_string_map_expr(&arm.value, result);
+                }
+            },
+            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for r#let in block.lets.iter() {
                     self.init_span_string_map_let(r#let, result);

@@ -6,10 +6,13 @@ use crate::{
     If,
     Let,
     Match,
+    MatchArm,
+    MatchFsm,
     Pattern,
     ShortCircuitKind,
 };
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_hir as hir;
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
@@ -52,23 +55,27 @@ impl Endec for Expr {
                 buffer.push(6);
                 r#match.encode_impl(buffer);
             },
-            Expr::Block(block) => {
+            Expr::MatchFsm(match_fsm) => {
                 buffer.push(7);
+                match_fsm.encode_impl(buffer);
+            },
+            Expr::Block(block) => {
+                buffer.push(8);
                 block.encode_impl(buffer);
             },
             Expr::Path { lhs, fields } => {
-                buffer.push(8);
+                buffer.push(9);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
             Expr::FieldModifier { fields, lhs, rhs } => {
-                buffer.push(9);
+                buffer.push(10);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::Call { func, args, generic_defs, given_keyword_arguments } => {
-                buffer.push(10);
+                buffer.push(11);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 generic_defs.encode_impl(buffer);
@@ -113,28 +120,32 @@ impl Endec for Expr {
                 Ok((Expr::Match(r#match), cursor))
             },
             Some(7) => {
+                let (match_fsm, cursor) = MatchFsm::decode_impl(buffer, cursor + 1)?;
+                Ok((Expr::MatchFsm(match_fsm), cursor))
+            },
+            Some(8) => {
                 let (block, cursor) = Block::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Block(block), cursor))
             },
-            Some(8) => {
+            Some(9) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Path { lhs, fields }, cursor))
             },
-            Some(9) => {
+            Some(10) => {
                 let (fields, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
             },
-            Some(10) => {
+            Some(11) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (generic_defs, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
                 let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, generic_defs, given_keyword_arguments }, cursor))
             },
-            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -170,7 +181,6 @@ impl Endec for If {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.if_span.encode_impl(buffer);
         self.cond.encode_impl(buffer);
-        self.pattern.encode_impl(buffer);
         self.else_span.encode_impl(buffer);
         self.true_value.encode_impl(buffer);
         self.false_value.encode_impl(buffer);
@@ -180,7 +190,6 @@ impl Endec for If {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (if_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (cond, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-        let (pattern, cursor) = Option::<Pattern>::decode_impl(buffer, cursor)?;
         let (else_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (true_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (false_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
@@ -190,7 +199,6 @@ impl Endec for If {
             If {
                 if_span,
                 cond,
-                pattern,
                 else_span,
                 true_value,
                 false_value,
@@ -203,11 +211,60 @@ impl Endec for If {
 
 impl Endec for Match {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        //
+        self.keyword_span.encode_impl(buffer);
+        self.scrutinee.encode_impl(buffer);
+        self.arms.encode_impl(buffer);
+        self.lowered_from_if.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        Ok((Match {}, cursor))
+        let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (scrutinee, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (arms, cursor) = Vec::<MatchArm>::decode_impl(buffer, cursor)?;
+        let (lowered_from_if, cursor) = bool::decode_impl(buffer, cursor)?;
+
+        Ok((
+            Match {
+                keyword_span,
+                scrutinee,
+                arms,
+                lowered_from_if,
+            },
+            cursor,
+        ))
+    }
+}
+
+impl Endec for MatchArm {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.pattern.encode_impl(buffer);
+        self.guard.encode_impl(buffer);
+        self.value.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (pattern, cursor) = hir::Pattern::decode_impl(buffer, cursor)?;
+        let (guard, cursor) = Option::<Expr>::decode_impl(buffer, cursor)?;
+        let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
+
+        Ok((
+            MatchArm {
+                pattern,
+                guard,
+                value,
+            },
+            cursor,
+        ))
+    }
+}
+
+impl Endec for MatchFsm {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        todo!()
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        todo!()
     }
 }
 

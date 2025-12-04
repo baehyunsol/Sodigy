@@ -1,11 +1,11 @@
-use crate::{Match, MatchBranch, Session};
+use crate::{Match, MatchArm, Session};
 use sodigy_error::{Error, ErrorKind};
 
 impl Match {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if self.branches.is_empty() {
+        if self.arms.is_empty() {
             errors.push(Error {
                 kind: ErrorKind::EmptyMatchStatement,
                 spans: self.keyword_span.simple_error(),
@@ -13,8 +13,8 @@ impl Match {
             });
         }
 
-        for branch in self.branches.iter() {
-            if let Err(e) = branch.check(session) {
+        for arm in self.arms.iter() {
+            if let Err(e) = arm.check(session) {
                 errors.extend(e);
             }
         }
@@ -29,7 +29,7 @@ impl Match {
     }
 }
 
-impl MatchBranch {
+impl MatchArm {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         self.pattern.check(
             /* allow type annotation: */ false,

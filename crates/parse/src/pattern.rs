@@ -298,11 +298,11 @@ impl<'t> Tokens<'t> {
                     kind: PatternKind::Number { n, span },
                 }
             },
-            (Some(Token { kind: TokenKind::String { binary, raw, s }, span }), _) => {
-                let (binary, raw, s, span) = (*binary, *raw, *s, *span);
+            (Some(Token { kind: TokenKind::String { binary, raw: _, regex, s }, span }), _) => {
+                let (binary, regex, s, span) = (*binary, *regex, *s, *span);
                 self.cursor += 1;
 
-                if raw {
+                if regex {
                     Pattern {
                         name: None,
                         name_span: None,
