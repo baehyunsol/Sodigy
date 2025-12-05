@@ -1,3 +1,7 @@
+# 116. `error_span()`
+
+`error_span_wide()`랑 `error_span_narrow()`로 구분해서 쓸까? narrow는 operator나 keyword만 해주는 거지!!
+
 # 115. Span tester
 
 text file이랑 span을 주고, render-span 호출할 수 있게하는 pipeline 만들자!
@@ -22,50 +26,52 @@ In Sodigy, regular expressions are first-class citizens! I know you guys (especi
 
 # 113. match
 
-이제 match를 뜯어야 함...
+https://doc.rust-lang.org/nightly/nightly-rustc/rustc_pattern_analysis/usefulness/index.html
 
-1. exhaustiveness check
-  - struct/tuple: field, element 단위로, element 개수를 미리 앎
-  - string/list: element 개수 기준으로 먼저 잡고, 각 개수마다 element 단위로 다 잡아야 함!
-  - integer: -inf에서 inf까지 다 잡으면 됨, 불연속
-  - enum: discriminant 단위로 잡은 다음에 각각을 다시 잡아야함 -> recursion?
-  - number: -inf에서 inf까지 다 잡으면 됨, 연속
-2. type check
-3. lowering to mir/lir
-  - mir에서도 hir이랑 비슷한 모양을 쓸지??
-  - 실제 execution에서는 어떻게 동작할지??
+```rs
+struct Duo {
+    id: Int,
+    member_a: Person,
+    member_b: Person,
+}
 
----
-
-무식한 draft
-
-1. mir에서도 hir이랑 비슷한 모양을 사용. type-check도 이 모양으로 함.
-  - type-check 할 때는 pattern은 안 건드릴 거임 (그게 가능할지는 모르겠지만...)
-  - arm에 있는 expr은 정상적으로 type-check 하면 되고, pattern에 있는 name binding도 type-infer가 가능!!
-    - pattern에 있는 name-binding은 type-infer에 실패하더라도 type error를 내면 안됨.
-    - 일단, name-binding에 type annotation 붙일 방법도 없고
-    - pattern을 제외한 type-infer에 성공하면 pattern name-binding의 type infer도 반드시 성공해야하거든...
-2. tree of simple-matches
-  - type-check가 선행되어야 가능함
-  - expr이 enum일 경우
-    - enum.discriminant로 match를 하고, 각각의 arm에서 variant 내부를 갖고 match
-  - expr이 tuple일 경우
-    - 첫번째 element로 match를 하고, 각각의 arm에서 2번째 element로 match
-  - expr이 struct일 경우
-    - 첫번째 field로 match를 하고, 각각의 arm에서 2번째 field로 match
-  - 이 방식으로 exhaustiveness check도 가능!
-
-```
-// v: (MessageOrOutput, Person)
-match v._0.discriminant {
-    // Message { a, b }
-    0 => match v._0.a {},
-    // Output(v)
-    1 => match v._0._0 {},
-    // None
-    2 => match v._1.age {},
+struct Person {
+    name: String,
+    age: Int,
+    is_rustacean: Bool,
 }
 ```
+
+Assume the structs above.
+
+```rs
+match d {
+    Duo {
+        id: 0,
+        ..
+    } => _,
+    Duo {
+        member_a: Person {
+            age: 25..30,
+            ..
+        },
+        ..
+    } => _,
+}
+```
+
+We have to make a matrix!!
+
+|       | constructor | `.id` | `member_a` constructor | `.member_a.name` | `member_a.age` | `member_a.is_rustacean.discriminant` | `member_a.is_rustacean.payload` | `.member_b.name` | `member_b.age` | `member_b.is_rustacean.discriminant` | `member_b.is_rustacean.payload` |
+| arm 0 | `Duo`       | 0     | any                    | any              | any            | any                                  | any                             | any              | any            | any                                  | any                             |
+| arm 1 | `Duo`       | any   | `Person`               | any              | 25..30         | any                                  | any                             | any              | any            | any                                  | any                             |
+
+Each column is a field. We have to flatten the fields.
+Each row is an arm.
+Each cell is either `any`, a scalar value, a range or an or-pattern. Ranges and or-patterns are not necessary: they're just for optimization.
+If it's an enum, it's discriminant + all fields concated.
+Whether it's a struct or an enum, it has to include the constructor.
+If it's a list... TODO
 
 # 112. lists
 
@@ -1196,14 +1202,6 @@ It's a very very common pattern. Tail-call optimization won't help it because it
   - In test mode, it checks all the assertions.
     - How do we implement the test runner? If we implement it in Sodigy, it cannot handle panics.
   - Lowering assertions: `assert x == y;` into `if x == y { True } else { panic() };`
-    - Who is responsible for this lowering? Anyone, even AST can do this.
-      - But I prefer doing it after type-checking
-      - lir will do this -> 지금은 eval 해서 boolean 값을 `Register::Return`에 넣고 `Bytecode::Return`을 호출하는데, 이걸 바꾸자. eval 해서 panic 하거나, 아무일도 없거나 (레지스터도 다 원상복구)
-        - 이렇게 하면, inline assertion이든 top-level assertion이든 그냥 bytecode 그대로 읽으면 됨!!
-    - Panic message: name (if exists), span (row/col), span (rendered), values (if possible)
-    - I prefer panicking when the assertion is failed, than returning False because
-      - there's no way to check the value of inline assertions
-      - an erroneous test might panic, so we have to somehow catch it anyway
 2. Inline assertions
   - It's like `assert!` in Rust.
   - In release mode, inline assertions are disabled.
@@ -1211,21 +1209,13 @@ It's a very very common pattern. Tail-call optimization won't help it because it
   - If a name is only used by assertions, but not by expressions, we raise an unused name warning.
     - But we add an extra help message here, saying that the name is only used in debug mode.
     - How about adding `#[unused]` decorator?
-      - Just being curious here,,, is it okay to use a name that's decorated with `#[unused]`?
-      - How about `#[allow(unused)]`?
-        - well... currently the parser uses expr_parser to parse the arguments of a decorator. But the hir's expr_parser won't allow the identifier `unused`. There are a few ways to fix this:
-        - First, we can implement a separate parser for decorators. But then we have to write parser for each decorator. That'd be huge!
-          - Hir has to do this. If we choose a right timing, it can access to defined names (if it has to), and use undefined names (if it wants to).
-        - Second, we can add `unused` to namespace (only when parsing decorators).
-        - Third, we can use `#[allow("unused")]` syntax.
   - If a name is used by expressions only once, and multiple time by assertions, we inline the name anyway. For example, `{ let x = foo() + 1; assert x > 0; assert x > 1; [x] }` becomes `{ let x = foo() + 1; assert x > 0; assert x > 1; [foo() + 1] }`.
     - We need a lot of tweaks here...
     - `let x` statement is removed in release mode, but not in debug mode.
 4. Assertions that are enabled in release mode.
   - How about `#[always]` decorator?
-  - The compiler treats such assertions like an expression, not an assertion.
   - If a top-level assertion is decorated with `#[always]`, it's asserted before entering the main function.
-    - It's ignored in test-context.
+    - It's treated like a normal test in test context.
 5. Syntactic sugar for `assert x == y;`
   - 이게 실패하면 lhs와 rhs를 확인해야함...
   - 근데 syntax 기준으로 뜯어내는 거는 너무 더러운데... ㅜㅜ 이건 마치 `==`를 syntactic sugar로 쓰겠다는 발상이잖아 ㅋㅋㅋ
@@ -1234,22 +1224,9 @@ It's a very very common pattern. Tail-call optimization won't help it because it
     - value가 `Block { lets: Vec<Let>, value: Expr }`인 경우, `lets`를 dump (expr만), `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `if { cond: Expr, .. }`인 경우, `cond`를 dump, `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `match { value: Expr, .. }`인 경우, `value`를 dump하고 어느 branch에 걸렸는지도 dump
-6. Naming assertions: `#[name("fibo_assert")]`.
-7. Test 결과를 runtime이 compiler한테 다시 전달하면 compiler가 span 꾸며서 dump하기... 괜찮은 듯!
-  - 지금은 test 돌리면 runtime에서 알아서 모든 test 돌리고 결과물 즉시 출력하게 돼 있거든? 이러지말고,
-  - 1, runtime에다가 label id를 주면 runtime이 그 label을 실행하도록 code gen
-  - 2, compiler가 runtime한테 label을 하나씩 줌.
-  - 3, runtime의 exit code를 보고 실패/성공을 판단
-  - 4, compiler가 결과물을 출력
-    - 이러면 결과물을 출력하는 코드를 하나만 짜도 됨.
-    - 이러면 span까지 같이 보여줄 수 있음!!
-      - 사실 top-level assertion은 span이 필요가 없고, inline assertion의 span이 더 중요함. 근데 inline assertion은 span을 바로 출력하는게 좀 빡셈... inline assertion이 error message를 잘 만들어서 던지면 compiler가 그걸 읽고 regex로 뜯어서 span을 찾아낸 다음에 render 해야함...
-  - 문제: rust로 구현된 interpreter는 이게 되는데, Python 구현체는 즉시 호출이 불가능 (하거나 힘듦).
-    - Python이나 javascript는 어찌저찌 한다고 쳐봐 (python path를 넘겨주는 거지), C는 어케할 건데?
-    - 생각하면 할수록, runtime이 알아서 테스트 돌리고 끝나야함...ㅜㅜ
-    - `cargo test` 해보니까 얘도 큰 binary 만들어서 그거 한번 돌리고 끝남. 출력도 다 이 안에서 하고, panic도 지가 알아서 잡는 듯?
-    - 애초에 backend가 여러개인게 문제임!! 그냥 rust나 Python으로만 구현하고 다른 backend는 나중에 생각해야함...
-    - if we can catch panics, we can implement the test harness completely in bytecode...
+6. pre/post assertions
+  - 함수 진입할 때마다 특정 assertion을 자동으로 호출하거나 함수 나갈 때마다 특정 assertion을 자동으로 호출하는 기능
+    - 생각해보니까, 함수 나갈 때마다 assertion 호출하면 tail-call이 안되는데??
 
 # 25. Make it more Rust-like!! ... 하다가 생긴 문제점
 

@@ -358,7 +358,7 @@ impl Solver {
                     Callable::TupleInit { .. } => (
                         Some(Type::Param {
                             // `Type::Unit`'s `group_span` is of type annotation,
-                            // and `Callable::TupleInit`'s `group_span` is of the expression/
+                            // and `Callable::TupleInit`'s `group_span` is of the expression.
                             r#type: Box::new(Type::Unit(Span::None)),
                             args: arg_types,
 

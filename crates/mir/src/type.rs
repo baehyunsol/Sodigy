@@ -1,9 +1,10 @@
-use crate::Session;
+use crate::{Callable, Expr, Session};
 use sodigy_error::{Error, ErrorKind};
-use sodigy_hir as hir;
+use sodigy_hir::{self as hir, Generic, StructField};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::unintern_string;
+use std::collections::HashMap;
 
 // `Eq` and `PartialEq` are only for type vars.
 // For comparison, use `Solver::equal()` method.
@@ -326,5 +327,70 @@ impl Type {
                 t.generic_to_type_var();
             },
         }
+    }
+}
+
+/// It returns the type of `expr`, without any type-inference or type-checking.
+/// Make sure to infer all the types before calling this function. Otherwise,
+/// it'll return `None` or an incorrect type.
+pub fn type_of(
+    expr: &Expr,
+    types: &HashMap<Span, Type>,
+    struct_shapes: &HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
+    lang_items: &HashMap<String, Span>,
+) -> Option<Type> {
+    match expr {
+        Expr::Identifier(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
+        Expr::Number { n, .. } => match n.is_integer {
+            true => Some(Type::Static(*lang_items.get("type.Int").unwrap())),
+            false => Some(Type::Static(*lang_items.get("type.Number").unwrap())),
+        },
+        Expr::String { binary, .. } => match *binary {
+            true => Some(Type::Param {
+                r#type: Box::new(Type::Static(*lang_items.get("type.List").unwrap())),
+                args: vec![Type::Static(*lang_items.get("type.Byte").unwrap())],
+                group_span: Span::None,
+            }),
+            false => Some(Type::Param {
+                r#type: Box::new(Type::Static(*lang_items.get("type.List").unwrap())),
+                args: vec![Type::Static(*lang_items.get("type.Char").unwrap())],
+                group_span: Span::None,
+            }),
+        },
+        Expr::Char { .. } => Some(Type::Static(*lang_items.get("type.Char").unwrap())),
+        Expr::Byte { .. } => Some(Type::Static(*lang_items.get("type.Byte").unwrap())),
+        Expr::If(r#if) => type_of(&r#if.true_value, types, struct_shapes, lang_items),
+        Expr::Match(r#match) => type_of(&r#match.arms[0].value, types, struct_shapes, lang_items),
+        Expr::MatchFsm(match_fsm) => todo!(),
+        Expr::Block(block) => type_of(&block.value, types, struct_shapes, lang_items),
+        Expr::Call { func, args, .. } => match func {
+            Callable::Static { def_span, .. } => match types.get(def_span) {
+                Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
+                _ => None,
+            },
+            Callable::StructInit { def_span, .. } => Some(Type::Static(*def_span)),
+            Callable::TupleInit { .. } => {
+                let mut arg_types = Vec::with_capacity(args.len());
+
+                for arg in args.iter() {
+                    match type_of(arg, types, struct_shapes, lang_items) {
+                        Some(t) => { arg_types.push(t); },
+                        None => { return None; },
+                    }
+                }
+
+                Some(Type::Param {
+                    // `Type::Unit`'s `group_span` is of type annotation,
+                    // and `Callable::TupleInit`'s `group_span` is of the expression.
+                    r#type: Box::new(Type::Unit(Span::None)),
+                    args: arg_types,
+
+                    // this is for the type annotation, hence None
+                    group_span: Span::None,
+                })
+            },
+            _ => todo!(),
+        },
+        _ => todo!(),
     }
 }

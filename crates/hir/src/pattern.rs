@@ -44,6 +44,12 @@ pub enum PatternKind {
         span: Span,
     },
     Path(Vec<(InternedString, Span)>),
+    TupleStruct {
+        r#struct: Vec<(InternedString, Span)>,
+        elements: Vec<Pattern>,
+        dot_dot_span: Option<Span>,
+        group_span: Span,
+    },
     Tuple {
         elements: Vec<Pattern>,
         dot_dot_span: Option<Span>,
@@ -233,6 +239,9 @@ impl PatternKind {
             PatternKind::Wildcard(_) |
             PatternKind::DollarIdentifier { .. } => vec![],
             PatternKind::Identifier { id, span } => vec![(*id, *span)],
+            PatternKind::TupleStruct { elements, .. } |
+            PatternKind::Tuple { elements, .. } |
+            PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
             _ => todo!(),
         }
     }

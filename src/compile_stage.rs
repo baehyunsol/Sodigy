@@ -6,7 +6,9 @@ pub enum CompileStage {
     // That means if some files in a project are modified and some are not modified,
     // the unmodified files will generate the exact same HIR. So, it's cached for
     // incremental compilations.
-    Lex, Parse, Hir,
+    Lex,
+    Parse,
+    Hir,
 
     // HIR has a map of definitions and def_spans, per file. In inter-hir stage,
     // it reads HIRs of all files, and creates a giant map of def_spans.
@@ -18,18 +20,35 @@ pub enum CompileStage {
     // MIR is created per-file, but it needs the map in the inter-hir, so
     // you can't cache MIRs.
     Mir,
+
+    // It solves type (type-infer + type-check), and monomorphize poly generics and generics.
     TypeCheck,
+
+    // Some lowerings in MIR (e.g. match expressions) require type information, so it has to
+    // run after type-checking.
+    // This stage is not run in parallel, even though some lowerings (e.g. match expressions)
+    // can run in parallel. If this stage is found to be a bottleneck, we have to modify this.
+    PostMir,
+
+    Optimize,
+
+    // As of now, there isn't much difference between Bytecode stage and CodeGen stage.
+    // My original plan was, 1) Bytecode stage emits backend-agnostic bytecodes, and
+    // 2) CodeGen stage translates the bytecodes depending on backend.
+    // But since we only have 1 backend, there's no point in distinguishing these stages.
     Bytecode,
     CodeGen,
 }
 
-pub const COMPILE_STAGES: [CompileStage; 8] = [
+pub const COMPILE_STAGES: [CompileStage; 10] = [
     CompileStage::Lex,
     CompileStage::Parse,
     CompileStage::Hir,
     CompileStage::InterHir,
     CompileStage::Mir,
     CompileStage::TypeCheck,
+    CompileStage::PostMir,
+    CompileStage::Optimize,
     CompileStage::Bytecode,
     CompileStage::CodeGen,
 ];

@@ -710,6 +710,19 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                     continue;
                 }
 
+                let _ = mir_session.lower_matches();
+                mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+
+                if let CompileStage::PostMir = stop_after {
+                    continue;
+                }
+
+                // TODO: optimize
+
+                if let CompileStage::Optimize = stop_after {
+                    continue;
+                }
+
                 let mut lir_session = sodigy_lir::lower(mir_session);
                 emit_irs_if_has_to(
                     &lir_session,
@@ -771,10 +784,19 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 };
                 let bytecodes_bytes = Vec::<u8>::decode(&bytecodes_bytes).unwrap();
                 let executable = sodigy_lir::Executable::decode(&bytecodes_bytes)?;
+                let mut ever_failed = false;
 
                 for (name, label) in executable.asserts.iter() {
                     let fail = sodigy_interpreter::interpret(&executable, *label).is_err();
                     println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
+
+                    if fail {
+                        ever_failed = true;
+                    }
+                }
+
+                if ever_failed {
+                    return Err(Error::TestError);
                 }
 
                 // match profile {

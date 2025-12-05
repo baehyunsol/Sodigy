@@ -30,6 +30,7 @@ pub use pattern::Pattern;
 pub use session::Session;
 pub use r#struct::Struct;
 pub use r#type::Type;
+pub(crate) use r#type::type_of;
 
 pub fn lower(
     hir_session: HirSession,
