@@ -1,0 +1,33 @@
+// NOTE: ilog2 is built-in
+// It returns `floor(log2(n) * 18446744073709551616)`.
+fn log2_helper(n: Int) -> Int = match n {
+    ..1 => panic(),
+    1 => 0,
+    2 => 1 << 64,
+    3.. => {
+        let (mantissa, exp) = match n.ilog2() {
+            e @ ..96 => (n << (96 - e), e - 96),
+            96 => (n, 0),
+            e @ 97.. => (n >> (e - 96), e - 96),
+        };
+
+        log2_helper_iter(mantissa, exp, 96) >> 32
+    },
+};
+
+fn log2_helper_iter(mantissa: Int, exp: Int, iter: Int) -> Int = {
+    assert mantissa.ilog2() == 96;
+
+    match iter {
+        0 => exp + 96,
+        _ => {
+            let mantissa_square = mantissa * mantissa;
+            let (new_mantissa, new_exp) = match mantissa_square.ilog2() {
+                192 => (mantissa_square >> 96, 2 * exp + 96),
+                193 => (mantissa_square >> 97, 2 * exp + 97),
+                _ => unreachable(),
+            };
+            log2_helper_iter(new_mantissa, new_exp, iter - 1)
+        },
+    }
+};

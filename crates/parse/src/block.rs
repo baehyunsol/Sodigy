@@ -11,11 +11,11 @@ use crate::{
     Tokens,
     Use,
 };
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
-use sodigy_token::{Keyword, TokenKind};
+use sodigy_token::{Keyword, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -122,10 +122,10 @@ impl<'t> Tokens<'t> {
             };
 
             // FIXME: the same code is repeated multiple times...
-            match self.peek().map(|t| &t.kind) {
+            match self.peek() {
                 // `parse_let` might return multiple `Let`s because if there's a pattern,
                 // it's destructured to multiple `Let`s.
-                Some(TokenKind::Keyword(Keyword::Let)) => match self.parse_let() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }) => match self.parse_let() {
                     Ok(mut lets_) => {
                         match (lets_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -151,7 +151,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Fn)) => match self.parse_func() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }) => match self.parse_func() {
                     Ok(mut func) => {
                         func.attribute = attribute;
                         funcs.push(func);
@@ -168,7 +168,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Struct)) => match self.parse_struct() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Struct), .. }) => match self.parse_struct() {
                     Ok(mut r#struct) => {
                         r#struct.attribute = attribute;
                         structs.push(r#struct);
@@ -185,7 +185,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Enum)) => match self.parse_enum() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Enum), .. }) => match self.parse_enum() {
                     Ok(mut r#enum) => {
                         r#enum.attribute = attribute;
                         enums.push(r#enum);
@@ -202,7 +202,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Assert)) => {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Assert), .. }) => {
                     match self.parse_assert() {
                         Ok(mut assert) => {
                             assert.attribute = attribute;
@@ -221,7 +221,7 @@ impl<'t> Tokens<'t> {
                         },
                     }
                 },
-                Some(TokenKind::Keyword(Keyword::Type)) => match self. parse_alias() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Type), .. }) => match self. parse_alias() {
                     Ok(mut alias) => {
                         alias.attribute = attribute;
                         aliases.push(alias);
@@ -238,7 +238,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Mod)) => match self.parse_module() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Mod), .. }) => match self.parse_module() {
                     Ok(mut module) => {
                         module.attribute = attribute;
                         modules.push(module);
@@ -255,7 +255,7 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(TokenKind::Keyword(Keyword::Use)) => match self.parse_use() {
+                Some(Token { kind: TokenKind::Keyword(Keyword::Use), .. }) => match self.parse_use() {
                     Ok(mut uses_) => {
                         match (uses_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -284,7 +284,9 @@ impl<'t> Tokens<'t> {
                         }
                     },
                 },
-                Some(_) => {
+                Some(t) => {
+                    let initial_token = t.clone();
+
                     if let Some(doc_comment) = &attribute.doc_comment {
                         errors.push(Error {
                             kind: ErrorKind::DocCommentNotAllowed,
@@ -328,13 +330,56 @@ impl<'t> Tokens<'t> {
 
                     // TODO: throw an error if there's `pub` keyword
 
+                    // If it's top-level, there shouldn't be an expr here. But we still parse
+                    // the expr for the sake of better error message.
+                    // If it's inline, there shouldn't be remaining tokens.
                     match self.parse_expr() {
                         Ok(expr) => {
+                            if !is_top_level {
+                                if let Some(t) = self.peek() {
+                                    errors.push(Error {
+                                        kind: ErrorKind::UnexpectedToken {
+                                            expected: ErrorToken::Nothing,
+                                            got: (&t.kind).into(),
+                                        },
+                                        spans: t.span.simple_error(),
+                                        note: None,
+                                    });
+                                    return Err(errors);
+                                }
+                            }
+
+                            else {
+                                errors.push(Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected: ErrorToken::Item,
+                                        got: ErrorToken::Expr,
+                                    },
+                                    spans: expr.error_span().simple_error(),
+                                    note: None,
+                                });
+                                return Err(errors);
+                            }
+
                             value = Some(expr);
                             break;
                         },
                         Err(e) => {
-                            errors.extend(e);
+                            if is_top_level {
+                                errors.push(Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected: ErrorToken::Item,
+                                        got: (&initial_token.kind).into(),
+                                    },
+                                    spans: initial_token.span.simple_error(),
+                                    note: None,
+                                });
+                            }
+
+                            else {
+                                errors.extend(e);
+                            }
+
                             return Err(errors);
                         },
                     }

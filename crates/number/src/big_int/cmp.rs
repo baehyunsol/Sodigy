@@ -57,7 +57,7 @@ pub fn eq_bi(
     rhs_neg: bool,
     rhs: &[u32],
 ) -> bool {
-    println!("{:?} == {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
+    // println!("{:?} == {:?}", (lhs_neg, lhs), (rhs_neg, rhs));
     lhs_neg == rhs_neg && eq_ubi(lhs, rhs)
 }
 

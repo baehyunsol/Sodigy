@@ -2,59 +2,53 @@
 
 fn isqrt(n: Int) -> Int = match n {
     ..0 => panic(),
-    ..(129 * 129) => isqrt_dumb(n),
-    (129 * 129).. => isqrt_iter(n, isqrt_dumb(n)),
+    ..9 => isqrt_dumb(n),
+    _ => isqrt_iter(n, isqrt_dumb(n)),
 };
 
-// It returns `isqrt(n)` if `n` is smaller than _,
-// otherwise returns a value that's smaller than `isqrt(n)`.
 fn isqrt_dumb(n: Int) -> Int = match n {
-    ..=0 => 0,
-    ..4 => 1,
-    ..9 => 2,
-    ..16 => 3,
-    ..25 => 4,
-    ..36 => 5,
-    ..49 => 6,
-    ..64 => 7,
-    ..16384 => {
-        let s = isqrt_dumb(n >> 4) << 2;
+    ..0 => panic(),
+    0 | 1 => n,
+    _ => {
+        let nl = n.ilog2();
+        let ss = 1 << (nl >> 1);
 
-        if (s + 3) * (s + 3) <= n {
-            s + 3
-        } else if (s + 2) * (s + 2) <= n {
-            s + 2
-        } else if (s + 1) * (s + 1) <= n {
-            s + 1
+        if nl & 1 == 1 {
+            // 362 = isqrt(0x20000)
+            (ss * 362) >> 8
         } else {
-            s
-        }
-    },
-    16384.. => {
-        let s = isqrt_dumb(n >> 8) << 4;
-
-        if (s + 12) * (s + 12) <= n {
-            s + 12
-        } else if (s + 8) * (s + 8) <= n {
-            s + 8
-        } else if (s + 4) * (s + 4) <= n {
-            s + 4
-        } else {
-            s
+            ss
         }
     },
 };
 
 fn isqrt_iter(n: Int, s: Int) -> Int = {
-    let d = n - s * s;
-    let r = 2 * s + 1;
+    let ss = s * s;
 
-    if d < r {
-        s
+    if n >= ss {
+        let d = n - ss;
+        let r = 2 * s + 1;
+
+        if d < r {
+            s
+        }
+
+        else {
+            isqrt_iter(n, s + d / r)
+        }
     }
 
     else {
-        isqrt_iter(n, s + d / r)
+        let d = ss - n;
+        let r = 2 * s - 1;
+
+        if d <= r {
+            s - 1
+        }
+
+        else {
+            isqrt_iter(n, s - d / r)
+        }
     }
 };
 
@@ -90,6 +84,7 @@ assert assert_isqrt_multi([
     1_000_000_000_000_000_000_000_000_000_000,
     1_000_000_000_000_000_000_000_000_000_000_000,
     1_000_000_000_000_000_000_000_000_000_000_000_000,
+    1_000_000_000_000_000_000_000_000_000_000_000_000_000,
 ]);
 
 #[name("isqrt small numbers")]

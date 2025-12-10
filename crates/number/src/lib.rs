@@ -98,74 +98,96 @@ pub fn intern_number(
                 is_integer,
             },
         },
-        (Base::Decimal, 0, _) => match String::from_utf8_lossy(integer).parse::<u64>() {
-            Ok(integer) => match exp {
-                0..0xffff_ffff => match 10u64.checked_pow(exp as u32) {
-                    Some(exp) => match integer.checked_mul(exp) {
-                        Some(n) => match i64::try_from(n) {
+        (Base::Decimal, _, _) => {
+            let mut integer = BigInt::parse_positive_decimal(integer).unwrap();
+            let mut frac_numer = match frac.len() {
+                0 => BigInt::zero(),
+                _ => BigInt::parse_positive_decimal(frac).unwrap(),
+            };
+            let mut frac_denom = {
+                let fds = format!("1{}", "0".repeat(frac.len()));
+                BigInt::parse_positive_decimal(fds.as_bytes()).unwrap()
+            };
+
+            let r = gcd_ubi(&frac_numer.nums, &frac_denom.nums);
+            frac_numer.nums = div_ubi(&frac_numer.nums, &r);
+            frac_denom.nums = div_ubi(&frac_denom.nums, &r);
+
+            match exp {
+                ..0 => {
+                    let power = todo!();  // 10^(-exp)
+                    frac_denom.nums = mul_ubi(&frac_denom.nums, power);
+                },
+                0 => {},
+                1.. => {
+                    let power = todo!();  // 10^exp
+                    integer.nums = mul_ubi(&integer.nums, power);
+                    frac_numer.nums = mul_ubi(&frac_numer.nums, power);
+                },
+            }
+
+            let mut numer = add_ubi(&mul_ubi(&integer.nums, &frac_denom.nums), &frac_numer.nums);
+            let mut denom = frac_denom.nums;
+
+            let r = gcd_ubi(&numer, &denom);
+            numer = div_ubi(&numer, &r);
+            denom = div_ubi(&denom, &r);
+
+            match (numer.len(), denom.len()) {
+                (_, 1) if denom[0] == 1 => match numer.len() {
+                    0 => unreachable!(),
+                    1 | 2 => {
+                        let n: u64 = numer[0] as u64 | ((*numer.get(1).unwrap_or(&0) as u64) << 32);
+
+                        match i64::try_from(n) {
                             Ok(n) => InternedNumber {
                                 value: InternedNumberValue::SmallInt(n),
                                 is_integer,
                             },
-                            Err(_) => todo!(),
-                        },
-                        None => todo!(),
-                    },
-                    None => todo!(),
-                },
-                _ => todo!(),
-            },
-            Err(e) => todo!(),
-        },
-        (Base::Decimal, _, 0) => match String::from_utf8_lossy(integer).parse::<u64>() {
-            Ok(int_numer) => {
-                let mut frac_vec = frac.to_vec();
-
-                // 1.0 -> 1
-                // 1.500 -> 1.5
-                while let Some(b'0') = frac_vec.last() {
-                    frac_vec.pop();
-                }
-
-                match frac_vec.len() {
-                    0 => match i64::try_from(int_numer) {
-                        Ok(n) => InternedNumber {
-                            value: InternedNumberValue::SmallInt(n),
-                            is_integer,
-                        },
-                        Err(_) => intern_number(base, integer, b"", 0, is_integer),
-                    },
-                    1..=16 => {
-                        let mut frac_numer = String::from_utf8_lossy(&frac_vec).parse::<u64>().unwrap();
-                        let mut frac_denom = 10u64.pow(frac_vec.len() as u32);
-                        let r = gcd(frac_numer, frac_denom);
-                        frac_numer /= r;
-                        frac_denom /= r;
-
-                        // n = (int_numer * frac_denom + frac_numer) / frac_denom
-                        match int_numer.checked_mul(frac_denom) {
-                            Some(int_numer) => match int_numer.checked_add(frac_numer) {
-                                Some(numer) => match i64::try_from(numer) {
-                                    Ok(numer) => InternedNumber {
-                                        value: InternedNumberValue::SmallRatio {
-                                            numer,
-                                            denom: frac_denom,
-                                        },
-                                        is_integer,
-                                    },
-                                    Err(_) => todo!(),
-                                },
-                                None => todo!(),
+                            Err(_) => InternedNumber {
+                                value: InternedNumberValue::BigInt(BigInt {
+                                    is_neg: false,
+                                    nums: numer,
+                                }),
+                                is_integer,
                             },
-                            None => todo!(),
                         }
                     },
-                    17.. => todo!(),
-                }
-            },
-            Err(_) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?}, exp: {exp:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
+                    3.. => InternedNumber {
+                        value: InternedNumberValue::BigInt(BigInt {
+                            is_neg: false,
+                            nums: numer,
+                        }),
+                        is_integer,
+                    },
+                },
+                (1 | 2, 1 | 2) => {
+                    let numer_n: u64 = numer[0] as u64 | ((*numer.get(1).unwrap_or(&0) as u64) << 32);
+                    let denom_n: u64 = denom[0] as u64 | ((*denom.get(1).unwrap_or(&0) as u64) << 32);
+
+                    match i64::try_from(numer_n) {
+                        Ok(numer) => InternedNumber {
+                            value: InternedNumberValue::SmallRatio { numer, denom: denom_n },
+                            is_integer,
+                        },
+                        Err(_) => InternedNumber {
+                            value: InternedNumberValue::BigRatio(Ratio {
+                                numer: BigInt { is_neg: false, nums: numer },
+                                denom: BigInt { is_neg: false, nums: denom },
+                            }),
+                            is_integer,
+                        },
+                    }
+                },
+                _ => InternedNumber {
+                    value: InternedNumberValue::BigRatio(Ratio {
+                        numer: BigInt { is_neg: false, nums: numer },
+                        denom: BigInt { is_neg: false, nums: denom },
+                    }),
+                    is_integer,
+                },
+            }
         },
-        (Base::Decimal, _, _) => panic!("TODO: (base: {base:?}, int: {:?}, frac: {:?}, exp: {exp:?})", String::from_utf8_lossy(integer), String::from_utf8_lossy(frac)),
         (Base::Octal, 0, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
             Ok(n) => InternedNumber {
                 value: InternedNumberValue::SmallInt(n),

@@ -127,7 +127,7 @@ impl Session {
                     self.state = LexState::FieldModifier;
                     self.cursor += 2;
                 },
-                // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`
+                // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`.
                 (Some(x @ b'0'..=b'9'), Some(b'.'), Some(b'.')) => {
                     self.tokens.push(Token {
                         kind: TokenKind::Number(InternedNumber::from_u32((*x - b'0') as u32, true /* is_integer */)),
@@ -152,7 +152,7 @@ impl Session {
                     self.state = LexState::Integer(base);
                     self.cursor += 2;
                 },
-                (Some(b'0'..=b'9'), Some(b'a'..=b'z' | b'A'..=b'Z'), _) => {
+                (Some(b'0'..=b'9'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z')), _) => {
                     return Err(Error {
                         kind: ErrorKind::InvalidNumberLiteral,
                         spans: Span::range(
@@ -160,7 +160,7 @@ impl Session {
                             self.cursor + 1,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: Some(format!("`{}` is not a valid prefix. Valid ones are `x`, `X`, `o`, `O`, `b` and `B`.", *y as char)),
                     });
                 },
                 (Some(b'0'), Some(b'.'), _) => {
@@ -170,6 +170,17 @@ impl Session {
                     self.token_start = self.cursor;
                     self.state = LexState::Fraction;
                     self.cursor += 2;
+                },
+                (Some(b'0'), Some(b'0'..=b'9'), _) => {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidNumberLiteral,
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 1,
+                        ).simple_error(),
+                        note: Some(String::from("Leading zeros in decimal literals are not permitted.")),
+                    });
                 },
                 (Some(b'0'), _, _) => {
                     self.tokens.push(Token {

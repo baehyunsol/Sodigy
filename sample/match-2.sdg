@@ -1,0 +1,16 @@
+// TODO: assert that there's a compiler warning (unreachable arm)
+
+fn test_wildcard(n: Int) = match n {
+    0..50 => 1,
+    50..100 => 2,
+    _ => 3,
+    100..150 => 4,
+};
+
+assert test_wildcard(0) == 1;
+assert test_wildcard(25) == 1;
+assert test_wildcard(50) == 2;
+assert test_wildcard(75) == 2;
+assert test_wildcard(100) == 3;
+assert test_wildcard(125) == 3;
+assert test_wildcard(150) == 3;

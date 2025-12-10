@@ -10,7 +10,7 @@ impl Solver {
     // FIXME: there are A LOT OF heap allocations
     //
     // It can solve type of any expression, but the result maybe `Type::Var`.
-    // If it finds new type equations while solving, it adds them to `type_equations`.
+    // If it finds new type equations while solving, the `Solver` remembers them.
     //
     // If there's no error, it must return the type of the expr: `(Some(ty), false)`.
     // If there're errors, it'll still try to return the type, so that it

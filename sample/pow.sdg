@@ -1,0 +1,33 @@
+fn pow(n: Int, p: Int) -> Int = match p {
+    _ if n < 0 => todo(),
+    ..0 => 0,
+    0 => 1,
+    1 => n,
+    2 => n * n,
+    3 => n * n * n,
+    4 => {
+        let nn = n * n;
+        nn * nn
+    },
+    5.. => {
+        let (powers, cursor) = load_powers(p, [n], 1);
+        pow_iter(powers, cursor, p)
+    },
+};
+
+fn load_powers(p: Int, powers: [Int], cursor: Int) -> ([Int], Int) = {
+    let (new_powers, new_cursor) = (powers ++ [powers[-1] * powers[-1]], cursor * 2);
+
+    if new_cursor > p {
+        (new_powers, new_cursor)
+    } else {
+        load_powers(p, new_powers, new_cursor)
+    }
+};
+
+// `powers[-1] == n^cursor`
+fn pow_iter(powers: [Int], cursor: Int, p: Int, result: Int) -> Int = match powers {
+    [] => result,
+    _ if cursor > p => pow_iter(powers[..-1], cursor / 2, p, result),
+    _ => pow_iter(powers[..-1], cursor / 2, p - cursor, result * powers[-1]),
+};

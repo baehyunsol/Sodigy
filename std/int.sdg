@@ -1,4 +1,5 @@
 use std.bool.Bool;
+use std.string.String;
 
 #[built_in]
 #[lang_item("type.Int")]
@@ -72,7 +73,7 @@ fn div_int(a: Int, b: Int) -> Int;
 
 // TODO: match is not implemented yet...
 /*
-fn to_string(n: Int) -> std.string.String = match n {
+fn to_string(n: Int) -> String = match n {
     ..0 => "-" ++ to_string(-n),
     0 => "0",
     1 => "1",

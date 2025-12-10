@@ -1,3 +1,36 @@
+# 119. idea for testing the type-solver
+
+원래 정상적으로 도는 프로그램이 있을 때, 그 프로그램 안에 있는 type annotation을 삭제한 다음 돌리면 type-error (cannot-infer)가 나거나 정상적으로 돌거나 둘 중에 하나이어야함!!
+
+compiler가 type annotation을 무시하도록 구현해야할 듯??
+
+1. type annotation을 다 지우고 돌리기
+2. 랜덤으로 일부만 지우고 돌리기
+
+근데 assertion이 있으면 type-infer가 너무 쉬운데...
+
+아니면, assertion도 지우고 type annotation도 지운 다음에 결과물의 type을 직접 비교할 수도 있음 (어차피 span은 다 똑같으니까 type이 완전히 동일해야함) -> (type annotation을 실제로 삭제하는게 아니고 숨기는 거여서 span은 변하면 안됨)
+
+아니면, type annotation을 잘못 준 다음에 (정답이 `String`인 걸 알 때 강제로 `Int`를 집어넣음), 오류가 나는지 확인해도 되고
+
+# 118. un-static top-level let
+
+top-level let인데 덩치가 너무 커서 static으로 만들기는 부담스러운 경우...
+
+1. 특정 decorator를 붙이면 gc 되도록 관리?
+2. 구현은 쉬움 `let x = foo();`를 `let x = x_eval(); fn x_eval() = foo();`로 바꾸면 됨!!
+  - 생각해보니까 이래도 결국은 결과물이 static 하게 남네? 걍 `let x`를 `fn x()`로 바꾼 다음에 `x`를 언급하는 모든 곳을 찾아서 `x`를 `x()`로 바꿔야함 ㅋㅋㅋ ㅠㅠ
+  - 아니지 오히려 runtime에서 구현하면 훨씬 간단: initial reference count를 1로 주지 말고 0으로 주면 되네!!
+
+# 117. shift vs type annotation
+
+type annotation에서 `<<`나 `>>` 나오면 처리가 안됨 ㅠㅠ
+
+1. `tokens::peek`을 했을 때 쪼개서 주기..?? 는 말도 안되고
+2. 애초에 `<<`를 (`<`, `<`)로 쪼개서 저장해뒀다가 parser가 합치기?
+  - 이러면 `<`들 사이에 띄어쓰기가 있을 때 대응이 안됨
+  - 그럼 trailing_whitespace를 field로 추가하기..??
+
 # 116. `error_span()`
 
 `error_span_wide()`랑 `error_span_narrow()`로 구분해서 쓸까? narrow는 operator나 keyword만 해주는 거지!!
@@ -20,58 +53,80 @@ pattern에서는 `re""`가 regex고... expression에서는??
   - regex library 사용해도 저 type이 나옴
   - regex literal은 반드시 compile time에 eval됨!
 
-```
-In Sodigy, regular expressions are first-class citizens! I know you guys (especially PL folks) are gonna hate this, but please listen to me.
-```
-
 # 113. match
 
-https://doc.rust-lang.org/nightly/nightly-rustc/rustc_pattern_analysis/usefulness/index.html
+- http://moscova.inria.fr/~maranget/papers/warn/index.html
+- http://moscova.inria.fr/~maranget/papers/ml05e-maranget.pdf
+- https://doc.rust-lang.org/nightly/nightly-rustc/rustc_pattern_analysis/usefulness/index.html
+- https://doc.rust-lang.org/nightly/nightly-rustc/rustc_pattern_analysis/constructor/index.html
+
+1. `Type` is a set of values. `x: T` means `x` is an element of `T`.
+2. A value consists of a constructor and fields. The number of fields is determined by its constructor (arity).
+  - A field is a value.
+3. A pattern consists of a constructor and fields. The number of fields is determined by its constructor (arity).
+  - Some special patterns may have multiple constructors. We'll talk about that later.
+  - A field is a pattern.
+4. A pattern "matches" a value when their constructors are the same and all their fields are the same, recursively.
+5. A match expression consists of a scrutinee and arms. Each arm has a pattern and optionally a guard.
+  - Let's say the scrutinee has type `T`. Every value in the set `T` must match at least one pattern, and every pattern must match at least one value.
+
+Naive algorithm would be iterating every value in the set `T`, and check which pattern matches the value. We also count how many values each pattern matches. In the end, 1) if there's a value that matches no patterns, the match expression is non-exhaustive and 2) if there's a pattern that matches no values, the pattern is unreachable.
+
+There are 2 kinds of unreachable patterns: 1) pattern itself is reachable but prior patterns match all the values or 2) pattern itself is unreachable (type error).
+
+## Constructors
+
+1. Tuple: tuples with different number of elements have different constructors.
+2. Struct: each struct (def_span) is a constructor.
+3. Enum: each variant (def_span) is a constructor.
+4. List
+5. String/Bytes
+6. Int/Number/Char/Byte: each value is a constructor.
+  - For example, `2` is a constructor of value `2`.
+
+## Special patterns
+
+1. Range
+2. Wildcard
+3. Variable-length list
+4. Or
+
+## Exhaustiveness
+
+TODO
+
+## Usefulness
+
+TODO
+
+## implementation
+
+하... 빡세네 ㅠㅠ
+
+1. Calculate the set of values that matches the first pattern.
+2. Calculate the set of values that doesn't match the first pattern, but matches the second pattern.
+3. Calculate the set of values that doesn't match the above patterns, but matches the third pattern.
 
 ```rs
-struct Duo {
-    id: Int,
-    member_a: Person,
-    member_b: Person,
-}
-
-struct Person {
-    name: String,
-    age: Int,
-    is_rustacean: Bool,
+match (a, b, c) {
+    (0, 0, c) => _,
+    (0, b, c) => _,
+    (a, b, 0) => _,
+    (a, b, c) => _,
 }
 ```
 
-Assume the structs above.
+1. `[Tuple { arity: 3 }, Exact(0), Exact(0), Any]`
+2. `[Tuple { arity: 3 }, Exact(0), Range(..0, 1..), Any]`
+3. `[Tuple { arity: 3 }, Range(..0, 1..), Range(..0, 1..), Exact(0)]`
+  - this is wrong... `(1, 0, 0)` has to match this arm
+4. ...
 
-```rs
-match d {
-    Duo {
-        id: 0,
-        ..
-    } => _,
-    Duo {
-        member_a: Person {
-            age: 25..30,
-            ..
-        },
-        ..
-    } => _,
-}
-```
+Okay this is same as solving SMT! -> perplexity는 또 아니라는데?? (https://www.perplexity.ai/search/help-me-implement-pattern-matc-JtCVOSCYSsSHBAuPp.SFUQ)
 
-We have to make a matrix!!
+---
 
-|       | constructor | `.id` | `member_a` constructor | `.member_a.name` | `member_a.age` | `member_a.is_rustacean.discriminant` | `member_a.is_rustacean.payload` | `.member_b.name` | `member_b.age` | `member_b.is_rustacean.discriminant` | `member_b.is_rustacean.payload` |
-| arm 0 | `Duo`       | 0     | any                    | any              | any            | any                                  | any                             | any              | any            | any                                  | any                             |
-| arm 1 | `Duo`       | any   | `Person`               | any              | 25..30         | any                                  | any                             | any              | any            | any                                  | any                             |
-
-Each column is a field. We have to flatten the fields.
-Each row is an arm.
-Each cell is either `any`, a scalar value, a range or an or-pattern. Ranges and or-patterns are not necessary: they're just for optimization.
-If it's an enum, it's discriminant + all fields concated.
-Whether it's a struct or an enum, it has to include the constructor.
-If it's a list... TODO
+생각해보니 `lower_matches`는 어차피 별개의 crate에 구현해야함 -> 각 pattern에서 binding된 name들이 type이 맞는지도 확인해야하거든!!
 
 # 112. lists
 
@@ -121,28 +176,12 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 
 # 109. `JumpIfUninit`
 
-1. 해당 위치에 들어있는 값이 null인지 아닌지 확인해서 해당 값을 eval함.
-  - 여기서의 null은 sodigy와는 별개로 runtime 자체에서 쓰는 null value임!!!
-  - 그래서 문제... arbitrary u32를 보고 이게 null인지 scalar/ptr인지를 구분해야함.
-    - u32가 ptr인 경우는 null인지 구분하기 쉬움. `heap.alloc()`이 무조건 non-zero를 반환하게 만든 다음에 0을 nullptr로 쓰면 됨.
-    - 해당 위치에 scalar가 들어있을 경우... 쉽지 않음 ㅠㅠ
-2. 아니면... u32::MAX를 nullptr로 정의한 다음에 ptr이랑 scalar가 저 값을 못 가지도록 잘 막을까??
-  - 지금은 괜찮지만 잠재적인 문제: integer 안에 들어있는 값들이 u32::MAX를 피하게 하는게 무지 빡셈.
-    지금이야 integer 안에 있는 scalar를 읽을 일이 없지만 나중에 문제가 될 수도 ㅠㅠ
-3. 좀 더 무식한 방법: ... init된 애들의 목록을 따로 갖고 있기??
-  - 이건 개오바 ㅋㅋㅋ
-  - jump_if_uninit에 대해서만 목록을 관리할까??
-    - top-level let은 목록 관리가 쉬운데, inline let이 무지 빡셈. 똑같은 block을 2번 밟으면 구분이 안됨... 구분하려면 block에 들어올 때마다 목록을 초기화해줘야함 ㅠㅠ
-4. 여전히 무식한 방법: init 됐는지 아닌지를 관리하는 flag를 sodigy 차원에서 하나 더 만드는 거임!!
-  - 이러면 `Bytecode::JumpIfUninit`은 더이상 없음. 오직 `Bytecode::JumpIf`만 존재. init하기 전에 해당 flag가 1인지 확인하고, init을 한 다음에 해당 flag를 1로 바꿔버리면 됨!!
-  - 이러면 block 들어갈 때마다 flag를 싹다 초기화해야한다는 문제가 있음...
-  - 걍 이렇게 할까?? 이렇게 한 다음에 최적화를 잘 해서 let 개수를 최대한 줄이면 되지!!
-  - 최적화하면서 eager/lazy evaluation을 고르게 할까??
-5. 아 그리고 보니까 애초에 inline block은 eager-eval을 하고 있네?? 이것도 문제임 ㅠㅠ
-  - inline block이 lazy-eval을 하려면, ... ㅋㅋㅋ 쉽지 않네
-  - 왜냐면 inline block에 있는 서로 다른 let들을 구분해야하는데, ㅋㅋㅋ 구분할 방법이 없는데??
-  - 심지어 지금은 eager-eval / lazy-eval이 섞여있음. 기본으로는 eager-eval인데 최적화를 하면 lazy-eval로 바뀔 수 있거든. 이러면 문제인게, 사람들이 lazy-eval이라고 생각하면서 쓰다가 갑자기 eager-eval을 만나서 죽을 수도 있음 ㅠㅠ
-  - 그냥 문서에다가 lazy-eval / eager-eval 섞여있고 어떻게 될지 보장 못한다고 쓸까??
+결론:
+
+1. top-level let은 lazy-eval, inline let은 eager-eval
+  - 문서에다가 values might be lazy-evaled or eager-evaled라고 적어야 함
+  - top-level let은 static임
+2. top-level let이 init 됐는지 안 됐는지는 runtime에서 관리!
 
 # 107. top-level let eval strategy
 
@@ -811,6 +850,20 @@ Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!
 3. `.into()`
 
 Perplexity한테 왜 `TryFrom<Foo> for String`/`TryFrom<String> for Foo`을 안 쓰고 `ToString`/`FromStr`를 쓰는지 물어보니까 `ToString`하고 `FromStr`이 더 먼저 존재했기 때문에 backward compatibility 때문에 건드릴 수가 없었대...
+
+---
+
+new draft
+
+`x as T`, `x as? T`로 type conversion (not casting, which is reinterpretation of the same bit pattern and not coercion, which is implicit) 구현하자!! 둘다 poly로 구현하면 됨: `#[poly] fn convert<T, U>(v: T) -> U; #[poly] fn try_convert<T, U, E>(v: T) -> Result<U, E>;`
+
+1. 현재 문법으로는 poly 표현이 살짝 빡셈: `x as Int`를 `convert(x)`로 바꾸면 `Int`라는 정보가 사라짐... 결국에는 `convert.<Int>()`로 해야하는데... turbo-fish 문법이 아직 미완성 ㅠㅠ
+2. `x as _`로 해도 됨?
+  - 이러면 implicit type conversion 아님?
+  - 생각해보니까 rust에서도 그냥 `x.into()`로만 쓰는 경우 많잖아...
+3. `as`랑 물음표 사이에 띄어쓰기 있으면 한 토큰으로 잡아?
+4. 이거 하면 `<`랑 `<<` 더 잘 구분해야함 ㅠㅠ Rust에서 왜 그런 에러메시지 날리는지 알겠네...
+5. 이거 하는 김에 poly에서 에러메시지 훨씬 더 섬세하게 날리게 해야함!! infix op 없을 때나 conversion 안 될 때 dedicated error message 만들어!!
 
 # 61. more on purity
 

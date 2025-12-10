@@ -19,6 +19,7 @@ pub enum ErrorToken {
     Expr,
     Path,  // and identifier or a path
     Pattern,
+    Item,  // fn / struct / enum / use / type / let
     Block,
     Operator,
     AssignOrLt,

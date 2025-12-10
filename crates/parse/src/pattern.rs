@@ -5,13 +5,6 @@ use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
 
-// TODO: I guess I have to rewrite everything from scratch.
-// 1. There's just PATTERN. No more FULL_PATTERN.
-//    - Syntactically, every pattern can have a name binding. It'll reject redundant bindings while parsing.
-//    - You can still annotate types on a name binding (not on pattern).
-// 2. I have to do a pratt parsing. It treats name bindings (`@`), or patterns (`|`), range operators as operators.
-//    - We don't treat type annotations (`:`) as operators -> its rhs is not a pattern!!
-
 #[derive(Clone, Debug)]
 pub struct Pattern {
     // `name` and `name_span` are for extra name bindings, like `x @ 0..10`.
@@ -48,7 +41,6 @@ pub enum PatternKind {
         s: InternedString,
         span: Span,
     },
-    // An r-prefixed string.
     Regex {
         s: InternedString,
         span: Span,

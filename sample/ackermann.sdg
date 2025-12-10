@@ -35,7 +35,7 @@ fn amr2(m: Int, n: Int) -> Int = match (m, n) {
     _ => amr3(m - 1, amr1(m, n - 1)),
 };
 
-fn amr3(m: Int, n: Int) -> Int = {
+fn amr3(m: Int, n: Int) -> Int = match (m, n) {
     (0, n) => n + 1,
     (m, 0) => amr3(m - 1, 1),
     _ => amr1(m - 1, amr2(m, n - 1)),

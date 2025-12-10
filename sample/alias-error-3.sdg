@@ -1,0 +1,2 @@
+type x = y.a.b;
+type y = x.a.b;

@@ -137,6 +137,17 @@ fn div_number(a: Number, b: Number) -> Number = {
     }
 };
 
+#[impl(std.op.eq)]
+fn eq_number(a: Number, b: Number) -> Bool = {
+    if a.is_inf() || b.is_inf() {
+        False
+    }
+
+    else {
+        a.denom == b.denom && a.numer == b.numer
+    }
+};
+
 /// It panics if the number is negative (including negative inf).
 /// It guarantees that
 /// 1. If you convert it to decimal, at least 19 digits are correct.

@@ -151,7 +151,7 @@ impl Session {
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
                 let mut alias_log = vec![];
 
-                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log) {
+                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log, i) {
                     has_error = true;
                 }
 
@@ -212,7 +212,7 @@ impl Session {
                 return Err(());
             }
 
-            else if !nested_name_aliases.is_empty() || !nested_type_aliases.is_empty() {
+            else if !nested_name_aliases.is_empty() || !nested_type_aliases.is_empty() || !name_aliases_to_type_aliases.is_empty() {
                 for (name_span, r#use) in nested_name_aliases.drain() {
                     self.name_aliases.insert(name_span, r#use);
                 }
@@ -302,7 +302,7 @@ impl Session {
         let mut has_error = false;
 
         if let Some(r#type) = &mut r#let.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
                 has_error = true;
             }
         }
@@ -325,14 +325,14 @@ impl Session {
 
         for param in func.params.iter_mut() {
             if let Some(r#type) = &mut param.r#type {
-                if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+                if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
                     has_error = true;
                 }
             }
         }
 
         if let Some(r#type) = &mut func.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
                 has_error = true;
             }
         }
@@ -622,7 +622,21 @@ impl Session {
 
     // It resolves names in type annotations and type aliases.
     // See the comments in `resolve_use` for more information.
-    pub fn resolve_type(&mut self, r#type: &mut Type, log: &mut Vec<Span>) -> Result<(), ()> {
+    pub fn resolve_type(
+        &mut self,
+        r#type: &mut Type,
+        log: &mut Vec<Span>,
+        recursion_depth: usize,
+    ) -> Result<(), ()> {
+        if recursion_depth == ALIAS_RESOLVE_RECURSION_LIMIT {
+            self.errors.push(Error {
+                kind: ErrorKind::AliasResolveRecursionLimitReached,
+                spans: r#type.error_span().simple_error(),
+                note: Some(String::from("Recursion limit reached while trying to resolve this type annotation. It's likely that there's a recursive alias.")),
+            });
+            return Err(());
+        }
+
         match r#type {
             Type::Identifier(id) => {
                 match self.name_aliases.get(&id.def_span) {
@@ -795,7 +809,7 @@ impl Session {
                                         id: new_id,
                                         fields: fields[1..].to_vec(),
                                     };
-                                    self.resolve_type(r#type, log)
+                                    self.resolve_type(r#type, log, recursion_depth + 1)
                                 }
                             },
                             None => {
@@ -820,7 +834,7 @@ impl Session {
             },
             Type::Param { r#type: p_type, args, group_span } => {
                 for arg in args.iter_mut() {
-                    self.resolve_type(arg, log)?;
+                    self.resolve_type(arg, log, recursion_depth + 1)?;
                 }
 
                 match &**p_type {
@@ -932,7 +946,7 @@ impl Session {
                                             };
                                         }
 
-                                        return self.resolve_type(r#type, log);
+                                        return self.resolve_type(r#type, log, recursion_depth + 1);
                                     },
                                     None => {
                                         self.errors.push(Error {
@@ -962,12 +976,12 @@ impl Session {
             Type::Func { r#return, params, .. } => {
                 let mut has_error = false;
 
-                if let Err(()) = self.resolve_type(r#return, log) {
+                if let Err(()) = self.resolve_type(r#return, log, recursion_depth + 1) {
                     has_error = true;
                 }
 
                 for param in params.iter_mut() {
-                    if let Err(()) = self.resolve_type(param, log) {
+                    if let Err(()) = self.resolve_type(param, log, recursion_depth + 1) {
                         has_error = true;
                     }
                 }
@@ -984,7 +998,7 @@ impl Session {
                 let mut has_error = false;
 
                 for r#type in types.iter_mut() {
-                    if let Err(()) = self.resolve_type(r#type, log) {
+                    if let Err(()) = self.resolve_type(r#type, log, recursion_depth + 1) {
                         has_error = true;
                     }
                 }
@@ -1248,7 +1262,7 @@ impl Session {
         let mut has_error = false;
 
         if let Some(r#type) = &mut pattern.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![]) {
+            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
                 has_error = true;
             }
         }
