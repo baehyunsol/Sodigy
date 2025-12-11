@@ -22,13 +22,8 @@ pub enum CompileStage {
     Mir,
 
     // It solves type (type-infer + type-check), and monomorphize poly generics and generics.
+    // It also lowers match expressions to state machines.
     TypeCheck,
-
-    // Some lowerings in MIR (e.g. match expressions) require type information, so it has to
-    // run after type-checking.
-    // This stage is not run in parallel, even though some lowerings (e.g. match expressions)
-    // can run in parallel. If this stage is found to be a bottleneck, we have to modify this.
-    PostMir,
 
     Optimize,
 
@@ -40,14 +35,13 @@ pub enum CompileStage {
     CodeGen,
 }
 
-pub const COMPILE_STAGES: [CompileStage; 10] = [
+pub const COMPILE_STAGES: [CompileStage; 9] = [
     CompileStage::Lex,
     CompileStage::Parse,
     CompileStage::Hir,
     CompileStage::InterHir,
     CompileStage::Mir,
     CompileStage::TypeCheck,
-    CompileStage::PostMir,
     CompileStage::Optimize,
     CompileStage::Bytecode,
     CompileStage::CodeGen,

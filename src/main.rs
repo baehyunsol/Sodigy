@@ -697,23 +697,16 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 let mir_session = merged_mir_session.unwrap();
 
-                // TODO: dump type_solver
                 let (mut mir_session, type_solver) = sodigy_mir_type::solve(mir_session, dump_type_info);
 
                 if dump_type_info {
                     sodigy_mir_type::dump(&mut mir_session, &type_solver);
                 }
 
+                let _ = sodigy_post_mir::lower_matches(&mut mir_session);
                 mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
 
                 if let CompileStage::TypeCheck = stop_after {
-                    continue;
-                }
-
-                let _ = mir_session.lower_matches();
-                mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
-
-                if let CompileStage::PostMir = stop_after {
                     continue;
                 }
 

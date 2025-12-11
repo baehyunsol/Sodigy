@@ -245,11 +245,23 @@ impl<'t> Tokens<'t> {
             (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
-                Pattern {
-                    name: None,
-                    name_span: None,
-                    r#type: None,
-                    kind: PatternKind::Identifier { id, span },
+
+                if &id.try_unintern_short_string().unwrap_or(vec![]) == b"_" {
+                    Pattern {
+                        name: None,
+                        name_span: None,
+                        r#type: None,
+                        kind: PatternKind::Wildcard(span),
+                    }
+                }
+
+                else {
+                    Pattern {
+                        name: None,
+                        name_span: None,
+                        r#type: None,
+                        kind: PatternKind::Identifier { id, span },
+                    }
                 }
             },
             (

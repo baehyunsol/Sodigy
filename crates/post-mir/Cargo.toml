@@ -1,0 +1,10 @@
+[package]
+name = "sodigy-post-mir"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-error = { version = "0.1.0", path = "../error" }
+sodigy-hir = { version = "0.1.0", path = "../hir" }
+sodigy-mir = { version = "0.1.0", path = "../mir" }
+sodigy-span = { version = "0.1.0", path = "../span" }

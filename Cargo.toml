@@ -18,6 +18,7 @@ sodigy-mir = { version = "0.1.0", path = "crates/mir" }
 sodigy-mir-type = { version = "0.1.0", path = "crates/mir-type" }
 sodigy-name-analysis = { version = "0.1.0", path = "crates/name-analysis" }
 sodigy-parse = { version = "0.1.0", path = "crates/parse" }
+sodigy-post-mir = { version = "0.1.0", path = "crates/post-mir" }
 sodigy-session = { version = "0.1.0", path = "crates/session" }
 sodigy-span = { version = "0.1.0", path = "crates/span" }
 sodigy-string = { version = "0.1.0", path = "crates/string" }
