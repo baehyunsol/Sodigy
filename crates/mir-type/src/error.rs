@@ -331,7 +331,7 @@ impl RenderTypeError for MirSession {
 
     fn render_type(&self, r#type: &Type) -> String {
         match r#type {
-            Type::Static(span) | Type::GenericDef(span) => self.span_to_string(*span).unwrap_or_else(|| String::from("????")),
+            Type::Static { def_span, .. } | Type::GenericDef { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
             Type::Unit(_) => String::from("()"),
             Type::Param {
                 r#type,

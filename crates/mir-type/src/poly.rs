@@ -146,7 +146,7 @@ impl Constraint {
         match self {
             Constraint::Eq { type_var, r#type: constraint } => match generics.get(type_var) {
                 Some(call) => match (call, constraint) {
-                    (Type::Static(c1), Type::Static(c2)) => {
+                    (Type::Static { def_span: c1, .. }, Type::Static { def_span: c2, .. }) => {
                         if c1 == c2 {
                             CheckResult::Pass
                         }
@@ -161,8 +161,8 @@ impl Constraint {
                     (Type::Func { .. }, Type::Func { .. }) => todo!(),
                     (Type::Var { .. } | Type::GenericInstance { .. }, _) => CheckResult::Maybe,
                     (
-                        Type::Static(_) | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
-                        Type::Static(_) | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
+                        Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
+                        Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
                     ) => CheckResult::Fail,
                     _ => panic!("TODO: {:?}", (call, constraint)),
                 },

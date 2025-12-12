@@ -23,25 +23,25 @@
 //!
 //! match scrutinee.constructor {
 //!     // It's kinda type-checker.
-//!     Tuple3 => match scrutinee._0 {
-//!         0 => match scrutinee._1 {  // 1, 2, 3, 4
-//!             0 => match scrutinee._2 {  // 1, 2, 3, 4
+//!     Tuple3 => match scrutinee._0.constructor {
+//!         0 => match scrutinee._1.constructor {  // 1, 2, 3, 4
+//!             0 => match scrutinee._2.constructor {  // 1, 2, 3, 4
 //!                 0 => 1,
 //!                 ..0 | 1.. => 2,
 //!             },
 //!             // Optimization: we can replace this entire arm with `_ => 2`.
-//!             ..0 | 1.. => match scrutinee._2 {  // 2, 3, 4
+//!             ..0 | 1.. => match scrutinee._2.constructor {  // 2, 3, 4
 //!                 0 => 2,
 //!                 ..0 | 1.. => 2,
 //!             },
 //!         },
 //!         // Optimization: we can replace `..0 | 1..` with `_`
-//!         ..0 | 1.. => match scrutinee._1 {  // 3, 4
-//!             0 => match scrutinee._2 {  // 3, 4
+//!         ..0 | 1.. => match scrutinee._1.constructor {  // 3, 4
+//!             0 => match scrutinee._2.constructor {  // 3, 4
 //!                 0 => 3,
 //!                 ..0 | 1.. => 4,
 //!             },
-//!             ..0 | 1.. => match scrutinee._2 {  // 4
+//!             ..0 | 1.. => match scrutinee._2.constructor {  // 4
 //!                 0 => 4,
 //!                 ..0 | 1.. => 4,
 //!             },
@@ -145,18 +145,23 @@
 //!
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
+use crate::PatternAnalysisError;
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{Generic, StructField};
+use sodigy_hir::{Generic, Pattern, PatternKind, StructField};
 use sodigy_mir::{
     Callable,
     Expr,
     Match,
+    MatchArm,
     MatchFsm,
     Session as MirSession,
     Type,
     type_of,
 };
+use sodigy_number::InternedNumber;
+use sodigy_parse::Field;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
@@ -407,5 +412,158 @@ fn lower_match(
         struct_shapes,
         lang_items,
     ).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
-    panic!("TODO: scrutinee_type: {scrutinee_type:?}")
+
+    let matrix = get_matrix(&scrutinee_type, lang_items);
+    let arms: Vec<&MatchArm> = match_ast.arms.iter().collect();
+
+    for arm in match_ast.arms.iter() {
+        println!("{arm:?}");
+    }
+
+    todo!()
 }
+
+#[derive(Clone, Debug)]
+enum LiteralType {
+    Int,
+    Number,
+    Byte,
+    Char,
+}
+
+#[derive(Clone, Debug)]
+enum Constructor {
+    Tuple(usize),
+    DefSpan(Span),
+    Range {
+        r#type: LiteralType,
+        lhs: Option<InternedNumber>,
+        lhs_inclusive: bool,
+        rhs: Option<InternedNumber>,
+        rhs_inclusive: bool,
+    },
+    Or(Vec<Constructor>),
+    Wildcard,
+}
+
+// Int: [([constructor], Range { Int, -inf..inf })]
+// Number: [([constructor], Range { Number, -inf..inf })]  // We don't care about its denom and numer!
+// (Foo, Foo, Int): [  // struct Foo { f1: Bool, f2: Int }
+//     ([constructor], Tuple(2)),
+//     ([index(0), constructor], DefSpan(Foo)),
+//     ([index(0), name(f1), constructor], Or(DefSpan(True), DefSpan(False))),
+//     ([index(0), name(f1), payload], EnumPayload(Bool)),  // this is empty, but we'll optimize that later
+//     ([index(0), name(f2), constructor], Range { Int, -inf..inf }),
+//     ([index(1), constructor], DefSpan(Foo)),
+//     ([index(1), name(f1), constructor], Or(DefSpan(True), DefSpan(False))),
+//     ([index(1), name(f1), payload], EnumPayload(Bool)),  // this is empty, but we'll optimize that later
+//     ([index(1), name(f2), constructor], Range { Int, -inf..inf }),
+//     ([index(2), constructor], Range { Int, -inf..inf }),
+// ]
+// (Int, Int, Option<Int>): [
+//     ([constructor], Tuple(3)),
+//     ([index(0), constructor], Range { Int, -inf..inf }),
+//     ([index(1), constructor], Range { Int, -inf..inf }),
+//     ([index(2), constructor], Or(DefSpan(Some), DefSpan(None))),
+//     ([index(2), payload], EnumPayload(Option)),
+// ]
+fn get_matrix(
+    r#type: &Type,
+    lang_items: &HashMap<String, Span>,
+) -> Vec<(Vec<Field>, Constructor)> {
+    match r#type {
+        Type::Static { def_span, .. } => {
+            // TODO: It's toooo inefficient to call `lang_items.get()` everytime.
+            if def_span == lang_items.get("type.Int").unwrap() {
+                vec![(
+                    vec![Field::Constructor],
+                    Constructor::Range {
+                        r#type: LiteralType::Int,
+                        lhs: None,
+                        lhs_inclusive: false,
+                        rhs: None,
+                        rhs_inclusive: false,
+                    },
+                )]
+            }
+
+            else {
+                todo!()
+            }
+        },
+        Type::Unit(_) => vec![(vec![Field::Constructor], Constructor::Tuple(0))],
+        Type::Never(_) => todo!(),
+        Type::Param { r#type, args, .. } => match &**r#type {
+            Type::Static { def_span, .. } => todo!(),
+            Type::Unit(_) => {
+                let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
+
+                for (i, arg) in args.iter().enumerate() {
+                    let mut arg_matrix = get_matrix(arg, lang_items);
+
+                    for row in arg_matrix.iter_mut() {
+                        row.0.insert(0, Field::Index(i as i64));
+                    }
+
+                    result.extend(arg_matrix);
+                }
+
+                result
+            },
+            _ => unreachable!(),
+        },
+        Type::Func { params, r#return, .. } => todo!(),
+        Type::GenericDef { .. } |
+        Type::Var { .. } |
+        Type::GenericInstance { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
+    }
+}
+
+// pattern: `(a @ 0..20, None)`, field: `._0.constructor`
+// -> (Range { Int, 0..20 }, Some((a, def_span of a)))
+//
+// pattern: `(a @ 0..20, None)`, field: `.constructor`
+// -> (Tuple(2), None)
+//
+// TODO: how about dollar-identifiers?
+// TODO: how about infix-ops?
+fn get_constructor_of_pattern(
+    pattern: &Pattern,
+    field: &[Field],
+) -> Result<(Constructor, Option<(InternedString, Span)>), PatternAnalysisError> {
+    assert!(!field.is_empty(), "Internal Compiler Error");
+    let name_binding = match (pattern.name, pattern.name_span) {
+        (Some(name), Some(name_span)) => Some((name, name_span)),
+        _ => None,
+    };
+
+    match &field[0] {
+        Field::Constructor => match &pattern.kind {
+            PatternKind::Identifier { id, span } => Ok((
+                Constructor::Wildcard,
+                Some((*id, *span)),
+            )),
+            _ => todo!(),
+        },
+        _ => todo!(),
+    }
+}
+
+/*
+TODO
+
+struct StateMachine {
+    value: Vec<Field>,
+    transitions: Vec<Transition>,
+}
+
+struct Transition {
+    condition: Constructor,
+    guard: Option<Expr>,
+    state: StateMachineOrArm,
+
+    // If the condition is met, the value is bound to the name.
+    // It's bound AFTER `value` is evaluated and BEFORE the transition.
+    bindings: Vec<(Arm, Span)>,  // (arm_index, def_span of name)
+}
+*/

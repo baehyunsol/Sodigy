@@ -1,3 +1,7 @@
+# 120. 왜안별다줄?
+
+Integer를 Int로 쓸 거면 Identifier도 Ident라고 쓰는게 맞지 않나?
+
 # 119. idea for testing the type-solver
 
 원래 정상적으로 도는 프로그램이 있을 때, 그 프로그램 안에 있는 type annotation을 삭제한 다음 돌리면 type-error (cannot-infer)가 나거나 정상적으로 돌거나 둘 중에 하나이어야함!!

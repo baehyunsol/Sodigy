@@ -16,7 +16,10 @@ impl Solver {
 
         if let Some(assertion_type) = assertion_type {
             if let Err(()) = self.solve_subtype(
-                &Type::Static(self.get_lang_item_span("type.Bool")),
+                &Type::Static {
+                    def_span: self.get_lang_item_span("type.Bool"),
+                    span: Span::None,
+                },
                 &assertion_type,
                 types,
                 generic_instances,
@@ -35,7 +38,10 @@ impl Solver {
 
             if let Some(note_type) = note_type {
                 if let Err(()) = self.solve_subtype(
-                    &Type::Static(self.get_lang_item_span("type.String")),
+                    &Type::Static {
+                        def_span: self.get_lang_item_span("type.String"),
+                        span: Span::None,
+                    },
                     &note_type,
                     types,
                     generic_instances,

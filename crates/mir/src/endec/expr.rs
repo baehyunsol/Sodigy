@@ -8,7 +8,6 @@ use crate::{
     Match,
     MatchArm,
     MatchFsm,
-    Pattern,
     ShortCircuitKind,
 };
 use sodigy_endec::{DecodeError, Endec};

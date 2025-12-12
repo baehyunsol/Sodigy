@@ -5,6 +5,9 @@ use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
 
+mod eval;
+use eval::eval_const_pattern;
+
 #[derive(Clone, Debug)]
 pub struct Pattern {
     // `name` and `name_span` are for extra name bindings, like `x @ 0..10`.
@@ -565,7 +568,20 @@ impl<'t> Tokens<'t> {
                             self.cursor += 1;
 
                             match self.peek().map(|t| t.pattern_begin()) {
-                                Some(true) => todo!(),
+                                Some(true) => {
+                                    let rhs = self.pratt_parse_pattern(context, r_bp)?;
+                                    lhs = Pattern {
+                                        name: None,
+                                        name_span: None,
+                                        r#type: None,
+                                        kind: PatternKind::Range {
+                                            lhs: Some(Box::new(lhs)),
+                                            rhs: Some(Box::new(rhs)),
+                                            op_span,
+                                            is_inclusive,
+                                        },
+                                    };
+                                },
                                 _ => {
                                     lhs = Pattern {
                                         name: None,
@@ -609,16 +625,12 @@ impl<'t> Tokens<'t> {
 
                                 self.cursor += 1;
                                 let rhs = self.pratt_parse_pattern(context, r_bp)?;
+                                let kind = eval_const_pattern(op, lhs, rhs, op_span)?;
                                 lhs = Pattern {
                                     name: None,
                                     name_span: None,
                                     r#type: None,
-                                    kind: PatternKind::InfixOp {
-                                        op,
-                                        lhs: Box::new(lhs),
-                                        rhs: Box::new(rhs),
-                                        op_span,
-                                    },
+                                    kind,
                                 };
                                 continue;
                             },

@@ -1,0 +1,14 @@
+fn overlapping_integers(a: Int) -> Int = match a {
+    0..20 => 1,
+    10..30 => 2,
+    20..40 => 3,
+    30..50 => 4,
+    _ => 5,
+};
+
+assert overlapping_integers(5) == 1;
+assert overlapping_integers(15) == 1;
+assert overlapping_integers(25) == 2;
+assert overlapping_integers(35) == 3;
+assert overlapping_integers(45) == 4;
+assert overlapping_integers(55) == 5;

@@ -5,13 +5,15 @@ use sodigy_span::Span;
 impl Endec for Type {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Type::Static(def_span) => {
+            Type::Static { def_span, span } => {
                 buffer.push(0);
                 def_span.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
-            Type::GenericDef(def_span) => {
+            Type::GenericDef { def_span, span } => {
                 buffer.push(1);
                 def_span.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
             Type::Unit(group_span) => {
                 buffer.push(2);
@@ -51,11 +53,13 @@ impl Endec for Type {
         match buffer.get(cursor) {
             Some(0) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Type::Static(def_span), cursor))
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Type::Static { def_span, span }, cursor))
             },
             Some(1) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Type::GenericDef(def_span), cursor))
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Type::GenericDef { def_span, span }, cursor))
             },
             Some(2) => {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

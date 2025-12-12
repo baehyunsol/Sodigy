@@ -6,15 +6,24 @@ use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
+// This enum is originally meant for type annotations, but
+// type-checker and type-inferer are also using this enum...
+//
 // `Eq` and `PartialEq` are only for type vars.
 // For comparison, use `Solver::equal()` method.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
     // Int
-    Static(Span /* def_span of `Int` */),
+    Static {
+        def_span: Span,
+        span: Span,
+    },
 
     // T in `fn first<T>(ls: [T]) -> T = ls[0];`
-    GenericDef(Span /* def_span of `T` */),
+    GenericDef {
+        def_span: Span,
+        span: Span,
+    },
 
     // ()
     Unit(Span /* group_span */),
@@ -96,11 +105,17 @@ impl Type {
                     });
                     Err(())
                 },
-                NameOrigin::Generic { .. } => Ok(Type::GenericDef(id.def_span)),
+                NameOrigin::Generic { .. } => Ok(Type::GenericDef {
+                    def_span: id.def_span,
+                    span: id.span,
+                }),
                 NameOrigin::Local { kind } |
                 NameOrigin::Foreign { kind } => match kind {
                     NameKind::Struct |
-                    NameKind::Enum => Ok(Type::Static(id.def_span)),
+                    NameKind::Enum => Ok(Type::Static {
+                        def_span: id.def_span,
+                        span: id.span,
+                    }),
                     _ => {
                         session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span()));
                         Err(())
@@ -224,8 +239,8 @@ impl Type {
 
     pub fn get_type_vars(&self) -> Vec<Type> {
         match self {
-            Type::Static(_) |
-            Type::GenericDef(_) |
+            Type::Static { .. } |
+            Type::GenericDef { .. } |
             Type::Unit(_) |
             Type::Never(_) => vec![],
             Type::Param { r#type: t, args, .. } |
@@ -244,8 +259,8 @@ impl Type {
 
     pub fn substitute(&mut self, type_var: &Type, r#type: &Type) {
         match self {
-            Type::Static(_) |
-            Type::GenericDef(_) |
+            Type::Static { .. } |
+            Type::GenericDef { .. } |
             Type::Unit(_) |
             Type::Never(_) => {},
             Type::Param {
@@ -273,12 +288,12 @@ impl Type {
 
     pub fn substitute_generic_def(&mut self, call: Span, generics: &[Span]) {
         match self {
-            Type::GenericDef(g) => {
-                if generics.contains(g) {
-                    *self = Type::GenericInstance { call, generic: *g };
+            Type::GenericDef { def_span, .. } => {
+                if generics.contains(def_span) {
+                    *self = Type::GenericInstance { call, generic: *def_span };
                 }
             },
-            Type::Static(_) |
+            Type::Static { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
@@ -303,10 +318,10 @@ impl Type {
 
     pub fn generic_to_type_var(&mut self) {
         match self {
-            Type::GenericDef(g) => {
-                *self = Type::Var { def_span: *g, is_return: false };
+            Type::GenericDef { def_span, .. } => {
+                *self = Type::Var { def_span: *def_span, is_return: false };
             },
-            Type::Static(_) |
+            Type::Static { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
@@ -330,9 +345,9 @@ impl Type {
     }
 }
 
-/// It returns the type of `expr`, without any type-inference or type-checking.
-/// Make sure to infer all the types before calling this function. Otherwise,
-/// it'll return `None` or an incorrect type.
+/// It returns the type of `expr`, assuming that type-check and type-infer are
+/// complete. If type-check or type-infer is incomplete, it'll return None,
+/// or even worse, a wrong type.
 pub fn type_of(
     expr: &Expr,
     types: &HashMap<Span, Type>,
@@ -342,23 +357,47 @@ pub fn type_of(
     match expr {
         Expr::Identifier(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
         Expr::Number { n, .. } => match n.is_integer {
-            true => Some(Type::Static(*lang_items.get("type.Int").unwrap())),
-            false => Some(Type::Static(*lang_items.get("type.Number").unwrap())),
+            true => Some(Type::Static {
+                def_span: *lang_items.get("type.Int").unwrap(),
+                span: Span::None,
+            }),
+            false => Some(Type::Static {
+                def_span: *lang_items.get("type.Number").unwrap(),
+                span: Span::None,
+            }),
         },
         Expr::String { binary, .. } => match *binary {
             true => Some(Type::Param {
-                r#type: Box::new(Type::Static(*lang_items.get("type.List").unwrap())),
-                args: vec![Type::Static(*lang_items.get("type.Byte").unwrap())],
+                r#type: Box::new(Type::Static {
+                    def_span: *lang_items.get("type.List").unwrap(),
+                    span: Span::None,
+                }),
+                args: vec![Type::Static {
+                    def_span: *lang_items.get("type.Byte").unwrap(),
+                    span: Span::None,
+                }],
                 group_span: Span::None,
             }),
             false => Some(Type::Param {
-                r#type: Box::new(Type::Static(*lang_items.get("type.List").unwrap())),
-                args: vec![Type::Static(*lang_items.get("type.Char").unwrap())],
+                r#type: Box::new(Type::Static {
+                    def_span: *lang_items.get("type.List").unwrap(),
+                    span: Span::None,
+                }),
+                args: vec![Type::Static {
+                    def_span: *lang_items.get("type.Char").unwrap(),
+                    span: Span::None,
+                }],
                 group_span: Span::None,
             }),
         },
-        Expr::Char { .. } => Some(Type::Static(*lang_items.get("type.Char").unwrap())),
-        Expr::Byte { .. } => Some(Type::Static(*lang_items.get("type.Byte").unwrap())),
+        Expr::Char { .. } => Some(Type::Static {
+            def_span: *lang_items.get("type.Char").unwrap(),
+            span: Span::None,
+        }),
+        Expr::Byte { .. } => Some(Type::Static {
+            def_span: *lang_items.get("type.Byte").unwrap(),
+            span: Span::None,
+        }),
         Expr::If(r#if) => type_of(&r#if.true_value, types, struct_shapes, lang_items),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, types, struct_shapes, lang_items),
         Expr::MatchFsm(match_fsm) => todo!(),
@@ -368,7 +407,10 @@ pub fn type_of(
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },
-            Callable::StructInit { def_span, .. } => Some(Type::Static(*def_span)),
+            Callable::StructInit { def_span, .. } => Some(Type::Static {
+                def_span: *def_span,
+                span: Span::None,
+            }),
             Callable::TupleInit { .. } => {
                 let mut arg_types = Vec::with_capacity(args.len());
 

@@ -288,7 +288,7 @@ impl Solver {
         }
 
         match (expected_type, subtype) {
-            (Type::Static(exp_def), Type::Static(sub_def)) => {
+            (Type::Static { def_span: exp_def, .. }, Type::Static { def_span: sub_def, .. }) => {
                 if *exp_def == *sub_def {
                     Ok(expected_type.clone())
                 }
@@ -554,7 +554,7 @@ impl Solver {
                     Ok(t1.clone())
                 }
             },
-            (Type::GenericDef(_), _) | (_, Type::GenericDef(_)) => {
+            (Type::GenericDef { .. }, _) | (_, Type::GenericDef { .. }) => {
                 // We'll only type check/infer monomorphized functions.
                 unreachable!()
             },
@@ -573,9 +573,9 @@ impl Solver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ (Type::Static(_) | Type::Unit(_)),
+                concrete @ (Type::Static { .. } | Type::Unit(_)),
             ) | (
-                concrete @ (Type::Static(_) | Type::Unit(_)),
+                concrete @ (Type::Static { .. } | Type::Unit(_)),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let concrete_span = if let Type::Var { .. } = expected_type {
@@ -736,9 +736,9 @@ impl Solver {
             },
             (
                 type_var @ Type::GenericInstance { call, generic },
-                concrete @ (Type::Static(_) | Type::Unit(_)),
+                concrete @ (Type::Static { .. } | Type::Unit(_)),
             ) | (
-                concrete @ (Type::Static(_) | Type::Unit(_)),
+                concrete @ (Type::Static { .. } | Type::Unit(_)),
                 type_var @ Type::GenericInstance { call, generic },
             ) => {
                 let concrete_span = if let Type::Var { .. } = expected_type {
@@ -822,8 +822,8 @@ impl Solver {
                 Ok(maybe_concrete.clone())
             },
             (
-                Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
-                Type::Static(_) | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
+                Type::Static { .. } | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
+                Type::Static { .. } | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
             ) => {
                 if !is_checking_argument {
                     self.errors.push(TypeError::UnexpectedType {

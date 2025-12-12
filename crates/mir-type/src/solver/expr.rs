@@ -29,7 +29,7 @@ impl Solver {
                         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                             // `False` in `Bool.False` has type `Bool`.
                             NameKind::EnumVariant { parent } => {
-                                return (Some(Type::Static(parent)), false);
+                                return (Some(Type::Static { def_span: parent, span: Span::None }), false);
                             },
                             NameKind::PatternNameBind => {
                                 self.pattern_name_bindings.insert(id.def_span);
@@ -50,33 +50,72 @@ impl Solver {
                 },
             },
             Expr::Number { n, .. } => match n.is_integer {
-                true => (Some(Type::Static(self.get_lang_item_span("type.Int"))), false),
-                false => (Some(Type::Static(self.get_lang_item_span("type.Number"))), false),
+                true => (
+                    Some(Type::Static {
+                        def_span: self.get_lang_item_span("type.Int"),
+                        span: Span::None,
+                    }),
+                    false,
+                ),
+                false => (
+                    Some(Type::Static {
+                        def_span: self.get_lang_item_span("type.Number"),
+                        span: Span::None,
+                    }),
+                    false,
+                ),
             },
             Expr::String { binary, .. } => match *binary {
                 true => (
                     Some(Type::Param {
-                        r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
-                        args: vec![Type::Static(self.get_lang_item_span("type.Byte"))],
+                        r#type: Box::new(Type::Static {
+                            def_span: self.get_lang_item_span("type.List"),
+                            span: Span::None,
+                        }),
+                        args: vec![Type::Static {
+                            def_span: self.get_lang_item_span("type.Byte"),
+                            span: Span::None,
+                        }],
                         group_span: Span::None,
                     }),
                     false,
                 ),
                 false => (
                     Some(Type::Param {
-                        r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
-                        args: vec![Type::Static(self.get_lang_item_span("type.Char"))],
+                        r#type: Box::new(Type::Static {
+                            def_span: self.get_lang_item_span("type.List"),
+                            span: Span::None,
+                        }),
+                        args: vec![Type::Static {
+                            def_span: self.get_lang_item_span("type.Char"),
+                            span: Span::None,
+                        }],
                         group_span: Span::None,
                     }),
                     false,
                 ),
             },
-            Expr::Char { .. } => (Some(Type::Static(self.get_lang_item_span("type.Char"))), false),
-            Expr::Byte { .. } => (Some(Type::Static(self.get_lang_item_span("type.Byte"))), false),
+            Expr::Char { .. } => (
+                Some(Type::Static {
+                    def_span: self.get_lang_item_span("type.Char"),
+                    span: Span::None,
+                }),
+                false,
+            ),
+            Expr::Byte { .. } => (
+                Some(Type::Static {
+                    def_span: self.get_lang_item_span("type.Byte"),
+                    span: Span::None,
+                }),
+                false,
+            ),
             Expr::If(r#if) => match r#if.from_short_circuit {
                 Some(s) => {
                     let mut has_error = false;
-                    let bool_type = Type::Static(self.get_lang_item_span("type.Bool"));
+                    let bool_type = Type::Static {
+                        def_span: self.get_lang_item_span("type.Bool"),
+                        span: Span::None,
+                    };
                     let context = match s {
                         ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
                         ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
@@ -116,7 +155,10 @@ impl Solver {
 
                     if let Some(cond_type) = cond_type {
                         if let Err(()) = self.solve_subtype(
-                            &Type::Static(self.get_lang_item_span("type.Bool")),
+                            &Type::Static {
+                                def_span: self.get_lang_item_span("type.Bool"),
+                                span: Span::None,
+                            },
                             &cond_type,
                             types,
                             generic_instances,
@@ -169,7 +211,10 @@ impl Solver {
 
                         if let Some(guard_type) = guard_type {
                             if let Err(()) = self.solve_subtype(
-                                &Type::Static(self.get_lang_item_span("type.Bool")),
+                                &Type::Static {
+                                    def_span: self.get_lang_item_span("type.Bool"),
+                                    span: Span::None,
+                                },
                                 &guard_type,
                                 types,
                                 generic_instances,
@@ -338,7 +383,7 @@ impl Solver {
                         },
                         // We're sure that `f` is not a function.
                         // For example, `let f = 3; f()`.
-                        Some(t @ (Type::Static(_) | Type::Unit(_) | Type::Param { .. })) => {
+                        Some(t @ (Type::Static { .. } | Type::Unit(_) | Type::Param { .. })) => {
                             self.errors.push(TypeError::NotCallable {
                                 r#type: t.clone(),
                                 func_span: *span,
@@ -346,7 +391,7 @@ impl Solver {
                             (None, true)
                         },
                         // We only type check/infer monomorphized functions.
-                        Some(Type::GenericDef(_)) => unreachable!(),
+                        Some(Type::GenericDef { .. }) => unreachable!(),
                         // This is not a type error because `!` is subtype of every type.
                         Some(t @ Type::Never(_)) => (Some(t.clone()), has_error),
                         // `let foo = bar(); foo()`.
@@ -378,7 +423,10 @@ impl Solver {
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Param {
-                                r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
+                                r#type: Box::new(Type::Static {
+                                    def_span: self.get_lang_item_span("type.List"),
+                                    span: Span::None,
+                                }),
                                 args: vec![type_var],
 
                                 // this is for the type annotation, hence None
@@ -411,7 +459,10 @@ impl Solver {
                             }
 
                             let r#type = Type::Param {
-                                r#type: Box::new(Type::Static(self.get_lang_item_span("type.List"))),
+                                r#type: Box::new(Type::Static {
+                                    def_span: self.get_lang_item_span("type.List"),
+                                    span: Span::None,
+                                }),
                                 args: vec![elem_type],
 
                                 // this is for the type annotation, hence None
@@ -430,7 +481,7 @@ impl Solver {
 
                         match func_type {
                             // TODO: What if there's a callable `Type::Static()` or `Type::Param {}`?
-                            Type::Static(_) | Type::Unit(_) | Type::Param { .. } => {
+                            Type::Static { .. } | Type::Unit(_) | Type::Param { .. } => {
                                 self.errors.push(TypeError::NotCallable {
                                     r#type: func_type.clone(),
                                     func_span: func.error_span(),
@@ -439,7 +490,7 @@ impl Solver {
                             },
 
                             // We'll only type check/infer monomorphized functions.
-                            Type::GenericDef(_) => unreachable!(),
+                            Type::GenericDef { .. } => unreachable!(),
 
                             Type::Func { params, r#return, .. } => {
                                 // It doesn't check arg types if there are wrong number of args.
