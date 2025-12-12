@@ -23,7 +23,7 @@ pub fn lower_expr(
     is_tail_call: bool,
 ) {
     match expr {
-        Expr::Identifier(id) => {
+        Expr::Ident(id) => {
             let src = match session.local_values.get(&id.def_span) {
                 Some(src) => Memory::Stack(src.stack_offset),
                 None => match id.origin {

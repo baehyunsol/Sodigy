@@ -62,7 +62,7 @@ impl<'t> Tokens<'t> {
 
                         match self.peek() {
                             // `use a.b`
-                            Some(Token { kind: TokenKind::Identifier(_), .. }) => {
+                            Some(Token { kind: TokenKind::Ident(_), .. }) => {
                                 continue;
                             },
                             // `use a.{`
@@ -152,7 +152,7 @@ impl<'t> Tokens<'t> {
                             Some(t) => {
                                 return Err(vec![Error {
                                     kind: ErrorKind::UnexpectedToken {
-                                        expected: ErrorToken::Identifier,
+                                        expected: ErrorToken::Ident,
                                         got: (&t.kind).into(),
                                     },
                                     spans: t.span.simple_error(),
@@ -161,7 +161,7 @@ impl<'t> Tokens<'t> {
                             },
                             // `use a.` (invalid)
                             None => {
-                                return Err(vec![self.unexpected_end(ErrorToken::Identifier)]);
+                                return Err(vec![self.unexpected_end(ErrorToken::Ident)]);
                             },
                         }
                     },

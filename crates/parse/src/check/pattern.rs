@@ -74,7 +74,7 @@ impl Pattern {
 
     pub fn check_range_argument(&self, is_lhs: bool) -> Result<(), Vec<Error>> {
         match &self.kind {
-            PatternKind::DollarIdentifier { .. } |
+            PatternKind::DollarIdent { .. } |
             PatternKind::Number { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } => Ok(()),
@@ -105,10 +105,10 @@ impl PatternKind {
             PatternKind::String { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } |
-            PatternKind::Identifier { .. } |
+            PatternKind::Ident { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
-            PatternKind::DollarIdentifier { .. } => Ok(()),
+            PatternKind::DollarIdent { .. } => Ok(()),
             PatternKind::Regex { .. } => todo!(),
             PatternKind::Struct { fields, .. } => {
                 // There maybe name collisions in the fields, but AST doesn't care about that.

@@ -22,7 +22,7 @@ impl Solver {
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         match expr {
-            Expr::Identifier(id) => match types.get(&id.def_span) {
+            Expr::Ident(id) => match types.get(&id.def_span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     match id.origin {

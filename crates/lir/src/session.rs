@@ -107,7 +107,7 @@ impl Session {
 
     pub fn collect_local_names(&mut self, expr: &Expr, offset: usize) {
         match expr {
-            Expr::Identifier(_) |
+            Expr::Ident(_) |
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |

@@ -26,7 +26,7 @@ use sodigy_token::{
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Identifier {
+    Ident {
         id: InternedString,
         span: Span,
     },
@@ -113,7 +113,7 @@ impl Expr {
     // Returns a best-effort span for error messages.
     pub fn error_span(&self) -> Span {
         match self {
-            Expr::Identifier { span, .. } |
+            Expr::Ident { span, .. } |
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } => *span,
@@ -227,10 +227,10 @@ impl<'t> Tokens<'t> {
                     },
                 }
             },
-            Some(Token { kind: TokenKind::Identifier(id), span }) => {
+            Some(Token { kind: TokenKind::Ident(id), span }) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
-                Expr::Identifier { id, span }
+                Expr::Ident { id, span }
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
                 let (n, span) = (n.clone(), *span);

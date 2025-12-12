@@ -18,7 +18,7 @@ use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 impl Endec for Expr {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Expr::Identifier(id) => {
+            Expr::Ident(id) => {
                 buffer.push(0);
                 id.encode_impl(buffer);
             },
@@ -119,7 +119,7 @@ impl Endec for Expr {
         match buffer.get(cursor) {
             Some(0) => {
                 let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;
-                Ok((Expr::Identifier(id), cursor))
+                Ok((Expr::Ident(id), cursor))
             },
             Some(1) => {
                 let (n, cursor) = InternedNumber::decode_impl(buffer, cursor + 1)?;

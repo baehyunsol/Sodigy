@@ -12,7 +12,7 @@ impl ErrorLevel {
         match k {
             ErrorKind::InvalidNumberLiteral |
             ErrorKind::InvalidStringLiteralPrefix |
-            ErrorKind::InvalidCharacterInIdentifier(_) |
+            ErrorKind::InvalidCharacterInIdent(_) |
             ErrorKind::WrongNumberOfQuotesInRawStringLiteral |
             ErrorKind::UnterminatedStringLiteral |
             ErrorKind::NotAllowedCharInFString(_) |

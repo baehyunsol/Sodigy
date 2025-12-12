@@ -67,7 +67,7 @@ impl<'t> Tokens<'t> {
 #[derive(Clone, Debug)]
 pub enum Type {
     // `Int`, `String`, `Bool`, `T` in `fn foo<T>()`
-    Identifier {
+    Ident {
         id: InternedString,
         span: Span,
     },
@@ -79,7 +79,7 @@ pub enum Type {
     },
     // `Message<T>`, `Result<[Int], Error>`
     Param {
-        r#type: Box<Type>,  // either `Type::Identifier` or `Type::Path`
+        r#type: Box<Type>,  // either `Type::Ident` or `Type::Path`
         args: Vec<Type>,
         group_span: Span,
     },
@@ -94,8 +94,8 @@ pub enum Type {
         group_span: Span,
     },
     Func {  // `Fn(Int, Int) -> Int`
-        // It's either `Type::Identifier` or `Type::Path`.
-        // It's very likely to be `Type::Identifier("Fn")`.
+        // It's either `Type::Ident` or `Type::Path`.
+        // It's very likely to be `Type::Ident("Fn")`.
         // If it's not `Fn`, it's 99% an error, but I want to throw
         // errors at later step because that's more helpful to the users.
         r#type: Box<Type>,
@@ -118,7 +118,7 @@ pub enum Type {
 impl Type {
     pub fn error_span(&self) -> Span {
         match self {
-            Type::Identifier { span, .. } |
+            Type::Ident { span, .. } |
             Type::Wildcard(span) |
             Type::Never(span) => *span,
             Type::Path { fields, .. } => match fields.get(0) {
@@ -137,7 +137,7 @@ impl<'t> Tokens<'t> {
     pub fn parse_type(&mut self) -> Result<Type, Vec<Error>> {
         match self.peek2() {
             (
-                Some(Token { kind: TokenKind::Identifier(id), span }),
+                Some(Token { kind: TokenKind::Ident(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
             ) => {
                 let mut path = vec![(*id, *span)];
@@ -147,7 +147,7 @@ impl<'t> Tokens<'t> {
                 loop {
                     match self.peek2() {
                         (
-                            Some(Token { kind: TokenKind::Identifier(id), span }),
+                            Some(Token { kind: TokenKind::Ident(id), span }),
                             Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
                         ) => {
                             path.push((*id, *span));
@@ -155,7 +155,7 @@ impl<'t> Tokens<'t> {
                             self.cursor += 2;
                         },
                         (
-                            Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                            Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                             Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
                         ) => {
                             let group_span_start = *span2;
@@ -181,10 +181,10 @@ impl<'t> Tokens<'t> {
                             });
                         },
                         (
-                            Some(Token { kind: TokenKind::Identifier(id), span }),
+                            Some(Token { kind: TokenKind::Ident(id), span }),
                             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, .. }),
                         ) => todo!(),  // maybe func
-                        (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
+                        (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                             path.push((*id, *span));
                             self.cursor += 1;
                             return Ok(Type::Path {
@@ -206,7 +206,7 @@ impl<'t> Tokens<'t> {
                 }
             },
             (
-                Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                 Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
             ) => {
                 let group_span_start = *span2;
@@ -217,14 +217,14 @@ impl<'t> Tokens<'t> {
                 let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                 Ok(Type::Param {
-                    r#type: Box::new(Type::Identifier { id, span }),
+                    r#type: Box::new(Type::Ident { id, span }),
                     args,
                     group_span: group_span_start.merge(group_span_end),
                 })
             },
             // Fn(Int, Int) -> Int
             (
-                Some(Token { kind: TokenKind::Identifier(id), span: span1 }),
+                Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
             ) => {
                 let (name, name_span) = (*id, *span1);
@@ -237,7 +237,7 @@ impl<'t> Tokens<'t> {
                 let r#return = self.parse_type()?;
 
                 Ok(Type::Func {
-                    r#type: Box::new(Type::Identifier {
+                    r#type: Box::new(Type::Ident {
                         id: name,
                         span: name_span,
                     }),
@@ -246,13 +246,13 @@ impl<'t> Tokens<'t> {
                     r#return: Box::new(r#return),
                 })
             },
-            (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
+            (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
 
                 match id.try_unintern_short_string() {
                     Some(id) if id == b"_" => Ok(Type::Wildcard(span)),
-                    _ => Ok(Type::Identifier { id, span }),
+                    _ => Ok(Type::Ident { id, span }),
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {

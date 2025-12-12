@@ -18,7 +18,7 @@ use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Identifier(IdentWithOrigin),
+    Ident(IdentWithOrigin),
     Number {
         n: InternedNumber,
         span: Span,
@@ -92,9 +92,9 @@ pub enum Expr {
 impl Expr {
     pub fn from_ast(ast_expr: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
         match ast_expr {
-            ast::Expr::Identifier { id, span } => match session.find_origin_and_count_usage(*id) {
+            ast::Expr::Ident { id, span } => match session.find_origin_and_count_usage(*id) {
                 Some((origin, def_span)) => {
-                    Ok(Expr::Identifier(IdentWithOrigin {
+                    Ok(Expr::Ident(IdentWithOrigin {
                         id: *id,
                         span: *span,
                         origin,
@@ -284,7 +284,7 @@ impl Expr {
                 match Func::from_ast(&func, session, FuncOrigin::Lambda, false /* is_top_level */) {
                     Ok(func) => {
                         session.funcs.push(func);
-                        Ok(Expr::Identifier(IdentWithOrigin {
+                        Ok(Expr::Ident(IdentWithOrigin {
                             id: name,
                             span,
                             def_span: span,
@@ -325,7 +325,7 @@ impl Expr {
 
     pub fn error_span(&self) -> Span {
         match self {
-            Expr::Identifier(IdentWithOrigin { span, .. }) |
+            Expr::Ident(IdentWithOrigin { span, .. }) |
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } |

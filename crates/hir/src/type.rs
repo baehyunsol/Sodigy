@@ -7,7 +7,7 @@ use sodigy_string::{InternedString, intern_string};
 
 #[derive(Clone, Debug)]
 pub enum Type {
-    Identifier(IdentWithOrigin),
+    Ident(IdentWithOrigin),
 
     // A type with dotted-identifiers (e.g. `std.bool.Bool`).
     // It'll eventually be lowered to `Type::Identifier`, otherwise an error.
@@ -39,9 +39,9 @@ pub enum Type {
 impl Type {
     pub fn from_ast(ast_type: &ast::Type, session: &mut Session) -> Result<Type, ()> {
         match ast_type {
-            ast::Type::Identifier { id, span } => match session.find_origin_and_count_usage(*id) {
+            ast::Type::Ident { id, span } => match session.find_origin_and_count_usage(*id) {
                 Some((origin, def_span)) => {
-                    Ok(Type::Identifier(IdentWithOrigin {
+                    Ok(Type::Ident(IdentWithOrigin {
                         id: *id,
                         span: *span,
                         origin,
@@ -115,7 +115,7 @@ impl Type {
             ast::Type::List { r#type, group_span } => {
                 // TODO: I want it to be const-evaled
                 let list_id = intern_string(b"List", &session.intermediate_dir).unwrap();
-                let list_type = Type::Identifier(IdentWithOrigin {
+                let list_type = Type::Ident(IdentWithOrigin {
                     id: list_id,
                     span: *group_span,
                     origin: NameOrigin::Foreign { kind: NameKind::Struct },
@@ -163,7 +163,7 @@ impl Type {
                 let mut params = Vec::with_capacity(ast_params.len());
 
                 match Type::from_ast(r#type, session) {
-                    Ok(Type::Identifier(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
+                    Ok(Type::Ident(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
                         Some(f) if f == b"Fn" => {
                             fn_span = span;
                         },
@@ -228,7 +228,7 @@ impl Type {
     // Error messages will use this span.
     pub fn error_span(&self) -> Span {
         match self {
-            Type::Identifier(id) => id.span,
+            Type::Ident(id) => id.span,
             Type::Path { id, fields } => {
                 let mut span = id.span;
 
@@ -262,7 +262,7 @@ impl Type {
     // span in it with `OI`'s.
     pub fn replace_name_and_span(&mut self, name: InternedString, span: Span) {
         match self {
-            Type::Identifier(id) => {
+            Type::Ident(id) => {
                 id.id = name;
                 id.span = span;
             },

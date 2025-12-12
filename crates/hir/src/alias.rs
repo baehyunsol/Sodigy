@@ -159,7 +159,7 @@ impl Alias {
 
 fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentWithOrigin>) {
     match r#type {
-        Type::Identifier(id) |
+        Type::Ident(id) |
         Type::Path { id, .. } => {
             if id.def_span == def_span {
                 result.push(*id);

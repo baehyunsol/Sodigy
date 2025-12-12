@@ -87,7 +87,7 @@ impl<'t> Tokens<'t> {
     pub fn try_parse_struct_initialization(&mut self) -> Option<Result<Vec<StructInitField>, Vec<Error>>> {
         match self.peek2() {
             (
-                Some(Token { kind: TokenKind::Identifier(_), .. }),
+                Some(Token { kind: TokenKind::Ident(_), .. }),
                 Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
             ) => {},
             (None, None) => {
@@ -129,7 +129,7 @@ impl<'t> Tokens<'t> {
                 (Some(t), _) => {
                     return Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {
-                            expected: ErrorToken::Identifier,
+                            expected: ErrorToken::Ident,
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),

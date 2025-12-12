@@ -247,7 +247,7 @@ impl Session {
             }
 
             match path {
-                Expr::Identifier(id) => match self.polys.get_mut(&id.def_span) {
+                Expr::Ident(id) => match self.polys.get_mut(&id.def_span) {
                     Some(poly) => {
                         poly.impls.push(impl_span);
                     },
@@ -435,7 +435,7 @@ impl Session {
                         // alias: `type x = a;`
                         // ->
                         // `use a.y.z as w;`
-                        Type::Identifier(alias_id) => {
+                        Type::Ident(alias_id) => {
                             *r#use = Use {
                                 root: IdentWithOrigin {
                                     def_span: alias_id.def_span,
@@ -638,7 +638,7 @@ impl Session {
         }
 
         match r#type {
-            Type::Identifier(id) => {
+            Type::Ident(id) => {
                 match self.name_aliases.get(&id.def_span) {
                     Some(alias) => {
                         // r#type: `type x = y;`
@@ -648,7 +648,7 @@ impl Session {
                         if alias.fields.is_empty() {
                             log.push(id.span);
                             log.push(id.def_span);
-                            *r#type = Type::Identifier(IdentWithOrigin {
+                            *r#type = Type::Ident(IdentWithOrigin {
                                 def_span: alias.root.def_span,
                                 origin: alias.root.origin,
                                 ..*id
@@ -689,7 +689,7 @@ impl Session {
 
                 match self.type_aliases.get(&id.def_span) {
                     Some(alias) => match &alias.r#type {
-                        Type::Identifier(alias_id) => {
+                        Type::Ident(alias_id) => {
                             // r#type: `type x = y;`
                             // alias: `type y = a;`
                             // ->
@@ -800,7 +800,7 @@ impl Session {
                                 };
 
                                 if fields.len() == 1 {
-                                    *r#type = Type::Identifier(new_id);
+                                    *r#type = Type::Ident(new_id);
                                     Ok(())
                                 }
 
@@ -838,7 +838,7 @@ impl Session {
                 }
 
                 match &**p_type {
-                    Type::Identifier(id) => {
+                    Type::Ident(id) => {
                         let id = *id;
 
                         match self.name_aliases.get(&id.def_span) {
@@ -851,7 +851,7 @@ impl Session {
                                     log.push(id.span);
                                     log.push(id.def_span);
                                     *r#type = Type::Param {
-                                        r#type: Box::new(Type::Identifier(IdentWithOrigin {
+                                        r#type: Box::new(Type::Ident(IdentWithOrigin {
                                             def_span: alias.root.def_span,
                                             origin: alias.root.origin,
                                             ..id
@@ -929,7 +929,7 @@ impl Session {
 
                                         if fields.len() == 1 {
                                             *r#type = Type::Param {
-                                                r#type: Box::new(Type::Identifier(new_id)),
+                                                r#type: Box::new(Type::Ident(new_id)),
                                                 args: args.clone(),
                                                 group_span: *group_span,
                                             };
@@ -1021,7 +1021,7 @@ impl Session {
             Expr::String { .. } |
             Expr::Char { .. } |
             Expr::Byte { .. } => Ok(()),
-            Expr::Identifier(id) => {
+            Expr::Ident(id) => {
                 match self.name_aliases.get(&id.def_span) {
                     Some(alias) => {
                         // expr: `Bool`
@@ -1186,13 +1186,13 @@ impl Session {
                 self.resolve_expr(lhs)?;
 
                 match &**lhs {
-                    Expr::Identifier(id) => match self.item_name_map.get(&id.def_span) {
+                    Expr::Ident(id) => match self.item_name_map.get(&id.def_span) {
                         Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
                             let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
 
                             match items.get(&field_name) {
                                 Some((item, item_kind)) => {
-                                    let new_root = Expr::Identifier(IdentWithOrigin {
+                                    let new_root = Expr::Ident(IdentWithOrigin {
                                         id: field_name,
                                         span: field_span,
                                         origin: NameOrigin::Foreign { kind: *item_kind },
@@ -1282,7 +1282,7 @@ impl Session {
 
     pub fn resolve_pattern_kind(&mut self, kind: &mut PatternKind) -> Result<(), ()> {
         match kind {
-            PatternKind::Identifier { .. } |
+            PatternKind::Ident { .. } |
             PatternKind::Number { .. } |
             PatternKind::String { .. } |
             PatternKind::Regex { .. } |

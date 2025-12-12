@@ -7,7 +7,7 @@ use sodigy_span::Span;
 impl Endec for Type {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Type::Identifier(id) => {
+            Type::Ident(id) => {
                 buffer.push(0);
                 id.encode_impl(buffer);
             },
@@ -49,7 +49,7 @@ impl Endec for Type {
         match buffer.get(cursor) {
             Some(0) => {
                 let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;
-                Ok((Type::Identifier(id), cursor))
+                Ok((Type::Ident(id), cursor))
             },
             Some(1) => {
                 let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;

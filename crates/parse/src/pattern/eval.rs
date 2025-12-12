@@ -14,8 +14,8 @@ use sodigy_token::InfixOp;
 // [1]: add/sub/mul/div/rem/shl/shr/bitand/bitor/xor
 // [2]: add/sub/mul/div/rem
 enum ConstPatternType {
-    Identifier,
-    DollarIdentifier,
+    Ident,
+    DollarIdent,
     Int(InternedNumberValue),
     Number(InternedNumberValue),
     Byte(u8),
@@ -42,8 +42,8 @@ pub fn eval_const_pattern(
     };
 
     match (lhs_type, rhs_type) {
-        (ConstPatternType::Identifier, ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_)) |
-        (ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_), ConstPatternType::Identifier) => match op {
+        (ConstPatternType::Ident, ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_)) |
+        (ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_), ConstPatternType::Ident) => match op {
             // nop
             InfixOp::Add | InfixOp::Sub => Ok(PatternKind::InfixOp {
                 op,
@@ -53,9 +53,9 @@ pub fn eval_const_pattern(
             }),
             _ => todo!(),  // err
         },
-        (ConstPatternType::Identifier, _) | (_, ConstPatternType::Identifier) => todo!(),  // err
-        (ConstPatternType::DollarIdentifier, ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_)) |
-        (ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_), ConstPatternType::DollarIdentifier) => match op {
+        (ConstPatternType::Ident, _) | (_, ConstPatternType::Ident) => todo!(),  // err
+        (ConstPatternType::DollarIdent, ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_)) |
+        (ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_), ConstPatternType::DollarIdent) => match op {
             // nop
             InfixOp::Add | InfixOp::Sub | InfixOp::Mul | InfixOp::Div | InfixOp::Rem |
             InfixOp::Shl | InfixOp::Shr | InfixOp::BitAnd | InfixOp::BitOr | InfixOp::Xor => Ok(PatternKind::InfixOp {
@@ -66,7 +66,7 @@ pub fn eval_const_pattern(
             }),
             _ => todo!(),  // err
         },
-        (ConstPatternType::DollarIdentifier, _) | (_, ConstPatternType::DollarIdentifier) => todo!(),  // err
+        (ConstPatternType::DollarIdent, _) | (_, ConstPatternType::DollarIdent) => todo!(),  // err
         (ConstPatternType::Int(lhs), ConstPatternType::Int(rhs)) => match op {
             InfixOp::Add => todo!(),
             _ => todo!(),
@@ -96,8 +96,8 @@ fn get_const_pattern_type(pattern: &Pattern) -> Result<ConstPatternType, Error> 
 
     else {
         match &pattern.kind {
-            PatternKind::Identifier { .. } => Ok(ConstPatternType::Identifier),
-            PatternKind::DollarIdentifier { .. } => Ok(ConstPatternType::DollarIdentifier),
+            PatternKind::Ident { .. } => Ok(ConstPatternType::Ident),
+            PatternKind::DollarIdent { .. } => Ok(ConstPatternType::DollarIdent),
             PatternKind::Number { n, .. } => if n.is_integer {
                 Ok(ConstPatternType::Int(n.value.clone()))
             } else {

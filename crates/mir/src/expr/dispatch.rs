@@ -16,7 +16,7 @@ impl Expr {
             //       e.g. let's say `add` is a generic function
             //       `let x: [Fn(Int, Int) -> Int] = [add, sub, mul, div];`
             //       Then we have to dispatch the identifiers in the list.
-            Expr::Identifier(_) => {},
+            Expr::Ident(_) => {},
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |

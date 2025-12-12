@@ -17,11 +17,11 @@ pub struct Pattern {
 
 #[derive(Clone, Debug)]
 pub enum PatternKind {
-    Identifier {
+    Ident {
         id: InternedString,
         span: Span,
     },
-    DollarIdentifier(IdentWithOrigin),
+    DollarIdent(IdentWithOrigin),
     Number {
         n: InternedNumber,
         span: Span,
@@ -128,10 +128,10 @@ impl Pattern {
 impl PatternKind {
     pub fn from_ast(ast_pattern: &ast::PatternKind, session: &mut Session) -> Result<PatternKind, ()> {
         match ast_pattern {
-            ast::PatternKind::Identifier { id, span } => Ok(PatternKind::Identifier { id: *id, span: *span }),
-            ast::PatternKind::DollarIdentifier { id, span } => match session.find_origin_and_count_usage(*id) {
+            ast::PatternKind::Ident { id, span } => Ok(PatternKind::Ident { id: *id, span: *span }),
+            ast::PatternKind::DollarIdent { id, span } => match session.find_origin_and_count_usage(*id) {
                 Some((origin, def_span)) => {
-                    Ok(PatternKind::DollarIdentifier(IdentWithOrigin {
+                    Ok(PatternKind::DollarIdent(IdentWithOrigin {
                         id: *id,
                         span: *span,
                         origin,
@@ -237,8 +237,8 @@ impl PatternKind {
             PatternKind::Byte { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
-            PatternKind::DollarIdentifier { .. } => vec![],
-            PatternKind::Identifier { id, span } => vec![(*id, *span)],
+            PatternKind::DollarIdent { .. } => vec![],
+            PatternKind::Ident { id, span } => vec![(*id, *span)],
             PatternKind::TupleStruct { elements, .. } |
             PatternKind::Tuple { elements, .. } |
             PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),

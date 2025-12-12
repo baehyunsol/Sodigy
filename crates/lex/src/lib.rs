@@ -46,7 +46,7 @@ pub(crate) enum LexState {
         binary: bool,
     },
 
-    Identifier,
+    Ident,
     FieldModifier,
     Integer(Base),
     Fraction,
@@ -116,7 +116,7 @@ impl Session {
                     self.buffer1.push(*x);
 
                     self.token_start = self.cursor;
-                    self.state = LexState::Identifier;
+                    self.state = LexState::Ident;
                     self.cursor += 1;
                 },
                 (Some(b'`'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
@@ -502,7 +502,7 @@ impl Session {
                 (Some(192..), _, _) => {
                     self.buffer1.clear();
                     self.token_start = self.cursor;
-                    self.state = LexState::Identifier;
+                    self.state = LexState::Ident;
                 },
                 (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
                 (None, _, _) => {
@@ -1434,7 +1434,7 @@ impl Session {
                     });
                 },
             },
-            LexState::Identifier => match (
+            LexState::Ident => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
@@ -1503,7 +1503,7 @@ impl Session {
                                     '☀'..='❤' | '🌀'..='🙏' | '🚀'..='🛼' | '🤌'..='🫸' => {},
                                     _ => {
                                         return Err(Error {
-                                            kind: ErrorKind::InvalidCharacterInIdentifier(ch),
+                                            kind: ErrorKind::InvalidCharacterInIdent(ch),
 
                                             // It'd be lovely to calc the exact span of the character, but I'm too lazy to do that.
                                             spans: Span::range(
@@ -1518,7 +1518,7 @@ impl Session {
                             }
 
                             let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
-                            TokenKind::Identifier(interned)
+                            TokenKind::Ident(interned)
                         },
                     };
 

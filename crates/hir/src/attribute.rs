@@ -706,7 +706,7 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             });
             Err(())
         },
-        (ArgType::Generic, Expr::Identifier(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. })) => Ok(()),
+        (ArgType::Generic, Expr::Ident(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. })) => Ok(()),
         (ArgType::Generic, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
@@ -718,8 +718,8 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             });
             Err(())
         },
-        (ArgType::Path, Expr::Identifier(_)) => Ok(()),
-        (ArgType::Path, Expr::Path { lhs, .. }) if matches!(&**lhs, Expr::Identifier(_)) => Ok(()),
+        (ArgType::Path, Expr::Ident(_)) => Ok(()),
+        (ArgType::Path, Expr::Path { lhs, .. }) if matches!(&**lhs, Expr::Ident(_)) => Ok(()),
         (ArgType::Path, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {

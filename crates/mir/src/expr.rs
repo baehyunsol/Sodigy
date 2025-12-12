@@ -13,7 +13,7 @@ mod dispatch;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Identifier(IdentWithOrigin),
+    Ident(IdentWithOrigin),
     Number {
         n: InternedNumber,
         span: Span,
@@ -93,7 +93,7 @@ pub enum ShortCircuitKind {
 impl Expr {
     pub fn from_hir(hir_expr: &hir::Expr, session: &mut Session) -> Result<Expr, ()> {
         match hir_expr {
-            hir::Expr::Identifier(id) => Ok(Expr::Identifier(*id)),
+            hir::Expr::Ident(id) => Ok(Expr::Ident(*id)),
             hir::Expr::Number { n, span } => Ok(Expr::Number {
                 n: n.clone(),
                 span: *span,
@@ -127,7 +127,7 @@ impl Expr {
                 let mut given_keyword_arguments = vec![];
 
                 let (call_span, func) = match Expr::from_hir(func, session) {
-                    Ok(e @ Expr::Identifier(id)) => match id.origin {
+                    Ok(e @ Expr::Ident(id)) => match id.origin {
                         NameOrigin::Local { kind } |
                         NameOrigin::Foreign { kind } => match kind {
                             NameKind::Func => {
@@ -324,7 +324,7 @@ impl Expr {
                             for i in 0..params.len() {
                                 match (&mir_args[i], &params[i].default_value) {
                                     (None, Some(default_value)) => {
-                                        mir_args[i] = Some(Expr::Identifier(*default_value));
+                                        mir_args[i] = Some(Expr::Ident(*default_value));
                                     },
                                     _ => {},
                                 }
@@ -497,7 +497,7 @@ impl Expr {
                 let group_span = *group_span;
                 let mut has_error = false;
                 let (def_span, span) = match Expr::from_hir(r#struct, session) {
-                    Ok(Expr::Identifier(id)) => (id.def_span, id.span),
+                    Ok(Expr::Ident(id)) => (id.def_span, id.span),
                     Ok(id) => todo!(),
                     Err(()) => {
                         has_error = true;
@@ -611,7 +611,7 @@ impl Expr {
                         for i in 0..field_defs.len() {
                             match (&mir_fields[i], &field_defs[i].default_value) {
                                 (None, Some(default_value)) => {
-                                    mir_fields[i] = Some(Expr::Identifier(*default_value));
+                                    mir_fields[i] = Some(Expr::Ident(*default_value));
                                 },
                                 _ => {},
                             }
@@ -713,7 +713,7 @@ impl Expr {
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
-                                false_value: Box::new(Expr::Identifier(IdentWithOrigin {
+                                false_value: Box::new(Expr::Ident(IdentWithOrigin {
                                     id: intern_string(b"False", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
                                     origin: NameOrigin::Foreign {
@@ -730,7 +730,7 @@ impl Expr {
                                 if_span: *op_span,
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
-                                true_value: Box::new(Expr::Identifier(IdentWithOrigin {
+                                true_value: Box::new(Expr::Ident(IdentWithOrigin {
                                     id: intern_string(b"True", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
                                     origin: NameOrigin::Foreign {
@@ -787,7 +787,7 @@ impl Expr {
     // TODO: shouldn't it be wider?
     pub fn error_span(&self) -> Span {
         match self {
-            Expr::Identifier(id) => id.span,
+            Expr::Ident(id) => id.span,
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } |

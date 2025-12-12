@@ -11,11 +11,11 @@ use eval::eval_const_pattern;
 #[derive(Clone, Debug)]
 pub struct Pattern {
     // `name` and `name_span` are for extra name bindings, like `x @ 0..10`.
-    // So, `PatternKind::Identifier` doesn't have these fields.
+    // So, `PatternKind::Ident` doesn't have these fields.
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
 
-    // You can add a type annotation only if its kind is `PatternKind::Identifier`.
+    // You can add a type annotation only if its kind is `PatternKind::Ident`.
     pub r#type: Option<Type>,
 
     pub kind: PatternKind,
@@ -25,13 +25,13 @@ pub struct Pattern {
 pub enum PatternKind {
     // A name binding.
     // `if let x = foo() { .. }`
-    Identifier {
+    Ident {
         id: InternedString,
         span: Span,
     },
     // Capturing a name.
     // `let x = 3; if let $x = foo() { .. }` matches if `foo()` is `3`.
-    DollarIdentifier {
+    DollarIdent {
         id: InternedString,
         span: Span,
     },
@@ -144,9 +144,9 @@ impl PatternKind {
             PatternKind::Regex { span, .. } |
             PatternKind::Char { span, .. } |
             PatternKind::Byte { span, .. } |
-            PatternKind::Identifier { span, .. } |
+            PatternKind::Ident { span, .. } |
             PatternKind::Wildcard(span) |
-            PatternKind::DollarIdentifier { span, .. } |
+            PatternKind::DollarIdent { span, .. } |
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
@@ -175,8 +175,8 @@ impl PatternKind {
             PatternKind::Byte { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
-            PatternKind::DollarIdentifier { .. } => vec![],
-            PatternKind::Identifier { id, span } => vec![(*id, *span)],
+            PatternKind::DollarIdent { .. } => vec![],
+            PatternKind::Ident { id, span } => vec![(*id, *span)],
             PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
             PatternKind::TupleStruct { elements, .. } |
             PatternKind::Tuple { elements, .. } |
@@ -227,7 +227,7 @@ impl<'t> Tokens<'t> {
     fn pratt_parse_pattern(&mut self, context: ParsePatternContext, min_bp: u32) -> Result<Pattern, Vec<Error>> {
         let mut lhs = match self.peek2() {
             (
-                Some(Token { kind: TokenKind::Identifier(id), span }),
+                Some(Token { kind: TokenKind::Ident(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
             ) => {
                 let (id, span) = (*id, *span);
@@ -238,14 +238,14 @@ impl<'t> Tokens<'t> {
                     name: None,
                     name_span: None,
                     r#type: Some(r#type),
-                    kind: PatternKind::Identifier { id, span },
+                    kind: PatternKind::Ident { id, span },
                 }
             },
             (
-                Some(Token { kind: TokenKind::Identifier(id), span }),
+                Some(Token { kind: TokenKind::Ident(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
             ) => todo!(),
-            (Some(Token { kind: TokenKind::Identifier(id), span }), _) => {
+            (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
 
@@ -263,13 +263,13 @@ impl<'t> Tokens<'t> {
                         name: None,
                         name_span: None,
                         r#type: None,
-                        kind: PatternKind::Identifier { id, span },
+                        kind: PatternKind::Ident { id, span },
                     }
                 }
             },
             (
                 Some(Token { kind: TokenKind::Punct(Punct::Dollar), .. }),
-                Some(Token { kind: TokenKind::Identifier(id), span }),
+                Some(Token { kind: TokenKind::Ident(id), span }),
             ) => {
                 let (id, span) = (*id, *span);
                 self.cursor += 2;
@@ -277,7 +277,7 @@ impl<'t> Tokens<'t> {
                     name: None,
                     name_span: None,
                     r#type: None,
-                    kind: PatternKind::Identifier { id, span },
+                    kind: PatternKind::Ident { id, span },
                 }
             },
             (
@@ -440,7 +440,7 @@ impl<'t> Tokens<'t> {
                                     name,
                                     name_span,
                                     r#type,
-                                    kind: PatternKind::Identifier { id, span },
+                                    kind: PatternKind::Ident { id, span },
                                 } => {
                                     name_binding = Some((id, span));
 
@@ -505,7 +505,7 @@ impl<'t> Tokens<'t> {
                                 // `a @ b @ 1..2`
                                 Pattern { name: Some(name), name_span: Some(name_span), .. } |
                                 // `a @ b`
-                                Pattern { kind: PatternKind::Identifier { id: name, span: name_span }, .. } => {
+                                Pattern { kind: PatternKind::Ident { id: name, span: name_span }, .. } => {
                                     let (prev_name, prev_name_span) = name_binding.unwrap();
                                     errors.push(Error {
                                         kind: ErrorKind::RedundantNameBinding(*name, prev_name),

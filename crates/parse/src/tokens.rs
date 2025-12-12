@@ -49,20 +49,20 @@ impl<'t> Tokens<'t> {
 
     pub fn pop_name_and_span(&mut self) -> Result<(InternedString, Span), Vec<Error>> {
         match self.peek() {
-            Some(Token { kind: TokenKind::Identifier(id), span }) => {
+            Some(Token { kind: TokenKind::Ident(id), span }) => {
                 let (id, span) = (*id, *span);  // bypass the borrow-checker
                 self.cursor += 1;
                 Ok((id, span))
             },
             Some(t) => Err(vec![Error {
                 kind: ErrorKind::UnexpectedToken {
-                    expected: ErrorToken::Identifier,
+                    expected: ErrorToken::Ident,
                     got: (&t.kind).into(),
                 },
                 spans: t.span.simple_error(),
                 ..Error::default()
             }]),
-            None => Err(vec![self.unexpected_end(ErrorToken::Identifier)]),
+            None => Err(vec![self.unexpected_end(ErrorToken::Ident)]),
         }
     }
 

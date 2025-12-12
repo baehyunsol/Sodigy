@@ -84,7 +84,7 @@ pub enum Type {
 impl Type {
     pub fn from_hir(hir_type: &hir::Type, session: &mut Session) -> Result<Type, ()> {
         match hir_type {
-            hir::Type::Identifier(id) => match id.origin {
+            hir::Type::Ident(id) => match id.origin {
                 NameOrigin::FuncParam { .. } => {
                     let param_name = String::from_utf8_lossy(&unintern_string(id.id, &session.intermediate_dir).unwrap().unwrap()).to_string();
                     session.errors.push(Error {
@@ -355,7 +355,7 @@ pub fn type_of(
     lang_items: &HashMap<String, Span>,
 ) -> Option<Type> {
     match expr {
-        Expr::Identifier(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
+        Expr::Ident(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
         Expr::Number { n, .. } => match n.is_integer {
             true => Some(Type::Static {
                 def_span: *lang_items.get("type.Int").unwrap(),

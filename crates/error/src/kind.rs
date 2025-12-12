@@ -10,7 +10,7 @@ mod render;
 pub enum ErrorKind {
     InvalidNumberLiteral,
     InvalidStringLiteralPrefix,
-    InvalidCharacterInIdentifier(char),
+    InvalidCharacterInIdent(char),
     WrongNumberOfQuotesInRawStringLiteral,
     UnterminatedStringLiteral,
     NotAllowedCharInFString(u8),

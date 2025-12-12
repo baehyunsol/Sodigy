@@ -35,12 +35,12 @@ impl Endec for Pattern {
 impl Endec for PatternKind {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            PatternKind::Identifier { id, span } => {
+            PatternKind::Ident { id, span } => {
                 buffer.push(0);
                 id.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            PatternKind::DollarIdentifier(id) => {
+            PatternKind::DollarIdent(id) => {
                 buffer.push(1);
                 id.encode_impl(buffer);
             },
@@ -125,11 +125,11 @@ impl Endec for PatternKind {
             Some(0) => {
                 let (id, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::Identifier { id, span }, cursor))
+                Ok((PatternKind::Ident { id, span }, cursor))
             },
             Some(1) => {
                 let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;
-                Ok((PatternKind::DollarIdentifier(id), cursor))
+                Ok((PatternKind::DollarIdent(id), cursor))
             },
             Some(2) => {
                 let (n, cursor) = InternedNumber::decode_impl(buffer, cursor + 1)?;

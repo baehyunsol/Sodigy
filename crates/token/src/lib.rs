@@ -61,7 +61,7 @@ impl Token {
 #[derive(Clone, Debug)]
 pub enum TokenKind {
     Keyword(Keyword),
-    Identifier(InternedString),
+    Ident(InternedString),
     Number(InternedNumber),
     String {
         binary: bool,
@@ -111,8 +111,8 @@ impl TokenKind {
         match (self, other) {
             (TokenKind::Keyword(a), TokenKind::Keyword(b)) => a == b,
             (TokenKind::Keyword(_), _) => false,
-            (TokenKind::Identifier(_), TokenKind::Identifier(_)) => true,
-            (TokenKind::Identifier(_), _) => false,
+            (TokenKind::Ident(_), TokenKind::Ident(_)) => true,
+            (TokenKind::Ident(_), _) => false,
             (TokenKind::Number(_), TokenKind::Number(_)) => true,
             (TokenKind::Number(_), _) => false,
             (TokenKind::DocComment { top_level: a, .. }, TokenKind::DocComment { top_level: b, .. }) => a == b,
@@ -141,7 +141,7 @@ impl TokenKind {
             TokenKind::Group { delim, .. } => match delim {
                 _ => todo!(),
             },
-            TokenKind::Identifier(_) |
+            TokenKind::Ident(_) |
             TokenKind::Number(_) |
             TokenKind::String { .. } |
             TokenKind::Char(_) |
@@ -155,7 +155,7 @@ impl TokenKind {
 
     pub fn expr_begin(&self) -> bool {
         match self {
-            TokenKind::Identifier(_) |
+            TokenKind::Ident(_) |
             TokenKind::Number(_) |
             TokenKind::String { .. } |
             TokenKind::Char(_) |

@@ -8,7 +8,7 @@ use std::collections::hash_map::{Entry, HashMap};
 impl Expr {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
         match self {
-            Expr::Identifier { .. } |
+            Expr::Ident { .. } |
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |

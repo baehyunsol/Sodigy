@@ -232,7 +232,7 @@ impl<'t> Tokens<'t> {
         loop {
             let keyword = match self.peek2() {
                 (
-                    Some(Token { kind: TokenKind::Identifier(id), span }),
+                    Some(Token { kind: TokenKind::Ident(id), span }),
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
                 ) => {
                     let (id, span) = (*id, *span);

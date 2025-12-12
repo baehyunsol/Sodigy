@@ -229,7 +229,7 @@ fn lower_matches_expr_recursive(
     warnings: &mut Vec<Warning>,
 ) -> Result<(), ()> {
     match expr {
-        Expr::Identifier(_) |
+        Expr::Ident(_) |
         Expr::Number { .. } |
         Expr::String { .. } |
         Expr::Char { .. } |
@@ -539,7 +539,7 @@ fn get_constructor_of_pattern(
 
     match &field[0] {
         Field::Constructor => match &pattern.kind {
-            PatternKind::Identifier { id, span } => Ok((
+            PatternKind::Ident { id, span } => Ok((
                 Constructor::Wildcard,
                 Some((*id, *span)),
             )),

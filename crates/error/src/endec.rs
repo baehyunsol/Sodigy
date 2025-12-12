@@ -30,7 +30,7 @@ impl Endec for ErrorKind {
             ErrorKind::InvalidStringLiteralPrefix => {
                 buffer.push(1);
             },
-            ErrorKind::InvalidCharacterInIdentifier(ch) => {
+            ErrorKind::InvalidCharacterInIdent(ch) => {
                 buffer.push(2);
                 ch.encode_impl(buffer);
             },
@@ -327,7 +327,7 @@ impl Endec for ErrorKind {
             Some(1) => Ok((ErrorKind::InvalidStringLiteralPrefix, cursor + 1)),
             Some(2) => {
                 let (ch, cursor) = char::decode_impl(buffer, cursor + 1)?;
-                Ok((ErrorKind::InvalidCharacterInIdentifier(ch), cursor))
+                Ok((ErrorKind::InvalidCharacterInIdent(ch), cursor))
             },
             Some(3) => Ok((ErrorKind::WrongNumberOfQuotesInRawStringLiteral, cursor + 1)),
             Some(4) => Ok((ErrorKind::UnterminatedStringLiteral, cursor + 1)),
@@ -573,7 +573,7 @@ impl Endec for ErrorToken {
                 buffer.push(6);
                 delim.encode_impl(buffer);
             },
-            ErrorToken::Identifier => {
+            ErrorToken::Ident => {
                 buffer.push(7);
             },
             ErrorToken::Generic => {
@@ -657,7 +657,7 @@ impl Endec for ErrorToken {
                 let (delim, cursor) = Delim::decode_impl(buffer, cursor + 1)?;
                 Ok((ErrorToken::Group(delim), cursor))
             },
-            Some(7) => Ok((ErrorToken::Identifier, cursor + 1)),
+            Some(7) => Ok((ErrorToken::Ident, cursor + 1)),
             Some(8) => Ok((ErrorToken::Generic, cursor + 1)),
             Some(9) => Ok((ErrorToken::Number, cursor + 1)),
             Some(10) => Ok((ErrorToken::String, cursor + 1)),
