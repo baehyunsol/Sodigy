@@ -348,6 +348,21 @@ impl<'t> Tokens<'t> {
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
+                match delim {
+                    Delim::Brace |
+                    Delim::Lambda |
+                    Delim::Decorator |
+                    Delim::ModuleDecorator => {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {},
+                            spans: span.simple_error(),
+                            note: None,
+                        }]);
+                    },
+                    Delim::Parenthesis |
+                    Delim::Bracket => {},
+                }
+
                 let (group_span, delim) = (*span, *delim);
                 let mut tokens = Tokens::new(tokens, span.end());
                 let (mut elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
@@ -392,7 +407,7 @@ impl<'t> Tokens<'t> {
                     Delim::Brace |
                     Delim::Lambda |
                     Delim::Decorator |
-                    Delim::ModuleDecorator => todo!(),
+                    Delim::ModuleDecorator => unreachable!(),
                 }
             },
             (Some(Token { kind: TokenKind::Punct(p @ (Punct::DotDot | Punct::DotDotEq)), span }), _) => {
@@ -674,7 +689,7 @@ impl<'t> Tokens<'t> {
 
                     else if let Some(prev_dot_dot_span) = prev_dot_dot_span {
                         return Err(vec![Error {
-                            kind: ErrorKind::DotDotDotDot,
+                            kind: ErrorKind::MultipleDotDotsInPattern,
                             spans: vec![
                                 RenderableSpan {
                                     span: *span,
@@ -706,7 +721,9 @@ impl<'t> Tokens<'t> {
                         (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
                             self.cursor += 1;
                         },
-                        (Some(t), _) => todo!(),
+                        (Some(t), _) => {
+                            return Err();
+                        },
                     }
                 },
                 (None, _) => {

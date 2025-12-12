@@ -74,7 +74,7 @@ impl Solver {
             // we can't solve anything!
             if def_type.has_type_var() {
                 has_error = true;
-                self.errors.push(todo!());
+                self.errors.push(Error {});
                 continue;
             }
 
@@ -90,7 +90,7 @@ impl Solver {
                 // we can't solve for this impl!
                 if impl_type.has_type_var() {
                     has_error = true;
-                    self.errors.push(todo!());
+                    self.errors.push(Error {});
                     continue;
                 }
 
@@ -103,7 +103,7 @@ impl Solver {
                     },
                     Err(e) => {
                         has_error = true;
-                        self.errors.push(todo!());  // TODO: TypeError::from(e)
+                        self.errors.push(Error {});  // TODO: TypeError::from(e)
                         continue;
                     },
                 }

@@ -251,9 +251,15 @@ impl Session {
                     Some(poly) => {
                         poly.impls.push(impl_span);
                     },
-                    None => todo!(),  // err
+                    None => {
+                        self.errors.push(error {});
+                        has_error = true;
+                    },
                 },
-                _ => todo!(),  // err
+                _ => {
+                    self.errors.push(Error {});
+                    has_error = true;
+                },
             }
         }
 
@@ -546,7 +552,8 @@ impl Session {
                     // alias: `type x<T> = _;`
                     // -> error
                     else {
-                        todo!()
+                        self.errors.push(Error {});
+                        return Err(());
                     }
                 }
             },
@@ -827,7 +834,10 @@ impl Session {
                         }
                     },
                     // an enum variant cannot be a type... but we don't have an error variant for this!
-                    Some((NameKind::Enum, _)) => todo!(),
+                    Some((NameKind::Enum, _)) => {
+                        self.errors.push(Error {});
+                        Err(())
+                    },
                     Some((_, _)) => unreachable!(),
                     None => Ok(()),
                 }
@@ -963,7 +973,10 @@ impl Session {
                                 }
                             },
                             // an enum variant cannot be a type... but we don't have an error variant for this!
-                            Some((NameKind::Enum, _)) => todo!(),
+                            Some((NameKind::Enum, _)) => {
+                                self.errors.push(Error {});
+                                return Err(());
+                            },
                             Some((_, _)) => unreachable!(),
                             None => {},
                         }

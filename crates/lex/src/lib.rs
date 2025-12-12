@@ -129,6 +129,18 @@ impl Session {
                 },
                 // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`.
                 (Some(x @ b'0'..=b'9'), Some(b'.'), Some(b'.')) => {
+                    if let Some(b'.') = self.input_bytes.get(self.cursor + 3) {
+                        return Err(Error {
+                            kind: ErrorKind::DotDotDot,
+                            spans: Span::range(
+                                self.file,
+                                self.cursor + 1,
+                                self.cursor + 4,
+                            ).simple_error(),
+                            note: None,
+                        });
+                    }
+
                     self.tokens.push(Token {
                         kind: TokenKind::Number(InternedNumber::from_u32((*x - b'0') as u32, true /* is_integer */)),
                         span: Span::range(
@@ -818,7 +830,7 @@ impl Session {
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'"'), _, _) => {
@@ -856,7 +868,17 @@ impl Session {
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
-                (Some(b'}'), _, _) if format => todo!(),  // an error
+                (Some(b'}'), _, _) if format => {
+                    return Err(Error {
+                        kind: ErrorKind::UnmatchedBraceInFormattedString,
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 1,
+                        ).simple_error(),
+                        note: None,
+                    });
+                },
                 (Some(b'"'), _, _) if quote_count == 1 => {
                     // TODO: make sure that it's a valid utf-8
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
@@ -909,6 +931,7 @@ impl Session {
                         let curr_quote_count = count_quotes(&self.input_bytes, self.cursor).unwrap_or(256);
 
                         if curr_quote_count >= quote_count {
+                            // It's not an error. Finish the token here, and parser will generate an appropriate error.
                             todo!()
                         }
 
@@ -956,7 +979,17 @@ impl Session {
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
-                (Some(b'}'), _, _, _) if format => todo!(),  // an error
+                (Some(b'}'), _, _, _) if format => {
+                    return Err(Error {
+                        kind: ErrorKind::UnmatchedBraceInFormattedString,
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 1,
+                        ).simple_error(),
+                        note: None,
+                    });
+                },
                 // valid escape
                 (Some(b'\\'), Some(y @ (b'\'' | b'"' | b'\\' | b'n' | b'r' | b't' | b'0')), _, _) => {
                     let byte = match *y {
@@ -1587,8 +1620,15 @@ impl Session {
                 // perhaps the user intends decimal point (the first dot) + range (2nd and 3rd dots),
                 // but it's an ambiguous syntax, so we just reject this
                 (Some(b'.'), Some(b'.'), Some(b'.')) => {
-                    // I want to tell the user that it's an ambiuous syntax, but there's no error variant for that
-                    todo!()
+                    return Err(Error {
+                        kind: ErrorKind::DotDotDot,
+                        spans: Span::range(
+                            self.file,
+                            self.cursor,
+                            self.cursor + 3,
+                        ).simple_error(),
+                        note: None,
+                    });
                 },
 
                 // `64..` is a range pattern/expr. The dots are not decimal points!
@@ -1843,8 +1883,15 @@ impl Session {
         }
 
         if tmp_session.tokens.is_empty() {
-            // an empty value in fstring is an error
-            todo!()
+            return Err(Error {
+                kind: ErrorKind::EmptyBraceInFormattedString,
+                spans: Span::range(
+                    self.file,
+                    self.cursor,
+                    value_end + 1,
+                ).simple_error(),
+                note: None,
+            });
         }
 
         self.fstring_buffer.push(TokensOrString::Tokens{

@@ -497,8 +497,18 @@ impl Expr {
                 let group_span = *group_span;
                 let mut has_error = false;
                 let (def_span, span) = match Expr::from_hir(r#struct, session) {
-                    Ok(Expr::Ident(id)) => (id.def_span, id.span),
-                    Ok(id) => todo!(),
+                    Ok(Expr::Ident(id)) => {
+                        match id.origin {
+                            // make sure that it's a struct, otherwise throw an error
+                            _ => todo!(),
+                        }
+
+                        (id.def_span, id.span)
+                    },
+                    Ok(id) => {
+                        session.errors.push(Error {});
+                        has_error = true;
+                    },
                     Err(()) => {
                         has_error = true;
                         todo!()
@@ -663,7 +673,8 @@ impl Expr {
                             })
                         }
                     },
-                    None => todo!(),
+                    // It already checked the def_span. If `struct_shapes` doesn't have this span, that's an ICE.
+                    None => unreachable!(),
                 }
             },
             hir::Expr::Path { lhs, fields } => match Expr::from_hir(lhs, session) {

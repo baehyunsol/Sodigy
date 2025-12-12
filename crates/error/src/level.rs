@@ -49,7 +49,7 @@ impl ErrorLevel {
             ErrorKind::NonDefaultValueAfterDefaultValue |
             ErrorKind::CannotDeclareInlineModule |
             ErrorKind::InclusiveRangeWithNoEnd |
-            ErrorKind::DotDotDotDot |
+            ErrorKind::MultipleDotDotsInPattern |
             ErrorKind::DifferentNameBindingsInOrPattern |
             ErrorKind::InvalidFnType |
             ErrorKind::EmptyMatchStatement |

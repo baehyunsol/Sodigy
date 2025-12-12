@@ -51,9 +51,9 @@ pub fn eval_const_pattern(
                 rhs: Box::new(rhs),
                 op_span,
             }),
-            _ => todo!(),  // err
+            _ => Err(vec![Error {}]),
         },
-        (ConstPatternType::Ident, _) | (_, ConstPatternType::Ident) => todo!(),  // err
+        (ConstPatternType::Ident, _) | (_, ConstPatternType::Ident) => Err(vec![Error {}]),
         (ConstPatternType::DollarIdent, ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_)) |
         (ConstPatternType::Int(_) | ConstPatternType::Number(_) | ConstPatternType::Byte(_), ConstPatternType::DollarIdent) => match op {
             // nop
@@ -64,18 +64,18 @@ pub fn eval_const_pattern(
                 rhs: Box::new(rhs),
                 op_span,
             }),
-            _ => todo!(),  // err
+            _ => Err(vec![Error {}]),
         },
-        (ConstPatternType::DollarIdent, _) | (_, ConstPatternType::DollarIdent) => todo!(),  // err
+        (ConstPatternType::DollarIdent, _) | (_, ConstPatternType::DollarIdent) => Err(vec![Error {}]),
         (ConstPatternType::Int(lhs), ConstPatternType::Int(rhs)) => match op {
             InfixOp::Add => todo!(),
             _ => todo!(),
         },
-        (ConstPatternType::Int(_), _) | (_, ConstPatternType::Int(_)) => todo!(),  // err
+        (ConstPatternType::Int(_), _) | (_, ConstPatternType::Int(_)) => Err(vec![Error {}]),
         (ConstPatternType::Number(lhs), ConstPatternType::Number(rhs)) => match op {
             _ => todo!(),
         },
-        (ConstPatternType::Number(_), _) | (_, ConstPatternType::Number(_)) => todo!(),  // err
+        (ConstPatternType::Number(_), _) | (_, ConstPatternType::Number(_)) => Err(vec![Error {}]),
         (ConstPatternType::Byte(lhs), ConstPatternType::Byte(rhs)) => match op {
             _ => todo!(),
         },
@@ -85,13 +85,13 @@ pub fn eval_const_pattern(
 fn get_const_pattern_type(pattern: &Pattern) -> Result<ConstPatternType, Error> {
     // `a @ 1 + b @ 2` is an illegal pattern
     if let (Some(name), Some(name_span)) = (pattern.name, pattern.name_span) {
-        Err(todo!())
+        Err(Error {})
     }
 
     // `Pattern::check()` is not run yet, so we have to check this before
     // this type annotation is removed.
     else if let Some(r#type) = &pattern.r#type {
-        Err(todo!())
+        Err(Error {})
     }
 
     else {
@@ -104,9 +104,9 @@ fn get_const_pattern_type(pattern: &Pattern) -> Result<ConstPatternType, Error> 
                 Ok(ConstPatternType::Number(n.value.clone()))
             },
             PatternKind::Byte { b, .. } => Ok(ConstPatternType::Byte(*b)),
-            PatternKind::InfixOp { .. } => Err(todo!()),  // I want more detailed error message here
-            PatternKind::Wildcard { .. } => Err(todo!()),  // again, I want a better error message for this
-            _ => Err(todo!()),  // cannot const eval
+            PatternKind::InfixOp { .. } => Err(Error {}),  // I want more detailed error message here
+            PatternKind::Wildcard { .. } => Err(Error {}),  // again, I want a better error message for this
+            _ => Err(Error {}),  // cannot const eval
         }
     }
 }

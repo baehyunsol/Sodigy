@@ -152,7 +152,7 @@ impl Endec for ErrorKind {
             ErrorKind::InclusiveRangeWithNoEnd => {
                 buffer.push(38);
             },
-            ErrorKind::DotDotDotDot => {
+            ErrorKind::MultipleDotDotsInPattern => {
                 buffer.push(39);
             },
             ErrorKind::DifferentNameBindingsInOrPattern => {
@@ -391,7 +391,7 @@ impl Endec for ErrorKind {
             Some(36) => Ok((ErrorKind::NonDefaultValueAfterDefaultValue, cursor + 1)),
             Some(37) => Ok((ErrorKind::CannotDeclareInlineModule, cursor + 1)),
             Some(38) => Ok((ErrorKind::InclusiveRangeWithNoEnd, cursor + 1)),
-            Some(39) => Ok((ErrorKind::DotDotDotDot, cursor + 1)),
+            Some(39) => Ok((ErrorKind::MultipleDotDotsInPattern, cursor + 1)),
             Some(40) => Ok((ErrorKind::DifferentNameBindingsInOrPattern, cursor + 1)),
             Some(41) => Ok((ErrorKind::InvalidFnType, cursor + 1)),
             Some(42) => Ok((ErrorKind::EmptyMatchStatement, cursor + 1)),

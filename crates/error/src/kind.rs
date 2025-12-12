@@ -61,7 +61,7 @@ pub enum ErrorKind {
     NonDefaultValueAfterDefaultValue,
     CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd,
-    DotDotDotDot,
+    MultipleDotDotsInPattern,
     DifferentNameBindingsInOrPattern,
     InvalidFnType,
     EmptyMatchStatement,

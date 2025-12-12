@@ -200,8 +200,12 @@ impl<'t> Tokens<'t> {
                                 ).collect(),
                             });
                         },
-                        (Some(_), _) => todo!(),
-                        (None, _) => todo!(),
+                        (Some(_), _) => {
+                            return Err();
+                        },
+                        (None, _) => {
+                            return Err();
+                        },
                     }
                 }
             },

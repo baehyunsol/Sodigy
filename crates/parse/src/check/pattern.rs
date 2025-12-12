@@ -83,7 +83,7 @@ impl Pattern {
             PatternKind::InfixOp { lhs, rhs, .. } => todo!(),
 
             _ => Err(vec![Error {
-                kind: todo!(),  // ErrorKind::InvalidRangePattern
+                kind: ErrorKind::InvalidRangePattern,
                 spans: self.error_span().simple_error(),
                 note: if matches!(&self.kind, PatternKind::Wildcard(_)) {
                     Some(format!(

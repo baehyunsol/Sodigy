@@ -77,14 +77,14 @@ impl Session {
                 }
 
                 else {
-                    // What kinda error should it throw?
-                    todo!()
+                    self.errors.push(Error {});
+                    return Err(());
                 }
             }
 
             else {
-                // What kinda error should it throw?
-                todo!()
+                self.errors.push(Error {});
+                return Err(());
             }
         }
 
