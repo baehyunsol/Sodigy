@@ -1,3 +1,30 @@
+# 122. Very long files
+
+Bottlenecks: 1) lexer has to load the entire `Vec<u8>` of a file 2) parser/hir has to load the entire AST of a file 3) mir has to load the entire project 4) an `InternedString` can intern at most 2 billion bytes 5) the interpreter's memory allocator can allocate a block of at most 2 billion scalars.
+
+4 and 5 are the most serious ones. The current implementation can do nothing if there's a string literal which is larger than 2 billion bytes.
+
+It's easy to fix 4: we can use more bits for length and less bits for hash when the string is long.
+
+Scenarios:
+
+1. There's a very large string in a file.
+  - If it can pass the bottleneck #1, #4 and #5, everything's good.
+2. There's a very large object (e.g. a list with 4 billion integers) in a file.
+  - Oh no...
+3. There's a very long comment in a file.
+  - If it can pass the bottlenect #1, everything's good.
+4. Each function is small, but there are billions of functions in a file.
+5. Each file is small, but there are millions of files in a project.
+6. etc
+
+---
+
+아니 근데, 애초에 scalar에 32bit를 쓰고 있는데, 그럼 4GiB 넘는 string은 절대 못 쓰는 거 아님?? scalar를 가변으로 쓰지 않는 이상...
+
+생각해보니, heap이 쓰는 메모리가 32bit 영역을 넘어가면 런타임 에러를 던져야함 -> 지금은 이런 검사가 전혀 없음!!
+-> `Heap::expand()`가 하면 됨!
+
 # 121. Pipeline operator
 
 ```

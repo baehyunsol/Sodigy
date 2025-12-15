@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 sodigy-endec = { version = "0.1.0", path = "../endec" }
+sodigy-error-gen = { version = "0.1.0", path = "../error-gen" }
 sodigy-file = { version = "0.1.0", path = "../file" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
 sodigy-span = { version = "0.1.0", path = "../span" }
