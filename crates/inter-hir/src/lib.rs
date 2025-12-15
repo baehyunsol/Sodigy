@@ -252,7 +252,7 @@ impl Session {
                         poly.impls.push(impl_span);
                     },
                     None => {
-                        self.errors.push(error {});
+                        self.errors.push(Error {});
                         has_error = true;
                     },
                 },
@@ -509,7 +509,7 @@ impl Session {
                                     name: r#use.name,
                                     name_span: r#use.name_span,
                                     generics: vec![],
-                                    group_span: None,
+                                    generic_group_span: None,
                                     r#type: alias.r#type.clone(),
                                     foreign_names: alias.foreign_names.clone(),
                                 },
@@ -541,7 +541,7 @@ impl Session {
                                         // TODO: we need an extra field that it's from an alias
                                     }
                                 ).collect(),
-                                group_span: Some(r#use.root.span),
+                                generic_group_span: Some(r#use.root.span),
                                 r#type: alias.r#type.clone(),
                                 foreign_names: alias.foreign_names.clone(),
                             },

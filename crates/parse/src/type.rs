@@ -200,11 +200,18 @@ impl<'t> Tokens<'t> {
                                 ).collect(),
                             });
                         },
-                        (Some(_), _) => {
-                            return Err();
+                        (Some(t), _) => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::Ident,
+                                    got: (&t.kind).into(),
+                                },
+                                spans: t.span.simple_error(),
+                                note: None,
+                            }]);
                         },
                         (None, _) => {
-                            return Err();
+                            return Err(vec![self.unexpected_end(ErrorToken::Ident)]);
                         },
                     }
                 }

@@ -15,7 +15,10 @@ impl ErrorLevel {
             ErrorKind::InvalidCharacterInIdent(_) |
             ErrorKind::WrongNumberOfQuotesInRawStringLiteral |
             ErrorKind::UnterminatedStringLiteral |
-            ErrorKind::NotAllowedCharInFString(_) |
+            ErrorKind::NotAllowedCharInFormattedString(_) |
+            ErrorKind::UnmatchedBraceInFormattedString |
+            ErrorKind::EmptyBraceInFormattedString |
+            ErrorKind::DotDotDot |
             ErrorKind::InvalidCharLiteral |
             ErrorKind::InvalidCharLiteralPrefix |
             ErrorKind::UnterminatedCharLiteral |
@@ -57,13 +60,17 @@ impl ErrorLevel {
             ErrorKind::InvalidDecorator(_) |
             ErrorKind::MissingDecoratorArgument { .. } |
             ErrorKind::UnexpectedDecoratorArgument { .. } |
+            ErrorKind::WrongNumberOfLangItemGenerics { .. } |
+            ErrorKind::InvalidRangePattern |
             ErrorKind::CannotBindNameToAnotherName(_) |
+            ErrorKind::CannotBindNameToConstant(_) |
             ErrorKind::CannotAnnotateType |
 
             // Rust treats it as a warning, but Sodigy treats it as an error
             // because it messes up with some analysis
             ErrorKind::RedundantNameBinding(_, _) |
 
+            ErrorKind::CannotEvaluateConstPattern |
             ErrorKind::NameCollision { .. } |
             ErrorKind::CyclicLet { .. } |
             ErrorKind::CyclicAlias { .. } |

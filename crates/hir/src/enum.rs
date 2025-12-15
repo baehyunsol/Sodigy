@@ -81,6 +81,7 @@ impl Enum {
             &attribute,
             ast_enum.name_span,
             Some(&ast_enum.generics),
+            ast_enum.generic_group_span,
         ) {
             has_error = true;
         }
@@ -158,6 +159,7 @@ impl EnumVariant {
         if let Err(()) = session.collect_lang_items(
             &attribute,
             ast_variant.name_span,
+            None,
             None,
         ) {
             has_error = true;

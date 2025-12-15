@@ -76,6 +76,7 @@ impl Struct {
             &attribute,
             ast_struct.name_span,
             Some(&ast_struct.generics),
+            ast_struct.generic_group_span,
         ) {
             has_error = true;
         }

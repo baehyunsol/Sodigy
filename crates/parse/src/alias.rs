@@ -10,7 +10,7 @@ pub struct Alias {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
-    pub group_span: Option<Span>,
+    pub generic_group_span: Option<Span>,
     pub r#type: Type,
     pub attribute: Attribute,
 }
@@ -20,15 +20,15 @@ impl<'t> Tokens<'t> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Type))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
         let mut generics = vec![];
-        let mut group_span = None;
+        let mut generic_group_span = None;
 
         match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) => {
-                let mut group_span_ = *span;
+                generic_group_span = Some(*span);
                 self.cursor += 1;
                 generics = self.parse_generic_defs()?;
-                group_span_ = group_span_.merge(self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span);
-                group_span = Some(group_span_);
+                let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
+                generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
             },
             _ => {},
         }
@@ -42,7 +42,7 @@ impl<'t> Tokens<'t> {
             name,
             name_span,
             generics,
-            group_span,
+            generic_group_span,
             r#type,
             attribute: Attribute::new(),
         })

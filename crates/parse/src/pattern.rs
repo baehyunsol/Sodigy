@@ -354,7 +354,10 @@ impl<'t> Tokens<'t> {
                     Delim::Decorator |
                     Delim::ModuleDecorator => {
                         return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedToken {},
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: ErrorToken::BraceOrParenthesis,
+                                got: ErrorToken::Group(*delim),
+                            },
                             spans: span.simple_error(),
                             note: None,
                         }]);
@@ -722,7 +725,14 @@ impl<'t> Tokens<'t> {
                             self.cursor += 1;
                         },
                         (Some(t), _) => {
-                            return Err();
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::CommaOrGt,
+                                    got: (&t.kind).into(),
+                                },
+                                spans: t.span.simple_error(),
+                                note: None,
+                            }]);
                         },
                     }
                 },

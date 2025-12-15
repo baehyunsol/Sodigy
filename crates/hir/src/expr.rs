@@ -272,6 +272,7 @@ impl Expr {
                     name,
                     name_span: span,
                     generics: vec![],
+                    generic_group_span: None,
                     params: params.clone(),
                     r#type: r#type.as_ref().clone(),
                     value: Some(value.as_ref().clone()),

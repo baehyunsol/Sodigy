@@ -63,13 +63,14 @@ impl Session {
         attribute: &Attribute,
         lang_item_span: Span,
         generic_defs: Option<&[Generic]>,
+        generic_group_span: Option<Span>,
     ) -> Result<(), ()> {
         if let Some(lang_item) = attribute.lang_item(&self.intermediate_dir) {
             self.lang_items.insert(lang_item, lang_item_span);
         }
 
-        if let Some(lang_item_generics) = attribute.lang_item_generics(&self.intermediate_dir) {
-            if let Some(generic_defs) = generic_defs {
+        if let Some((deco_span, lang_item_generics)) = attribute.lang_item_generics(&self.intermediate_dir) {
+            if let (Some(generic_defs), Some(generic_group_span)) = (generic_defs, generic_group_span) {
                 if lang_item_generics.len() == generic_defs.len() {
                     for i in 0..generic_defs.len() {
                         self.lang_items.insert(lang_item_generics[i].to_string(), generic_defs[i].name_span);
@@ -77,13 +78,61 @@ impl Session {
                 }
 
                 else {
-                    self.errors.push(Error {});
+                    self.errors.push(Error {
+                        kind: ErrorKind::WrongNumberOfLangItemGenerics {
+                            lang_items: lang_item_generics.len(),
+                            generic_def: generic_defs.len(),
+                        },
+                        spans: vec![
+                            RenderableSpan {
+                                span: deco_span,
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "#[lang_item_generics] has {} argument{}.",
+                                    lang_item_generics.len(),
+                                    if lang_item_generics.len() == 1 { "" } else { "s" },
+                                )),
+                            },
+                            RenderableSpan {
+                                span: generic_group_span,
+                                auxiliary: true,
+                                note: Some(format!(
+                                    "It has {} generic parameter{}.",
+                                    generic_defs.len(),
+                                    if generic_defs.len() == 1 { "" } else { "s" },
+                                )),
+                            },
+                        ],
+                        note: None,
+                    });
                     return Err(());
                 }
             }
 
             else {
-                self.errors.push(Error {});
+                self.errors.push(Error {
+                    kind: ErrorKind::WrongNumberOfLangItemGenerics {
+                        generic_def: 0,
+                        lang_items: lang_item_generics.len(),
+                    },
+                    spans: vec![
+                        RenderableSpan {
+                            span: deco_span,
+                            auxiliary: false,
+                            note: Some(format!(
+                                "#[lang_item_generics] has {} argument{}.",
+                                lang_item_generics.len(),
+                                if lang_item_generics.len() == 1 { "" } else { "s" },
+                            )),
+                        },
+                        RenderableSpan {
+                            span: lang_item_span,
+                            auxiliary: true,
+                            note: Some(String::from("There's no generic parameter.")),
+                        },
+                    ],
+                    note: None,
+                });
                 return Err(());
             }
         }
@@ -515,14 +564,17 @@ impl Attribute {
         }
     }
 
-    pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<Vec<String>> {
+    pub fn lang_item_generics(&self, intermediate_dir: &str) -> Option<(Span, Vec<String>)> {
         match self.decorators.get(&intern_string(b"lang_item_generics", intermediate_dir).unwrap()) {
-            Some(d) => Some(d.args.iter().map(
-                |arg| match arg {
-                    Expr::String { s, .. } => String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string(),
-                    _ => unreachable!(),
-                }
-            ).collect()),
+            Some(d) => Some((
+                d.name_span,
+                d.args.iter().map(
+                    |arg| match arg {
+                        Expr::String { s, .. } => String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string(),
+                        _ => unreachable!(),
+                    }
+                ).collect(),
+            )),
             None => None,
         }
     }

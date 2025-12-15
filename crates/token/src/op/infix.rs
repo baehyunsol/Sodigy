@@ -73,6 +73,36 @@ impl InfixOp {
             _ => panic!("TODO: {self:?}"),
         }
     }
+
+    // Used when generating error messages.
+    pub fn render_error(&self) -> &'static str {
+        match self {
+            InfixOp::Add => "+",
+            InfixOp::Sub => "-",
+            InfixOp::Mul => "*",
+            InfixOp::Div => "/",
+            InfixOp::Rem => "%",
+            InfixOp::Shl => "<<",
+            InfixOp::Shr => ">>",
+            InfixOp::Lt => "<",
+            InfixOp::Eq => "==",
+            InfixOp::Gt => ">",
+            InfixOp::Leq => "<=",
+            InfixOp::Neq => "!=",
+            InfixOp::Geq => ">=",
+            InfixOp::Index => "[..]",
+            InfixOp::Concat => "++",
+            InfixOp::Append => "<+",
+            InfixOp::Prepend => "+>",
+            InfixOp::Range { inclusive: true } => "..=",
+            InfixOp::Range { inclusive: false } => "..",
+            InfixOp::BitAnd => "&",
+            InfixOp::BitOr => "|",
+            InfixOp::LogicAnd => "&&",
+            InfixOp::LogicOr => "||",
+            InfixOp::Xor => "^",
+        }
+    }
 }
 
 impl TryFrom<Punct> for InfixOp {

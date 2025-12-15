@@ -252,7 +252,7 @@ pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
 
             // We subtract 1 at the end because `approx` has to be less
             // than or equal to `lhs / rhs`.
-            let approx = shl_ubi(&[1], (lhs_ilog2 - rhs_ilog2 - 1));
+            let approx = shl_ubi(&[1], lhs_ilog2 - rhs_ilog2 - 1);
 
             // lhs / rhs = approx + (lhs - rhs * approx) / rhs
             add_ubi(&approx, &div_ubi(&sub_ubi(lhs, &mul_ubi(rhs, &approx)), rhs))

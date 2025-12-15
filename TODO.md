@@ -1,6 +1,30 @@
-# 120. 왜안별다줄?
+# 121. Pipeline operator
 
-Integer를 Int로 쓸 거면 Identifier도 Ident라고 쓰는게 맞지 않나?
+```
+a() |> b($, 1) |> $ + 1;
+// ->
+{
+  let t1 = a();
+  let t2 = b(t1, 1);
+  t2 + 1
+};
+
+a() |> 1 + b($) + (c() |> d($)) |> e($);
+// ->
+{
+  let t1 = a();
+  let t2 = 1 + b(t1) + { let t1 = c(); d(t1) };
+  e(t2)
+}
+```
+
+1. gleam이나 bash처럼 implicit하게 넘기는 건 별로고, `$`로 직접 넘기자!!
+2. 기존의 expr variants 재활용하지 말고, 아예 새로운 variant를 만들어버리자!!
+  - `|>`의 precedence를 제일 아래로 내려버리면 parsing이 쉬워짐, 일단 pratt_parsing한 다음에 rhs만 쭉 펼치면 되거든
+  - 그런 다음에 `Pipeline(Vec<Expr>)`로 만들어버리자!!
+3. unused name은 언제 잡을까?
+  - hir에서 잡는 것보다는 parser가 dedicated error variant 날리는게 나을 듯?
+  - unused인데 뒷부분에 identifier 하나만 덩그러니 있으면 error note에다가 "perhaps you mean f()?"라고 하자!!
 
 # 119. idea for testing the type-solver
 
@@ -208,13 +232,9 @@ destructure를 *안* 하면 문제가
 
 # 101. code generator for error variants
 
-1. It's way tooooo bothering to add/remove an error variant.
-  - ErrorLevel and Endec
-2. I want a map (ErrorKind <-> Int) and want to reuse the index used by Endec
-3. I want the script file to read the definition of `ErrorKind`, in `crates/error/src/kind.rs`, and generate the other code, automatically.
-4. First write it in Python, then replace it with Sodigy.
-  - Rust로 짜고 나중에 Sodigy로 옮기는게 낫지 않나
-  - 아니면... procedural macro는 어때...
+1. Let's use a procedural macro.
+2. A table with _ columns: variant name, level (error/warn), index
+3. It generates the enum definition, endec, and `ErrorLevel::from_error_kind`.
 
 # 100. `set!` and `map!`
 

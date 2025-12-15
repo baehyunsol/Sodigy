@@ -40,7 +40,7 @@ impl Endec for ErrorKind {
             ErrorKind::UnterminatedStringLiteral => {
                 buffer.push(4);
             },
-            ErrorKind::NotAllowedCharInFString(ch) => {
+            ErrorKind::NotAllowedCharInFormattedString(ch) => {
                 buffer.push(5);
                 ch.encode_impl(buffer);
             },
@@ -318,6 +318,7 @@ impl Endec for ErrorKind {
                 id.encode_impl(buffer);
                 message.encode_impl(buffer);
             },
+            _ => todo!(),
         }
     }
 
@@ -334,7 +335,7 @@ impl Endec for ErrorKind {
             Some(5) => Ok((ErrorKind::InvalidCharLiteral, cursor + 1)),
             Some(6) => {
                 let (ch, cursor) = u8::decode_impl(buffer, cursor + 1)?;
-                Ok((ErrorKind::NotAllowedCharInFString(ch), cursor))
+                Ok((ErrorKind::NotAllowedCharInFormattedString(ch), cursor))
             },
             Some(7) => Ok((ErrorKind::InvalidCharLiteralPrefix, cursor + 1)),
             Some(8) => Ok((ErrorKind::UnterminatedCharLiteral, cursor + 1)),

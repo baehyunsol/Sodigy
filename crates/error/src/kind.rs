@@ -13,7 +13,10 @@ pub enum ErrorKind {
     InvalidCharacterInIdent(char),
     WrongNumberOfQuotesInRawStringLiteral,
     UnterminatedStringLiteral,
-    NotAllowedCharInFString(u8),
+    NotAllowedCharInFormattedString(u8),
+    UnmatchedBraceInFormattedString,
+    EmptyBraceInFormattedString,
+    DotDotDot,
     InvalidCharLiteral,
     InvalidCharLiteralPrefix,
     UnterminatedCharLiteral,
@@ -78,11 +81,18 @@ pub enum ErrorKind {
         expected: usize,
         got: usize,
     },
+    WrongNumberOfLangItemGenerics {
+        lang_items: usize,
+        generic_def: usize,
+    },
 
     // Syntax errors in patterns
+    InvalidRangePattern,
     CannotBindNameToAnotherName(InternedString),
+    CannotBindNameToConstant(InternedString),
     CannotAnnotateType,
     RedundantNameBinding(InternedString, InternedString),
+    CannotEvaluateConstPattern,
 
     NameCollision {
         name: InternedString,

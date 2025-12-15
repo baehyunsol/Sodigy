@@ -1842,7 +1842,7 @@ impl Session {
             match self.input_bytes.get(i) {
                 Some(x @ (b'{' | b'\\' | b'"')) => {
                     return Err(Error {
-                        kind: ErrorKind::NotAllowedCharInFString(*x),
+                        kind: ErrorKind::NotAllowedCharInFormattedString(*x),
                         spans: Span::range(
                             self.file,
                             i,

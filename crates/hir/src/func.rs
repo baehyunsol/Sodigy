@@ -151,6 +151,7 @@ impl Func {
             &attribute,
             ast_func.name_span,
             Some(&ast_func.generics),
+            ast_func.generic_group_span,
         ) {
             has_error = true;
         }

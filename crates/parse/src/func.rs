@@ -16,6 +16,7 @@ pub struct Func {
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
+    pub generic_group_span: Option<Span>,
     pub params: Vec<FuncParam>,
     pub r#type: Option<Type>,
 
@@ -47,11 +48,14 @@ impl<'t> Tokens<'t> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
         let mut generics = vec![];
+        let mut generic_group_span = None;
 
-        if let Some(Token { kind: TokenKind::Punct(Punct::Lt), .. }) = self.peek() {
+        if let Some(Token { kind: TokenKind::Punct(Punct::Lt), span }) = self.peek() {
+            generic_group_span = Some(*span);
             self.cursor += 1;
             generics = self.parse_generic_defs()?;
-            self.match_and_pop(TokenKind::Punct(Punct::Gt))?;
+            let generic_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
+            generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
         }
 
         let param_tokens = self.match_and_pop(TokenKind::Group { delim: Delim::Parenthesis, tokens: vec![] })?;
@@ -101,6 +105,7 @@ impl<'t> Tokens<'t> {
             name,
             name_span,
             generics,
+            generic_group_span,
             params,
             r#type,
             value,
