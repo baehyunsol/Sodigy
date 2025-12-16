@@ -378,6 +378,12 @@ What I propose is:
   - so that, it can retrieve warnings from cached sessions
   - we have to rely on the main process' deduplication!
 
+```
+type x<T> = Int;
+```
+
+-> this code is supposed to generate a warning, and it does, but it doesn't dump the warning
+
 # 94. trait system
 
 How about an ad-hoc trait system?

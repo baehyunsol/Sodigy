@@ -1,0 +1,4 @@
+fn zero() = 0;
+
+#[impl(zero)]
+fn add(a: Int, b: Int) -> Int = a + b;

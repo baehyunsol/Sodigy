@@ -1,4 +1,4 @@
-use crate::{ErrorContext, GenericCall, Solver};
+use crate::{ErrorContext, GenericCall, Solver, TypeError};
 use sodigy_hir::Poly;
 use sodigy_mir::{Func, Session, Type};
 use sodigy_span::Span;
@@ -74,7 +74,7 @@ impl Solver {
             // we can't solve anything!
             if def_type.has_type_var() {
                 has_error = true;
-                self.errors.push(Error {});
+                self.errors.push(TypeError::CannotInferPolyGenericDef);
                 continue;
             }
 
@@ -90,7 +90,7 @@ impl Solver {
                 // we can't solve for this impl!
                 if impl_type.has_type_var() {
                     has_error = true;
-                    self.errors.push(Error {});
+                    self.errors.push(TypeError::CannotInferPolyGenericImpl);
                     continue;
                 }
 
@@ -103,7 +103,7 @@ impl Solver {
                     },
                     Err(e) => {
                         has_error = true;
-                        self.errors.push(Error {});  // TODO: TypeError::from(e)
+                        self.errors.extend(e.into_iter().map(|e| TypeError::from(e)));
                         continue;
                     },
                 }
@@ -232,6 +232,12 @@ pub enum SolvePolyError {
         // If it's None, it's the return value.
         param_index: Option<usize>,
     },
+}
+
+impl From<SolvePolyError> for TypeError {
+    fn from(e: SolvePolyError) -> TypeError {
+        todo!()
+    }
 }
 
 pub struct FuncType {

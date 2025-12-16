@@ -252,12 +252,57 @@ impl Session {
                         poly.impls.push(impl_span);
                     },
                     None => {
-                        self.errors.push(Error {});
+                        let is_func = match id.origin {
+                            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => kind == NameKind::Func,
+                            _ => false,
+                        };
+
+                        self.errors.push(Error {
+                            kind: ErrorKind::NotPolyGeneric { id: Some(id) },
+                            spans: vec![
+                                RenderableSpan {
+                                    span: id.span,
+                                    auxiliary: false,
+                                    note: Some(String::from("This is not a poly generic function.")),
+                                },
+                                RenderableSpan {
+                                    span: id.def_span,
+                                    auxiliary: true,
+                                    note: Some(format!(
+                                        "`{}` is defined here.",
+                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                    )),
+                                },
+                            ],
+                            note: Some(
+                                if is_func {
+                                    format!(
+                                        "Use `#[poly]` to make `{}` a poly generic function.",
+                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                    )
+                                } else {
+                                    format!(
+                                        "`{}` is not even a function. Only a function can be a poly generic function.",
+                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                    )
+                                }
+                            ),
+                        });
                         has_error = true;
                     },
                 },
                 _ => {
-                    self.errors.push(Error {});
+                    self.errors.push(Error {
+                        kind: ErrorKind::NotPolyGeneric { id: None },
+                        spans: vec![
+                            RenderableSpan {
+                                span: path.error_span(),
+                                auxiliary: false,
+                                note: Some(String::from("This is not a poly generic function.")),
+                            },
+                        ],
+                        note: Some(String::from("Only a function can be a poly generic.")),
+                    });
                     has_error = true;
                 },
             }
@@ -552,7 +597,30 @@ impl Session {
                     // alias: `type x<T> = _;`
                     // -> error
                     else {
-                        self.errors.push(Error {});
+                        let (field_name, field_span) = match r#use.fields.get(0) {
+                            Some(Field::Name { name, span, .. }) => (*name, *span),
+                            _ => unreachable!(),
+                        };
+
+                        self.errors.push(Error {
+                            kind: ErrorKind::UndefinedName(field_name),
+                            spans: vec![
+                                RenderableSpan {
+                                    span: field_span,
+                                    auxiliary: false,
+                                    note: None,
+                                },
+                                RenderableSpan {
+                                    span: r#use.root.span,
+                                    auxiliary: true,
+                                    note: Some(format!(
+                                        "`{}` is just a type alias. It doesn't have any fields.",
+                                        String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap_or(b"????".to_vec())),
+                                    )),
+                                },
+                            ],
+                            note: None,
+                        });
                         return Err(());
                     }
                 }

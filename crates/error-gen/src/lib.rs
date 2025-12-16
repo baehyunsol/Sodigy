@@ -888,8 +888,8 @@ fn render_decode_impl_body(definitions: &[ErrorKind]) -> TokenStream {
                     TokenTree::Ident(Ident::new("as", Span::call_site())),
                     TokenTree::Ident(Ident::new("u16", Span::call_site())),
                 ].into_iter().collect())),
-                TokenTree::Punct(Punct::new('>', Spacing::Joint)),
-                TokenTree::Punct(Punct::new('>', Spacing::Alone)),
+                TokenTree::Punct(Punct::new('<', Spacing::Joint)),
+                TokenTree::Punct(Punct::new('<', Spacing::Alone)),
                 TokenTree::Literal(Literal::u32_suffixed(8)),
             ].into_iter().collect())),
             TokenTree::Punct(Punct::new('|', Spacing::Alone)),
@@ -954,5 +954,6 @@ fn error_message(span: Span, message: String) -> TokenStream {
             Delimiter::Parenthesis,
             [TokenTree::Literal(Literal::string(&message))].into_iter().collect(),
         )),
+        TokenTree::Punct(Punct::new(';', Spacing::Alone)),
     ].into_iter().collect()
 }

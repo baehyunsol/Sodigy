@@ -57,6 +57,10 @@ pub enum TypeError {
         generics: HashMap<Span, Type>,
         num_candidates: usize,
     },
+
+    // TODO: more fields
+    CannotInferPolyGenericDef,
+    CannotInferPolyGenericImpl,
 }
 
 #[derive(Clone, Debug)]

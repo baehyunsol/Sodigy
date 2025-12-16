@@ -37,8 +37,10 @@
     { expected: usize, got: usize }, UnexpectedFunctionParameter
     { expected: usize, got: usize }, StructFieldRepeated(InternedString),
     MissingStructField(InternedString), InvalidStructField(InternedString),
-    DependentTypeNotAllowed, UnexpectedType { expected: String, got: String },
-    CannotInferType { id: Option<InternedString> }, PartiallyInferedType
+    DependentTypeNotAllowed, NotStruct { id: Option<IdentWithOrigin> },
+    NotPolyGeneric { id: Option<IdentWithOrigin> }, UnexpectedType
+    { expected: String, got: String }, CannotInferType
+    { id: Option<InternedString> }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String }, CannotInferGenericType
     { id: Option<String> }, PartiallyInferedGenericType
     { id: Option<String>, r#type: String }, CannotApplyInfixOp
@@ -129,20 +131,21 @@
             ErrorLevel :: Error, ErrorKind :: MissingStructField(_,) =>
             ErrorLevel :: Error, ErrorKind :: InvalidStructField(_,) =>
             ErrorLevel :: Error, ErrorKind :: DependentTypeNotAllowed =>
-            ErrorLevel :: Error, ErrorKind :: UnexpectedType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: CannotInferType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: PartiallyInferedType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: CannotInferGenericType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: PartiallyInferedGenericType
-            { .. } => ErrorLevel :: Error, ErrorKind :: CannotApplyInfixOp
-            { .. } => ErrorLevel :: Error, ErrorKind ::
-            CannotSpecializePolyGeneric { .. } => ErrorLevel :: Error,
-            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
-            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
-            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
-            UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind :: Todo
-            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
-            { .. } => ErrorLevel :: Error,
+            ErrorLevel :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel
+            :: Error, ErrorKind :: NotPolyGeneric { .. } => ErrorLevel ::
+            Error, ErrorKind :: UnexpectedType { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotInferType { .. } => ErrorLevel :: Error,
+            ErrorKind :: PartiallyInferedType { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotInferGenericType { .. } => ErrorLevel :: Error,
+            ErrorKind :: PartiallyInferedGenericType { .. } => ErrorLevel ::
+            Error, ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel ::
+            Error, ErrorKind :: CannotSpecializePolyGeneric { .. } =>
+            ErrorLevel :: Error, ErrorKind :: MultipleModuleFiles { .. } =>
+            ErrorLevel :: Error, ErrorKind :: ModuleFileNotFound { .. } =>
+            ErrorLevel :: Error, ErrorKind :: LibFileNotFound => ErrorLevel ::
+            Error, ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
+            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
+            InternalCompilerError { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -322,49 +325,57 @@
             ErrorKind :: InvalidStructField(t0,) =>
             { buffer.push(1u8); buffer.push(109u8); t0.encode_impl(buffer); },
             ErrorKind :: DependentTypeNotAllowed =>
-            { buffer.push(1u8); buffer.push(114u8); }, ErrorKind ::
-            UnexpectedType { r#expected, r#got, } =>
+            { buffer.push(1u8); buffer.push(114u8); }, ErrorKind :: NotStruct
+            { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(119u8);
-                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: CannotInferType { r#id, } =>
+                r#id.encode_impl(buffer);
+            }, ErrorKind :: NotPolyGeneric { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(124u8);
                 r#id.encode_impl(buffer);
-            }, ErrorKind :: PartiallyInferedType { r#id, r#type, } =>
+            }, ErrorKind :: UnexpectedType { r#expected, r#got, } =>
             {
                 buffer.push(1u8); buffer.push(129u8);
-                r#id.encode_impl(buffer); r#type.encode_impl(buffer);
-            }, ErrorKind :: CannotInferGenericType { r#id, } =>
+                r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
+            }, ErrorKind :: CannotInferType { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(134u8);
                 r#id.encode_impl(buffer);
-            }, ErrorKind :: PartiallyInferedGenericType { r#id, r#type, } =>
+            }, ErrorKind :: PartiallyInferedType { r#id, r#type, } =>
             {
                 buffer.push(1u8); buffer.push(139u8);
                 r#id.encode_impl(buffer); r#type.encode_impl(buffer);
-            }, ErrorKind :: CannotApplyInfixOp { r#op, r#arg_types, } =>
+            }, ErrorKind :: CannotInferGenericType { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(144u8);
+                r#id.encode_impl(buffer);
+            }, ErrorKind :: PartiallyInferedGenericType { r#id, r#type, } =>
+            {
+                buffer.push(1u8); buffer.push(149u8);
+                r#id.encode_impl(buffer); r#type.encode_impl(buffer);
+            }, ErrorKind :: CannotApplyInfixOp { r#op, r#arg_types, } =>
+            {
+                buffer.push(1u8); buffer.push(154u8);
                 r#op.encode_impl(buffer); r#arg_types.encode_impl(buffer);
             }, ErrorKind :: CannotSpecializePolyGeneric { r#num_candidates, }
             =>
             {
-                buffer.push(1u8); buffer.push(149u8);
+                buffer.push(1u8); buffer.push(159u8);
                 r#num_candidates.encode_impl(buffer);
             }, ErrorKind :: MultipleModuleFiles { r#module, r#found_files, }
             =>
             {
-                buffer.push(1u8); buffer.push(154u8);
+                buffer.push(1u8); buffer.push(164u8);
                 r#module.encode_impl(buffer);
                 r#found_files.encode_impl(buffer);
             }, ErrorKind :: ModuleFileNotFound { r#module, r#candidates, } =>
             {
-                buffer.push(1u8); buffer.push(159u8);
+                buffer.push(1u8); buffer.push(169u8);
                 r#module.encode_impl(buffer);
                 r#candidates.encode_impl(buffer);
             }, ErrorKind :: LibFileNotFound =>
-            { buffer.push(1u8); buffer.push(164u8); }, ErrorKind ::
+            { buffer.push(1u8); buffer.push(174u8); }, ErrorKind ::
             UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -384,7 +395,7 @@
     {
         let variant = match (buffer.get(cursor), buffer.get(cursor + 1usize))
         {
-            (Some(x), Some(y)) => ((* x as u16) >> 8u32) | * y as u16, _ =>
+            (Some(x), Some(y)) => ((* x as u16) << 8u32) | * y as u16, _ =>
             { return Err(DecodeError :: UnexpectedEof); }
         }; cursor += 2usize; match variant
         {
@@ -611,63 +622,73 @@
             }, 370u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
             375u16 =>
             {
+                let (r#id, cursor) = Option :: < IdentWithOrigin > ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotStruct { r#id, }, cursor))
+            }, 380u16 =>
+            {
+                let (r#id, cursor) = Option :: < IdentWithOrigin > ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotPolyGeneric { r#id, }, cursor))
+            }, 385u16 =>
+            {
                 let (r#expected, cursor) = String ::
                 decode_impl(buffer, cursor) ? ; let (r#got, cursor) = String
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedType { r#expected, r#got, },
                 cursor))
-            }, 380u16 =>
+            }, 390u16 =>
             {
                 let (r#id, cursor) = Option :: < InternedString > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotInferType { r#id, }, cursor))
-            }, 385u16 =>
+            }, 395u16 =>
             {
                 let (r#id, cursor) = Option :: < InternedString >::
                 decode_impl(buffer, cursor) ? ; let (r#type, cursor) = String
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: PartiallyInferedType { r#id, r#type, },
                 cursor))
-            }, 390u16 =>
+            }, 400u16 =>
             {
                 let (r#id, cursor) = Option :: < String > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotInferGenericType { r#id, }, cursor))
-            }, 395u16 =>
+            }, 405u16 =>
             {
                 let (r#id, cursor) = Option :: < String >::
                 decode_impl(buffer, cursor) ? ; let (r#type, cursor) = String
                 :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: PartiallyInferedGenericType
                 { r#id, r#type, }, cursor))
-            }, 400u16 =>
+            }, 410u16 =>
             {
                 let (r#op, cursor) = InfixOp :: decode_impl(buffer, cursor) ?
                 ; let (r#arg_types, cursor) = Vec :: < String > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotApplyInfixOp { r#op, r#arg_types, },
                 cursor))
-            }, 405u16 =>
+            }, 415u16 =>
             {
                 let (r#num_candidates, cursor) = usize ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotSpecializePolyGeneric
                 { r#num_candidates, }, cursor))
-            }, 410u16 =>
+            }, 420u16 =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#found_files, cursor) =
                 Vec :: < String > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MultipleModuleFiles
                 { r#module, r#found_files, }, cursor))
-            }, 415u16 =>
+            }, 425u16 =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#candidates, cursor) =
                 Vec :: < String > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: ModuleFileNotFound
                 { r#module, r#candidates, }, cursor))
-            }, 420u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 5000u16
+            }, 430u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 5000u16
             =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::

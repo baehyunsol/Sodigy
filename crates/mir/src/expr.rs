@@ -496,22 +496,48 @@ impl Expr {
             hir::Expr::StructInit { r#struct, fields: hir_fields, group_span } => {
                 let group_span = *group_span;
                 let mut has_error = false;
-                let (def_span, span) = match Expr::from_hir(r#struct, session) {
-                    Ok(Expr::Ident(id)) => {
-                        match id.origin {
-                            // make sure that it's a struct, otherwise throw an error
-                            _ => todo!(),
+                let (def_span, span) = match Expr::from_hir(r#struct, session)? {
+                    expr @ Expr::Ident(id) => {
+                        let (is_struct, explain) = match id.origin {
+                            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                                NameKind::Struct => (true, None),
+                                NameKind::Let { .. } => (false, Some("a value")),
+                                NameKind::Func => (false, Some("a function")),
+                                NameKind::Enum => (false, Some("an enum")),
+
+                                // It may or may not be a struct, but we don't know that...
+                                NameKind::EnumVariant { .. } => todo!(),
+
+                                NameKind::Alias => (false, Some("a type alias")),
+                                NameKind::Module => (false, Some("a module")),
+                                NameKind::Use => unreachable!(),
+                                NameKind::FuncParam => (false, Some("a function parameter")),
+                                NameKind::Generic => (false, Some("a generic parameter")),
+                                NameKind::PatternNameBind => (false, Some("a pattern name bind")),
+                            },
+                            NameOrigin::FuncParam { .. } => (false, Some("a function parameter")),
+                            NameOrigin::Generic { .. } => (false, Some("a generic parameter")),
+                            NameOrigin::External => unreachable!(),
+                        };
+
+                        if !is_struct {
+                            session.errors.push(Error {
+                                kind: ErrorKind::NotStruct { id: Some(id) },
+                                spans: expr.error_span().simple_error(),
+                                note: Some(format!("This is {}, not a struct.", explain.unwrap())),
+                            });
+                            return Err(());
                         }
 
                         (id.def_span, id.span)
                     },
-                    Ok(id) => {
-                        session.errors.push(Error {});
-                        has_error = true;
-                    },
-                    Err(()) => {
-                        has_error = true;
-                        todo!()
+                    expr => {
+                        session.errors.push(Error {
+                            kind: ErrorKind::NotStruct { id: None },
+                            spans: expr.error_span().simple_error(),
+                            note: None,
+                        });
+                        return Err(());
                     },
                 };
                 let mut generic_defs = vec![];
