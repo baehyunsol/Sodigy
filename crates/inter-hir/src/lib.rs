@@ -833,10 +833,32 @@ impl Session {
                             },
                         }
                     },
-                    // an enum variant cannot be a type... but we don't have an error variant for this!
-                    Some((NameKind::Enum, _)) => {
-                        self.errors.push(Error {});
-                        Err(())
+                    // r#type: `type x = Option.Some;`
+                    Some((NameKind::Enum, items)) => {
+                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+
+                        match items.get(&field_name) {
+                            Some(_) => {
+                                self.errors.push(Error {
+                                    kind: ErrorKind::EnumVariantInTypeAnnotation,
+                                    spans: field_span.simple_error(),
+                                    note: None,
+                                });
+                                Err(())
+                            },
+                            None => {
+                                self.errors.push(Error {
+                                    kind: ErrorKind::UndefinedName(field_name),
+                                    spans: field_span.simple_error(),
+                                    note: Some(format!(
+                                        "Enum `{}` doesn't have a variant named `{}`.",
+                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                        String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                    )),
+                                });
+                                Err(())
+                            },
+                        }
                     },
                     Some((_, _)) => unreachable!(),
                     None => Ok(()),
@@ -972,10 +994,32 @@ impl Session {
                                     },
                                 }
                             },
-                            // an enum variant cannot be a type... but we don't have an error variant for this!
-                            Some((NameKind::Enum, _)) => {
-                                self.errors.push(Error {});
-                                return Err(());
+                            // r#type: `type x = Option.Some<Int>;`
+                            Some((NameKind::Enum, items)) => {
+                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+
+                                match items.get(&field_name) {
+                                    Some(_) => {
+                                        self.errors.push(Error {
+                                            kind: ErrorKind::EnumVariantInTypeAnnotation,
+                                            spans: field_span.simple_error(),
+                                            note: None,
+                                        });
+                                        return Err(());
+                                    },
+                                    None => {
+                                        self.errors.push(Error {
+                                            kind: ErrorKind::UndefinedName(field_name),
+                                            spans: field_span.simple_error(),
+                                            note: Some(format!(
+                                                "Enum `{}` doesn't have a variant named `{}`.",
+                                                String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
+                                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                            )),
+                                        });
+                                        return Err(());
+                                    },
+                                }
                             },
                             Some((_, _)) => unreachable!(),
                             None => {},

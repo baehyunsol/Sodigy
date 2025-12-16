@@ -1,4 +1,5 @@
-use crate::ErrorToken;
+use crate::{ErrorLevel, ErrorToken};
+use sodigy_endec::{DecodeError, Endec};
 use sodigy_error_gen::error_kinds;
 use sodigy_file::{GetFilePathError, ModulePath};
 use sodigy_name_analysis::NameKind;
@@ -15,134 +16,137 @@ mod render;
 // 2. Make sure that the index is in range 0..65536.
 // 3. Try to make similar error kinds have similar indexes.
 //    - That's why there are gaps in the indexes: so that I can insert new error kinds.
+//
+// You can see the result of the macro expansion in `src/proc_macro.rs`.
 error_kinds!(
-    //                               error kind,                                    fields,  index,   Error | Warning
-    (                      InvalidNumberLiteral,                                         _,      0,      Error),
-    (                InvalidStringLiteralPrefix,                                         _,      5,      Error),
-    (                   InvalidCharacterInIdent,                                    (char),     10,      Error),
-    (     WrongNumberOfQuotesInRawStringLiteral,                                         _,     15,      Error),
-    (                 UnterminatedStringLiteral,                                         _,     20,      Error),
-    (           NotAllowedCharInFormattedString,                                      (u8),     25,      Error),
-    (           UnmatchedBraceInFormattedString,                                         _,     30,      Error),
-    (               EmptyBraceInFormattedString,                                         _,     35,      Error),
-    (                                 DotDotDot,                                         _,     40,      Error),
-    (                        InvalidCharLiteral,                                         _,     45,      Error),
-    (                  InvalidCharLiteralPrefix,                                 (Vec<u8>),     50,      Error),
-    (                   UnterminatedCharLiteral,                                         _,     55,      Error),
-    (                        InvalidByteLiteral,                                         _,     60,      Error),
-    (                             InvalidEscape,                                         _,     65,      Error),
-    (                          EmptyCharLiteral,                                         _,     70,      Error),
-    (                  UnterminatedBlockComment,                                         _,     75,      Error),
-    (                               InvalidUtf8,                                         _,     80,      Error),
-    (                   InvalidUnicodeCharacter,                                         _,     85,      Error),
-    (                      InvalidUnicodeEscape,                                         _,     90,      Error),
-    (                            UnmatchedGroup,                 { expected: u8, got: u8 },     95,      Error),
+    // error variant,                                              index,    Error | Warning
+    (InvalidNumberLiteral,                                             0,    Error),
+    (InvalidStringLiteralPrefix(Vec<u8>),                              5,    Error),
+    (InvalidCharacterInIdent(char),                                   10,    Error),
+    (WrongNumberOfQuotesInRawStringLiteral,                           15,    Error),
+    (UnterminatedStringLiteral,                                       20,    Error),
+    (NotAllowedCharInFormattedString(u8),                             25,    Error),
+    (UnmatchedBraceInFormattedString,                                 30,    Error),
+    (EmptyBraceInFormattedString,                                     35,    Error),
+    (DotDotDot,                                                       40,    Error),
+    (InvalidCharLiteral,                                              45,    Error),
+    (InvalidCharLiteralPrefix(Vec<u8>),                               50,    Error),
+    (UnterminatedCharLiteral,                                         55,    Error),
+    (InvalidByteLiteral,                                              60,    Error),
+    (InvalidEscape,                                                   65,    Error),
+    (EmptyCharLiteral,                                                70,    Error),
+    (UnterminatedBlockComment,                                        75,    Error),
+    (InvalidUtf8,                                                     80,    Error),
+    (InvalidUnicodeCharacter,                                         85,    Error),
+    (InvalidUnicodeEscape,                                            90,    Error),
+    (UnmatchedGroup { expected: u8, got: u8 },                        95,    Error),
 
     // You can use up to 127 quotes for opening.
     // If a literal is opened with N quotes, it has to be closed with the same number of quotes.
-    (                             TooManyQuotes,                                         _,    100,      Error),
+    (TooManyQuotes,                                                  100,    Error),
 
-    (                         UnclosedDelimiter,                                      (u8),    105,      Error),
-    (                           UnexpectedToken, { expected: ErrorToken, got: ErrorToken },    110,      Error),
-    (                             UnexpectedEof,                  { expected: ErrorToken },    115,      Error),
+    (UnclosedDelimiter(u8),                                          105,    Error),
+    (UnexpectedToken { expected: ErrorToken, got: ErrorToken },      110,    Error),
+    (UnexpectedEof { expected: ErrorToken },                         115,    Error),
 
     // It's like UnexpectedEof, but an end of a group (parenthesis, braces or brackets).
-    (                             UnexpectedEog,                  { expected: ErrorToken },    120,      Error),
+    (UnexpectedEog { expected: ErrorToken },                         120,    Error),
 
-    (                         MissingDocComment,                                         _,    125,      Error),
-    (                      DocCommentNotAllowed,                                         _,    130,      Error),
-    (                  ModuleDocCommentNotAtTop,                                         _,    135,      Error),
-    (                          MissingDecorator,                          (InternedString),    140,      Error),
-    (                       DecoratorNotAllowed,                                         _,    145,      Error),
-    (                       UnexpectedDecorator,                          (InternedString),    150,      Error),
-    (                   ModuleDecoratorNotAtTop,                                         _,    155,      Error),
-    (                         MissingVisibility,                                         _,    160,      Error),
-    (                            CannotBePublic,                                         _,    165,      Error),
-    (                       FunctionWithoutBody,                                         _,    170,      Error),
-    (                         BlockWithoutValue,                                         _,    175,      Error),
-    (                        StructWithoutField,                                         _,    180,      Error),
-    (                      EmptyCurlyBraceBlock,                                         _,    185,      Error),
-    (              PositionalArgAfterKeywordArg,                                         _,    190,      Error),
-    (          NonDefaultValueAfterDefaultValue,                                         _,    195,      Error),
-    (                 CannotDeclareInlineModule,                                         _,    200,      Error),
-    (                   InclusiveRangeWithNoEnd,                                         _,    205,      Error),
-    (                  MultipleDotDotsInPattern,                                         _,    210,      Error),
-    (          DifferentNameBindingsInOrPattern,                                         _,    215,      Error),
-    (                             InvalidFnType,                                         _,    220,      Error),
-    (                       EmptyMatchStatement,                                         _,    225,      Error),
-    (                        RedundantDecorator,                          (InternedString),    230,      Error),
+    (MissingDocComment,                                              125,    Error),
+    (DocCommentNotAllowed,                                           130,    Error),
+    (ModuleDocCommentNotAtTop,                                       135,    Error),
+    (MissingDecorator(InternedString),                               140,    Error),
+    (DecoratorNotAllowed,                                            145,    Error),
+    (UnexpectedDecorator(InternedString),                            150,    Error),
+    (ModuleDecoratorNotAtTop,                                        155,    Error),
+    (MissingVisibility,                                              160,    Error),
+    (CannotBePublic,                                                 165,    Error),
+    (FunctionWithoutBody,                                            170,    Error),
+    (BlockWithoutValue,                                              175,    Error),
+    (StructWithoutField,                                             180,    Error),
+    (EmptyCurlyBraceBlock,                                           185,    Error),
+    (PositionalArgAfterKeywordArg,                                   190,    Error),
+    (NonDefaultValueAfterDefaultValue,                               195,    Error),
+    (CannotDeclareInlineModule,                                      200,    Error),
+    (InclusiveRangeWithNoEnd,                                        205,    Error),
+    (MultipleDotDotsInPattern,                                       210,    Error),
+    (DifferentNameBindingsInOrPattern,                               215,    Error),
+    (InvalidFnType,                                                  220,    Error),
+    (EmptyMatchStatement,                                            225,    Error),
+    (RedundantDecorator(InternedString),                             230,    Error),
 
     // TODO: suggest similar names
     // TODO: tell what it's trying to decorate
-    (                          InvalidDecorator,                          (InternedString),    235,      Error),
+    (InvalidDecorator(InternedString),                               235,    Error),
 
-    (                  MissingDecoratorArgument,           { expected: usize, got: usize },    240,      Error),
-    (               UnexpectedDecoratorArgument,           { expected: usize, got: usize },    245,      Error),
-    (             WrongNumberOfLangItemGenerics, { lang_items: usize, generic_def: usize },    250,      Error),
+    (MissingDecoratorArgument { expected: usize, got: usize },       240,    Error),
+    (UnexpectedDecoratorArgument { expected: usize, got: usize },    245,    Error),
+    (WrongNumberOfLangItemGenerics { lang_items: usize, generic_def: usize },    250,    Error),
 
     // syntax errors in patterns
-    (                       InvalidRangePattern,                                         _,    255,      Error),
-    (               CannotBindNameToAnotherName,                          (InternedString),    260,      Error),
-    (                  CannotBindNameToConstant,                          (InternedString),    265,      Error),
-    (                        CannotAnnotateType,                                         _,    270,      Error),
-    (                      RedundantNameBinding,          (InternedString, InternedString),    275,      Error),
-    (                CannotEvaluateConstPattern,                                         _,    280,      Error),
+    (InvalidRangePattern,                                            255,    Error),
+    (CannotBindNameToAnotherName(InternedString),                    260,    Error),
+    (CannotBindNameToConstant(InternedString),                       265,    Error),
+    (CannotAnnotateType,                                             270,    Error),
+    (RedundantNameBinding(InternedString, InternedString),           275,    Error),
+    (CannotEvaluateConstPattern,                                     280,    Error),
 
     // TODO: more context!
-    (                             NameCollision,                  { name: InternedString },    285,      Error),
+    (NameCollision { name: InternedString },                         285,    Error),
 
-    (                                 CyclicLet,            { names: Vec<InternedString> },    290,      Error),
-    (                               CyclicAlias,            { names: Vec<InternedString> },    295,      Error),
-
-    // TODO: more context!
-    // TODO: suggest similar names
-    (                             UndefinedName,                          (InternedString),    300,      Error),
-
-    (                   KeywordArgumentRepeated,                          (InternedString),    305,      Error),
-    (                 KeywordArgumentNotAllowed,                                         _,    310,      Error),
-    (         AliasResolveRecursionLimitReached,                                         _,    315,      Error),
-    (                      MissingTypeParameter,           { expected: usize, got: usize },    320,      Error),
-    (                   UnexpectedTypeParameter,           { expected: usize, got: usize },    325,      Error),
-    (                    MissingKeywordArgument,                          (InternedString),    330,      Error),
+    (CyclicLet { names: Vec<InternedString> },                       290,    Error),
+    (CyclicAlias { names: Vec<InternedString> },                     295,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
-    (                    InvalidKeywordArgument,                          (InternedString),    335,      Error),
+    (UndefinedName(InternedString),                                  300,    Error),
 
-    (                  MissingFunctionParameter,           { expected: usize, got: usize },    340,      Error),
-    (               UnexpectedFunctionParameter,           { expected: usize, got: usize },    345,      Error),
-    (                       StructFieldRepeated,                          (InternedString),    350,      Error),
-    (                        MissingStructField,                          (InternedString),    355,      Error),
+    (EnumVariantInTypeAnnotation,                                    305,    Error),
+    (KeywordArgumentRepeated(InternedString),                        310,    Error),
+    (KeywordArgumentNotAllowed,                                      315,    Error),
+    (AliasResolveRecursionLimitReached,                              320,    Error),
+    (MissingTypeParameter { expected: usize, got: usize },           325,    Error),
+    (UnexpectedTypeParameter { expected: usize, got: usize },        330,    Error),
+    (MissingKeywordArgument(InternedString),                         335,    Error),
+
+    // TODO: more context!
+    // TODO: suggest similar names
+    (InvalidKeywordArgument(InternedString),                         340,    Error),
+
+    (MissingFunctionParameter { expected: usize, got: usize },       345,    Error),
+    (UnexpectedFunctionParameter { expected: usize, got: usize },    350,    Error),
+    (StructFieldRepeated(InternedString),                            355,    Error),
+    (MissingStructField(InternedString),                             360,    Error),
 
     // TODO: suggest similar names
-    (                        InvalidStructField,                          (InternedString),    360,      Error),
+    (InvalidStructField(InternedString),                             365,    Error),
 
-    (                   DependentTypeNotAllowed,                                         _,    365,      Error),
+    (DependentTypeNotAllowed,                                        370,    Error),
 
     // Type errors from here.
     // Type errors are generated by `mir-type` crate, and the crate uses its own data types to
     // represent types. But this crate cannot depend on `mir-type`, so those types are converted
     // to string.
-    (                            UnexpectedType,         { expected: String, got: String },    370,      Error),
-    (                           CannotInferType,            { id: Option<InternedString> },    375,      Error),
-    (                 PartiallyInferedType, { id: Option<InternedString>, r#type: String },    380,      Error),
-    (                    CannotInferGenericType,            { id: Option<InternedString> },    385,      Error),
-    (               PartiallyInferedGenericType,    { id: Option<String>, r#type: String },    390,      Error),
-    (                        CannotApplyInfixOp,   { op: InfixOp, arg_types: Vec<String> },    395,      Error),
-    (               CannotSpecializePolyGeneric,                 { num_candidates: usize },    400,      Error),
+    (UnexpectedType { expected: String, got: String },               375,    Error),
+    (CannotInferType { id: Option<InternedString> },                 380,    Error),
+    (PartiallyInferedType { id: Option<InternedString>, r#type: String },    385,    Error),
+    (CannotInferGenericType { id: Option<String> },                  390,    Error),
+    (PartiallyInferedGenericType { id: Option<String>, r#type: String },     395,    Error),
+    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },     400,    Error),
+    (CannotSpecializePolyGeneric { num_candidates: usize },          405,    Error),
 
-    (                MultipleModuleFiles, { module: ModulePath, found_files: Vec<String> },    405,      Error),
-    (                 ModuleFileNotFound,  { module: ModulePath, candidates: Vec<String> },    410,      Error),
-    (                           LibFileNotFound,                                         _,    415,      Error),
+    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    410,    Error),
+    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      415,    Error),
+    (LibFileNotFound,                                                420,    Error),
+
+    // Warnings from here
+    (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
 
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.
     // They use `id` field to distinguish themselves: so that we can easily Ctrl+Shift+F the id.
-    (                                      Todo,                               { id: u32 },   9998,      Error),
-    (                     InternalCompilerError,                               { id: u32 },   9999,      Error),
-
-    // Warnings from here
-    (                          UnusedNames, { names: Vec<InternedString>, kind: NameKind },   5000,    Warning),
+    (Todo { id: u32 },                                              9998,    Error),
+    (InternalCompilerError { id: u32 },                             9999,    Error),
 );
 
 impl From<GetFilePathError> for ErrorKind {

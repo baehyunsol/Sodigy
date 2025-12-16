@@ -119,7 +119,6 @@ impl Func {
         };
         let visibility = attribute.visibility.clone();
         let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
-        let any_type = attribute.get_decorator(b"any_type", &session.intermediate_dir).is_some();
 
         let is_poly = match attribute.get_decorator(b"poly", &session.intermediate_dir) {
             Some(d) => {

@@ -648,7 +648,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]);
                 },
             }

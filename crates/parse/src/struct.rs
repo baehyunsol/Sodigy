@@ -99,7 +99,7 @@ impl<'t> Tokens<'t> {
                 return Some(Err(vec![Error {
                     kind: ErrorKind::EmptyCurlyBraceBlock,
                     spans: self.span_end.simple_error(),
-                    ..Error::default()
+                    note: None,
                 }]));
             },
             _ => {
@@ -138,7 +138,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]);
                 },
                 (None, _) => {

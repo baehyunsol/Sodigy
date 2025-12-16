@@ -9,7 +9,7 @@ impl Match {
             errors.push(Error {
                 kind: ErrorKind::EmptyMatchStatement,
                 spans: self.keyword_span.simple_error(),
-                ..Error::default()
+                note: None,
             });
         }
 

@@ -151,7 +151,7 @@ impl<'t> Tokens<'t> {
                                         note: Some(String::from("We already have a type annotation here.")),
                                     },
                                 ],
-                                ..Error::default()
+                                note: None,
                             }]);
                         }
 
@@ -216,7 +216,7 @@ impl<'t> Tokens<'t> {
                                 got: (&t.kind).into(),
                             },
                             spans: t.span.simple_error(),
-                            ..Error::default()
+                            note: None,
                         }]);
                     },
                 }
@@ -264,7 +264,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]);
                 },
                 (None, _) => {

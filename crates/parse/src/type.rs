@@ -53,7 +53,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]);
                 },
                 (None, _) => {
@@ -314,7 +314,7 @@ impl<'t> Tokens<'t> {
                                     got: ErrorToken::TypeAnnotation,
                                 },
                                 spans: unexpected_type_annotation.error_span().simple_error(),
-                                ..Error::default()
+                                note: None,
                             }]);
                         }
 
@@ -382,7 +382,7 @@ impl<'t> Tokens<'t> {
                                 got: ErrorToken::Punct(Punct::Gt),
                             },
                             spans: span.simple_error(),
-                            ..Error::default()
+                            note: None,
                         }]);
                     },
                     StopAt::AngleBracket => {
@@ -400,7 +400,7 @@ impl<'t> Tokens<'t> {
                                 expected: expected_token,
                             },
                             spans: self.span_end.simple_error(),
-                            ..Error::default()
+                            note: None,
                         }]);
                     },
                 },
@@ -415,7 +415,7 @@ impl<'t> Tokens<'t> {
                                 got: ErrorToken::Punct(Punct::Gt),
                             },
                             spans: span.simple_error(),
-                            ..Error::default()
+                            note: None,
                         }]);
                     },
                     StopAt::AngleBracket => {
@@ -429,7 +429,7 @@ impl<'t> Tokens<'t> {
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     }]);
                 },
                 (None, _) => match stop_at {
@@ -442,7 +442,7 @@ impl<'t> Tokens<'t> {
                                 expected: expected_token,
                             },
                             spans: self.span_end.simple_error(),
-                            ..Error::default()
+                            note: None,
                         }]);
                     },
                 },

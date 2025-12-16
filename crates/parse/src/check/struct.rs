@@ -19,7 +19,7 @@ impl Struct {
             errors.push(Error {
                 kind: ErrorKind::StructWithoutField,
                 spans: self.name_span.simple_error(),
-                ..Error::default()
+                note: None,
             });
         }
 
@@ -51,7 +51,7 @@ impl Struct {
                             note: None,
                         }
                     ).collect(),
-                    ..Error::default()
+                    note: None,
                 });
             }
         }

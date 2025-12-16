@@ -162,7 +162,7 @@ impl PatternKind {
                     errors.push(Error {
                         kind: ErrorKind::InclusiveRangeWithNoEnd,
                         spans: op_span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 }
 

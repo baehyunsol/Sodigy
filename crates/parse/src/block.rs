@@ -323,7 +323,6 @@ impl<'t> Tokens<'t> {
                                 },
                             ],
                             note: Some(String::from("You can't decorate an expression.")),
-                            ..Error::default()
                         });
                         return Err(errors);
                     }

@@ -25,20 +25,9 @@ pub struct Error {
 impl Error {
     pub fn todo(id: u32, message: &str, span: Span) -> Error {
         Error {
-            kind: ErrorKind::Todo { id, message: message.to_string() },
+            kind: ErrorKind::Todo { id },
             spans: span.simple_error(),
-            note: None,
-        }
-    }
-}
-
-impl Default for Error {
-    fn default() -> Error {
-        Error {
-            // please don't use this value
-            kind: ErrorKind::InvalidUtf8,
-            spans: vec![],
-            note: None,
+            note: Some(message.to_string()),
         }
     }
 }

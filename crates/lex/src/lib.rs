@@ -411,7 +411,7 @@ impl Session {
                                 self.cursor,
                                 self.cursor + 1,
                             ).simple_error(),
-                            ..Error::default()
+                            note: None,
                         });
                     },
                     None => {
@@ -421,7 +421,7 @@ impl Session {
                                 got: ErrorToken::Character(*x),
                             },
                             spans: Span::eof(self.file).simple_error(),
-                            ..Error::default()
+                            note: None,
                         });
                     },
                 },
@@ -522,7 +522,7 @@ impl Session {
                         return Err(Error {
                             kind: ErrorKind::UnclosedDelimiter(delim),
                             spans: span.simple_error(),
-                            ..Error::default()
+                            note: None,
                         });
                     }
 
@@ -543,32 +543,32 @@ impl Session {
                 (Some(x @ (b'b' | b'f' | b'r')), Some(y @ (b'b' | b'f' | b'r')), Some(z @ (b'"' | b'\''))) if x == y => {
                     return Err(Error {
                         kind: if *z == b'"' {
-                            ErrorKind::InvalidStringLiteralPrefix
+                            ErrorKind::InvalidStringLiteralPrefix(vec![*x, *y])
                         } else {
-                            ErrorKind::InvalidCharLiteralPrefix
+                            ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
-                (Some(b'b'), Some(b'f'), Some(z @ (b'"' | b'\''))) |
-                (Some(b'f'), Some(b'b'), Some(z @ (b'"' | b'\''))) => {
+                (Some(x @ b'b'), Some(y @ b'f'), Some(z @ (b'"' | b'\''))) |
+                (Some(x @ b'f'), Some(y @ b'b'), Some(z @ (b'"' | b'\''))) => {
                     return Err(Error {
                         kind: if *z == b'"' {
-                            ErrorKind::InvalidStringLiteralPrefix
+                            ErrorKind::InvalidStringLiteralPrefix(vec![*x, *y])
                         } else {
-                            ErrorKind::InvalidCharLiteralPrefix
+                            ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'b'), Some(b'r'), Some(b'"')) |
@@ -582,8 +582,8 @@ impl Session {
                     self.cursor += 2;
                 },
                 // A binary char is okay, but a raw char is not.
-                (Some(x @ b'b'), Some(b'r'), Some(b'\'')) |
-                (Some(x @ b'r'), Some(b'b'), Some(b'\'')) => {
+                (Some(x @ b'b'), Some(y @ b'r'), Some(b'\'')) |
+                (Some(x @ b'r'), Some(y @ b'b'), Some(b'\'')) => {
                     let error_span = if *x == b'b' {
                         Span::range(
                             self.file,
@@ -598,9 +598,9 @@ impl Session {
                         )
                     };
                     return Err(Error {
-                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y]),
                         spans: error_span.simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'f'), Some(b'r'), Some(b'"')) |
@@ -614,16 +614,16 @@ impl Session {
                     self.cursor += 2;
                 },
                 // `f` and `r` are both invalid for a char literal
-                (Some(b'f'), Some(b'r'), Some(b'\'')) |
-                (Some(b'r'), Some(b'f'), Some(b'\'')) => {
+                (Some(x @ b'f'), Some(y @ b'r'), Some(b'\'')) |
+                (Some(x @ b'r'), Some(y @ b'f'), Some(b'\'')) => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y]),
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'r'), Some(b'e'), Some(b'"')) => {
@@ -638,13 +638,13 @@ impl Session {
                 // `re` is invalid for a char literal
                 (Some(b'r'), Some(b'e'), Some(b'\'')) => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        kind: ErrorKind::InvalidCharLiteralPrefix(vec![b'r', b'e']),
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(x @ (b'b' | b'f' | b'r')), Some(b'"'), _) => {
@@ -665,15 +665,15 @@ impl Session {
                     };
                     self.cursor += 1;
                 },
-                (Some(b'f' | b'r'), Some(b'\''), _) => {
+                (Some(x @ (b'f' | b'r')), Some(b'\''), _) => {
                     return Err(Error {
-                        kind: ErrorKind::InvalidCharLiteralPrefix,
+                        kind: ErrorKind::InvalidCharLiteralPrefix(vec![*x]),
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'"' | b'\''), _, _) => {
@@ -684,34 +684,34 @@ impl Session {
                         regex: false,
                     };
                 },
-                (Some(b'a'..=b'z'), Some(b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
+                (Some(x @ b'a'..=b'z'), Some(y @ b'a'..=b'z'), Some(z @ (b'"' | b'\''))) => {
                     return Err(Error {
                         kind: if *z == b'"' {
-                            ErrorKind::InvalidStringLiteralPrefix
+                            ErrorKind::InvalidStringLiteralPrefix(vec![*x, *y])
                         } else {
-                            ErrorKind::InvalidCharLiteralPrefix
+                            ErrorKind::InvalidCharLiteralPrefix(vec![*x, *y])
                         },
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
-                (Some(b'a'..=b'z'), Some(y @ (b'"' | b'\'')), _) => {
+                (Some(x @ b'a'..=b'z'), Some(y @ (b'"' | b'\'')), _) => {
                     return Err(Error {
                         kind: if *y == b'"' {
-                            ErrorKind::InvalidStringLiteralPrefix
+                            ErrorKind::InvalidStringLiteralPrefix(vec![*x])
                         } else {
-                            ErrorKind::InvalidCharLiteralPrefix
+                            ErrorKind::InvalidCharLiteralPrefix(vec![*x])
                         },
                         spans: Span::range(
                             self.file,
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 _ => unreachable!(),
@@ -735,7 +735,7 @@ impl Session {
                                 self.cursor,
                                 self.cursor + 1,
                             ).simple_error(),
-                            ..Error::default()
+                            note: None,
                         });
                     }
 
@@ -778,7 +778,7 @@ impl Session {
                                     self.cursor,
                                     self.cursor + quote_count,
                                 ).simple_error(),
-                                ..Error::default()
+                                note: None,
                             });
                         },
 
@@ -1015,7 +1015,7 @@ impl Session {
                             self.cursor + 1,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'"'), _, _, _) if quote_count == 1 => {
@@ -1092,7 +1092,7 @@ impl Session {
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (None, _, _, _) => {
@@ -1103,7 +1103,7 @@ impl Session {
                             self.token_start,
                             self.token_start + quote_count,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
             },
@@ -1237,7 +1237,7 @@ impl Session {
                                             escape_start,
                                             escape_start + 1,
                                         ).simple_error(),
-                                        ..Error::default()
+                                        note: None,
                                     });
                                 }
                             },
@@ -1253,14 +1253,14 @@ impl Session {
                                         self.cursor,
                                         self.cursor + 1,
                                     ).simple_error(),
-                                    ..Error::default()
+                                    note: None,
                                 });
                             },
                             None => {
                                 return Err(Error {
                                     kind: ErrorKind::UnclosedDelimiter(b'}'),
                                     spans: Span::eof(self.file).simple_error(),
-                                    ..Error::default()
+                                    note: None,
                                 });
                             },
                         }
@@ -1326,7 +1326,7 @@ impl Session {
                             self.cursor + 1,
                             self.cursor + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (Some(b'\r' | b'\n' | b'\t' | b'\''), _, _, _, _) => {
@@ -1337,7 +1337,7 @@ impl Session {
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 // valid char (utf-8)
@@ -1426,7 +1426,7 @@ impl Session {
                                     self.cursor,
                                     self.cursor + 1,
                                 ).simple_error(),
-                                ..Error::default()
+                                note: None,
                             });
                         },
                     }
@@ -1440,7 +1440,7 @@ impl Session {
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 // etc error (probably multi-character literal)
@@ -1452,7 +1452,7 @@ impl Session {
                             self.token_start,
                             self.token_start + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 (None, _, _, _, _) => {
@@ -1463,7 +1463,7 @@ impl Session {
                             self.token_start,
                             self.token_start + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
             },
@@ -1503,7 +1503,7 @@ impl Session {
                             self.cursor,
                             self.cursor + 1,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
                 _ => {
@@ -1544,7 +1544,7 @@ impl Session {
                                                 self.token_start,
                                                 self.token_start + 1,
                                             ).simple_error(),
-                                            ..Error::default()
+                                            note: None,
                                         });
                                     },
                                 }
@@ -1659,7 +1659,7 @@ impl Session {
                                 self.cursor,
                                 self.cursor + 1,
                             ).simple_error(),
-                            ..Error::default()
+                            note: None,
                         });
                     },
                 },
@@ -1803,7 +1803,7 @@ impl Session {
                             expected: ErrorToken::Declaration,
                         },
                         spans: Span::eof(self.file).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
             },
@@ -1825,7 +1825,7 @@ impl Session {
                             self.token_start,
                             self.token_start + 2,
                         ).simple_error(),
-                        ..Error::default()
+                        note: None,
                     });
                 },
             },

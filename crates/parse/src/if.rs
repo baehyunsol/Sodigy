@@ -53,7 +53,7 @@ impl<'t> Tokens<'t> {
                         got: (&t1.kind).into(),
                     },
                     spans: t1.span.simple_error(),
-                    ..Error::default()
+                    note: None,
                 }]);
             },
             (None, _) => {
@@ -102,7 +102,7 @@ impl<'t> Tokens<'t> {
                         got: (&t2.kind).into(),
                     },
                     spans: t2.span.simple_error(),
-                    ..Error::default()
+                    note: None,
                 }]);
             },
             (
@@ -129,7 +129,7 @@ impl<'t> Tokens<'t> {
                             note: Some(String::from("This `if` expression doesn't have a matching `else` expression.")),
                         },
                     ],
-                    ..Error::default()
+                    note: None,
                 }]);
             },
             (None, _) => {

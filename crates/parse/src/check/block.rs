@@ -77,7 +77,7 @@ impl Block {
                 errors.push(Error {
                     kind: ErrorKind::CannotDeclareInlineModule,
                     spans: module.keyword_span.simple_error(),
-                    ..Error::default()
+                    note: None,
                 });
             }
 

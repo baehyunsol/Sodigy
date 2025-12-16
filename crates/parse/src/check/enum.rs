@@ -54,7 +54,7 @@ impl Enum {
                             note: None,
                         }
                     ).collect(),
-                    ..Error::default()
+                    note: None,
                 });
             }
         }

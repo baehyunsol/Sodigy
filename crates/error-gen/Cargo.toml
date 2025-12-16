@@ -3,5 +3,8 @@ name = "sodigy-error-gen"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+sodigy-fs-api = { version = "0.1.0", path = "../fs-api" }
+
 [lib]
 proc-macro = true

@@ -42,7 +42,7 @@ pub(crate) fn check_call_args(args: &[CallArg], session: &Session) -> Result<(),
                         note: Some(String::from("We have a keyword argument here.")),
                     },
                 ],
-                ..Error::default()
+                note: None,
             });
         }
 
