@@ -1,3 +1,17 @@
+# 123. ErrorKind가 안 떠올라서 막혀있는 상황들
+
+1. inter-hir: `#[impl(std.op.add)] fn add_int()`
+  - `std.op.add`가 `#[poly]`가 아닌 경우
+  - `std.op.add` 자리에 다른 expr이 들어있는 경우
+2. inter-hir: `type x<T> = _; use x.y.z as w;`
+  - `x.y.z`에서 `y`에 밑줄치고 에러 날려야하는데 뭐라고 할지 생각이 안남...
+3. mir: struct init에서 struct 자리에 ident 말고 다른게 들어있을 때
+4. mir-type: `#[impl(std.op.add)] fn add_int()`
+  - `std.op.add`의 type infer가 덜됐을 경우
+  - `add_int`의 type infer가 덜됐을 경우
+  - `std.op.add`와 `add_int`의 parameter 개수가 다른 경우
+  - `std.op.add`와 `add_int`를 맞춰봤는데 type이 안 맞는 경우
+
 # 122. Very long files
 
 Bottlenecks: 1) lexer has to load the entire `Vec<u8>` of a file 2) parser/hir has to load the entire AST of a file 3) mir has to load the entire project 4) an `InternedString` can intern at most 2 billion bytes 5) the interpreter's memory allocator can allocate a block of at most 2 billion scalars.
@@ -25,6 +39,9 @@ Scenarios:
 생각해보니, heap이 쓰는 메모리가 32bit 영역을 넘어가면 런타임 에러를 던져야함 -> 지금은 이런 검사가 전혀 없음!!
 -> `Heap::expand()`가 하면 됨!
 
+추가로, string literal이 4GiB 넘어가면 compile error를 날려야겠네?
+하는 김에 decimal digit이 너무 길어도 warning 날리자
+
 # 121. Pipeline operator
 
 ```
@@ -51,7 +68,8 @@ a() |> 1 + b($) + (c() |> d($)) |> e($);
   - 그런 다음에 `Pipeline(Vec<Expr>)`로 만들어버리자!!
 3. unused name은 언제 잡을까?
   - hir에서 잡는 것보다는 parser가 dedicated error variant 날리는게 나을 듯?
-  - unused인데 뒷부분에 identifier 하나만 덩그러니 있으면 error note에다가 "perhaps you mean f()?"라고 하자!!
+  - unused인데 뒷부분에 identifier 하나만 덩그러니 있으면 error note에다가 "perhaps you mean f($)?"라고 하자!!
+  - 이건 warning 날리지말고 error 날려버리자!!
 
 # 119. idea for testing the type-solver
 
