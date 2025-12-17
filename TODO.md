@@ -1,3 +1,45 @@
+# 125. Multiprocessing
+
+1. 내가 rust로 맨날 하는 single-master-multi-worker 구조의 multiprocessing
+2. 어차피 내 언어니까 내가 하고싶은대로만 할 거임!
+3. msg가 2종류만 있음: msg-from-worker & msg-to-worker
+4. master는 모든 worker와 연결돼 있고, 각 worker는 master와만 연결돼 있음. 연결은 channel로 돼 있고, channel은 worker-to-master queue와 master-to-worker queue로 이뤄져있음
+5. sender는 clone이 가능함, 근데 나는 clone 안하고 쓰는 중...ㅋㅋㅋ
+6. 보통은 worker는 sleep-until-receive로 짜고 main은 polling + own job으로 짬
+
+---
+
+1. sodigy에서 구현
+2. any process can spawn a worker.
+  - TODO: does a worker run in a thread or a process? -> let's just use processes!
+3. a worker is just a function that looks like `fn worker(state: State, message: MessageFromMaster) -> (State, MessageToMaster)`
+  - a worker sleeps until it receives a message
+  - when a message is sent, the function is called with the state, and the response is sent back to the master
+  - so, worker doesn't have an explicit event loop!
+  - it can do impure things... right?
+  - if a worker `exit`s or `panic`s, the channel is closed
+  - if the channel is dropped, the worker is killed
+4. there are special functions for the master process
+  - `channel.recv() -> RecvResult<MessageToMaster>`
+  - `channel.try_recv() -> TryRecvResult<MessageToMaster>`
+  - `channel.send(message: MessageFromMaster)`
+  - `channel.kill()`
+  - `channel.is_healthy() -> Bool`
+5. How about connecting multiple workers to a channel?
+
+worker는 괜찮은 design같은데, master가 별로 안 좋아보임. `channel.recv()` 계열의 함수들이 functional programming이랑 궁합이 안 맞을 거 같음...
+
+---
+
+지금까지는 multithreading for IO-bound, multiprocessing for compute-bound인 줄 알았는데 그게 아니었음...
+
+1. 대부분의 상황에서는 multithreading이 더 좋음. 어차피 different core에서 돌릴 수 있고, 훨씬 light weight거든
+2. Python은 GIL 때문에 어쩔 수 없이 multiprocessing을 하는 거였음...
+3. multiprocessing의 그나마 장점: 한 process가 죽어도 다른 process에는 영향이 없음!
+4. BEAM도 OS-level process를 쓰는게 아니고 VM-level process를 쓴대
+  - VM 안에 scheduler가 있대
+  - 함수 호출할 때마다 counter를 1씩 감소시키고 counter가 4000만큼 감소되면 다른 process로 넘어간대
+
 # 124. very long underline
 
 1. horizontally long: it can already handle horizontally long underlines!
