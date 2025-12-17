@@ -186,9 +186,9 @@ impl RenderTypeError for MirSession {
                             span,
                             auxiliary: true,
                             note: Some(format!(
-                                "This value has type `{expected_type}`{}.",
+                                "The value should have type `{expected_type}`{}.",
                                 if let ErrorContext::VerifyTypeAnnotation = context {
-                                    ", says this type annotation"
+                                    ", according to this type annotation"
                                 } else {
                                     ""
                                 },

@@ -1,16 +1,8 @@
-# 123. ErrorKind가 안 떠올라서 막혀있는 상황들
+# 124. very long underline
 
-1. inter-hir: `#[impl(std.op.add)] fn add_int()`
-  - `std.op.add`가 `#[poly]`가 아닌 경우
-  - `std.op.add` 자리에 다른 expr이 들어있는 경우
-2. inter-hir: `type x<T> = _; use x.y.z as w;`
-  - `x.y.z`에서 `y`에 밑줄치고 에러 날려야하는데 뭐라고 할지 생각이 안남...
-3. mir: struct init에서 struct 자리에 ident 말고 다른게 들어있을 때
-4. mir-type: `#[impl(std.op.add)] fn add_int()`
-  - `std.op.add`의 type infer가 덜됐을 경우
-  - `add_int`의 type infer가 덜됐을 경우
-  - `std.op.add`와 `add_int`의 parameter 개수가 다른 경우
-  - `std.op.add`와 `add_int`를 맞춰봤는데 type이 안 맞는 경우
+1. horizontally long: it can already handle horizontally long underlines!
+2. vertically long (e.g. very long string literal is underlined)
+  - If more than 7 consecutive lines are 1) underlined and 2) have no notes, it only shows the first 3 and the last 3 lines.
 
 # 122. Very long files
 
@@ -243,44 +235,6 @@ destructure를 *안* 하면 문제가
 
 이거랑 별개로, let destructure에도 type annotation 붙일 수 있게 하고 싶음... rust에서는 `let (x, y): (u32, u32) = foo();`처럼 함.
 
-# 103. `ast::FullPattern::check()`
-
-1. `CannotAnnotateType`
-2. `NameCollision` -> same name is bound multiple times
-3. `RedundantNameBinding` -> `a @ b`
-4. `InclusiveRangeWithNoEnd`
-5. `AstPatternTypeError`
-  - `1..2..(3..4)`, `1..(2 | 3)`, `1..(2 ++ 3)`
-    - 이건 어쨌든 ast에서 잡아야함. 별개의 ErrorKind를 만들까?
-    - 생각해보니까 `1..(2 ++ 3)`은 나중에도 잡을 수 있는 거 아님??
-    - 생각을 해보니까 `..`의 lhs/rhs로 올 수 있는 것들이 엄청나게 제한됨!!
-      - wildcard는 못 오고 (와도 의미가 없으니 그냥 거절해버리자)
-      - name binding도 못 오고
-      - ... 걍 literal밖에 못 올 거 같은데? 그나마 dollar-ident 정도까지는 될 듯?
-  - 잘 설계하면 전부 다 나중에 잡을 수 있는 거 아님??
-  - `1..'a'`, `[] ++ 'a'`, `(1, 'a')`
-    - 이런 건 전부 다 나중에 잡을 수 있음!!
-6. `DifferentNameBindingsInOrPattern`
-
-# 102. const expr in patterns
-
-1. Parser는 arbitrary infix op를 처리 가능. error는 나중에 날릴 거임.
-  - infix-op의 경우, `-`만 처리 -> 이거는 literal처럼 취급할 거임
-  - `ast::Pattern::Concat`을 `ast::Pattern::InfixOp`로 바꾸면 됨.
-2. 단, range는 여전히 지금처럼 처리. or도 여전히 지금처럼 처리 (이건 infix-op가 아님!).
-3. 실제로 지원되는 infix op는 제약이 심함
-  - lhs와 rhs가 모두 const인 경우 -> hir이나 mir에서 eval 해버리고 진행할 거임!
-    - name binding이 붙어있으면 어떻게 뺄 거임??
-  - lhs와 rhs 중 하나가 (ident | dollar ident)이고 나머지 하나가 literal인 경우
-  - op가 concat이고 lhs와 rhs가 모두 list인 경우
-  - op가 concat이고 lhs와 rhs 중 하나가 list이고 나머지 하나가 (ident | dollar ident)인 경우
-
-# 101. code generator for error variants
-
-1. Let's use a procedural macro.
-2. A table with _ columns: variant name, level (error/warn), index
-3. It generates the enum definition, endec, and `ErrorLevel::from_error_kind`.
-
 # 100. `set!` and `map!`
 
 In order to use Sodigy as a config language, we need map and set!
@@ -323,35 +277,6 @@ for 문이 없으니까 `check`를 저런 식으로 호출하고 싶은 유혹�
   - 일단, 함수 진입할 때 log 찍는 decorator는 추가해야함!!
     - 근데 이것도 똑같은 문제 있는 거 아님?? 이것도 print처럼 쓸텐데 그럼 `echo`랑 뭐가 달라? 오히려 더 불편한 거 아님?? ㅋㅋㅋ ㅠㅠ
   - 그럼, 사람들이 `print`처럼 쓰면 문제가 뭐임??
-
-# 97. more on bytecodes
-
-1. `Const`를 어떤 식으로 저장?
-  - Integer
-    - `Const::Integer`를 할지 `Const::Compound`를 할지를 결정해야함
-    - 동일한 integer literal이 여러번 나올 확률이 높음. 그럼 interning을 해야함?
-  - Number
-    - 일반적인 sodigy-struct랑 동일하게 처리할지, Number를 위한 variant를 추가할지를 결정해야함
-    - number 구현을 바꾸는 compiler flag도 추가하고 싶음. 기본적으로는 ratio를 쓰지만 fixed point나 (software-implemented) floating point를 쓸 수도 있게...
-  - Byte/Char
-    - `Const::Byte`를 할지 `Const::Scalar`를 할지를 결정해야함
-  - String
-    - 일반적인 list랑 동일하게 처리할지, string을 위한 variant를 추가할지를 결정해야함
-    - string을 위한 특수 처리를 한다면, utf-32를 쓸지 utf-8을 쓸지도 결정해야함
-      - utf-8을 쓰면 runtime performance가 떨어지는 대신에 executable 크기가 작아짐
-      - 둘다 가능하게 만들고 compile option에 따라서 바꿔쓸까?
-    - 동일한 string literal이 여러번 나올 확률이 높음. 그럼 interning을 해야함?
-  - Span
-    - 일반적인 sodigy-struct랑 동일한 구조를 가졌으면 좋겠음... 아직 sodigy-struct의 구조가 확정이 안돼서 문제
-  - Boolean
-    - `Bool.True`는 항상 scalar 1이고, `Bool.False`는 항상 scalar 0이었으면 좋겠음...
-2. executable에 들어가야 하는 정보에는 뭐뭐가 있지?
-  - 각 func/assert/(top-level-)let의 bytecode
-  - 모든 label을 static하게 만들기 vs `Label::Func(Span)`으로 남겨두기
-    - 전자가 성능은 더 좋음. 차이 많이 날 듯?
-    - 후자가 더 코드가 깔끔함. 후자가 library化가 쉬움.
-  - entry point
-    - top-level assertion의 위치들, main 함수
 
 # 96. Defspan dependency graph in MIR level
 
@@ -858,6 +783,7 @@ new draft
 `x as T`, `x as? T`로 type conversion (not casting, which is reinterpretation of the same bit pattern and not coercion, which is implicit) 구현하자!! 둘다 poly로 구현하면 됨: `#[poly] fn convert<T, U>(v: T) -> U; #[poly] fn try_convert<T, U, E>(v: T) -> Result<U, E>;`
 
 1. 현재 문법으로는 poly 표현이 살짝 빡셈: `x as Int`를 `convert(x)`로 바꾸면 `Int`라는 정보가 사라짐... 결국에는 `convert.<Int>()`로 해야하는데... turbo-fish 문법이 아직 미완성 ㅠㅠ
+  - 아니지 바꿀 필요가 없지... 저 모양을 mir까지 그대로 갖고 갔다가 mir에서 poly-solver를 바로 호출하면 되지!
 2. `x as _`로 해도 됨?
   - 이러면 implicit type conversion 아님?
   - 생각해보니까 rust에서도 그냥 `x.into()`로만 쓰는 경우 많잖아...
@@ -888,8 +814,10 @@ How do you define purity?
 
 - some drafts
   - `1010xxxx`: 8 bit integer that is in range `160..=175`. The matched integer is in range `0..=15`
+    - `0x11` is ambiguous
   - `1010..xxxx`: an arbitrary size integer that starts with `1010`. It matches the last 4 bit of the integer.
-  - No... not this way. It's too confusing.
+    - No... not this way. It's too confusing.
+  - `#(1100xxxx0000yyyy)`: 16 bit integer that looks like the pattern. The matched integers (x, y) are both in range `0..=15`
 
 # 55. `r#keyword` -> implement this in lexer
 
@@ -1319,6 +1247,7 @@ I found that rustc also has an issue. I opend it hahaha: [issue](https://github.
 2. `a[2..10]`은 slice로 할 거잖아, 그럼 `a[2..-1]`도 돼?
   - 근데 `2..-1`은 그자체로 runtime error 아냐? 아닌가...
   - Rust에서 `.get(10..2)`로 하니까 `None` 나옴. 즉, `10..2` 자체는 문제가 없음!
+  - 생각해보니까 python에서 `a[2:-1]`같은 거 많이 쓰잖아? 여기서도 해야겠네!!
 
 # 8. Linear type system
 
