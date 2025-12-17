@@ -41,7 +41,7 @@ impl TryFrom<Punct> for PrefixOp {
             Punct::Leq | Punct::Neq | Punct::Geq |
             Punct::Concat | Punct::Append | Punct::Prepend |
             Punct::Arrow | Punct::DotDot | Punct::DotDotEq |
-            Punct::ReturnType => Err(()),
+            Punct::ReturnType | Punct::Pipeline => Err(()),
         }
     }
 }

@@ -40,6 +40,8 @@ pub struct Session {
     pub is_in_debug_context: bool,
     pub is_std: bool,
 
+    pub nested_pipeline_depth: usize,
+
     // Top-level declarations are stored here.
     // Also, many inline declarations are stored here (so that inline blocks get simpler).
     pub lets: Vec<Let>,
@@ -97,6 +99,7 @@ impl Session {
             func_default_values: vec![],
             is_in_debug_context: false,
             is_std: parse_session.is_std,
+            nested_pipeline_depth: 0,
             lets: vec![],
             funcs: vec![],
             structs: vec![],

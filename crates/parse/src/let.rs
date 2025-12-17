@@ -12,6 +12,9 @@ pub struct Let {
     pub r#type: Option<Type>,
     pub value: Expr,
     pub attribute: Attribute,
+
+    // Hir will lower a pipeline to a block.
+    pub from_pipeline: bool,
 }
 
 impl<'t> Tokens<'t> {
@@ -50,6 +53,7 @@ impl<'t> Tokens<'t> {
             r#type,
             value,
             attribute: Attribute::new(),
+            from_pipeline: false,
         })
     }
 

@@ -69,6 +69,7 @@ impl Endec for Session {
                 func_default_values: vec![],
                 attribute_rule_cache: HashMap::new(),
                 is_in_debug_context: false,
+                nested_pipeline_depth: 0,
                 is_std,
                 lets,
                 funcs,

@@ -107,6 +107,16 @@ pub enum Expr {
         op_span: Span,
         lhs: Box<Expr>,
     },
+
+    // `x |> $ + 1` will become
+    // `Pipeline { values: [Id(x), Add(PipelineData, Num(1))], spans: [span_of_the_first_op] }`
+
+    // `pipe_spans[i]` is the span of `|>` after `values[i]`.
+    Pipeline {
+        values: Vec<Expr>,
+        pipe_spans: Vec<Span>,
+    },
+    PipelineData(Span),  // `$`
 }
 
 impl Expr {
@@ -118,7 +128,8 @@ impl Expr {
             Expr::String { span, .. } |
             Expr::Char { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
-            _ => todo!(),
+            Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
+            _ => panic!("TODO: {self:?}"),
         }
     }
 
@@ -200,6 +211,11 @@ impl<'t> Tokens<'t> {
 
     fn pratt_parse(&mut self, min_bp: u32) -> Result<Expr, Vec<Error>> {
         let mut lhs = match self.peek() {
+            Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }) => {
+                let span = *span;
+                self.cursor += 1;
+                Expr::PipelineData(span)
+            },
             Some(Token { kind: TokenKind::Punct(p), span }) => {
                 let punct = *p;
                 let punct_span = *span;
@@ -460,12 +476,38 @@ impl<'t> Tokens<'t> {
 
                             self.cursor += 1;
                             let rhs = self.pratt_parse(r_bp)?;
-                            lhs = Expr::InfixOp {
-                                op,
-                                op_span: punct_span,
-                                lhs: Box::new(lhs),
-                                rhs: Box::new(rhs),
-                            };
+
+                            if op == InfixOp::Pipeline {
+                                match rhs {
+                                    Expr::Pipeline { values, pipe_spans } => {
+                                        let mut new_values = vec![lhs];
+                                        let mut new_pipe_spans = vec![punct_span];
+                                        new_values.extend(values);
+                                        new_pipe_spans.extend(pipe_spans);
+
+                                        lhs = Expr::Pipeline {
+                                            values: new_values,
+                                            pipe_spans: new_pipe_spans,
+                                        };
+                                    },
+                                    rhs => {
+                                        lhs = Expr::Pipeline {
+                                            values: vec![lhs, rhs],
+                                            pipe_spans: vec![punct_span],
+                                        };
+                                    },
+                                }
+                            }
+
+                            else {
+                                lhs = Expr::InfixOp {
+                                    op,
+                                    op_span: punct_span,
+                                    lhs: Box::new(lhs),
+                                    rhs: Box::new(rhs),
+                                };
+                            }
+
                             continue;
                         },
                         Err(_) => {
@@ -703,6 +745,7 @@ fn infix_binding_power(op: InfixOp) -> (u32, u32) {
         InfixOp::Eq | InfixOp::Neq => (COMP_EQ, COMP_EQ + 1),
         InfixOp::LogicAnd => (LOGIC_AND, LOGIC_AND + 1),
         InfixOp::LogicOr => (LOGIC_OR, LOGIC_OR + 1),
+        InfixOp::Pipeline => (PIPELINE, PIPELINE + 1),
     }
 }
 
@@ -713,26 +756,27 @@ fn postfix_binding_power(op: PostfixOp) -> u32 {
     }
 }
 
-const PATH: u32 = 37;  // a.b
-const STRUCT_INIT: u32 = 35;  // foo { a: 1, b: 2 }
-const CALL: u32 = 33;  // foo()
-const INDEX: u32 = 31;  // a[3]
-const QUESTION: u32 = 29;  // a?
-const NEG: u32 = 27;  // -a
-const MUL: u32 = 25;  // a * b, a / b, a % b
-const ADD: u32 = 23;  // a + b, a - b
-const SHIFT: u32 = 21;  // a << b, a >> b
-const BIT_AND: u32 = 19;  // a & b
-const XOR: u32 = 17;  // a ^ b
-const BIT_OR: u32 = 15;  // a | b
+const PATH: u32 = 39;  // a.b
+const STRUCT_INIT: u32 = 37;  // foo { a: 1, b: 2 }
+const CALL: u32 = 35;  // foo()
+const INDEX: u32 = 33;  // a[3]
+const QUESTION: u32 = 31;  // a?
+const NEG: u32 = 29;  // -a
+const MUL: u32 = 27;  // a * b, a / b, a % b
+const ADD: u32 = 25;  // a + b, a - b
+const SHIFT: u32 = 23;  // a << b, a >> b
+const BIT_AND: u32 = 21;  // a & b
+const XOR: u32 = 19;  // a ^ b
+const BIT_OR: u32 = 17;  // a | b
 
 // TODO: it has to be right associative...
-const APPEND: u32 = 13; const PREPEND: u32 = 13;
+const APPEND: u32 = 15; const PREPEND: u32 = 15;
 
 // RANGE: a..b, a..=b, a.., ..a
-const CONCAT: u32 = 11; const RANGE: u32 = 11;
-const COMP: u32 = 9;  // a < b, a > b, a <= b, a >= b
-const COMP_EQ: u32 = 7;  // a == b, a != b
-const MODIFY: u32 = 5;  // p `age 32
-const LOGIC_AND: u32 = 3;  // a && b
-const LOGIC_OR: u32 = 1;  // a || b
+const CONCAT: u32 = 13; const RANGE: u32 = 13;
+const COMP: u32 = 11;  // a < b, a > b, a <= b, a >= b
+const COMP_EQ: u32 = 9;  // a == b, a != b
+const MODIFY: u32 = 7;  // p `age 32
+const LOGIC_AND: u32 = 5;  // a && b
+const LOGIC_OR: u32 = 3;  // a || b
+const PIPELINE: u32 = 1;  // x |> $ + 1

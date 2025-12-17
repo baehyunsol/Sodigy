@@ -260,6 +260,43 @@ let y = 100;
 assert y == 100;
 ```
 
+## Pipelines
+
+Sodigy has a pipeline operator (`|>`), which allows you to call a series of functions. The result of lhs is passed to rhs. Unlike gleam or bash, you have to explicitly pass the result with `$` sign.
+
+```sodigy
+fn add1(x) = x + 1;
+
+// `$` is the result of the left hand side of `|>`.
+// `1 |> add1 |> add1` is a syntax error.
+let three = 1 |> add1($) |> add1($);
+assert three == 3;
+```
+
+You must pass the result to the right hand side. If you don't, that's a syntax error.
+
+```sodigy, compile_error
+// The value in the left hand side (100) is not used by anyone. It's a syntax error.
+let x = 100 |> 200;
+```
+
+You can nest pipelines. In a nested pipeline, `$` references the closest (inner-most) pipeline.
+
+```sodigy
+fn add1(x) = x + 1;
+
+let x = 1
+    |> add1($)  // `$` refers to 1
+
+    // the first `$` refers to `add1($)` in the previous line, and
+    // the second `$` refers to `$ * 2` in this line.
+    |> add1($ * 2 |> add1($));
+
+assert x == 6;
+```
+
+You can even use piped values in patterns (TODO: document).
+
 ## Pattern Matchings
 
 Sodigy has a very flexible and expressive pattern matching system. The syntax resembles that of Rust.

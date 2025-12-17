@@ -43,7 +43,7 @@ impl TryFrom<Punct> for PostfixOp {
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |
             Punct::Concat | Punct::Append | Punct::Prepend |
-            Punct::Arrow | Punct::ReturnType => Err(()),
+            Punct::Arrow | Punct::ReturnType | Punct::Pipeline => Err(()),
         }
     }
 }

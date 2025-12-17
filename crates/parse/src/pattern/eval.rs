@@ -167,7 +167,7 @@ fn get_const_pattern_type(pattern: &Pattern) -> Result<ConstPatternType, Error> 
     else {
         match &pattern.kind {
             PatternKind::Ident { .. } => Ok(ConstPatternType::Ident),
-            PatternKind::DollarIdent { .. } => Ok(ConstPatternType::DollarIdent),
+            PatternKind::DollarIdent { .. } | PatternKind::PipelineData(_) => Ok(ConstPatternType::DollarIdent),
             PatternKind::Number { n, .. } => if n.is_integer {
                 Ok(ConstPatternType::Int(n.value.clone()))
             } else {

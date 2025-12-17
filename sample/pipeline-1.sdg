@@ -1,0 +1,22 @@
+assert add3(10) == 13;
+fn add3(n: Int) = n |> $ + 1 |> $ + 1 |> $ + 1;
+
+fn mul2(n: Int) -> Int = n * 2;
+
+// n * 4 + 9
+fn complex_pipeline(n: Int) = mul2(n) |> add3($) |> mul2($) |> add3($);
+
+assert complex_pipeline(10) == 49;
+assert complex_pipeline(100) == 409;
+
+// n * 2 + 14
+fn more_complex_pipeline(n: Int) = add3(n) |> $ + (1 |> mul2($) |> mul2($)) |> mul2($);
+
+assert more_complex_pipeline(100) == 214;
+assert more_complex_pipeline(1000) == 2014;
+
+// n * 8 + 42
+fn very_complex_pipeline(n: Int) = add3(n) |> ($ * 2 |> add3($) |> ($ * 2 |> add3($))) |> $ * 2;
+
+assert very_complex_pipeline(100) == 842;
+assert very_complex_pipeline(1000) == 8042;

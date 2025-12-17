@@ -4,11 +4,9 @@
 // After type-checking, we can lower `mir::Match` to `mir::MatchFsm`, which knows
 // how to destructure patterns. It also does exhaustiveness checking.
 
-use crate::{Callable, Expr, Session, Type, type_of};
-use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, Generic, StructField};
+use crate::{Expr, Session};
+use sodigy_hir as hir;
 use sodigy_span::Span;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Match {

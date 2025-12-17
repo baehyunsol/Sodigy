@@ -12,9 +12,12 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, Field};
-use sodigy_span::Span;
-use sodigy_string::{InternedString, intern_string};
+use sodigy_span::{RenderableSpan, Span};
+use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
+
+mod pipeline;
+use pipeline::replace_dollar;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
@@ -321,6 +324,108 @@ impl Expr {
                 op_span: *op_span,
                 lhs: Box::new(Expr::from_ast(lhs, session)?),
             }),
+            // `a() |> b($) + (c() |> d($)) |> e($);`
+            // ->
+            // `{ let $0 = a(); let $1 = b($0) + { let $$0 = c(); d($$0) }; e($1) }`
+            ast::Expr::Pipeline { values, pipe_spans } => {
+                session.nested_pipeline_depth += 1;
+                let mut values = values.to_vec();
+                let mut has_error = false;
+
+                for (i, value) in values.iter_mut().skip(1).enumerate() {
+                    let ident = intern_string(format!("{}{i}", "$".repeat(session.nested_pipeline_depth)).as_bytes(), &session.intermediate_dir).unwrap();
+                    let mut replaced_spans = vec![];
+                    let mut has_nested_pipeline = false;
+
+                    replace_dollar(
+                        value,
+                        ident,
+                        &mut replaced_spans,
+                        &mut has_nested_pipeline,
+                    );
+
+                    if replaced_spans.is_empty() {
+                        let value_note = match value {
+                            ast::Expr::Ident { id, .. } => format!(
+                                "Unlike gleam or bash, you have to explicitly pipe the value. Try `{}($)` instead of `{}`",
+                                String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
+                                String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
+                            ),
+                            ast::Expr::Path { lhs, field } => match try_render_dotted_name(lhs) {
+                                Some(name) => format!("Unlike gleam or bash, you have to explicitly use the value. Try `{name}($)` instead of `{name}`"),
+                                None => String::from("There's no `$` here."),
+                            },
+                            _ if has_nested_pipeline => String::from("I see a nested pipeline in this expression. `$` always captures the value of the closest (inner-most) pipeline. Perhaps you have to use a block expression to explicitly give names to values."),
+                            _ => String::from("There's no `$` here."),
+                        };
+
+                        session.errors.push(Error {
+                            kind: ErrorKind::DisconnectedPipeline,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: pipe_spans[i],
+                                    auxiliary: false,
+                                    note: Some(String::from("It pipes a value, but no one uses the value.")),
+                                },
+                                RenderableSpan {
+                                    span: value.error_span(),
+                                    auxiliary: true,
+                                    note: Some(value_note),
+                                },
+                            ],
+                            note: None,
+                        });
+                        has_error = true;
+                    }
+                }
+
+                let ast_block = ast::Block {
+                    group_span: Span::None,
+                    lets: values[..(values.len() - 1)].iter().enumerate().map(
+                        |(i, value)| ast::Let {
+                            keyword_span: Span::None,
+                            name: intern_string(format!("{}{i}", "$".repeat(session.nested_pipeline_depth)).as_bytes(), &session.intermediate_dir).unwrap(),
+                            name_span: pipe_spans[i],
+                            r#type: None,
+                            value: value.clone(),
+                            attribute: ast::Attribute::new(),
+                            from_pipeline: true,
+                        }
+                    ).collect(),
+                    funcs: vec![],
+                    structs: vec![],
+                    enums: vec![],
+                    asserts: vec![],
+                    aliases: vec![],
+                    uses: vec![],
+                    modules: vec![],
+                    value: Box::new(values.last().map(|v| v.clone())),
+                    attribute: None,
+                    from_pipeline: true,
+                };
+
+                let lowered_block = Block::from_ast(&ast_block, session, false /* is_top_level */);
+                session.nested_pipeline_depth -= 1;
+                let lowered_block = lowered_block?;
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Expr::Block(lowered_block))
+                }
+            },
+
+            // If it belongs to a pipeline, it must already be lowered to a `hir::Expr::Ident`.
+            ast::Expr::PipelineData(span) => {
+                session.errors.push(Error {
+                    kind: ErrorKind::DollarOutsidePipeline,
+                    spans: span.simple_error(),
+                    note: None,
+                });
+                Err(())
+            },
         }
     }
 
@@ -349,6 +454,10 @@ fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     // TODO: But I want some kinda unique identifier for debugging.
     intern_string(b"lambda_func", map_dir).unwrap()
+}
+
+fn try_render_dotted_name(expr: &ast::Expr) -> Option<String> {
+    todo!()
 }
 
 #[derive(Clone, Debug)]

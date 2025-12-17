@@ -119,6 +119,9 @@ impl Endec for NameKind {
             NameKind::PatternNameBind => {
                 buffer.push(11);
             },
+            NameKind::Pipeline => {
+                buffer.push(12);
+            },
         }
     }
 
@@ -139,7 +142,8 @@ impl Endec for NameKind {
             Some(9) => Ok((NameKind::FuncParam, cursor + 1)),
             Some(10) => Ok((NameKind::Generic, cursor + 1)),
             Some(11) => Ok((NameKind::PatternNameBind, cursor + 1)),
-            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(12) => Ok((NameKind::Pipeline, cursor + 1)),
+            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

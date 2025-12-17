@@ -514,6 +514,7 @@ impl Expr {
                                 NameKind::FuncParam => (false, Some("a function parameter")),
                                 NameKind::Generic => (false, Some("a generic parameter")),
                                 NameKind::PatternNameBind => (false, Some("a pattern name bind")),
+                                NameKind::Pipeline => (false, Some("a piped value")),
                             },
                             NameOrigin::FuncParam { .. } => (false, Some("a function parameter")),
                             NameOrigin::Generic { .. } => (false, Some("a generic parameter")),

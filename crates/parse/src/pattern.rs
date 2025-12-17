@@ -103,6 +103,9 @@ pub enum PatternKind {
         op_span: Span,
     },
     Wildcard(Span),
+
+    // In `x |> match 3 { $ => 100, _ => 200 }`, `$` captures `x`.
+    PipelineData(Span),
 }
 
 #[derive(Clone, Debug)]
@@ -146,6 +149,7 @@ impl PatternKind {
             PatternKind::Byte { span, .. } |
             PatternKind::Ident { span, .. } |
             PatternKind::Wildcard(span) |
+            PatternKind::PipelineData(span) |
             PatternKind::DollarIdent { span, .. } |
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
@@ -175,6 +179,7 @@ impl PatternKind {
             PatternKind::Byte { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
+            PatternKind::PipelineData(_) |
             PatternKind::DollarIdent { .. } => vec![],
             PatternKind::Ident { id, span } => vec![(*id, *span)],
             PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
@@ -268,16 +273,27 @@ impl<'t> Tokens<'t> {
                 }
             },
             (
-                Some(Token { kind: TokenKind::Punct(Punct::Dollar), .. }),
-                Some(Token { kind: TokenKind::Ident(id), span }),
+                Some(Token { kind: TokenKind::Punct(Punct::Dollar), span: dollar_span }),
+                Some(Token { kind: TokenKind::Ident(id), span: id_span }),
             ) => {
-                let (id, span) = (*id, *span);
+                let span = dollar_span.merge(*id_span);
+                let id = *id;
                 self.cursor += 2;
                 Pattern {
                     name: None,
                     name_span: None,
                     r#type: None,
-                    kind: PatternKind::Ident { id, span },
+                    kind: PatternKind::DollarIdent { id, span },
+                }
+            },
+            (Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }), _) => {
+                let span = *span;
+                self.cursor += 1;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    r#type: None,
+                    kind: PatternKind::PipelineData(span),
                 }
             },
             (

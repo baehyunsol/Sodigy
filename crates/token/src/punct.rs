@@ -34,6 +34,7 @@ pub enum Punct {
     DotDotEq,  // "..="
     Arrow,  // "=>"
     ReturnType,  // "->"
+    Pipeline,  // "|>"
 }
 
 impl Punct {

@@ -80,6 +80,7 @@ pub enum NameKind {
     FuncParam,
     Generic,
     PatternNameBind,
+    Pipeline,
 }
 
 // The compiler has to count how many times each name is used for various reasons.

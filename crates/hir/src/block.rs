@@ -206,7 +206,8 @@ impl Block {
         }
 
         // If it's top-level, mir will check unused names.
-        if !is_top_level {
+        // If it's from a pipeline, `Expr::from_ast` will throw an error if there's an unused name.
+        if !is_top_level && !ast_block.from_pipeline {
             session.warn_unused_names(&names);
         }
 

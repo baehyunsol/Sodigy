@@ -456,6 +456,7 @@ impl Session {
                         (b'=', b'>') => Some(Punct::Arrow),
                         (b'>', b'=') => Some(Punct::Geq),
                         (b'>', b'>') => Some(Punct::Shr),
+                        (b'|', b'>') => Some(Punct::Pipeline),
                         (b'|', b'|') => Some(Punct::OrOr),
                         _ => None,
                     };

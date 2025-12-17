@@ -43,6 +43,36 @@ impl Endec for Punct {
             Punct::QuestionMark => {
                 buffer.push(12);
             },
+            Punct::Factorial => {
+                buffer.push(13);
+            },
+            Punct::At => {
+                buffer.push(14);
+            },
+            Punct::Dollar => {
+                buffer.push(15);
+            },
+            Punct::And => {
+                buffer.push(16);
+            },
+            Punct::Or => {
+                buffer.push(17);
+            },
+            Punct::Xor => {
+                buffer.push(18);
+            },
+            Punct::AndAnd => {
+                buffer.push(19);
+            },
+            Punct::OrOr => {
+                buffer.push(20);
+            },
+            Punct::Shl => {
+                buffer.push(21);
+            },
+            Punct::Shr => {
+                buffer.push(22);
+            },
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -62,7 +92,17 @@ impl Endec for Punct {
             Some(10) => Ok((Punct::Comma, cursor + 1)),
             Some(11) => Ok((Punct::Dot, cursor + 1)),
             Some(12) => Ok((Punct::QuestionMark, cursor + 1)),
-            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(13) => Ok((Punct::Factorial, cursor + 1)),
+            Some(14) => Ok((Punct::At, cursor + 1)),
+            Some(15) => Ok((Punct::Dollar, cursor + 1)),
+            Some(16) => Ok((Punct::And, cursor + 1)),
+            Some(17) => Ok((Punct::Or, cursor + 1)),
+            Some(18) => Ok((Punct::Xor, cursor + 1)),
+            Some(19) => Ok((Punct::AndAnd, cursor + 1)),
+            Some(20) => Ok((Punct::OrOr, cursor + 1)),
+            Some(21) => Ok((Punct::Shl, cursor + 1)),
+            Some(22) => Ok((Punct::Shr, cursor + 1)),
+            Some(n @ 23..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

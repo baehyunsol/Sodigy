@@ -36,6 +36,9 @@ pub struct Block {
 
     // only top-level block has an attribute
     pub attribute: Option<Attribute>,
+
+    // Hir will lower a pipeline to a block.
+    pub from_pipeline: bool,
 }
 
 impl Block {
@@ -54,12 +57,23 @@ impl Block {
             uses: vec![],
             value: Box::new(None),
             attribute: None,
+            from_pipeline: false,
         }
     }
 
     // hir will use this function.
     pub fn iter_names(&self, is_top_level: bool) -> impl Iterator<Item = (InternedString, Span, NameKind)> {
-        self.lets.iter().map(move |l| (l.name, l.name_span, NameKind::Let { is_top_level })).chain(
+        self.lets.iter().map(
+            move |l| (
+                l.name,
+                l.name_span,
+                if l.from_pipeline {
+                    NameKind::Pipeline
+                } else {
+                    NameKind::Let { is_top_level }
+                },
+            )
+        ).chain(
             self.funcs.iter().map(|f| (f.name, f.name_span, NameKind::Func))
         ).chain(
             self.structs.iter().map(|s| (s.name, s.name_span, NameKind::Struct))
@@ -410,6 +424,7 @@ impl<'t> Tokens<'t> {
                 uses,
                 value: Box::new(value),
                 attribute,
+                from_pipeline: false,
             })
         }
 

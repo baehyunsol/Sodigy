@@ -215,6 +215,10 @@ impl Expr {
             },
             Expr::PrefixOp { rhs: operand, .. } |
             Expr::PostfixOp { lhs: operand, .. } => operand.check(session),
+
+            // Hir will lower a pipeline to a block, and hir will do the checks.
+            Expr::Pipeline { values, pipe_spans } => Ok(()),
+            Expr::PipelineData(_) => Ok(()),
         }
     }
 }

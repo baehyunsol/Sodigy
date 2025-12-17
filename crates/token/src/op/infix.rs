@@ -25,6 +25,7 @@ pub enum InfixOp {
     LogicAnd,
     LogicOr,
     Xor,
+    Pipeline,
 }
 
 impl InfixOp {
@@ -49,6 +50,9 @@ impl InfixOp {
             InfixOp::Prepend => "op.prepend",
             InfixOp::LogicAnd => "op.logic_and",
             InfixOp::LogicOr => "op.logic_or",
+
+            // It's not a "real" operator. HIR should desugar all the pipelines.
+            InfixOp::Pipeline => unreachable!(),
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -70,6 +74,9 @@ impl InfixOp {
             InfixOp::Geq => vec!["op.geq.generic.0"],
             InfixOp::Index => vec!["op.index.generic.0", "op.index.generic.1", "op.index.generic.2"],
             InfixOp::Concat => vec!["op.concat.generic.0", "op.concat.generic.1", "op.concat.generic.2"],
+
+            // It's not a "real" operator. HIR should desugar all the pipelines.
+            InfixOp::Pipeline => unreachable!(),
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -101,6 +108,7 @@ impl InfixOp {
             InfixOp::LogicAnd => "&&",
             InfixOp::LogicOr => "||",
             InfixOp::Xor => "^",
+            InfixOp::Pipeline => "|>",
         }
     }
 }
@@ -133,6 +141,7 @@ impl TryFrom<Punct> for InfixOp {
             Punct::Prepend => Ok(InfixOp::Prepend),
             Punct::DotDot => Ok(InfixOp::Range { inclusive: false }),
             Punct::DotDotEq => Ok(InfixOp::Range { inclusive: true }),
+            Punct::Pipeline => Ok(InfixOp::Pipeline),
             // Do not use a wildcard!
             Punct::Colon | Punct::Semicolon | Punct::Assign |
             Punct::Comma | Punct::Dot | Punct::At | Punct::Dollar |

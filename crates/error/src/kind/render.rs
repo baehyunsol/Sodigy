@@ -10,7 +10,7 @@ impl ErrorKind {
                 let names = names.iter().map(
                     |name| String::from_utf8_lossy(&unintern_string(*name, intermediate_dir).unwrap().unwrap_or(b"???".to_vec())).to_string()
                 ).collect::<Vec<_>>();
-                let names = comma_list_strs(&names, "`", "`", "and");
+                let names_joined = comma_list_strs(&names, "`", "`", "and");
                 let kind = match kind {
                     NameKind::Let { .. } => "value",
                     NameKind::Func => "function",
@@ -23,10 +23,11 @@ impl ErrorKind {
                     NameKind::FuncParam => "function parameter",
                     NameKind::Generic => "generic parameter",
                     NameKind::PatternNameBind => "name binding",
+                    NameKind::Pipeline => "piped value",
                 };
 
                 format!(
-                    "There {} {}unused {kind}{}: {names}",
+                    "There {} {}unused {kind}{}: {names_joined}",
                     if names.len() == 1 { "is" } else { "are" },
                     if names.len() == 1 { "an " } else { "" },
                     if names.len() == 1 { "" } else { "s" },

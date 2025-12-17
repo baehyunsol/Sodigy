@@ -108,6 +108,7 @@ impl PatternKind {
             PatternKind::Ident { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
+            PatternKind::PipelineData(_) |
             PatternKind::DollarIdent { .. } => Ok(()),
             PatternKind::Regex { .. } => todo!(),
             PatternKind::Struct { fields, .. } => {
