@@ -17,7 +17,7 @@ pub struct MatchArm {
     pub value: Expr,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_match_expr(&mut self) -> Result<Match, Vec<Error>> {
         let keyword = self.match_and_pop(TokenKind::Keyword(Keyword::Match))?;
         let scrutinee = self.parse_expr()?;
@@ -26,7 +26,7 @@ impl<'t> Tokens<'t> {
             kind: TokenKind::Group { tokens, .. },
             span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut arm_tokens = Tokens::new(tokens, span.end());
+        let mut arm_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
         let arms = arm_tokens.parse_match_arms()?;
 
         Ok(Match {

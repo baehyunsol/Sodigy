@@ -28,6 +28,7 @@ impl Solver {
                     match id.origin {
                         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                             // `False` in `Bool.False` has type `Bool`.
+                            // TODO: `None` in `Option.None` must have type `Option<T>`, not `Option`.
                             NameKind::EnumVariant { parent } => {
                                 return (Some(Type::Static { def_span: parent, span: Span::None }), false);
                             },

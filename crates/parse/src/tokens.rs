@@ -3,21 +3,25 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{Token, TokenKind};
 
-pub struct Tokens<'t> {
+pub struct Tokens<'t, 's> {
     pub(crate) tokens: &'t [Token],
     pub(crate) cursor: usize,
 
     // It's used by `Tokens::unexpected_end`.
     // It can be Span::Eof or the span of the closing delimitor of the group.
     pub(crate) span_end: Span,
+
+    // In `sodigy_parse`, `Tokens` act like a session.
+    pub (crate) intermediate_dir: &'s String,
 }
 
-impl<'t> Tokens<'t> {
-    pub fn new(tokens: &'t [Token], span_end: Span) -> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
+    pub fn new(tokens: &'t [Token], span_end: Span, intermediate_dir: &'s String) -> Tokens<'t, 's> {
         Tokens {
             tokens,
             cursor: 0,
             span_end,
+            intermediate_dir,
         }
     }
 
@@ -105,9 +109,5 @@ impl<'t> Tokens<'t> {
     /// It doesn't care about the cursor!
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
-    }
-
-    pub fn curr_span(&self) -> Option<Span> {
-        self.tokens.get(self.cursor).map(|t| t.span)
     }
 }

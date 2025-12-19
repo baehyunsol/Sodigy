@@ -2,11 +2,8 @@ use crate::{Tokens, Type};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
-
-mod eval;
-use eval::eval_const_pattern;
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -90,12 +87,21 @@ pub enum PatternKind {
         op_span: Span,
         is_inclusive: bool,
     },
+    // `[n] ++ ns`
+    Concat {
+        lhs: Box<Pattern>,
+        rhs: Box<Pattern>,
+        op_span: Span,
+    },
+    // It only cares about numeric operators.
     // `if let Some(x + 1) = foo() { x }`
+    // `if let Some($x + $y) = foo() { 0 }`
     InfixOp {
         op: InfixOp,
         lhs: Box<Pattern>,
         rhs: Box<Pattern>,
         op_span: Span,
+        kind: PatternValueKind,
     },
     Or {
         lhs: Box<Pattern>,
@@ -106,6 +112,19 @@ pub enum PatternKind {
 
     // In `x |> match 3 { $ => 100, _ => 200 }`, `$` captures `x`.
     PipelineData(Span),
+}
+
+// By 'constant', it means Number/Char/Byte.
+#[derive(Clone, Debug)]
+pub enum PatternValueKind {
+    // Every operand is a constant, like `Some((1 << 32) - 1)`.
+    Constant,
+
+    // Every operand is a constant or a dollar-ident, like `Some($x + $y + 1)`.
+    DollarIdent,
+
+    // Exactly one operand is an ident and the other operands are constants, like `Some(x + (1 << 32))`.
+    Ident,
 }
 
 #[derive(Clone, Debug)]
@@ -154,6 +173,7 @@ impl PatternKind {
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
+            PatternKind::Concat { op_span: span, .. } |
             PatternKind::Or { op_span: span, .. } |
             PatternKind::InfixOp { op_span: span, .. } => *span,
             PatternKind::Path(path) |
@@ -204,7 +224,8 @@ impl PatternKind {
             //       checking the compile error is not a responsibility of
             //       this function, and it just assumes that there's no error.
             PatternKind::Or { lhs, .. } => lhs.bound_names(),
-            PatternKind::InfixOp { lhs, rhs, .. } => vec![
+            PatternKind::InfixOp { lhs, rhs, .. } |
+            PatternKind::Concat { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),
             ].concat(),
@@ -222,7 +243,7 @@ pub(crate) enum ParsePatternContext {
     Group,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_pattern(&mut self, context: ParsePatternContext) -> Result<Pattern, Vec<Error>> {
         self.pratt_parse_pattern(context, 0)
     }
@@ -378,12 +399,11 @@ impl<'t> Tokens<'t> {
                             note: None,
                         }]);
                     },
-                    Delim::Parenthesis |
-                    Delim::Bracket => {},
+                    Delim::Parenthesis | Delim::Bracket => {},
                 }
 
                 let (group_span, delim) = (*span, *delim);
-                let mut tokens = Tokens::new(tokens, span.end());
+                let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                 let (mut elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
 
                 // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
@@ -558,6 +578,36 @@ impl<'t> Tokens<'t> {
                                         note: None,
                                     });
                                 },
+                                Pattern { kind: PatternKind::DollarIdent { id, span }, .. } => {
+                                    let (name, name_span) = name_binding.unwrap();
+                                    errors.push(Error {
+                                        kind: ErrorKind::CannotBindNameToAnotherName(name, *id),
+                                        spans: vec![
+                                            RenderableSpan {
+                                                span: name_span,
+                                                auxiliary: false,
+                                                note: None,
+                                            },
+                                            RenderableSpan {
+                                                span: *span,
+                                                auxiliary: false,
+                                                note: Some(format!(
+                                                    "It already has a name `{}`. You can just use this name.",
+                                                    String::from_utf8_lossy(&unintern_string(*id, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                )),
+                                            },
+                                        ],
+                                        note: None,
+                                    });
+                                },
+                                Pattern { kind: PatternKind::InfixOp { .. }, .. } => {
+                                    let (name, name_span) = name_binding.unwrap();
+                                    errors.push(Error {
+                                        kind: ErrorKind::CannotBindNameToInfixOp(name),
+                                        spans: name_span.simple_error(),
+                                        note: None,
+                                    });
+                                },
                                 _ => {
                                     let (name, name_span) = name_binding.unwrap();
                                     rhs.name = Some(name);
@@ -631,22 +681,77 @@ impl<'t> Tokens<'t> {
                                 },
                             }
                         },
+                        Punct::Concat => {
+                            let (l_bp, r_bp) = concat_binding_power();
+
+                            if l_bp < min_bp {
+                                break;
+                            }
+
+                            self.cursor += 1;
+                            let rhs = self.pratt_parse_pattern(context, r_bp)?;
+                            lhs = Pattern {
+                                name: None,
+                                name_span: None,
+                                r#type: None,
+                                kind: PatternKind::Concat {
+                                    lhs: Box::new(lhs),
+                                    rhs: Box::new(rhs),
+                                    op_span,
+                                },
+                            };
+                        },
+                        Punct::Eq => match context {
+                            ParsePatternContext::Let | ParsePatternContext::IfLet => {
+                                return Err(vec![Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected: ErrorToken::Punct(Punct::Assign),
+                                        got: ErrorToken::Punct(Punct::Eq),
+                                    },
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: op_span,
+                                            auxiliary: false,
+                                            note: Some(String::from("Use `=` instead of `==` here.")),
+                                        },
+                                    ],
+                                    note: None,
+                                }]);
+                            },
+                            _ => {
+                                // Likely to be an error, another parser will catch this.
+                                break;
+                            },
+                        },
+                        Punct::ReturnType => match context {
+                            ParsePatternContext::MatchArm => {
+                                return Err(vec![Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected: ErrorToken::Punct(Punct::Arrow),
+                                        got: ErrorToken::Punct(Punct::ReturnType),
+                                    },
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: op_span,
+                                            auxiliary: false,
+                                            note: Some(String::from("Use `=>` instead of `->` here.")),
+                                        },
+                                    ],
+                                    note: None,
+                                }]);
+                            },
+                            _ => {
+                                // Likely to be an error, another parser will catch this.
+                                break;
+                            },
+                        },
                         p => match InfixOp::try_from(p) {
                             Ok(op) => {
                                 let (l_bp, r_bp) = match infix_binding_power(op) {
                                     Some((l, r)) => (l, r),
                                     None => {
-                                        let expected_token = match context {
-                                            ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
-                                            ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
-                                            ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
-                                        };
-
                                         return Err(vec![Error {
-                                            kind: ErrorKind::UnexpectedToken {
-                                                expected: expected_token,
-                                                got: ErrorToken::Punct(p),
-                                            },
+                                            kind: ErrorKind::UnsupportedInfixOpInPattern(op),
                                             spans: op_span.simple_error(),
                                             note: None,
                                         }]);
@@ -659,12 +764,110 @@ impl<'t> Tokens<'t> {
 
                                 self.cursor += 1;
                                 let rhs = self.pratt_parse_pattern(context, r_bp)?;
-                                let kind = eval_const_pattern(op, lhs, rhs, op_span)?;
+                                let op_kind = match (&lhs.kind, &rhs.kind) {
+                                    (
+                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                    ) => PatternValueKind::Constant,
+                                    (
+                                        PatternKind::DollarIdent { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::DollarIdent, .. },
+                                        PatternKind::DollarIdent { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::DollarIdent, .. },
+                                    ) => PatternValueKind::DollarIdent,
+                                    (
+                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                    ) | (
+                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                    ) => {
+                                        let (aux_span, aux_name) = match (&lhs.kind, &rhs.kind) {
+                                            (PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }, _) => {
+                                                (lhs.error_span(), find_name_binding_in_const(&lhs.kind).unwrap())
+                                            },
+                                            (_, PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }) => {
+                                                (rhs.error_span(), find_name_binding_in_const(&rhs.kind).unwrap())
+                                            },
+                                            _ => unreachable!(),
+                                        };
+
+                                        // `let x + 1 = 100;` is okay.
+                                        // `let x * 2 = 100;` is not.
+                                        match op {
+                                            InfixOp::Add | InfixOp::Sub => {},
+                                            _ => {
+                                                return Err(vec![Error {
+                                                    kind: ErrorKind::CannotApplyInfixOpToBinding,
+                                                    spans: vec![
+                                                        RenderableSpan {
+                                                            span: op_span,
+                                                            auxiliary: false,
+                                                            note: Some(format!("`{}` is not allowed. Only `+` and `-` are allowed.", op.render_error())),
+                                                        },
+                                                        RenderableSpan {
+                                                            span: aux_span,
+                                                            auxiliary: true,
+                                                            note: Some(format!(
+                                                                "There's a name binding `{}`.",
+                                                        String::from_utf8_lossy(&unintern_string(aux_name, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                            )),
+                                                        },
+                                                    ],
+                                                    note: None,
+                                                }]);
+                                            },
+                                        }
+
+                                        PatternValueKind::Ident
+                                    },
+                                    (
+                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                    ) => {
+                                        let lhs_name_binding = find_name_binding_in_const(&lhs.kind).unwrap();
+                                        let rhs_name_binding = find_name_binding_in_const(&rhs.kind).unwrap();
+
+                                        return Err(vec![Error {
+                                            kind: ErrorKind::CannotApplyInfixOpToMultipleBindings,
+                                            spans: vec![
+                                                RenderableSpan {
+                                                    span: op_span,
+                                                    auxiliary: false,
+                                                    note: None,
+                                                },
+                                                RenderableSpan {
+                                                    span: lhs.error_span(),  // TODO: impl `error_span_wide`
+                                                    auxiliary: true,
+                                                    note: Some(format!(
+                                                        "There's a name binding `{}`.",
+                                                        String::from_utf8_lossy(&unintern_string(lhs_name_binding, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                    )),
+                                                },
+                                                RenderableSpan {
+                                                    span: rhs.error_span(),  // TODO: impl `error_span_wide()`
+                                                    auxiliary: true,
+                                                    note: Some(format!(
+                                                        "There's a name binding `{}`.",
+                                                        String::from_utf8_lossy(&unintern_string(rhs_name_binding, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                    )),
+                                                },
+                                            ],
+                                            note: None,
+                                        }]);
+                                    },
+                                    _ => todo!(),  // throw nice error message
+                                };
+
                                 lhs = Pattern {
                                     name: None,
                                     name_span: None,
                                     r#type: None,
-                                    kind,
+                                    kind: PatternKind::InfixOp {
+                                        op,
+                                        lhs: Box::new(lhs),
+                                        rhs: Box::new(rhs),
+                                        op_span,
+                                        kind: op_kind,
+                                    },
                                 };
                                 continue;
                             },
@@ -767,9 +970,12 @@ fn infix_binding_power(op: InfixOp) -> Option<(u32, u32)> {
         InfixOp::Mul | InfixOp::Div | InfixOp::Rem => Some((MUL, MUL + 1)),
         InfixOp::Add | InfixOp::Sub => Some((ADD, ADD + 1)),
         InfixOp::Shl | InfixOp::Shr => Some((SHIFT, SHIFT + 1)),
-        InfixOp::Concat => Some((CONCAT, CONCAT + 1)),
         _ => None,
     }
+}
+
+fn concat_binding_power() -> (u32, u32) {
+    (CONCAT, CONCAT + 1)
 }
 
 fn name_binding_binding_power() -> (u32, u32) {
@@ -791,3 +997,14 @@ const ADD: u32 = 23;  // a + b, a - b
 const SHIFT: u32 = 21;  // a << b, a >> b
 const CONCAT: u32 = 19;
 const OR: u32 = 17;
+
+fn find_name_binding_in_const(pattern: &PatternKind) -> Option<InternedString> {
+    match pattern {
+        PatternKind::Ident { id, .. } => Some(*id),
+        PatternKind::InfixOp { lhs, rhs, .. } => match find_name_binding_in_const(&lhs.kind) {
+            Some(id) => Some(id),
+            None => find_name_binding_in_const(&rhs.kind),
+        },
+        _ => None,
+    }
+}

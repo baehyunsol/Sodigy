@@ -218,6 +218,7 @@ fn replace_dollar_in_pattern(
                 }
             }
         },
+        ast::PatternKind::Concat { lhs, rhs, .. } |
         ast::PatternKind::InfixOp { lhs, rhs, .. } |
         ast::PatternKind::Or { lhs, rhs, .. } => {
             replace_dollar_in_pattern(

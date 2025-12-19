@@ -41,7 +41,7 @@ pub struct CallArg {
     pub arg: Expr,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     // `fn foo(x) = 3;`
     // `fn bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
@@ -63,7 +63,7 @@ impl<'t> Tokens<'t> {
             TokenKind::Group { tokens, .. } => tokens,
             _ => unreachable!(),
         };
-        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end());
+        let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), &self.intermediate_dir);
         let params = param_tokens.parse_func_params()?;
 
         let r#type = match self.peek() {

@@ -25,9 +25,9 @@ pub struct Error {
 impl Error {
     pub fn todo(id: u32, message: &str, span: Span) -> Error {
         Error {
-            kind: ErrorKind::Todo { id },
+            kind: ErrorKind::Todo { id, message: message.to_string() },
             spans: span.simple_error(),
-            note: Some(message.to_string()),
+            note: None,
         }
     }
 }

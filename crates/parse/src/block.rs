@@ -89,7 +89,7 @@ impl Block {
     }
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_block(
         &mut self,
 

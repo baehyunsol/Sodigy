@@ -1,0 +1,9 @@
+fn const_name_binding(x, y) = match (x, y) {
+    (a @ 0, _) | (_, a @ 1) => a,
+    _ => 100,
+};
+
+assert const_name_binding(0, 0) == 0;
+assert const_name_binding(0, 1) == 1;
+assert const_name_binding(1, 0) == 100;
+assert const_name_binding(1, 1) == 1;

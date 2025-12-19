@@ -19,7 +19,7 @@ pub struct Use {
     pub attribute: Attribute,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_use(&mut self) -> Result<Vec<Use>, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Use))?.span;
         let mut uses = self.parse_use_recurse(false)?;
@@ -67,7 +67,7 @@ impl<'t> Tokens<'t> {
                             },
                             // `use a.{`
                             Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
-                                let mut tokens = Tokens::new(tokens, span.end());
+                                let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                                 let mut inner = tokens.parse_use_recurse(true)?;
                                 self.cursor += 1;
 

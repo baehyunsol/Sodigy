@@ -153,7 +153,7 @@ impl Solver {
 
         for (type_var, id) in self.type_vars.iter() {
             match type_var {
-                Type::Var { def_span, .. } => match types.get(def_span) {
+                Type::Var { def_span, is_return } => match types.get(def_span) {
                     None | Some(Type::Var { .. } | Type::GenericInstance { .. }) => {
                         if self.pattern_name_bindings.contains(def_span) {
                             continue;
@@ -163,14 +163,51 @@ impl Solver {
                         self.errors.push(TypeError::CannotInferType {
                             id: *id,
                             span: *def_span,
+                            is_return: false,
                         });
                     },
                     Some(t) => {
                         let type_vars = t.get_type_vars();
 
                         if !type_vars.is_empty() {
-                            has_error = true;
-                            self.errors.push(TypeError::PartiallyInferedType { id: *id, span: *def_span, r#type: t.clone() });
+                            if *is_return {
+                                let Type::Func { r#return: return_type, .. } = t else { unreachable!() };
+                                let return_type = *return_type.clone();
+
+                                match return_type {
+                                    Type::Var { .. } | Type::GenericInstance { .. } => {
+                                        has_error = true;
+                                        self.errors.push(TypeError::CannotInferType {
+                                            id: *id,
+                                            span: *def_span,
+                                            is_return: true,
+                                        });
+                                    },
+                                    _ => {
+                                        let type_vars = return_type.get_type_vars();
+
+                                        if !type_vars.is_empty() {
+                                            has_error = true;
+                                            self.errors.push(TypeError::PartiallyInferedType {
+                                                id: *id,
+                                                span: *def_span,
+                                                r#type: return_type,
+                                                is_return: true,
+                                            });
+                                        }
+                                    },
+                                }
+                            }
+
+                            else {
+                                has_error = true;
+                                self.errors.push(TypeError::PartiallyInferedType {
+                                    id: *id,
+                                    span: *def_span,
+                                    r#type: t.clone(),
+                                    is_return: false,
+                                });
+                            }
                         }
                     },
                 },

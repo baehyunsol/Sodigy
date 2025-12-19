@@ -30,11 +30,17 @@ pub enum TypeError {
     CannotInferType {
         id: Option<InternedString>,
         span: Span,
+
+        // if `is_return`, `span` is a def_span of a function, and we're talking about the return type of the function.
+        is_return: bool,
     },
     PartiallyInferedType {
         id: Option<InternedString>,
         span: Span,
+
+        // if `is_return`, `r#type` is the return type of `id`.
         r#type: Type,
+        is_return: bool,
     },
     CannotInferGenericType {
         call: Span,
@@ -233,8 +239,8 @@ impl RenderTypeError for MirSession {
                 // 4. TODO: then what?
                 todo!()
             },
-            TypeError::CannotInferType { id, span } => Error {
-                kind: ErrorKind::CannotInferType { id: *id },
+            TypeError::CannotInferType { id, span, is_return } => Error {
+                kind: ErrorKind::CannotInferType { id: *id, is_return: *is_return },
                 spans: span.simple_error(),
                 note: None,
             },
@@ -242,8 +248,9 @@ impl RenderTypeError for MirSession {
                 id,
                 span,
                 r#type,
+                is_return,
             } => Error {
-                kind: ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type) },
+                kind: ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type), is_return: *is_return },
                 spans: span.simple_error(),
                 note: None,
             },

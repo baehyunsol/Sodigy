@@ -2,3 +2,6 @@ pub enum MyOption<T> = {
     Some(T),
     None,
 };
+
+// TODO: it's supposed to be a type error!!
+let x = MyOption.None;

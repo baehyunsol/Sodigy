@@ -1,11 +1,13 @@
-use crate::{Session, Type};
+use crate::{Expr, Session, Type, eval_const};
 use sodigy_error::{Error, ErrorKind};
-use sodigy_name_analysis::IdentWithOrigin;
+use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::InfixOp;
+
+mod from_expr;
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -21,7 +23,6 @@ pub enum PatternKind {
         id: InternedString,
         span: Span,
     },
-    DollarIdent(IdentWithOrigin),
     Number {
         n: InternedNumber,
         span: Span,
@@ -66,8 +67,7 @@ pub enum PatternKind {
         op_span: Span,
         is_inclusive: bool,
     },
-    InfixOp {
-        op: InfixOp,
+    Concat {
         lhs: Box<Pattern>,
         rhs: Box<Pattern>,
         op_span: Span,
@@ -81,7 +81,11 @@ pub enum PatternKind {
 }
 
 impl Pattern {
-    pub fn from_ast(ast_pattern: &ast::Pattern, session: &mut Session) -> Result<Pattern, ()> {
+    pub fn from_ast(
+        ast_pattern: &ast::Pattern,
+        session: &mut Session,
+        extra_guards: &mut Vec<(InternedString, Span, Expr)>,
+    ) -> Result<Pattern, ()> {
         let mut has_error = false;
         let r#type = match ast_pattern.r#type.as_ref().map(|r#type| Type::from_ast(r#type, session)) {
             Some(Ok(r#type)) => Some(r#type),
@@ -91,7 +95,7 @@ impl Pattern {
             },
             None => None,
         };
-        let kind = match PatternKind::from_ast(&ast_pattern.kind, session) {
+        let kind = match PatternKind::from_ast(&ast_pattern.kind, session, extra_guards) {
             Ok(kind) => Some(kind),
             Err(()) => {
                 has_error = true;
@@ -126,26 +130,46 @@ impl Pattern {
 }
 
 impl PatternKind {
-    pub fn from_ast(ast_pattern: &ast::PatternKind, session: &mut Session) -> Result<PatternKind, ()> {
+    pub fn from_ast(
+        ast_pattern: &ast::PatternKind,
+        session: &mut Session,
+        extra_guards: &mut Vec<(InternedString, Span, Expr)>,
+    ) -> Result<PatternKind, ()> {
         match ast_pattern {
             ast::PatternKind::Ident { id, span } => Ok(PatternKind::Ident { id: *id, span: *span }),
-            ast::PatternKind::DollarIdent { id, span } => match session.find_origin_and_count_usage(*id) {
-                Some((origin, def_span)) => {
-                    Ok(PatternKind::DollarIdent(IdentWithOrigin {
+            // `Some($x)` is lowered to `Some(tmp) if tmp == x`
+            ast::PatternKind::DollarIdent { id, span } => {
+                let ref_id = match session.find_origin_and_count_usage(*id) {
+                    Some((origin, def_span)) => IdentWithOrigin {
                         id: *id,
                         span: *span,
                         origin,
                         def_span,
-                    }))
-                },
-                None => {
-                    session.errors.push(Error {
-                        kind: ErrorKind::UndefinedName(*id),
-                        spans: span.simple_error(),
-                        note: None,
-                    });
-                    Err(())
-                },
+                    },
+                    None => {
+                        session.errors.push(Error {
+                            kind: ErrorKind::UndefinedName(*id),
+                            spans: span.simple_error(),
+                            note: None,
+                        });
+                        return Err(());
+                    },
+                };
+                let tmp_name = intern_string(b"$tmp", &session.intermediate_dir).unwrap();
+                let tmp_span = Span::None;  // TODO: impl derived span
+                let extra_guard = Expr::InfixOp {
+                    op: InfixOp::Eq,
+                    lhs: Box::new(Expr::Ident(IdentWithOrigin {
+                        id: tmp_name,
+                        span: tmp_span,
+                        origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
+                        def_span: Span::None,  // TODO: impl derived span
+                    })),
+                    rhs: Box::new(Expr::Ident(ref_id)),
+                    op_span: Span::None,  // TODO: impl derived span
+                };
+                extra_guards.push((tmp_name, tmp_span, extra_guard));
+                Ok(PatternKind::Ident { id: tmp_name, span: tmp_span })
             },
             ast::PatternKind::Number { n, span } => Ok(PatternKind::Number { n: n.clone(), span: *span }),
             ast::PatternKind::String { binary, s, span } => Ok(PatternKind::String { binary: *binary, s: *s, span: *span }),
@@ -166,7 +190,7 @@ impl PatternKind {
                 let mut elements = Vec::with_capacity(ast_elements.len());
 
                 for ast_element in ast_elements.iter() {
-                    match Pattern::from_ast(ast_element, session) {
+                    match Pattern::from_ast(ast_element, session, extra_guards) {
                         Ok(pattern) => {
                             elements.push(pattern);
                         },
@@ -189,8 +213,8 @@ impl PatternKind {
                 }
             },
             ast::PatternKind::Range { lhs, rhs, op_span, is_inclusive } => match (
-                lhs.as_ref().map(|lhs| Pattern::from_ast(lhs, session)),
-                rhs.as_ref().map(|rhs| Pattern::from_ast(rhs, session)),
+                lhs.as_ref().map(|lhs| Pattern::from_ast(lhs, session, extra_guards)),
+                rhs.as_ref().map(|rhs| Pattern::from_ast(rhs, session, extra_guards)),
             ) {
                 (Some(Err(())), _) | (_, Some(Err(()))) => Err(()),
                 (lhs, rhs) => Ok(PatternKind::Range {
@@ -200,21 +224,47 @@ impl PatternKind {
                     is_inclusive: *is_inclusive,
                 }),
             },
-            ast::PatternKind::InfixOp { op, lhs, rhs, op_span } => match (
-                Pattern::from_ast(lhs, session),
-                Pattern::from_ast(rhs, session),
-            ) {
-                (Err(()), _) | (_, Err(())) => Err(()),
-                (lhs, rhs) => Ok(PatternKind::InfixOp {
-                    op: *op,
-                    lhs: Box::new(lhs.unwrap()),
-                    rhs: Box::new(rhs.unwrap()),
-                    op_span: *op_span,
-                }),
+            ast::PatternKind::InfixOp { op, lhs, rhs, op_span, kind } => match kind {
+                ast::PatternValueKind::Constant | ast::PatternValueKind::DollarIdent => {
+                    let ast_expr = match ast::Expr::from_pattern_kind(ast_pattern) {
+                        Ok(expr) => expr,
+                        Err(e) => {
+                            session.errors.extend(e);
+                            return Err(());
+                        },
+                    };
+                    let expr = Expr::from_ast(&ast_expr, session)?;
+
+                    match kind {
+                        ast::PatternValueKind::Constant => {
+                            let e = eval_const(&expr, session)?;
+                            Ok(PatternKind::from_expr(&e, session)?)
+                        },
+                        ast::PatternValueKind::DollarIdent => {
+                            let tmp_name = intern_string(b"$tmp", &session.intermediate_dir).unwrap();
+                            let tmp_span = Span::None;  // TODO: impl derived span
+                            let extra_guard = Expr::InfixOp {
+                                op: InfixOp::Eq,
+                                lhs: Box::new(Expr::Ident(IdentWithOrigin {
+                                    id: tmp_name,
+                                    span: tmp_span,
+                                    origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
+                                    def_span: Span::None,  // TODO: impl derived span
+                                })),
+                                rhs: Box::new(expr),
+                                op_span: Span::None,  // TODO: impl derived span
+                            };
+                            extra_guards.push((tmp_name, tmp_span, extra_guard));
+                            Ok(PatternKind::Ident { id: tmp_name, span: tmp_span })
+                        },
+                        _ => unreachable!(),
+                    }
+                },
+                ast::PatternValueKind::Ident => todo!(),  // turn this into an Ident, and encode the offset somewhere
             },
             ast::PatternKind::Or { lhs, rhs, op_span } => match (
-                Pattern::from_ast(lhs, session),
-                Pattern::from_ast(rhs, session),
+                Pattern::from_ast(lhs, session, extra_guards),
+                Pattern::from_ast(rhs, session, extra_guards),
             ) {
                 (Err(()), _) | (_, Err(())) => Err(()),
                 (lhs, rhs) => Ok(PatternKind::Or {
@@ -236,8 +286,7 @@ impl PatternKind {
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } |
             PatternKind::Path(_) |
-            PatternKind::Wildcard(_) |
-            PatternKind::DollarIdent { .. } => vec![],
+            PatternKind::Wildcard(_) => vec![],
             PatternKind::Ident { id, span } => vec![(*id, *span)],
             PatternKind::TupleStruct { elements, .. } |
             PatternKind::Tuple { elements, .. } |

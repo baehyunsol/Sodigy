@@ -30,7 +30,7 @@ pub struct StructInitField {
     pub value: Expr,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_struct(&mut self) -> Result<Struct, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
@@ -54,7 +54,7 @@ impl<'t> Tokens<'t> {
             },
             span: struct_body_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end());
+        let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), &self.intermediate_dir);
         let fields = struct_body_tokens.parse_struct_fields()?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 

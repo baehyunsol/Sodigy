@@ -116,6 +116,12 @@
 //! }
 //! ```
 //!
+//! At the leaf node of each decision tree, there may be multiple arms. For example, in the last
+//! leaf of the above example, there are 3 arms: 4, 5 and 6.
+//! We check the arms from top to bottom (4 -> 5 -> 6). If an arm has no guard, the arm is
+//! matched, and the remaining arms are ignored. If an arm has a guard, the arm becomes another
+//! leaf node (guard + match), and it continues checking the other arms.
+//!
 //! ## Exhaustiveness and unreachable arms.
 //!
 //! 1. If an arm does not appear in the state machine, the arm is unreachable.
@@ -158,7 +164,7 @@ use sodigy_mir::{
     Type,
     type_of,
 };
-use sodigy_number::InternedNumber;
+use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -413,12 +419,14 @@ fn lower_match(
         lang_items,
     ).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
+    // We use index (`usize`) of each arm as an id of the arm.
+    let arms: Vec<(usize, &MatchArm)> = match_ast.arms.iter().enumerate().collect();
     let matrix = get_matrix(&scrutinee_type, lang_items);
-    let arms: Vec<&MatchArm> = match_ast.arms.iter().collect();
 
-    for arm in match_ast.arms.iter() {
-        println!("{arm:?}");
-    }
+    build_state_machine(
+        &matrix,
+        &arms,
+    )?;
 
     todo!()
 }
@@ -519,18 +527,24 @@ fn get_matrix(
     }
 }
 
-// pattern: `(a @ 0..20, None)`, field: `._0.constructor`
-// -> (Range { Int, 0..20 }, Some((a, def_span of a)))
+#[derive(Clone, Debug)]
+pub struct DestructuredPattern {
+    pub constructor: Constructor,
+    pub name_binding: Option<(InternedString, Span)>,
+    pub name_binding_offset: Option<InternedNumberValue>,
+}
+
+// pattern: `(a @ 0..20, ())`, field: `._0.constructor`
+// -> constructor: Range { Int, 0..20 }, name_binding: Some((a, def_span of a))
 //
-// pattern: `(a @ 0..20, None)`, field: `.constructor`
-// -> (Tuple(2), None)
+// pattern: `(a @ 0..20, ())`, field: `.constructor`
+// -> constructor: Tuple(2), name_binding: None
 //
-// TODO: how about dollar-identifiers?
-// TODO: how about infix-ops?
-fn get_constructor_of_pattern(
+// pattern: `($x, ())`, field: `._0.constructor`
+fn read_field_of_pattern(
     pattern: &Pattern,
     field: &[Field],
-) -> Result<(Constructor, Option<(InternedString, Span)>), PatternAnalysisError> {
+) -> Result<DestructuredPattern, PatternAnalysisError> {
     assert!(!field.is_empty(), "Internal Compiler Error");
     let name_binding = match (pattern.name, pattern.name_span) {
         (Some(name), Some(name_span)) => Some((name, name_span)),
@@ -539,31 +553,78 @@ fn get_constructor_of_pattern(
 
     match &field[0] {
         Field::Constructor => match &pattern.kind {
-            PatternKind::Ident { id, span } => Ok((
-                Constructor::Wildcard,
-                Some((*id, *span)),
-            )),
+            PatternKind::Ident { id, span } => Ok(DestructuredPattern {
+                constructor: Constructor::Wildcard,
+                name_binding: Some((*id, *span)),
+                name_binding_offset: None,
+            }),
+            PatternKind::Number { n, .. } => todo!(),
+            PatternKind::String { binary, s, .. } => todo!(),
+            PatternKind::Char { ch, .. } => todo!(),
+            PatternKind::Byte { b, .. } => todo!(),
+            PatternKind::Tuple { elements, dot_dot_span, .. } => {
+                if let Some(_) = dot_dot_span {
+                    // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
+                    // we have to desugar this at some point
+                    todo!()
+                }
+
+                else {
+                    Ok(DestructuredPattern {
+                        constructor: Constructor::Tuple(elements.len()),
+                        name_binding,
+                        name_binding_offset: None,
+                    })
+                }
+            },
+            PatternKind::Wildcard(_) => Ok(DestructuredPattern {
+                constructor: Constructor::Wildcard,
+                name_binding,
+                name_binding_offset: None,
+            }),
             _ => todo!(),
         },
         _ => todo!(),
     }
 }
 
-/*
-TODO
-
-struct StateMachine {
+pub struct StateMachine {
     value: Vec<Field>,
     transitions: Vec<Transition>,
 }
 
-struct Transition {
+pub struct Transition {
     condition: Constructor,
-    guard: Option<Expr>,
     state: StateMachineOrArm,
 
     // If the condition is met, the value is bound to the name.
     // It's bound AFTER `value` is evaluated and BEFORE the transition.
-    bindings: Vec<(Arm, Span)>,  // (arm_index, def_span of name)
+    bindings: Vec<(usize, Span, Option<InternedNumberValue>)>,  // (arm_index, def_span of name, name binding offset)
 }
-*/
+
+pub enum StateMachineOrArm {
+    StateMachine(StateMachine),
+    Arm(usize),
+}
+
+fn build_state_machine(
+    matrix: &[(Vec<Field>, Constructor)],
+    arms: &[(usize, &MatchArm)],
+) -> Result<StateMachine, ()> {
+    let mut destructured_patterns = Vec::with_capacity(arms.len());
+
+    for (id, arm) in arms.iter() {
+        match read_field_of_pattern(
+            &arm.pattern,
+            &matrix[0].0,
+        ) {
+            Ok(pattern) => {
+                destructured_patterns.push(pattern);
+            },
+            Err(e) => todo!(),  // who handles this?
+        }
+    }
+
+    println!("{destructured_patterns:?}");
+    todo!()
+}

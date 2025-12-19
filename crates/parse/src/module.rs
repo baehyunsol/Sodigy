@@ -12,7 +12,7 @@ pub struct Module {
     pub attribute: Attribute,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_module(&mut self) -> Result<Module, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Mod))?.span;
         let (name, name_span) = self.pop_name_and_span()?;

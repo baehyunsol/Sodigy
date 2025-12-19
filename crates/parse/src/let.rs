@@ -17,7 +17,7 @@ pub struct Let {
     pub from_pipeline: bool,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_let(&mut self) -> Result<Vec<Let>, Vec<Error>> {
         let prev_cursor = self.cursor;
 

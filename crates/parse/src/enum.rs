@@ -42,7 +42,7 @@ pub enum EnumVariantFields {
     Struct(Vec<StructField>),
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_enum(&mut self) -> Result<Enum, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Enum))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
@@ -66,7 +66,7 @@ impl<'t> Tokens<'t> {
             },
             span: enum_body_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end());
+        let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end(), &self.intermediate_dir);
         let variants = enum_body_tokens.parse_enum_variants()?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
@@ -107,7 +107,7 @@ impl<'t> Tokens<'t> {
                     }
                 },
                 Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens }, span }) => {
-                    let mut struct_body_tokens = Tokens::new(tokens, span.end());
+                    let mut struct_body_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let fields = struct_body_tokens.parse_struct_fields()?;
                     variants.push(EnumVariant {
                         name,
@@ -137,7 +137,7 @@ impl<'t> Tokens<'t> {
                     }
                 },
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
-                    let mut tuple_body_tokens = Tokens::new(tokens, span.end());
+                    let mut tuple_body_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
 
                     if tuple_body_tokens.is_empty() {
                         variants.push(EnumVariant {

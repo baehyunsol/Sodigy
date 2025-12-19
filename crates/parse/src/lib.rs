@@ -32,7 +32,7 @@ pub use r#if::If;
 pub use r#let::Let;
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
-pub use pattern::{Pattern, PatternKind};
+pub use pattern::{Pattern, PatternKind, PatternValueKind};
 pub(crate) use pattern::ParsePatternContext;
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};
@@ -43,7 +43,7 @@ pub use r#use::Use;
 pub fn parse(lex_session: LexSession) -> Session {
     let mut session = Session::from_lex_session(&lex_session);
     let last_span = lex_session.tokens.last().map(|t| t.span.end()).unwrap_or(Span::None);
-    let mut tokens = Tokens::new(&lex_session.tokens, last_span);
+    let mut tokens = Tokens::new(&lex_session.tokens, last_span, &lex_session.intermediate_dir);
     let ast = match tokens.parse_block(
         true, // top-level
         Span::file(session.file),

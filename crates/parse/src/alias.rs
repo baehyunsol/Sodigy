@@ -15,7 +15,7 @@ pub struct Alias {
     pub attribute: Attribute,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_alias(&mut self) -> Result<Alias, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Type))?.span;
         let (name, name_span) = self.pop_name_and_span()?;

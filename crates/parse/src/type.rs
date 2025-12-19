@@ -10,7 +10,7 @@ pub struct Generic {
     pub name_span: Span,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_generic_def(&mut self) -> Result<Generic, Vec<Error>> {
         let (name, name_span) = self.pop_name_and_span()?;
         Ok(Generic {
@@ -133,7 +133,7 @@ impl Type {
     }
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_type(&mut self) -> Result<Type, Vec<Error>> {
         match self.peek2() {
             (
@@ -240,7 +240,7 @@ impl<'t> Tokens<'t> {
             ) => {
                 let (name, name_span) = (*id, *span1);
                 let group_span = *span2;
-                let mut param_tokens = Tokens::new(tokens, span2.end());
+                let mut param_tokens = Tokens::new(tokens, span2.end(), &self.intermediate_dir);
                 let params = param_tokens.parse_types(StopAt::Eof)?;
 
                 self.cursor += 2;
@@ -269,7 +269,7 @@ impl<'t> Tokens<'t> {
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
                 let group_span = *span;
                 let delim = *delim;
-                let mut tokens = Tokens::new(tokens, group_span.end());
+                let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
 
                 let result = match delim {
                     Delim::Parenthesis => {

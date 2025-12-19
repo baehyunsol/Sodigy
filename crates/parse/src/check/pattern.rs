@@ -206,6 +206,7 @@ impl PatternKind {
                     Err(errors)
                 }
             },
+            PatternKind::Concat { lhs, rhs, .. } => todo!(),
             PatternKind::Or { lhs, rhs, .. } => {
                 let mut errors = vec![];
 

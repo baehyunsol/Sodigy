@@ -3,7 +3,7 @@
 
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
-use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number};
+use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number_raw};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind, TokensOrString};
@@ -303,7 +303,7 @@ impl Session {
                         });
                     }
 
-                    let n = intern_number(base, &buffer, &[], 0, true /* is_integer */);
+                    let n = intern_number_raw(base, &buffer, &[], 0, true /* is_integer */);
 
                     match n.value {
                         InternedNumberValue::SmallInt(n @ 0..=255) => {
@@ -1634,7 +1634,7 @@ impl Session {
 
                 // `64..` is a range pattern/expr. The dots are not decimal points!
                 (Some(b'.'), Some(b'.'), _) => {
-                    let interned = intern_number(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
+                    let interned = intern_number_raw(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1665,7 +1665,7 @@ impl Session {
                     },
                 },
                 _ => {
-                    let interned = intern_number(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
+                    let interned = intern_number_raw(base, &self.buffer1, &self.buffer2, 0, true /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1692,7 +1692,7 @@ impl Session {
                 },
                 Some(_) | None => {
                     // At this point, `Base` must be Decimal. (otherwise lex error)
-                    let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, 0, false /* is_integer */);
+                    let interned = intern_number_raw(Base::Decimal, &self.buffer1, &self.buffer2, 0, false /* is_integer */);
 
                     self.tokens.push(Token {
                         kind: TokenKind::Number(interned),
@@ -1747,7 +1747,7 @@ impl Session {
                 }
 
                 // At this point, `Base` must be Decimal. (otherwise lex error)
-                let interned = intern_number(Base::Decimal, &self.buffer1, &self.buffer2, exp, false /* is_integer */);
+                let interned = intern_number_raw(Base::Decimal, &self.buffer1, &self.buffer2, exp, false /* is_integer */);
 
                 self.tokens.push(Token {
                     kind: TokenKind::Number(interned),

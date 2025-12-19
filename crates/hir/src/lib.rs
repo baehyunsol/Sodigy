@@ -14,6 +14,7 @@ mod assert;
 mod attribute;
 mod block;
 mod endec;
+mod eval;
 mod r#enum;
 mod expr;
 mod func;
@@ -45,6 +46,7 @@ pub use attribute::{
 };
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
+pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
 pub use func::{CallArg, Func, FuncParam, FuncOrigin};
 pub use r#if::If;

@@ -1,0 +1,5 @@
+let x + 1 = 100;
+assert x == 99;
+
+let y - 10 = x + 100;
+assert y == 219;

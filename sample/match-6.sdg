@@ -1,0 +1,13 @@
+fn additions_in_patterns(x) = match x {
+    100 + 1 => 100,
+    100 + 2 => 200,
+    100 + 3 => 300,
+    26 * 4 => 400,
+    _ => 500,
+};
+
+assert additions_in_patterns(101) == 100;
+assert additions_in_patterns(102) == 200;
+assert additions_in_patterns(103) == 300;
+assert additions_in_patterns(104) == 400;
+assert additions_in_patterns(105) == 500;

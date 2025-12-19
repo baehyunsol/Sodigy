@@ -1,3 +1,7 @@
+# 126. rename `r#type` to `type_annot`
+
+둘이 구분해야함...
+
 # 125. Multiprocessing
 
 1. 내가 rust로 맨날 하는 single-master-multi-worker 구조의 multiprocessing
@@ -9,21 +13,27 @@
 
 ---
 
-1. sodigy에서 구현
+1. sodigy version
 2. any process can spawn a worker.
-  - TODO: does a worker run in a thread or a process? -> let's just use processes!
 3. a worker is just a function that looks like `fn worker(state: State, message: MessageFromMaster) -> (State, MessageToMaster)`
   - a worker sleeps until it receives a message
   - when a message is sent, the function is called with the state, and the response is sent back to the master
   - so, worker doesn't have an explicit event loop!
   - it can do impure things... right?
   - if a worker `exit`s or `panic`s, the channel is closed
+    - can the worker tell the master whether it's panicked or not?
   - if the channel is dropped, the worker is killed
 4. there are special functions for the master process
   - `channel.recv() -> RecvResult<MessageToMaster>`
   - `channel.try_recv() -> TryRecvResult<MessageToMaster>`
   - `channel.send(message: MessageFromMaster)`
+  - `channel.send_first(message: MessageFromMaster)`
+    - by default, the message queue is FIFO
+    - with this method, the master can force the worker to process this message before the others
+    - TODO: better name?
   - `channel.kill()`
+    - immediately kill vs wait for the current job to finish vs wait for all the jobs in the queue to finish
+    - sending a special message to kill the worker vs directly kill the worker (using the runtime intrinsics)
   - `channel.is_healthy() -> Bool`
 5. How about connecting multiple workers to a channel?
 
@@ -137,6 +147,12 @@ type annotation에서 `<<`나 `>>` 나오면 처리가 안됨 ㅠㅠ
 2. 애초에 `<<`를 (`<`, `<`)로 쪼개서 저장해뒀다가 parser가 합치기?
   - 이러면 `<`들 사이에 띄어쓰기가 있을 때 대응이 안됨
   - 그럼 trailing_whitespace를 field로 추가하기..??
+3. 좀더 복잡한 아이디어
+  - `<`를 angle-bracket으로 해석해야하는 경우, `<`나 `<<`를 만나면 미리 group 관계를 다 파악해버리기?
+  - `<`를 보자마자 얘가 어디서 끝나는지, 사이에 들어가는 token은 뭐가있는지를 다 파악한 다음에 `Tokens`를 새로 만들어 버리기!
+    - unmatched bracket도 여기서 날리면 되고
+    - `Tokens`를 만들 때 `<<`를 쪼개버리면 됨!
+    - clone이 좀 들어가겠지만 그나마 피해가 적을 듯?
 
 # 116. `error_span()`
 
@@ -182,6 +198,8 @@ pattern에서는 `re""`가 regex고... expression에서는??
 
 # 111. more diverse `Span::None`
 
+We'll call this derived-span
+
 compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 
 1. 단순히 `Span::None`을 주면, uniqueness도 깨지고 error message도 표현 불가
@@ -196,6 +214,8 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
   - `a`에다가 밑줄을 긋고 ... 뭐라고 알려주지? ㅋㅋㅋ
 3. 하는 김에 generic monomorphization도 이걸로 해버려??
   - generic monomorphization은 여러 단계로 할 수 있기때문에 그거 고려해야함
+
+일단은 derived-span으로 쓸만한 장소에 전부 `Span::None` 넣는 중!! 기존의 코드에서도 derived-span 들어갈만한 자리 보이면 다 `Span::None`으로 바꿔놓자. 그래야 grep이 쉽거든...
 
 # 110. lessen cyclic let detections
 

@@ -28,13 +28,20 @@ impl If {
 
         let pattern = match &ast_if.pattern {
             Some(ast_pattern) => {
+                let mut extra_guards = vec![];
                 let names = ast_pattern.bound_names().iter().map(
                     |(id, span)| (*id, (*span, NameKind::PatternNameBind, UseCount::new()))
                 ).collect();
                 session.name_stack.push(Namespace::Pattern { names });
 
-                match Pattern::from_ast(ast_pattern, session) {
-                    Ok(pattern) => Some(pattern),
+                match Pattern::from_ast(ast_pattern, session, &mut extra_guards) {
+                    Ok(pattern) => {
+                        if !extra_guards.is_empty() {
+                            todo!()  // merge this with `cond`
+                        }
+
+                        Some(pattern)
+                    },
                     Err(()) => {
                         has_error = true;
                         None

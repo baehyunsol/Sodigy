@@ -24,6 +24,8 @@ use sodigy_token::{
     TokensOrString,
 };
 
+mod from_pattern;
+
 #[derive(Clone, Debug)]
 pub enum Expr {
     Ident {
@@ -204,7 +206,7 @@ impl Field {
     }
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_expr(&mut self) -> Result<Expr, Vec<Error>> {
         self.pratt_parse(0)
     }
@@ -279,7 +281,7 @@ impl<'t> Tokens<'t> {
                             elements.push(ExprOrString::String(*s));
                         },
                         TokensOrString::Tokens { tokens, span } => {
-                            let mut tokens = Tokens::new(tokens, span.end());
+                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                             let expr = tokens.parse_expr()?;
 
                             // TODO: make sure that there's no remaining tokens
@@ -300,7 +302,7 @@ impl<'t> Tokens<'t> {
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
                 Delim::Lambda => {
                     let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end());
+                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let params = tokens.parse_func_params()?;
                     self.cursor += 1;
                     let mut r#type = None;
@@ -325,7 +327,7 @@ impl<'t> Tokens<'t> {
                 },
                 Delim::Parenthesis => {
                     let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end());
+                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     let mut is_tuple = exprs.len() != 1;
 
@@ -352,7 +354,7 @@ impl<'t> Tokens<'t> {
                 },
                 Delim::Brace => {
                     let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end());
+                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let block = tokens.parse_block(false /* top_level */, span)?;
                     self.cursor += 1;
 
@@ -360,7 +362,7 @@ impl<'t> Tokens<'t> {
                 },
                 Delim::Bracket => {
                     let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end());
+                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let exprs = tokens.parse_exprs()?;
                     self.cursor += 1;
 
@@ -548,7 +550,7 @@ impl<'t> Tokens<'t> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end());
+                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                             let args = tokens.parse_call_args()?;
                             self.cursor += 1;
                             lhs = Expr::Call {
@@ -568,7 +570,7 @@ impl<'t> Tokens<'t> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end());
+                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
 
                             match tokens.try_parse_struct_initialization() {
                                 Some(Ok(s)) => {
@@ -601,7 +603,7 @@ impl<'t> Tokens<'t> {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end());
+                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                             let rhs = tokens.parse_expr()?;
 
                             // TODO: make sure that there's no remaining tokens

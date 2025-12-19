@@ -35,7 +35,8 @@ impl Match {
         };
 
         for ast_arm in ast_match.arms.iter() {
-            let pattern = match Pattern::from_ast(&ast_arm.pattern, session) {
+            let mut extra_guards = vec![];
+            let pattern = match Pattern::from_ast(&ast_arm.pattern, session, &mut extra_guards) {
                 Ok(pattern) => Some(pattern),
                 Err(()) => {
                     has_error = true;
@@ -56,6 +57,12 @@ impl Match {
                 },
                 None => None,
             };
+
+            if !extra_guards.is_empty() {
+                // merge this with `guard`
+                todo!()
+            }
+
             let value = match Expr::from_ast(&ast_arm.value, session) {
                 Ok(value) => Some(value),
                 Err(()) => {

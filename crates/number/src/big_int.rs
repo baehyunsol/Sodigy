@@ -2,6 +2,7 @@ use crate::error::ParseIntError;
 
 pub mod op;
 pub mod cmp;
+mod convert;
 
 use op::{add_ubi, mul_ubi, shl_ubi};
 
@@ -19,6 +20,17 @@ impl BigInt {
             is_neg: false,
             nums: vec![0],
         }
+    }
+
+    pub fn one() -> Self {
+        BigInt {
+            is_neg: false,
+            nums: vec![1],
+        }
+    }
+
+    pub fn is_one(&self) -> bool {
+        !self.is_neg && &self.nums == &[1]
     }
 
     pub fn parse_positive_hex(bytes: &[u8]) -> Result<BigInt, ParseIntError> {

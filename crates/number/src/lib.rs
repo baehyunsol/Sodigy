@@ -11,7 +11,7 @@ pub use big_int::{
     op::*,
 };
 pub(crate) use error::ParseIntError;
-pub use ratio::Ratio;
+pub use ratio::{Ratio, op::*};
 
 // `InternedString` implements `Copy` (hence "interned"), but
 // `InternedNumber` doesn't. My idea is that strings, including identifiers
@@ -23,6 +23,7 @@ pub struct InternedNumber {
 
     // It remembers the original literal.
     // For example, `1.0` and `1` has the same `value` but different `is_integer`.
+    // When doing comptime-eval, this field acts like a type-information.
     pub is_integer: bool,
 }
 
@@ -64,8 +65,44 @@ impl InternedNumber {
     }
 }
 
+impl InternedNumberValue {
+    pub fn is_zero(&self) -> bool {
+        match self {
+            InternedNumberValue::SmallInt(n) => *n == 0,
+            InternedNumberValue::SmallRatio { numer, .. } => *numer == 0,
+            InternedNumberValue::BigInt(n) => &n.nums == &[0],
+            InternedNumberValue::BigRatio(n) => &n.numer.nums == &[0],
+        }
+    }
+}
+
+pub fn unintern_number(n: InternedNumberValue) -> Ratio {
+    match n {
+        InternedNumberValue::SmallInt(n) => Ratio { numer: BigInt::from(n), denom: BigInt::one() },
+        InternedNumberValue::SmallRatio { numer, denom } => Ratio { numer: BigInt::from(numer), denom: BigInt::from(denom) },
+        InternedNumberValue::BigInt(n) => Ratio { numer: n, denom: BigInt::one() },
+        InternedNumberValue::BigRatio(n) => n,
+    }
+}
+
+pub fn intern_number(n: Ratio) -> InternedNumberValue {
+    if n.denom.is_one() {
+        match i64::try_from(&n.numer) {
+            Ok(n) => InternedNumberValue::SmallInt(n),
+            Err(()) => InternedNumberValue::BigInt(n.numer),
+        }
+    }
+
+    else {
+        match (i64::try_from(&n.numer), u64::try_from(&n.denom)) {
+            (Ok(numer), Ok(denom)) => InternedNumberValue::SmallRatio { numer, denom },
+            _ => InternedNumberValue::BigRatio(n),
+        }
+    }
+}
+
 /// Lexer must guarantee that it's parse-able.
-pub fn intern_number(
+pub fn intern_number_raw(
     base: Base,
     integer: &[u8],
 

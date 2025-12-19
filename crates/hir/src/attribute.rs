@@ -591,7 +591,7 @@ pub struct AttributeRule {
 
 impl AttributeRule {
     // TODO: we need std_rules based on AttributeKind
-    //       for example, `trait` is only allowed for functions
+    //       for example, it doesn't makes sense to add `built_in` to a type alias
     pub fn add_std_rules(&mut self, intermediate_dir: &str) {
         for (name, mut decorator) in [
             (
@@ -599,18 +599,6 @@ impl AttributeRule {
                 DecoratorRule {
                     requirement: Requirement::Maybe,
                     arg_requirement: Requirement::Never,
-                    ..DecoratorRule::default()
-                },
-            ),
-            (
-                "any_type",
-                DecoratorRule {
-                    requirement: Requirement::Maybe,
-                    arg_requirement: Requirement::Must,
-                    arg_count: ArgCount::Gt(0),
-                    arg_count_error_note: Some(String::from("Please give a list of generic parameters.")),
-                    arg_type: ArgType::Generic,
-                    arg_type_error_note: Some(String::from("It's used to turn off type-checking of generic parameters.")),
                     ..DecoratorRule::default()
                 },
             ),

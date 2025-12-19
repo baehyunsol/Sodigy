@@ -82,66 +82,70 @@ error_kinds!(
     (MissingDecoratorArgument { expected: usize, got: usize },       240,    Error),
     (UnexpectedDecoratorArgument { expected: usize, got: usize },    245,    Error),
     (WrongNumberOfLangItemGenerics { lang_items: usize, generic_def: usize },    250,    Error),
+    (CannotEvaluateConst,                                            255,    Error),
 
     // syntax errors in patterns
-    (InvalidRangePattern,                                            255,    Error),
-    (CannotBindNameToAnotherName(InternedString),                    260,    Error),
-    (CannotBindNameToConstant(InternedString),                       265,    Error),
-    (CannotAnnotateType,                                             270,    Error),
-    (RedundantNameBinding(InternedString, InternedString),           275,    Error),
-    (CannotEvaluateConstPattern,                                     280,    Error),
+    (InvalidRangePattern,                                            260,    Error),
+    (CannotBindNameToAnotherName(InternedString, InternedString),    265,    Error),
+    (CannotBindNameToConstant(InternedString),                       270,    Error),
+    (CannotBindNameToInfixOp(InternedString),                        275,    Error),
+    (CannotApplyInfixOpToMultipleBindings,                           280,    Error),
+    (CannotApplyInfixOpToBinding,                                    285,    Error),
+    (CannotAnnotateType,                                             290,    Error),
+    (RedundantNameBinding(InternedString, InternedString),           295,    Error),
+    (UnsupportedInfixOpInPattern(InfixOp),                           300,    Error),
 
     // TODO: more context!
-    (NameCollision { name: InternedString },                         285,    Error),
+    (NameCollision { name: InternedString },                         305,    Error),
 
-    (CyclicLet { names: Vec<InternedString> },                       290,    Error),
-    (CyclicAlias { names: Vec<InternedString> },                     295,    Error),
-    (DollarOutsidePipeline,                                          300,    Error),
-    (DisconnectedPipeline,                                           305,    Error),
-
-    // TODO: more context!
-    // TODO: suggest similar names
-    (UndefinedName(InternedString),                                  310,    Error),
-
-    (EnumVariantInTypeAnnotation,                                    315,    Error),
-    (KeywordArgumentRepeated(InternedString),                        320,    Error),
-    (KeywordArgumentNotAllowed,                                      325,    Error),
-    (AliasResolveRecursionLimitReached,                              330,    Error),
-    (MissingTypeParameter { expected: usize, got: usize },           335,    Error),
-    (UnexpectedTypeParameter { expected: usize, got: usize },        340,    Error),
-    (MissingKeywordArgument(InternedString),                         345,    Error),
+    (CyclicLet { names: Vec<InternedString> },                       310,    Error),
+    (CyclicAlias { names: Vec<InternedString> },                     315,    Error),
+    (DollarOutsidePipeline,                                          320,    Error),
+    (DisconnectedPipeline,                                           325,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
-    (InvalidKeywordArgument(InternedString),                         350,    Error),
+    (UndefinedName(InternedString),                                  330,    Error),
 
-    (MissingFunctionParameter { expected: usize, got: usize },       355,    Error),
-    (UnexpectedFunctionParameter { expected: usize, got: usize },    360,    Error),
-    (StructFieldRepeated(InternedString),                            365,    Error),
-    (MissingStructField(InternedString),                             370,    Error),
+    (EnumVariantInTypeAnnotation,                                    335,    Error),
+    (KeywordArgumentRepeated(InternedString),                        340,    Error),
+    (KeywordArgumentNotAllowed,                                      345,    Error),
+    (AliasResolveRecursionLimitReached,                              350,    Error),
+    (MissingTypeParameter { expected: usize, got: usize },           355,    Error),
+    (UnexpectedTypeParameter { expected: usize, got: usize },        360,    Error),
+    (MissingKeywordArgument(InternedString),                         365,    Error),
+
+    // TODO: more context!
+    // TODO: suggest similar names
+    (InvalidKeywordArgument(InternedString),                         370,    Error),
+
+    (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
+    (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
+    (StructFieldRepeated(InternedString),                            385,    Error),
+    (MissingStructField(InternedString),                             390,    Error),
 
     // TODO: suggest similar names
-    (InvalidStructField(InternedString),                             375,    Error),
+    (InvalidStructField(InternedString),                             395,    Error),
 
-    (DependentTypeNotAllowed,                                        380,    Error),
-    (NotStruct { id: Option<IdentWithOrigin> },                      385,    Error),
-    (NotPolyGeneric { id: Option<IdentWithOrigin> },                 390,    Error),
+    (DependentTypeNotAllowed,                                        400,    Error),
+    (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),
+    (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
 
     // Type errors from here.
     // Type errors are generated by `mir-type` crate, and the crate uses its own data types to
     // represent types. But this crate cannot depend on `mir-type`, so those types are converted
     // to string.
-    (UnexpectedType { expected: String, got: String },               395,    Error),
-    (CannotInferType { id: Option<InternedString> },                 400,    Error),
-    (PartiallyInferedType { id: Option<InternedString>, r#type: String },    405,    Error),
-    (CannotInferGenericType { id: Option<String> },                  410,    Error),
-    (PartiallyInferedGenericType { id: Option<String>, r#type: String },     415,    Error),
-    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },     420,    Error),
-    (CannotSpecializePolyGeneric { num_candidates: usize },          425,    Error),
+    (UnexpectedType { expected: String, got: String },                   415,    Error),
+    (CannotInferType { id: Option<InternedString>, is_return: bool },    420,    Error),
+    (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 425,    Error),
+    (CannotInferGenericType { id: Option<String> },                      430,    Error),
+    (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
+    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         440,    Error),
+    (CannotSpecializePolyGeneric { num_candidates: usize },              445,    Error),
 
-    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    430,    Error),
-    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      435,    Error),
-    (LibFileNotFound,                                                440,    Error),
+    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    450,    Error),
+    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      455,    Error),
+    (LibFileNotFound,                                                460,    Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
@@ -149,7 +153,7 @@ error_kinds!(
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.
     // They use `id` field to distinguish themselves: so that we can easily Ctrl+Shift+F the id.
-    (Todo { id: u32 },                                              9998,    Error),
+    (Todo { id: u32, message: String },                             9998,    Error),
     (InternalCompilerError { id: u32 },                             9999,    Error),
 );
 

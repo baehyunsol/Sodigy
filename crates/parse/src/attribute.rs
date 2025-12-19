@@ -86,7 +86,7 @@ pub struct Visibility {
     pub arg_group_span: Option<Span>,
 }
 
-impl<'t> Tokens<'t> {
+impl<'t, 's> Tokens<'t, 's> {
     pub fn collect_attribute(&mut self, top_level: bool) -> Result<Attribute, Vec<Error>> {
         let mut errors = vec![];
         let mut doc_comments = vec![];
@@ -136,7 +136,7 @@ impl<'t> Tokens<'t> {
                     }
 
                     let group_span = *span;
-                    let mut tokens = Tokens::new(tokens, group_span.end());
+                    let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
 
                     match tokens.parse_decorator() {
                         Ok(decorator) => {
@@ -215,7 +215,7 @@ impl<'t> Tokens<'t> {
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
                 let group_span = *span;
-                let mut tokens = Tokens::new(tokens, group_span.end());
+                let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
                 let args = tokens.parse_call_args()?;
                 let result = Decorator {
                     name,
