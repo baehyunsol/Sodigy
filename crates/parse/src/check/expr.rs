@@ -16,7 +16,7 @@ impl Expr {
             Expr::If(r#if) => r#if.check(session),
             Expr::Match(r#match) => r#match.check(session),
             Expr::Block(block) => block.check(false /* top_level */, session),
-            Expr::Call { func, args } => {
+            Expr::Call { func, args, .. } => {
                 let mut errors = vec![];
 
                 if let Err(e) = func.check(session) {

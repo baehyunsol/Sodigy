@@ -35,7 +35,7 @@ impl Solver {
 
                 (
                     r#return.clone(),
-                    func.value.error_span(),
+                    func.value.error_span_wide(),
                     func.type_annotation_span,
                     ErrorContext::VerifyTypeAnnotation,
                 )

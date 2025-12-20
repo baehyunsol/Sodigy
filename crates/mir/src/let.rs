@@ -14,7 +14,7 @@ pub struct Let {
 impl Let {
     pub fn from_hir(hir_let: &hir::Let, session: &mut Session) -> Result<Let, ()> {
         let mut has_error = false;
-        let type_annotation_span = hir_let.r#type.as_ref().map(|t| t.error_span());
+        let type_annotation_span = hir_let.r#type.as_ref().map(|t| t.error_span_wide());
 
         match hir_let.r#type.as_ref().map(|r#type| Type::from_hir(r#type, session)) {
             Some(Ok(r#type)) => {

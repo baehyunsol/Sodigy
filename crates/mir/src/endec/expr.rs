@@ -73,10 +73,11 @@ impl Endec for Expr {
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
-            Expr::Call { func, args, generic_defs, given_keyword_arguments } => {
+            Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments } => {
                 buffer.push(11);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
+                arg_group_span.encode_impl(buffer);
                 generic_defs.encode_impl(buffer);
                 given_keyword_arguments.encode_impl(buffer);
             },
@@ -140,9 +141,10 @@ impl Endec for Expr {
             Some(11) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
+                let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (generic_defs, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
                 let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Call { func, args, generic_defs, given_keyword_arguments }, cursor))
+                Ok((Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments }, cursor))
             },
             Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
@@ -182,7 +184,9 @@ impl Endec for If {
         self.cond.encode_impl(buffer);
         self.else_span.encode_impl(buffer);
         self.true_value.encode_impl(buffer);
+        self.true_group_span.encode_impl(buffer);
         self.false_value.encode_impl(buffer);
+        self.false_group_span.encode_impl(buffer);
         self.from_short_circuit.encode_impl(buffer);
     }
 
@@ -191,7 +195,9 @@ impl Endec for If {
         let (cond, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (else_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (true_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (true_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (false_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (false_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (from_short_circuit, cursor) = Option::<ShortCircuitKind>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -200,7 +206,9 @@ impl Endec for If {
                 cond,
                 else_span,
                 true_value,
+                true_group_span,
                 false_value,
+                false_group_span,
                 from_short_circuit,
             },
             cursor,
@@ -213,6 +221,7 @@ impl Endec for Match {
         self.keyword_span.encode_impl(buffer);
         self.scrutinee.encode_impl(buffer);
         self.arms.encode_impl(buffer);
+        self.group_span.encode_impl(buffer);
         self.lowered_from_if.encode_impl(buffer);
     }
 
@@ -220,6 +229,7 @@ impl Endec for Match {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (scrutinee, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (arms, cursor) = Vec::<MatchArm>::decode_impl(buffer, cursor)?;
+        let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (lowered_from_if, cursor) = bool::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -227,6 +237,7 @@ impl Endec for Match {
                 keyword_span,
                 scrutinee,
                 arms,
+                group_span,
                 lowered_from_if,
             },
             cursor,

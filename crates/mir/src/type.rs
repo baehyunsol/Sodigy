@@ -117,14 +117,14 @@ impl Type {
                         span: id.span,
                     }),
                     _ => {
-                        session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span()));
+                        session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
                         Err(())
                     },
                 },
                 NameOrigin::External => unreachable!(),
             },
             hir::Type::Path { .. } => {
-                session.errors.push(Error::todo(33045, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span()));
+                session.errors.push(Error::todo(33045, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
                 Err(())
             },
             hir::Type::Param { r#type, args: hir_args, group_span } => {

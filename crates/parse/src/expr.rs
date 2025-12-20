@@ -59,6 +59,7 @@ pub enum Expr {
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
+        arg_group_span: Span,
     },
     FormattedString {
         raw: bool,
@@ -89,9 +90,10 @@ pub enum Expr {
     },
     Lambda {
         params: Vec<FuncParam>,
+        param_group_span: Span,
         r#type: Box<Option<Type>>,
+        arrow_span: Span,
         value: Box<Expr>,
-        group_span: Span,
     },
     PrefixOp {
         op: PrefixOp,
@@ -122,16 +124,85 @@ pub enum Expr {
 }
 
 impl Expr {
-    // Returns a best-effort span for error messages.
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Ident { span, .. } |
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
-            Expr::Char { span, .. } => *span,
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } |
+            Expr::FormattedString { span, .. } |
+            Expr::Tuple { group_span: span, .. } |
+            Expr::List { group_span: span, .. } |
+            Expr::PrefixOp { op_span: span, .. } |
+            Expr::InfixOp { op_span: span, .. } |
+            Expr::PostfixOp { op_span: span, .. } |
+            Expr::PipelineData(span) => *span,
             Expr::If(r#if) => r#if.if_span,
+            Expr::Match(r#match) => r#match.keyword_span,
+            Expr::Block(block) => block.group_span,
+            Expr::Call { func, .. } => func.error_span_narrow(),
+            Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
+            Expr::Path { field, .. } => {
+                let Field::Name { dot_span, .. } = field else { unreachable!() };
+                *dot_span
+            },
+            Expr::FieldModifier { fields, .. } => {
+                let mut span = fields[0].1;
+
+                for (_, field_span) in fields.iter().skip(1) {
+                    span = span.merge(*field_span);
+                }
+
+                span
+            },
+            Expr::Lambda { arrow_span, .. } => *arrow_span,
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
-            _ => panic!("TODO: {self:?}"),
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Expr::Ident { span, .. } |
+            Expr::Number { span, .. } |
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } |
+            Expr::FormattedString { span, .. } |
+            Expr::Tuple { group_span: span, .. } |
+            Expr::List { group_span: span, .. } |
+            Expr::PipelineData(span) => *span,
+            Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.group_span),
+            Expr::Block(block) => block.group_span,
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
+            Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_narrow().merge(*group_span),
+            Expr::Path { lhs, field } => {
+                let mut span = lhs.error_span_wide();
+
+                match field {
+                    Field::Name { span: s, .. } => span.merge(*s),
+                    _ => unreachable!(),
+                }
+            },
+            Expr::FieldModifier { lhs, fields, rhs } => {
+                let mut span = lhs.error_span_wide();
+
+                for (_, field_span) in fields.iter() {
+                    span = span.merge(*field_span);
+                }
+
+                span.merge(rhs.error_span_wide())
+            },
+            Expr::Lambda { param_group_span, arrow_span, value, .. } => param_group_span
+                .merge(*arrow_span)
+                .merge(value.error_span_wide()),
+            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
+            Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide()
+                .merge(*op_span)
+                .merge(rhs.error_span_wide()),
+            Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(*op_span),
+            Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
         }
     }
 
@@ -315,14 +386,15 @@ impl<'t, 's> Tokens<'t, 's> {
                         _ => {},
                     }
 
-                    self.match_and_pop(TokenKind::Punct(Punct::Arrow))?;
+                    let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span;
                     let value = self.parse_expr()?;
 
                     Expr::Lambda {
                         params,
+                        param_group_span: span,
                         r#type: Box::new(r#type),
+                        arrow_span,
                         value: Box::new(value),
-                        group_span: span,
                     }
                 },
                 Delim::Parenthesis => {
@@ -556,6 +628,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             lhs = Expr::Call {
                                 func: Box::new(lhs),
                                 args,
+                                arg_group_span: span,
                             };
                             continue;
                         },

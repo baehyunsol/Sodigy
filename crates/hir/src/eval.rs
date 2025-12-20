@@ -55,7 +55,7 @@ pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {
         _ => {
             session.errors.push(Error {
                 kind: ErrorKind::CannotEvaluateConst,
-                spans: expr.error_span().simple_error(),
+                spans: expr.error_span_wide().simple_error(),
                 note: None,
             });
             Err(())

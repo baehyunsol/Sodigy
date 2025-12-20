@@ -9,7 +9,9 @@ impl Endec for If {
         self.pattern.encode_impl(buffer);
         self.else_span.encode_impl(buffer);
         self.true_value.encode_impl(buffer);
+        self.true_group_span.encode_impl(buffer);
         self.false_value.encode_impl(buffer);
+        self.false_group_span.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -18,7 +20,9 @@ impl Endec for If {
         let (pattern, cursor) = Option::<Pattern>::decode_impl(buffer, cursor)?;
         let (else_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (true_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (true_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (false_value, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
+        let (false_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
 
         Ok((
             If {
@@ -27,7 +31,9 @@ impl Endec for If {
                 pattern,
                 else_span,
                 true_value,
+                true_group_span,
                 false_value,
+                false_group_span,
             },
             cursor,
         ))

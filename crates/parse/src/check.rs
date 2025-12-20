@@ -32,7 +32,7 @@ pub(crate) fn check_call_args(args: &[CallArg], session: &Session) -> Result<(),
                 kind: ErrorKind::PositionalArgAfterKeywordArg,
                 spans: vec![
                     RenderableSpan {
-                        span: arg.arg.error_span(),
+                        span: arg.arg.error_span_wide(),
                         auxiliary: false,
                         note: Some(String::from("A positional argument cannot come after a keyword argument.")),
                     },

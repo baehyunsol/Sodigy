@@ -12,6 +12,7 @@ pub struct Match {
     pub keyword_span: Span,
     pub scrutinee: Box<Expr>,
     pub arms: Vec<MatchArm>,
+    pub group_span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -92,6 +93,7 @@ impl Match {
                 keyword_span: ast_match.keyword_span,
                 scrutinee: Box::new(scrutinee.unwrap()),
                 arms,
+                group_span: ast_match.group_span,
             })
         }
     }

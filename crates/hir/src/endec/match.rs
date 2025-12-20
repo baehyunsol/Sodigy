@@ -7,18 +7,21 @@ impl Endec for Match {
         self.keyword_span.encode_impl(buffer);
         self.scrutinee.encode_impl(buffer);
         self.arms.encode_impl(buffer);
+        self.group_span.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (scrutinee, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
         let (arms, cursor) = Vec::<MatchArm>::decode_impl(buffer, cursor)?;
+        let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
 
         Ok((
             Match {
                 keyword_span,
                 scrutinee,
                 arms,
+                group_span,
             },
             cursor,
         ))

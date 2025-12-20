@@ -10,7 +10,9 @@ pub struct If {
     pub cond: Box<Expr>,
     pub else_span: Span,
     pub true_value: Box<Expr>,
+    pub true_group_span: Span,
     pub false_value: Box<Expr>,
+    pub false_group_span: Span,
 
     // `&&` and `||` operator are lowered to `if`.
     pub from_short_circuit: Option<ShortCircuitKind>,
@@ -49,6 +51,7 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
                     value: false_value,
                 },
             ],
+            group_span: Span::None,
             lowered_from_if: true,
         }))
     }
@@ -59,7 +62,9 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
             cond: Box::new(cond),
             else_span: hir_if.else_span,
             true_value: Box::new(true_value),
+            true_group_span: hir_if.true_group_span,
             false_value: Box::new(false_value),
+            false_group_span: hir_if.false_group_span,
             from_short_circuit: None,
         }))
     }

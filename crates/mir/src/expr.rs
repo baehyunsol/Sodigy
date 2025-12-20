@@ -51,6 +51,7 @@ pub enum Expr {
     Call {
         func: Callable,
         args: Vec<Expr>,
+        arg_group_span: Span,
 
         // If it's a generic function, def_spans of its generics (T, U, ...)
         // are stored here so that `mir_type::Solver::solve_expr` can use.
@@ -120,6 +121,7 @@ impl Expr {
             hir::Expr::Call {
                 func,
                 args: hir_args,
+                arg_group_span,
             } => {
                 let mut has_error = false;
                 let mut def_span = None;
@@ -153,7 +155,7 @@ impl Expr {
                         NameOrigin::Generic { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
-                    Ok(func) => (func.error_span(), Callable::Dynamic(Box::new(func))),
+                    Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
                         has_error = true;
                         todo!()
@@ -246,7 +248,7 @@ impl Expr {
                                                                     note: None,
                                                                 });
                                                                 e.get_mut().push(RenderableSpan {
-                                                                    span: mir_arg.error_span(),
+                                                                    span: mir_arg.error_span_wide(),
                                                                     auxiliary: false,
                                                                     note: Some(format!("This argument is `{keyword_str}` because it's the {} argument.", to_ordinal(i + 1))),
                                                                 });
@@ -259,7 +261,7 @@ impl Expr {
                                                                         note: None,
                                                                     },
                                                                     RenderableSpan {
-                                                                        span: mir_arg.error_span(),
+                                                                        span: mir_arg.error_span_wide(),
                                                                         auxiliary: false,
                                                                         note: Some(format!("This argument is `{keyword_str}` because it's the {} argument.", to_ordinal(i + 1))),
                                                                     },
@@ -392,7 +394,13 @@ impl Expr {
                 }
 
                 else {
-                    Ok(Expr::Call { func, args, generic_defs, given_keyword_arguments })
+                    Ok(Expr::Call {
+                        func,
+                        args,
+                        arg_group_span: *arg_group_span,
+                        generic_defs,
+                        given_keyword_arguments,
+                    })
                 }
             },
             // converts `f"{x} + {y} = {x + y}"` to `to_string(x) ++ " + " ++ to_string(y) ++ " = " ++ to_string(x + y)`
@@ -426,6 +434,7 @@ impl Expr {
                                         span: todo!(),
                                     },
                                     args: vec![e],
+                                    arg_group_span: Span::None,
                                     generic_defs: vec![session.get_lang_item_span("fn.to_string.generic.0")],
                                     given_keyword_arguments: vec![],
                                 };
@@ -486,6 +495,7 @@ impl Expr {
                     Ok(Expr::Call {
                         func,
                         args: mir_elements,
+                        arg_group_span: *group_span,
 
                         // TODO: It needs `generic_def` if it's `Callable::ListInit`
                         generic_defs: vec![],
@@ -524,7 +534,7 @@ impl Expr {
                         if !is_struct {
                             session.errors.push(Error {
                                 kind: ErrorKind::NotStruct { id: Some(id) },
-                                spans: expr.error_span().simple_error(),
+                                spans: expr.error_span_wide().simple_error(),
                                 note: Some(format!("This is {}, not a struct.", explain.unwrap())),
                             });
                             return Err(());
@@ -535,7 +545,7 @@ impl Expr {
                     expr => {
                         session.errors.push(Error {
                             kind: ErrorKind::NotStruct { id: None },
-                            spans: expr.error_span().simple_error(),
+                            spans: expr.error_span_wide().simple_error(),
                             note: None,
                         });
                         return Err(());
@@ -550,9 +560,9 @@ impl Expr {
                         if !generic_defs_.is_empty() {
                             for generic_def in generic_defs_.iter() {
                                 session.generic_instances.insert(
-                                    (r#struct.error_span(), generic_def.name_span),
+                                    (r#struct.error_span_wide(), generic_def.name_span),
                                     Type::GenericInstance {
-                                        call: r#struct.error_span(),
+                                        call: r#struct.error_span_wide(),
                                         generic: generic_def.name_span,
                                     },
                                 );
@@ -695,6 +705,7 @@ impl Expr {
                                     span,
                                 },
                                 args: mir_fields_unwrapped,
+                                arg_group_span: group_span,
                                 generic_defs,
                                 given_keyword_arguments: vec![],
                             })
@@ -734,6 +745,7 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(rhs, session)?],
+                    arg_group_span: Span::None,
                     generic_defs,
                     given_keyword_arguments: vec![],
                 })
@@ -751,6 +763,7 @@ impl Expr {
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
+                                true_group_span: Span::None,
                                 false_value: Box::new(Expr::Ident(IdentWithOrigin {
                                     id: intern_string(b"False", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
@@ -761,6 +774,7 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.False"),
                                 })),
+                                false_group_span: Span::None,
                                 from_short_circuit: Some(ShortCircuitKind::And),
                             })),
                             // `lhs || rhs` -> `if lhs { True } else { rhs }`
@@ -778,7 +792,9 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.True"),
                                 })),
+                                true_group_span: Span::None,
                                 false_value: Box::new(rhs),
+                                false_group_span: Span::None,
                                 from_short_circuit: Some(ShortCircuitKind::Or),
                             })),
                             _ => {
@@ -793,6 +809,7 @@ impl Expr {
                                 Ok(Expr::Call {
                                     func,
                                     args: vec![lhs, rhs],
+                                    arg_group_span: Span::None,
                                     generic_defs,
                                     given_keyword_arguments: vec![],
                                 })
@@ -814,6 +831,7 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(lhs, session)?],
+                    arg_group_span: Span::None,
                     generic_defs,
                     given_keyword_arguments: vec![],
                 })
@@ -821,9 +839,7 @@ impl Expr {
         }
     }
 
-    // span for error messages
-    // TODO: shouldn't it be wider?
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Ident(id) => id.span,
             Expr::Number { span, .. } |
@@ -845,20 +861,67 @@ impl Expr {
 
                 merged_span
             },
-            Expr::Call { func, .. } => func.error_span(),
+            Expr::Call { func, .. } => func.error_span_narrow(),
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Expr::Ident(id) => id.span,
+            Expr::Number { span, .. } |
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } => *span,
+            Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
+            Expr::MatchFsm(match_fsm) => todo!(),
+            Expr::Block(block) => block.group_span,
+            Expr::Path { lhs, fields } => {
+                let mut span = lhs.error_span_wide();
+
+                for field in fields.iter() {
+                    match field {
+                        Field::Name { span: s, .. } => {
+                            span = span.merge(*s);
+                        },
+                        _ => unreachable!(),
+                    }
+                }
+
+                span
+            },
+            Expr::FieldModifier { lhs, fields, rhs } => {
+                let mut span = lhs.error_span_wide();
+
+                for (_, field_span) in fields.iter() {
+                    span = span.merge(*field_span);
+                }
+
+                span.merge(rhs.error_span_wide())
+            },
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
         }
     }
 }
 
 impl Callable {
-    // span for error messages
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Callable::Static { span, .. } |
             Callable::StructInit { span, .. } |
             Callable::TupleInit { group_span: span } |
             Callable::ListInit { group_span: span } => *span,
-            Callable::Dynamic(expr) => expr.error_span(),
+            Callable::Dynamic(expr) => expr.error_span_narrow(),
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Callable::Static { span, .. } |
+            Callable::StructInit { span, .. } |
+            Callable::TupleInit { group_span: span } |
+            Callable::ListInit { group_span: span } => *span,
+            Callable::Dynamic(expr) => expr.error_span_wide(),
         }
     }
 }
@@ -886,6 +949,7 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                     span: todo!(),
                 },
                 args: vec![lhs, rhs],
+                arg_group_span: Span::None,
                 generic_defs,
                 given_keyword_arguments: vec![],
             }
@@ -904,6 +968,7 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                     span: todo!(),
                 },
                 args: vec![head, tail],
+                arg_group_span: Span::None,
                 generic_defs,
                 given_keyword_arguments: vec![],
             }

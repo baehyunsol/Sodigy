@@ -182,7 +182,7 @@ impl Type {
                 if has_wrong_identifier {
                     session.errors.push(Error {
                         kind: ErrorKind::InvalidFnType,
-                        spans: r#type.error_span().simple_error(),
+                        spans: r#type.error_span_wide().simple_error(),
                         note: None,
                     });
                     has_error = true;
@@ -225,8 +225,7 @@ impl Type {
         }
     }
 
-    // Error messages will use this span.
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Type::Ident(id) => id.span,
             Type::Path { id, fields } => {
@@ -241,13 +240,36 @@ impl Type {
                 span
             },
             Type::Param { r#type, group_span, .. } => {
-                r#type.error_span().merge(*group_span)
+                r#type.error_span_wide().merge(*group_span)
+            },
+            Type::Tuple { group_span, .. } => *group_span,
+            Type::Func { fn_span, .. } => *fn_span,
+            Type::Wildcard(span) | Type::Never(span) => *span,
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Type::Ident(id) => id.span,
+            Type::Path { id, fields } => {
+                let mut span = id.span;
+
+                for field in fields.iter() {
+                    if let Field::Name { span: field_span, .. } = field {
+                        span = span.merge(*field_span);
+                    }
+                }
+
+                span
+            },
+            Type::Param { r#type, group_span, .. } => {
+                r#type.error_span_wide().merge(*group_span)
             },
             Type::Tuple { group_span, .. } => *group_span,
             Type::Func { fn_span, group_span, r#return, .. } => {
                 let mut span = *fn_span;
                 span = span.merge(*group_span);
-                span.merge(r#return.error_span())
+                span.merge(r#return.error_span_wide())
             },
             Type::Wildcard(span) | Type::Never(span) => *span,
         }

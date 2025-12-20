@@ -63,7 +63,7 @@ impl Session {
 
             if let EnumVariantFields::Struct(fields) = &variant.fields {
                 for field in fields.iter() {
-                    todo!()
+                    result.insert(field.name_span, field.name);
                 }
             }
         }

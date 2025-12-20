@@ -116,7 +116,7 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Type::Ident { span, .. } |
             Type::Wildcard(span) |
@@ -125,10 +125,16 @@ impl Type {
                 Some(Field::Name { dot_span, .. }) => *dot_span,
                 _ => unreachable!(),
             },
-            Type::Param { args, .. } => args[0].error_span(),
+            Type::Param { r#type, .. } => r#type.error_span_narrow(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
-            Type::Func { r#type, .. } => r#type.error_span(),
+            Type::Func { r#type, .. } => r#type.error_span_narrow(),
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            _ => todo!(),
         }
     }
 }
@@ -313,7 +319,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                     expected: ErrorToken::Nothing,
                                     got: ErrorToken::TypeAnnotation,
                                 },
-                                spans: unexpected_type_annotation.error_span().simple_error(),
+                                spans: unexpected_type_annotation.error_span_wide().simple_error(),
                                 note: None,
                             }]);
                         }

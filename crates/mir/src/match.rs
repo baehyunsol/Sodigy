@@ -13,6 +13,7 @@ pub struct Match {
     pub keyword_span: Span,
     pub scrutinee: Box<Expr>,
     pub arms: Vec<MatchArm>,
+    pub group_span: Span,
     pub lowered_from_if: bool,
 }
 
@@ -55,6 +56,7 @@ impl Match {
                 keyword_span: hir_match.keyword_span,
                 scrutinee: Box::new(scrutinee.unwrap()),
                 arms,
+                group_span: hir_match.group_span,
                 lowered_from_if: false,
             })
         }

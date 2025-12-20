@@ -19,7 +19,7 @@ impl Func {
         let mut has_error = false;
         let mut params = Vec::with_capacity(hir_func.params.len());
         let mut param_types = Vec::with_capacity(hir_func.params.len());
-        let type_annotation_span = hir_func.r#type.as_ref().map(|t| t.error_span());
+        let type_annotation_span = hir_func.r#type.as_ref().map(|t| t.error_span_wide());
 
         for generic in hir_func.generics.iter() {
             session.generic_def_span_rev.insert(generic.name_span, hir_func.name_span);

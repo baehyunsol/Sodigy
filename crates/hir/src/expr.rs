@@ -45,6 +45,7 @@ pub enum Expr {
     Call {
         func: Box<Expr>,
         args: Vec<CallArg>,
+        arg_group_span: Span,
     },
     FormattedString {
         raw: bool,
@@ -120,7 +121,7 @@ impl Expr {
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
             ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
-            ast::Expr::Call { func, args } => {
+            ast::Expr::Call { func, args, arg_group_span } => {
                 let func = Expr::from_ast(func, session);
                 let mut hir_args = Vec::with_capacity(args.len());
                 let mut has_error = false;
@@ -140,7 +141,11 @@ impl Expr {
                 }
 
                 match (func, has_error) {
-                    (Ok(func), false) => Ok(Expr::Call { func: Box::new(func), args: hir_args }),
+                    (Ok(func), false) => Ok(Expr::Call {
+                        func: Box::new(func),
+                        args: hir_args,
+                        arg_group_span: *arg_group_span,
+                    }),
                     _ => Err(()),
                 }
             },
@@ -266,8 +271,8 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
-            ast::Expr::Lambda { params, r#type, value, group_span } => {
-                let span = group_span.begin();
+            ast::Expr::Lambda { params, param_group_span, r#type, value, .. } => {
+                let span = param_group_span.begin();
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
                 let func = ast::Func {
@@ -351,7 +356,7 @@ impl Expr {
                                 String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
                                 String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
                             ),
-                            ast::Expr::Path { lhs, field } => match try_render_dotted_name(lhs) {
+                            ast::Expr::Path { lhs, field } => match try_render_dotted_name(lhs, field, &session.intermediate_dir) {
                                 Some(name) => format!("Unlike gleam or bash, you have to explicitly use the value. Try `{name}($)` instead of `{name}`"),
                                 None => String::from("There's no `$` here."),
                             },
@@ -368,7 +373,7 @@ impl Expr {
                                     note: Some(String::from("It pipes a value, but no one uses the value.")),
                                 },
                                 RenderableSpan {
-                                    span: value.error_span(),
+                                    span: value.error_span_wide(),
                                     auxiliary: true,
                                     note: Some(value_note),
                                 },
@@ -429,15 +434,23 @@ impl Expr {
         }
     }
 
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Ident(IdentWithOrigin { span, .. }) |
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } |
-            Expr::Byte { span, .. } => *span,
+            Expr::Byte { span, .. } |
+            Expr::FormattedString { span, .. } => *span,
+            Expr::If(r#if) => r#if.if_span,
+            Expr::Match(r#match) => r#match.keyword_span,
+            Expr::Block(block) => block.group_span,
+            Expr::Call { func, .. } => func.error_span_narrow(),
+            Expr::Tuple { group_span, .. } |
+            Expr::List { group_span, .. } => *group_span,
+            Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
             Expr::Path { lhs, fields } => {
-                let mut span = lhs.error_span();
+                let mut span = lhs.error_span_narrow();
 
                 for field in fields.iter() {
                     span = span.merge(field.unwrap_span());
@@ -445,7 +458,62 @@ impl Expr {
 
                 span
             },
-            _ => todo!(),
+            Expr::FieldModifier { fields, .. } => {
+                let mut span = fields[0].1;
+
+                for (_, field_span) in fields.iter().skip(1) {
+                    span = span.merge(*field_span);
+                }
+
+                span
+            },
+            Expr::PrefixOp { op_span, .. } |
+            Expr::InfixOp { op_span, .. } |
+            Expr::PostfixOp { op_span, .. } => *op_span,
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            Expr::Ident(IdentWithOrigin { span, .. }) |
+            Expr::Number { span, .. } |
+            Expr::String { span, .. } |
+            Expr::Char { span, .. } |
+            Expr::Byte { span, .. } |
+            Expr::FormattedString { span, .. } => *span,
+            Expr::If(r#if) => r#if.if_span
+                .merge(r#if.cond.error_span_wide())
+                .merge(r#if.else_span)
+                .merge(r#if.true_group_span)
+                .merge(r#if.false_group_span),
+            Expr::Match(r#match) => r#match.keyword_span.merge(r#match.group_span),
+            Expr::Block(block) => block.group_span,
+            Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
+            Expr::Tuple { group_span, .. } |
+            Expr::List { group_span, .. } => *group_span,
+            Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
+            Expr::Path { lhs, fields } => {
+                let mut span = lhs.error_span_wide();
+
+                for field in fields.iter() {
+                    span = span.merge(field.unwrap_span());
+                }
+
+                span
+            },
+            Expr::FieldModifier { lhs, fields, rhs } => {
+                let mut span = lhs.error_span_wide();
+
+                for (_, field_span) in fields.iter() {
+                    span = span.merge(*field_span);
+                }
+
+                span = span.merge(rhs.error_span_wide());
+                span
+            },
+            Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
+            Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()),
+            Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(*op_span),
         }
     }
 }
@@ -456,8 +524,30 @@ fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
     intern_string(b"lambda_func", map_dir).unwrap()
 }
 
-fn try_render_dotted_name(expr: &ast::Expr) -> Option<String> {
-    todo!()
+fn try_render_dotted_name(
+    lhs: &ast::Expr,
+    field: &ast::Field,
+    intermediate_dir: &str,
+) -> Option<String> {
+    let lhs = match lhs {
+        ast::Expr::Ident { id, .. } => match unintern_string(*id, intermediate_dir) {
+            Ok(Some(s)) => String::from_utf8_lossy(&s).to_string(),
+            _ => { return None; },
+        },
+        ast::Expr::Path { lhs, field } => match try_render_dotted_name(&lhs, &field, intermediate_dir) {
+            Some(name) => name,
+            None => { return None; },
+        },
+        _ => { return None; },
+    };
+
+    match field {
+        ast::Field::Name { name, .. } => match unintern_string(*name, intermediate_dir) {
+            Ok(Some(s)) => Some(format!("{lhs}.{}", String::from_utf8_lossy(&s))),
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 #[derive(Clone, Debug)]

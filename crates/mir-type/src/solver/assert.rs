@@ -25,7 +25,7 @@ impl Solver {
                 generic_instances,
                 false,
                 None,
-                Some(assert.value.error_span()),
+                Some(assert.value.error_span_wide()),
                 ErrorContext::AssertConditionBool,
             ) {
                 has_error = true;
@@ -47,7 +47,7 @@ impl Solver {
                     generic_instances,
                     false,
                     None,
-                    Some(assert.value.error_span()),
+                    Some(assert.value.error_span_wide()),
                     ErrorContext::AssertConditionBool,
                 ) {
                     has_error = true;

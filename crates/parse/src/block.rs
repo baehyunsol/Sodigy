@@ -368,7 +368,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         expected: ErrorToken::Item,
                                         got: ErrorToken::Expr,
                                     },
-                                    spans: expr.error_span().simple_error(),
+                                    spans: expr.error_span_wide().simple_error(),
                                     note: None,
                                 });
                                 return Err(errors);

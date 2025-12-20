@@ -141,7 +141,7 @@ impl Solver {
                                 generic_instances,
                                 false,
                                 None,
-                                Some(v.error_span()),
+                                Some(v.error_span_wide()),
                                 context.clone(),
                             ) {
                                 has_error = true;
@@ -165,7 +165,7 @@ impl Solver {
                             generic_instances,
                             false,
                             None,
-                            Some(r#if.cond.error_span()),
+                            Some(r#if.cond.error_span_wide()),
                             ErrorContext::IfConditionBool,
                         ) {
                             has_error = true;
@@ -182,8 +182,8 @@ impl Solver {
                             types,
                             generic_instances,
                             false,
-                            Some(r#if.true_value.error_span()),
-                            Some(r#if.false_value.error_span()),
+                            Some(r#if.true_value.error_span_wide()),
+                            Some(r#if.false_value.error_span_wide()),
                             ErrorContext::IfValueEqual,
                         ) {
                             Ok(expr_type) => (Some(expr_type), has_error | e1 | e2),
@@ -221,7 +221,7 @@ impl Solver {
                                 generic_instances,
                                 false,
                                 None,
-                                Some(guard.error_span()),
+                                Some(guard.error_span_wide()),
                                 ErrorContext::MatchGuardBool,
                             ) {
                                 has_error = true;
@@ -253,8 +253,8 @@ impl Solver {
                             types,
                             generic_instances,
                             false,
-                            Some(r#match.arms[0].value.error_span()),
-                            Some(r#match.arms[i].value.error_span()),
+                            Some(r#match.arms[0].value.error_span_wide()),
+                            Some(r#match.arms[i].value.error_span_wide()),
                             ErrorContext::MatchArmEqual,
                         ) {
                             expr_type = new_expr_type;
@@ -305,7 +305,7 @@ impl Solver {
             //    - a generic function
             //      - it first converts `Generic` to `GenericInstance` and does what
             //        a non-generic function does
-            Expr::Call { func, args, generic_defs, given_keyword_arguments } => {
+            Expr::Call { func, args, generic_defs, given_keyword_arguments, .. } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -358,8 +358,8 @@ impl Solver {
                                     expected: params,
                                     got: arg_types,
                                     given_keyword_arguments: given_keyword_arguments.to_vec(),
-                                    func_span: func.error_span(),
-                                    arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
+                                    func_span: func.error_span_wide(),
+                                    arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                 });
                             }
 
@@ -372,7 +372,7 @@ impl Solver {
                                         generic_instances,
                                         false,
                                         None,
-                                        Some(args[i].error_span()),
+                                        Some(args[i].error_span_wide()),
                                         ErrorContext::FuncArgs,
                                     ) {
                                         has_error = true;
@@ -447,8 +447,8 @@ impl Solver {
                                     types,
                                     generic_instances,
                                     false,
-                                    Some(args[0].error_span()),
-                                    Some(args[i].error_span()),
+                                    Some(args[0].error_span_wide()),
+                                    Some(args[i].error_span_wide()),
                                     ErrorContext::ListElementEqual,
                                 ) {
                                     elem_type = new_elem_type;
@@ -485,7 +485,7 @@ impl Solver {
                             Type::Static { .. } | Type::Unit(_) | Type::Param { .. } => {
                                 self.errors.push(TypeError::NotCallable {
                                     r#type: func_type.clone(),
-                                    func_span: func.error_span(),
+                                    func_span: func.error_span_wide(),
                                 });
                                 return (None, true);
                             },
@@ -502,8 +502,8 @@ impl Solver {
                                         expected: params,
                                         got: arg_types,
                                         given_keyword_arguments: given_keyword_arguments.to_vec(),
-                                        func_span: func.error_span(),
-                                        arg_spans: args.iter().map(|arg| arg.error_span()).collect(),
+                                        func_span: func.error_span_wide(),
+                                        arg_spans: args.iter().map(|arg| arg.error_span_wide()).collect(),
                                     });
                                 }
 
@@ -516,7 +516,7 @@ impl Solver {
                                             generic_instances,
                                             false,
                                             None,
-                                            Some(args[i].error_span()),
+                                            Some(args[i].error_span_wide()),
                                             ErrorContext::FuncArgs,
                                         ) {
                                             has_error = true;

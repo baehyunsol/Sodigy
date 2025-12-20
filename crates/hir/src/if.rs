@@ -11,7 +11,9 @@ pub struct If {
     pub pattern: Option<Pattern>,
     pub else_span: Span,
     pub true_value: Box<Expr>,
+    pub true_group_span: Span,
     pub false_value: Box<Expr>,
+    pub false_group_span: Span,
 }
 
 impl If {
@@ -84,7 +86,9 @@ impl If {
                 pattern,
                 else_span: ast_if.else_span,
                 true_value: Box::new(true_value.unwrap()),
+                true_group_span: ast_if.true_group_span,
                 false_value: Box::new(false_value.unwrap()),
+                false_group_span: ast_if.false_group_span,
             })
         }
     }

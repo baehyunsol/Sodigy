@@ -27,14 +27,14 @@ impl Solver {
                         def_span: r#let.name_span,
                         is_return: false,
                     },
-                    r#let.value.error_span(),
+                    r#let.value.error_span_wide(),
                     None,
                     ErrorContext::InferTypeAnnotation,
                 )
             },
             Some(annotated_type) => (
                 annotated_type.clone(),
-                r#let.value.error_span(),
+                r#let.value.error_span_wide(),
                 r#let.type_annotation_span,
                 ErrorContext::VerifyTypeAnnotation,
             ),

@@ -240,8 +240,6 @@ impl Session {
         let mut has_error = false;
 
         for (mut path, impl_span) in self.poly_impls.clone().into_iter() {
-            let error_span = path.error_span();
-
             if let Err(()) = self.resolve_expr(&mut path) {
                 has_error = true;
             }
@@ -296,7 +294,7 @@ impl Session {
                         kind: ErrorKind::NotPolyGeneric { id: None },
                         spans: vec![
                             RenderableSpan {
-                                span: path.error_span(),
+                                span: path.error_span_wide(),
                                 auxiliary: false,
                                 note: Some(String::from("This is not a poly generic function.")),
                             },
@@ -706,7 +704,7 @@ impl Session {
         if recursion_depth == ALIAS_RESOLVE_RECURSION_LIMIT {
             self.errors.push(Error {
                 kind: ErrorKind::AliasResolveRecursionLimitReached,
-                spans: r#type.error_span().simple_error(),
+                spans: r#type.error_span_wide().simple_error(),
                 note: Some(String::from("Recursion limit reached while trying to resolve this type annotation. It's likely that there's a recursive alias.")),
             });
             return Err(());
@@ -1249,7 +1247,7 @@ impl Session {
                     Ok(())
                 }
             },
-            Expr::Call { func, args } => {
+            Expr::Call { func, args, .. } => {
                 let mut has_error = false;
 
                 if let Err(()) = self.resolve_expr(func) {

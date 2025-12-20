@@ -1,4 +1,4 @@
-use crate::{Pattern, PatternKind, Session};
+use crate::{Pattern, PatternKind, PatternValueKind, Session};
 use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
@@ -20,7 +20,7 @@ impl Pattern {
             if let Some(r#type) = &self.r#type {
                 errors.push(Error {
                     kind: ErrorKind::CannotAnnotateType,
-                    spans: r#type.error_span().simple_error(),
+                    spans: r#type.error_span_wide().simple_error(),
                     note: None,
                 });
             }
@@ -78,13 +78,26 @@ impl Pattern {
             PatternKind::Number { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } => Ok(()),
+            PatternKind::InfixOp { kind, .. } => match kind {
+                PatternValueKind::Constant => Ok(()),
+                PatternValueKind::DollarIdent | PatternValueKind::Ident => {
+                    let note = match kind {
+                        PatternValueKind::DollarIdent => "Dollar-identifiers cannot be an end of a range.",
+                        PatternValueKind::Ident => "You cannot bind a name to an end of a range.",
+                        _ => unreachable!(),
+                    };
 
-            // TODO: If lhs and rhs are all const, it's valid!
-            PatternKind::InfixOp { lhs, rhs, .. } => todo!(),
+                    Err(vec![Error {
+                        kind: ErrorKind::InvalidRangePattern,
+                        spans: self.error_span_wide().simple_error(),
+                        note: Some(note.to_string()),
+                    }])
+                },
+            },
 
             _ => Err(vec![Error {
                 kind: ErrorKind::InvalidRangePattern,
-                spans: self.error_span().simple_error(),
+                spans: self.error_span_wide().simple_error(),
                 note: if matches!(&self.kind, PatternKind::Wildcard(_)) {
                     Some(format!(
                         "If you want an open-ended range, just leave {} empty instead of using a wildcard.",
@@ -245,7 +258,7 @@ impl PatternKind {
                         kind: ErrorKind::DifferentNameBindingsInOrPattern,
                         spans: vec![
                             RenderableSpan {
-                                span: lhs.error_span(),
+                                span: lhs.error_span_wide(),
                                 auxiliary: false,
                                 note: Some(format!(
                                     "This pattern binds {}: {}",
@@ -254,7 +267,7 @@ impl PatternKind {
                                 )),
                             },
                             RenderableSpan {
-                                span: rhs.error_span(),
+                                span: rhs.error_span_wide(),
                                 auxiliary: false,
                                 note: Some(format!(
                                     "This pattern binds {}: {}",

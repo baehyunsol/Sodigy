@@ -1,3 +1,32 @@
+# 127. Another idea for impure actions
+
+```
+{
+    exec foo();
+    exec bar();
+    baz()
+}
+```
+
+- Impure Function (a.k.a. action)
+  - An impure function is either built-in or a function that has at least 1 impure block.
+- Impure block
+  - A block that contains at least 1 impure statement.
+  - Only an impure function can have an impure block.
+  - Statements in an impure block are guaranteed to be executed in the order.
+  - Statements in an impure block are not optimized away.
+  - It also includes curly braces in if-expressions and match-arms.
+    - TODO: how about `[1, 2, exec foo()]`?
+  - It's not allowed in assertions and default values of func/enum/struct.
+    - Why not in assertions?
+- Impure statement
+  - An expression following `exec` keyword.
+    - It throws a warning if the outer-most function is not impure.
+    - It throws an error if there's no impure function at all.
+  - You can also assign a result of an action: `let x = exec foo();`.
+
+... How about `exec` keyword?
+
 # 126. rename `r#type` to `type_annot`
 
 둘이 구분해야함...
@@ -50,12 +79,6 @@ worker는 괜찮은 design같은데, master가 별로 안 좋아보임. `channel
   - VM 안에 scheduler가 있대
   - 함수 호출할 때마다 counter를 1씩 감소시키고 counter가 4000만큼 감소되면 다른 process로 넘어간대
 
-# 124. very long underline
-
-1. horizontally long: it can already handle horizontally long underlines!
-2. vertically long (e.g. very long string literal is underlined)
-  - If more than 7 consecutive lines are 1) underlined and 2) have no notes, it only shows the first 3 and the last 3 lines.
-
 # 122. Very long files
 
 Bottlenecks: 1) lexer has to load the entire `Vec<u8>` of a file 2) parser/hir has to load the entire AST of a file 3) mir has to load the entire project 4) an `InternedString` can intern at most 2 billion bytes 5) the interpreter's memory allocator can allocate a block of at most 2 billion scalars.
@@ -85,35 +108,6 @@ Scenarios:
 
 추가로, string literal이 4GiB 넘어가면 compile error를 날려야겠네?
 하는 김에 decimal digit이 너무 길어도 warning 날리자
-
-# 121. Pipeline operator
-
-```
-a() |> b($, 1) |> $ + 1;
-// ->
-{
-  let t1 = a();
-  let t2 = b(t1, 1);
-  t2 + 1
-};
-
-a() |> 1 + b($) + (c() |> d($)) |> e($);
-// ->
-{
-  let t1 = a();
-  let t2 = 1 + b(t1) + { let t1 = c(); d(t1) };
-  e(t2)
-}
-```
-
-1. gleam이나 bash처럼 implicit하게 넘기는 건 별로고, `$`로 직접 넘기자!!
-2. 기존의 expr variants 재활용하지 말고, 아예 새로운 variant를 만들어버리자!!
-  - `|>`의 precedence를 제일 아래로 내려버리면 parsing이 쉬워짐, 일단 pratt_parsing한 다음에 rhs만 쭉 펼치면 되거든
-  - 그런 다음에 `Pipeline(Vec<Expr>)`로 만들어버리자!!
-3. unused name은 언제 잡을까?
-  - hir에서 잡는 것보다는 parser가 dedicated error variant 날리는게 나을 듯?
-  - unused인데 뒷부분에 identifier 하나만 덩그러니 있으면 error note에다가 "perhaps you mean f($)?"라고 하자!!
-  - 이건 warning 날리지말고 error 날려버리자!!
 
 # 119. idea for testing the type-solver
 
@@ -154,27 +148,9 @@ type annotation에서 `<<`나 `>>` 나오면 처리가 안됨 ㅠㅠ
     - `Tokens`를 만들 때 `<<`를 쪼개버리면 됨!
     - clone이 좀 들어가겠지만 그나마 피해가 적을 듯?
 
-# 116. `error_span()`
-
-`error_span_wide()`랑 `error_span_narrow()`로 구분해서 쓸까? narrow는 operator나 keyword만 해주는 거지!!
-
 # 115. Span tester
 
 text file이랑 span을 주고, render-span 호출할 수 있게하는 pipeline 만들자!
-
-# 114. regex patterns
-
-`r""`를 raw string으로도 쓰고 regex pattern으로도 쓰는 거는 너무 헷갈릴 듯??
-
-차라리 `re""`를 만들어서 regex pattern으로 쓰자!!
-
-pattern에서는 `re""`가 regex고... expression에서는??
-
-1. `r""`이랑 동일하게 취급하기
-2. 에러 날리기
-3. `Regex`라는 type 새로 만들어서 그걸로 취급하기
-  - regex library 사용해도 저 type이 나옴
-  - regex literal은 반드시 compile time에 eval됨!
 
 # 112. lists
 
@@ -198,7 +174,7 @@ pattern에서는 `re""`가 regex고... expression에서는??
 
 # 111. more diverse `Span::None`
 
-We'll call this derived-span
+We'll call this "derived-span"
 
 compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 
@@ -234,6 +210,8 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
   - 문서에다가 values might be lazy-evaled or eager-evaled라고 적어야 함
   - top-level let은 static임
 2. top-level let이 init 됐는지 안 됐는지는 runtime에서 관리!
+
+... I want everything to be lazy-evaled...
 
 # 107. top-level let eval strategy
 

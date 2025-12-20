@@ -78,7 +78,7 @@ pub fn replace_dollar(
             }
         },
         ast::Expr::Block(block) => todo!(),
-        ast::Expr::Call { func, args } => {
+        ast::Expr::Call { func, args, .. } => {
             replace_dollar(
                 func,
                 ident,

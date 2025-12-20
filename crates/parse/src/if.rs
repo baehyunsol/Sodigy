@@ -18,7 +18,11 @@ pub struct If {
     pub else_span: Span,
 
     pub true_value: Box<Expr>,
+    pub true_group_span: Span,
     pub false_value: Box<Expr>,
+
+    // If there are multiple branches (> 2), it has the span of the last curly braces.
+    pub false_group_span: Span,
 }
 
 impl<'t, 's> Tokens<'t, 's> {
@@ -67,30 +71,33 @@ impl<'t, 's> Tokens<'t, 's> {
                 tokens: true_value_tokens,
                 ..
             },
-            span: true_value_span,
+            span: true_group_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut true_value_tokens = Tokens::new(true_value_tokens, true_value_span.end(), &self.intermediate_dir);
-        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, *true_value_span)?));
+        let true_group_span = *true_group_span;
+        let mut true_value_tokens = Tokens::new(true_value_tokens, true_group_span.end(), &self.intermediate_dir);
+        let true_value = Box::new(Expr::block_or_expr(true_value_tokens.parse_block(false /* top-level */, true_group_span)?));
 
-        let (else_span, false_value) = match self.peek2() {
+        let (else_span, false_value, false_group_span) = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }),
             ) => {
                 let span1 = *span1;
                 self.cursor += 1;
-                (span1, Box::new(Expr::If(self.parse_if_expr()?)))
+                let if_expr = self.parse_if_expr()?;
+                let false_group_span = if_expr.false_group_span;
+                (span1, Box::new(Expr::If(if_expr)), false_group_span)
             },
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::Else), span: span1 }),
-                Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens: false_value_tokens }, span: span2 }),
+                Some(Token { kind: TokenKind::Group { delim: Delim::Brace, tokens: false_value_tokens }, span: false_group_span }),
             ) => {
                 let span1 = *span1;
-                let span2 = *span2;
-                let mut false_value_tokens = Tokens::new(false_value_tokens, span2.end(), &self.intermediate_dir);
-                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, span2)?);
+                let false_group_span = *false_group_span;
+                let mut false_value_tokens = Tokens::new(false_value_tokens, false_group_span.end(), &self.intermediate_dir);
+                let false_value = Expr::block_or_expr(false_value_tokens.parse_block(false /* top-level */, false_group_span)?);
                 self.cursor += 2;
-                (span1, Box::new(false_value))
+                (span1, Box::new(false_value), false_group_span)
             },
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::Else), .. }),
@@ -143,7 +150,9 @@ impl<'t, 's> Tokens<'t, 's> {
             pattern,
             else_span,
             true_value,
+            true_group_span,
             false_value,
+            false_group_span,
         })
     }
 }

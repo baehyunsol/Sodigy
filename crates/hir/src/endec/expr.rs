@@ -55,10 +55,11 @@ impl Endec for Expr {
                 buffer.push(7);
                 block.encode_impl(buffer);
             },
-            Expr::Call { func, args } => {
+            Expr::Call { func, args, arg_group_span } => {
                 buffer.push(8);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
+                arg_group_span.encode_impl(buffer);
             },
             Expr::FormattedString { raw, elements, span } => {
                 buffer.push(9);
@@ -157,7 +158,8 @@ impl Endec for Expr {
             Some(8) => {
                 let (func, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<CallArg>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Call { func, args }, cursor))
+                let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Expr::Call { func, args, arg_group_span }, cursor))
             },
             Some(9) => {
                 let (raw, cursor) = bool::decode_impl(buffer, cursor + 1)?;

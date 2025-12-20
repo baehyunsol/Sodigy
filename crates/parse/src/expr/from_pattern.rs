@@ -17,7 +17,7 @@ impl Expr {
         if let Some(r#type) = &pattern.r#type {
             errors.push(Error {
                 kind: ErrorKind::CannotAnnotateType,
-                spans: r#type.error_span().simple_error(),
+                spans: r#type.error_span_wide().simple_error(),
                 note: None,
             });
         }
@@ -43,7 +43,7 @@ impl Expr {
         match pattern_kind {
             PatternKind::Ident { .. } => Err(vec![Error {
                 kind: ErrorKind::CannotEvaluateConst,
-                spans: pattern_kind.error_span().simple_error(),
+                spans: pattern_kind.error_span_narrow().simple_error(),
                 note: None,
             }]),
             PatternKind::DollarIdent { id, span } => Ok(Expr::Ident { id: *id, span: *span }),

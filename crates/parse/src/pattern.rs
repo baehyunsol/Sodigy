@@ -147,19 +147,23 @@ impl Pattern {
         result
     }
 
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
+        self.kind.error_span_narrow()
+    }
+
+    pub fn error_span_wide(&self) -> Span {
         if let Some(name_span) = self.name_span {
-            name_span.merge(self.kind.error_span())
+            name_span.merge(self.kind.error_span_wide())
         }
 
         else {
-            self.kind.error_span()
+            self.kind.error_span_wide()
         }
     }
 }
 
 impl PatternKind {
-    pub fn error_span(&self) -> Span {
+    pub fn error_span_narrow(&self) -> Span {
         match self {
             PatternKind::Number { span, .. } |
             PatternKind::String { span, .. } |
@@ -187,6 +191,12 @@ impl PatternKind {
 
                 result
             },
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            _ => todo!(),
         }
     }
 
@@ -486,7 +496,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             self.cursor += 1;
 
                             let mut rhs = self.pratt_parse_pattern(context, r_bp)?;
-                            let mut name_binding = None;
+                            let name_binding;
                             let mut errors = vec![];
 
                             match lhs {
@@ -523,12 +533,12 @@ impl<'t, 's> Tokens<'t, 's> {
                                             kind: ErrorKind::CannotAnnotateType,
                                             spans: vec![
                                                 RenderableSpan {
-                                                    span: lhs.kind.error_span(),
+                                                    span: lhs.kind.error_span_narrow(),
                                                     auxiliary: true,
                                                     note: Some(String::from("You cannot add type annotation to this.")),
                                                 },
                                                 RenderableSpan {
-                                                    span: r#type.error_span(),
+                                                    span: r#type.error_span_wide(),
                                                     auxiliary: false,
                                                     note: Some(String::from("Remove this type annotation.")),
                                                 },
@@ -782,10 +792,10 @@ impl<'t, 's> Tokens<'t, 's> {
                                     ) => {
                                         let (aux_span, aux_name) = match (&lhs.kind, &rhs.kind) {
                                             (PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }, _) => {
-                                                (lhs.error_span(), find_name_binding_in_const(&lhs.kind).unwrap())
+                                                (lhs.error_span_wide(), find_name_binding_in_const(&lhs.kind).unwrap())
                                             },
                                             (_, PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }) => {
-                                                (rhs.error_span(), find_name_binding_in_const(&rhs.kind).unwrap())
+                                                (rhs.error_span_wide(), find_name_binding_in_const(&rhs.kind).unwrap())
                                             },
                                             _ => unreachable!(),
                                         };
@@ -808,7 +818,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                             auxiliary: true,
                                                             note: Some(format!(
                                                                 "There's a name binding `{}`.",
-                                                        String::from_utf8_lossy(&unintern_string(aux_name, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                                String::from_utf8_lossy(&unintern_string(aux_name, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
                                                             )),
                                                         },
                                                     ],
@@ -835,7 +845,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     note: None,
                                                 },
                                                 RenderableSpan {
-                                                    span: lhs.error_span(),  // TODO: impl `error_span_wide`
+                                                    span: lhs.error_span_wide(),
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",
@@ -843,7 +853,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     )),
                                                 },
                                                 RenderableSpan {
-                                                    span: rhs.error_span(),  // TODO: impl `error_span_wide()`
+                                                    span: rhs.error_span_wide(),
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",

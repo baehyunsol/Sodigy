@@ -8,6 +8,7 @@ pub struct Match {
     pub keyword_span: Span,
     pub scrutinee: Box<Expr>,
     pub arms: Vec<MatchArm>,
+    pub group_span: Span,
 }
 
 #[derive(Clone, Debug)]
@@ -24,15 +25,17 @@ impl<'t, 's> Tokens<'t, 's> {
 
         let Token {
             kind: TokenKind::Group { tokens, .. },
-            span,
+            span: group_span,
         } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut arm_tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+        let group_span = *group_span;
+        let mut arm_tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
         let arms = arm_tokens.parse_match_arms()?;
 
         Ok(Match {
             keyword_span: keyword.span,
             scrutinee: Box::new(scrutinee),
             arms,
+            group_span,
         })
     }
 

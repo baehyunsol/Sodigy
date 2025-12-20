@@ -397,7 +397,7 @@ impl Attribute {
                                     },
                                     positional_args.iter().map(
                                         |arg| RenderableSpan {
-                                            span: arg.error_span(),
+                                            span: arg.error_span_wide(),
                                             auxiliary: false,
                                             note: None,
                                         }
@@ -417,7 +417,7 @@ impl Attribute {
                                     },
                                     positional_args[n..].iter().map(
                                         |arg| RenderableSpan {
-                                            span: arg.error_span(),
+                                            span: arg.error_span_wide(),
                                             auxiliary: false,
                                             note: None,
                                         }
@@ -437,7 +437,7 @@ impl Attribute {
                                     },
                                     positional_args[(n - 1)..].iter().map(
                                         |arg| RenderableSpan {
-                                            span: arg.error_span(),
+                                            span: arg.error_span_wide(),
                                             auxiliary: false,
                                             note: None,
                                         }
@@ -741,7 +741,7 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
                     expected: ErrorToken::String,
                     got: ErrorToken::Expr,
                 },
-                spans: arg.error_span().simple_error(),
+                spans: arg.error_span_wide().simple_error(),
                 note: error_note.clone(),
             });
             Err(())
@@ -753,7 +753,7 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
                     expected: ErrorToken::Generic,
                     got: ErrorToken::Expr,
                 },
-                spans: arg.error_span().simple_error(),
+                spans: arg.error_span_wide().simple_error(),
                 note: error_note.clone(),
             });
             Err(())
@@ -766,7 +766,7 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
                     expected: ErrorToken::Path,
                     got: ErrorToken::Expr,
                 },
-                spans: arg.error_span().simple_error(),
+                spans: arg.error_span_wide().simple_error(),
                 note: error_note.clone(),
             });
             Err(())

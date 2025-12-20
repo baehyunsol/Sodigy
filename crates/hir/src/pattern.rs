@@ -224,7 +224,7 @@ impl PatternKind {
                     is_inclusive: *is_inclusive,
                 }),
             },
-            ast::PatternKind::InfixOp { op, lhs, rhs, op_span, kind } => match kind {
+            ast::PatternKind::InfixOp { kind, .. } => match kind {
                 ast::PatternValueKind::Constant | ast::PatternValueKind::DollarIdent => {
                     let ast_expr = match ast::Expr::from_pattern_kind(ast_pattern) {
                         Ok(expr) => expr,

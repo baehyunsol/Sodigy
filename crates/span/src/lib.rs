@@ -63,6 +63,8 @@ impl Span {
                 start: (*start1).min(start2),
                 end: (*end1).max(end2),
             },
+            (Span::None, s) => s,
+            (s, Span::None) => *s,
             _ => todo!(),
         }
     }
