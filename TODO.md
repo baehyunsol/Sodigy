@@ -16,16 +16,21 @@
   - Statements in an impure block are guaranteed to be executed in the order.
   - Statements in an impure block are not optimized away.
   - It also includes curly braces in if-expressions and match-arms.
-    - TODO: how about `[1, 2, exec foo()]`?
+    - You can't do `[1, 2, exec foo()]`. It has to be `let x = exec [1, 2, foo()];`.
   - It's not allowed in assertions and default values of func/enum/struct.
     - Why not in assertions?
+  - TODO: what if it wants to return the executed value?
+    - That depends on how we define the semantics of the `exec` keyword.
+    - If it "allows calling impure functions", the syntax should be `fn f() = { exec foo(); exec bar(); exec baz() }`
+      - It's consistent with `let x = exec foo();`
+    - If it "allows calling functions whose return values are not used", the syntax should be `fn f() = { exec foo(); exec bar(); baz() }`
+      - It's not consistent with `let x = exec foo();`
+      - It's consistent with the meaning of the English word "execute".
 - Impure statement
   - An expression following `exec` keyword.
     - It throws a warning if the outer-most function is not impure.
     - It throws an error if there's no impure function at all.
   - You can also assign a result of an action: `let x = exec foo();`.
-
-... How about `exec` keyword?
 
 # 126. rename `r#type` to `type_annot`
 
@@ -44,6 +49,7 @@
 
 1. sodigy version
 2. any process can spawn a worker.
+  - `fn spawn<State, MessageFromMaster, MessageToMaster>(f: Fn(State, MessageFromMaster) -> (State, MessageToMaster)) -> Channel<State, MessageFromMaster, MessageToMaster>;`
 3. a worker is just a function that looks like `fn worker(state: State, message: MessageFromMaster) -> (State, MessageToMaster)`
   - a worker sleeps until it receives a message
   - when a message is sent, the function is called with the state, and the response is sent back to the master
