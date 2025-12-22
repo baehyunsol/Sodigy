@@ -1,3 +1,19 @@
+# 128. comp-eval
+
+`let`에다가 `#[comptime]`을 붙일 수 있음. 그럼 이 `let`의 값은 반드시 compile-time에 evaluate됨.
+
+1. 단순 최적화가 아님. 예를 들어 `#[comptime] let x = foo(a, 3);`인데 `a`가 func-arg면 이건 죽었다 깨어나도 comptime이 안되잖아? 그럼 compile error임!!
+2. `include_bytes!`랑 궁합이 되게 좋을 듯?
+3. func-pointer는 어떤 식으로 표현하지... `#[comptime] let x = \(a, b) => a + b;`라고 돼 있으면...
+4. 구현 (draft)
+  - `#[comptime] let x = foo(3, 4);` is lowered to `let x = comptime(foo(3, 4));`.
+  - `fn comptime<T>(v: T) -> T;` is a pseudo-function that only exists in a certain pass of a compilation.
+    - It evaluates the argument and replace itself with the evaluation result.
+  - we need an mir interpreter...
+  - timeout?
+    - some code might run forever
+  - what if it panics?
+
 # 127. Another idea for impure actions
 
 ```
@@ -31,10 +47,6 @@
     - It throws a warning if the outer-most function is not impure.
     - It throws an error if there's no impure function at all.
   - You can also assign a result of an action: `let x = exec foo();`.
-
-# 126. rename `r#type` to `type_annot`
-
-둘이 구분해야함...
 
 # 125. Multiprocessing
 
@@ -73,6 +85,8 @@
 5. How about connecting multiple workers to a channel?
 
 worker는 괜찮은 design같은데, master가 별로 안 좋아보임. `channel.recv()` 계열의 함수들이 functional programming이랑 궁합이 안 맞을 거 같음...
+
+`channel.recv()` 잘못 쓰면 deadlock 걸릴 수도 있을 듯? 지금은 eval-order가 안 정해져 있는데, 만약에 `.recv()`를 먼저 하고 `.send()`를 나중에 하게 되면 꼼짝없이 deadlock임...
 
 ---
 

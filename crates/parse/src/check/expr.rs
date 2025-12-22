@@ -112,7 +112,7 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::Lambda { params, r#type, value, .. } => {
+            Expr::Lambda { params, type_annot, value, .. } => {
                 let mut errors = vec![];
                 let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
@@ -175,8 +175,8 @@ impl Expr {
                     }
                 }
 
-                if let Some(r#type) = r#type.as_ref() {
-                    if let Err(e) = r#type.check() {
+                if let Some(type_annot) = type_annot.as_ref() {
+                    if let Err(e) = type_annot.check() {
                         errors.extend(e);
                     }
                 }

@@ -108,7 +108,7 @@ impl Solver {
 
         if let Some(log) = &mut self.log {
             for (call, def) in dispatch_map.iter() {
-                let mut generic_call = generic_calls.get(call).unwrap().clone();
+                let generic_call = generic_calls.get(call).unwrap().clone();
                 let mut generics = generic_call.generics.clone().into_iter().filter(
                     |(span, _)| !already_dispatched.contains(&(generic_call.call, *span))
                 ).collect::<Vec<_>>();

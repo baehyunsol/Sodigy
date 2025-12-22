@@ -79,7 +79,7 @@ pub enum Type {
     },
     // `Message<T>`, `Result<[Int], Error>`
     Param {
-        r#type: Box<Type>,  // either `Type::Ident` or `Type::Path`
+        constructor: Box<Type>,  // either `Type::Ident` or `Type::Path`
         args: Vec<Type>,
         group_span: Span,
     },
@@ -125,7 +125,7 @@ impl Type {
                 Some(Field::Name { dot_span, .. }) => *dot_span,
                 _ => unreachable!(),
             },
-            Type::Param { r#type, .. } => r#type.error_span_narrow(),
+            Type::Param { constructor, .. } => constructor.error_span_narrow(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
             Type::Func { r#type, .. } => r#type.error_span_narrow(),
@@ -170,7 +170,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                             return Ok(Type::Param {
-                                r#type: Box::new(Type::Path {
+                                constructor: Box::new(Type::Path {
                                     id: path[0].0,
                                     id_span: path[0].1,
                                     fields: path[1..].iter().zip(dot_spans.iter()).map(
@@ -234,7 +234,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                 Ok(Type::Param {
-                    r#type: Box::new(Type::Ident { id, span }),
+                    constructor: Box::new(Type::Ident { id, span }),
                     args,
                     group_span: group_span_start.merge(group_span_end),
                 })

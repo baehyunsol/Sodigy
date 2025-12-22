@@ -11,10 +11,6 @@ pub struct Pattern {
     // So, `PatternKind::Ident` doesn't have these fields.
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
-
-    // You can add a type annotation only if its kind is `PatternKind::Ident`.
-    pub r#type: Option<Type>,
-
     pub kind: PatternKind,
 }
 
@@ -187,14 +183,6 @@ impl Pattern {
             });
         }
 
-        if let Some(r#type) = &self.r#type {
-            errors.push(Error {
-                kind: ErrorKind::CannotAnnotateType,
-                spans: r#type.error_span_wide().simple_error(),
-                note: None,
-            });
-        }
-
         let result = match self.kind {
             PatternKind::Ident { id, span } => PatternKind::List {
                 elements: vec![],
@@ -331,21 +319,6 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut lhs = match self.peek2() {
             (
                 Some(Token { kind: TokenKind::Ident(id), span }),
-                Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
-            ) => {
-                let (id, span) = (*id, *span);
-                self.cursor += 2;
-                let r#type = self.parse_type()?;
-
-                Pattern {
-                    name: None,
-                    name_span: None,
-                    r#type: Some(r#type),
-                    kind: PatternKind::Ident { id, span },
-                }
-            },
-            (
-                Some(Token { kind: TokenKind::Ident(id), span }),
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
             ) => todo!(),
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
@@ -356,7 +329,6 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: PatternKind::Wildcard(span),
                     }
                 }
@@ -365,7 +337,6 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: PatternKind::Ident { id, span },
                     }
                 }
@@ -380,7 +351,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::DollarIdent { id, span },
                 }
             },
@@ -390,7 +360,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::PipelineData(span),
                 }
             },
@@ -405,7 +374,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::Number { n, span },
                 }
             },
@@ -415,7 +383,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::Number { n, span },
                 }
             },
@@ -427,7 +394,6 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: PatternKind::Regex { s, span },
                     }
                 }
@@ -436,7 +402,6 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: PatternKind::String { binary, s, span },
                     }
                 }
@@ -447,7 +412,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::Char { ch, span },
                 }
             },
@@ -457,7 +421,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::Byte { b, span },
                 }
             },
@@ -500,7 +463,6 @@ impl<'t, 's> Tokens<'t, 's> {
                         Pattern {
                             name: None,
                             name_span: None,
-                            r#type: None,
                             kind: PatternKind::Tuple {
                                 elements,
                                 group_span,
@@ -513,7 +475,6 @@ impl<'t, 's> Tokens<'t, 's> {
                     Delim::Bracket => Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: PatternKind::List {
                             elements,
                             group_span,
@@ -536,7 +497,6 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    r#type: None,
                     kind: PatternKind::Range {
                         lhs: None,
                         rhs: Some(Box::new(rhs)),
@@ -571,7 +531,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                 Pattern {
                                     name,
                                     name_span,
-                                    r#type,
                                     kind: PatternKind::Ident { id, span },
                                 } => {
                                     name_binding = Some((id, span));
@@ -590,25 +549,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     span,
                                                     auxiliary: false,
                                                     note: None,
-                                                },
-                                            ],
-                                            note: None,
-                                        });
-                                    }
-
-                                    if let Some(r#type) = r#type {
-                                        errors.push(Error {
-                                            kind: ErrorKind::CannotAnnotateType,
-                                            spans: vec![
-                                                RenderableSpan {
-                                                    span: lhs.kind.error_span_narrow(),
-                                                    auxiliary: true,
-                                                    note: Some(String::from("You cannot add type annotation to this.")),
-                                                },
-                                                RenderableSpan {
-                                                    span: r#type.error_span_wide(),
-                                                    auxiliary: false,
-                                                    note: Some(String::from("Remove this type annotation.")),
                                                 },
                                             ],
                                             note: None,
@@ -711,7 +651,6 @@ impl<'t, 's> Tokens<'t, 's> {
                             lhs = Pattern {
                                 name: None,
                                 name_span: None,
-                                r#type: None,
                                 kind: PatternKind::Or {
                                     lhs: Box::new(lhs),
                                     rhs: Box::new(rhs),
@@ -735,7 +674,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                     lhs = Pattern {
                                         name: None,
                                         name_span: None,
-                                        r#type: None,
                                         kind: PatternKind::Range {
                                             lhs: Some(Box::new(lhs)),
                                             rhs: Some(Box::new(rhs)),
@@ -748,7 +686,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                     lhs = Pattern {
                                         name: None,
                                         name_span: None,
-                                        r#type: None,
                                         kind: PatternKind::Range {
                                             lhs: Some(Box::new(lhs)),
                                             rhs: None,
@@ -815,7 +752,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                     lhs = Pattern {
                                         name: None,
                                         name_span: None,
-                                        r#type: None,
                                         kind: PatternKind::List {
                                             elements: vec![elems1, elems2].concat(),
                                             rest,
@@ -995,7 +931,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                 lhs = Pattern {
                                     name: None,
                                     name_span: None,
-                                    r#type: None,
                                     kind: PatternKind::InfixOp {
                                         op,
                                         lhs: Box::new(lhs),

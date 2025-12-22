@@ -14,14 +14,6 @@ impl Expr {
             });
         }
 
-        if let Some(r#type) = &pattern.r#type {
-            errors.push(Error {
-                kind: ErrorKind::CannotAnnotateType,
-                spans: r#type.error_span_wide().simple_error(),
-                note: None,
-            });
-        }
-
         let expr = match Expr::from_pattern_kind(&pattern.kind) {
             Ok(expr) => expr,
             Err(es) => {

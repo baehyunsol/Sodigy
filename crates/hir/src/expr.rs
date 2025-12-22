@@ -271,7 +271,7 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
-            ast::Expr::Lambda { params, param_group_span, r#type, value, .. } => {
+            ast::Expr::Lambda { params, param_group_span, type_annot, value, .. } => {
                 let span = param_group_span.begin();
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
@@ -282,7 +282,7 @@ impl Expr {
                     generics: vec![],
                     generic_group_span: None,
                     params: params.clone(),
-                    r#type: r#type.as_ref().clone(),
+                    type_annot: type_annot.as_ref().clone(),
                     value: Some(value.as_ref().clone()),
                     attribute: ast::Attribute::new(),
                 };
@@ -391,7 +391,7 @@ impl Expr {
                             keyword_span: Span::None,
                             name: intern_string(format!("{}{i}", "$".repeat(session.nested_pipeline_depth)).as_bytes(), &session.intermediate_dir).unwrap(),
                             name_span: pipe_spans[i],
-                            r#type: None,
+                            type_annot: None,
                             value: value.clone(),
                             attribute: ast::Attribute::new(),
                             from_pipeline: true,

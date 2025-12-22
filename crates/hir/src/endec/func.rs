@@ -22,7 +22,7 @@ impl Endec for Func {
         self.name_span.encode_impl(buffer);
         self.generics.encode_impl(buffer);
         self.params.encode_impl(buffer);
-        self.r#type.encode_impl(buffer);
+        self.type_annot.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
         self.built_in.encode_impl(buffer);
@@ -37,7 +37,7 @@ impl Endec for Func {
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
         let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
-        let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
+        let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
         let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
@@ -52,7 +52,7 @@ impl Endec for Func {
                 name_span,
                 generics,
                 params,
-                r#type,
+                type_annot,
                 value,
                 origin,
                 built_in,
@@ -68,21 +68,21 @@ impl Endec for FuncParam {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
-        self.r#type.encode_impl(buffer);
+        self.type_annot.encode_impl(buffer);
         self.default_value.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
+        let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (default_value, cursor) = Option::<IdentWithOrigin>::decode_impl(buffer, cursor)?;
 
         Ok((
             FuncParam {
                 name,
                 name_span,
-                r#type,
+                type_annot,
                 default_value,
             },
             cursor,

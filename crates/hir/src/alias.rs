@@ -166,8 +166,8 @@ fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentW
                 result.push(*id);
             }
         },
-        Type::Param { r#type, args, .. } => {
-            find_ids_with_def_span(r#type, def_span, result);
+        Type::Param { constructor, args, .. } => {
+            find_ids_with_def_span(constructor, def_span, result);
 
             for arg in args.iter() {
                 find_ids_with_def_span(arg, def_span, result);

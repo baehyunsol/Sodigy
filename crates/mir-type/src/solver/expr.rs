@@ -69,7 +69,7 @@ impl Solver {
             Expr::String { binary, .. } => match *binary {
                 true => (
                     Some(Type::Param {
-                        r#type: Box::new(Type::Static {
+                        constructor: Box::new(Type::Static {
                             def_span: self.get_lang_item_span("type.List"),
                             span: Span::None,
                         }),
@@ -83,7 +83,7 @@ impl Solver {
                 ),
                 false => (
                     Some(Type::Param {
-                        r#type: Box::new(Type::Static {
+                        constructor: Box::new(Type::Static {
                             def_span: self.get_lang_item_span("type.List"),
                             span: Span::None,
                         }),
@@ -405,7 +405,7 @@ impl Solver {
                         Some(Type::Param {
                             // `Type::Unit`'s `group_span` is of type annotation,
                             // and `Callable::TupleInit`'s `group_span` is of the expression.
-                            r#type: Box::new(Type::Unit(Span::None)),
+                            constructor: Box::new(Type::Unit(Span::None)),
                             args: arg_types,
 
                             // this is for the type annotation, hence None
@@ -424,7 +424,7 @@ impl Solver {
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Param {
-                                r#type: Box::new(Type::Static {
+                                constructor: Box::new(Type::Static {
                                     def_span: self.get_lang_item_span("type.List"),
                                     span: Span::None,
                                 }),
@@ -460,7 +460,7 @@ impl Solver {
                             }
 
                             let r#type = Type::Param {
-                                r#type: Box::new(Type::Static {
+                                constructor: Box::new(Type::Static {
                                     def_span: self.get_lang_item_span("type.List"),
                                     span: Span::None,
                                 }),

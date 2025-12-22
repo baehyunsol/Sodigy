@@ -34,7 +34,7 @@ pub enum Type {
     // Result<Int, String>, Result<T, U>, Option<Result<Int, String>>, ...
     // Tuple also has this type: `Param { type: Unit, args: [..] }`
     Param {
-        r#type: Box<Type>,  // `Result`
+        constructor: Box<Type>,  // `Result`
         args: Vec<Type>,    // `<Int, String>`
         group_span: Span,
     },
@@ -127,10 +127,10 @@ impl Type {
                 session.errors.push(Error::todo(33045, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
                 Err(())
             },
-            hir::Type::Param { r#type, args: hir_args, group_span } => {
+            hir::Type::Param { constructor, args: hir_args, group_span } => {
                 let mut has_error = false;
-                let r#type = match Type::from_hir(r#type, session) {
-                    Ok(r#type) => Some(r#type),
+                let constructor = match Type::from_hir(constructor, session) {
+                    Ok(constructor) => Some(constructor),
                     Err(()) => {
                         has_error = true;
                         None
@@ -155,7 +155,7 @@ impl Type {
 
                 else {
                     Ok(Type::Param {
-                        r#type: Box::new(r#type.unwrap()),
+                        constructor: Box::new(constructor.unwrap()),
                         args,
                         group_span: *group_span,
                     })
@@ -185,7 +185,7 @@ impl Type {
 
                     else {
                         Ok(Type::Param {
-                            r#type: Box::new(Type::Unit(*group_span)),
+                            constructor: Box::new(Type::Unit(*group_span)),
                             args: types,
                             group_span: *group_span,
                         })
@@ -243,7 +243,7 @@ impl Type {
             Type::GenericDef { .. } |
             Type::Unit(_) |
             Type::Never(_) => vec![],
-            Type::Param { r#type: t, args, .. } |
+            Type::Param { constructor: t, args, .. } |
             Type::Func { r#return: t, params: args, .. } => {
                 let mut result = t.get_type_vars();
 
@@ -264,7 +264,7 @@ impl Type {
             Type::Unit(_) |
             Type::Never(_) => {},
             Type::Param {
-                r#type: t,
+                constructor: t,
                 args,
                 ..
             } | Type::Func {
@@ -299,7 +299,7 @@ impl Type {
             Type::Var { .. } |
             Type::GenericInstance { .. } => {},
             Type::Param {
-                r#type: t,
+                constructor: t,
                 args,
                 ..
             } | Type::Func {
@@ -327,7 +327,7 @@ impl Type {
             Type::Var { .. } |
             Type::GenericInstance { .. } => {},
             Type::Param {
-                r#type: t,
+                constructor: t,
                 args,
                 ..
             } | Type::Func {
@@ -368,7 +368,7 @@ pub fn type_of(
         },
         Expr::String { binary, .. } => match *binary {
             true => Some(Type::Param {
-                r#type: Box::new(Type::Static {
+                constructor: Box::new(Type::Static {
                     def_span: *lang_items.get("type.List").unwrap(),
                     span: Span::None,
                 }),
@@ -379,7 +379,7 @@ pub fn type_of(
                 group_span: Span::None,
             }),
             false => Some(Type::Param {
-                r#type: Box::new(Type::Static {
+                constructor: Box::new(Type::Static {
                     def_span: *lang_items.get("type.List").unwrap(),
                     span: Span::None,
                 }),
@@ -424,7 +424,7 @@ pub fn type_of(
                 Some(Type::Param {
                     // `Type::Unit`'s `group_span` is of type annotation,
                     // and `Callable::TupleInit`'s `group_span` is of the expression.
-                    r#type: Box::new(Type::Unit(Span::None)),
+                    constructor: Box::new(Type::Unit(Span::None)),
                     args: arg_types,
 
                     // this is for the type annotation, hence None

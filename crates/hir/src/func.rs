@@ -35,7 +35,7 @@ pub struct Func {
     pub name_span: Span,
     pub generics: Vec<Generic>,
     pub params: Vec<FuncParam>,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
     pub value: Expr,
     pub origin: FuncOrigin,
     pub built_in: bool,
@@ -53,7 +53,7 @@ pub struct Func {
 pub struct FuncParam {
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
 
     // `fn foo(x = 3, y = bar()) = ...;` is lowered to
     // `let foo_default_x = 3; let foo_default_y = bar(); fn foo(x = foo_default_x, y = foo_default_y) = ...;`
@@ -176,12 +176,12 @@ impl Func {
             index: func_param_index,
         });
 
-        let mut r#type = None;
+        let mut type_annot = None;
 
-        if let Some(ast_type) = &ast_func.r#type {
+        if let Some(ast_type) = &ast_func.type_annot {
             match Type::from_ast(&ast_type, session) {
                 Ok(ty) => {
-                    r#type = Some(ty);
+                    type_annot = Some(ty);
                 },
                 Err(()) => {
                     has_error = true;
@@ -247,7 +247,7 @@ impl Func {
                 name_span: ast_func.name_span,
                 generics: ast_func.generics.clone(),
                 params,
-                r#type,
+                type_annot,
                 value: value.unwrap(),
                 origin,
                 built_in,
@@ -304,14 +304,14 @@ impl FuncParam {
         // whether the function or the function-like object is defined in the top-level block
         is_top_level: bool,
     ) -> Result<FuncParam, ()> {
-        let mut r#type = None;
+        let mut type_annot = None;
         let mut default_value = None;
         let mut has_error = false;
 
-        if let Some(ast_type) = &ast_param.r#type {
+        if let Some(ast_type) = &ast_param.type_annot {
             match Type::from_ast(ast_type, session) {
                 Ok(t) => {
-                    r#type = Some(t);
+                    type_annot = Some(t);
                 },
                 Err(()) => {
                     has_error = false;
@@ -333,7 +333,7 @@ impl FuncParam {
                         keyword_span: Span::None,
                         name: ast_param.name,
                         name_span: ast_param.name_span,
-                        r#type: r#type.clone(),
+                        type_annot: type_annot.clone(),
                         value: v,
                         origin: LetOrigin::FuncDefaultValue,
                         foreign_names,
@@ -363,7 +363,7 @@ impl FuncParam {
             Ok(FuncParam {
                 name: ast_param.name,
                 name_span: ast_param.name_span,
-                r#type,
+                type_annot,
                 default_value,
             })
         }

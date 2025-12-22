@@ -20,7 +20,7 @@ pub struct Let {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
     pub value: Expr,
     pub origin: LetOrigin,
 
@@ -42,7 +42,7 @@ impl Let {
         is_top_level: bool,
     ) -> Result<Let, ()> {
         let mut has_error = false;
-        let mut r#type = None;
+        let mut type_annot = None;
 
         let attribute = match session.lower_attribute(
             &ast_let.attribute,
@@ -58,10 +58,10 @@ impl Let {
         };
         let visibility = attribute.visibility.clone();
 
-        if let Some(ast_type) = &ast_let.r#type {
+        if let Some(ast_type) = &ast_let.type_annot {
             match Type::from_ast(ast_type, session) {
                 Ok(ty) => {
-                    r#type = Some(ty);
+                    type_annot = Some(ty);
                 },
                 Err(()) => {
                     has_error = true;
@@ -94,7 +94,7 @@ impl Let {
                 keyword_span: ast_let.keyword_span,
                 name: ast_let.name,
                 name_span: ast_let.name_span,
-                r#type,
+                type_annot,
                 value: value.unwrap(),
                 origin: if is_top_level {
                     LetOrigin::TopLevel

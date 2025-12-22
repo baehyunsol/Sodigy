@@ -10,11 +10,7 @@ impl If {
         }
 
         if let Some(pattern) = &self.pattern {
-            if let Err(e) = pattern.check(
-                /* allow_type_annotation: */ false,
-                /* is_inner_pattern: */ false,
-                session,
-            ) {
+            if let Err(e) = pattern.check(/* is_inner_pattern: */ false, session) {
                 errors.extend(e);
             }
         }

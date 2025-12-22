@@ -18,7 +18,7 @@ pub struct Func {
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
     pub params: Vec<FuncParam>,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
 
     // A poly or built-in may not have a body.
     pub value: Option<Expr>,
@@ -30,7 +30,7 @@ pub struct Func {
 pub struct FuncParam {
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
     pub default_value: Option<Expr>,
     pub attribute: Attribute,
 }
@@ -66,7 +66,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), &self.intermediate_dir);
         let params = param_tokens.parse_func_params()?;
 
-        let r#type = match self.peek() {
+        let type_annot = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::ReturnType), ..}) => {
                 self.cursor += 1;
                 Some(self.parse_type()?)
@@ -107,7 +107,7 @@ impl<'t, 's> Tokens<'t, 's> {
             generics,
             generic_group_span,
             params,
-            r#type,
+            type_annot,
             value,
             attribute: Attribute::new(),
         })
@@ -123,7 +123,7 @@ impl<'t, 's> Tokens<'t, 's> {
         'params: loop {
             let attribute = self.collect_attribute(false /* top_level */)?;
             let (name, name_span) = self.pop_name_and_span()?;
-            let mut r#type = None;
+            let mut type_annot = None;
             let mut default_value = None;
             let mut prev_colon_span = None;
             let mut prev_assignment_span = None;
@@ -133,7 +133,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Some(Token { kind: TokenKind::Punct(Punct::Colon), span }) => {
                         let span = *span;
 
-                        if r#type.is_some() {
+                        if type_annot.is_some() {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
                                     expected: ErrorToken::Punct(Punct::Comma),
@@ -157,7 +157,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
                         self.cursor += 1;
                         prev_colon_span = Some(span);
-                        r#type = Some(self.parse_type()?);
+                        type_annot = Some(self.parse_type()?);
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Assign), span }) => {
@@ -194,7 +194,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         params.push(FuncParam {
                             name,
                             name_span,
-                            r#type,
+                            type_annot,
                             default_value,
                             attribute,
                         });

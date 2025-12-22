@@ -23,9 +23,9 @@ impl Endec for Type {
                 buffer.push(3);
                 span.encode_impl(buffer);
             },
-            Type::Param { r#type, args, group_span } => {
+            Type::Param { constructor, args, group_span } => {
                 buffer.push(4);
-                r#type.encode_impl(buffer);
+                constructor.encode_impl(buffer);
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
@@ -70,10 +70,10 @@ impl Endec for Type {
                 Ok((Type::Never(span), cursor))
             },
             Some(4) => {
-                let (r#type, cursor) = Box::<Type>::decode_impl(buffer, cursor + 1)?;
+                let (constructor, cursor) = Box::<Type>::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::Param { r#type, args, group_span }, cursor))
+                Ok((Type::Param { constructor, args, group_span }, cursor))
             },
             Some(5) => {
                 let (fn_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

@@ -91,7 +91,7 @@ pub enum Expr {
     Lambda {
         params: Vec<FuncParam>,
         param_group_span: Span,
-        r#type: Box<Option<Type>>,
+        type_annot: Box<Option<Type>>,
         arrow_span: Span,
         value: Box<Expr>,
     },
@@ -178,7 +178,7 @@ impl Expr {
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_narrow().merge(*group_span),
             Expr::Path { lhs, field } => {
-                let mut span = lhs.error_span_wide();
+                let span = lhs.error_span_wide();
 
                 match field {
                     Field::Name { span: s, .. } => span.merge(*s),
@@ -202,7 +202,15 @@ impl Expr {
                 .merge(*op_span)
                 .merge(rhs.error_span_wide()),
             Expr::PostfixOp { lhs, op_span, .. } => lhs.error_span_wide().merge(*op_span),
-            Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
+            Expr::Pipeline { values, .. } => {
+                let mut span = values[0].error_span_wide();
+
+                for value in values.iter().skip(1) {
+                    span = span.merge(value.error_span_wide());
+                }
+
+                span
+            },
         }
     }
 
@@ -376,12 +384,12 @@ impl<'t, 's> Tokens<'t, 's> {
                     let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
                     let params = tokens.parse_func_params()?;
                     self.cursor += 1;
-                    let mut r#type = None;
+                    let mut type_annot = None;
 
                     match self.peek() {
                         Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }) => {
                             self.cursor += 1;
-                            r#type = Some(self.parse_type()?);
+                            type_annot = Some(self.parse_type()?);
                         },
                         _ => {},
                     }
@@ -392,7 +400,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Expr::Lambda {
                         params,
                         param_group_span: span,
-                        r#type: Box::new(r#type),
+                        type_annot: Box::new(type_annot),
                         arrow_span,
                         value: Box::new(value),
                     }
@@ -552,25 +560,44 @@ impl<'t, 's> Tokens<'t, 's> {
                             let rhs = self.pratt_parse(r_bp)?;
 
                             if op == InfixOp::Pipeline {
-                                match rhs {
-                                    Expr::Pipeline { values, pipe_spans } => {
+                                lhs = match (lhs, rhs) {
+                                    (
+                                        Expr::Pipeline { values: lhs_values, pipe_spans: lhs_pipe_spans },
+                                        Expr::Pipeline { values: rhs_values, pipe_spans: rhs_pipe_spans },
+                                    ) => {
+                                        let new_values = vec![lhs_values, rhs_values].concat();
+                                        let new_pipe_spans = vec![
+                                            lhs_pipe_spans,
+                                            vec![punct_span],
+                                            rhs_pipe_spans,
+                                        ].concat();
+
+                                        Expr::Pipeline {
+                                            values: new_values,
+                                            pipe_spans: new_pipe_spans,
+                                        }
+                                    },
+                                    (Expr::Pipeline { mut values, mut pipe_spans }, rhs) => {
+                                        values.push(rhs);
+                                        pipe_spans.push(punct_span);
+                                        Expr::Pipeline { values, pipe_spans }
+                                    },
+                                    (lhs, Expr::Pipeline { values, pipe_spans }) => {
                                         let mut new_values = vec![lhs];
                                         let mut new_pipe_spans = vec![punct_span];
                                         new_values.extend(values);
                                         new_pipe_spans.extend(pipe_spans);
 
-                                        lhs = Expr::Pipeline {
+                                        Expr::Pipeline {
                                             values: new_values,
                                             pipe_spans: new_pipe_spans,
-                                        };
+                                        }
                                     },
-                                    rhs => {
-                                        lhs = Expr::Pipeline {
-                                            values: vec![lhs, rhs],
-                                            pipe_spans: vec![punct_span],
-                                        };
+                                    (lhs, rhs) => Expr::Pipeline {
+                                        values: vec![lhs, rhs],
+                                        pipe_spans: vec![punct_span],
                                     },
-                                }
+                                };
                             }
 
                             else {

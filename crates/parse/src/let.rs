@@ -9,7 +9,7 @@ pub struct Let {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub r#type: Option<Type>,
+    pub type_annot: Option<Type>,
     pub value: Expr,
     pub attribute: Attribute,
 
@@ -35,7 +35,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
         let (name, name_span) = self.pop_name_and_span()?;
 
-        let r#type = match self.peek() {
+        let type_annot = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
                 self.cursor += 1;
                 Some(self.parse_type()?)
@@ -50,7 +50,7 @@ impl<'t, 's> Tokens<'t, 's> {
             keyword_span,
             name,
             name_span,
-            r#type,
+            type_annot,
             value,
             attribute: Attribute::new(),
             from_pipeline: false,

@@ -43,7 +43,7 @@ impl Session {
                         |param| FuncParam {
                             name: param.name,
                             name_span: param.name_span,
-                            r#type: None,
+                            type_annot: None,
                             default_value: param.default_value,
                         }
                     ).collect(),
@@ -62,7 +62,7 @@ impl Session {
                         |field| StructField {
                             name: field.name,
                             name_span: field.name_span,
-                            r#type: None,
+                            type_annot: None,
                             default_value: field.default_value,
                         }
                     ).collect(),
@@ -350,8 +350,8 @@ impl Session {
     pub fn resolve_let(&mut self, r#let: &mut Let) -> Result<(), ()> {
         let mut has_error = false;
 
-        if let Some(r#type) = &mut r#let.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
+        if let Some(type_annot) = &mut r#let.type_annot {
+            if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
                 has_error = true;
             }
         }
@@ -373,15 +373,15 @@ impl Session {
         let mut has_error = false;
 
         for param in func.params.iter_mut() {
-            if let Some(r#type) = &mut param.r#type {
-                if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
+            if let Some(type_annot) = &mut param.type_annot {
+                if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
                     has_error = true;
                 }
             }
         }
 
-        if let Some(r#type) = &mut func.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
+        if let Some(type_annot) = &mut func.type_annot {
+            if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
                 has_error = true;
             }
         }
@@ -930,12 +930,12 @@ impl Session {
                     None => Ok(()),
                 }
             },
-            Type::Param { r#type: p_type, args, group_span } => {
+            Type::Param { constructor, args, group_span } => {
                 for arg in args.iter_mut() {
                     self.resolve_type(arg, log, recursion_depth + 1)?;
                 }
 
-                match &**p_type {
+                match &**constructor {
                     Type::Ident(id) => {
                         let id = *id;
 
@@ -949,7 +949,7 @@ impl Session {
                                     log.push(id.span);
                                     log.push(id.def_span);
                                     *r#type = Type::Param {
-                                        r#type: Box::new(Type::Ident(IdentWithOrigin {
+                                        constructor: Box::new(Type::Ident(IdentWithOrigin {
                                             def_span: alias.root.def_span,
                                             origin: alias.root.origin,
                                             ..id
@@ -967,7 +967,7 @@ impl Session {
                                     log.push(id.span);
                                     log.push(id.def_span);
                                     *r#type = Type::Param {
-                                        r#type: Box::new(Type::Path {
+                                        constructor: Box::new(Type::Path {
                                             id: IdentWithOrigin {
                                                 def_span: alias.root.def_span,
                                                 origin: alias.root.origin,
@@ -1027,7 +1027,7 @@ impl Session {
 
                                         if fields.len() == 1 {
                                             *r#type = Type::Param {
-                                                r#type: Box::new(Type::Ident(new_id)),
+                                                constructor: Box::new(Type::Ident(new_id)),
                                                 args: args.clone(),
                                                 group_span: *group_span,
                                             };
@@ -1035,7 +1035,7 @@ impl Session {
 
                                         else {
                                             *r#type = Type::Param {
-                                                r#type: Box::new(Type::Path {
+                                                constructor: Box::new(Type::Path {
                                                     id: new_id,
                                                     fields: fields[1..].to_vec(),
                                                 }),
@@ -1383,12 +1383,6 @@ impl Session {
 
     pub fn resolve_pattern(&mut self, pattern: &mut Pattern) -> Result<(), ()> {
         let mut has_error = false;
-
-        if let Some(r#type) = &mut pattern.r#type {
-            if let Err(()) = self.resolve_type(r#type, &mut vec![], 0) {
-                has_error = true;
-            }
-        }
 
         if let Err(()) = self.resolve_pattern_kind(&mut pattern.kind) {
             has_error = true;

@@ -17,7 +17,7 @@ impl Solver {
         let (
             annotated_type,
             value_span,
-            annotation_span,
+            type_annot_span,
             context,
         ) = match types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
@@ -35,7 +35,7 @@ impl Solver {
             Some(annotated_type) => (
                 annotated_type.clone(),
                 r#let.value.error_span_wide(),
-                r#let.type_annotation_span,
+                r#let.type_annot_span,
                 ErrorContext::VerifyTypeAnnotation,
             ),
         };
@@ -48,7 +48,7 @@ impl Solver {
                     types,
                     generic_instances,
                     false,
-                    annotation_span,
+                    type_annot_span,
                     Some(value_span),
                     context,
                 ) {

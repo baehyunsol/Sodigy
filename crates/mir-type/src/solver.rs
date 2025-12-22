@@ -346,7 +346,7 @@ impl Solver {
             },
             (Type::Unit(_), Type::Unit(_)) => Ok(expected_type.clone()),
             (Type::Never(_), Type::Never(_)) => Ok(expected_type.clone()),
-            (Type::Param { r#type: t1, args: args1, .. }, Type::Param { r#type: t2, args: args2, .. }) |
+            (Type::Param { constructor: t1, args: args1, .. }, Type::Param { constructor: t2, args: args2, .. }) |
             (Type::Func { r#return: t1, params: args1, .. }, Type::Func { r#return: t2, params: args2, .. }) => {
                 let t = match self.solve_subtype(
                     t1,
@@ -428,7 +428,7 @@ impl Solver {
                     else {
                         match expected_type {
                             Type::Param { group_span, .. } => Ok(Type::Param {
-                                r#type: Box::new(t),
+                                constructor: Box::new(t),
                                 args,
                                 group_span: *group_span,
                             }),

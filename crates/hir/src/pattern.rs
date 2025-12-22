@@ -13,7 +13,6 @@ mod from_expr;
 pub struct Pattern {
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
-    pub r#type: Option<Type>,
     pub kind: PatternKind,
 }
 
@@ -96,14 +95,6 @@ impl Pattern {
         extra_guards: &mut Vec<(InternedString, Span, Expr)>,
     ) -> Result<Pattern, ()> {
         let mut has_error = false;
-        let r#type = match ast_pattern.r#type.as_ref().map(|r#type| Type::from_ast(r#type, session)) {
-            Some(Ok(r#type)) => Some(r#type),
-            Some(Err(())) => {
-                has_error = true;
-                None
-            },
-            None => None,
-        };
         let kind = match PatternKind::from_ast(&ast_pattern.kind, session, extra_guards) {
             Ok(kind) => Some(kind),
             Err(()) => {
@@ -120,7 +111,6 @@ impl Pattern {
             Ok(Pattern {
                 name: ast_pattern.name,
                 name_span: ast_pattern.name_span,
-                r#type,
                 kind: kind.unwrap(),
             })
         }

@@ -11,7 +11,7 @@ impl Endec for Let {
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
-        self.r#type.encode_impl(buffer);
+        self.type_annot.encode_impl(buffer);
         self.value.encode_impl(buffer);
         self.origin.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
@@ -22,7 +22,7 @@ impl Endec for Let {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
+        let (type_annot, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
         let (origin, cursor) = LetOrigin::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
@@ -33,7 +33,7 @@ impl Endec for Let {
                 keyword_span,
                 name,
                 name_span,
-                r#type,
+                type_annot,
                 value,
                 origin,
                 foreign_names,

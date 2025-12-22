@@ -345,10 +345,10 @@ impl RenderTypeError for MirSession {
             Type::Static { def_span, .. } | Type::GenericDef { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
             Type::Unit(_) => String::from("()"),
             Type::Param {
-                r#type,
+                constructor,
                 args,
                 ..
-            } if matches!(r#type.as_ref(), Type::Unit(_)) => format!(
+            } if matches!(constructor.as_ref(), Type::Unit(_)) => format!(
                 "({}{})",
                 args.iter().map(
                     |arg| self.render_type(arg)
@@ -356,9 +356,9 @@ impl RenderTypeError for MirSession {
                 if args.len() == 1 { "," } else { "" },
             ),
             // TODO: alias `List<T>` to `[T]`?
-            Type::Param { r#type, args, .. } => format!(
+            Type::Param { constructor, args, .. } => format!(
                 "{}<{}>",
-                self.render_type(r#type),
+                self.render_type(constructor),
                 args.iter().map(
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", "),

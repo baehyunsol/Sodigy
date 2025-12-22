@@ -501,7 +501,7 @@ fn get_matrix(
         },
         Type::Unit(_) => vec![(vec![Field::Constructor], Constructor::Tuple(0))],
         Type::Never(_) => todo!(),
-        Type::Param { r#type, args, .. } => match &**r#type {
+        Type::Param { constructor, args, .. } => match &**constructor {
             Type::Static { def_span, .. } => todo!(),
             Type::Unit(_) => {
                 let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];

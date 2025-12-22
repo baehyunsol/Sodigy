@@ -9,8 +9,8 @@ impl Let {
             errors.extend(e);
         }
 
-        if let Some(r#type) = &self.r#type {
-            if let Err(e) = r#type.check() {
+        if let Some(type_annot) = &self.type_annot {
+            if let Err(e) = type_annot.check() {
                 errors.extend(e);
             }
         }

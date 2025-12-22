@@ -31,10 +31,28 @@ impl Match {
 
 impl MatchArm {
     pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
-        self.pattern.check(
-            /* allow type annotation: */ false,
-            /* is_inner_pattern: */ false,
-            session,
-        )
+        let mut errors = vec![];
+
+        if let Err(e) = self.pattern.check(/* is_inner_pattern: */ false, session) {
+            errors.extend(e);
+        }
+
+        if let Some(guard) = &self.guard {
+            if let Err(e) = guard.check(session) {
+                errors.extend(e);
+            }
+        }
+
+        if let Err(e) = self.value.check(session) {
+            errors.extend(e);
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        }
+
+        else {
+            Err(errors)
+        }
     }
 }

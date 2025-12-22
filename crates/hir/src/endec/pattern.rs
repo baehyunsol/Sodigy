@@ -9,21 +9,18 @@ impl Endec for Pattern {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
-        self.r#type.encode_impl(buffer);
         self.kind.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = Option::<InternedString>::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
-        let (r#type, cursor) = Option::<Type>::decode_impl(buffer, cursor)?;
         let (kind, cursor) = PatternKind::decode_impl(buffer, cursor)?;
 
         Ok((
             Pattern {
                 name,
                 name_span,
-                r#type,
                 kind,
             },
             cursor,

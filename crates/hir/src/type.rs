@@ -18,7 +18,7 @@ pub enum Type {
 
     // A type with parameters (e.g. `Result<T, U>`)
     Param {
-        r#type: Box<Type>,
+        constructor: Box<Type>,
         args: Vec<Type>,
         group_span: Span,
     },
@@ -78,11 +78,11 @@ impl Type {
                     Err(())
                 },
             },
-            ast::Type::Param { r#type, args: ast_args, group_span } => {
+            ast::Type::Param { constructor, args: ast_args, group_span } => {
                 let mut has_error = false;
                 let mut args = Vec::with_capacity(ast_args.len());
-                let r#type = match Type::from_ast(r#type, session) {
-                    Ok(r#type) => Some(r#type),
+                let constructor = match Type::from_ast(constructor, session) {
+                    Ok(constructor) => Some(constructor),
                     Err(()) => {
                         has_error = true;
                         None
@@ -106,7 +106,7 @@ impl Type {
 
                 else {
                     Ok(Type::Param {
-                        r#type: Box::new(r#type.unwrap()),
+                        constructor: Box::new(constructor.unwrap()),
                         args,
                         group_span: *group_span,
                     })
@@ -125,7 +125,7 @@ impl Type {
                 });
 
                 Ok(Type::Param {
-                    r#type: Box::new(list_type),
+                    constructor: Box::new(list_type),
                     args: vec![Type::from_ast(r#type, session)?],
                     group_span: *group_span,
                 })
@@ -239,8 +239,8 @@ impl Type {
 
                 span
             },
-            Type::Param { r#type, group_span, .. } => {
-                r#type.error_span_wide().merge(*group_span)
+            Type::Param { constructor, group_span, .. } => {
+                constructor.error_span_wide().merge(*group_span)
             },
             Type::Tuple { group_span, .. } => *group_span,
             Type::Func { fn_span, .. } => *fn_span,
@@ -262,8 +262,8 @@ impl Type {
 
                 span
             },
-            Type::Param { r#type, group_span, .. } => {
-                r#type.error_span_wide().merge(*group_span)
+            Type::Param { constructor, group_span, .. } => {
+                constructor.error_span_wide().merge(*group_span)
             },
             Type::Tuple { group_span, .. } => *group_span,
             Type::Func { fn_span, group_span, r#return, .. } => {
@@ -303,8 +303,8 @@ impl Type {
                     }
                 ).collect();
             },
-            Type::Param { r#type, args, group_span } => {
-                r#type.replace_name_and_span(name, span);
+            Type::Param { constructor, args, group_span } => {
+                constructor.replace_name_and_span(name, span);
 
                 for arg in args.iter_mut() {
                     arg.replace_name_and_span(name, span);

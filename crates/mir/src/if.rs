@@ -44,7 +44,6 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
                     pattern: hir::Pattern {
                         name: None,
                         name_span: None,
-                        r#type: None,
                         kind: hir::PatternKind::Wildcard(Span::None),
                     },
                     guard: None,

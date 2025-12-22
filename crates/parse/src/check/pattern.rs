@@ -7,7 +7,6 @@ use std::collections::hash_map::{Entry, HashMap};
 impl Pattern {
     pub fn check(
         &self,
-        allow_type_annotation: bool,
 
         // If patterns are nested, we don't have to check name collisions
         // in the inner patterns. Also, we only type-check the outer-most pattern.
@@ -15,16 +14,6 @@ impl Pattern {
         session: &Session,
     ) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
-
-        if !allow_type_annotation {
-            if let Some(r#type) = &self.r#type {
-                errors.push(Error {
-                    kind: ErrorKind::CannotAnnotateType,
-                    spans: r#type.error_span_wide().simple_error(),
-                    note: None,
-                });
-            }
-        }
 
         if !is_inner_pattern {
             let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
@@ -129,11 +118,7 @@ impl PatternKind {
                 let mut errors = vec![];
 
                 for field in fields.iter() {
-                    if let Err(e) = field.pattern.check(
-                        /* allow type annotation: */ false,
-                        /* is_inner_pattern: */ true,
-                        session,
-                    ) {
+                    if let Err(e) = field.pattern.check(/* is_inner_pattern: */ true, session) {
                         errors.extend(e);
                     }
                 }
@@ -152,11 +137,7 @@ impl PatternKind {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
-                    if let Err(e) = element.check(
-                        /* allow type annotation: */ false,
-                        /* is_inner_pattern: */ true,
-                        session,
-                    ) {
+                    if let Err(e) = element.check(/* is_inner_pattern: */ true, session) {
                         errors.extend(e);
                     }
                 }
@@ -185,11 +166,7 @@ impl PatternKind {
                         errors.extend(e)
                     }
 
-                    if let Err(e) = lhs.check(
-                        /* allow type annotation: */ false,
-                        /* is_inner_pattern: */ true,
-                        session,
-                    ) {
+                    if let Err(e) = lhs.check(/* is_inner_pattern: */ true, session) {
                         errors.extend(e);
                     }
                 }
@@ -199,11 +176,7 @@ impl PatternKind {
                         errors.extend(e)
                     }
 
-                    if let Err(e) = rhs.check(
-                        /* allow type annotation: */ false,
-                        /* is_inner_pattern: */ true,
-                        session,
-                    ) {
+                    if let Err(e) = rhs.check(/* is_inner_pattern: */ true, session) {
                         errors.extend(e);
                     }
                 }
@@ -219,19 +192,11 @@ impl PatternKind {
             PatternKind::Or { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(
-                    /* allow type annotation: */ false,
-                    /* is_inner_pattern: */ true,
-                    session,
-                ) {
+                if let Err(e) = lhs.check(/* is_inner_pattern: */ true, session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(
-                    /* allow type annotation: */ false,
-                    /* is_inner_pattern: */ true,
-                    session,
-                ) {
+                if let Err(e) = rhs.check(/* is_inner_pattern: */ true, session) {
                     errors.extend(e);
                 }
 
@@ -288,11 +253,11 @@ impl PatternKind {
             PatternKind::InfixOp { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(false, true, session) {
+                if let Err(e) = lhs.check(true, session) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(false, true, session) {
+                if let Err(e) = rhs.check(true, session) {
                     errors.extend(e);
                 }
 

@@ -23,7 +23,7 @@ impl Solver {
         let (
             annotated_type,
             value_span,
-            annotation_span,
+            type_annot_span,
             context,
         ) = match types.get(&func.name_span) {
             Some(f @ Type::Func { r#return, .. }) => {
@@ -36,7 +36,7 @@ impl Solver {
                 (
                     r#return.clone(),
                     func.value.error_span_wide(),
-                    func.type_annotation_span,
+                    func.type_annot_span,
                     ErrorContext::VerifyTypeAnnotation,
                 )
             },
@@ -53,7 +53,7 @@ impl Solver {
                 types,
                 generic_instances,
                 false,
-                annotation_span,
+                type_annot_span,
                 Some(value_span),
                 context,
             ) {
