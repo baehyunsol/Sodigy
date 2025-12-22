@@ -69,7 +69,7 @@ error_kinds!(
     (NonDefaultValueAfterDefaultValue,                               195,    Error),
     (CannotDeclareInlineModule,                                      200,    Error),
     (InclusiveRangeWithNoEnd,                                        205,    Error),
-    (MultipleDotDotsInPattern,                                       210,    Error),
+    (MultipleRestPatterns,                                           210,    Error),
     (DifferentNameBindingsInOrPattern,                               215,    Error),
     (InvalidFnType,                                                  220,    Error),
     (EmptyMatchStatement,                                            225,    Error),
@@ -86,66 +86,65 @@ error_kinds!(
 
     // syntax errors in patterns
     (InvalidRangePattern,                                            260,    Error),
-    (CannotBindNameToAnotherName(InternedString, InternedString),    265,    Error),
-    (CannotBindNameToConstant(InternedString),                       270,    Error),
-    (CannotBindNameToInfixOp(InternedString),                        275,    Error),
-    (CannotApplyInfixOpToMultipleBindings,                           280,    Error),
-    (CannotApplyInfixOpToBinding,                                    285,    Error),
-    (CannotAnnotateType,                                             290,    Error),
-    (RedundantNameBinding(InternedString, InternedString),           295,    Error),
-    (UnsupportedInfixOpInPattern(InfixOp),                           300,    Error),
+    (InvalidConcatPattern,                                           265,    Error),
+    (CannotBindName(InternedString),                                 270,    Error),
+    (CannotApplyInfixOpToMultipleBindings,                           275,    Error),
+    (CannotApplyInfixOpToBinding,                                    280,    Error),
+    (CannotAnnotateType,                                             285,    Error),
+    (RedundantNameBinding(InternedString, InternedString),           290,    Error),
+    (UnsupportedInfixOpInPattern(InfixOp),                           295,    Error),
 
     // TODO: more context!
-    (NameCollision { name: InternedString },                         305,    Error),
+    (NameCollision { name: InternedString },                         300,    Error),
 
-    (CyclicLet { names: Vec<InternedString> },                       310,    Error),
-    (CyclicAlias { names: Vec<InternedString> },                     315,    Error),
-    (DollarOutsidePipeline,                                          320,    Error),
-    (DisconnectedPipeline,                                           325,    Error),
-
-    // TODO: more context!
-    // TODO: suggest similar names
-    (UndefinedName(InternedString),                                  330,    Error),
-
-    (EnumVariantInTypeAnnotation,                                    335,    Error),
-    (KeywordArgumentRepeated(InternedString),                        340,    Error),
-    (KeywordArgumentNotAllowed,                                      345,    Error),
-    (AliasResolveRecursionLimitReached,                              350,    Error),
-    (MissingTypeParameter { expected: usize, got: usize },           355,    Error),
-    (UnexpectedTypeParameter { expected: usize, got: usize },        360,    Error),
-    (MissingKeywordArgument(InternedString),                         365,    Error),
+    (CyclicLet { names: Vec<InternedString> },                       305,    Error),
+    (CyclicAlias { names: Vec<InternedString> },                     310,    Error),
+    (DollarOutsidePipeline,                                          315,    Error),
+    (DisconnectedPipeline,                                           320,    Error),
 
     // TODO: more context!
     // TODO: suggest similar names
-    (InvalidKeywordArgument(InternedString),                         370,    Error),
+    (UndefinedName(InternedString),                                  325,    Error),
 
-    (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
-    (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
-    (StructFieldRepeated(InternedString),                            385,    Error),
-    (MissingStructField(InternedString),                             390,    Error),
+    (EnumVariantInTypeAnnotation,                                    330,    Error),
+    (KeywordArgumentRepeated(InternedString),                        335,    Error),
+    (KeywordArgumentNotAllowed,                                      340,    Error),
+    (AliasResolveRecursionLimitReached,                              345,    Error),
+    (MissingTypeParameter { expected: usize, got: usize },           350,    Error),
+    (UnexpectedTypeParameter { expected: usize, got: usize },        355,    Error),
+    (MissingKeywordArgument(InternedString),                         360,    Error),
+
+    // TODO: more context!
+    // TODO: suggest similar names
+    (InvalidKeywordArgument(InternedString),                         365,    Error),
+
+    (MissingFunctionParameter { expected: usize, got: usize },       370,    Error),
+    (UnexpectedFunctionParameter { expected: usize, got: usize },    375,    Error),
+    (StructFieldRepeated(InternedString),                            380,    Error),
+    (MissingStructField(InternedString),                             385,    Error),
 
     // TODO: suggest similar names
-    (InvalidStructField(InternedString),                             395,    Error),
+    (InvalidStructField(InternedString),                             390,    Error),
 
-    (DependentTypeNotAllowed,                                        400,    Error),
-    (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),
-    (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
+    (DependentTypeNotAllowed,                                        395,    Error),
+    (NotStruct { id: Option<IdentWithOrigin> },                      400,    Error),
+    (NotPolyGeneric { id: Option<IdentWithOrigin> },                 405,    Error),
 
     // Type errors from here.
     // Type errors are generated by `mir-type` crate, and the crate uses its own data types to
     // represent types. But this crate cannot depend on `mir-type`, so those types are converted
     // to string.
-    (UnexpectedType { expected: String, got: String },                   415,    Error),
-    (CannotInferType { id: Option<InternedString>, is_return: bool },    420,    Error),
-    (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 425,    Error),
-    (CannotInferGenericType { id: Option<String> },                      430,    Error),
-    (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
-    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         440,    Error),
-    (CannotSpecializePolyGeneric { num_candidates: usize },              445,    Error),
+    (UnexpectedType { expected: String, got: String },                   410,    Error),
+    (CannotInferType { id: Option<InternedString>, is_return: bool },    415,    Error),
+    (PartiallyInferedType { id: Option<InternedString>, r#type: String, is_return: bool }, 420,    Error),
+    (CannotInferGenericType { id: Option<String> },                      425,    Error),
+    (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 430,    Error),
+    (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         435,    Error),
+    (CannotSpecializePolyGeneric { num_candidates: usize },              440,    Error),
 
-    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    450,    Error),
-    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      455,    Error),
-    (LibFileNotFound,                                                460,    Error),
+    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    445,    Error),
+    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      450,    Error),
+    (LibFileNotFound,                                                455,    Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

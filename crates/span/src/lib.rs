@@ -121,4 +121,12 @@ impl Span {
             note: None,
         }]
     }
+
+    pub fn simple_error_with_note(&self, note: &str) -> Vec<RenderableSpan> {
+        vec![RenderableSpan {
+            span: *self,
+            auxiliary: false,
+            note: Some(note.to_string()),
+        }]
+    }
 }

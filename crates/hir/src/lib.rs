@@ -53,7 +53,7 @@ pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
-pub use pattern::{Pattern, PatternKind};
+pub use pattern::{Pattern, PatternKind, StructFieldPattern};
 pub use poly::Poly;
 pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;

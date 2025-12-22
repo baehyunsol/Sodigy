@@ -2,7 +2,7 @@ use crate::{Expr, Session, Type, eval_const};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
-use sodigy_parse as ast;
+use sodigy_parse::{self as ast, RestPattern};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::InfixOp;
@@ -45,20 +45,26 @@ pub enum PatternKind {
         span: Span,
     },
     Path(Vec<(InternedString, Span)>),
+    Struct {
+        r#struct: Vec<(InternedString, Span)>,
+        fields: Vec<StructFieldPattern>,
+        rest: Option<RestPattern>,
+        group_span: Span,
+    },
     TupleStruct {
         r#struct: Vec<(InternedString, Span)>,
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     Tuple {
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     List {
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     Range {
@@ -67,17 +73,20 @@ pub enum PatternKind {
         op_span: Span,
         is_inclusive: bool,
     },
-    Concat {
-        lhs: Box<Pattern>,
-        rhs: Box<Pattern>,
-        op_span: Span,
-    },
     Or {
         lhs: Box<Pattern>,
         rhs: Box<Pattern>,
         op_span: Span,
     },
     Wildcard(Span),
+}
+
+#[derive(Clone, Debug)]
+pub struct StructFieldPattern {
+    pub name: InternedString,
+    pub span: Span,
+    pub pattern: Pattern,
+    pub is_shorthand: bool,
 }
 
 impl Pattern {
@@ -183,8 +192,8 @@ impl PatternKind {
             },
             ast::PatternKind::Char { ch, span } => Ok(PatternKind::Char { ch: *ch, span: *span }),
             ast::PatternKind::Byte { b, span } => Ok(PatternKind::Byte { b: *b, span: *span }),
-            ast::PatternKind::Tuple { elements: ast_elements, dot_dot_span, group_span } |
-            ast::PatternKind::List { elements: ast_elements, dot_dot_span, group_span } => {
+            ast::PatternKind::Tuple { elements: ast_elements, rest, group_span } |
+            ast::PatternKind::List { elements: ast_elements, rest, group_span, .. } => {
                 let is_tuple = matches!(ast_pattern, ast::PatternKind::Tuple { .. });
                 let mut has_error = false;
                 let mut elements = Vec::with_capacity(ast_elements.len());
@@ -205,11 +214,11 @@ impl PatternKind {
                 }
 
                 else if is_tuple {
-                    Ok(PatternKind::Tuple { elements, dot_dot_span: *dot_dot_span, group_span: *group_span })
+                    Ok(PatternKind::Tuple { elements, rest: *rest, group_span: *group_span })
                 }
 
                 else {
-                    Ok(PatternKind::List { elements, dot_dot_span: *dot_dot_span, group_span: *group_span })
+                    Ok(PatternKind::List { elements, rest: *rest, group_span: *group_span })
                 }
             },
             ast::PatternKind::Range { lhs, rhs, op_span, is_inclusive } => match (

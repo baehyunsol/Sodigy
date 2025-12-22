@@ -8,7 +8,7 @@ impl Expr {
 
         if let (Some(name), Some(name_span)) = (pattern.name, pattern.name_span) {
             errors.push(Error {
-                kind: ErrorKind::CannotBindNameToConstant(name),
+                kind: ErrorKind::CannotBindName(name),
                 spans: name_span.simple_error(),
                 note: None,
             });

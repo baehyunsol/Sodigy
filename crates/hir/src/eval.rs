@@ -2,7 +2,6 @@ use crate::{Expr, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_number_eval::{eval_number_infix_op, eval_number_prefix_op};
 use sodigy_span::Span;
-use sodigy_token::{InfixOp, PrefixOp};
 
 // It can only evaluate char/number/int/byte.
 pub fn eval_const(expr: &Expr, session: &mut Session) -> Result<Expr, ()> {

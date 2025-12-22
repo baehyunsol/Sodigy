@@ -46,11 +46,14 @@ assert 0b1111101000 == 1000;
 
 ### Real Numbers
 
-TODO: documentation
+Sodigy uses a software-implemented ratio type for real numbers. It's extremely slow, compared to hardware-implemented floating points.
+
+If you want to do heavy computations... just don't use Sodigy.
 
 ```sodigy
 assert 0.1 + 0.2 == 0.3;
 assert 1.234e-5 == 0.00001234;
+assert (2.89).sqrt() == 1.7;
 ```
 
 ### Bytes

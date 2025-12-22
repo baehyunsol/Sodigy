@@ -1454,7 +1454,6 @@ impl Session {
                     Ok(())
                 }
             },
-            PatternKind::Concat { lhs, rhs, .. } |
             PatternKind::Or { lhs, rhs, .. } => match (
                 self.resolve_pattern(lhs),
                 self.resolve_pattern(rhs),

@@ -180,9 +180,6 @@ impl PatternKind {
                     });
                 }
 
-                // TODO: check range
-                //       lhs and rhs can only be
-                //       literal or dollar-ident
                 if let Some(lhs) = lhs {
                     if let Err(e) = lhs.check_range_argument(true) {
                         errors.extend(e)
@@ -219,7 +216,6 @@ impl PatternKind {
                     Err(errors)
                 }
             },
-            PatternKind::Concat { lhs, rhs, .. } => todo!(),
             PatternKind::Or { lhs, rhs, .. } => {
                 let mut errors = vec![];
 

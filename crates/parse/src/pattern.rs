@@ -57,24 +57,25 @@ pub enum PatternKind {
     Struct {
         r#struct: Vec<(InternedString, Span)>,
         fields: Vec<StructFieldPattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     TupleStruct {
         r#struct: Vec<(InternedString, Span)>,
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     Tuple {
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
     },
     List {
         elements: Vec<Pattern>,
-        dot_dot_span: Option<Span>,
+        rest: Option<RestPattern>,
         group_span: Span,
+        is_lowered_from_concat: bool,
     },
     // `1..10`
     // `1..=9`
@@ -86,12 +87,6 @@ pub enum PatternKind {
         rhs: Option<Box<Pattern>>,
         op_span: Span,
         is_inclusive: bool,
-    },
-    // `[n] ++ ns`
-    Concat {
-        lhs: Box<Pattern>,
-        rhs: Box<Pattern>,
-        op_span: Span,
     },
     // It only cares about numeric operators.
     // `if let Some(x + 1) = foo() { x }`
@@ -135,6 +130,19 @@ pub struct StructFieldPattern {
     pub is_shorthand: bool,
 }
 
+// `..` in `[a, b, .., c]`
+// Parser guarantees that there's at most 1 rest in a group.
+#[derive(Clone, Copy, Debug)]
+pub struct RestPattern {
+    pub span: Span,
+    pub index: usize,
+
+    // You can bind a name to dot_dot.
+    // `[n] ++ ns` is lowered to `[n, ns @ ..]`.
+    pub name: Option<InternedString>,
+    pub name_span: Option<Span>,
+}
+
 impl Pattern {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         let mut result = vec![];
@@ -160,6 +168,67 @@ impl Pattern {
             self.kind.error_span_wide()
         }
     }
+
+    // It's used to lower `[n] ++ ns` to `[n, ns @ ..]`.
+    // Lhs and rhs of the concat operator are converted to a list pattern,
+    // then their elements are concatonated.
+    // - `ns` -> `[ns @ ..]`
+    // - `[a, b, c]` -> `[a, b, c]`
+    // - `"asdf"` -> `['a', 'b', 'c', 'd']`
+    // - `[a] ++ [b]` -> `[a, b]`
+    pub fn to_list_pattern(self, is_lhs: bool) -> Result<PatternKind, Vec<Error>> {
+        let mut errors = vec![];
+
+        if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
+            errors.push(Error {
+                kind: ErrorKind::CannotBindName(name),
+                spans: name_span.simple_error(),
+                note: Some(String::from("I see what you're trying to do, and it's perfectly valid, but due to the limitations of the compiler, you cannot bind a name. A `++` pattern is lowered to a single long list, and there's no way to bind a name to a part of a list.")),
+            });
+        }
+
+        if let Some(r#type) = &self.r#type {
+            errors.push(Error {
+                kind: ErrorKind::CannotAnnotateType,
+                spans: r#type.error_span_wide().simple_error(),
+                note: None,
+            });
+        }
+
+        let result = match self.kind {
+            PatternKind::Ident { id, span } => PatternKind::List {
+                elements: vec![],
+                rest: Some(RestPattern {
+                    span,  // TODO: vs using a derived span
+                    index: 0,
+                    name: Some(id),
+                    name_span: Some(span),
+                }),
+                group_span: Span::None,
+                is_lowered_from_concat: true,
+            },
+            PatternKind::String { binary, s, span } => todo!(),
+            l @ PatternKind::List { .. } => l,
+            p => {
+                errors.push(Error {
+                    kind: ErrorKind::InvalidConcatPattern,
+                    spans: p.error_span_wide().simple_error_with_note(
+                        &format!("This cannot be an {} of `++`.", if is_lhs { "lhs" } else { "rhs" }),
+                    ),
+                    note: None,
+                });
+                return Err(errors);
+            },
+        };
+
+        if errors.is_empty() {
+            Ok(result)
+        }
+
+        else {
+            Err(errors)
+        }
+    }
 }
 
 impl PatternKind {
@@ -177,7 +246,6 @@ impl PatternKind {
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
-            PatternKind::Concat { op_span: span, .. } |
             PatternKind::Or { op_span: span, .. } |
             PatternKind::InfixOp { op_span: span, .. } => *span,
             PatternKind::Path(path) |
@@ -234,8 +302,7 @@ impl PatternKind {
             //       checking the compile error is not a responsibility of
             //       this function, and it just assumes that there's no error.
             PatternKind::Or { lhs, .. } => lhs.bound_names(),
-            PatternKind::InfixOp { lhs, rhs, .. } |
-            PatternKind::Concat { lhs, rhs, .. } => vec![
+            PatternKind::InfixOp { lhs, rhs, .. } => vec![
                 lhs.bound_names(),
                 rhs.bound_names(),
             ].concat(),
@@ -414,10 +481,10 @@ impl<'t, 's> Tokens<'t, 's> {
 
                 let (group_span, delim) = (*span, *delim);
                 let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                let (mut elements, dot_dot_span) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
+                let (mut elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
 
                 // If it's parenthesis, we have to distinguish `(3)` and `(3,)`
-                let mut is_tuple = elements.len() != 1 || dot_dot_span.is_some();
+                let mut is_tuple = elements.len() != 1 || rest.is_some();
 
                 if !is_tuple && matches!(
                     tokens.last(),
@@ -437,7 +504,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             kind: PatternKind::Tuple {
                                 elements,
                                 group_span,
-                                dot_dot_span,
+                                rest,
                             },
                         }
                     } else {
@@ -450,7 +517,8 @@ impl<'t, 's> Tokens<'t, 's> {
                         kind: PatternKind::List {
                             elements,
                             group_span,
-                            dot_dot_span,
+                            rest,
+                            is_lowered_from_concat: false,
                         },
                     },
                     Delim::Brace |
@@ -591,7 +659,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 Pattern { kind: PatternKind::DollarIdent { id, span }, .. } => {
                                     let (name, name_span) = name_binding.unwrap();
                                     errors.push(Error {
-                                        kind: ErrorKind::CannotBindNameToAnotherName(name, *id),
+                                        kind: ErrorKind::CannotBindName(name),
                                         spans: vec![
                                             RenderableSpan {
                                                 span: name_span,
@@ -613,9 +681,9 @@ impl<'t, 's> Tokens<'t, 's> {
                                 Pattern { kind: PatternKind::InfixOp { .. }, .. } => {
                                     let (name, name_span) = name_binding.unwrap();
                                     errors.push(Error {
-                                        kind: ErrorKind::CannotBindNameToInfixOp(name),
+                                        kind: ErrorKind::CannotBindName(name),
                                         spans: name_span.simple_error(),
-                                        note: None,
+                                        note: Some(String::from("You cannot bind a name to a result of an infix operator. All infix operators in patterns are evaluated at compile time, and their intermediate results are gone.")),
                                     });
                                 },
                                 _ => {
@@ -691,6 +759,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 },
                             }
                         },
+                        // `[n] ++ ns` is immediately lowered to `[n, ns @ ..]`
                         Punct::Concat => {
                             let (l_bp, r_bp) = concat_binding_power();
 
@@ -700,16 +769,72 @@ impl<'t, 's> Tokens<'t, 's> {
 
                             self.cursor += 1;
                             let rhs = self.pratt_parse_pattern(context, r_bp)?;
-                            lhs = Pattern {
-                                name: None,
-                                name_span: None,
-                                r#type: None,
-                                kind: PatternKind::Concat {
-                                    lhs: Box::new(lhs),
-                                    rhs: Box::new(rhs),
-                                    op_span,
+
+                            match (lhs.to_list_pattern(true), rhs.to_list_pattern(false)) {
+                                (
+                                    Ok(PatternKind::List {
+                                        elements: elems1,
+                                        rest: rest1,
+                                        ..
+                                    }),
+                                    Ok(PatternKind::List {
+                                        elements: elems2,
+                                        rest: rest2,
+                                        ..
+                                    }),
+                                ) => {
+                                    let rest = match (rest1, rest2) {
+                                        (Some(rest1), Some(rest2)) => {
+                                            return Err(vec![Error {
+                                                kind: ErrorKind::MultipleRestPatterns,
+                                                spans: vec![
+                                                    RenderableSpan {
+                                                        span: rest1.span,
+                                                        auxiliary: false,
+                                                        note: Some(String::from("This matches an arbitrary number of elements.")),
+                                                    },
+                                                    RenderableSpan {
+                                                        span: rest2.span,
+                                                        auxiliary: false,
+                                                        note: Some(String::from("This matches an arbitrary number of elements.")),
+                                                    },
+                                                ],
+                                                note: None,
+                                            }]);
+                                        },
+                                        (Some(rest), None) => Some(rest),
+                                        (None, Some(mut rest)) => {
+                                            // `[a, b, c] ++ [d, ..]` -> `[a, b, c, d, ..]`
+                                            // `rest.index` is originally 1, but it has to be 4.
+                                            rest.index += elems1.len();
+                                            Some(rest)
+                                        },
+                                        (None, None) => None,
+                                    };
+
+                                    lhs = Pattern {
+                                        name: None,
+                                        name_span: None,
+                                        r#type: None,
+                                        kind: PatternKind::List {
+                                            elements: vec![elems1, elems2].concat(),
+                                            rest,
+                                            group_span: Span::None,
+                                            is_lowered_from_concat: true,
+                                        },
+                                    };
                                 },
-                            };
+                                (Ok(_), Ok(_)) => unreachable!(),
+                                (Err(es1), Err(es2)) => {
+                                    return Err(vec![es1, es2].concat());
+                                },
+                                (Err(e), _) => {
+                                    return Err(e);
+                                },
+                                (_, Err(e)) => {
+                                    return Err(e);
+                                },
+                            }
                         },
                         Punct::Eq => match context {
                             ParsePatternContext::Let | ParsePatternContext::IfLet => {
@@ -898,33 +1023,56 @@ impl<'t, 's> Tokens<'t, 's> {
         Ok(lhs)
     }
 
-    pub fn parse_patterns(&mut self, may_have_dot_dot: bool) -> Result<(Vec<Pattern>, Option<Span>), Vec<Error>> {
-        let mut prev_dot_dot_span = None;
+    pub fn parse_patterns(&mut self, may_have_dot_dot: bool) -> Result<(Vec<Pattern>, Option<RestPattern>), Vec<Error>> {
+        let mut rest = None;
         let mut patterns = vec![];
 
         loop {
-            match self.peek2() {
+            match self.peek4() {
                 (
-                    Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }),
+                    Some(Token { kind: TokenKind::Ident(_), .. }),
+                    Some(Token { kind: TokenKind::Punct(Punct::At), .. }),
+                    Some(Token { kind: TokenKind::Punct(Punct::DotDot), .. }),
                     Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                ) | (
+                    Some(Token { kind: TokenKind::Punct(Punct::DotDot), .. }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                    _,
+                    _,
                 ) => {
+                    let (name, name_span, dot_dot_span) = match self.peek4() {
+                        (
+                            Some(Token { kind: TokenKind::Ident(name), span: name_span }),
+                            Some(Token { kind: TokenKind::Punct(Punct::At), .. }),
+                            Some(Token { kind: TokenKind::Punct(Punct::DotDot), span: dot_dot_span }),
+                            Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                        ) => (Some(*name), Some(*name_span), *dot_dot_span),
+                        (
+                            Some(Token { kind: TokenKind::Punct(Punct::DotDot), span }),
+                            Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None,
+                            _,
+                            _,
+                        ) => (None, None, *span),
+                        _ => unreachable!(),
+                    };
+
                     if !may_have_dot_dot {
                         return Err(vec![Error {
                             kind: ErrorKind::UnexpectedToken {
                                 expected: ErrorToken::Pattern,
                                 got: ErrorToken::Punct(Punct::DotDot),
                             },
-                            spans: span.simple_error(),
+                            spans: dot_dot_span.simple_error(),
                             note: Some(String::from("You cannot use a rest pattern (`..`) here. If you intended a range without ends, that's still invalid. A range must have at least one end, otherwise, just use a wildcard pattern.")),
                         }]);
                     }
 
-                    else if let Some(prev_dot_dot_span) = prev_dot_dot_span {
+                    else if let Some(RestPattern { span: prev_dot_dot_span, .. }) = rest {
                         return Err(vec![Error {
-                            kind: ErrorKind::MultipleDotDotsInPattern,
+                            kind: ErrorKind::MultipleRestPatterns,
                             spans: vec![
                                 RenderableSpan {
-                                    span: *span,
+                                    span: dot_dot_span,
                                     auxiliary: false,
                                     note: None,
                                 },
@@ -939,11 +1087,16 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
 
                     else {
-                        prev_dot_dot_span = Some(*span);
+                        rest = Some(RestPattern {
+                            span: dot_dot_span,
+                            index: patterns.len(),
+                            name,
+                            name_span,
+                        });
                         self.cursor += 2;
                     }
                 },
-                (Some(_), _) => {
+                (Some(_), _, _, _) => {
                     patterns.push(self.parse_pattern(ParsePatternContext::Group)?);
 
                     match self.peek2() {
@@ -965,13 +1118,13 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                (None, _) => {
+                (None, _, _, _) => {
                     break;
                 },
             }
         }
 
-        Ok((patterns, prev_dot_dot_span))
+        Ok((patterns, rest))
     }
 }
 

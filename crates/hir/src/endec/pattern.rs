@@ -1,6 +1,7 @@
-use crate::{Pattern, PatternKind, Type};
+use crate::{Pattern, PatternKind, StructFieldPattern, Type};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::InternedNumber;
+use sodigy_parse::RestPattern;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -68,37 +69,38 @@ impl Endec for PatternKind {
                 buffer.push(6);
                 path.encode_impl(buffer);
             },
-            PatternKind::TupleStruct { r#struct, elements, dot_dot_span, group_span } => {
+            PatternKind::Struct { r#struct, fields, rest, group_span } => {
                 buffer.push(7);
                 r#struct.encode_impl(buffer);
-                elements.encode_impl(buffer);
-                dot_dot_span.encode_impl(buffer);
+                fields.encode_impl(buffer);
+                rest.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            PatternKind::Tuple { elements, dot_dot_span, group_span } => {
+            PatternKind::TupleStruct { r#struct, elements, rest, group_span } => {
                 buffer.push(8);
+                r#struct.encode_impl(buffer);
                 elements.encode_impl(buffer);
-                dot_dot_span.encode_impl(buffer);
+                rest.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            PatternKind::List { elements, dot_dot_span, group_span } => {
+            PatternKind::Tuple { elements, rest, group_span } => {
                 buffer.push(9);
                 elements.encode_impl(buffer);
-                dot_dot_span.encode_impl(buffer);
+                rest.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
+            PatternKind::List { elements, rest, group_span } => {
+                buffer.push(10);
+                elements.encode_impl(buffer);
+                rest.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
             PatternKind::Range { lhs, rhs, op_span, is_inclusive } => {
-                buffer.push(10);
-                lhs.encode_impl(buffer);
-                rhs.encode_impl(buffer);
-                op_span.encode_impl(buffer);
-                is_inclusive.encode_impl(buffer);
-            },
-            PatternKind::Concat { lhs, rhs, op_span } => {
                 buffer.push(11);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
                 op_span.encode_impl(buffer);
+                is_inclusive.encode_impl(buffer);
             },
             PatternKind::Or { lhs, rhs, op_span } => {
                 buffer.push(12);
@@ -152,35 +154,36 @@ impl Endec for PatternKind {
             },
             Some(7) => {
                 let (r#struct, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
-                let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (dot_dot_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
+                let (fields, cursor) = Vec::<StructFieldPattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::TupleStruct { r#struct, elements, dot_dot_span, group_span }, cursor))
+                Ok((PatternKind::Struct { r#struct, fields, rest, group_span }, cursor))
             },
             Some(8) => {
-                let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (dot_dot_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
+                let (r#struct, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
+                let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::Tuple { elements, dot_dot_span, group_span }, cursor))
+                Ok((PatternKind::TupleStruct { r#struct, elements, rest, group_span }, cursor))
             },
             Some(9) => {
                 let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (dot_dot_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
+                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::List { elements, dot_dot_span, group_span }, cursor))
+                Ok((PatternKind::Tuple { elements, rest, group_span }, cursor))
             },
             Some(10) => {
+                let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor + 1)?;
+                let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((PatternKind::List { elements, rest, group_span }, cursor))
+            },
+            Some(11) => {
                 let (lhs, cursor) = Option::<Box<Pattern>>::decode_impl(buffer, cursor + 1)?;
                 let (rhs, cursor) = Option::<Box<Pattern>>::decode_impl(buffer, cursor)?;
                 let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (is_inclusive, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Range { lhs, rhs, op_span, is_inclusive }, cursor))
-            },
-            Some(11) => {
-                let (lhs, cursor) = Box::<Pattern>::decode_impl(buffer, cursor + 1)?;
-                let (rhs, cursor) = Box::<Pattern>::decode_impl(buffer, cursor)?;
-                let (op_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::Concat { lhs, rhs, op_span }, cursor))
             },
             Some(12) => {
                 let (lhs, cursor) = Box::<Pattern>::decode_impl(buffer, cursor + 1)?;
@@ -195,5 +198,31 @@ impl Endec for PatternKind {
             Some(n @ 14..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for StructFieldPattern {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
+        self.span.encode_impl(buffer);
+        self.pattern.encode_impl(buffer);
+        self.is_shorthand.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
+        let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (pattern, cursor) = Pattern::decode_impl(buffer, cursor)?;
+        let (is_shorthand, cursor) = bool::decode_impl(buffer, cursor)?;
+
+        Ok((
+            StructFieldPattern {
+                name,
+                span,
+                pattern,
+                is_shorthand,
+            },
+            cursor,
+        ))
     }
 }

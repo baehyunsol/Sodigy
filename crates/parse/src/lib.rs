@@ -32,7 +32,7 @@ pub use r#if::If;
 pub use r#let::Let;
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
-pub use pattern::{Pattern, PatternKind, PatternValueKind};
+pub use pattern::{Pattern, PatternKind, PatternValueKind, RestPattern};
 pub(crate) use pattern::ParsePatternContext;
 pub use session::Session;
 pub use r#struct::{Struct, StructField, StructInitField};

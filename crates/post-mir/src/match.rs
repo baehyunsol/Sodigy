@@ -562,8 +562,8 @@ fn read_field_of_pattern(
             PatternKind::String { binary, s, .. } => todo!(),
             PatternKind::Char { ch, .. } => todo!(),
             PatternKind::Byte { b, .. } => todo!(),
-            PatternKind::Tuple { elements, dot_dot_span, .. } => {
-                if let Some(_) = dot_dot_span {
+            PatternKind::Tuple { elements, rest, .. } => {
+                if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
                     // we have to desugar this at some point
                     todo!()

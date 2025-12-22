@@ -21,6 +21,8 @@ use std.string.String;
 #[lang_item("built_in.exit")]
 fn exit() -> !;
 
+// TODO: implement high-level `panic(msg: String) -> !;`
+//       In order to do that, we need a syntax to execute actions.
 #[built_in]
 #[lang_item("built_in.panic")]
 fn panic() -> !;

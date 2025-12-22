@@ -101,6 +101,23 @@ impl<'t, 's> Tokens<'t, 's> {
         )
     }
 
+    pub fn peek3(&self) -> (Option<&Token>, Option<&Token>, Option<&Token>) {
+        (
+            self.tokens.get(self.cursor),
+            self.tokens.get(self.cursor + 1),
+            self.tokens.get(self.cursor + 2),
+        )
+    }
+
+    pub fn peek4(&self) -> (Option<&Token>, Option<&Token>, Option<&Token>, Option<&Token>) {
+        (
+            self.tokens.get(self.cursor),
+            self.tokens.get(self.cursor + 1),
+            self.tokens.get(self.cursor + 2),
+            self.tokens.get(self.cursor + 3),
+        )
+    }
+
     /// It doesn't care about the cursor!
     pub fn last(&self) -> Option<&Token> {
         self.tokens.last()
