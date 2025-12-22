@@ -233,6 +233,7 @@ fn execute(
                         },
                     }
                 },
+                Intrinsic::IndexList => todo!(),
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap
                     return Ok(());

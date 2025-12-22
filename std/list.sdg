@@ -1,4 +1,5 @@
 use std.bool.Bool;
+use std.int.Int;
 
 #[built_in]
 #[lang_item("type.List")]
@@ -9,17 +10,23 @@ pub struct List = { _ };
 #[lang_item_generics("built_in.init_list.generic.0")]
 fn init_list<T>(/* varargs */) -> [T];
 
+/// It assumes that `i` is non-negative and less than `ls.len()`.
+/// If the assumption is wrong, something bad (can be worse than `panic`) will happen.
+#[built_in]
+#[lang_item("built_in.index_list")]
+#[lang_item_generics("built_in.init_list.generic.0")]
+fn index_list<T>(ls: [T], i: Int) -> T;
+
 // TODO: The compiler isn't strong enough to compile these functions.
 /*
 #[impl(op.index)]
-fn index_list<T>(ls: [T], i: Int) -> T = {
+fn index_list_wrapper<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
-        // The first element is for the length of the list
-        std.read_compound(ls, i + 1)
+        index_list(ls, i)
     }
 
     else if -ls.len() <= i {
-        std.read_compound(ls, i + ls.len() + 1)
+        index_list(ls, i + ls.len())
     }
 
     else {

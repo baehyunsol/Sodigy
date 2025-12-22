@@ -28,15 +28,13 @@ fn exit() -> !;
 fn panic() -> !;
 
 // TODO: implement high-level `print<T>(v: T) -> T;`
+// TODO: return a ZST, when ZST optimization is implemented
 #[built_in]
 #[lang_item("built_in.print")]
 fn print(v: String) -> Int;
 
 // TODO: implement high-level `eprint<T>(v: T) -> T;`
+// TODO: return a ZST, when ZST optimization is implemented
 #[built_in]
 #[lang_item("built_in.eprint")]
 fn eprint(v: String) -> Int;
-
-#[built_in]
-#[lang_item("built_in.read_compound")]
-fn read_compound<T, U>(a: T, b: Int) -> U;

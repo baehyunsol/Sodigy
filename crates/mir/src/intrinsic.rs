@@ -50,23 +50,27 @@ macro_rules! intrinsics {
 }
 
 // You can find the documents in the sodigy std source code (search by their lang items!).
+// In most cases, the built-in functions do not do any safety checks. For example,
+// `DivInt` doesn't care about zero-divisions, and `IndexList` doesn't care about out-of-bounds.
+// The compiler (or std) has to generate Sodigy code that does the safety checks.
 intrinsics!(
-    (NegInt , "built_in.neg_int" , 0),
-    (AddInt , "built_in.add_int" , 1),
-    (SubInt , "built_in.sub_int" , 2),
-    (MulInt , "built_in.mul_int" , 3),
-    (DivInt , "built_in.div_int" , 4),
-    (RemInt , "built_in.rem_int" , 5),
-    (LtInt  , "built_in.lt_int"  , 6),
-    (EqInt  , "built_in.eq_int"  , 7),
-    (GtInt  , "built_in.gt_int"  , 8),
-    (Exit   , "built_in.exit"    , 9),
-    (Panic  , "built_in.panic"   , 10),
-    (Print  , "built_in.print"   , 11),
-    (EPrint , "built_in.eprint"  , 12),
-//   ^^^^^^   ^^^^^^^^^^^^^^^^^    ^^
-//   |        |                    |
-//  (0)      (1)                  (2)
+    (NegInt    , "built_in.neg_int"    , 0),
+    (AddInt    , "built_in.add_int"    , 1),
+    (SubInt    , "built_in.sub_int"    , 2),
+    (MulInt    , "built_in.mul_int"    , 3),
+    (DivInt    , "built_in.div_int"    , 4),
+    (RemInt    , "built_in.rem_int"    , 5),
+    (LtInt     , "built_in.lt_int"     , 6),
+    (EqInt     , "built_in.eq_int"     , 7),
+    (GtInt     , "built_in.gt_int"     , 8),
+    (IndexList , "built_in.index_list" , 9),
+    (Exit      , "built_in.exit"       , 10),
+    (Panic     , "built_in.panic"      , 11),
+    (Print     , "built_in.print"      , 12),
+    (EPrint    , "built_in.eprint"     , 13),
+//   ^^^^^^      ^^^^^^^^^^^^^^^^^       ^^
+//   |           |                       |
+//  (0)         (1)                     (2)
 //
 // (0): Enum variants (Rust)
 // (1): lang items (Sodigy)

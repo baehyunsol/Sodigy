@@ -299,7 +299,7 @@ impl Endec for Callable {
                 buffer.push(3);
                 group_span.encode_impl(buffer);
             },
-            _ => todo!(),
+            _ => panic!("TODO: {self:?}"),
         }
     }
 

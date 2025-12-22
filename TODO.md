@@ -1,3 +1,11 @@
+# 129. naming rules for std builtins
+
+1. builtin이 바로 impl로 쓰이는 경우: `#[built_in] #[impl(std.op.add)] fn add_int`
+2. builtin과 impl이 별개인 경우: `div_int`, `index_list`, ...
+3. builtin의 wrapper가 있는 경우: `panic(msg: String) -> !` vs `panic() -> !`
+
+이름을 어떻게 지을까...
+
 # 128. comp-eval
 
 `let`에다가 `#[comptime]`을 붙일 수 있음. 그럼 이 `let`의 값은 반드시 compile-time에 evaluate됨.

@@ -26,8 +26,9 @@ fn sub_int(a: Int, b: Int) -> Int;
 #[lang_item("built_in.mul_int")]
 fn mul_int(a: Int, b: Int) -> Int;
 
+/// It doesn't check whether `b` is 0 or not.
+/// If `b` is 0, something bad (can be worse than `panic`) will happen.
 #[built_in]
-#[impl(std.op.div)]
 #[lang_item("built_in.div_int")]
 fn div_int(a: Int, b: Int) -> Int;
 
@@ -51,11 +52,8 @@ fn eq_int(a: Int, b: Int) -> Bool;
 #[lang_item("built_in.gt_int")]
 fn gt_int(a: Int, b: Int) -> Bool;
 
-// TODO: this should be the implementation of `div_int`,
-//       but the compiler isn't smart enough to compile this.
-/*
 #[impl(std.op.div)]
-fn div_int_impl(a: Int, b: Int) -> Int = {
+fn div_int_wrapper(a: Int, b: Int) -> Int = {
     if b == 0 {
         // TODO: error message
         std.panic()
@@ -65,11 +63,6 @@ fn div_int_impl(a: Int, b: Int) -> Int = {
         div_int(a, b)
     }
 };
-
-#[built_in]
-#[lang_item("built_in.div_int")]
-fn div_int(a: Int, b: Int) -> Int;
-*/
 
 // TODO: match is not implemented yet...
 /*
