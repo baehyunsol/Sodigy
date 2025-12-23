@@ -1,11 +1,12 @@
 use crate::{
     Attribute,
-    AttributeKind,
     AttributeRule,
     Requirement,
     Session,
     Visibility,
+    get_decorator_error_notes,
 };
+use sodigy_error::ItemKind;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -25,7 +26,7 @@ impl Module {
 
         let attribute = match session.lower_attribute(
             &ast_module.attribute,
-            AttributeKind::Module,
+            ItemKind::Module,
             ast_module.keyword_span,
             true,  // a module is always at top level
         ) {
@@ -51,13 +52,20 @@ impl Module {
         }
     }
 
-    pub fn get_attribute_rule(_is_top_level: bool, _is_std: bool, _session: &Session) -> AttributeRule {
-        AttributeRule {
+    pub fn get_attribute_rule(_is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
             doc_comment: Requirement::Never,
             doc_comment_error_note: Some(String::from("Use module doc comment inside the module instead.")),
             visibility: Requirement::Maybe,
             visibility_error_note: None,
             decorators: HashMap::new(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Module, intermediate_dir),
+        };
+
+        if is_std {
+            attribute_rule.add_decorators_for_std(ItemKind::Module, intermediate_dir);
         }
+
+        attribute_rule
     }
 }

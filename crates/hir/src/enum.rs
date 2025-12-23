@@ -1,13 +1,14 @@
 use crate::{
     Attribute,
-    AttributeKind,
     AttributeRule,
     Requirement,
     Session,
     StructField,
     Type,
     Visibility,
+    get_decorator_error_notes,
 };
+use sodigy_error::ItemKind;
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, Generic};
 use sodigy_span::Span;
@@ -65,7 +66,7 @@ impl Enum {
 
         let attribute = match session.lower_attribute(
             &ast_enum.attribute,
-            AttributeKind::Enum,
+            ItemKind::Enum,
             ast_enum.keyword_span,
             is_top_level,
         ) {
@@ -116,17 +117,18 @@ impl Enum {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
         let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: HashMap::new(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Enum, intermediate_dir),
         };
 
         if is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
+            attribute_rule.add_decorators_for_std(ItemKind::Enum, intermediate_dir);
         }
 
         attribute_rule
@@ -143,7 +145,7 @@ impl EnumVariant {
 
         let attribute = match session.lower_attribute(
             &ast_variant.attribute,
-            AttributeKind::EnumVariant,
+            ItemKind::EnumVariant,
 
             // TODO: it has to be keyword_span, but a variant doesn't have a keyword_span!!
             ast_variant.name_span,
@@ -216,18 +218,18 @@ impl EnumVariant {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
         let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("TODO: I'm not sure whether I should allow adding doc comments to inline items... maybe I have to do so?")),
             visibility: Requirement::Never,
             visibility_error_note: Some(String::from("You cannot set visibility of individual variants. If the enum is public, all the variants are public, and vice versa.")),
             decorators: HashMap::new(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::EnumVariant, intermediate_dir),
         };
 
-        // TODO: we only need `lang_item`, not the others
         if is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
+            attribute_rule.add_decorators_for_std(ItemKind::EnumVariant, intermediate_dir);
         }
 
         attribute_rule

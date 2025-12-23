@@ -2,7 +2,6 @@ use crate::{
     ArgCount,
     ArgType,
     Attribute,
-    AttributeKind,
     AttributeRule,
     DecoratorRule,
     Expr,
@@ -13,8 +12,9 @@ use crate::{
     Session,
     Type,
     Visibility,
+    get_decorator_error_notes,
 };
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     Namespace,
@@ -107,7 +107,7 @@ impl Func {
 
         let attribute = match session.lower_attribute(
             &ast_func.attribute,
-            AttributeKind::Func,
+            ItemKind::Func,
             ast_func.keyword_span,
             is_top_level,
         ) {
@@ -257,7 +257,7 @@ impl Func {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
         let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
@@ -265,17 +265,17 @@ impl Func {
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: vec![
                 (
-                    intern_string(b"poly", &session.intermediate_dir).unwrap(),
+                    intern_string(b"poly", intermediate_dir).unwrap(),
                     DecoratorRule {
-                        name: intern_string(b"poly", &session.intermediate_dir).unwrap(),
+                        name: intern_string(b"poly", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Never,
                         ..DecoratorRule::default()
                     },
                 ), (
-                    intern_string(b"impl", &session.intermediate_dir).unwrap(),
+                    intern_string(b"impl", intermediate_dir).unwrap(),
                     DecoratorRule {
-                        name: intern_string(b"impl", &session.intermediate_dir).unwrap(),
+                        name: intern_string(b"impl", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Must,
                         arg_count: ArgCount::Eq(1),
@@ -286,10 +286,11 @@ impl Func {
                     },
                 ),
             ].into_iter().collect(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Func, intermediate_dir),
         };
 
         if is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
+            attribute_rule.add_decorators_for_std(ItemKind::Func, intermediate_dir);
         }
 
         attribute_rule

@@ -1,4 +1,4 @@
-use crate::{Pattern, PatternKind, StructFieldPattern, Type};
+use crate::{Pattern, PatternKind, StructFieldPattern};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::InternedNumber;
 use sodigy_parse::RestPattern;

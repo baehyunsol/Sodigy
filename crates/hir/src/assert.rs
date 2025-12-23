@@ -2,13 +2,14 @@ use crate::{
     ArgCount,
     ArgType,
     Attribute,
-    AttributeKind,
     AttributeRule,
     DecoratorRule,
     Expr,
     Requirement,
     Session,
+    get_decorator_error_notes,
 };
+use sodigy_error::ItemKind;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
@@ -54,7 +55,7 @@ impl Assert {
 
         let attribute = match session.lower_attribute(
             &ast_assert.attribute,
-            AttributeKind::Assert,
+            ItemKind::Assert,
             ast_assert.keyword_span,
             is_top_level,
         ) {
@@ -94,17 +95,17 @@ impl Assert {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, _is_std: bool, session: &Session) -> AttributeRule {
-        AttributeRule {
+    pub fn get_attribute_rule(_is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
             doc_comment: Requirement::Never,
             doc_comment_error_note: Some(String::from("Use `#[note(\"...\")]` decorator instead.")),
             visibility: Requirement::Never,
             visibility_error_note: Some(String::from("You cannot set visibility of an assertion.")),
             decorators: vec![
                 (
-                    intern_string(b"name", &session.intermediate_dir).unwrap(),
+                    intern_string(b"name", intermediate_dir).unwrap(),
                     DecoratorRule {
-                        name: intern_string(b"name", &session.intermediate_dir).unwrap(),
+                        name: intern_string(b"name", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Must,
                         arg_count: ArgCount::Eq(1),
@@ -115,9 +116,9 @@ impl Assert {
                     },
                 ),
                 (
-                    intern_string(b"note", &session.intermediate_dir).unwrap(),
+                    intern_string(b"note", intermediate_dir).unwrap(),
                     DecoratorRule {
-                        name: intern_string(b"note", &session.intermediate_dir).unwrap(),
+                        name: intern_string(b"note", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Must,
                         arg_count: ArgCount::Eq(1),
@@ -128,16 +129,23 @@ impl Assert {
                     },
                 ),
                 (
-                    intern_string(b"always", &session.intermediate_dir).unwrap(),
+                    intern_string(b"always", intermediate_dir).unwrap(),
                     DecoratorRule {
-                        name: intern_string(b"always", &session.intermediate_dir).unwrap(),
+                        name: intern_string(b"always", intermediate_dir).unwrap(),
                         requirement: Requirement::Maybe,
                         arg_requirement: Requirement::Never,
                         ..DecoratorRule::default()
                     },
                 ),
             ].into_iter().collect(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Assert, intermediate_dir),
+        };
+
+        if is_std {
+            attribute_rule.add_decorators_for_std(ItemKind::Assert, intermediate_dir);
         }
+
+        attribute_rule
     }
 }
 

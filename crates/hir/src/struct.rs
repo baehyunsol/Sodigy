@@ -1,6 +1,5 @@
 use crate::{
     Attribute,
-    AttributeKind,
     AttributeRule,
     Expr,
     FuncParam,
@@ -8,7 +7,9 @@ use crate::{
     Requirement,
     Session,
     Visibility,
+    get_decorator_error_notes,
 };
+use sodigy_error::ItemKind;
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -60,7 +61,7 @@ impl Struct {
 
         let attribute = match session.lower_attribute(
             &ast_struct.attribute,
-            AttributeKind::Struct,
+            ItemKind::Struct,
             ast_struct.keyword_span,
             is_top_level,
         ) {
@@ -111,17 +112,18 @@ impl Struct {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, session: &Session) -> AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
         let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: HashMap::new(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Struct, intermediate_dir),
         };
 
         if is_std {
-            attribute_rule.add_std_rules(&session.intermediate_dir);
+            attribute_rule.add_decorators_for_std(ItemKind::Struct, intermediate_dir);
         }
 
         attribute_rule

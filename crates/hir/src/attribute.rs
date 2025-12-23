@@ -12,7 +12,7 @@ use crate::{
     Struct,
     Use,
 };
-use sodigy_error::{Error, ErrorKind, ErrorToken};
+use sodigy_error::{Error, ErrorKind, ErrorToken, ItemKind, comma_list_strs};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
@@ -23,32 +23,36 @@ use sodigy_string::{
 };
 use std::collections::hash_map::{Entry, HashMap};
 
+mod decorator_docs;
+
+pub use decorator_docs::generate_decorator_docs;
+
 impl Session {
     pub fn lower_attribute(
         &mut self,
         ast_attribute: &ast::Attribute,
-        kind: AttributeKind,
+        item: ItemKind,
         keyword_span: Span,
         is_top_level: bool,
     ) -> Result<Attribute, ()> {
         let attribute_rule_key = AttributeRuleKey {
-            kind,
+            item,
             is_top_level,
             is_std: self.is_std,
         };
         let attribute_rule = match self.attribute_rule_cache.get(&attribute_rule_key) {
             Some(rule) => rule.clone(),
             None => {
-                let rule = match kind {
-                    AttributeKind::Alias => Alias::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Assert => Assert::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Enum => Enum::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::EnumVariant => EnumVariant::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Func => Func::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Let => Let::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Module => Module::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Struct => Struct::get_attribute_rule(is_top_level, self.is_std, self),
-                    AttributeKind::Use => Use::get_attribute_rule(is_top_level, self.is_std, self),
+                let rule = match item {
+                    ItemKind::Alias => Alias::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Assert => Assert::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Enum => Enum::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::EnumVariant => EnumVariant::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Func => Func::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Let => Let::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Module => Module::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Struct => Struct::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
+                    ItemKind::Use => Use::get_attribute_rule(is_top_level, self.is_std, &self.intermediate_dir),
                 };
                 self.attribute_rule_cache.insert(attribute_rule_key, rule.clone());
                 rule
@@ -500,12 +504,11 @@ impl Attribute {
                     }
                 },
                 None => {
-                    // TODO: try `rule.decorators.get(&name[..i])` to generate a better error message
                     has_error = true;
                     session.errors.push(Error {
                         kind: ErrorKind::InvalidDecorator(ast_decorator.name),
                         spans: ast_decorator.name_span.simple_error(),
-                        note: None,
+                        note: rule.decorator_error_notes.get(&ast_decorator.name).map(|n| n.to_string()),
                     });
                 },
             }
@@ -587,15 +590,18 @@ pub struct AttributeRule {
     pub visibility: Requirement,
     pub visibility_error_note: Option<String>,
     pub decorators: HashMap<InternedString, DecoratorRule>,
+
+    // If the same key is both at `decorators` and `decorator_error_notes`, the entry at
+    // `decorator_error_notes` is ignored. This is intentional: it makes making `decorator_error_notes` easier.
+    pub decorator_error_notes: HashMap<InternedString, String>,
 }
 
 impl AttributeRule {
-    // TODO: we need std_rules based on AttributeKind
-    //       for example, it doesn't makes sense to add `built_in` to a type alias
-    pub fn add_std_rules(&mut self, intermediate_dir: &str) {
-        for (name, mut decorator) in [
+    pub fn add_decorators_for_std(&mut self, item_kind: ItemKind, intermediate_dir: &str) {
+        for (name, kinds, mut decorator) in [
             (
                 "built_in",
+                &[ItemKind::Enum, ItemKind::Func, ItemKind::Struct][..],
                 DecoratorRule {
                     requirement: Requirement::Maybe,
                     arg_requirement: Requirement::Never,
@@ -604,6 +610,14 @@ impl AttributeRule {
             ),
             (
                 "lang_item",
+                &[
+                    ItemKind::Alias,
+                    ItemKind::Enum,
+                    ItemKind::EnumVariant,
+                    ItemKind::Func,
+                    ItemKind::Let,
+                    ItemKind::Struct,
+                ],
                 DecoratorRule {
                     requirement: Requirement::Maybe,
                     arg_requirement: Requirement::Must,
@@ -616,6 +630,12 @@ impl AttributeRule {
             ),
             (
                 "lang_item_generics",
+                &[
+                    ItemKind::Alias,
+                    ItemKind::Enum,
+                    ItemKind::Func,
+                    ItemKind::Struct,
+                ],
                 DecoratorRule {
                     requirement: Requirement::Maybe,
                     arg_requirement: Requirement::Must,
@@ -627,14 +647,61 @@ impl AttributeRule {
                 },
             ),
         ] {
-            let name = intern_string(name.as_bytes(), intermediate_dir).unwrap();
-            decorator.name = name.clone();
-            self.decorators.insert(name, decorator);
+            let name_interned = intern_string(name.as_bytes(), intermediate_dir).unwrap();
+            decorator.name = name_interned.clone();
+
+            if !kinds.contains(&item_kind) {
+                self.decorator_error_notes.insert(
+                    name_interned,
+                    format!(
+                        "Decorator `{name}` is allowed for {}, but not for {}.",
+                        comma_list_strs(
+                            &kinds.iter().map(|kind| kind.render().to_string()).collect::<Vec<_>>(),
+                            "",
+                            "",
+                            "or",
+                        ),
+                        item_kind.render(),
+                    ),
+                );
+                continue;
+            }
+
+            self.decorators.insert(name_interned, decorator);
         }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+// TODO: Am I over-engineering??
+//       When I first drafted this, I thought it would be useful, but there isn't much decorators now.
+//
+// When the compiler throws `InvalidDecorator`, the compiler looks at this map to generate error note.
+pub fn get_decorator_error_notes(item_kind: ItemKind, intermediate_dir: &str) -> HashMap<InternedString, String> {
+    let mut result = vec![];
+
+    for decorator in [
+        "built_in",
+        "lang_item",
+        "lang_item_generics",
+    ] {
+        let note = match (decorator, item_kind) {
+            ("built_in", _) => "You cannot define a built-in item.",
+            ("lang_item" | "lang_item_generics", _) => "Lang-items are only allowed for special items in std.",
+            _ => unreachable!(),
+        };
+
+        result.push((decorator, note));
+    }
+
+    result.iter().map(
+        |(decorator, note)| (
+            intern_string(decorator.as_bytes(), intermediate_dir).unwrap(),
+            note.to_string(),
+        )
+    ).collect()
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Requirement {
     Must,
     Maybe,
@@ -776,20 +843,7 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct AttributeRuleKey {
-    pub kind: AttributeKind,
+    pub item: ItemKind,
     pub is_std: bool,
     pub is_top_level: bool,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum AttributeKind {
-    Alias,
-    Assert,
-    Enum,
-    EnumVariant,
-    Func,
-    Let,
-    Module,
-    Struct,
-    Use,
 }

@@ -1,3 +1,11 @@
+# 130. warn `#[poly]` in non-std environment
+
+`#[poly]` 자체가 너무 위험한 기능이니까 std에서만 쓸 수 있게 할까?
+
+user code에서도 쓸 수는 있는데 다 경고 날릴까?
+
+그냥 자유롭게 쓰도록 할까?
+
 # 129. naming rules for std builtins
 
 1. builtin이 바로 impl로 쓰이는 경우: `#[built_in] #[impl(std.op.add)] fn add_int`
@@ -55,6 +63,34 @@
     - It throws a warning if the outer-most function is not impure.
     - It throws an error if there's no impure function at all.
   - You can also assign a result of an action: `let x = exec foo();`.
+
+---
+
+아니면 아무 keyword도 없이 execution을 하게 할까? 완전 rust랑 똑같아지는 거임!!
+
+- `{ foo(); bar(); baz() }`를 하면 `foo()`, `bar()`를 실행한 다음에 `baz()`를 반환함
+- `return` keyword는 없음!!
+- execution이 들어가는 순간 해당 block은 impure block이 됨.
+  - impure block이 포함된 function은 impure function이 됨.
+  - impure let, impure assertion 따위는 없음. let/assert/struct/enum은 모두 pure 해야함!!
+- execution의 outer-most call이 pure function이면 경고를 날림
+- 근데 이러면 if문 하고 match문 뒤에 `;`가 붙잖아... 그것도 좀 이상한데 ㅠㅠ
+
+---
+
+그냥 execution을 하지 말까?? 모든 함수는 단일 expression이 원칙이고, impurity를 위한 특수 함수를 몇개 추가하자
+
+ex) `fn sleep_and_return(v: T, ms: Int) -> T = execute(sleep_ms(ms), v);`
+
+아니면 `exec!`라는 macro를 추가할까?
+
+1. `fn execute_and_return_last<T, U>(action: T, value: U) -> U;`, `fn execute_and_return_first<T, U>(value: T, action: U) -> T;` 이렇게 2개만 built-in으로 만들면 됨!
+  - 생각해보니까 built-in일 필요도 없음. 쟤네들은 optimization을 꺼버리면 됨!
+  - 다시 생각해보니까 optimization 끄는 것보다 built-in 만드는게 더 간단할 거같기도 하고 ㅋㅋㅋ
+2. `exec!(action1(), action2(), action3(), value)`를 1번의 함수들의 조합으로 바꾸면 됨
+  - 몇번째 값을 반환할지를 고를 수 있게 하고 싶은데... `exec!(action1(), action2(), action3(), value=value)` 이런 식은 ㅇㄸ?
+3. 만약에 `exec!`에다가 pure한 값을 주면 경고를 날릴까?
+  - ㄴㄴ 이거 할 거면 `execute_and_return_last`에서 첫번째 arg가 pure하면 경고 날리게 해야함!
 
 # 125. Multiprocessing
 
@@ -533,23 +569,51 @@ It'll first convert `3 + 4` to `add(3, 4)`. The remaining is the same as user-de
 
 # 84. methods and traits
 
-1. syntax
-  - `impl<T> Option<T> { .. }`, `impl Option<Int> { .. }`
-  - `#[impl(Option<T>)] fn map<T>(opt: Option<T>, f: Fn(T) -> U) -> Option<U>;`
-2. adding a method to a foreign type
-3. traits
-  - we need composition or inheritance if we want BIG sodigy projects
-4. If there're same methods for `Option<T>` and `Option<Int>`, I want the compiler to choose more concrete one.
-5. How about generic-based type classes?
-  - Generic functions are compile-time-type-checked-duck-typing. Let's say `map(s)` expects `s` to implement some methods and some fields. Then the programmer calls `map(3)`. If `Int` satisfies all the requirements, there'd be no compile error. Otherwise, the compiler will give a very nice error message.
-  - This is nice, but, there's a problem. I want the functions to be chained with dots, like `a.b().c().d()`, but with this approach, I'll fall into a parenthesis hell...
-  - How about a syntax that turns an arbitrary function into a method (connecting a function with a type)
-6. struct-constants, like `impl f32 { const PI: f32 = 3.1415; }` in Rust.
-  - how about struct-structs, struct-enums, etc?
+Poly 갖고 어떻게 구현이 되지 않을까?
 
-아니면 이건 ㅇㄸ `a.b(c).d(e)`는 `d(b(a, c), e)`의 syntax sugar임 -> 무조건 풀고 시작하는 거!!
--> 사실 이거는 단점이 너무 뚜렷함. syntax sugar로 써버리면 똑같은 namespace를 공유해야하잖아 ㅠㅠ
--> 86번에서 논의 중인 trait system을 잘 활용하면 namespace 문제가 없을 수도 있음!!
+1. `#[method(Option<T>)] fn unwrap<T>(v: Option<T>) -> T;`를 하면, `@method_unwrap_1`이라는 함수가 namespace에 추가됨
+  - `Option`의 field에 `unwrap`이 있는지는 확인해보기!
+    - 있으면 즉시 오류임
+  - `Option`의 다른 method 중에서 `unwrap`이 있어도... 될 수도 있음!!
+    - 경고만 날리자
+      - 경고를 날리면 안되지 않음? 사용자가 의도적으로 `Option<Int>`랑 `Option<String>`을 다르게 구현하고 싶을 수도 있잖아?
+      - 사용자가 착오로 `unwrap`을 2번 구현할 수도 있는데 그건 무조건 경고를 날려야지!!
+      - 그럼, `unwrap`을 2번 구현했다는 의미의 decorator를 추가하게 시킬까? 뭐라고 부르지...
+        - 아니면 `#[method(Option<T>, override=True)]`처럼 줄까?
+        - `override=True`를 eval하는게 무지하게 빡셈. per-file hir 단계에서 저걸 eval해야하는데, 그게 쉽지 않거든...
+    - 나중에 method 호출하는 시점에 충돌이 생기면 그때 오류 날림!
+      - 오류가 났을 때 선택할 방법이 있음?? 할 거면 해당 함수를 직접 import 해서 써야지...
+    - 그대신 다른 `unwrap`의 param의 개수가 다르면 즉시 오류임
+  - `@method_unwrap_1`이라고 하는 이유
+    - `f"@method_{name}_{args.len()}"`이 규칙임. 이렇게 해야 call만 보고도 poly 검색이 가능
+    - 서로 다른 type이 동일한 이름의 method를 가질 수도 있음. 걔네의 arg의 개수가 달라도 오류가 나면 안되거든? 그럼 poly 검색할 때 arg 개수까지 써야함!
+2. `x.unwrap()`을 하면,
+  - 일단은 `x`의 field에 `unwrap`이라는게 있는지 확인하고
+  - 없으면 `@method_unwrap_1`에 poly로 적용이 가능한지 확인하기 (이때는 `x`가 `unwrap`의 첫번째 argument가 됨)
+3. trait 비스무리한 거도 만들고 싶은데?
+  - 지금 당장은 아니더라도, trait를 염두에 두고 디자인해야하지 않을까
+4. `#[method(Option<T>)] fn unwrap(v: [T]) -> T;`를 하면 오류를 내야함.
+  - method 안에 들어있는 type하고 첫번째 arg의 type이 다르면 무조건 오류 내자.
+    - 여기는 subtype도 아니고 걍 exact type이어야겠네?
+  - 사실 `#[method(Option<T>)] fn unwrap(self) -> T;`라고 해도 Sodigy 문법상 아무 문제가 없거든? `self`가 일반 identifier이고 type annotation 생략하는게 허용되니까. 그럼 저걸 convention으로 밀자!!
+    - 나중에 type annotation 강제하는 lint 추가하더라도 여기서는 type annotation 생략하는 거 허용해주자!
+5. 한 함수에 `#[method(..)]`가 여러개 붙으면 당연히 오류임. 지금 구현으로도 오류 날릴 수 있음!
+
+---
+
+문제가 몇개 있음...
+
+1. `#[method(Option<T>)] fn foo<T>(v: Option<T>, n: Int)`랑 `#[method(Option<T>)] fn foo<T>(v: Option<T>, s: String)`이 있음. Rust에서는 이러면 큰일남. 정의하는 순간 바로 오류임!! 근데 Sodigy에서는 정의도 가능하고 사용도 가능함. 이러면 너무 헷갈리지 않을까...
+2. 저러면 namespace에 `unwrap`도 추가되는 거 아님?? 그건 싫은데... 아니면 `#[method(Option<T>, name=unwrap)] fn unwrap_impl_option<T>(v: Option<T>)` 이런 식으로 할까?
+  - 너무 복잡한데... ㅋㅋ
+
+---
+
+근데, 굳이 `#[method(Option<T>)]`라고 해야해? 그냥 `impl Option<T> {}` 하면 안됨?
+
+---
+
+`#[method(Option<T>)]`대신 `#[associate(Option<T>)]`는 ㅇㄸ? 이걸 `let`에 붙이면 associative constant가 되는 거지!!
 
 # 83. unused warnings
 
@@ -765,6 +829,11 @@ It'd be nice to have multithread/multiprocess capabilities, but it's not just ab
 2. general subtyping
   - 또 어디에 필요하려나...
   - 하고싶기는 함. `enum Foo`가 `variant A, variant B, variant C`를 갖는데 `Foo`를 return하는 어떤 함수가 항상 `A` 혹은 `B`를 return 하는 경우: `C`가 나올 수 없다는 걸 type checker가 잡고 싶음.
+3. impure function object를
+  - 1) 아예 금지하기
+  - 2) pure function object와 subtype 관계로 만들기
+  - 생각해보니까 2로 해야할 듯? 125번 이슈의 `spawn()` 구현하려면 impure function object가 필요함... 그럼 `Fn`을 `ImpureFn`의 subtype으로 해야함. `ImpureFn`한테 pure function 주는 것도 허용해야하지만, not vice-versa거든.
+  - 아니면 `PureFn`이랑 `ImpureFn`이랑 `Fn`을 다 만들어야하나??
 
 # 72. Visibility
 

@@ -1,12 +1,12 @@
 use crate::{
     Attribute,
-    AttributeKind,
     AttributeRule,
     Requirement,
     Session,
     Visibility,
+    get_decorator_error_notes,
 };
-use sodigy_error::{Error, ErrorKind};
+use sodigy_error::{Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::{RenderableSpan, Span};
@@ -54,7 +54,7 @@ impl Use {
 
         let attribute = match session.lower_attribute(
             &ast_use.attribute,
-            AttributeKind::Use,
+            ItemKind::Use,
             ast_use.keyword_span,
             is_top_level,
         ) {
@@ -127,13 +127,20 @@ impl Use {
         }
     }
 
-    pub fn get_attribute_rule(is_top_level: bool, _is_std: bool, _session: &Session) -> AttributeRule {
-        AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+        let mut attribute_rule = AttributeRule {
             doc_comment: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
             decorators: HashMap::new(),
+            decorator_error_notes: get_decorator_error_notes(ItemKind::Use, intermediate_dir),
+        };
+
+        if is_std {
+            attribute_rule.add_decorators_for_std(ItemKind::Use, intermediate_dir);
         }
+
+        attribute_rule
     }
 }

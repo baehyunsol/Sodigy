@@ -1,4 +1,4 @@
-use crate::{Expr, Session, Type, eval_const};
+use crate::{Expr, Session, eval_const};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;

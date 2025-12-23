@@ -57,3 +57,32 @@ pub fn comma_list_strs(
         3.. => format!("{open_quote}{}{close_quote}, {}", strs[0], comma_list_strs(&strs[1..], open_quote, close_quote, and_or)),
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ItemKind {
+    Alias,
+    Assert,
+    Enum,
+    EnumVariant,
+    Func,
+    Let,
+    Module,
+    Struct,
+    Use,
+}
+
+impl ItemKind {
+    pub fn render(&self) -> &'static str {
+        match self {
+            ItemKind::Alias => "type alias",
+            ItemKind::Assert => "assertion",
+            ItemKind::Enum => "enum",
+            ItemKind::EnumVariant => "enum variant",
+            ItemKind::Func => "function",
+            ItemKind::Let => "`let` statement",
+            ItemKind::Module => "module",
+            ItemKind::Struct => "struct",
+            ItemKind::Use => "`use` statement",
+        }
+    }
+}

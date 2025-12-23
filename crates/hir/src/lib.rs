@@ -37,13 +37,15 @@ pub use attribute::{
     ArgCount,
     ArgType,
     Attribute,
-    AttributeKind,
     AttributeRule,
     AttributeRuleKey,
     DecoratorRule,
+    KeywordArgRule,
     Requirement,
     Visibility,
+    generate_decorator_docs,
 };
+pub(crate) use attribute::get_decorator_error_notes;
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
