@@ -426,6 +426,8 @@ fn lower_match(
     build_state_machine(
         &matrix,
         &arms,
+        errors,
+        warnings,
     )?;
 
     todo!()
@@ -528,7 +530,8 @@ fn get_matrix(
 }
 
 #[derive(Clone, Debug)]
-pub struct DestructuredPattern {
+pub struct DestructuredPattern<'p> {
+    pub pattern: &'p Pattern,
     pub constructor: Constructor,
     pub name_binding: Option<(InternedString, Span)>,
     pub name_binding_offset: Option<InternedNumberValue>,
@@ -541,10 +544,10 @@ pub struct DestructuredPattern {
 // -> constructor: Tuple(2), name_binding: None
 //
 // pattern: `($x, ())`, field: `._0.constructor`
-fn read_field_of_pattern(
-    pattern: &Pattern,
+fn read_field_of_pattern<'p>(
+    pattern: &'p Pattern,
     field: &[Field],
-) -> Result<DestructuredPattern, PatternAnalysisError> {
+) -> Result<DestructuredPattern<'p>, PatternAnalysisError> {
     assert!(!field.is_empty(), "Internal Compiler Error");
     let name_binding = match (pattern.name, pattern.name_span) {
         (Some(name), Some(name_span)) => Some((name, name_span)),
@@ -554,11 +557,23 @@ fn read_field_of_pattern(
     match &field[0] {
         Field::Constructor => match &pattern.kind {
             PatternKind::Ident { id, span } => Ok(DestructuredPattern {
+                pattern,
                 constructor: Constructor::Wildcard,
                 name_binding: Some((*id, *span)),
                 name_binding_offset: None,
             }),
-            PatternKind::Number { n, .. } => todo!(),
+            PatternKind::Number { n, .. } => Ok(DestructuredPattern {
+                pattern,
+                constructor: Constructor::Range {
+                    r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
+                    lhs: Some(n.clone()),
+                    lhs_inclusive: true,
+                    rhs: Some(n.clone()),
+                    rhs_inclusive: true,
+                },
+                name_binding,
+                name_binding_offset: None,
+            }),
             PatternKind::String { binary, s, .. } => todo!(),
             PatternKind::Char { ch, .. } => todo!(),
             PatternKind::Byte { b, .. } => todo!(),
@@ -571,6 +586,7 @@ fn read_field_of_pattern(
 
                 else {
                     Ok(DestructuredPattern {
+                        pattern,
                         constructor: Constructor::Tuple(elements.len()),
                         name_binding,
                         name_binding_offset: None,
@@ -578,13 +594,38 @@ fn read_field_of_pattern(
                 }
             },
             PatternKind::Wildcard(_) => Ok(DestructuredPattern {
+                pattern,
                 constructor: Constructor::Wildcard,
                 name_binding,
                 name_binding_offset: None,
             }),
             _ => todo!(),
         },
-        _ => todo!(),
+        Field::Index(i) => match &pattern.kind {
+            PatternKind::Tuple { elements, rest, .. } => {
+                if let Some(_) = rest {
+                    // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
+                    // we have to desugar this at some point
+                    todo!()
+                }
+
+                else {
+                    // TODO: handle negative indexes
+                    match elements.get(*i as usize) {
+                        Some(p) => read_field_of_pattern(p, &field[1..]),
+                        None => todo!(),  // err
+                    }
+                }
+            },
+            PatternKind::Wildcard(_) => Ok(DestructuredPattern {
+                pattern,
+                constructor: Constructor::Wildcard,
+                name_binding,
+                name_binding_offset: None,
+            }),
+            _ => todo!(),
+        },
+        f => panic!("TODO: {f:?}"),
     }
 }
 
@@ -610,7 +651,9 @@ pub enum StateMachineOrArm {
 fn build_state_machine(
     matrix: &[(Vec<Field>, Constructor)],
     arms: &[(usize, &MatchArm)],
-) -> Result<StateMachine, ()> {
+    errors: &mut Vec<Error>,
+    warnings: &mut Vec<Warning>,
+) -> Result<StateMachineOrArm, ()> {
     let mut destructured_patterns = Vec::with_capacity(arms.len());
 
     for (id, arm) in arms.iter() {
@@ -619,12 +662,53 @@ fn build_state_machine(
             &matrix[0].0,
         ) {
             Ok(pattern) => {
-                destructured_patterns.push(pattern);
+                destructured_patterns.push((*id, *arm, pattern));
             },
             Err(e) => todo!(),  // who handles this?
         }
     }
 
-    println!("{destructured_patterns:?}");
-    todo!()
+    match &matrix[0].1 {
+        Constructor::Tuple(s_l) => {
+            let mut okay_patterns = vec![];
+
+            for (id, arm, pattern) in destructured_patterns.iter() {
+                match &pattern.constructor {
+                    Constructor::Tuple(p_l) => {
+                        if s_l == p_l {
+                            okay_patterns.push((*id, *arm));
+                        }
+
+                        else {
+                            errors.push(Error::todo(19198, "type errors in patterns", pattern.pattern.error_span_wide()));
+                        }
+                    },
+                    Constructor::Wildcard => {
+                        okay_patterns.push((*id, *arm));
+                    },
+                    _ => {
+                        errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
+                    },
+                }
+            }
+
+            Ok(StateMachineOrArm::StateMachine(StateMachine {
+                value: matrix[0].0.clone(),
+
+                // no branches
+                transitions: vec![Transition {
+                    condition: Constructor::Wildcard,
+                    state: build_state_machine(
+                        &matrix[1..],
+                        &okay_patterns,
+                        errors,
+                        warnings,
+                    )?,
+                    bindings: todo!(),
+                }],
+            }))
+        },
+        Constructor::Range { r#type, .. } => panic!("TODO: {destructured_patterns:?}"),
+        c => panic!("TODO: {c:?}"),
+    }
 }

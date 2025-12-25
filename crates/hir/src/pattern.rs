@@ -126,6 +126,20 @@ impl Pattern {
         result.extend(self.kind.bound_names());
         result
     }
+
+    pub fn error_span_narrow(&self) -> Span {
+        self.kind.error_span_narrow()
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        if let Some(name_span) = self.name_span {
+            name_span.merge(self.kind.error_span_wide())
+        }
+
+        else {
+            self.kind.error_span_wide()
+        }
+    }
 }
 
 impl PatternKind {
@@ -292,5 +306,13 @@ impl PatternKind {
             PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
             _ => todo!(),
         }
+    }
+
+    pub fn error_span_narrow(&self) -> Span {
+        todo!()
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        todo!()
     }
 }
