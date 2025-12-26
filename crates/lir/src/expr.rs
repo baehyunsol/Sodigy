@@ -6,7 +6,7 @@ use crate::{
     Session,
     Value,
 };
-use sodigy_mir::{Block, Callable, Expr, If, Match, MatchFsm};
+use sodigy_mir::{Block, Callable, Expr, If, Match};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 
 // caller is responsible for inc/decrementing the stack pointer
@@ -148,7 +148,6 @@ pub fn lower_expr(
             }
         },
         Expr::Match(Match { .. }) => unreachable!(),
-        Expr::MatchFsm(MatchFsm { .. }) => todo!(),
         Expr::Block(Block { lets, asserts, value, .. }) => {
             let mut local_names = vec![];
 

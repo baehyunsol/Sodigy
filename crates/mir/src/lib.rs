@@ -24,7 +24,7 @@ pub use r#if::If;
 pub(crate) use r#if::lower_hir_if;
 pub use intrinsic::Intrinsic;
 pub use r#let::Let;
-pub use r#match::{Match, MatchArm, MatchFsm};
+pub use r#match::{Match, MatchArm};
 pub use session::Session;
 pub use r#struct::Struct;
 pub use r#type::{Type, type_of};

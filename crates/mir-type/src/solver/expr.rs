@@ -3,7 +3,9 @@ use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
+use sodigy_parse::Field;
 use sodigy_span::Span;
+use sodigy_string::intern_string;
 use std::collections::HashMap;
 
 impl Solver {
@@ -200,12 +202,36 @@ impl Solver {
             // 3. arm_type == all the other arm_types
             // 4. arm_type == expr_type
             Expr::Match(r#match) => {
-                let (value_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), types, generic_instances);
+                let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), types, generic_instances);
                 let mut arm_types = Vec::with_capacity(r#match.arms.len());
 
                 // TODO: it's okay to fail to infer the types of name bindings
                 //       we need some kinda skip list
                 for arm in r#match.arms.iter() {
+                    if let Some(scrutinee_type) = &scrutinee_type {
+                        match self.solve_pattern(&arm.pattern, types, generic_instances) {
+                            (Some(pattern_type), e) => {
+                                if let Err(()) = self.solve_subtype(
+                                    &scrutinee_type,
+                                    &pattern_type,
+                                    types,
+                                    generic_instances,
+                                    false,
+                                    Some(r#match.scrutinee.error_span_wide()),
+                                    Some(arm.pattern.error_span_wide()),
+                                    ErrorContext::MatchScrutinee,
+                                ) {
+                                    has_error = true;
+                                }
+
+                                has_error |= e;
+                            },
+                            (None, _) => {
+                                has_error = true;
+                            },
+                        }
+                    }
+
                     if let Some(guard) = &arm.guard {
                         let (guard_type, e) = self.solve_expr(guard, types, generic_instances);
                         has_error |= e;
@@ -274,7 +300,6 @@ impl Solver {
                     }
                 }
             },
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 let mut has_error = false;
 
@@ -292,7 +317,13 @@ impl Solver {
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), types, generic_instances);
                 (expr_type, e || has_error)
             },
-            Expr::Path { .. } => todo!(),
+            Expr::Path { lhs, fields } => match self.solve_expr(lhs, types, generic_instances) {
+                (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_instances) {
+                    Ok(lhs_type) => (Some(lhs_type), has_error),
+                    Err(()) => (None, true),
+                },
+                (None, _) => (None, true),
+            },
             // 1. Make sure that `lhs` has the fields.
             // 2. Make sure that the field's type and `rhs`' type are the same.
             // 3. Return the type of `lhs`.
@@ -532,6 +563,63 @@ impl Solver {
                     _ => panic!("TODO: {func:?}"),
                 }
             },
+        }
+    }
+
+    pub fn get_type_of_field(
+        &mut self,
+        r#type: &Type,
+        field: &[Field],
+        types: &mut HashMap<Span, Type>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
+    ) -> Result<Type, ()> {
+        match r#type {
+            Type::Static { def_span, .. } => todo!(),
+            Type::Unit(_) => todo!(),  // It must be an error... right?
+            Type::Param { constructor, args, .. } => {
+                if let Type::Unit(_) = &**constructor {
+                    let field_type = match &field[0] {
+                        Field::Name { name, .. } => {
+                            let mut field_type = None;
+
+                            for i in 0..args.len() {
+                                let i_s = format!("_{i}");
+
+                                if intern_string(i_s.as_bytes(), &self.intermediate_dir).unwrap() == *name {
+                                    field_type = Some(args[i].clone());
+                                    break;
+                                }
+                            }
+
+                            match field_type {
+                                Some(field_type) => field_type,
+                                None => todo!(),  // error: no such field
+                            }
+                        },
+                        Field::Index(i) => todo!(),
+                        Field::Range(start, end) => todo!(),
+                        Field::Constructor | Field::Payload => unreachable!(),
+                    };
+
+                    if field.len() == 1 {
+                        Ok(field_type)
+                    }
+
+                    else {
+                        self.get_type_of_field(
+                            &field_type,
+                            &field[1..],
+                            types,
+                            generic_instances,
+                        )
+                    }
+                }
+
+                else {
+                    todo!()
+                }
+            },
+            _ => todo!(),
         }
     }
 }

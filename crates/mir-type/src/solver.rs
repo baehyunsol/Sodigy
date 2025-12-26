@@ -9,6 +9,7 @@ mod assert;
 mod expr;
 mod func;
 mod r#let;
+mod pattern;
 
 // When a type-variable is solved, it removes an entry in `type_var_refs`, but
 // not in `type_vars`, because
@@ -61,10 +62,11 @@ pub struct Solver {
     // 2. maybe the programmer wants to know this!
     // It's really expensive, so think twice before you enable this.
     pub log: Option<Vec<TypeLog>>,
+    pub intermediate_dir: String,
 }
 
 impl Solver {
-    pub fn new(lang_items: HashMap<String, Span>, log: bool) -> Self {
+    pub fn new(lang_items: HashMap<String, Span>, log: bool, intermediate_dir: String) -> Self {
         Solver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
@@ -73,6 +75,7 @@ impl Solver {
             lang_items,
             errors: vec![],
             log: if log { Some(vec![]) } else { None },
+            intermediate_dir,
         }
     }
 

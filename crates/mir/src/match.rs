@@ -80,6 +80,3 @@ impl MatchArm {
         }
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct MatchFsm {}  // TODO

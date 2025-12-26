@@ -37,7 +37,6 @@ impl Expr {
                     arm.value.dispatch(map, func_shapes, generic_instances);
                 }
             },
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for r#let in block.lets.iter_mut() {
                     r#let.value.dispatch(map, func_shapes, generic_instances);

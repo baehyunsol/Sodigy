@@ -17,7 +17,7 @@ pub use ratio::{Ratio, op::*};
 // `InternedNumber` doesn't. My idea is that strings, including identifiers
 // are used really frequently by the compiler, but `BigInt`s and `BigRatio`s
 // are used less frequently, so it's okay to use heap memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InternedNumber {
     pub value: InternedNumberValue,
 
@@ -27,7 +27,14 @@ pub struct InternedNumber {
     pub is_integer: bool,
 }
 
-#[derive(Clone, Debug)]
+// Caution: A number must be represented in a most efficient way.
+// If it can be represented in `SmallInt`, it must be.
+// Else if it can be represented in `BigInt`, it must be.
+// Else if it can be represented in `SmallRatio`, it must be.
+// Otherwise, it must be represented in `BigRatio`.
+// It's safer to use `intern_number` than constructing this
+// value manually.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InternedNumberValue {
     SmallInt(i64),
     SmallRatio {
@@ -67,12 +74,7 @@ impl InternedNumber {
 
 impl InternedNumberValue {
     pub fn is_zero(&self) -> bool {
-        match self {
-            InternedNumberValue::SmallInt(n) => *n == 0,
-            InternedNumberValue::SmallRatio { numer, .. } => *numer == 0,
-            InternedNumberValue::BigInt(n) => &n.nums == &[0],
-            InternedNumberValue::BigRatio(n) => &n.numer.nums == &[0],
-        }
+        matches!(self, InternedNumberValue::SmallInt(0))
     }
 }
 
@@ -170,60 +172,11 @@ pub fn intern_number_raw(
             numer = div_ubi(&numer, &r);
             denom = div_ubi(&denom, &r);
 
-            match (numer.len(), denom.len()) {
-                (_, 1) if denom[0] == 1 => match numer.len() {
-                    0 => unreachable!(),
-                    1 | 2 => {
-                        let n: u64 = numer[0] as u64 | ((*numer.get(1).unwrap_or(&0) as u64) << 32);
-
-                        match i64::try_from(n) {
-                            Ok(n) => InternedNumber {
-                                value: InternedNumberValue::SmallInt(n),
-                                is_integer,
-                            },
-                            Err(_) => InternedNumber {
-                                value: InternedNumberValue::BigInt(BigInt {
-                                    is_neg: false,
-                                    nums: numer,
-                                }),
-                                is_integer,
-                            },
-                        }
-                    },
-                    3.. => InternedNumber {
-                        value: InternedNumberValue::BigInt(BigInt {
-                            is_neg: false,
-                            nums: numer,
-                        }),
-                        is_integer,
-                    },
-                },
-                (1 | 2, 1 | 2) => {
-                    let numer_n: u64 = numer[0] as u64 | ((*numer.get(1).unwrap_or(&0) as u64) << 32);
-                    let denom_n: u64 = denom[0] as u64 | ((*denom.get(1).unwrap_or(&0) as u64) << 32);
-
-                    match i64::try_from(numer_n) {
-                        Ok(numer) => InternedNumber {
-                            value: InternedNumberValue::SmallRatio { numer, denom: denom_n },
-                            is_integer,
-                        },
-                        Err(_) => InternedNumber {
-                            value: InternedNumberValue::BigRatio(Ratio {
-                                numer: BigInt { is_neg: false, nums: numer },
-                                denom: BigInt { is_neg: false, nums: denom },
-                            }),
-                            is_integer,
-                        },
-                    }
-                },
-                _ => InternedNumber {
-                    value: InternedNumberValue::BigRatio(Ratio {
-                        numer: BigInt { is_neg: false, nums: numer },
-                        denom: BigInt { is_neg: false, nums: denom },
-                    }),
-                    is_integer,
-                },
-            }
+            let value = intern_number(Ratio {
+                numer: BigInt { is_neg: false, nums: numer },
+                denom: BigInt { is_neg: false, nums: denom },
+            });
+            InternedNumber { value, is_integer }
         },
         (Base::Octal, 0, 0) => match i64::from_str_radix(&String::from_utf8_lossy(integer), 8) {
             Ok(n) => InternedNumber {

@@ -7,7 +7,6 @@ use crate::{
     Let,
     Match,
     MatchArm,
-    MatchFsm,
     ShortCircuitKind,
 };
 use sodigy_endec::{DecodeError, Endec};
@@ -54,27 +53,23 @@ impl Endec for Expr {
                 buffer.push(6);
                 r#match.encode_impl(buffer);
             },
-            Expr::MatchFsm(match_fsm) => {
-                buffer.push(7);
-                match_fsm.encode_impl(buffer);
-            },
             Expr::Block(block) => {
-                buffer.push(8);
+                buffer.push(7);
                 block.encode_impl(buffer);
             },
             Expr::Path { lhs, fields } => {
-                buffer.push(9);
+                buffer.push(8);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
             Expr::FieldModifier { fields, lhs, rhs } => {
-                buffer.push(10);
+                buffer.push(9);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments } => {
-                buffer.push(11);
+                buffer.push(10);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 arg_group_span.encode_impl(buffer);
@@ -120,25 +115,21 @@ impl Endec for Expr {
                 Ok((Expr::Match(r#match), cursor))
             },
             Some(7) => {
-                let (match_fsm, cursor) = MatchFsm::decode_impl(buffer, cursor + 1)?;
-                Ok((Expr::MatchFsm(match_fsm), cursor))
-            },
-            Some(8) => {
                 let (block, cursor) = Block::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Block(block), cursor))
             },
-            Some(9) => {
+            Some(8) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Path { lhs, fields }, cursor))
             },
-            Some(10) => {
+            Some(9) => {
                 let (fields, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
             },
-            Some(11) => {
+            Some(10) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
@@ -146,7 +137,7 @@ impl Endec for Expr {
                 let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments }, cursor))
             },
-            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
@@ -265,16 +256,6 @@ impl Endec for MatchArm {
             },
             cursor,
         ))
-    }
-}
-
-impl Endec for MatchFsm {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        todo!()
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        todo!()
     }
 }
 

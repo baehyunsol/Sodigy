@@ -1,4 +1,4 @@
-use crate::{Block, If, Match, MatchFsm, Session, Type, lower_hir_if};
+use crate::{Block, If, Match, Session, Type, lower_hir_if};
 use sodigy_error::{Error, ErrorKind, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -36,8 +36,6 @@ pub enum Expr {
 
     // See `crates/mir/src/match.rs` to see the difference.
     Match(Match),
-    MatchFsm(MatchFsm),
-
     Block(Block),
     Path {
         lhs: Box<Expr>,
@@ -848,7 +846,6 @@ impl Expr {
             Expr::Byte { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => block.group_span,
             // Let's hope it doesn't panic...
             Expr::Path { fields, .. } => fields[0].dot_span().unwrap(),
@@ -874,7 +871,6 @@ impl Expr {
             Expr::Byte { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => block.group_span,
             Expr::Path { lhs, fields } => {
                 let mut span = lhs.error_span_wide();

@@ -96,7 +96,7 @@ impl Solver {
 
                 impl_type.generics_to_type_vars();
 
-                match solve_fn_types(&def_type, &impl_type, &def_type_vars, session.lang_items.clone()) {
+                match solve_fn_types(&def_type, &impl_type, &def_type_vars, session.lang_items.clone(), session.intermediate_dir.clone()) {
                     // constraints: `?T = Int`, `?U = Int`
                     Ok(constraints) => {
                         solver.impls.insert(*r#impl, constraints);
@@ -301,12 +301,13 @@ fn solve_fn_types(
 
     // for the type solver
     lang_items: HashMap<String, Span>,
+    intermediate_dir: String,
 ) -> Result<Vec<Constraint>, Vec<SolvePolyError>> {
     if def.params.len() != r#impl.params.len() {
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
-    let mut solver = Solver::new(lang_items, false);
+    let mut solver = Solver::new(lang_items, false, intermediate_dir);
     let mut types = HashMap::new();
     let mut constraints = vec![];
     let mut errors = vec![];

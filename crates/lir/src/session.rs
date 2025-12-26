@@ -143,7 +143,6 @@ impl Session {
                     self.collect_local_names(&arm.value, offset + pattern_name_bindings.len());
                 }
             },
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for (i, r#let) in block.lets.iter().enumerate() {
                     self.local_values.insert(

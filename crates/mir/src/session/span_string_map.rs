@@ -114,7 +114,6 @@ impl Session {
                     self.init_span_string_map_expr(&arm.value, result);
                 }
             },
-            Expr::MatchFsm(match_fsm) => todo!(),
             Expr::Block(block) => {
                 for r#let in block.lets.iter() {
                     self.init_span_string_map_let(r#let, result);

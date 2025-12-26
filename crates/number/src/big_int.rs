@@ -6,7 +6,7 @@ mod convert;
 
 use op::{add_ubi, mul_ubi, shl_ubi};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BigInt {
     pub is_neg: bool,
     pub nums: Vec<u32>,

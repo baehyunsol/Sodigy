@@ -309,10 +309,30 @@ impl PatternKind {
     }
 
     pub fn error_span_narrow(&self) -> Span {
-        todo!()
+        match self {
+            PatternKind::Ident { span, .. } |
+            PatternKind::Number { span, .. } |
+            PatternKind::String { span, .. } |
+            PatternKind::Regex { span, .. } |
+            PatternKind::Char { span, .. } |
+            PatternKind::Byte { span, .. } |
+            PatternKind::Wildcard(span) |
+            PatternKind::Tuple { group_span: span, .. } => *span,
+            _ => panic!("TODO: {self:?}"),
+        }
     }
 
     pub fn error_span_wide(&self) -> Span {
-        todo!()
+        match self {
+            PatternKind::Ident { span, .. } |
+            PatternKind::Number { span, .. } |
+            PatternKind::String { span, .. } |
+            PatternKind::Regex { span, .. } |
+            PatternKind::Char { span, .. } |
+            PatternKind::Byte { span, .. } |
+            PatternKind::Wildcard(span) |
+            PatternKind::Tuple { group_span: span, .. } => *span,
+            _ => panic!("TODO: {self:?}"),
+        }
     }
 }

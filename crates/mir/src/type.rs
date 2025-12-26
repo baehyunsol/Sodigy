@@ -400,7 +400,6 @@ pub fn type_of(
         }),
         Expr::If(r#if) => type_of(&r#if.true_value, types, struct_shapes, lang_items),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, types, struct_shapes, lang_items),
-        Expr::MatchFsm(match_fsm) => todo!(),
         Expr::Block(block) => type_of(&block.value, types, struct_shapes, lang_items),
         Expr::Call { func, args, .. } => match func {
             Callable::Static { def_span, .. } => match types.get(def_span) {

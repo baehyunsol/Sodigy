@@ -24,7 +24,7 @@ use solver::Solver;
 
 pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
     let mut has_error = false;
-    let mut type_solver = Solver::new(session.lang_items.clone(), log);
+    let mut type_solver = Solver::new(session.lang_items.clone(), log, session.intermediate_dir.clone());
     let mut poly_solver = HashMap::new();
 
     // It does 2 things.
