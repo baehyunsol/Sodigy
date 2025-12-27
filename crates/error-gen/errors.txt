@@ -87,9 +87,11 @@ CannotInferGenericType/425/Error
 PartiallyInferedGenericType/430/Error
 CannotApplyInfixOp/435/Error
 CannotSpecializePolyGeneric/440/Error
-MultipleModuleFiles/445/Error
-ModuleFileNotFound/450/Error
-LibFileNotFound/455/Error
+NonExhaustiveArms/445/Error
+MultipleModuleFiles/450/Error
+ModuleFileNotFound/455/Error
+LibFileNotFound/460/Error
 UnusedNames/5000/Warning
+UnreachableMatchArm/5005/Warning
 Todo/9998/Error
 InternalCompilerError/9999/Error

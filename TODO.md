@@ -1,3 +1,26 @@
+# 132. `void` return types
+
+Some functions (e.g. primitive `print`) return control flow, but their return value has no meaning. I want a type for these.
+
+I'll call it `void`. If a function's return type is `void`, it's a compile error to look at the return value. Like `Never` type, the type checker has to treat `void` specially.
+
+# 131. logger
+
+`#[log(f"foo({x}, {y})", logger = logger.stdout)]` decorator for functions
+
+1. When the function is called, it evaluates the value (`String`) and sends the value to the logger.
+2. The value can capture the function arguments.
+3. The logger is just an `Fn(String) -> ()`.
+  - It may dump the string to stdout/stderr, or write it to a file.
+  - The logger can do whatever impure stuffs.
+    - What if the user wants to implement a business logic using loggers?
+4. How about restricting the behavior of loggers?
+  - There's a fixed pipeline: 1) it first checks the log-level (maybe at compile time). if the level is low, it may skip logging 2) it processes the string `Fn(String) -> String` 3) it dumps the string to stdout, stderr and/or a file(s).
+  - The string processor can still call impure functions because the user likely wants to add a timestamp.
+    - How about distinguishing timestamps vs other impure functions? An effectful type system...
+    - In order to do that, we have to modify the signature of `Fn(String) -> String` to something like `Fn {ndet} (String) -> String`
+5. It is never optimized away... right?
+
 # 130. warn `#[poly]` in non-std environment
 
 `#[poly]` 자체가 너무 위험한 기능이니까 std에서만 쓸 수 있게 할까?

@@ -152,7 +152,7 @@
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
 use crate::PatternAnalysisError;
-use sodigy_error::{Error, Warning};
+use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{Generic, Pattern, PatternKind, StructField};
 use sodigy_mir::{
     Callable,
@@ -165,9 +165,17 @@ use sodigy_mir::{
 };
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
-use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::hash_map::{Entry, HashMap};
+
+mod state_machine;
+use state_machine::{
+    StateMachine,
+    StateMachineOrArm,
+    build_state_machine,
+};
 
 pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
     let mut has_error = false;
@@ -411,7 +419,7 @@ fn lower_matches_expr_recursive(
 }
 
 fn lower_match(
-    match_ast: &mut Match,
+    match_expr: &mut Match,
     types: &HashMap<Span, Type>,
     struct_shapes: &HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
     lang_items: &HashMap<String, Span>,
@@ -419,28 +427,49 @@ fn lower_match(
     warnings: &mut Vec<Warning>,
 ) -> Result<Expr, ()> {
     let scrutinee_type = type_of(
-        &match_ast.scrutinee,
+        &match_expr.scrutinee,
         types,
         struct_shapes,
         lang_items,
     ).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
-    // We use index (`usize`) of each arm as an id of the arm.
-    let arms: Vec<(usize, &MatchArm)> = match_ast.arms.iter().enumerate().collect();
+    // We use `index: usize` of each arm as an id of the arm.
+    let mut arms: Vec<(usize, &MatchArm)> = match_expr.arms.iter().enumerate().collect();
+
+    // We'll use this arm to check exhaustiveness.
+    let (extra_arm_id, extra_arm) = (arms.len(), &MatchArm {
+        pattern: Pattern {
+            name: None,
+            name_span: None,
+            kind: PatternKind::Wildcard(Span::None),
+        },
+        guard: None,
+        value: Expr::dummy(),
+    });
+    arms.push((extra_arm_id, extra_arm));
+
     let matrix = get_matrix(&scrutinee_type, lang_items);
 
-    let fsm = build_state_machine(
+    let fsm = match build_state_machine(
         &matrix,
         &arms,
         errors,
         warnings,
+    )? {
+        StateMachineOrArm::StateMachine(fsm) => fsm,
+        StateMachineOrArm::Arm { .. } => unreachable!(),
+    };
+
+    check_unreachable_and_exhaustiveness(
+        &fsm,
+        &arms,
+        match_expr.keyword_span,
+        extra_arm_id,
+        errors,
+        warnings,
     )?;
 
-    // TODO: turn this into a block
-    // 1. if there're name bindings, prepend `let t = scrutinee.field;`.
-    // 2. append `if _ { _ } else if ..`
-    //   - body of the if expression is the transited state (or an arm)
-    panic!("TODO: {fsm:?}")
+    Ok(fsm.into_expr(&arms))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -659,35 +688,6 @@ fn read_field_of_pattern<'p>(
     }
 }
 
-// In this state, it reads `scrutinee.field` and transits to the next state.
-// There must be exactly 1 `transition` whose `.condition` meets `scrutinee.field`.
-// If there are more than 1 transition, that's an ICE.
-//
-// `field` is None if it doesn't have to check scrutinee (e.g. when the transition is
-// based on the match guards.
-#[derive(Clone, Debug)]
-pub struct StateMachine {
-    field: Option<Vec<Field>>,
-    transitions: Vec<Transition>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Transition {
-    condition: Constructor,
-    guard: Option<Expr>,
-    state: StateMachineOrArm,
-
-    // If the condition is met, `scrutinee.field` is bound to the name.
-    // It's bound AFTER `scrutinee.field` is evaluated and BEFORE the transition.
-    name_bindings: Vec<NameBinding>,
-}
-
-#[derive(Clone, Debug)]
-pub enum StateMachineOrArm {
-    StateMachine(StateMachine),
-    Arm(usize),
-}
-
 #[derive(Clone, Debug)]
 struct NameBinding {
     id: usize,
@@ -696,216 +696,81 @@ struct NameBinding {
     offset: Option<InternedNumberValue>,
 }
 
-fn build_state_machine(
-    matrix: &[(Vec<Field>, Constructor)],
+// The compiler inserted an extra arm `_ => { .. }` at the end of a match expression.
+// If the extra arm is reachable, the match expression is not exhaustive.
+fn check_unreachable_and_exhaustiveness(
+    fsm: &StateMachine,
     arms: &[(usize, &MatchArm)],
+    keyword_span: Span,
+    extra_arm_id: usize,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
-) -> Result<StateMachineOrArm, ()> {
-    if matrix.is_empty() {
-        let mut transitions = vec![];
+) -> Result<(), ()> {
+    let mut hidden_by = HashMap::new();
+    let mut reachable_arms = HashSet::new();
+    check_arm_reachability(fsm, &mut hidden_by, &mut reachable_arms);
 
-        for (id, arm) in arms.iter() {
-            if let Some(guard) = &arm.guard {
-                transitions.push((Some(guard.clone()), *id));
-            }
+    for arm_id in 0..extra_arm_id {
+        if !reachable_arms.contains(&arm_id) {
+            let mut error_spans = vec![];
+            error_spans.extend(hidden_by.get(&arm_id).unwrap().iter().map(
+                |arm_id| RenderableSpan {
+                    span: arms[*arm_id].1.pattern.error_span_wide(),
+                    auxiliary: true,
+                    // TODO: better error message?
+                    note: Some(String::from("This arm makes the arm unreachable.")),
+                }
+            ).collect::<Vec<_>>());
+            error_spans.push(RenderableSpan {
+                span: arms[arm_id].1.pattern.error_span_wide(),
+                auxiliary: false,
+                note: Some(String::from("This arm is unreachable.")),
+            });
 
-            else {
-                transitions.push((None, *id));
-                break;
-            }
-        }
-
-        match transitions.len() {
-            0 => todo!(),
-            1 => match &transitions[0] {
-                (Some(guard), _) => todo!(),
-                (None, id) => {
-                    return Ok(StateMachineOrArm::Arm(*id));
-                },
-            },
-            _ => {
-                return Ok(StateMachineOrArm::StateMachine(StateMachine {
-                    field: None,
-                    transitions: transitions.into_iter().map(
-                        |(guard, id)| Transition {
-                            condition: Constructor::Wildcard,
-                            guard,
-                            state: StateMachineOrArm::Arm(id),
-                            name_bindings: vec![],
-                        }
-                    ).collect(),
-                }));
-            },
+            warnings.push(Warning {
+                kind: WarningKind::UnreachableMatchArm,
+                spans: error_spans,
+                note: None,
+            });
         }
     }
 
-    let mut destructured_patterns = Vec::with_capacity(arms.len());
-
-    for (id, arm) in arms.iter() {
-        match read_field_of_pattern(
-            &arm.pattern,
-            &matrix[0].0,
-        ) {
-            Ok(pattern) => {
-                destructured_patterns.push((*id, *arm, pattern));
-            },
-            Err(e) => todo!(),  // who handles this?
-        }
+    if reachable_arms.contains(&extra_arm_id) {
+        errors.push(Error {
+            kind: ErrorKind::NonExhaustiveArms,
+            spans: keyword_span.simple_error(),
+            note: None,
+        });
+        Err(())
     }
 
-    match &matrix[0].1 {
-        Constructor::Tuple(s_l) => {
-            let mut okay_patterns = vec![];
-            let mut name_bindings = vec![];
+    else {
+        Ok(())
+    }
+}
 
-            for (id, arm, pattern) in destructured_patterns.iter() {
-                match &pattern.constructor {
-                    Constructor::Tuple(p_l) => {
-                        if s_l == p_l {
-                            okay_patterns.push((*id, *arm));
+fn check_arm_reachability(
+    fsm: &StateMachine,
+    hidden_by: &mut HashMap<usize, HashSet<usize>>,
+    reachable_arms: &mut HashSet<usize>,
+) {
+    for transition in fsm.transitions.iter() {
+        match &transition.state {
+            StateMachineOrArm::StateMachine(fsm) => check_arm_reachability(fsm, hidden_by, reachable_arms),
+            StateMachineOrArm::Arm { matched, unmatched } => {
+                reachable_arms.insert(*matched);
 
-                            if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                name_bindings.push(name_binding);
-                            }
-                        }
-
-                        else {
-                            errors.push(Error::todo(19198, "type errors in patterns", pattern.pattern.error_span_wide()));
-                        }
-                    },
-                    Constructor::Wildcard => {
-                        okay_patterns.push((*id, *arm));
-
-                        if let Some(name_binding) = pattern.get_name_binding(*id) {
-                            name_bindings.push(name_binding);
-                        }
-                    },
-                    _ => {
-                        errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
-                    },
+                for unmatched_id in unmatched.iter() {
+                    match hidden_by.entry(*unmatched_id) {
+                        Entry::Occupied(mut e) => {
+                            e.get_mut().insert(*matched);
+                        },
+                        Entry::Vacant(e) => {
+                            e.insert([*matched].into_iter().collect());
+                        },
+                    }
                 }
-            }
-
-            Ok(StateMachineOrArm::StateMachine(StateMachine {
-                field: Some(matrix[0].0.clone()),
-
-                // no branches
-                transitions: vec![Transition {
-                    condition: Constructor::Wildcard,
-                    guard: None,
-                    state: build_state_machine(
-                        &matrix[1..],
-                        &okay_patterns,
-                        errors,
-                        warnings,
-                    )?,
-                    name_bindings,
-                }],
-            }))
-        },
-        Constructor::Range(Range { r#type, .. }) => {
-            let mut transitions_with_overlap: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> = vec![];
-
-            // default: wildcard
-            transitions_with_overlap.push((
-                Range {
-                    r#type: *r#type,
-                    lhs: None,
-                    lhs_inclusive: false,
-                    rhs: None,
-                    rhs_inclusive: false,
-                },
-                vec![],
-                vec![],
-            ));
-
-            for (id, arm, pattern) in destructured_patterns.iter() {
-                match &pattern.constructor {
-                    Constructor::Range(r) => {
-                        if r.r#type != *r#type {
-                            errors.push(Error::todo(19200, "type errors in patterns", pattern.pattern.error_span_wide()));
-                        }
-
-                        else {
-                            let mut is_new = true;
-
-                            for (br, arms, name_bindings) in transitions_with_overlap.iter_mut() {
-                                if br == r {
-                                    arms.push((*id, *arm));
-
-                                    if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                        name_bindings.push(name_binding);
-                                    }
-
-                                    is_new = false;
-                                    break;
-                                }
-                            }
-
-                            if is_new {
-                                let mut name_bindings = vec![];
-
-                                if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                    name_bindings.push(name_binding);
-                                }
-
-                                transitions_with_overlap.push((r.clone(), vec![(*id, *arm)], name_bindings));
-                            }
-                        }
-                    },
-                    Constructor::Wildcard => {
-                        for (_, arms, name_bindings) in transitions_with_overlap.iter_mut() {
-                            arms.push((*id, *arm));
-
-                            if let Some(name_binding) = pattern.get_name_binding(*id) {
-                                name_bindings.push(name_binding);
-                            }
-                        }
-                    },
-                    _ => {
-                        errors.push(Error::todo(19201, "type errors in patterns", pattern.pattern.error_span_wide()));
-                    },
-                }
-            }
-
-            // TODO: remove overlaps in transitions
-
-            let mut transitions = Vec::with_capacity(transitions_with_overlap.len());
-            let mut has_error = false;
-
-            for (range, arms, name_bindings) in transitions_with_overlap.into_iter() {
-                match build_state_machine(
-                    &matrix[1..],
-                    &arms,
-                    errors,
-                    warnings,
-                ) {
-                    Ok(state) => {
-                        transitions.push(Transition {
-                            condition: Constructor::Range(range),
-                            guard: None,
-                            state,
-                            name_bindings,
-                        });
-                    },
-                    Err(_) => {
-                        has_error = true;
-                    },
-                }
-            }
-
-            if has_error {
-                Err(())
-            }
-
-            else {
-                Ok(StateMachineOrArm::StateMachine(StateMachine {
-                    field: Some(matrix[0].0.clone()),
-                    transitions,
-                }))
-            }
-        },
-        c => panic!("TODO: {c:?}"),
+            },
+        }
     }
 }

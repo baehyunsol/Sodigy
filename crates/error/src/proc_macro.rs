@@ -47,11 +47,12 @@
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
     { id: Option<String>, r#type: String }, CannotApplyInfixOp
     { op: InfixOp, arg_types: Vec<String> }, CannotSpecializePolyGeneric
-    { num_candidates: usize }, MultipleModuleFiles
+    { num_candidates: usize }, NonExhaustiveArms, MultipleModuleFiles
     { module: ModulePath, found_files: Vec<String> }, ModuleFileNotFound
     { module: ModulePath, candidates: Vec<String> }, LibFileNotFound,
-    UnusedNames { names: Vec<InternedString>, kind: NameKind }, Todo
-    { id: u32, message: String }, InternalCompilerError { id: u32 },
+    UnusedNames { names: Vec<InternedString>, kind: NameKind },
+    UnreachableMatchArm, Todo { id: u32, message: String },
+    InternalCompilerError { id: u32 },
 } impl ErrorLevel {
     pub fn from_error_kind(k : & ErrorKind) -> ErrorLevel
     {
@@ -147,10 +148,12 @@
             ErrorKind :: PartiallyInferedGenericType { .. } => ErrorLevel ::
             Error, ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel ::
             Error, ErrorKind :: CannotSpecializePolyGeneric { .. } =>
-            ErrorLevel :: Error, ErrorKind :: MultipleModuleFiles { .. } =>
-            ErrorLevel :: Error, ErrorKind :: ModuleFileNotFound { .. } =>
-            ErrorLevel :: Error, ErrorKind :: LibFileNotFound => ErrorLevel ::
-            Error, ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
+            ErrorLevel :: Error, ErrorKind :: NonExhaustiveArms => ErrorLevel
+            :: Error, ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel ::
+            Error, ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel ::
+            Error, ErrorKind :: LibFileNotFound => ErrorLevel :: Error,
+            ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
+            ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
             ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
             InternalCompilerError { .. } => ErrorLevel :: Error,
         }
@@ -378,24 +381,27 @@
             {
                 buffer.push(1u8); buffer.push(184u8);
                 r#num_candidates.encode_impl(buffer);
-            }, ErrorKind :: MultipleModuleFiles { r#module, r#found_files, }
-            =>
+            }, ErrorKind :: NonExhaustiveArms =>
+            { buffer.push(1u8); buffer.push(189u8); }, ErrorKind ::
+            MultipleModuleFiles { r#module, r#found_files, } =>
             {
-                buffer.push(1u8); buffer.push(189u8);
+                buffer.push(1u8); buffer.push(194u8);
                 r#module.encode_impl(buffer);
                 r#found_files.encode_impl(buffer);
             }, ErrorKind :: ModuleFileNotFound { r#module, r#candidates, } =>
             {
-                buffer.push(1u8); buffer.push(194u8);
+                buffer.push(1u8); buffer.push(199u8);
                 r#module.encode_impl(buffer);
                 r#candidates.encode_impl(buffer);
             }, ErrorKind :: LibFileNotFound =>
-            { buffer.push(1u8); buffer.push(199u8); }, ErrorKind ::
+            { buffer.push(1u8); buffer.push(204u8); }, ErrorKind ::
             UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
-            }, ErrorKind :: Todo { r#id, r#message, } =>
+            }, ErrorKind :: UnreachableMatchArm =>
+            { buffer.push(19u8); buffer.push(141u8); }, ErrorKind :: Todo
+            { r#id, r#message, } =>
             {
                 buffer.push(39u8); buffer.push(14u8);
                 r#id.encode_impl(buffer); r#message.encode_impl(buffer);
@@ -694,28 +700,30 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: CannotSpecializePolyGeneric
                 { r#num_candidates, }, cursor))
-            }, 445u16 =>
+            }, 445u16 => Ok((ErrorKind :: NonExhaustiveArms, cursor)), 450u16
+            =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#found_files, cursor) =
                 Vec :: < String > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MultipleModuleFiles
                 { r#module, r#found_files, }, cursor))
-            }, 450u16 =>
+            }, 455u16 =>
             {
                 let (r#module, cursor) = ModulePath ::
                 decode_impl(buffer, cursor) ? ; let (r#candidates, cursor) =
                 Vec :: < String > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: ModuleFileNotFound
                 { r#module, r#candidates, }, cursor))
-            }, 455u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 5000u16
+            }, 460u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 5000u16
             =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::
                 decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
                 NameKind :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnusedNames { r#names, r#kind, }, cursor))
-            }, 9998u16 =>
+            }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
+            9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
                 let (r#message, cursor) = String ::

@@ -142,12 +142,16 @@ error_kinds!(
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         435,    Error),
     (CannotSpecializePolyGeneric { num_candidates: usize },              440,    Error),
 
-    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    445,    Error),
-    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      450,    Error),
-    (LibFileNotFound,                                                455,    Error),
+    // TODO: tell what's missing
+    (NonExhaustiveArms,                                                  445,    Error),
+
+    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    450,    Error),
+    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      455,    Error),
+    (LibFileNotFound,                                                460,    Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
+    (UnreachableMatchArm,                                           5005,  Warning),
 
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.

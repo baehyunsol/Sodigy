@@ -1,0 +1,4 @@
+fn is_odd(n) = match n {
+    0 => False,
+    1 => True,
+};

@@ -837,6 +837,10 @@ impl Expr {
         }
     }
 
+    pub fn dummy() -> Expr {
+        Expr::Char { ch: 0, span: Span::None }
+    }
+
     pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Ident(id) => id.span,
