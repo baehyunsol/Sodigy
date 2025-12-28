@@ -29,6 +29,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Func {
+    pub is_pure: bool,
     pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
@@ -77,6 +78,16 @@ pub struct CallArg {
 pub struct FuncShape {
     pub params: Vec<FuncParam>,
     pub generics: Vec<Generic>,
+}
+
+/// Type signature `Fn` is for both pure and impure functions.
+/// `PureFn` is subtype of `Fn`, and so is `ImpureFn`.
+/// You cannot use `Fn` in pure contexts.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum FuncPurity {
+    Pure,
+    Impure,
+    Both,
 }
 
 impl Func {
@@ -247,6 +258,7 @@ impl Func {
 
         else {
             Ok(Func {
+                is_pure: ast_func.is_pure,
                 visibility,
                 keyword_span: ast_func.keyword_span,
                 name: ast_func.name,

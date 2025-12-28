@@ -331,6 +331,7 @@ fn solve_fn_types(
             None,
             None,
             ErrorContext::None,
+            false,
         ) {
             errors.push(SolvePolyError::CannotImplPoly {
                 def_type: def_type.clone(),

@@ -68,6 +68,7 @@ intrinsics!(
     (Panic     , "built_in.panic"      , 11),
     (Print     , "built_in.print"      , 12),
     (EPrint    , "built_in.eprint"     , 13),
+    (RandomInt , "built_in.random_int" , 14),
 //   ^^^^^^      ^^^^^^^^^^^^^^^^^       ^^
 //   |           |                       |
 //  (0)         (1)                     (2)

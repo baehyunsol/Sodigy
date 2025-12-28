@@ -27,6 +27,7 @@ impl Solver {
                 None,
                 Some(assert.value.error_span_wide()),
                 ErrorContext::AssertConditionBool,
+                false,
             ) {
                 has_error = true;
             }
@@ -49,6 +50,7 @@ impl Solver {
                     None,
                     Some(assert.value.error_span_wide()),
                     ErrorContext::AssertConditionBool,
+                    false,
                 ) {
                     has_error = true;
                 }

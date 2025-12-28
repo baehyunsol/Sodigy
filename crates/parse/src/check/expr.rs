@@ -1,5 +1,5 @@
 use super::check_call_args;
-use crate::{Expr, ExprOrString, Session};
+use crate::{Expr, ExprOrString, Lambda, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -112,7 +112,7 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::Lambda { params, type_annot, value, .. } => {
+            Expr::Lambda(Lambda { params, type_annot, value, .. }) => {
                 let mut errors = vec![];
                 let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 

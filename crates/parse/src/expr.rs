@@ -1,12 +1,11 @@
 use crate::{
     Block,
     CallArg,
-    FuncParam,
     If,
+    Lambda,
     Match,
     StructInitField,
     Tokens,
-    Type,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
@@ -88,13 +87,7 @@ pub enum Expr {
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
-    Lambda {
-        params: Vec<FuncParam>,
-        param_group_span: Span,
-        type_annot: Box<Option<Type>>,
-        arrow_span: Span,
-        value: Box<Expr>,
-    },
+    Lambda(Lambda),
     PrefixOp {
         op: PrefixOp,
         op_span: Span,
@@ -156,7 +149,7 @@ impl Expr {
 
                 span
             },
-            Expr::Lambda { arrow_span, .. } => *arrow_span,
+            Expr::Lambda(Lambda { arrow_span, .. }) => *arrow_span,
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
         }
     }
@@ -194,7 +187,7 @@ impl Expr {
 
                 span.merge(rhs.error_span_wide())
             },
-            Expr::Lambda { param_group_span, arrow_span, value, .. } => param_group_span
+            Expr::Lambda(Lambda { param_group_span, arrow_span, value, .. }) => param_group_span
                 .merge(*arrow_span)
                 .merge(value.error_span_wide()),
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
@@ -378,33 +371,14 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => Expr::If(self.parse_if_expr()?),
             Some(Token { kind: TokenKind::Keyword(Keyword::Match), .. }) => Expr::Match(self.parse_match_expr()?),
+            Some(Token { kind: TokenKind::Keyword(Keyword::Impure), .. }) => {
+                self.cursor += 1;
+                let mut lambda = self.parse_lambda()?;
+                lambda.is_pure = false;
+                Expr::Lambda(lambda)
+            },
             Some(Token { kind: TokenKind::Group { delim, tokens }, span }) => match delim {
-                Delim::Lambda => {
-                    let span = *span;
-                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                    let params = tokens.parse_func_params()?;
-                    self.cursor += 1;
-                    let mut type_annot = None;
-
-                    match self.peek() {
-                        Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }) => {
-                            self.cursor += 1;
-                            type_annot = Some(self.parse_type()?);
-                        },
-                        _ => {},
-                    }
-
-                    let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span;
-                    let value = self.parse_expr()?;
-
-                    Expr::Lambda {
-                        params,
-                        param_group_span: span,
-                        type_annot: Box::new(type_annot),
-                        arrow_span,
-                        value: Box::new(value),
-                    }
-                },
+                Delim::Lambda => Expr::Lambda(self.parse_lambda()?),
                 Delim::Parenthesis => {
                     let span = *span;
                     let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);

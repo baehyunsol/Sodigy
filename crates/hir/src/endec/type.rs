@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{FuncPurity, Type};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;
@@ -27,12 +27,13 @@ impl Endec for Type {
                 types.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Type::Func { fn_span, group_span, params, r#return } => {
+            Type::Func { fn_span, group_span, params, r#return, purity } => {
                 buffer.push(4);
                 fn_span.encode_impl(buffer);
                 group_span.encode_impl(buffer);
                 params.encode_impl(buffer);
                 r#return.encode_impl(buffer);
+                purity.encode_impl(buffer);
             },
             Type::Wildcard(span) => {
                 buffer.push(5);
@@ -72,7 +73,8 @@ impl Endec for Type {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (params, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (r#return, cursor) = Box::<Type>::decode_impl(buffer, cursor)?;
-                Ok((Type::Func { fn_span, group_span, params, r#return }, cursor))
+                let (purity, cursor) = FuncPurity::decode_impl(buffer, cursor)?;
+                Ok((Type::Func { fn_span, group_span, params, r#return, purity }, cursor))
             },
             Some(5) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

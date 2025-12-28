@@ -2,6 +2,7 @@ pub use std.bool.{Bool, Bool.True, Bool.False};
 pub use std.byte.Byte;
 pub use std.bytes.Bytes;
 pub use std.char.Char;
+pub use std.r#fn.{Fn, ImpureFn, PureFn};
 pub use std.int.Int;
 pub use std.list.List;
 pub use std.number.Number;

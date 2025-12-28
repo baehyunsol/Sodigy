@@ -1,0 +1,31 @@
+fn pure_func(n: Int) -> Int = n + 1;
+
+impure fn impure_func(n: Int) -> Int = std.random.random_int() + n;
+
+let f1: Fn(Int) -> Int = pure_func;
+let f2: PureFn(Int) -> Int = pure_func;
+// let f3: ImpureFn(Int) -> Int = pure_func;  // type error
+
+let f4: Fn(Int) -> Int = impure_func;
+// let f5: PureFn(Int) -> Int = impure_func;  // type error
+let f6: ImpureFn(Int) -> Int = impure_func;
+
+let funcs1: [Fn(Int) -> Int] = [pure_func, impure_func];
+let funcs2: [Fn(Int) -> Int] = [pure_func, pure_func];
+let funcs3: [Fn(Int) -> Int] = [impure_func, impure_func];
+
+// let funcs4: [PureFn(Int) -> Int] = [pure_func, impure_func];  // type error
+let funcs5: [PureFn(Int) -> Int] = [pure_func, pure_func];
+// let funcs6: [PureFn(Int) -> Int] = [impure_func, impure_func];  // type error
+
+// let funcs7: [ImpureFn(Int) -> Int] = [pure_func, impure_func];  // type error
+// let funcs8: [ImpureFn(Int) -> Int] = [pure_func, pure_func];  // type error
+let funcs9: [ImpureFn(Int) -> Int] = [impure_func, impure_func];
+
+let lambda1: Fn(Int) -> Int = \(n) => n + 1;
+let lambda2: PureFn(Int) -> Int = \(n) => n + 1;
+// let lambda3: ImpureFn(Int) -> Int = \(n) => n + 1;  // type error
+
+let lambda4: Fn(Int) -> Int = impure \(n) => std.random.random_int() + n;
+// let lambda5: PureFn(Int) -> Int = impure \(n) => std.random.random_int() + n;  // type error
+let lambda6: ImpureFn(Int) -> Int = impure \(n) => std.random.random_int() + n;

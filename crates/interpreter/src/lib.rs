@@ -259,6 +259,7 @@ fn execute(
                         _ => unreachable!(),
                     }
                 },
+                Intrinsic::RandomInt => todo!(),
             },
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = match src {

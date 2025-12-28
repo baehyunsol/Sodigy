@@ -145,6 +145,7 @@ impl Solver {
                                 None,
                                 Some(v.error_span_wide()),
                                 context.clone(),
+                                false,
                             ) {
                                 has_error = true;
                             }
@@ -169,6 +170,7 @@ impl Solver {
                             None,
                             Some(r#if.cond.error_span_wide()),
                             ErrorContext::IfConditionBool,
+                            false,
                         ) {
                             has_error = true;
                         }
@@ -187,6 +189,9 @@ impl Solver {
                             Some(r#if.true_value.error_span_wide()),
                             Some(r#if.false_value.error_span_wide()),
                             ErrorContext::IfValueEqual,
+
+                            // If either `true_type <: false_type` or `false_type <: true_type` is satisfied, it's okay.
+                            true,
                         ) {
                             Ok(expr_type) => (Some(expr_type), has_error | e1 | e2),
                             Err(()) => (None, true),
@@ -220,6 +225,10 @@ impl Solver {
                                     Some(r#match.scrutinee.error_span_wide()),
                                     Some(arm.pattern.error_span_wide()),
                                     ErrorContext::MatchScrutinee,
+
+                                    // We don't allow `scrutinee_type <: pattern_type`.
+                                    // For example, `match todo() { 0 => _ }` is invalid.
+                                    false,
                                 ) {
                                     has_error = true;
                                 }
@@ -249,6 +258,7 @@ impl Solver {
                                 None,
                                 Some(guard.error_span_wide()),
                                 ErrorContext::MatchGuardBool,
+                                false,
                             ) {
                                 has_error = true;
                             }
@@ -282,6 +292,9 @@ impl Solver {
                             Some(r#match.arms[0].value.error_span_wide()),
                             Some(r#match.arms[i].value.error_span_wide()),
                             ErrorContext::MatchArmEqual,
+
+                            // If either `expr_type <: arg_types[i]` or `arg_types[i] <: expr_type` is satisfied, it's okay.
+                            true,
                         ) {
                             expr_type = new_expr_type;
                         }
@@ -405,6 +418,7 @@ impl Solver {
                                         None,
                                         Some(args[i].error_span_wide()),
                                         ErrorContext::FuncArgs,
+                                        false,
                                     ) {
                                         has_error = true;
                                     }
@@ -481,6 +495,9 @@ impl Solver {
                                     Some(args[0].error_span_wide()),
                                     Some(args[i].error_span_wide()),
                                     ErrorContext::ListElementEqual,
+
+                                    // If either `elem_type <: arg_types[i]` or `arg_types[i] <: elem_type` is satisfied, it's okay.
+                                    true,
                                 ) {
                                     elem_type = new_elem_type;
                                 }
@@ -549,6 +566,7 @@ impl Solver {
                                             None,
                                             Some(args[i].error_span_wide()),
                                             ErrorContext::FuncArgs,
+                                            false,
                                         ) {
                                             has_error = true;
                                         }

@@ -1,0 +1,8 @@
+#[built_in]
+pub enum Fn = { _ };
+
+#[built_in]
+pub enum PureFn = { _ };
+
+#[built_in]
+pub enum ImpureFn = { _ };

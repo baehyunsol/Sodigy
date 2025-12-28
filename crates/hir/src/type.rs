@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{FuncPurity, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, Field};
@@ -10,7 +10,7 @@ pub enum Type {
     Ident(IdentWithOrigin),
 
     // A type with dotted-identifiers (e.g. `std.bool.Bool`).
-    // It'll eventually be lowered to `Type::Identifier`, otherwise an error.
+    // It'll eventually be lowered to `Type::Ident`, otherwise an error.
     Path {
         id: IdentWithOrigin,
         fields: Vec<Field>,
@@ -27,10 +27,11 @@ pub enum Type {
         group_span: Span,
     },
     Func {
-        fn_span: Span,
+        fn_span: Span,  // span of the identifier `Fn`
         group_span: Span,
         params: Vec<Type>,
         r#return: Box<Type>,
+        purity: FuncPurity,
     },
     Wildcard(Span),
     Never(Span),
@@ -161,10 +162,21 @@ impl Type {
                 let mut has_error = false;
                 let mut has_wrong_identifier = false;
                 let mut params = Vec::with_capacity(ast_params.len());
+                let mut purity = FuncPurity::Both;
 
                 match Type::from_ast(r#type, session) {
+                    // TODO: I want to use lang items...
                     Ok(Type::Ident(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
                         Some(f) if f == b"Fn" => {
+                            purity = FuncPurity::Both;
+                            fn_span = span;
+                        },
+                        Some(f) if f == b"PureFn" => {
+                            purity = FuncPurity::Pure;
+                            fn_span = span;
+                        },
+                        Some(f) if f == b"ImpureFn" => {
+                            purity = FuncPurity::Impure;
                             fn_span = span;
                         },
                         _ => {
@@ -217,6 +229,7 @@ impl Type {
                         group_span: *group_span,
                         params,
                         r#return: Box::new(r#return.unwrap()),
+                        purity,
                     })
                 }
             },

@@ -1,5 +1,6 @@
 use crate::{Type, TypeLog};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_hir::FuncPurity;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashSet;
@@ -310,6 +311,13 @@ impl Solver {
         expected_span: Option<Span>,
         subtype_span: Option<Span>,
         context: ErrorContext,
+
+        // If it's set, the solver checks whether `subtype <: expected_type` or `expected_type <: subtype` is true.
+        // Otherwise, the solver only checks whether `subtype <: expected_type` is true.
+        //
+        // In expression `[x, y]`, if x is subtype of y or y is subtype of x, it's okay.
+        // But in `let x: T = y`, y's type must be subtype of T, but not vice versa.
+        either_subtype: bool,
     ) -> Result<Type, ()> {
         if let Some(log) = &mut self.log {
             match (expected_type, subtype) {
@@ -321,6 +329,7 @@ impl Solver {
                         expected_span,
                         subtype_span,
                         context: context.clone(),
+                        either_subtype,
                     });
                 },
                 _ => {},
@@ -360,6 +369,7 @@ impl Solver {
                     None,
                     None,
                     context.clone(),
+                    either_subtype,
                 ) {
                     Ok(t) => t,
                     Err(()) => {
@@ -405,6 +415,7 @@ impl Solver {
                             None,
                             None,
                             ErrorContext::None,
+                            either_subtype,
                         ) {
                             Ok(arg) => {
                                 args.push(arg);
@@ -429,18 +440,44 @@ impl Solver {
                     }
 
                     else {
-                        match expected_type {
-                            Type::Param { group_span, .. } => Ok(Type::Param {
+                        match (expected_type, subtype) {
+                            (Type::Param { group_span, .. }, _) => Ok(Type::Param {
                                 constructor: Box::new(t),
                                 args,
                                 group_span: *group_span,
                             }),
-                            Type::Func { fn_span, group_span, .. } => Ok(Type::Func {
-                                fn_span: *fn_span,
-                                group_span: *group_span,
-                                r#return: Box::new(t),
-                                params: args,
-                            }),
+                            (Type::Func { fn_span, group_span, purity: p1, .. }, Type::Func { purity: p2, .. }) => {
+                                let purity = match (p1, p2) {
+                                    (FuncPurity::Both, _) => FuncPurity::Both,
+                                    (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
+                                    (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
+                                    _ => {
+                                        if either_subtype {
+                                            FuncPurity::Both
+                                        }
+
+                                        else {
+                                            self.errors.push(TypeError::UnexpectedPurity {
+                                                expected_type: expected_type.clone(),
+                                                expected_purity: *p1,
+                                                expected_span: expected_span,
+                                                got_type: subtype.clone(),
+                                                got_purity: *p2,
+                                                got_span: subtype_span,
+                                            });
+                                            return Err(());
+                                        }
+                                    },
+                                };
+
+                                Ok(Type::Func {
+                                    fn_span: *fn_span,
+                                    group_span: *group_span,
+                                    params: args,
+                                    r#return: Box::new(t),
+                                    purity,
+                                })
+                            },
                             _ => unreachable!(),
                         }
                     }
@@ -468,6 +505,7 @@ impl Solver {
                                 expected_span,
                                 subtype_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         },
                         None => {},
@@ -486,6 +524,7 @@ impl Solver {
                                 expected_span,
                                 subtype_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         },
                         None => {},
@@ -525,6 +564,7 @@ impl Solver {
                                 expected_span,
                                 subtype_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         },
                     }
@@ -562,6 +602,7 @@ impl Solver {
                                 expected_span,
                                 subtype_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         },
                         None => {},
@@ -580,6 +621,7 @@ impl Solver {
                                 expected_span,
                                 subtype_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         },
                         None => {},
@@ -599,6 +641,8 @@ impl Solver {
                 unreachable!()
             },
             (never @ Type::Never(_), concrete) | (concrete, never @ Type::Never(_)) => {
+                let never_type_expected = matches!(never, Type::Never(_));
+
                 // We don't solve the variable, because we might solve it with a more concrete type.
                 // But we still have to remember that this variable might be `Type::Never`.
                 // If we can't solve the variable, we'll assign `Type::Never` to the variable.
@@ -609,7 +653,20 @@ impl Solver {
                     _ => {},
                 }
 
-                Ok(concrete.clone())
+                // `Type::Never` is subtype of every type, but `concrete` is not a
+                // subtype of `Type::Never`.
+                if either_subtype || !never_type_expected {
+                    Ok(concrete.clone())
+                } else {
+                    self.errors.push(TypeError::UnexpectedType {
+                        expected: expected_type.clone(),
+                        expected_span: expected_span,
+                        got: subtype.clone(),
+                        got_span: subtype_span,
+                        context: context.clone(),
+                    });
+                    Err(())
+                }
             },
             (
                 type_var @ Type::Var { def_span, is_return },
@@ -642,6 +699,7 @@ impl Solver {
                                     None,
                                     concrete_span,
                                     ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                    either_subtype,
                                 ) {
                                     return Err(());
                                 }
@@ -674,6 +732,7 @@ impl Solver {
                                 None,
                                 concrete_span,
                                 ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                either_subtype,
                             ) {
                                 return Err(());
                             }
@@ -719,6 +778,7 @@ impl Solver {
                                     None,
                                     concrete_span,
                                     ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                    either_subtype,
                                 ) {
                                     return Err(());
                                 }
@@ -752,6 +812,7 @@ impl Solver {
                                 None,
                                 concrete_span,
                                 ErrorContext::InferedAgain { type_var: type_var.clone() },
+                                either_subtype,
                             ) {
                                 return Err(());
                             }
@@ -801,6 +862,7 @@ impl Solver {
                             None,
                             concrete_span,
                             ErrorContext::InferedAgain { type_var: type_var.clone() },
+                            either_subtype,
                         ) {
                             return Err(());
                         }
@@ -840,6 +902,7 @@ impl Solver {
                             None,
                             concrete_span,
                             ErrorContext::InferedAgain { type_var: type_var.clone() },
+                            either_subtype,
                         ) {
                             return Err(());
                         }
@@ -914,6 +977,7 @@ impl Solver {
                                             tv_span,
                                             gi_span,
                                             ErrorContext::Deep,
+                                            either_subtype,
                                         );
                                     },
                                 },
@@ -932,6 +996,7 @@ impl Solver {
                                 tv_span,
                                 gi_span,
                                 ErrorContext::Deep,
+                                either_subtype,
                             );
                         }
                     },

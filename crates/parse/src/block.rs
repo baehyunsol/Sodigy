@@ -136,10 +136,10 @@ impl<'t, 's> Tokens<'t, 's> {
             };
 
             // FIXME: the same code is repeated multiple times...
-            match self.peek() {
+            match self.peek2() {
                 // `parse_let` might return multiple `Let`s because if there's a pattern,
                 // it's destructured to multiple `Let`s.
-                Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }) => match self.parse_let() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Let), .. }), _) => match self.parse_let() {
                     Ok(mut lets_) => {
                         match (lets_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -165,7 +165,10 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }) => match self.parse_func() {
+                // `impure \() ..` is an expression, but `impure fn ..` is an item.
+                // So, we have to look 1 more token when we see `impure` keyword.
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Impure), .. }), Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. })) |
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Fn), .. }), _) => match self.parse_func() {
                     Ok(mut func) => {
                         func.attribute = attribute;
                         funcs.push(func);
@@ -182,7 +185,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Struct), .. }) => match self.parse_struct() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Struct), .. }), _) => match self.parse_struct() {
                     Ok(mut r#struct) => {
                         r#struct.attribute = attribute;
                         structs.push(r#struct);
@@ -199,7 +202,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Enum), .. }) => match self.parse_enum() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Enum), .. }), _) => match self.parse_enum() {
                     Ok(mut r#enum) => {
                         r#enum.attribute = attribute;
                         enums.push(r#enum);
@@ -216,7 +219,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Assert), .. }) => {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Assert), .. }), _) => {
                     match self.parse_assert() {
                         Ok(mut assert) => {
                             assert.attribute = attribute;
@@ -235,7 +238,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Type), .. }) => match self. parse_alias() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Type), .. }), _) => match self. parse_alias() {
                     Ok(mut alias) => {
                         alias.attribute = attribute;
                         aliases.push(alias);
@@ -252,7 +255,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Mod), .. }) => match self.parse_module() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Mod), .. }), _) => match self.parse_module() {
                     Ok(mut module) => {
                         module.attribute = attribute;
                         modules.push(module);
@@ -269,7 +272,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(Token { kind: TokenKind::Keyword(Keyword::Use), .. }) => match self.parse_use() {
+                (Some(Token { kind: TokenKind::Keyword(Keyword::Use), .. }), _) => match self.parse_use() {
                     Ok(mut uses_) => {
                         match (uses_.len(), attribute.is_empty()) {
                             (1, _) => {
@@ -298,7 +301,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
                     },
                 },
-                Some(t) => {
+                (Some(t), _) => {
                     let initial_token = t.clone();
 
                     if let Some(doc_comment) = &attribute.doc_comment {
@@ -397,7 +400,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                None => {
+                (None, _) => {
                     break;
                 },
             }

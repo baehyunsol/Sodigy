@@ -1,5 +1,6 @@
 use crate::Type;
 use sodigy_error::{Error, ErrorKind, comma_list_strs};
+use sodigy_hir::FuncPurity;
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
@@ -64,6 +65,17 @@ pub enum TypeError {
         num_candidates: usize,
     },
 
+    // Basically, it's just an `TypeError::UnexpectedType`, but I added a variant
+    // for better error messages.
+    UnexpectedPurity {
+        expected_type: Type,
+        expected_purity: FuncPurity,
+        expected_span: Option<Span>,
+        got_type: Type,
+        got_purity: FuncPurity,
+        got_span: Option<Span>,
+    },
+
     // TODO: more fields
     CannotInferPolyGenericDef,
     CannotInferPolyGenericImpl,
@@ -109,7 +121,7 @@ impl ErrorContext {
             ErrorContext::MatchGuardBool => Some("A guard of a match arm must be a boolean."),
             ErrorContext::MatchArmEqual => Some("All arms of a `match` expression must have the same type."),
             ErrorContext::InferTypeAnnotation => Some("There's an error while doing type-inference."),
-            ErrorContext::VerifyTypeAnnotation => Some("A type annotation and its actual type do not match."),
+            ErrorContext::VerifyTypeAnnotation => Some("A value's type annotation and its actual type do not match."),
             ErrorContext::ListElementEqual => Some("All elements of a list must have the same type."),
             ErrorContext::FuncArgs => Some("Arguments of this function are incorrect."),
             ErrorContext::EqValueEqual => Some("Lhs and rhs of `==` operator must have the same type."),
@@ -338,7 +350,64 @@ impl RenderTypeError for MirSession {
                 ].concat(),
                 note: None,
             },
-            _ => todo!(),
+            TypeError::UnexpectedPurity {
+                expected_type,
+                expected_purity,
+                expected_span,
+                got_type,
+                got_purity,
+                got_span,
+            } => {
+                let mut spans = vec![];
+                let expected_type = self.render_type(expected_type);
+                let got_type = self.render_type(got_type);
+
+                if let Some(span) = *expected_span {
+                    let note = match expected_purity {
+                        FuncPurity::Pure => "It expects a pure function.",
+                        FuncPurity::Impure => "It expects an impure function.",
+                        FuncPurity::Both => unreachable!(),
+                    }.to_string();
+
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: true,
+                        note: Some(note),
+                    });
+                }
+
+                if let Some(span) = *got_span {
+                    let note = match got_purity {
+                        FuncPurity::Pure => "This is definitely a pure function.",
+                        FuncPurity::Impure => "This is definitely an impure function.",
+                        FuncPurity::Both => "I'm not sure whether it's pure or not.",
+                    }.to_string();
+
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: false,
+                        note: Some(note),
+                    });
+                }
+
+                let note = match (expected_purity, got_purity) {
+                    (ex, FuncPurity::Both) => Some(format!(
+                        "If you're sure that this is {}, add a type annotation. Be careful that `Fn` is for 'pure or impure' functions, you have to use `PureFn` or `ImpureFn` to be clear.",
+                        match ex { FuncPurity::Pure => "pure", FuncPurity::Impure => "impure", FuncPurity::Both => unreachable!() },
+                    )),
+                    _ => None,
+                };
+
+                Error {
+                    kind: ErrorKind::UnexpectedType {
+                        expected: expected_type,
+                        got: got_type,
+                    },
+                    spans,
+                    note,
+                }
+            },
+            _ => panic!("TODO: {error:?}"),
         }
     }
 
@@ -365,8 +434,13 @@ impl RenderTypeError for MirSession {
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", "),
             ),
-            Type::Func { params, r#return, .. } => format!(
-                "Fn({}) -> {}",
+            Type::Func { params, r#return, purity, .. } => format!(
+                "{}({}) -> {}",
+                match purity {
+                    FuncPurity::Pure => "PureFn",
+                    FuncPurity::Impure => "ImpureFn",
+                    FuncPurity::Both => "Fn",
+                },
                 params.iter().map(
                     |param| self.render_type(param)
                 ).collect::<Vec<_>>().join(", "),

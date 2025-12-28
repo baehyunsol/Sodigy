@@ -1,6 +1,6 @@
 use crate::{Callable, Expr, Session};
 use sodigy_error::{Error, ErrorKind};
-use sodigy_hir::{self as hir, StructShape};
+use sodigy_hir::{self as hir, FuncPurity, StructShape};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::unintern_string;
@@ -44,6 +44,7 @@ pub enum Type {
         group_span: Span,
         params: Vec<Type>,
         r#return: Box<Type>,
+        purity: FuncPurity,
     },
 
     // If a type annotation is missing, it creates a type variable.
@@ -192,7 +193,7 @@ impl Type {
                     }
                 }
             },
-            hir::Type::Func { fn_span, group_span, params: hir_params, r#return } => {
+            hir::Type::Func { fn_span, group_span, params: hir_params, r#return, purity } => {
                 let mut has_error = false;
                 let r#return = match Type::from_hir(r#return, session) {
                     Ok(r#type) => Some(r#type),
@@ -224,6 +225,7 @@ impl Type {
                         group_span: *group_span,
                         params,
                         r#return: Box::new(r#return.unwrap()),
+                        purity: *purity,
                     })
                 }
             },

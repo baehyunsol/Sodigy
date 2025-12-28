@@ -7,7 +7,7 @@ pub(crate) const STD_FILES: [(
     &'static str,   // file_path
     &'static [u8],  // contents
     u128,           // content_hash
-); 11] = [
+); 13] = [
     (
         "@std.lib.bool",
         "@std/bool.sdg",
@@ -33,46 +33,58 @@ pub(crate) const STD_FILES: [(
         1003,
     ),
     (
+        "@std.lib.fn",
+        "@std/fn.sdg",
+        include_bytes!("../../../std/fn.sdg"),
+        1004,
+    ),
+    (
         "@std.lib.int",
         "@std/int.sdg",
         include_bytes!("../../../std/int.sdg"),
-        1004,
+        1005,
     ),
     (
         "@std.lib",
         "@std/lib.sdg",
         include_bytes!("../../../std/lib.sdg"),
-        1005,
+        1006,
     ),
     (
         "@std.lib.list",
         "@std/list.sdg",
         include_bytes!("../../../std/list.sdg"),
-        1006,
+        1007,
     ),
     (
         "@std.lib.number",
         "@std/number.sdg",
         include_bytes!("../../../std/number.sdg"),
-        1007,
+        1008,
     ),
     (
         "@std.lib.op",
         "@std/op.sdg",
         include_bytes!("../../../std/op.sdg"),
-        1008,
+        1009,
     ),
     (
         "@std.lib.prelude",
         "@std/prelude.sdg",
         include_bytes!("../../../std/prelude.sdg"),
-        1009,
+        1010,
+    ),
+    (
+        "@std.lib.random",
+        "@std/random.sdg",
+        include_bytes!("../../../std/random.sdg"),
+        1011,
     ),
     (
         "@std.lib.string",
         "@std/string.sdg",
         include_bytes!("../../../std/string.sdg"),
-        1010,
+        1012,
     ),
 ];
 
@@ -82,6 +94,6 @@ pub fn std_root() -> (ModulePath, FileOrStd) {
             path: vec![],
             is_std: true,
         },
-        FileOrStd::Std(5),
+        FileOrStd::Std(6),
     )
 }

@@ -46,7 +46,10 @@ pub(crate) enum LexState {
         binary: bool,
     },
 
-    Ident,
+    Ident {
+        // `r#`-prefixed identifier
+        raw: bool,
+    },
     FieldModifier,
     Integer(Base),
     Fraction,
@@ -111,13 +114,16 @@ impl Session {
                     self.token_start = self.cursor;
                     self.state = LexState::StringPrefix;
                 },
-                (Some(x @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _, _) => {
+                (Some(b'r'), Some(b'#'), Some(b'a'..=b'z' | b'A'..=b'Z' | b'_' | 192..)) => {
                     self.buffer1.clear();
-                    self.buffer1.push(*x);
-
                     self.token_start = self.cursor;
-                    self.state = LexState::Ident;
-                    self.cursor += 1;
+                    self.state = LexState::Ident { raw: true };
+                    self.cursor += 2;
+                },
+                (Some(b'a'..=b'z' | b'A'..=b'Z' | b'_'), _, _) => {
+                    self.buffer1.clear();
+                    self.token_start = self.cursor;
+                    self.state = LexState::Ident { raw: false };
                 },
                 (Some(b'`'), Some(y @ (b'a'..=b'z' | b'A'..=b'Z' | b'_')), _) => {
                     self.buffer1.clear();
@@ -515,7 +521,7 @@ impl Session {
                 (Some(192..), _, _) => {
                     self.buffer1.clear();
                     self.token_start = self.cursor;
-                    self.state = LexState::Ident;
+                    self.state = LexState::Ident { raw: false };
                 },
                 (Some(x), _, _) => panic!("TODO: {:?}", *x as char),
                 (None, _, _) => {
@@ -1468,7 +1474,7 @@ impl Session {
                     });
                 },
             },
-            LexState::Ident => match (
+            LexState::Ident { raw } => match (
                 self.input_bytes.get(self.cursor),
                 self.input_bytes.get(self.cursor + 1),
                 self.input_bytes.get(self.cursor + 2),
@@ -1508,20 +1514,33 @@ impl Session {
                     });
                 },
                 _ => {
-                    let token_kind = match self.buffer1.as_slice() {
-                        b"as" => TokenKind::Keyword(Keyword::As),
-                        b"assert" => TokenKind::Keyword(Keyword::Assert),
-                        b"else" => TokenKind::Keyword(Keyword::Else),
-                        b"enum" => TokenKind::Keyword(Keyword::Enum),
-                        b"fn" => TokenKind::Keyword(Keyword::Fn),
-                        b"if" => TokenKind::Keyword(Keyword::If),
-                        b"let" => TokenKind::Keyword(Keyword::Let),
-                        b"match" => TokenKind::Keyword(Keyword::Match),
-                        b"mod" => TokenKind::Keyword(Keyword::Mod),
-                        b"pub" => TokenKind::Keyword(Keyword::Pub),
-                        b"struct" => TokenKind::Keyword(Keyword::Struct),
-                        b"type" => TokenKind::Keyword(Keyword::Type),
-                        b"use" => TokenKind::Keyword(Keyword::Use),
+                    let token_kind = match (self.buffer1.as_slice(), raw) {
+                        (b"as", false) => TokenKind::Keyword(Keyword::As),
+                        (b"assert", false) => TokenKind::Keyword(Keyword::Assert),
+                        (b"else", false) => TokenKind::Keyword(Keyword::Else),
+                        (b"enum", false) => TokenKind::Keyword(Keyword::Enum),
+                        (b"fn", false) => TokenKind::Keyword(Keyword::Fn),
+                        (b"if", false) => TokenKind::Keyword(Keyword::If),
+                        (b"impure", false) => TokenKind::Keyword(Keyword::Impure),
+                        (b"let", false) => TokenKind::Keyword(Keyword::Let),
+                        (b"match", false) => TokenKind::Keyword(Keyword::Match),
+                        (b"mod", false) => TokenKind::Keyword(Keyword::Mod),
+                        (b"pub", false) => TokenKind::Keyword(Keyword::Pub),
+                        (b"struct", false) => TokenKind::Keyword(Keyword::Struct),
+                        (b"type", false) => TokenKind::Keyword(Keyword::Type),
+                        (b"use", false) => TokenKind::Keyword(Keyword::Use),
+                        (b"", _) => {
+                            // Nothing following an `r#`.
+                            return Err(Error {
+                                kind: ErrorKind::EmptyIdent,
+                                spans: Span::range(
+                                    self.file,
+                                    self.token_start,
+                                    self.cursor,
+                                ).simple_error(),
+                                note: None,
+                            });
+                        },
                         _ => {
                             // Lexer already checked that it's a valid utf8.
                             let identifier = String::from_utf8_lossy(self.buffer1.as_slice());

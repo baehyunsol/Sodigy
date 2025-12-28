@@ -10,6 +10,7 @@ pub enum TypeLog {
         expected_span: Option<Span>,
         subtype_span: Option<Span>,
         context: ErrorContext,
+        either_subtype: bool,
     },
     Dispatch {
         call: Span,

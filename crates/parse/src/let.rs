@@ -61,6 +61,15 @@ impl<'t, 's> Tokens<'t, 's> {
     fn parse_let_multiple(&mut self) -> Result<Vec<Let>, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
         let pattern = self.parse_pattern(ParsePatternContext::Let)?;
+
+        let type_annot = match self.peek() {
+            Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {
+                self.cursor += 1;
+                Some(self.parse_type()?)
+            },
+            _ => None,
+        };
+
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
         let value = self.parse_expr()?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;

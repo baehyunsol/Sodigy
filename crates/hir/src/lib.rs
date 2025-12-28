@@ -50,7 +50,7 @@ pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
-pub use func::{CallArg, Func, FuncParam, FuncOrigin, FuncShape};
+pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncPurity, FuncShape};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::{Match, MatchArm};

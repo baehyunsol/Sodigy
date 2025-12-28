@@ -1,0 +1,6 @@
+use std.int.Int;
+
+/// It returns a random integer uniformly distributed in range 0..=4294967295.
+#[built_in]
+#[lang_item("built_in.random_int")]
+pub impure fn random_int() -> Int;

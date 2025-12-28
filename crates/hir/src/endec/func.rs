@@ -4,6 +4,7 @@ use crate::{
     Func,
     FuncOrigin,
     FuncParam,
+    FuncPurity,
     FuncShape,
     Type,
     Visibility,
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 
 impl Endec for Func {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.is_pure.encode_impl(buffer);
         self.visibility.encode_impl(buffer);
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
@@ -32,6 +34,7 @@ impl Endec for Func {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
         let (visibility, cursor) = Visibility::decode_impl(buffer, cursor)?;
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
@@ -47,6 +50,7 @@ impl Endec for Func {
 
         Ok((
             Func {
+                is_pure,
                 visibility,
                 keyword_span,
                 name,
@@ -111,7 +115,33 @@ impl Endec for FuncOrigin {
             Some(0) => Ok((FuncOrigin::TopLevel, cursor + 1)),
             Some(1) => Ok((FuncOrigin::Inline, cursor + 1)),
             Some(2) => Ok((FuncOrigin::Lambda, cursor + 1)),
-            Some(n) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for FuncPurity {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            FuncPurity::Pure => {
+                buffer.push(0);
+            },
+            FuncPurity::Impure => {
+                buffer.push(1);
+            },
+            FuncPurity::Both => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((FuncPurity::Pure, cursor + 1)),
+            Some(1) => Ok((FuncPurity::Impure, cursor + 1)),
+            Some(2) => Ok((FuncPurity::Both, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

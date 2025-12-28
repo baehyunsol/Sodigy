@@ -95,9 +95,7 @@ pub enum Type {
     },
     Func {  // `Fn(Int, Int) -> Int`
         // It's either `Type::Ident` or `Type::Path`.
-        // It's very likely to be `Type::Ident("Fn")`.
-        // If it's not `Fn`, it's 99% an error, but I want to throw
-        // errors at later step because that's more helpful to the users.
+        // It's very likely to be `Type::Ident("Fn" | "ImpureFn" | "PureFn")`.
         r#type: Box<Type>,
 
         // of `(Int, Int)`
@@ -247,7 +245,15 @@ impl<'t, 's> Tokens<'t, 's> {
                 let (name, name_span) = (*id, *span1);
                 let group_span = *span2;
                 let mut param_tokens = Tokens::new(tokens, span2.end(), &self.intermediate_dir);
-                let params = param_tokens.parse_types(StopAt::Eof)?;
+
+                // `parse_types` expects at least 1 type, but `Fn()` allows
+                // `params` to be empty. So we have to check whether `param_tokens`' empty
+                // before calling `.parse_types()`
+                let params = if param_tokens.is_empty() {
+                    vec![]
+                } else {
+                    param_tokens.parse_types(StopAt::Eof)?
+                };
 
                 self.cursor += 2;
                 self.match_and_pop(TokenKind::Punct(Punct::ReturnType))?;

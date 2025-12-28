@@ -56,6 +56,9 @@ impl Solver {
                 type_annot_span,
                 Some(value_span),
                 context,
+
+                // `infered_type` must be subtype of `annotated_type`, but not vice versa.
+                false,
             ) {
                 has_error = true;
             }

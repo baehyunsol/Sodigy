@@ -143,6 +143,7 @@ pub fn dump(session: &mut Session, solver: &Solver) {
                 expected_span,
                 subtype_span,
                 context,
+                either_subtype: _,  // TODO: dump this
             } => {
                 println!("{expected_type:?} = {subtype:?}");
                 println!("context: {context:?}");

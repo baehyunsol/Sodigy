@@ -6,6 +6,7 @@ pub enum Keyword {
     Enum,
     Fn,
     If,
+    Impure,
     Let,
     Match,
     Mod,

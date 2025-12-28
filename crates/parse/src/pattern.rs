@@ -1,4 +1,4 @@
-use crate::{Tokens, Type};
+use crate::Tokens;
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span};

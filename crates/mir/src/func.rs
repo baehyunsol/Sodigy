@@ -1,5 +1,5 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncParam, Generic};
+use sodigy_hir::{self as hir, FuncParam, FuncPurity, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -69,6 +69,7 @@ impl Func {
                         group_span: Span::None,
                         params: param_types,
                         r#return: Box::new(type_annot),
+                        purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
                     },
                 );
             },
@@ -84,6 +85,7 @@ impl Func {
                             def_span: hir_func.name_span,
                             is_return: true,
                         }),
+                        purity: if hir_func.is_pure { FuncPurity::Pure } else { FuncPurity::Impure },
                     },
                 );
             },

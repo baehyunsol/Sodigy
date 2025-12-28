@@ -2,16 +2,22 @@ mod bool;
 mod byte;
 mod bytes;
 mod char;
+mod r#fn;
 mod int;
 mod list;
 mod number;
 mod op;
 mod prelude;
+mod random;
 mod string;
 
 use std.int.Int;
 use std.string.String;
 
+// TODO: Is this an impure function..??
+//       Since we treat `panic` as a pure function, it also has to be pure.
+//       But it's unintuitive that `exit` is pure...
+//       Maybe we have to treat both `exit` and `panic` as impure.
 #[built_in]
 #[lang_item("built_in.exit")]
 fn exit() -> !;
@@ -26,10 +32,10 @@ fn panic() -> !;
 // TODO: return a ZST, when ZST optimization is implemented
 #[built_in]
 #[lang_item("built_in.print")]
-fn print(v: String) -> Int;
+impure fn print(v: String) -> Int;
 
 // TODO: implement high-level `eprint<T>(v: T) -> T;`
 // TODO: return a ZST, when ZST optimization is implemented
 #[built_in]
 #[lang_item("built_in.eprint")]
-fn eprint(v: String) -> Int;
+impure fn eprint(v: String) -> Int;
