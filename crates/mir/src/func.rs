@@ -1,10 +1,12 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncParam, FuncPurity, Generic};
+use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncPurity, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Func {
+    pub is_pure: bool,
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub generics: Vec<Generic>,
@@ -12,6 +14,7 @@ pub struct Func {
     pub type_annot_span: Option<Span>,
     pub value: Expr,
     pub built_in: bool,
+    pub origin: FuncOrigin,
 }
 
 impl Func {
@@ -100,6 +103,8 @@ impl Func {
 
         else {
             Ok(Func {
+                is_pure: hir_func.is_pure,
+                keyword_span: hir_func.keyword_span,
                 name: hir_func.name,
                 name_span: hir_func.name_span,
                 generics: hir_func.generics.to_vec(),
@@ -107,6 +112,7 @@ impl Func {
                 type_annot_span,
                 value: value.unwrap(),
                 built_in: hir_func.built_in,
+                origin: hir_func.origin,
             })
         }
     }

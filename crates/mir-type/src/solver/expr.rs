@@ -1,12 +1,28 @@
 use super::Solver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_hir::{FuncOrigin, FuncPurity};
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::intern_string;
 use std::collections::HashMap;
+
+#[derive(Clone, Copy, Debug)]
+pub enum ExprContext {
+    FuncBody {
+        is_pure: bool,
+        keyword_span: Span,
+        origin: FuncOrigin,
+    },
+    AssertValue {
+        keyword_span: Span,
+    },
+    AssertNote {
+        keyword_span: Span,
+    },
+}
 
 impl Solver {
     // FIXME: there are A LOT OF heap allocations
@@ -20,6 +36,7 @@ impl Solver {
     pub fn solve_expr(
         &mut self,
         expr: &Expr,
+        context: ExprContext,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
@@ -119,7 +136,7 @@ impl Solver {
                         def_span: self.get_lang_item_span("type.Bool"),
                         span: Span::None,
                     };
-                    let context = match s {
+                    let error_context = match s {
                         ShortCircuitKind::And => ErrorContext::ShortCircuitAndBool,
                         ShortCircuitKind::Or => ErrorContext::ShortCircuitOrBool,
                     };
@@ -129,7 +146,7 @@ impl Solver {
                         &r#if.true_value,
                         &r#if.false_value,
                     ] {
-                        let (v_type, e) = self.solve_expr(v, types, generic_instances);
+                        let (v_type, e) = self.solve_expr(v, context, types, generic_instances);
 
                         if e {
                             has_error = true;
@@ -144,7 +161,7 @@ impl Solver {
                                 false,
                                 None,
                                 Some(v.error_span_wide()),
-                                context.clone(),
+                                error_context.clone(),
                                 false,
                             ) {
                                 has_error = true;
@@ -155,7 +172,7 @@ impl Solver {
                     (Some(bool_type), has_error)
                 },
                 None => {
-                    let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), types, generic_instances);
+                    let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), context, types, generic_instances);
 
                     if let Some(cond_type) = cond_type {
                         if let Err(()) = self.solve_subtype(
@@ -177,8 +194,8 @@ impl Solver {
                     }
 
                     match (
-                        self.solve_expr(r#if.true_value.as_ref(), types, generic_instances),
-                        self.solve_expr(r#if.false_value.as_ref(), types, generic_instances),
+                        self.solve_expr(r#if.true_value.as_ref(), context, types, generic_instances),
+                        self.solve_expr(r#if.false_value.as_ref(), context, types, generic_instances),
                     ) {
                         ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_subtype(
                             &true_type,
@@ -207,7 +224,7 @@ impl Solver {
             // 3. arm_type == all the other arm_types
             // 4. arm_type == expr_type
             Expr::Match(r#match) => {
-                let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), types, generic_instances);
+                let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), context, types, generic_instances);
                 let mut arm_types = Vec::with_capacity(r#match.arms.len());
 
                 // TODO: it's okay to fail to infer the types of name bindings
@@ -242,7 +259,7 @@ impl Solver {
                     }
 
                     if let Some(guard) = &arm.guard {
-                        let (guard_type, e) = self.solve_expr(guard, types, generic_instances);
+                        let (guard_type, e) = self.solve_expr(guard, context, types, generic_instances);
                         has_error |= e;
 
                         if let Some(guard_type) = guard_type {
@@ -265,7 +282,7 @@ impl Solver {
                         }
                     }
 
-                    let (arm_type, e) = self.solve_expr(&arm.value, types, generic_instances);
+                    let (arm_type, e) = self.solve_expr(&arm.value, context, types, generic_instances);
                     has_error |= e;
 
                     if let Some(arm_type) = arm_type {
@@ -327,10 +344,10 @@ impl Solver {
                     }
                 }
 
-                let (expr_type, e) = self.solve_expr(block.value.as_ref(), types, generic_instances);
+                let (expr_type, e) = self.solve_expr(block.value.as_ref(), context, types, generic_instances);
                 (expr_type, e || has_error)
             },
-            Expr::Path { lhs, fields } => match self.solve_expr(lhs, types, generic_instances) {
+            Expr::Path { lhs, fields } => match self.solve_expr(lhs, context, types, generic_instances) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_instances) {
                     Ok(lhs_type) => (Some(lhs_type), has_error),
                     Err(()) => (None, true),
@@ -354,7 +371,7 @@ impl Solver {
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for arg in args.iter() {
-                    match self.solve_expr(arg, types, generic_instances) {
+                    match self.solve_expr(arg, context, types, generic_instances) {
                         (Some(arg_type), e) => {
                             arg_types.push(arg_type);
                             has_error |= e;
@@ -376,8 +393,14 @@ impl Solver {
                         Some(Type::Func {
                             params,
                             r#return,
+                            purity,
                             ..
                         }) => {
+                            if let Err(e) = check_purity(*purity, context, *span) {
+                                has_error = true;
+                                self.errors.push(e);
+                            }
+
                             let mut params = params.clone();
                             let mut return_type: Type = *r#return.clone();
                             let span = *span;
@@ -521,7 +544,7 @@ impl Solver {
                         }
                     },
                     Callable::Dynamic(func) => {
-                        let (func_type, mut has_error) = match self.solve_expr(func, types, generic_instances) {
+                        let (func_type, mut has_error) = match self.solve_expr(func, context, types, generic_instances) {
                             (Some(func_type), has_error) => (func_type, has_error),
                             (None, has_error) => {
                                 return (None, has_error);
@@ -541,7 +564,12 @@ impl Solver {
                             // We'll only type check/infer monomorphized functions.
                             Type::GenericDef { .. } => unreachable!(),
 
-                            Type::Func { params, r#return, .. } => {
+                            Type::Func { params, r#return, purity, .. } => {
+                                if let Err(e) = check_purity(purity, context, func.error_span_wide()) {
+                                    has_error = true;
+                                    self.errors.push(e);
+                                }
+
                                 // It doesn't check arg types if there are wrong number of args.
                                 // Whether or not there're type errors with args, it returns the return type.
                                 if arg_types.len() != params.len() {
@@ -639,5 +667,22 @@ impl Solver {
             },
             _ => todo!(),
         }
+    }
+}
+
+fn check_purity(
+    purity: FuncPurity,
+    context: ExprContext,
+    call_span: Span,
+) -> Result<(), TypeError> {
+    match (purity, context) {
+        // pure functions can be called in any context
+        (FuncPurity::Pure, _) => Ok(()),
+
+        // in impure context, you can call any function
+        // TODO: how about `let`s inside an impure function?
+        (_, ExprContext::FuncBody { is_pure: false, .. }) => Ok(()),
+
+        _ => todo!(),
     }
 }

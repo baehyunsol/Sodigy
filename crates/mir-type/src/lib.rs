@@ -20,7 +20,7 @@ pub use error::{ErrorContext, RenderTypeError, TypeError};
 pub use log::TypeLog;
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
-use solver::Solver;
+use solver::{ExprContext, Solver};
 
 pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
     let mut has_error = false;

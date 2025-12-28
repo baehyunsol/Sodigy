@@ -1,5 +1,5 @@
 use super::Solver;
-use crate::Type;
+use crate::{ExprContext, Type};
 use crate::error::ErrorContext;
 use sodigy_mir::Func;
 use sodigy_span::Span;
@@ -12,7 +12,16 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
-        let (infered_type, mut has_error) = self.solve_expr(&func.value, types, generic_instances);
+        let (infered_type, mut has_error) = self.solve_expr(
+            &func.value,
+            ExprContext::FuncBody {
+                is_pure: func.is_pure,
+                keyword_span: func.keyword_span,
+                origin: func.origin,
+            },
+            types,
+            generic_instances,
+        );
         let mut span_to_name_map = vec![(func.name_span, func.name)];
 
         for param in func.params.iter() {

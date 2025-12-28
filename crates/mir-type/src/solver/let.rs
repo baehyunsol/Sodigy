@@ -12,7 +12,17 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
-        let (infered_type, mut has_error) = self.solve_expr(&r#let.value, types, generic_instances);
+        let (infered_type, mut has_error) = self.solve_expr(
+            &r#let.value,
+
+            // there are A LOT of kinds of `let`s, and I want it to distinguish them (e.g. func defualt values are lowered to `let`s)
+            //
+            // what if it's inside an impure function?
+            todo!(),
+
+            types,
+            generic_instances,
+        );
 
         let (
             annotated_type,

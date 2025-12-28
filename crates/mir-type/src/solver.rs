@@ -12,6 +12,8 @@ mod func;
 mod r#let;
 mod pattern;
 
+pub use expr::ExprContext;
+
 // When a type-variable is solved, it removes an entry in `type_var_refs`, but
 // not in `type_vars`, because
 // 1. We'll later use `type_vars` to distinguish what're infered types and what're annotated types.
