@@ -25,7 +25,7 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// ```
-    /// match x {
+    /// match (x, y) {
     ///     (0, 0) => 0,
     ///     (0, a) => a,
     ///     (1, 1) => 2,
@@ -35,11 +35,12 @@ impl StateMachine {
     /// ->
     /// ```
     /// {
-    ///     let curr = x._0;
+    ///     let scrutinee = (x, y);
+    ///     let curr = scrutinee._0;
     ///     let a = curr;
     ///
     ///     if curr == 0 {
-    ///         let curr = x._1;
+    ///         let curr = scrutinee._1;
     ///         let a = curr;
     ///
     ///         if curr == 0 {
@@ -60,14 +61,17 @@ impl StateMachine {
     ///     }
     /// }
     /// ```
-    pub fn into_expr(&self, arms: &[(usize, &MatchArm)]) -> Expr {
+    pub fn into_expr(&self, scrutinee: &Expr, arms: &[(usize, &MatchArm)]) -> Expr {
         let current_field = (intern_string(b"curr", "").unwrap(), Span::None);
         let mut lets = match &self.field {
             Some(field) => vec![Let {
                 name: current_field.0,
                 name_span: current_field.1,
                 type_annot_span: None,
-                value: todo!(),
+                value: Expr::Path {
+                    lhs: Box::new(scrutinee.clone()),
+                    fields: field.clone(),
+                },
             }],
             None => vec![],
         };
@@ -92,7 +96,7 @@ impl StateMachine {
 
         let value = match &self.transitions[..] {
             [transition] => match &transition.state {
-                StateMachineOrArm::StateMachine(fsm) => fsm.into_expr(arms),
+                StateMachineOrArm::StateMachine(fsm) => fsm.into_expr(scrutinee, arms),
                 StateMachineOrArm::Arm { matched, .. } => arms[*matched].1.value.clone(),
             },
             _ => todo!(),

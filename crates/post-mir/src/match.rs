@@ -155,18 +155,21 @@ use crate::PatternAnalysisError;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{Pattern, PatternKind, StructShape};
 use sodigy_mir::{
+    Block,
     Callable,
     Expr,
+    Let,
     Match,
     MatchArm,
     Session as MirSession,
     Type,
     type_of,
 };
+use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -469,7 +472,40 @@ fn lower_match(
         warnings,
     )?;
 
-    Ok(fsm.into_expr(&arms))
+    // We have to evaluate the scrutinee multiple times.
+    // If it's `match (x, y) { .. }`, we convert this to `{ let s = (x, y); match s { .. } }`.
+    // If it's `match x { .. }`, we don't have to introduce another name binding.
+    let another_name_binding = IdentWithOrigin {
+        id: intern_string(b"scrutinee", "").unwrap(),
+        span: Span::None,
+        def_span: match_expr.keyword_span,  // TODO: use derived-span
+        origin: NameOrigin::Local {
+            kind: NameKind::Let { is_top_level: false },
+        },
+    };
+    let (scrutinee, needs_another_name_binding) = match match_expr.scrutinee.as_ref() {
+        Expr::Ident(id) => (Expr::Ident(*id), false),
+        _ => (Expr::Ident(another_name_binding), true),
+    };
+
+    let fsm_expr = fsm.into_expr(&scrutinee, &arms);
+    let fsm_expr = if needs_another_name_binding {
+        // We have to bind the name!!
+        Expr::Block(Block {
+            group_span: Span::None,
+            lets: vec![Let {
+                name: another_name_binding.id,
+                name_span: another_name_binding.def_span,
+                type_annot_span: None,
+                value: *match_expr.scrutinee.clone(),
+            }],
+            asserts: vec![],
+            value: Box::new(fsm_expr),
+        })
+    } else {
+        fsm_expr
+    };
+    Ok(fsm_expr)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
