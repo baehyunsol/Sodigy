@@ -1,4 +1,4 @@
-use crate::{Expr, Struct, StructInitField, StructField, Visibility};
+use crate::{Expr, Struct, StructInitField, StructField, StructShape, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::Generic;
 use sodigy_span::Span;
@@ -56,5 +56,18 @@ impl Endec for StructInitField {
             },
             cursor,
         ))
+    }
+}
+
+impl Endec for StructShape {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.fields.encode_impl(buffer);
+        self.generics.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (fields, cursor) = Vec::<StructField>::decode_impl(buffer, cursor)?;
+        let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        Ok((StructShape { fields, generics }, cursor))
     }
 }

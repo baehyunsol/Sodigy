@@ -73,6 +73,12 @@ pub struct CallArg {
     pub arg: Expr,
 }
 
+#[derive(Clone, Debug)]
+pub struct FuncShape {
+    pub params: Vec<FuncParam>,
+    pub generics: Vec<Generic>,
+}
+
 impl Func {
     pub fn from_ast(
         ast_func: &ast::Func,

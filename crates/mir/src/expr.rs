@@ -164,8 +164,8 @@ impl Expr {
                 // we know the exact definition of the function, and can process keyword arguments and default values.
                 let mut mir_args = match def_span {
                     Some(def_span) => match session.func_shapes.get(&def_span) {
-                        Some((params, generic_defs_)) => {
-                            for generic_def in generic_defs_.iter() {
+                        Some(func_shape) => {
+                            for generic_def in func_shape.generics.iter() {
                                 session.generic_instances.insert(
                                     (call_span, generic_def.name_span),
                                     Type::GenericInstance {
@@ -176,7 +176,7 @@ impl Expr {
                                 generic_defs.push(generic_def.name_span);
                             }
 
-                            let params = params.to_vec();
+                            let params = func_shape.params.to_vec();
                             let mut mir_args: Vec<Option<Expr>> = vec![None; params.len().max(hir_args.len())];
 
                             // used for error messages
@@ -554,9 +554,9 @@ impl Expr {
                 let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
                 match session.struct_shapes.get(&def_span) {
-                    Some((field_defs, generic_defs_)) => {
-                        if !generic_defs_.is_empty() {
-                            for generic_def in generic_defs_.iter() {
+                    Some(struct_shape) => {
+                        if !struct_shape.generics.is_empty() {
+                            for generic_def in struct_shape.generics.iter() {
                                 session.generic_instances.insert(
                                     (r#struct.error_span_wide(), generic_def.name_span),
                                     Type::GenericInstance {
@@ -568,7 +568,7 @@ impl Expr {
                             }
                         }
 
-                        let field_defs = field_defs.clone();
+                        let field_defs = struct_shape.fields.clone();
                         let mut mir_fields = vec![None; hir_fields.len()];
                         let mut name_spans = vec![None; hir_fields.len()];
 

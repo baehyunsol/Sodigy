@@ -6,12 +6,14 @@ use sodigy_hir::{
     ExprOrString,
     Func,
     FuncParam,
+    FuncShape,
     Generic,
     Let,
     Pattern,
     PatternKind,
     Session as HirSession,
     StructField,
+    StructShape,
     Type,
     Use,
 };
@@ -35,11 +37,11 @@ impl Session {
         module_span: Span,  // of this hir
         mut hir_session: sodigy_hir::Session,
     ) {
-        for (def_span, (params, generics)) in hir_session.funcs.iter().map(
+        for (def_span, func_shape) in hir_session.funcs.iter().map(
             |func| (
                 func.name_span,
-                (
-                    func.params.iter().map(
+                FuncShape {
+                    params: func.params.iter().map(
                         |param| FuncParam {
                             name: param.name,
                             name_span: param.name_span,
@@ -47,18 +49,18 @@ impl Session {
                             default_value: param.default_value,
                         }
                     ).collect(),
-                    func.generics.clone(),
-                ),
+                    generics: func.generics.clone(),
+                },
             )
         ) {
-            self.func_shapes.insert(def_span, (params, generics));
+            self.func_shapes.insert(def_span, func_shape);
         }
 
-        for (def_span, (fields, generics)) in hir_session.structs.iter().map(
+        for (def_span, struct_shape) in hir_session.structs.iter().map(
             |r#struct| (
                 r#struct.name_span,
-                (
-                    r#struct.fields.iter().map(
+                StructShape {
+                    fields: r#struct.fields.iter().map(
                         |field| StructField {
                             name: field.name,
                             name_span: field.name_span,
@@ -66,11 +68,11 @@ impl Session {
                             default_value: field.default_value,
                         }
                     ).collect(),
-                    r#struct.generics.clone(),
-                ),
+                    generics: r#struct.generics.clone(),
+                },
             )
         ) {
-            self.struct_shapes.insert(def_span, (fields, generics));
+            self.struct_shapes.insert(def_span, struct_shape);
         }
 
         let mut children = HashMap::new();

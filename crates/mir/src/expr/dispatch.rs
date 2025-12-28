@@ -1,6 +1,6 @@
 use super::Expr;
 use crate::{Callable, Type};
-use sodigy_hir::{FuncParam, Generic};
+use sodigy_hir::FuncShape;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -8,7 +8,7 @@ impl Expr {
     pub fn dispatch(
         &mut self,
         map: &HashMap<Span, Span>,
-        func_shapes: &HashMap<Span, (Vec<FuncParam>, Vec<Generic>)>,
+        func_shapes: &HashMap<Span, FuncShape>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) {
         match self {
@@ -74,8 +74,8 @@ impl Expr {
                     let mut new_generic_defs = vec![];
 
                     match func_shapes.get(&def_span) {
-                        Some((_, generic_defs_)) => {
-                            for generic_def in generic_defs_.iter() {
+                        Some(func_shape) => {
+                            for generic_def in func_shape.generics.iter() {
                                 generic_instances.insert(
                                     (span, generic_def.name_span),
                                     Type::GenericInstance {

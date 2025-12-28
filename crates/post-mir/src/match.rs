@@ -153,7 +153,7 @@
 
 use crate::PatternAnalysisError;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
-use sodigy_hir::{Generic, Pattern, PatternKind, StructField};
+use sodigy_hir::{Pattern, PatternKind, StructShape};
 use sodigy_mir::{
     Callable,
     Expr,
@@ -236,7 +236,7 @@ pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
 fn lower_matches_expr_recursive(
     expr: &mut Expr,
     types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
+    struct_shapes: &HashMap<Span, StructShape>,
     lang_items: &HashMap<String, Span>,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
@@ -421,7 +421,7 @@ fn lower_matches_expr_recursive(
 fn lower_match(
     match_expr: &mut Match,
     types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
+    struct_shapes: &HashMap<Span, StructShape>,
     lang_items: &HashMap<String, Span>,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,

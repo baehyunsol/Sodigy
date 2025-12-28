@@ -1,6 +1,6 @@
 use crate::{Callable, Expr, Session};
 use sodigy_error::{Error, ErrorKind};
-use sodigy_hir::{self as hir, Generic, StructField};
+use sodigy_hir::{self as hir, StructShape};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::unintern_string;
@@ -351,7 +351,7 @@ impl Type {
 pub fn type_of(
     expr: &Expr,
     types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, (Vec<StructField>, Vec<Generic>)>,
+    struct_shapes: &HashMap<Span, StructShape>,
     lang_items: &HashMap<String, Span>,
 ) -> Option<Type> {
     match expr {

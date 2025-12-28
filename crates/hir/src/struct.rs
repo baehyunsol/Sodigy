@@ -37,6 +37,12 @@ pub struct StructInitField {
     pub value: Expr,
 }
 
+#[derive(Clone, Debug)]
+pub struct StructShape {
+    pub fields: Vec<StructField>,
+    pub generics: Vec<Generic>,
+}
+
 impl Struct {
     pub fn from_ast(
         ast_struct: &ast::Struct,

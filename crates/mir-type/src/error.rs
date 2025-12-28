@@ -260,16 +260,16 @@ impl RenderTypeError for MirSession {
             TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
                 let generic_id = self.span_to_string(*generic);
                 let spans = match (func_def.map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
-                    (Some(Some((_, generic_defs))), Some(generic_id)) => vec![
+                    (Some(Some(func_shape)), Some(generic_id)) => vec![
                         RenderableSpan {
                             span: *call,
                             auxiliary: false,
                             note: Some(format!(
                                 "This function has {} type parameter{} ({}), and I cannot infer the type of `{generic_id}`.",
-                                generic_defs.len(),
-                                if generic_defs.len() == 1 { "" } else { "s" },
+                                func_shape.generics.len(),
+                                if func_shape.generics.len() == 1 { "" } else { "s" },
                                 comma_list_strs(
-                                    &generic_defs.iter().map(
+                                    &func_shape.generics.iter().map(
                                         |generic_def| String::from_utf8_lossy(&unintern_string(generic_def.name, &self.intermediate_dir).unwrap().unwrap()).to_string()
                                     ).collect::<Vec<_>>(),
                                     "`",

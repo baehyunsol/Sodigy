@@ -50,7 +50,7 @@ pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
-pub use func::{CallArg, Func, FuncParam, FuncOrigin};
+pub use func::{CallArg, Func, FuncParam, FuncOrigin, FuncShape};
 pub use r#if::If;
 pub use r#let::{Let, LetOrigin};
 pub use r#match::{Match, MatchArm};
@@ -59,7 +59,7 @@ pub use pattern::{Pattern, PatternKind, StructFieldPattern};
 pub use poly::Poly;
 pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;
-pub use r#struct::{Struct, StructField, StructInitField};
+pub use r#struct::{Struct, StructField, StructInitField, StructShape};
 pub use r#type::Type;
 pub use r#use::Use;
 

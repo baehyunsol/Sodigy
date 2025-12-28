@@ -4,6 +4,7 @@ use crate::{
     Func,
     FuncOrigin,
     FuncParam,
+    FuncShape,
     Type,
     Visibility,
 };
@@ -126,5 +127,18 @@ impl Endec for CallArg {
         let (keyword, cursor) = Option::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
         let (arg, cursor) = Expr::decode_impl(buffer, cursor)?;
         Ok((CallArg { keyword, arg }, cursor))
+    }
+}
+
+impl Endec for FuncShape {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.params.encode_impl(buffer);
+        self.generics.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (params, cursor) = Vec::<FuncParam>::decode_impl(buffer, cursor)?;
+        let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        Ok((FuncShape { params, generics }, cursor))
     }
 }
