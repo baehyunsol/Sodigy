@@ -120,14 +120,26 @@ ex) `fn sleep_and_return(v: T, ms: Int) -> T = execute(sleep_ms(ms), v);`
 tmp conclusion
 
 1. There are pure functions and impure functions.
+  - `#[impure] fn print()` vs `impure fn print()`
+  - We have to learn from Rust. It has at least 5 qualifiers: `pub`, `const`, `async`, `unsafe` and `extern`. That means 32 combinations can come before `fn`.
+  - We already have `pub`, we don't need `const`, we're not sure about `async`, we'll not allow `unsafe`, and we're not sure about `extern` (but probably not gonna allow this).
 2. There are 3 different types: `Fn`, `PureFn` and `ImpureFn`.
   - `PureFn` is a subtype of `Fn`, and so is `ImpureFn`.
 3. There are 2 contexts: pure context vs impure context.
   - Everything is in pure context, except the body of impure functions.
-  - If `Fn` or `ImpureFn` is found in a pure context, that's a compile error!
+  - If `Fn` or `ImpureFn` is called in a pure context, that's a compile error!
+    - Instantiating an `ImpureFn` is pure! Calling it is impure.
     - Who's responsible for checking this?
 4. Calling impure functions sequentially
   - We're not gonna implement this now. We need more brainstorming.
+5. No fine-grained effect system: only pure/impure
+  - That's an unnecessary complexity.
+6. How about lambda functions?
+  - There are 3 choices: 1) the compiler infers whether a lambda is impure or not 2) the user has to explicitly mark whether a lambda is impure or not 3) lambda has to be pure.
+  - If the compiler has to infer this, it'll make the purity checker much more complicated.
+  - I think 2 would be the best choice, but in what syntax?
+    - `let x = impure \(x) => x + 1;` vs `let x = \!(x) => x + 1;`
+    - If we want to use the former, we have to make `impure` a keyword, and use `impure fn add()` syntax instead of `#[impure] fn add()`.
 
 # 125. Multiprocessing
 
