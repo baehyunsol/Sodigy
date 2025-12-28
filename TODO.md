@@ -115,6 +115,20 @@ ex) `fn sleep_and_return(v: T, ms: Int) -> T = execute(sleep_ms(ms), v);`
 3. 만약에 `exec!`에다가 pure한 값을 주면 경고를 날릴까?
   - ㄴㄴ 이거 할 거면 `execute_and_return_last`에서 첫번째 arg가 pure하면 경고 날리게 해야함!
 
+---
+
+tmp conclusion
+
+1. There are pure functions and impure functions.
+2. There are 3 different types: `Fn`, `PureFn` and `ImpureFn`.
+  - `PureFn` is a subtype of `Fn`, and so is `ImpureFn`.
+3. There are 2 contexts: pure context vs impure context.
+  - Everything is in pure context, except the body of impure functions.
+  - If `Fn` or `ImpureFn` is found in a pure context, that's a compile error!
+    - Who's responsible for checking this?
+4. Calling impure functions sequentially
+  - We're not gonna implement this now. We need more brainstorming.
+
 # 125. Multiprocessing
 
 1. 내가 rust로 맨날 하는 single-master-multi-worker 구조의 multiprocessing
