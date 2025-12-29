@@ -1,6 +1,6 @@
 use super::Solver;
-use crate::{ExprContext, Type};
-use crate::error::ErrorContext;
+use crate::Type;
+use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_mir::Func;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -12,13 +12,10 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
+        let mut impure_calls = vec![];
         let (infered_type, mut has_error) = self.solve_expr(
             &func.value,
-            ExprContext::FuncBody {
-                is_pure: func.is_pure,
-                keyword_span: func.keyword_span,
-                origin: func.origin,
-            },
+            &mut impure_calls,
             types,
             generic_instances,
         );
@@ -71,6 +68,23 @@ impl Solver {
             ) {
                 has_error = true;
             }
+        }
+
+        match (func.is_pure, impure_calls.len()) {
+            (true, 1..) => {
+                self.errors.push(TypeError::ImpureCallInPureContext {
+                    call_spans: impure_calls,
+                    keyword_span: func.keyword_span,
+                    context: func.origin.into(),
+                });
+                has_error = true;
+            },
+            (false, 0) => {
+                self.warnings.push(TypeWarning::NoImpureCallInImpureContext {
+                    impure_keyword_span: func.impure_keyword_span.unwrap(),
+                });
+            },
+            _ => {},
         }
 
         (Some(*annotated_type), has_error)

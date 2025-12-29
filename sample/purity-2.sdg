@@ -1,0 +1,24 @@
+// fn f1(n: Int) -> Int = std.random.random_int() + n;  // purity error
+fn f2(n: Int) -> Int = n + 1;
+impure fn f3(n: Int) -> Int = std.random.random_int() + n;
+impure fn f4(n: Int) -> Int = n + 1;  // purity warning
+
+// let v1 = std.random.random_int();  // purity error
+
+// let l1: Fn(Int) -> Int = \(n) => std.random.random_int() + n;  // purity error
+// let l2: PureFn(Int) -> Int = \(n) => std.random.random_int() + n;  // purity error
+// let l3: ImpureFn(Int) -> Int = \(n) => std.random.random_int() + n;  // type error, purity error
+
+let l4: Fn(Int) -> Int = impure \(n) => std.random.random_int() + n;
+// let l5: PureFn(Int) -> Int = impure \(n) => std.random.random_int() + n;  // type error
+let l6: ImpureFn(Int) -> Int = impure \(n) => std.random.random_int() + n;
+
+let l7: Fn(Int) -> Int = \(n) => n + 1;
+let l8: PureFn(Int) -> Int = \(n) => n + 1;
+// let l9: ImpureFn(Int) -> Int = \(n) => n + 1;  // type error
+
+let l10: Fn(Int) -> Int = impure \(n) => n + 1;  // purity warning
+// let l11: PureFn(Int) -> Int = impure \(n) => n + 1;  // type error, purity warning
+let l12: ImpureFn(Int) -> Int = impure \(n) => n + 1;  // purity warning
+
+// assert std.random.random_int() == 100;  // purity error

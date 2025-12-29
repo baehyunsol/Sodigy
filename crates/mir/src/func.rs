@@ -6,6 +6,7 @@ use sodigy_string::InternedString;
 #[derive(Clone, Debug)]
 pub struct Func {
     pub is_pure: bool,
+    pub impure_keyword_span: Option<Span>,  // It's `Some(_)` iff `is_pure` is false.
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -104,6 +105,7 @@ impl Func {
         else {
             Ok(Func {
                 is_pure: hir_func.is_pure,
+                impure_keyword_span: hir_func.impure_keyword_span,
                 keyword_span: hir_func.keyword_span,
                 name: hir_func.name,
                 name_span: hir_func.name_span,

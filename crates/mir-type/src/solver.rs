@@ -1,5 +1,5 @@
 use crate::{Type, TypeLog};
-use crate::error::{ErrorContext, TypeError};
+use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_hir::FuncPurity;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -11,8 +11,6 @@ mod expr;
 mod func;
 mod r#let;
 mod pattern;
-
-pub use expr::ExprContext;
 
 // When a type-variable is solved, it removes an entry in `type_var_refs`, but
 // not in `type_vars`, because
@@ -59,6 +57,7 @@ pub struct Solver {
 
     pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
+    pub warnings: Vec<TypeWarning>,
 
     // It logs everything the type solver does. It's used for
     // 1. debugging the compiler
@@ -77,6 +76,7 @@ impl Solver {
             pattern_name_bindings: HashSet::new(),
             lang_items,
             errors: vec![],
+            warnings: vec![],
             log: if log { Some(vec![]) } else { None },
             intermediate_dir,
         }
@@ -459,14 +459,17 @@ impl Solver {
                                         }
 
                                         else {
-                                            self.errors.push(TypeError::UnexpectedPurity {
-                                                expected_type: expected_type.clone(),
-                                                expected_purity: *p1,
-                                                expected_span: expected_span,
-                                                got_type: subtype.clone(),
-                                                got_purity: *p2,
-                                                got_span: subtype_span,
-                                            });
+                                            if !is_checking_argument {
+                                                self.errors.push(TypeError::UnexpectedPurity {
+                                                    expected_type: expected_type.clone(),
+                                                    expected_purity: *p1,
+                                                    expected_span: expected_span,
+                                                    got_type: subtype.clone(),
+                                                    got_purity: *p2,
+                                                    got_span: subtype_span,
+                                                });
+                                            }
+
                                             return Err(());
                                         }
                                     },

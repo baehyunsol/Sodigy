@@ -142,17 +142,19 @@ error_kinds!(
     (PartiallyInferedGenericType { id: Option<String>, r#type: String }, 435,    Error),
     (CannotApplyInfixOp { op: InfixOp, arg_types: Vec<String> },         440,    Error),
     (CannotSpecializePolyGeneric { num_candidates: usize },              445,    Error),
+    (ImpureCallInPureContext,                                            450,    Error),
 
     // TODO: tell what's missing
-    (NonExhaustiveArms,                                                  450,    Error),
+    (NonExhaustiveArms,                                                  455,    Error),
 
-    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    455,    Error),
-    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      460,    Error),
-    (LibFileNotFound,                                                465,    Error),
+    (MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },    460,    Error),
+    (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),
+    (LibFileNotFound,                                                470,    Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
+    (NoImpureCallInImpureContext,                                   5010,  Warning),
 
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.

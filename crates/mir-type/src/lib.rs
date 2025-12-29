@@ -16,11 +16,11 @@ mod mono;
 mod poly;
 mod solver;
 
-pub use error::{ErrorContext, RenderTypeError, TypeError};
+pub use error::{ErrorContext, ExprContext, RenderTypeError, TypeError};
 pub use log::TypeLog;
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
-use solver::{ExprContext, Solver};
+use solver::Solver;
 
 pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
     let mut has_error = false;
@@ -44,14 +44,44 @@ pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
         }
 
         for r#let in session.lets.iter() {
-            if let (_, true) = type_solver.solve_let(r#let, &mut session.types, &mut session.generic_instances) {
+            let mut impure_calls = vec![];
+
+            if let (_, true) = type_solver.solve_let(
+                r#let,
+                &mut impure_calls,
+                &mut session.types,
+                &mut session.generic_instances,
+            ) {
                 has_error = true;
+            }
+
+            if !impure_calls.is_empty() {
+                type_solver.errors.push(TypeError::ImpureCallInPureContext {
+                    call_spans: impure_calls,
+                    keyword_span: r#let.keyword_span,
+                    context: r#let.origin.into(),
+                });
             }
         }
 
         for assert in session.asserts.iter() {
-            if let Err(()) = type_solver.solve_assert(assert, &mut session.types, &mut session.generic_instances) {
+            let mut impure_calls = vec![];
+
+            if let Err(()) = type_solver.solve_assert(
+                assert,
+                &mut impure_calls,
+                &mut session.types,
+                &mut session.generic_instances,
+            ) {
                 has_error = true;
+            }
+
+            if !impure_calls.is_empty() {
+                type_solver.errors.push(TypeError::ImpureCallInPureContext {
+                    call_spans: impure_calls,
+                    keyword_span: assert.keyword_span,
+                    context: ExprContext::TopLevelAssert,
+                });
             }
         }
 
@@ -99,6 +129,10 @@ pub fn solve(mut session: Session, log: bool) -> (Session, Solver) {
         &dispatched_calls,
     ) {
         has_error = true;
+    }
+
+    for warning in type_solver.warnings.iter() {
+        session.warnings.push(session.type_error_to_general_error(warning));
     }
 
     if has_error {

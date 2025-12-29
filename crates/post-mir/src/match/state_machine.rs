@@ -5,6 +5,7 @@ use super::{
     read_field_of_pattern,
 };
 use sodigy_error::{Error, Warning};
+use sodigy_hir::LetOrigin;
 use sodigy_mir::{Block, Expr, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
@@ -65,6 +66,7 @@ impl StateMachine {
         let current_field = (intern_string(b"curr", "").unwrap(), Span::None);
         let mut lets = match &self.field {
             Some(field) => vec![Let {
+                keyword_span: Span::None,
                 name: current_field.0,
                 name_span: current_field.1,
                 type_annot_span: None,
@@ -72,6 +74,7 @@ impl StateMachine {
                     lhs: Box::new(scrutinee.clone()),
                     fields: field.clone(),
                 },
+                origin: LetOrigin::Match,
             }],
             None => vec![],
         };
@@ -79,6 +82,7 @@ impl StateMachine {
         for Transition { name_bindings, .. } in self.transitions.iter() {
             for name_binding in name_bindings.iter() {
                 lets.push(Let {
+                    keyword_span: Span::None,
                     name: name_binding.name,
                     name_span: name_binding.name_span,
                     type_annot_span: None,
@@ -90,6 +94,7 @@ impl StateMachine {
                             kind: NameKind::Let { is_top_level: false },
                         },
                     }),
+                    origin: LetOrigin::Match,
                 });
             }
         }

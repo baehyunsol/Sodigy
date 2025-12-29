@@ -1,14 +1,16 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir as hir;
+use sodigy_hir::{self as hir, LetOrigin};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
 #[derive(Clone, Debug)]
 pub struct Let {
+    pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
     pub type_annot_span: Option<Span>,
     pub value: Expr,
+    pub origin: LetOrigin,
 }
 
 impl Let {
@@ -40,10 +42,12 @@ impl Let {
 
         else {
             Ok(Let {
+                keyword_span: hir_let.keyword_span,
                 name: hir_let.name,
                 name_span: hir_let.name_span,
                 type_annot_span,
                 value: value.unwrap(),
+                origin: hir_let.origin,
             })
         }
     }

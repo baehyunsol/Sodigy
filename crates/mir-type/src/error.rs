@@ -1,10 +1,12 @@
 use crate::Type;
-use sodigy_error::{Error, ErrorKind, comma_list_strs};
-use sodigy_hir::FuncPurity;
+use sodigy_error::{Error, ErrorKind, Warning, WarningKind, comma_list_strs};
+use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, unintern_string};
 use std::collections::HashMap;
+
+pub type TypeWarning = TypeError;
 
 #[derive(Clone, Debug)]
 pub enum TypeError {
@@ -79,6 +81,47 @@ pub enum TypeError {
     // TODO: more fields
     CannotInferPolyGenericDef,
     CannotInferPolyGenericImpl,
+
+    ImpureCallInPureContext {
+        call_spans: Vec<Span>,
+        keyword_span: Span,
+        context: ExprContext,
+    },
+    NoImpureCallInImpureContext {  // warning by default
+        impure_keyword_span: Span,
+    },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ExprContext {
+    TopLevelLet,
+    InlineLet,
+    FuncDefaultValue,
+    TopLevelFunc,
+    InlineFunc,
+    Lambda,
+    TopLevelAssert,
+}
+
+impl From<LetOrigin> for ExprContext {
+    fn from(o: LetOrigin) -> ExprContext {
+        match o {
+            LetOrigin::TopLevel => ExprContext::TopLevelLet,
+            LetOrigin::Inline => ExprContext::InlineLet,
+            LetOrigin::FuncDefaultValue => ExprContext::FuncDefaultValue,
+            LetOrigin::Match => ExprContext::InlineLet,
+        }
+    }
+}
+
+impl From<FuncOrigin> for ExprContext {
+    fn from(o: FuncOrigin) -> ExprContext {
+        match o {
+            FuncOrigin::TopLevel => ExprContext::TopLevelFunc,
+            FuncOrigin::Inline => ExprContext::InlineFunc,
+            FuncOrigin::Lambda => ExprContext::Lambda,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -378,8 +421,8 @@ impl RenderTypeError for MirSession {
 
                 if let Some(span) = *got_span {
                     let note = match got_purity {
-                        FuncPurity::Pure => "This is definitely a pure function.",
-                        FuncPurity::Impure => "This is definitely an impure function.",
+                        FuncPurity::Pure => "This is a pure function.",
+                        FuncPurity::Impure => "This is an impure function.",
                         FuncPurity::Both => "I'm not sure whether it's pure or not.",
                     }.to_string();
 
@@ -406,6 +449,52 @@ impl RenderTypeError for MirSession {
                     spans,
                     note,
                 }
+            },
+            TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
+                let mut spans = vec![];
+                let (keyword_note, error_note) = match context {
+                    ExprContext::TopLevelLet => (Some("This is a top-level `let` statement, and it has to be pure. If you want to do impure stuffs, define an impure function."), None),
+                    ExprContext::InlineLet => unreachable!(),
+                    ExprContext::FuncDefaultValue => (None, Some("You can't call impure functions when initializing a default value.")),
+                    ExprContext::TopLevelFunc | ExprContext::InlineFunc => (
+                        Some("A function is pure by default. If you want to define an impure function, add `impure` keyword before the `fn` keyword."),
+                        None,
+                    ),
+                    ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `impure` keyword before the backslash."), None),
+                    ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
+                };
+                let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
+
+                spans.push(RenderableSpan {
+                    span: *keyword_span,
+                    auxiliary: true,
+                    note: keyword_note,
+                });
+
+                for call_span in call_spans.iter() {
+                    spans.push(RenderableSpan {
+                        span: *call_span,
+                        auxiliary: false,
+                        note: Some(String::from("You're calling an impure function here.")),
+                    });
+                }
+
+                Error {
+                    kind: ErrorKind::ImpureCallInPureContext,
+                    spans,
+                    note: error_note,
+                }
+            },
+
+            // This is a warning, so don't expect `init_span_string_map()`!
+            TypeWarning::NoImpureCallInImpureContext { impure_keyword_span } => Warning {
+                kind: WarningKind::NoImpureCallInImpureContext,
+                spans: vec![RenderableSpan {
+                    span: *impure_keyword_span,
+                    auxiliary: false,
+                    note: Some(String::from("This `impure` keyword makes this function impure.")),
+                }],
+                note: None,
             },
             _ => panic!("TODO: {error:?}"),
         }

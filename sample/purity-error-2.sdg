@@ -1,0 +1,9 @@
+// This file is a sibling of `purity-2.sdg`
+// All the `let` statements and function definitions in this file must be a type error.
+// Read `purity-2.sdg` for more context.
+
+fn f1(n: Int) -> Int = std.random.random_int() + n;
+let v1 = std.random.random_int();
+let l1: Fn(Int) -> Int = \(n) => std.random.random_int() + n;
+let l2: PureFn(Int) -> Int = \(n) => std.random.random_int() + n;
+assert std.random.random_int() == 100;

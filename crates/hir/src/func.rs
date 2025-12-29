@@ -30,6 +30,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct Func {
     pub is_pure: bool,
+    pub impure_keyword_span: Option<Span>,  // It's `Some(_)` iff `is_pure` is false.
     pub visibility: Visibility,
     pub keyword_span: Span,
     pub name: InternedString,
@@ -259,6 +260,7 @@ impl Func {
         else {
             Ok(Func {
                 is_pure: ast_func.is_pure,
+                impure_keyword_span: ast_func.impure_keyword_span,
                 visibility,
                 keyword_span: ast_func.keyword_span,
                 name: ast_func.name,

@@ -399,12 +399,53 @@ TODO: documentation
 
 TODO: documentation
 
-## IO (and impure functions)
+## impure functions
 
-TODO: documentation
+Sodigy is a purely functional language, but sometimes you need impure functions (e.g. file IO, time, random, ...).
 
-### panic
+You can define an impure function with `impure` keyword. You can call impure functions inside an impure function, but you cannot call impure functions inside a pure function.
 
-`panic` is the only impure function that can be used anywhere in Sodigy.
+```sodigy
+// This is an impure function.
+use sodigy.random.random_int;
+
+// In an impure function, you can call another impure function.
+impure fn random_numbers() -> [Int] = [random_int(), random_int()];
+
+// This would be a compile error.
+// fn random_numbers() -> [Int] = [random_int(), random_int()];
+```
+
+Lambdas can be impure, too. Use `impure` keyword before the backslash.
+
+```sodigy
+use sodigy.random.random_int;
+
+let impure_lambda = impure \() -> [Int] = [random_int(), random_int()];
+
+// This is a compile error because there's no `impure` keyword.
+// impure_lambda = \() -> [Int] = [random_int(), random_int()];
+```
+
+Creating an impure function is not impure. It's impure only if you call the impure function.
+
+```sodigy
+use sodigy.random.random_int;
+
+// This is pure.
+let impure_functions: [ImpureFn() -> Int] = [
+    random_int,
+    impure \() => random_int(),
+];
+
+// This is impure.
+// let impure_function_call = impure_functions[0]();
+```
+
+### panic / exit
+
+Sodigy doesn't treat `panic` as an impure function, so you can use this function anywhere.
 
 You can NEVER catch a panic. `panic` is impure, but catching a `panic` is even more impure.
+
+Also note that `exit` is an impure function. My intention is that 1) you `panic` when something goes really wrong and there's nothing you can do and 2) you `exit` when everything's successful and you want to terminate the program.

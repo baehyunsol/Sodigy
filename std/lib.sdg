@@ -14,13 +14,9 @@ mod string;
 use std.int.Int;
 use std.string.String;
 
-// TODO: Is this an impure function..??
-//       Since we treat `panic` as a pure function, it also has to be pure.
-//       But it's unintuitive that `exit` is pure...
-//       Maybe we have to treat both `exit` and `panic` as impure.
 #[built_in]
 #[lang_item("built_in.exit")]
-fn exit() -> !;
+impure fn exit() -> !;
 
 // TODO: implement high-level `panic(msg: String) -> !;`
 //       In order to do that, we need a syntax to execute actions.

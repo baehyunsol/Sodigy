@@ -11,6 +11,7 @@ use sodigy_token::{Delim, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct Lambda {
     pub is_pure: bool,
+    pub impure_keyword_span: Option<Span>,
     pub params: Vec<FuncParam>,
     pub param_group_span: Span,
     pub type_annot: Box<Option<Type>>,
@@ -40,8 +41,10 @@ impl<'t, 's> Tokens<'t, 's> {
                 let value = self.parse_expr()?;
 
                 Ok(Lambda {
-                    // if there's `impure` keyword, its callee will change this value.
+                    // if there's `impure` keyword, its callee will change these values.
                     is_pure: true,
+                    impure_keyword_span: None,
+
                     params,
                     param_group_span: span,
                     type_annot: Box::new(type_annot),

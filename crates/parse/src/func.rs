@@ -13,6 +13,7 @@ use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 #[derive(Clone, Debug)]
 pub struct Func {
     pub is_pure: bool,
+    pub impure_keyword_span: Option<Span>,
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
@@ -46,12 +47,13 @@ impl<'t, 's> Tokens<'t, 's> {
     // `fn foo(x) = 3;`
     // `fn bar(x: Int, y: Int): Int = x + y;`
     pub fn parse_func(&mut self) -> Result<Func, Vec<Error>> {
-        let is_pure = match self.peek() {
-            Some(Token { kind: TokenKind::Keyword(Keyword::Impure), .. }) => {
+        let (is_pure, impure_keyword_span) = match self.peek() {
+            Some(Token { kind: TokenKind::Keyword(Keyword::Impure), span }) => {
+                let span = *span;
                 self.cursor += 1;
-                false
+                (false, Some(span))
             },
-            _ => true,
+            _ => (true, None),
         };
 
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
@@ -111,6 +113,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
         Ok(Func {
             is_pure,
+            impure_keyword_span,
             keyword_span,
             name,
             name_span,

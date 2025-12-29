@@ -271,12 +271,21 @@ impl Expr {
                 }),
                 _ => Err(()),
             },
-            ast::Expr::Lambda(ast::Lambda { is_pure, params, param_group_span, type_annot, value, .. }) => {
-                let span = param_group_span.begin();
+            ast::Expr::Lambda(ast::Lambda {
+                is_pure,
+                impure_keyword_span,
+                params,
+                param_group_span,
+                type_annot,
+                value,
+                ..
+            }) => {
+                let span = param_group_span.begin();  // TODO: use derived-span
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
                 let func = ast::Func {
                     is_pure: *is_pure,
+                    impure_keyword_span: *impure_keyword_span,
                     keyword_span: Span::None,
                     name,
                     name_span: span,

@@ -9,17 +9,13 @@ impl Solver {
     pub fn solve_let(
         &mut self,
         r#let: &Let,
+        impure_calls: &mut Vec<Span>,
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         let (infered_type, mut has_error) = self.solve_expr(
             &r#let.value,
-
-            // there are A LOT of kinds of `let`s, and I want it to distinguish them (e.g. func defualt values are lowered to `let`s)
-            //
-            // what if it's inside an impure function?
-            todo!(),
-
+            impure_calls,
             types,
             generic_instances,
         );

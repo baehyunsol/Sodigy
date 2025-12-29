@@ -153,7 +153,7 @@
 
 use crate::PatternAnalysisError;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
-use sodigy_hir::{Pattern, PatternKind, StructShape};
+use sodigy_hir::{LetOrigin, Pattern, PatternKind, StructShape};
 use sodigy_mir::{
     Block,
     Callable,
@@ -494,10 +494,12 @@ fn lower_match(
         Expr::Block(Block {
             group_span: Span::None,
             lets: vec![Let {
+                keyword_span: Span::None,
                 name: another_name_binding.id,
                 name_span: another_name_binding.def_span,
                 type_annot_span: None,
                 value: *match_expr.scrutinee.clone(),
+                origin: LetOrigin::Match,
             }],
             asserts: vec![],
             value: Box::new(fsm_expr),
