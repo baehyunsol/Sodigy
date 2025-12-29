@@ -34,7 +34,7 @@ pub enum Expr {
     },
     If(If),
 
-    // See `crates/mir/src/match.rs` to see the difference.
+    // `Match` is later lowered to a `Block`.
     Match(Match),
     Block(Block),
     Path {

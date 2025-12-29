@@ -295,16 +295,62 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 2. parent expr의 span을 그대로 가져다가 쓰면, uniqueness가 깨짐
   - 기존 span의 uniqueness가 깨지기 때문에 이상한 error가 발생할 수 있음...
 
-몇가지 예시: `a && b`를 `if a { b } else { False }`로 바꾸는 경우, `f"{a}, {b}"`를 `to_string(a) ++ ", " ++ to_string(b)`로 바꾸는 경우.
+생각해보니까 이러면 field로 `Box<Span>`을 추가해야겠네? 그럼 더이상 span이 `#[derive(Copy)]`가 안되는데...
 
-1. `to_string`과 `++`에 span을 unique하게 줘야 generic을 풀 수 있음.
-2. `to_string(a)`에서 오류가 날 경우, span이 있어야 설명이 가능
-  - 근데 어떻게 설명함??
-  - `a`에다가 밑줄을 긋고 ... 뭐라고 알려주지? ㅋㅋㅋ
-3. 하는 김에 generic monomorphization도 이걸로 해버려??
-  - generic monomorphization은 여러 단계로 할 수 있기때문에 그거 고려해야함
+---
 
-일단은 derived-span으로 쓸만한 장소에 전부 `Span::None` 넣는 중!! 기존의 코드에서도 derived-span 들어갈만한 자리 보이면 다 `Span::None`으로 바꿔놓자. 그래야 grep이 쉽거든...
+span이 필요한 경우의 수
+
+1. error message에서 밑줄 긋기
+  - 여기서 에러가 났다 vs 이거를 desugar/monomorphize한 것에서 에러가 났다
+    - desugar는 정해진 횟수만큼만 하지만, monomorphization은 arbitrary한 횟수만큼 가능
+  - optimization 하면서 경고/에러를 낼 수도 있나??
+    - const eval하다가 panic나면 경고 정도는 낼 수 있지않나...
+2. def_span
+  - name binding을 새로 만들어 낼 수도 있어서 uniqueness를 더 신경써야함!
+3. call_span
+  - generic 풀 때 call_span 기준으로 풀기 때문에 call_span은 완전 unique해야함
+
+def_span 하고 call_span 하고 겹치는 거는 ㄱㅊ
+
+derived-span이 필요한 경우의 수
+
+1. hir에서 const eval을 하고 나면 새로운 `hir::Expr`이 나옴. 얘한테 span을 줘야함.
+  - error message
+  - 이왕이면 const를 처음부터 끝까지 아우르는 span이면 좋겠음: `1 + (2 * 3)`이면 `1`부터 `)`까지 쭉 밑줄 치면 좋잖아
+2. `ast::Lambda`를 `hir::Func` & `hir::Expr`로 바꾸면 span이 3개가 필요: keyword_span of `hir::Func`, name_span of `hir::Func` and span of `hir::Expr`
+  - error message, def span, call span
+3. pipe operator를 block & let으로 바꾸고나면 block의 group_span과 let의 keyword_span이 필요함!
+4. func default value를 let으로 바꾸면 keyword_span을 만들어야 함. let의 name_span은 param의 name_span을 그대로 쓰고 있는데 이것도 바꿔야하나 싶기도 하고...
+5. pattern 안에 있는 dollar ident를 그냥 ident로 바꾼 다음에 guard를 추가해야함.
+  - ident로 바꿀 때 span 하나 필요, guard에 쓸 IdentWithOrigin에 쓸 span 하나 필요 (def_span은 ident 거 재활용)
+6. hir에서 `use std.prelude.Int;`를 비롯해서 온갖 애들을 다 import하는데 `std`말고 싹다 가짜 span 줘야함!
+7. f-string에서 `f"{x}"`를 `to_string(x)`로 바꾸는데 `to_string`에 span 줘야함
+  - 이거는 더 중요, 이거 갖고 generic 풀어야하거든!!
+  - f-string 안에 expr이 여러개일 수도 있는 거 조심해야함
+8. `a && b`를 `if a { b } else { False }`로 바꿀 때, if_span, true_group_span, else_span, false_group_span을 줘야함.
+9. `a + b`를 `add(a, b)`로 바꿀 때 `+`의 span을 `add`한테 그대로 주고, arg_group_span은 완전히 새로 만들어야 함!
+10. `mir::Type`이 원래는 type annotation 나타내거든? 그래서 type-check나 type-infer 하면서 생겨난 `mir::Type`들은 span이 하나도 없음 ㅋㅋㅋ
+  - 이건 걍 놔두자
+11. concat pattern 처리할 때 `ns`를 `[ns @ ..]`로 바꿈
+  - `ns`의 name_span은 그대로 쓰면 되고, rest의 span과 list의 group span이 필요함
+12. match를 block + let + if로 lowering하는데... 엄청나게 많은 span이 새로 필요함!!
+13. (WIP) generic monomorphize를 하면 함수 정의를 통째로 복붙할 거잖아? 그럼 모든 keyword_span, name_span도 당연히 새로 줘야하고 모든 expr에도 다 span을 새로 줘야함.
+  - name_span은 그자체로 def_span이기 때문에 unique 해야함. error message에도 자주 나올테니 원래의 span과 연결고리도 있어야 함
+  - expr에 붙는 span도, 원래 span을 보존하면서 (error message에 나옴), monomorphize 됐다는 정보도 다 기억하고 있어야함
+  - monomorphize가 여러 겹으로 될 수도 있음! 이것도 고려해야함.
+
+---
+
+만약에 derived span을 갖고 merge를 하려고 하면? 예를 들어서 `a && b`를 `if a { b } else { False }`로 바꾼 다음에 if의 error_span_wide를 계산하면 당연히 `a && b`가 나와야함, 근데 지금은 안 그럴 걸??
+
+---
+
+derived라고 하기 애매한 경우들도 있음. `1 + (2 * 3)`을 const-eval을 해서 `Expr::Number { value: 7, span }`으로 바꾼 경우 `span`에다가 저 expr을 통째로 주면 그건 그냥 맞는 span이잖아? 근데 `\() => 1`을 `fn foo()`로 바꾼 다음에 `fn`의 span을 `\`에다가 주면 그건 그냥 틀린 span이잖아? 이 둘을 구분해야할까?
+
+---
+
+derived-span이라고 해서 꼭 error message에서 티낼 필요는 없음! `a + b`에서 `+`의 span을 `add`한테 물려줬더라도... 그냥 `+`에 밑줄쳐도 아주 자연스러움! 굳이 "Derived"라고 언급하면 더 헷갈릴 걸?
 
 # 110. lessen cyclic let detections
 
@@ -325,12 +371,6 @@ compiler가 새로운 token/expr을 만들어 낼 일이 아주 많음!!
 2. top-level let이 init 됐는지 안 됐는지는 runtime에서 관리!
 
 ... I want everything to be lazy-evaled...
-
-# 107. top-level let eval strategy
-
-top-level let statements are lazy-evaluated and static (once evaluated, it lasts in memory forever).
-
-The optimizer might choose to evaluate the value at compile time. What if I add a decorator that forces the value to be evaluated at compile time?
 
 # 106. Sub-enums
 
@@ -423,6 +463,7 @@ for 문이 없으니까 `check`를 저런 식으로 호출하고 싶은 유혹�
 코드를 짜다 보니...
 
 1. assert_panic이 필요함!! 옛날에 이런 이슈 있었던 거 같은데 ㅋㅋㅋ
+  - 이거 쓰려면... panic-catcher를 만들거나, runtime을 통째로 fork해서 돌리거나...
 2. debug 함수가 더 많이 필요 -> 이것도 분명히 옛날에 이슈 있었는데??
   - 일단, 아무 위치에서나 print 찍을 수 있게 만들어야 함!!
   - 옛날에 얘기 나왔던게, `echo` statement (not expression)를 만들까...였는데, 저거 만들면 분명 사람들이 `print`처럼 쓸 거여서 보류했음.
@@ -553,68 +594,6 @@ Inheritance도 아니고 composition도 아닌 새로운 방식을 택할 거임
   - 다른 project에서 정의된 type에도 extension을 붙일 수 있음.
   - extension으로 추가된 method를 사용하려면 그 extension을 import 해야함.
   - 서로 다른 extension이 동일한 method를 추가하면, 그 extension들을 동시에 import 하면 오류남!
-
-# 86. more general generic system
-
-```
-#[poly]
-fn print<T>(v: T) -> String = v.to_string();
-
-#[impl(print)]
-fn print_int(n: Int) -> String = f"int: {n}";
-```
-
-When you call `print("100")`, it will use the default implementation in the body of `print`. If you call `print(3)`, it'll call `print_int`.
-
-You can also call `print_int` like normal functions.
-
-```
-#[poly]
-fn to_string<T>(v: T) -> String;
-
-#[impl(to_string)]
-fn to_string_int(n: Int) -> String = match n {
-    0 => "0",
-    1 => "1",
-    2 => "2",
-    _ => panic(),
-};
-```
-
-In this case, `to_string(0.5)` is a compile error because there's no implementation of `to_string` for `Fn(Number) -> String`.
-
-```
-// std
-#[poly]
-fn add<T, U, V>(a: T, b: U) -> V;
-
-#[built_in]
-#[impl(add)]
-fn add_int(a: Int, b: Int) -> Int;
-
-#[built_in]
-#[impl(add)]
-fn add_number(a: Number, b: Number) -> Number;
-
-// user
-3 + 4
-```
-
-It'll first convert `3 + 4` to `add(3, 4)`. The remaining is the same as user-defined polys.
-
----
-
-1. Let's say there are 2 implementations for `add`: `Fn(Int, Int) -> Int` and `Fn(Number, Number) -> Number`.
-  - When `Fn(Int, Int) -> Int` is given, ... easy!
-  - When `Fn(Int, TypeVar(x)) -> Int` is given, it founds out that there's only 1 possible candidate. It also adds another type expression `TypeVar(x) = Int`.
-  - When `Fn(Int, Number) -> TypeVar(x)` is given, it founds out that there's no possible candidate. We have to be very careful when generating error messages
-2. Let's say there are 2 implementations for `index`: `Fn([T], Int) -> T` and `Fn(Map<K, V>, K) -> V` (TODO: generics in `Fn` types)
-  - We have to build a statemachine for this...
-3. Let's say there are a lot of implementations for `map` and 2 of them are `Fn(Option<T>, Fn(T) -> U) -> U` and `Fn(Option<Int>, Fn(Int) -> T) -> T`.
-  - When `Fn(Option<Int>, Fn(Int) -> TypeVar(x)) -> TypeVar(x)` is given, we have _ choices:
-    - silently choose more concrete one
-    - asks the user to specify one
-    - throw a compile error (there are multiple candidates)
 
 # 84. methods and traits
 
