@@ -2,9 +2,11 @@ use sodigy_file::File;
 use sodigy_string::InternedString;
 
 mod cmp;
+mod derive;
 mod endec;
 mod render;
 
+pub use derive::SpanDeriveKind;
 pub use render::{
     Color,
     ColorOption,
@@ -27,6 +29,11 @@ pub enum Span {
     // When a span has something to do with this file, but we cannot tell the exact location.
     // e.g. if there's an error reading the file, the error has this span.
     File(File),
+
+    // When lexer generates a token, the token's span is always `Span::Range`.
+    // In the later passes, the compiler might generate tokens. For example, `a && b` is
+    // desugared to `if a { b } else { False }`. In this case, the new tokens (`if`, `else`
+    // and the curly braces) have `Span::Derived`.
     Range {
         file: File,
 
@@ -34,6 +41,13 @@ pub enum Span {
         start: usize,
         end: usize,
     },
+    Derived {
+        kind: SpanDeriveKind,
+        file: File,
+        start: usize,
+        end: usize,
+    },
+
     Eof(File),
     Prelude(InternedString),
     None,
@@ -52,20 +66,29 @@ impl Span {
         Span::File(file)
     }
 
-    #[must_use = "method returns a new span and does not mutate the original value"]
+    #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn merge(&self, other: Span) -> Self {
         match (self, other) {
             (
-                Span::Range { file: file1, start: start1, end: end1 },
-                Span::Range { file: file2, start: start2, end: end2 },
-            ) if *file1 == file2 => Span::Range {
-                file: *file1,
-                start: (*start1).min(start2),
-                end: (*end1).max(end2),
+                Span::Range { file: file1, start: start1, end: end1 } | Span::Derived { file: file1, start: start1, end: end1, .. },
+                Span::Range { file: file2, start: start2, end: end2 } | Span::Derived { file: file2, start: start2, end: end2, .. },
+            ) if *file1 == file2 => {
+                let (file, start, end) = (*file1, (*start1).min(start2), (*end1).max(end2));
+
+                match (self, other) {
+                    (Span::Range { .. }, Span::Range { .. }) => Span::Range { file, start, end },
+                    (
+                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
+                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
+                    ) => Span::Derived { kind: SpanDeriveKind::Trivial, file, start, end },
+
+                    // I want to preserve as much information as possible, but there are so many cases!!
+                    _ => todo!(),
+                }
             },
             (Span::None, s) => s,
             (s, Span::None) => *s,
-            _ => todo!(),
+            _ => panic!("TODO: {self:?}, {other:?}"),
         }
     }
 
@@ -88,6 +111,12 @@ impl Span {
                 start: (*end).max(1) - 1,
                 end: *end,
             },
+            Span::Derived { kind, file, end, .. } => Span::Derived {
+                kind: *kind,
+                file: *file,
+                start: (*end).max(1) - 1,
+                end: *end,
+            },
             Span::Lib | Span::Std | Span::None => Span::None,
             Span::Prelude(_) => unreachable!(),
         }
@@ -97,7 +126,8 @@ impl Span {
         match self {
             Span::File(file) |
             Span::Eof(file) |
-            Span::Range { file, .. } => Some(*file),
+            Span::Range { file, .. } |
+            Span::Derived { file, .. } => Some(*file),
             Span::Lib | Span::Std | Span::None | Span::Prelude(_) => None,
         }
     }

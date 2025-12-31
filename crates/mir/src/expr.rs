@@ -4,7 +4,7 @@ use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::InfixOp;
 use std::collections::hash_map::{Entry, HashMap};
@@ -402,7 +402,7 @@ impl Expr {
                 }
             },
             // converts `f"{x} + {y} = {x + y}"` to `to_string(x) ++ " + " ++ to_string(y) ++ " = " ++ to_string(x + y)`
-            hir::Expr::FormattedString { raw, elements: hir_elements, span } => {
+            hir::Expr::FormattedString { raw, elements: hir_elements, span: total_span } => {
                 let mut has_error = false;
                 let mut elements = Vec::with_capacity(hir_elements.len());
 
@@ -410,29 +410,28 @@ impl Expr {
                 // There's a dedicated optimization pass in the mir (WIP).
                 for hir_element in hir_elements.iter() {
                     match hir_element {
-                        hir::ExprOrString::String(s) => {
+                        hir::ExprOrString::String { s, span: curr_span } => {
                             let e = Expr::String {
                                 binary: false,
                                 s: *s,
-                                span: if hir_elements.len() == 1 { *span } else { Span::None },
+                                // `total_span` includes quotes, but `curr_span` doesn't.
+                                span: if hir_elements.len() == 1 { *total_span } else { *curr_span },
                             };
 
                             elements.push(e);
                         },
                         hir::ExprOrString::Expr(e) => match Expr::from_hir(e, session) {
                             Ok(e) => {
+                                let derived_span = e.error_span_wide().derive(SpanDeriveKind::FStringToString);
+
                                 // converts `x` to `to_string(x)`.
                                 let e = Expr::Call {
                                     func: Callable::Static {
                                         def_span: session.get_lang_item_span("fn.to_string"),
-
-                                        // If it's `Span::None`, the type-checker and generic solver will not work.
-                                        // If we use `e.error_span()` and if `e` already is a call span of another generic function,
-                                        // the generic solver will get confused.
-                                        span: todo!(),
+                                        span: derived_span,
                                     },
                                     args: vec![e],
-                                    arg_group_span: Span::None,
+                                    arg_group_span: derived_span,
                                     generic_defs: vec![session.get_lang_item_span("fn.to_string.generic.0")],
                                     given_keyword_arguments: vec![],
                                 };
@@ -456,7 +455,7 @@ impl Expr {
                         0 => Ok(Expr::String {
                             binary: false,
                             s: InternedString::empty(),
-                            span: *span,
+                            span: *total_span,
                         }),
                         1 => Ok(elements.remove(0)),
                         _ => Ok(concat_strings(elements, session)),
@@ -743,12 +742,15 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(rhs, session)?],
-                    arg_group_span: Span::None,
+                    arg_group_span: rhs.error_span_wide().derive(SpanDeriveKind::Trivial),
                     generic_defs,
                     given_keyword_arguments: vec![],
                 })
             },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
+                // `hir::Expr`'s span has more information that `mir::Expr`'s span.
+                let expr_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()).derive(SpanDeriveKind::Trivial);
+
                 match (
                     Expr::from_hir(lhs, session),
                     Expr::from_hir(rhs, session),
@@ -761,7 +763,7 @@ impl Expr {
                                 cond: Box::new(lhs),
                                 else_span: Span::None,
                                 true_value: Box::new(rhs),
-                                true_group_span: Span::None,
+                                true_group_span: expr_span,
                                 false_value: Box::new(Expr::Ident(IdentWithOrigin {
                                     id: intern_string(b"False", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
@@ -772,7 +774,7 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.False"),
                                 })),
-                                false_group_span: Span::None,
+                                false_group_span: expr_span,
                                 from_short_circuit: Some(ShortCircuitKind::And),
                             })),
                             // `lhs || rhs` -> `if lhs { True } else { rhs }`
@@ -790,9 +792,9 @@ impl Expr {
                                     },
                                     def_span: session.get_lang_item_span("variant.Bool.True"),
                                 })),
-                                true_group_span: Span::None,
+                                true_group_span: expr_span,
                                 false_value: Box::new(rhs),
-                                false_group_span: Span::None,
+                                false_group_span: expr_span,
                                 from_short_circuit: Some(ShortCircuitKind::Or),
                             })),
                             _ => {
@@ -807,7 +809,7 @@ impl Expr {
                                 Ok(Expr::Call {
                                     func,
                                     args: vec![lhs, rhs],
-                                    arg_group_span: Span::None,
+                                    arg_group_span: expr_span,
                                     generic_defs,
                                     given_keyword_arguments: vec![],
                                 })
@@ -829,7 +831,7 @@ impl Expr {
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(lhs, session)?],
-                    arg_group_span: Span::None,
+                    arg_group_span: lhs.error_span_wide().derive(SpanDeriveKind::Trivial),
                     generic_defs,
                     given_keyword_arguments: vec![],
                 })
@@ -938,18 +940,15 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
         2 => {
             let rhs = strings.pop().unwrap();
             let lhs = strings.pop().unwrap();
+            let derived_span = rhs.error_span_wide().derive(SpanDeriveKind::FStringConcat);
 
             Expr::Call {
                 func: Callable::Static {
                     def_span,
-
-                    // If it's `Span::None`, the type-checker and generic solver will not work.
-                    // If we use `rhs.error_span()` and if `rhs` already is a call span of another generic function,
-                    // the generic solver will get confused.
-                    span: todo!(),
+                    span: derived_span,
                 },
                 args: vec![lhs, rhs],
-                arg_group_span: Span::None,
+                arg_group_span: derived_span,
                 generic_defs,
                 given_keyword_arguments: vec![],
             }
@@ -957,18 +956,15 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
         _ => {
             let tail = strings.pop().unwrap();
             let head = concat_strings(strings, session);
+            let derived_span = tail.error_span_wide().derive(SpanDeriveKind::FStringConcat);
 
             Expr::Call {
                 func: Callable::Static {
                     def_span,
-
-                    // If it's `Span::None`, the type-checker and generic solver will not work.
-                    // If we use `tail.error_span()` and if `tail` already is a call span of another generic function,
-                    // the generic solver will get confused.
-                    span: todo!(),
+                    span: derived_span,
                 },
                 args: vec![head, tail],
-                arg_group_span: Span::None,
+                arg_group_span: derived_span,
                 generic_defs,
                 given_keyword_arguments: vec![],
             }

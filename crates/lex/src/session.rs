@@ -26,6 +26,7 @@ pub struct Session {
     pub(crate) buffer2: Vec<u8>,
 
     pub(crate) fstring_buffer: Vec<TokensOrString>,
+    pub(crate) fstring_cursor: usize,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }

@@ -23,7 +23,7 @@ use sodigy_name_analysis::{
     UseCount,
 };
 use sodigy_parse::{self as ast, Generic};
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
 
@@ -351,7 +351,7 @@ impl FuncParam {
                     let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };
                     session.push_func_default_value(Let {
                         visibility: Visibility::private(),
-                        keyword_span: Span::None,
+                        keyword_span: ast_param.name_span.derive(SpanDeriveKind::FuncDefaultValue),
                         name: ast_param.name,
                         name_span: ast_param.name_span,
                         type_annot: type_annot.clone(),

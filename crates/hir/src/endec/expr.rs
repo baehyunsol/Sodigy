@@ -226,9 +226,10 @@ impl Endec for ExprOrString {
                 buffer.push(0);
                 e.encode_impl(buffer);
             },
-            ExprOrString::String(s) => {
+            ExprOrString::String { s, span } => {
                 buffer.push(1);
                 s.encode_impl(buffer);
+                span.encode_impl(buffer);
             },
         }
     }
@@ -241,7 +242,8 @@ impl Endec for ExprOrString {
             },
             Some(1) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((ExprOrString::String(s), cursor))
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((ExprOrString::String { s, span }, cursor))
             },
             Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),

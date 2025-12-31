@@ -80,6 +80,7 @@ pub fn lex(
         buffer1: vec![],
         buffer2: vec![],
         fstring_buffer: vec![],
+        fstring_cursor: 0,
         errors: vec![],
         warnings: vec![],
     };
@@ -799,6 +800,7 @@ impl Session {
                                 regex,
                             };
                             self.cursor += quote_count;
+                            self.fstring_cursor = self.cursor;
                         },
                     }
                 },
@@ -849,6 +851,7 @@ impl Session {
                         regex,
                     };
                     self.cursor += 1;
+                    self.fstring_cursor = self.cursor;
                 },
                 (Some(b'\''), _, _) => {
                     self.state = LexState::Char { binary };
@@ -871,7 +874,15 @@ impl Session {
                 },
                 (Some(b'{'), _, _) if format => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
-                    self.fstring_buffer.push(TokensOrString::String(interned));
+                    self.fstring_buffer.push(TokensOrString::String {
+                        s: interned,
+                        span: Span::range(
+                            self.file,
+                            self.fstring_cursor,
+                            self.cursor,
+                        ),
+                    });
+                    debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
@@ -891,13 +902,22 @@ impl Session {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     if format {
-                        self.fstring_buffer.push(TokensOrString::String(interned));
+                        self.fstring_buffer.push(TokensOrString::String {
+                            s: interned,
+                            span: Span::range(
+                                self.file,
+                                self.fstring_cursor,
+                                self.cursor,
+                            ),
+                        });
+                        debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
+
                         self.tokens.push(Token {
                             kind: TokenKind::FormattedString {
                                 raw: true,
                                 elements: self.fstring_buffer.drain(..).filter(
                                     |t| match t {
-                                        TokensOrString::String(s) if s.len() == 0 => false,
+                                        TokensOrString::String { s, .. } if s.len() == 0 => false,
                                         _ => true,
                                     }
                                 ).collect(),
@@ -905,7 +925,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start,
-                                self.cursor,
+                                self.cursor + 1,
                             ),
                         });
                     }
@@ -921,7 +941,7 @@ impl Session {
                             span: Span::range(
                                 self.file,
                                 self.token_start,
-                                self.cursor,
+                                self.cursor + 1,
                             ),
                         });
                     }
@@ -982,7 +1002,15 @@ impl Session {
                 },
                 (Some(b'{'), _, _, _) if format => {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
-                    self.fstring_buffer.push(TokensOrString::String(interned));
+                    self.fstring_buffer.push(TokensOrString::String {
+                        s: interned,
+                        span: Span::range(
+                            self.file,
+                            self.fstring_cursor,
+                            self.cursor,
+                        ),
+                    });
+                    debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
@@ -1029,13 +1057,21 @@ impl Session {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     if format {
-                        self.fstring_buffer.push(TokensOrString::String(interned));
+                        self.fstring_buffer.push(TokensOrString::String {
+                            s: interned,
+                            span: Span::range(
+                                self.file,
+                                self.fstring_cursor,
+                                self.cursor,
+                            ),
+                        });
+                        debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                         self.tokens.push(Token {
                             kind: TokenKind::FormattedString {
                                 raw: false,
                                 elements: self.fstring_buffer.drain(..).filter(
                                     |t| match t {
-                                        TokensOrString::String(s) if s.len() == 0 => false,
+                                        TokensOrString::String { s, .. } if s.len() == 0 => false,
                                         _ => true,
                                     }
                                 ).collect(),
@@ -1871,6 +1907,9 @@ impl Session {
                         note: None,
                     });
                 },
+                Some(b':') => {
+                    return Err(Error::todo(30190, "formatter in f-string", Span::range(self.file, i, i + 1)));
+                },
                 Some(b'}') => {
                     value_end = i;
                     break;
@@ -1914,7 +1953,7 @@ impl Session {
             });
         }
 
-        self.fstring_buffer.push(TokensOrString::Tokens{
+        self.fstring_buffer.push(TokensOrString::Tokens {
             tokens: tmp_session.tokens,
             span: Span::range(
                 self.file,
@@ -1925,6 +1964,7 @@ impl Session {
 
         // points to the byte after '}'
         self.cursor = value_end + 1;
+        self.fstring_cursor = self.cursor;
         Ok(())
     }
 

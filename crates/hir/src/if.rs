@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub struct If {
     pub if_span: Span,
     pub cond: Box<Expr>,
+    pub let_span: Option<Span>,  // in `if let`
     pub pattern: Option<Pattern>,
     pub else_span: Span,
     pub true_value: Box<Expr>,
@@ -83,6 +84,7 @@ impl If {
             Ok(If {
                 if_span: ast_if.if_span,
                 cond: Box::new(cond.unwrap()),
+                let_span: ast_if.let_span,
                 pattern,
                 else_span: ast_if.else_span,
                 true_value: Box::new(true_value.unwrap()),

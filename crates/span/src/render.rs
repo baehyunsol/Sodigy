@@ -206,9 +206,17 @@ fn render_close_spans(
 
         for s in spans.iter() {
             match s.span {
-                Span::Range { start, end, .. } => {
-                    if i == start && s.note.is_some() {
-                        curr_notes.push((col, s.note.clone().unwrap()));
+                Span::Range { start, end, .. } | Span::Derived { start, end, .. } => {
+                    if i == start {
+                        if let Span::Derived { kind, .. } = s.span {
+                            if let Some(note) = kind.error_note() {
+                                curr_notes.push((col, note.to_string()));
+                            }
+                        }
+
+                        if let Some(note) = &s.note {
+                            curr_notes.push((col, note.to_string()));
+                        }
                     }
 
                     if start <= i && i < end {

@@ -9,17 +9,19 @@ use sodigy_hir::LetOrigin;
 use sodigy_mir::{Block, Expr, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
-use sodigy_span::Span;
+use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 
+// TODO: rename `StateMachine` to `DecisionTree`.
+
 // In this state, it reads `scrutinee.field` and transits to the next state.
-// There must be exactly 1 `transition` whose `.condition` meets `scrutinee.field`.
-// If there are more than 1 transition, that's an ICE.
+// `.condition` of each transition must be non-overlapping.
 //
 // `field` is None if it doesn't have to check scrutinee (e.g. when the transition is
 // based on the match guards.
 #[derive(Clone, Debug)]
 pub struct StateMachine {
+    pub id: u32,
     pub field: Option<Vec<Field>>,
     pub transitions: Vec<Transition>,
 }
@@ -63,12 +65,13 @@ impl StateMachine {
     /// }
     /// ```
     pub fn into_expr(&self, scrutinee: &Expr, arms: &[(usize, &MatchArm)]) -> Expr {
-        let current_field = (intern_string(b"curr", "").unwrap(), Span::None);
+        let curr_field_name = intern_string(b"curr", "").unwrap();
+        let curr_field_span = scrutinee.error_span_wide().derive(SpanDeriveKind::MatchScrutinee(self.id));
         let mut lets = match &self.field {
             Some(field) => vec![Let {
                 keyword_span: Span::None,
-                name: current_field.0,
-                name_span: current_field.1,
+                name: curr_field_name,
+                name_span: curr_field_span,
                 type_annot_span: None,
                 value: Expr::Path {
                     lhs: Box::new(scrutinee.clone()),
@@ -87,9 +90,9 @@ impl StateMachine {
                     name_span: name_binding.name_span,
                     type_annot_span: None,
                     value: Expr::Ident(IdentWithOrigin {
-                        id: current_field.0,
+                        id: curr_field_name,
                         span: Span::None,
-                        def_span: current_field.1,
+                        def_span: curr_field_span,
                         origin: NameOrigin::Local {
                             kind: NameKind::Let { is_top_level: false },
                         },
@@ -141,6 +144,7 @@ pub enum StateMachineOrArm {
 }
 
 pub(crate) fn build_state_machine(
+    state_id: &mut u32,
     matrix: &[(Vec<Field>, Constructor)],
     arms: &[(usize, &MatchArm)],
     errors: &mut Vec<Error>,
@@ -178,7 +182,9 @@ pub(crate) fn build_state_machine(
                 },
             },
             _ => {
+                *state_id += 1;
                 return Ok(StateMachineOrArm::StateMachine(StateMachine {
+                    id: *state_id,
                     field: None,
                     transitions: transitions.into_iter().map(
                         |(guard, id)| Transition {
@@ -243,7 +249,9 @@ pub(crate) fn build_state_machine(
                 }
             }
 
+            *state_id += 1;
             Ok(StateMachineOrArm::StateMachine(StateMachine {
+                id: *state_id,
                 field: Some(matrix[0].0.clone()),
 
                 // no branches
@@ -251,6 +259,7 @@ pub(crate) fn build_state_machine(
                     condition: Constructor::Wildcard,
                     guard: None,
                     state: build_state_machine(
+                        state_id,
                         &matrix[1..],
                         &okay_patterns,
                         errors,
@@ -332,6 +341,7 @@ pub(crate) fn build_state_machine(
 
             for (range, arms, name_bindings) in transitions_with_overlap.into_iter() {
                 match build_state_machine(
+                    state_id,
                     &matrix[1..],
                     &arms,
                     errors,
@@ -356,7 +366,9 @@ pub(crate) fn build_state_machine(
             }
 
             else {
+                *state_id += 1;
                 Ok(StateMachineOrArm::StateMachine(StateMachine {
+                    id: *state_id,
                     field: Some(matrix[0].0.clone()),
                     transitions,
                 }))

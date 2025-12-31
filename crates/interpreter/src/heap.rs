@@ -96,7 +96,8 @@ impl Heap {
                 ptr
             },
             Value::Span(span) => match span {
-                Span::Range { file: File::File { project, file }, start, end } => {
+                Span::Range { file: File::File { project, file }, start, end } |
+                Span::Derived { file: File::File { project, file }, start, end, .. } => {
                     let ptr = self.alloc(4);
 
                     // TODO: any better representation?

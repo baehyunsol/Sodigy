@@ -168,7 +168,7 @@ use sodigy_mir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -454,6 +454,7 @@ fn lower_match(
     let matrix = get_matrix(&scrutinee_type, lang_items);
 
     let fsm = match build_state_machine(
+        &mut 1,
         &matrix,
         &arms,
         errors,
@@ -478,7 +479,7 @@ fn lower_match(
     let another_name_binding = IdentWithOrigin {
         id: intern_string(b"scrutinee", "").unwrap(),
         span: Span::None,
-        def_span: match_expr.keyword_span,  // TODO: use derived-span
+        def_span: match_expr.keyword_span.derive(SpanDeriveKind::MatchScrutinee(0)),
         origin: NameOrigin::Local {
             kind: NameKind::Let { is_top_level: false },
         },
@@ -773,6 +774,7 @@ fn check_unreachable_and_exhaustiveness(
         }
     }
 
+    // TODO: we can calculate the set of unreachable values
     if reachable_arms.contains(&extra_arm_id) {
         errors.push(Error {
             kind: ErrorKind::NonExhaustiveArms,

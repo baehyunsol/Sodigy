@@ -59,7 +59,7 @@ impl Session {
     // rect: [left, top, right, bottom] -> all inclusive
     pub fn get_rect(&mut self, span: Span) -> Option<(usize, usize, usize, usize)> {
         match span {
-            Span::Range { file, start, end } => {
+            Span::Range { file, start, end } | Span::Derived { file, start, end, .. } => {
                 let line_breaks = match self.line_breaks.entry(file) {
                     Entry::Occupied(e) => e.get().to_vec(),
                     Entry::Vacant(e) => match file.read_bytes(&self.intermediate_dir) {

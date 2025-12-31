@@ -1,3 +1,62 @@
+# 135. spawning a subprocess
+
+- What Python/Rust api provides
+  - path to the binary
+    - They all recommend to use full path.
+    - If it's a relative path, it tries to resolve the path, but there are many edge cases.
+  - CLI args
+  - stdin / stderr / stdout -> whether to pipe or not
+  - status code
+  - env args (inherit, insert, remove, clear, ...)
+  - current working directory
+  - wait for it to terminate vs return a handle immediately
+- built-in Sodigy api: `#[built_in] fn spawn(args: [String], stdin: _, stdout: _, stderr: _, timeout: _) -> Process`
+  - the first arg of `args` is the path to the binary
+  - the path to the binary must be an absolute path
+  - CLI args: `[String]` vs `[Bytes]`
+    - Python takes `[str]` and Rust takes `Vec<OsStr>`.
+    - It should be `[String]` for Sodigy.
+  - stdin
+    - there are 2 options: pass something to stdin vs inherit the parent's
+  - stdout / stderr
+    - there are 2 options: collect later as `Bytes` vs pipe to the parent's
+- return immediately vs wait until it terminates
+  - user api must provide functions for both, but there must be only one built-in api.
+  - The built-in api must return immediately with a handle to the process.
+  - There must be built-in api for `process.wait()`, `process.terminate()`, `process.kill()`, ...
+
+# 134. Make the lexer ignore shebang
+
+# 133. tests in `./sample/`
+
+1. Maybe I need better organization?
+2. Multi-file samples?
+3. Test-level assertions
+  - Assert whether it compiles or not.
+  - Assert that there are certain errors/warnings.
+    - error no (mandatory) + string included in the error message (optional)
+    - does it assert the order of the error messages?
+    - how does it check that? parsing stderr with regex would be too error prone, right?
+  - Assert certain `assert` statement fails or not.
+    - by default, the test runner expects that all the `assert` statements succeed.
+    - it can expect individual `assert` statements to fail (choose by name)
+  - The assertions, if exist, are at the top of the test file.
+    - It's a block comment and the test runner will parse it.
+    - If it's multi-file, it's at the top of `lib.sdg`.
+4. It writes the result to a file.
+
+It has to be written in Sodigy... In order to do that,
+
+1. Sodigy has to spawn a compiler process.
+  - path to compiler + args
+  - timeout
+  - read the status code / stderr / stdout
+2. Sodigy has to read file / dir
+3. Sodigy has to parse test files and stderr outputs.
+  - maybe regex?
+
+How about first implement it in Python and later use Sodigy? -> it already is implemented in Python!
+
 # 132. `void` return types
 
 Some functions (e.g. primitive `print`) return control flow, but their return value has no meaning. I want a type for these.
@@ -318,6 +377,7 @@ derived-span이 필요한 경우의 수
 1. hir에서 const eval을 하고 나면 새로운 `hir::Expr`이 나옴. 얘한테 span을 줘야함.
   - error message
   - 이왕이면 const를 처음부터 끝까지 아우르는 span이면 좋겠음: `1 + (2 * 3)`이면 `1`부터 `)`까지 쭉 밑줄 치면 좋잖아
+  - 근데, mir 이후에 const eval 하면 span을 못 잡는 거 아님? 함수 호출을 여러번하고 그러다보면 span이 엄청 꼬일텐데...
 2. `ast::Lambda`를 `hir::Func` & `hir::Expr`로 바꾸면 span이 3개가 필요: keyword_span of `hir::Func`, name_span of `hir::Func` and span of `hir::Expr`
   - error message, def span, call span
 3. pipe operator를 block & let으로 바꾸고나면 block의 group_span과 let의 keyword_span이 필요함!
@@ -339,6 +399,7 @@ derived-span이 필요한 경우의 수
   - name_span은 그자체로 def_span이기 때문에 unique 해야함. error message에도 자주 나올테니 원래의 span과 연결고리도 있어야 함
   - expr에 붙는 span도, 원래 span을 보존하면서 (error message에 나옴), monomorphize 됐다는 정보도 다 기억하고 있어야함
   - monomorphize가 여러 겹으로 될 수도 있음! 이것도 고려해야함.
+14. `a.b.c`이라는 expr이 있는데 inter-hir이 `a.b`를 `d.e`로 갈아끼운 경우
 
 ---
 
@@ -352,6 +413,22 @@ derived라고 하기 애매한 경우들도 있음. `1 + (2 * 3)`을 const-eval�
 
 derived-span이라고 해서 꼭 error message에서 티낼 필요는 없음! `a + b`에서 `+`의 span을 `add`한테 물려줬더라도... 그냥 `+`에 밑줄쳐도 아주 자연스러움! 굳이 "Derived"라고 언급하면 더 헷갈릴 걸?
 
+---
+
+1. Lexer가 직접 만든 span이 아니면 전부 derived-span임.
+2. Error message에서 derived-span이라는 정보를 표시할 수도 있고 안할 수도 있음
+  - 대부분 안하겠네..
+  - 일단은 어떤 방식으로 derive 됐는지를 저장을 해놓고, 어떻게 표시할지는 나중에 생각하자!
+  - 표시는 어케함? 그냥 span에 추가로 note를 붙일까?
+3. 구현은 어떻게 함? 별개의 variant를 만들어? `Span::Range`에다가 field를 추가해? `Span` 자체에다가 field를 추가하고 기존의 `Span`은 `SpanKind`로 분리해?
+  - performance는 너무 신경쓰지 말고 일단은 ergonomics만 신경쓰자
+  - Copy-ability는 ergonomics에 들어감 ㅋㅋㅋ
+  - 참고로, lexer에서 직접 만든 span은 전부 `Span::Range`이거나 `Span::Eof`이고, 그나마도 `Span::Eof`는 에러메시지에만 쓰임!
+  - 즉, 우리가 새로 만들 derived-span은 `Span::Range`만 신경쓰면 됨.
+  - 그럼, variant를 추가하고 `Span::Derived { kind: SpanDerivationKind, file: File, start: usize, end: usize }`라고 하자. monomorphization처럼 여러 단계로 derive가 가능하면?? ㅠㅠ
+    - 여러 단계 derive -> 이거 엄청 큰 이슈임. 이걸 어떻게 구현하냐에 따라서 `Span`이 Copy-able인지 아닌지가 바뀌거든.
+    - 그나마 쉬운 walk-around는 monomorphization할 때마다 monomorphization_id를 부여하고, Span에는 id만 기록해두는 거지!
+
 # 110. lessen cyclic let detections
 
 `let f1 = \(_) => _; let f2 = \(_) => _;`처럼 돼 있으면 `f1`이랑 `f2`랑 서로 언급하더라도 봐주자...
@@ -360,17 +437,6 @@ derived-span이라고 해서 꼭 error message에서 티낼 필요는 없음! `a
   - 물론 이렇게 해도 못 잡는 예외가 많지만, 어쩔 수 없음!!
 2. 한가지 예외가 있음... 만약 f1이나 f2가 default value로 서로룰 언급하면 cycle이 생길 수 있음
   - 이거는 다른 방식으로 막자. lambda는 default value를 선언하는 거 자체를 못하게 할 거임. 어차피 lambda에서는 default value가 의미가 없거든 (애초에 compiler 차원에서 추적이 불가능함.)
-
-# 109. `JumpIfUninit`
-
-결론:
-
-1. top-level let은 lazy-eval, inline let은 eager-eval
-  - 문서에다가 values might be lazy-evaled or eager-evaled라고 적어야 함
-  - top-level let은 static임
-2. top-level let이 init 됐는지 안 됐는지는 runtime에서 관리!
-
-... I want everything to be lazy-evaled...
 
 # 106. Sub-enums
 
@@ -733,7 +799,7 @@ How about, `a`, `b` and `c` all use `x`'s span?
 
 # 80. Language doc
 
-1. I'm writting the document at `spec.md`. I'll have to split files before it gets too long.2
+1. I'm writting the document at `spec.md`. I'll have to split files before it gets too long.
 2. I want to implement a markdown parser in Sodigy to parse the document.
 3. I want to run the codes in the document's code blocks.
   - Some blocks assert that they don't compile. Some assert that they compile but don't pass the test.
@@ -838,31 +904,6 @@ It'd be nice to have multithread/multiprocess capabilities, but it's not just ab
   - It's easy, but how do they interact with each other?
 2. async/await -> we need a built-in event loop...
 
-# 76. Subtyping...
-
-1. Never type만 고려할 경우
-  - `Never` is a subtype of everything
-  - `Never`를 위한 variant와 (`Type::Never`) notation (`!`)을 새로 만들어야 함
-  - assertion이나 if처럼 특정 type을 기대하는 경우: 해당 type의 subtype이 나오면 맞다고 하고 넘어가기
-    - 함수 param도 이에 해당
-  - list처럼 여러 type이 동일하기를 기대하는 경우
-    - 각 type을 전부 subtype으로 묶은 다음에 가장 concrete한 type을 만들어서 전체의 type으로 처리
-    - 묶는데 실패하면 오류
-  - `TypeVar(x) = Type::Never`인 경우
-    - 살짝 꼼수를 씀. 일단은 `TypeVar(x)`를 안 풀고 남겨놔. 나중에 더 자세한 type을 찾으면 `TypeVar(x)`를 풀고, 끝까지 안 풀리면 그냥 `Type::Never`를 넣는 거지.
-  - `TypeVar(x) = Result<Int, !>`인 경우
-    - 이거는 어쩔 수 없다 ㅠㅠ
-    - 아니면, `TypeVar(x) = Result<Int, TypeVar(new)>`로 한 다음에 `TypeVar(new) = !`를 추가로 대입하는 방법도 있음..!!
-      - 아니지, 이거를 해도 `TypeVar(new)`를 풀 방법이 없지. 다른 곳에서 등장을 안할텐데?
-2. general subtyping
-  - 또 어디에 필요하려나...
-  - 하고싶기는 함. `enum Foo`가 `variant A, variant B, variant C`를 갖는데 `Foo`를 return하는 어떤 함수가 항상 `A` 혹은 `B`를 return 하는 경우: `C`가 나올 수 없다는 걸 type checker가 잡고 싶음.
-3. impure function object를
-  - 1) 아예 금지하기
-  - 2) pure function object와 subtype 관계로 만들기
-  - 생각해보니까 2로 해야할 듯? 125번 이슈의 `spawn()` 구현하려면 impure function object가 필요함... 그럼 `Fn`을 `ImpureFn`의 subtype으로 해야함. `ImpureFn`한테 pure function 주는 것도 허용해야하지만, not vice-versa거든.
-  - 아니면 `PureFn`이랑 `ImpureFn`이랑 `Fn`을 다 만들어야하나??
-
 # 72. Visibility
 
 가라로 하던 거 업보 청산할 시간...
@@ -956,15 +997,9 @@ new draft
 4. 이거 하면 `<`랑 `<<` 더 잘 구분해야함 ㅠㅠ Rust에서 왜 그런 에러메시지 날리는지 알겠네...
 5. 이거 하는 김에 poly에서 에러메시지 훨씬 더 섬세하게 날리게 해야함!! infix op 없을 때나 conversion 안 될 때 dedicated error message 만들어!!
 
-# 61. more on purity
+---
 
-How do you define purity?
-
-1. if x = y, then f(x) = f(y)
-  - 참고로 user-defined `=` operator랑은 상관없음!! 그냥 overloading 할 수 있게 열어주자.
-2. no side effects
-  - How do you define side effect?
-3. is `panic()` pure?
+고민 끝에 내린 결론: `x as <String>`, `x as? <String>`으로 하기!
 
 # 57. `mod` and `use`
 

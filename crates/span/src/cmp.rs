@@ -26,23 +26,33 @@ impl Ord for Span {
 
             // Then, it compares files.
             (
-                Span::File(file1) | Span::Range { file: file1, .. } | Span::Eof(file1),
-                Span::File(file2) | Span::Range { file: file2, .. } | Span::Eof(file2),
+                Span::File(file1) | Span::Range { file: file1, .. } | Span::Derived { file: file1, .. } | Span::Eof(file1),
+                Span::File(file2) | Span::Range { file: file2, .. } | Span::Derived { file: file2, .. } | Span::Eof(file2),
             ) if file1 != file2 => file1.cmp(file2),
             // If the 2 spans are pointing to the same file, it compares the indexes.
             // `Span::File` is treated like the start of a file, and `Span::Eof` is of course the end of the file.
             (Span::File(_), Span::File(_)) |
             (Span::Eof(_), Span::Eof(_)) => Ordering::Equal,
-            (Span::File(_), Span::Range { .. } | Span::Eof(_)) |
-            (Span::Range { .. }, Span::Eof(_)) => Ordering::Less,
-            (Span::Eof(_), Span::Range { .. } | Span::File(_)) |
-            (Span::Range { .. }, Span::File(_)) => Ordering::Greater,
+            (Span::File(_), Span::Range { .. } | Span::Derived { .. } | Span::Eof(_)) |
+            (Span::Range { .. } | Span::Derived { .. }, Span::Eof(_)) => Ordering::Less,
+            (Span::Eof(_), Span::Range { .. } | Span::Derived { .. } | Span::File(_)) |
+            (Span::Range { .. } | Span::Derived { .. }, Span::File(_)) => Ordering::Greater,
+
+            // `Span::Derived` is treated like `Span::Range`. But if they're pointing to the exact same token,
+            // `Span::Range` is greater.
             (
-                Span::Range { start: start1, end: end1, .. },
-                Span::Range { start: start2, end: end2, .. },
+                Span::Range { start: start1, end: end1, .. } | Span::Derived { start: start1, end: end1, .. },
+                Span::Range { start: start2, end: end2, .. } | Span::Derived { start: start2, end: end2, .. },
             ) => match start1.cmp(start2) {
                 c @ (Ordering::Less | Ordering::Greater) => c,
-                Ordering::Equal => end1.cmp(end2),
+                Ordering::Equal => match end1.cmp(end2) {
+                    c @ (Ordering::Less | Ordering::Greater) => c,
+                    Ordering::Equal => match (self, other) {
+                        (Span::Range { .. }, Span::Derived { .. }) => Ordering::Greater,
+                        (Span::Derived { .. }, Span::Range { .. }) => Ordering::Less,
+                        _ => Ordering::Equal,
+                    },
+                },
             },
         }
     }

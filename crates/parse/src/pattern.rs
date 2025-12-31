@@ -1,7 +1,7 @@
 use crate::Tokens;
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
 
@@ -187,12 +187,12 @@ impl Pattern {
             PatternKind::Ident { id, span } => PatternKind::List {
                 elements: vec![],
                 rest: Some(RestPattern {
-                    span,  // TODO: vs using a derived span
+                    span: span.derive(SpanDeriveKind::ConcatPatternRest),
                     index: 0,
                     name: Some(id),
                     name_span: Some(span),
                 }),
-                group_span: Span::None,
+                group_span: span.derive(SpanDeriveKind::ConcatPatternList),
                 is_lowered_from_concat: true,
             },
             PatternKind::String { binary, s, span } => todo!(),
@@ -755,7 +755,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         kind: PatternKind::List {
                                             elements: vec![elems1, elems2].concat(),
                                             rest,
-                                            group_span: Span::None,
+                                            group_span: op_span.derive(SpanDeriveKind::ConcatPatternList),
                                             is_lowered_from_concat: true,
                                         },
                                     };

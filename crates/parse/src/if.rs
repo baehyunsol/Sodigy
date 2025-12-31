@@ -7,11 +7,12 @@ use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind};
 // that goes into `false_value`, recursively.
 #[derive(Clone, Debug)]
 pub struct If {
-    // If it's `if let`, `if_span` is a merged span of `if` and `let`.
     pub if_span: Span,
-
     pub cond: Box<Expr>,
-    pub pattern: Option<Pattern>,  // `if let Some((x, _)) = foo() { x + 1 }`
+
+    // `if let Some((x, _)) = foo() { x + 1 }`
+    pub let_span: Option<Span>,
+    pub pattern: Option<Pattern>,
 
     // If it's `else if`, the span of `else` is stored here,
     // and the span of `if` is stored in `false_value`'s span.
@@ -29,17 +30,18 @@ impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_if_expr(&mut self) -> Result<If, Vec<Error>> {
         let mut pattern = None;
 
-        let (if_span, cond) = match self.peek2() {
+        let (if_span, let_span, cond) = match self.peek2() {
             // if let PATTERN = COND
             (
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), span: span1 }),
                 Some(Token { kind: TokenKind::Keyword(Keyword::Let), span: span2 }),
             ) => {
-                let span = span1.merge(*span2);
+                let if_span = *span1;
+                let let_span = Some(*span2);
                 self.cursor += 2;
                 pattern = Some(self.parse_pattern(ParsePatternContext::IfLet)?);
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-                (span, self.parse_expr()?)
+                (if_span, let_span, self.parse_expr()?)
             },
             // if COND
             (
@@ -48,7 +50,7 @@ impl<'t, 's> Tokens<'t, 's> {
             ) => {
                 let span1 = *span1;
                 self.cursor += 1;
-                (span1, self.parse_expr()?)
+                (span1, None, self.parse_expr()?)
             },
             (Some(t1), _) => {
                 return Err(vec![Error {
@@ -147,6 +149,7 @@ impl<'t, 's> Tokens<'t, 's> {
         Ok(If {
             if_span,
             cond,
+            let_span,
             pattern,
             else_span,
             true_value,

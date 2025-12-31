@@ -208,5 +208,8 @@ pub enum TokensOrString {
         tokens: Vec<Token>,
         span: Span,
     },
-    String(InternedString),
+    String {
+        s: InternedString,
+        span: Span,
+    },
 }

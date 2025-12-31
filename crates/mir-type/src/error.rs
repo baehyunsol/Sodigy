@@ -546,7 +546,7 @@ impl RenderTypeError for MirSession {
                 Ok(Some(p)) => Some(String::from_utf8_lossy(&p).to_string()),
                 _ => None,
             },
-            Span::Range { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
+            Span::Range { .. } | Span::Derived { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
                 Some(Some(s)) => match unintern_string(*s, &self.intermediate_dir) {
                     Ok(Some(s)) => Some(String::from_utf8_lossy(&s).to_string()),
                     _ => None,

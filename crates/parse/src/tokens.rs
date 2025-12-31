@@ -79,7 +79,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 spans: self.span_end.simple_error(),
                 note: None,
             },
-            Span::Range { .. } => Error {
+            Span::Range { .. } | Span::Derived { .. } => Error {
                 kind: ErrorKind::UnexpectedEog {
                     expected: expected_token,
                 },

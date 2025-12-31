@@ -12,7 +12,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, Field};
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 
@@ -163,8 +163,8 @@ impl Expr {
                                 has_error = true;
                             },
                         },
-                        ast::ExprOrString::String(s) => {
-                            elements.push(ExprOrString::String(*s));
+                        ast::ExprOrString::String { s, span } => {
+                            elements.push(ExprOrString::String { s: *s, span: *span });
                         },
                     }
                 }
@@ -280,13 +280,13 @@ impl Expr {
                 value,
                 ..
             }) => {
-                let span = param_group_span.begin();  // TODO: use derived-span
+                let span = param_group_span.begin().derive(SpanDeriveKind::Lambda);
                 let name = name_lambda_function(span, &session.intermediate_dir);
 
                 let func = ast::Func {
                     is_pure: *is_pure,
                     impure_keyword_span: *impure_keyword_span,
-                    keyword_span: Span::None,
+                    keyword_span: span,
                     name,
                     name_span: span,
                     generics: vec![],
@@ -395,12 +395,12 @@ impl Expr {
                 }
 
                 let ast_block = ast::Block {
-                    group_span: Span::None,
+                    group_span: pipe_spans[0].derive(SpanDeriveKind::Pipeline),
                     lets: values[..(values.len() - 1)].iter().enumerate().map(
                         |(i, value)| ast::Let {
-                            keyword_span: Span::None,
+                            keyword_span: pipe_spans[i].derive(SpanDeriveKind::Pipeline),
                             name: intern_string(format!("{}{i}", "$".repeat(session.nested_pipeline_depth)).as_bytes(), &session.intermediate_dir).unwrap(),
-                            name_span: pipe_spans[i],
+                            name_span: pipe_spans[i].derive(SpanDeriveKind::Pipeline),
                             type_annot: None,
                             value: value.clone(),
                             attribute: ast::Attribute::new(),
@@ -563,5 +563,5 @@ fn try_render_dotted_name(
 #[derive(Clone, Debug)]
 pub enum ExprOrString {
     Expr(Expr),
-    String(InternedString),
+    String { s: InternedString, span: Span },
 }

@@ -349,8 +349,8 @@ impl<'t, 's> Tokens<'t, 's> {
 
                 for element in token_elements.iter() {
                     match element {
-                        TokensOrString::String(s) => {
-                            elements.push(ExprOrString::String(*s));
+                        TokensOrString::String { s, span } => {
+                            elements.push(ExprOrString::String { s: *s, span: *span });
                         },
                         TokensOrString::Tokens { tokens, span } => {
                             let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
@@ -781,7 +781,7 @@ impl<'t, 's> Tokens<'t, 's> {
 #[derive(Clone, Debug)]
 pub enum ExprOrString {
     Expr(Expr),
-    String(InternedString),
+    String { s: InternedString, span: Span },
 }
 
 fn path_binding_power() -> (u32, u32) {
