@@ -124,6 +124,7 @@ impl From<FuncOrigin> for ExprContext {
     }
 }
 
+// TODO: naming sucks
 #[derive(Clone, Debug)]
 pub enum ErrorContext {
     AssertConditionBool,
@@ -140,6 +141,9 @@ pub enum ErrorContext {
     FuncArgs,
     EqValueEqual,
     NeqValueEqual,
+    OrPatternEqual,
+    OrPatternNameBinding(InternedString),
+    RangePatternEqual,
 
     // It infered the type of the same type var multiple times,
     // and got different result.
@@ -153,24 +157,30 @@ pub enum ErrorContext {
 }
 
 impl ErrorContext {
-    pub fn note(&self) -> Option<&'static str> {
+    pub fn note(&self, intermediate_dir: &str) -> Option<String> {
         match self {
-            ErrorContext::AssertConditionBool => Some("An assertion must be a boolean."),
-            ErrorContext::ShortCircuitAndBool => Some("Lhs and rhs of `&&` operator must be booleans."),
-            ErrorContext::ShortCircuitOrBool => Some("Lhs and rhs of `||` operator must be booleans."),
-            ErrorContext::IfConditionBool => Some("A condition of an `if` expression must be a boolean."),
-            ErrorContext::IfValueEqual => Some("All branches of an `if` expression must have the same type."),
-            ErrorContext::MatchScrutinee => Some("A pattern of a match arm and the match's scrutinee must have the same type."),
-            ErrorContext::MatchGuardBool => Some("A guard of a match arm must be a boolean."),
-            ErrorContext::MatchArmEqual => Some("All arms of a `match` expression must have the same type."),
-            ErrorContext::InferTypeAnnotation => Some("There's an error while doing type-inference."),
-            ErrorContext::VerifyTypeAnnotation => Some("A value's type annotation and its actual type do not match."),
-            ErrorContext::ListElementEqual => Some("All elements of a list must have the same type."),
-            ErrorContext::FuncArgs => Some("Arguments of this function are incorrect."),
-            ErrorContext::EqValueEqual => Some("Lhs and rhs of `==` operator must have the same type."),
-            ErrorContext::NeqValueEqual => Some("Lhs and rhs of `!=` operator must have the same type."),
-            ErrorContext::InferedAgain { .. } => Some("I infered a type of the same value multiple times, and got different results."),
-            ErrorContext::Deep => Some("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location."),
+            ErrorContext::AssertConditionBool => Some(String::from("An assertion must be a boolean.")),
+            ErrorContext::ShortCircuitAndBool => Some(String::from("Lhs and rhs of `&&` operator must be booleans.")),
+            ErrorContext::ShortCircuitOrBool => Some(String::from("Lhs and rhs of `||` operator must be booleans.")),
+            ErrorContext::IfConditionBool => Some(String::from("A condition of an `if` expression must be a boolean.")),
+            ErrorContext::IfValueEqual => Some(String::from("All branches of an `if` expression must have the same type.")),
+            ErrorContext::MatchScrutinee => Some(String::from("A pattern of a match arm and the match's scrutinee must have the same type.")),
+            ErrorContext::MatchGuardBool => Some(String::from("A guard of a match arm must be a boolean.")),
+            ErrorContext::MatchArmEqual => Some(String::from("All arms of a `match` expression must have the same type.")),
+            ErrorContext::InferTypeAnnotation => Some(String::from("There's an error while doing type-inference.")),
+            ErrorContext::VerifyTypeAnnotation => Some(String::from("A value's type annotation and its actual type do not match.")),
+            ErrorContext::ListElementEqual => Some(String::from("All elements of a list must have the same type.")),
+            ErrorContext::FuncArgs => Some(String::from("Arguments of this function are incorrect.")),
+            ErrorContext::EqValueEqual => Some(String::from("Lhs and rhs of `==` operator must have the same type.")),
+            ErrorContext::NeqValueEqual => Some(String::from("Lhs and rhs of `!=` operator must have the same type.")),
+            ErrorContext::OrPatternEqual => Some(String::from("Lhs and rhs of `|` pattern must have the same type.")),
+            ErrorContext::OrPatternNameBinding(name) => Some(format!(
+                "Name `{}` is bound multiple times in `|` pattern, but they have different types.",
+                String::from_utf8_lossy(&unintern_string(*name, intermediate_dir).unwrap().unwrap_or(b"????".to_vec())),
+            )),
+            ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
+            ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
+            ErrorContext::Deep => Some(String::from("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location.")),
             ErrorContext::None => None,
         }
     }
@@ -274,7 +284,7 @@ impl RenderTypeError for MirSession {
                         got: got_type,
                     },
                     spans,
-                    note: context.note().map(|s| s.to_string()),
+                    note: context.note(&self.intermediate_dir).map(|s| s.to_string()),
                 }
             },
             TypeError::WrongNumberOfArguments {

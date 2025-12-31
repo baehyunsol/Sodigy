@@ -48,7 +48,7 @@ impl Solver {
 
         match infered_type {
             Some(infered_type) => {
-                if let Err(()) = self.solve_subtype(
+                if let Err(()) = self.solve_supertype(
                     &annotated_type,
                     &infered_type,
                     types,

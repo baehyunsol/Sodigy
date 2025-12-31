@@ -1,5 +1,5 @@
 use super::Solver;
-use crate::Type;
+use crate::{ErrorContext, Type};
 use sodigy_hir::{Pattern, PatternKind};
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -147,6 +147,93 @@ impl Solver {
                         has_error,
                     )
                 }
+            },
+            PatternKind::Range { lhs, rhs, .. } => {
+                match (
+                    lhs.as_ref().map(|lhs| self.solve_pattern(lhs, types, generic_instances)),
+                    rhs.as_ref().map(|rhs| self.solve_pattern(rhs, types, generic_instances)),
+                ) {
+                    (Some(result), None) | (None, Some(result)) => result,
+                    (Some((Some(lhs_type), e1)), Some((Some(rhs_type), e2))) => {
+                        match self.solve_supertype(
+                            &lhs_type,
+                            &rhs_type,
+                            types,
+                            generic_instances,
+                            /* is_checking_argument: */ false,
+                            Some(lhs.as_ref().unwrap().error_span_wide()),
+                            Some(rhs.as_ref().unwrap().error_span_wide()),
+                            ErrorContext::RangePatternEqual,
+                            /* bidirectional: */ true,
+                        ) {
+                            Ok(r#type) => (Some(r#type), e1 | e2),
+                            Err(()) => (None, true),
+                        }
+                    },
+
+                    // at least one of these must be an error
+                    (Some(_), Some(_)) => (None, true),
+
+                    // parser will reject this
+                    (None, None) => unreachable!(),
+                }
+            },
+            PatternKind::Or { lhs, rhs, .. } => {
+                // 1. lhs and rhs must have the same type.
+                let (pattern_type, mut has_error) = match (
+                    self.solve_pattern(lhs, types, generic_instances),
+                    self.solve_pattern(rhs, types, generic_instances),
+                ) {
+                    ((Some(lhs_type), e1), (Some(rhs_type), e2)) => match self.solve_supertype(
+                        &lhs_type,
+                        &rhs_type,
+                        types,
+                        generic_instances,
+                        /* is_checking_argument: */ false,
+                        Some(lhs.error_span_wide()),
+                        Some(rhs.error_span_wide()),
+                        ErrorContext::OrPatternEqual,
+                        /* bidirectional: */ true,
+                    ) {
+                        Ok(r#type) => (Some(r#type), e1 || e2),
+                        Err(()) => (None, true),
+                    },
+                    _ => (None, true),
+                };
+
+                // 2. name bindings in lhs and rhs must have the same type.
+                // TODO: If `|` patterns are nested, we don't have to run
+                //       this inside inner patterns.
+                let mut name_bindings = HashMap::new();
+
+                for (name, name_span) in lhs.bound_names() {
+                    name_bindings.insert(name, (name_span, Span::None));
+                }
+
+                for (name, name_span) in rhs.bound_names() {
+                    name_bindings.get_mut(&name).unwrap().1 = name_span;
+                }
+
+                for (name, (lhs_span, rhs_span)) in name_bindings.iter() {
+                    let lhs_type_var = Type::Var { def_span: *lhs_span, is_return: false };
+                    let rhs_type_var = Type::Var { def_span: *rhs_span, is_return: false };
+
+                    if let Err(()) = self.solve_supertype(
+                        &lhs_type_var,
+                        &rhs_type_var,
+                        types,
+                        generic_instances,
+                        /* is_checking_argument: */ false,
+                        Some(*lhs_span),
+                        Some(*rhs_span),
+                        ErrorContext::OrPatternNameBinding(*name),
+                        /* bidirectional: */ true,
+                    ) {
+                        has_error = true;
+                    }
+                }
+
+                (pattern_type, has_error)
             },
             _ => panic!("TODO: {pattern:?}"),
         }

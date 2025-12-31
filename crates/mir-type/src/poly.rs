@@ -307,7 +307,7 @@ fn solve_fn_types(
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
-    let mut solver = Solver::new(lang_items, false, intermediate_dir);
+    let mut solver = Solver::new(lang_items, intermediate_dir);
     let mut types = HashMap::new();
     let mut constraints = vec![];
     let mut errors = vec![];
@@ -316,7 +316,7 @@ fn solve_fn_types(
         |i| (&def.params[i], &r#impl.params[i])
     ).chain(std::iter::once((&def.r#return, &r#impl.r#return))).enumerate() {
         // Solves `?T = Int`, `?U = Int` and `Int = Int`.
-        if let Err(()) = solver.solve_subtype(
+        if let Err(()) = solver.solve_supertype(
             &def_type,
             &impl_type,
             &mut types,

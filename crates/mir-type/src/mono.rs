@@ -1,4 +1,4 @@
-use crate::{PolySolver, SolvePolyResult, Solver, TypeError, TypeLog};
+use crate::{PolySolver, SolvePolyResult, Solver, TypeError};
 use sodigy_mir::{Session, Type};
 use sodigy_span::Span;
 use std::collections::HashSet;
@@ -103,21 +103,6 @@ impl Solver {
                     dispatch_map.insert(generic_call.call, p);
                 },
                 r => panic!("TODO: {r:?}"),
-            }
-        }
-
-        if let Some(log) = &mut self.log {
-            for (call, def) in dispatch_map.iter() {
-                let generic_call = generic_calls.get(call).unwrap().clone();
-                let mut generics = generic_call.generics.clone().into_iter().filter(
-                    |(span, _)| !already_dispatched.contains(&(generic_call.call, *span))
-                ).collect::<Vec<_>>();
-                generics.sort_by_key(|(span, _)| *span);
-                log.push(TypeLog::Dispatch {
-                    call: *call,
-                    def: *def,
-                    generics,
-                });
             }
         }
 

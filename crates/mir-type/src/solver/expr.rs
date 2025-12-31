@@ -138,7 +138,7 @@ impl Solver {
                         }
 
                         if let Some(v_type) = v_type {
-                            if let Err(()) = self.solve_subtype(
+                            if let Err(()) = self.solve_supertype(
                                 &bool_type,
                                 &v_type,
                                 types,
@@ -160,7 +160,7 @@ impl Solver {
                     let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), impure_calls, types, generic_instances);
 
                     if let Some(cond_type) = cond_type {
-                        if let Err(()) = self.solve_subtype(
+                        if let Err(()) = self.solve_supertype(
                             &Type::Static {
                                 def_span: self.get_lang_item_span("type.Bool"),
                                 span: Span::None,
@@ -182,7 +182,7 @@ impl Solver {
                         self.solve_expr(r#if.true_value.as_ref(), impure_calls, types, generic_instances),
                         self.solve_expr(r#if.false_value.as_ref(), impure_calls, types, generic_instances),
                     ) {
-                        ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_subtype(
+                        ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_supertype(
                             &true_type,
                             &false_type,
                             types,
@@ -218,7 +218,7 @@ impl Solver {
                     if let Some(scrutinee_type) = &scrutinee_type {
                         match self.solve_pattern(&arm.pattern, types, generic_instances) {
                             (Some(pattern_type), e) => {
-                                if let Err(()) = self.solve_subtype(
+                                if let Err(()) = self.solve_supertype(
                                     &scrutinee_type,
                                     &pattern_type,
                                     types,
@@ -248,7 +248,7 @@ impl Solver {
                         has_error |= e;
 
                         if let Some(guard_type) = guard_type {
-                            if let Err(()) = self.solve_subtype(
+                            if let Err(()) = self.solve_supertype(
                                 &Type::Static {
                                     def_span: self.get_lang_item_span("type.Bool"),
                                     span: Span::None,
@@ -285,7 +285,7 @@ impl Solver {
                     let mut has_error = false;
 
                     for i in 1..arm_types.len() {
-                        if let Ok(new_expr_type) = self.solve_subtype(
+                        if let Ok(new_expr_type) = self.solve_supertype(
                             &expr_type,
                             &arm_types[i],
                             types,
@@ -416,7 +416,7 @@ impl Solver {
 
                             else {
                                 for (i, param) in params.iter().enumerate() {
-                                    if let Err(()) = self.solve_subtype(
+                                    if let Err(()) = self.solve_supertype(
                                         param,
                                         &arg_types[i],
                                         types,
@@ -493,7 +493,7 @@ impl Solver {
                             let mut has_error = false;
 
                             for i in 1..arg_types.len() {
-                                if let Ok(new_elem_type) = self.solve_subtype(
+                                if let Ok(new_elem_type) = self.solve_supertype(
                                     &elem_type,
                                     &arg_types[i],
                                     types,
@@ -568,7 +568,7 @@ impl Solver {
 
                                 else {
                                     for i in 0..params.len() {
-                                        if let Err(()) = self.solve_subtype(
+                                        if let Err(()) = self.solve_supertype(
                                             &params[i],
                                             &arg_types[i],
                                             types,
