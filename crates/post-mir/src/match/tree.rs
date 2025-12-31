@@ -6,7 +6,7 @@ use super::{
 };
 use sodigy_error::{Error, Warning};
 use sodigy_hir::LetOrigin;
-use sodigy_mir::{Block, Expr, Let, MatchArm};
+use sodigy_mir::{Block, Expr, If, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
@@ -65,6 +65,9 @@ impl DecisionTree {
     /// }
     /// ```
     pub fn into_expr(&self, scrutinee: &Expr, arms: &[(usize, &MatchArm)]) -> Expr {
+        // TODO: We need some kinda cache for the scrutinee.
+        //       For example, if there's `let curr = scrutinee._0._0` and `let curr = scrutinee._0._0._1`,
+        //       we don't have to evaluate `scrutinee._0._0` twice.
         let curr_field_name = intern_string(b"curr", "").unwrap();
         let curr_field_span = scrutinee.error_span_wide().derive(SpanDeriveKind::MatchScrutinee(self.id));
         let mut lets = match &self.field {
@@ -102,13 +105,7 @@ impl DecisionTree {
             }
         }
 
-        let value = match &self.branches[..] {
-            [branch] => match &branch.node {
-                DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms),
-                DecisionTreeNode::Leaf { matched, .. } => arms[*matched].1.value.clone(),
-            },
-            _ => todo!(),
-        };
+        let value = branches_to_expr(&self.branches, scrutinee, arms);
 
         Expr::Block(Block {
             group_span: Span::None,
@@ -128,6 +125,46 @@ pub struct DecisionTreeBranch {
     // If the condition is met, `scrutinee.field` is bound to the name.
     // It's bound AFTER `scrutinee.field` is evaluated and BEFORE the branch.
     pub name_bindings: Vec<NameBinding>,
+}
+
+fn branches_to_expr(
+    branches: &[DecisionTreeBranch],
+    scrutinee: &Expr,
+    arms: &[(usize, &MatchArm)],
+) -> Expr {
+    match branches {
+        [branch] => match &branch.node {
+            DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms),
+            DecisionTreeNode::Leaf { matched, .. } => arms[*matched].1.value.clone(),
+        },
+        branches => Expr::If(If {
+            if_span: Span::None,
+            cond: Box::new(branch_condition_to_expr(&branches[0])),
+            else_span: Span::None,
+            true_value: Box::new(branches_to_expr(&branches[0..1], scrutinee, arms)),
+            true_group_span: Span::None,
+            false_value: Box::new(branches_to_expr(&branches[1..], scrutinee, arms)),
+            false_group_span: Span::None,
+            from_short_circuit: None,
+        }),
+    }
+}
+
+fn branch_condition_to_expr(branch: &DecisionTreeBranch) -> Expr {
+    match &branch.condition {
+        Constructor::Tuple(_) => unreachable!(),
+
+        // TODO: there's a very big problem
+        //       mir-lowering, poly-solving and monomorphizing is already done,
+        //       so we cannot use generic functions...
+        Constructor::Range(r) => todo!(),
+        Constructor::Or(cs) => todo!(),
+        Constructor::Wildcard => match &branch.guard {
+            Some(guard) => guard.clone(),
+            None => unreachable!(),
+        },
+        _ => todo!(),
+    }
 }
 
 #[derive(Clone, Debug)]

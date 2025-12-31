@@ -11,7 +11,7 @@ impl Solver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
-        let (pattern_type, has_error) = self.solve_pattern_kind(
+        let (pattern_type, mut has_error) = self.solve_pattern_kind(
             &pattern.kind,
             types,
             generic_instances,
@@ -19,7 +19,21 @@ impl Solver {
 
         match (&pattern_type, &pattern.name, &pattern.name_span) {
             // we can solve a type var!
-            (Some(pattern_type), Some(name_binding), Some(name_span)) => todo!(),
+            (Some(pattern_type), Some(name_binding), Some(name_span)) => {
+                if let Err(()) = self.solve_supertype(
+                    &pattern_type,
+                    &Type::Var { def_span: *name_span, is_return: false },
+                    types,
+                    generic_instances,
+                    /* is_checking_argument: */ false,
+                    Some(pattern.error_span_wide()),
+                    Some(*name_span),
+                    ErrorContext::Deep,
+                    /* bidirectional: */ true,
+                ) {
+                    has_error = true;
+                }
+            },
             _ => {},
         }
 

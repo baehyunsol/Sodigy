@@ -321,7 +321,8 @@ impl PatternKind {
             PatternKind::Char { span, .. } |
             PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
-            PatternKind::Tuple { group_span: span, .. } => *span,
+            PatternKind::Tuple { group_span: span, .. } |
+            PatternKind::Or { op_span: span, .. } => *span,
             _ => panic!("TODO: {self:?}"),
         }
     }
@@ -336,6 +337,9 @@ impl PatternKind {
             PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::Tuple { group_span: span, .. } => *span,
+            PatternKind::Or { lhs, rhs, op_span } => lhs.error_span_wide()
+                .merge(*op_span)
+                .merge(rhs.error_span_wide()),
             _ => panic!("TODO: {self:?}"),
         }
     }

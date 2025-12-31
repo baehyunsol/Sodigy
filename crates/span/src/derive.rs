@@ -63,13 +63,14 @@ impl Span {
     #[must_use = "method returns a new span and does not mutate the original span"]
     pub fn derive(&self, kind: SpanDeriveKind) -> Span {
         match self {
+            Span::None => Span::None,
             Span::Range { file, start, end } => Span::Derived {
                 kind,
                 file: *file,
                 start: *start,
                 end: *end,
             },
-            _ => todo!(),
+            _ => panic!("TODO: {self:?}"),
         }
     }
 }
