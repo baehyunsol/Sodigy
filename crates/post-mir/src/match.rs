@@ -124,7 +124,7 @@
 //!
 //! ## Exhaustiveness and unreachable arms.
 //!
-//! 1. If an arm does not appear in the state machine, the arm is unreachable.
+//! 1. If an arm does not appear in the decision tree, the arm is unreachable.
 //! 2. We add a fake arm with a wildcard pattern before lowering it.
 //!    If the fake arm is reachable, the match is not exhaustive.
 //!
@@ -173,11 +173,11 @@ use sodigy_string::{InternedString, intern_string};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
-mod state_machine;
-use state_machine::{
-    StateMachine,
-    StateMachineOrArm,
-    build_state_machine,
+mod tree;
+use tree::{
+    DecisionTree,
+    DecisionTreeNode,
+    build_tree,
 };
 
 pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
@@ -453,19 +453,19 @@ fn lower_match(
 
     let matrix = get_matrix(&scrutinee_type, lang_items);
 
-    let fsm = match build_state_machine(
+    let tree = match build_tree(
         &mut 1,
         &matrix,
         &arms,
         errors,
         warnings,
     )? {
-        StateMachineOrArm::StateMachine(fsm) => fsm,
-        StateMachineOrArm::Arm { .. } => unreachable!(),
+        DecisionTreeNode::Tree(tree) => tree,
+        DecisionTreeNode::Leaf { .. } => unreachable!(),
     };
 
     check_unreachable_and_exhaustiveness(
-        &fsm,
+        &tree,
         &arms,
         match_expr.keyword_span,
         extra_arm_id,
@@ -489,8 +489,8 @@ fn lower_match(
         _ => (Expr::Ident(another_name_binding), true),
     };
 
-    let fsm_expr = fsm.into_expr(&scrutinee, &arms);
-    let fsm_expr = if needs_another_name_binding {
+    let tree_expr = tree.into_expr(&scrutinee, &arms);
+    let tree_expr = if needs_another_name_binding {
         // We have to bind the name!!
         Expr::Block(Block {
             group_span: Span::None,
@@ -503,12 +503,12 @@ fn lower_match(
                 origin: LetOrigin::Match,
             }],
             asserts: vec![],
-            value: Box::new(fsm_expr),
+            value: Box::new(tree_expr),
         })
     } else {
-        fsm_expr
+        tree_expr
     };
-    Ok(fsm_expr)
+    Ok(tree_expr)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -738,7 +738,7 @@ struct NameBinding {
 // The compiler inserted an extra arm `_ => { .. }` at the end of a match expression.
 // If the extra arm is reachable, the match expression is not exhaustive.
 fn check_unreachable_and_exhaustiveness(
-    fsm: &StateMachine,
+    tree: &DecisionTree,
     arms: &[(usize, &MatchArm)],
     keyword_span: Span,
     extra_arm_id: usize,
@@ -747,7 +747,7 @@ fn check_unreachable_and_exhaustiveness(
 ) -> Result<(), ()> {
     let mut hidden_by = HashMap::new();
     let mut reachable_arms = HashSet::new();
-    check_arm_reachability(fsm, &mut hidden_by, &mut reachable_arms);
+    check_arm_reachability(tree, &mut hidden_by, &mut reachable_arms);
 
     for arm_id in 0..extra_arm_id {
         if !reachable_arms.contains(&arm_id) {
@@ -790,14 +790,14 @@ fn check_unreachable_and_exhaustiveness(
 }
 
 fn check_arm_reachability(
-    fsm: &StateMachine,
+    tree: &DecisionTree,
     hidden_by: &mut HashMap<usize, HashSet<usize>>,
     reachable_arms: &mut HashSet<usize>,
 ) {
-    for transition in fsm.transitions.iter() {
-        match &transition.state {
-            StateMachineOrArm::StateMachine(fsm) => check_arm_reachability(fsm, hidden_by, reachable_arms),
-            StateMachineOrArm::Arm { matched, unmatched } => {
+    for branch in tree.branches.iter() {
+        match &branch.node {
+            DecisionTreeNode::Tree(tree) => check_arm_reachability(tree, hidden_by, reachable_arms),
+            DecisionTreeNode::Leaf { matched, unmatched } => {
                 reachable_arms.insert(*matched);
 
                 for unmatched_id in unmatched.iter() {

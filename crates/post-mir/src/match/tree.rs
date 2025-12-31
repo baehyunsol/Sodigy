@@ -12,21 +12,21 @@ use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 
-// TODO: rename `StateMachine` to `DecisionTree`.
-
-// In this state, it reads `scrutinee.field` and transits to the next state.
-// `.condition` of each transition must be non-overlapping.
+// In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
+// `.condition` of each branch must be non-overlapping.
 //
-// `field` is None if it doesn't have to check scrutinee (e.g. when the transition is
+// `field` is None if it doesn't have to check scrutinee (e.g. when the branch is
 // based on the match guards.
 #[derive(Clone, Debug)]
-pub struct StateMachine {
+pub struct DecisionTree {
+    // It's used for spans. Just make sure that trees in a match expression have unique id.
     pub id: u32,
+
     pub field: Option<Vec<Field>>,
-    pub transitions: Vec<Transition>,
+    pub branches: Vec<DecisionTreeBranch>,
 }
 
-impl StateMachine {
+impl DecisionTree {
     /// ```
     /// match (x, y) {
     ///     (0, 0) => 0,
@@ -82,7 +82,7 @@ impl StateMachine {
             None => vec![],
         };
 
-        for Transition { name_bindings, .. } in self.transitions.iter() {
+        for DecisionTreeBranch { name_bindings, .. } in self.branches.iter() {
             for name_binding in name_bindings.iter() {
                 lets.push(Let {
                     keyword_span: Span::None,
@@ -102,10 +102,10 @@ impl StateMachine {
             }
         }
 
-        let value = match &self.transitions[..] {
-            [transition] => match &transition.state {
-                StateMachineOrArm::StateMachine(fsm) => fsm.into_expr(scrutinee, arms),
-                StateMachineOrArm::Arm { matched, .. } => arms[*matched].1.value.clone(),
+        let value = match &self.branches[..] {
+            [branch] => match &branch.node {
+                DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms),
+                DecisionTreeNode::Leaf { matched, .. } => arms[*matched].1.value.clone(),
             },
             _ => todo!(),
         };
@@ -120,47 +120,47 @@ impl StateMachine {
 }
 
 #[derive(Clone, Debug)]
-pub struct Transition {
+pub struct DecisionTreeBranch {
     pub condition: Constructor,
     pub guard: Option<Expr>,
-    pub state: StateMachineOrArm,
+    pub node: DecisionTreeNode,
 
     // If the condition is met, `scrutinee.field` is bound to the name.
-    // It's bound AFTER `scrutinee.field` is evaluated and BEFORE the transition.
+    // It's bound AFTER `scrutinee.field` is evaluated and BEFORE the branch.
     pub name_bindings: Vec<NameBinding>,
 }
 
 #[derive(Clone, Debug)]
-pub enum StateMachineOrArm {
-    StateMachine(StateMachine),
+pub enum DecisionTreeNode {
+    Tree(DecisionTree),
 
     // If there are multiple arms that can reach here, the first
     // arm is matched, and the remainings are pushed to `unmatched`.
     // `unmatched` is later used for warning messages, if necessary.
-    Arm {
+    Leaf {
         matched: usize,
         unmatched: Vec<usize>,
     },
 }
 
-pub(crate) fn build_state_machine(
-    state_id: &mut u32,
+pub(crate) fn build_tree(
+    tree_id: &mut u32,
     matrix: &[(Vec<Field>, Constructor)],
     arms: &[(usize, &MatchArm)],
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
-) -> Result<StateMachineOrArm, ()> {
+) -> Result<DecisionTreeNode, ()> {
     if matrix.is_empty() {
-        let mut transitions = vec![];
+        let mut branches = vec![];
         let mut unmatched_ids = vec![];
 
         for (i, (id, arm)) in arms.iter().enumerate() {
             if let Some(guard) = &arm.guard {
-                transitions.push((Some(guard.clone()), *id));
+                branches.push((Some(guard.clone()), *id));
             }
 
             else {
-                transitions.push((None, *id));
+                branches.push((None, *id));
 
                 if i + 1 < arms.len() {
                     unmatched_ids = arms[(i + 1)..].iter().map(|(id, _)| *id).collect();
@@ -170,27 +170,27 @@ pub(crate) fn build_state_machine(
             }
         }
 
-        match transitions.len() {
+        match branches.len() {
             0 => todo!(),
-            1 => match &transitions[0] {
+            1 => match &branches[0] {
                 (Some(guard), _) => todo!(),
                 (None, id) => {
-                    return Ok(StateMachineOrArm::Arm {
+                    return Ok(DecisionTreeNode::Leaf {
                         matched: *id,
                         unmatched: unmatched_ids,
                     });
                 },
             },
             _ => {
-                *state_id += 1;
-                return Ok(StateMachineOrArm::StateMachine(StateMachine {
-                    id: *state_id,
+                *tree_id += 1;
+                return Ok(DecisionTreeNode::Tree(DecisionTree {
+                    id: *tree_id,
                     field: None,
-                    transitions: transitions.into_iter().map(
-                        |(guard, id)| Transition {
+                    branches: branches.into_iter().map(
+                        |(guard, id)| DecisionTreeBranch {
                             condition: Constructor::Wildcard,
                             guard,
-                            state: StateMachineOrArm::Arm {
+                            node: DecisionTreeNode::Leaf {
                                 matched: id,
                                 unmatched: unmatched_ids.clone(),
                             },
@@ -249,17 +249,17 @@ pub(crate) fn build_state_machine(
                 }
             }
 
-            *state_id += 1;
-            Ok(StateMachineOrArm::StateMachine(StateMachine {
-                id: *state_id,
+            *tree_id += 1;
+            Ok(DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
                 field: Some(matrix[0].0.clone()),
 
                 // no branches
-                transitions: vec![Transition {
+                branches: vec![DecisionTreeBranch {
                     condition: Constructor::Wildcard,
                     guard: None,
-                    state: build_state_machine(
-                        state_id,
+                    node: build_tree(
+                        tree_id,
                         &matrix[1..],
                         &okay_patterns,
                         errors,
@@ -270,10 +270,10 @@ pub(crate) fn build_state_machine(
             }))
         },
         Constructor::Range(Range { r#type, .. }) => {
-            let mut transitions_with_overlap: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> = vec![];
+            let mut branches_with_overlap: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> = vec![];
 
             // default: wildcard
-            transitions_with_overlap.push((
+            branches_with_overlap.push((
                 Range {
                     r#type: *r#type,
                     lhs: None,
@@ -295,7 +295,7 @@ pub(crate) fn build_state_machine(
                         else {
                             let mut is_new = true;
 
-                            for (br, arms, name_bindings) in transitions_with_overlap.iter_mut() {
+                            for (br, arms, name_bindings) in branches_with_overlap.iter_mut() {
                                 if br == r {
                                     arms.push((*id, *arm));
 
@@ -315,12 +315,12 @@ pub(crate) fn build_state_machine(
                                     name_bindings.push(name_binding);
                                 }
 
-                                transitions_with_overlap.push((r.clone(), vec![(*id, *arm)], name_bindings));
+                                branches_with_overlap.push((r.clone(), vec![(*id, *arm)], name_bindings));
                             }
                         }
                     },
                     Constructor::Wildcard => {
-                        for (_, arms, name_bindings) in transitions_with_overlap.iter_mut() {
+                        for (_, arms, name_bindings) in branches_with_overlap.iter_mut() {
                             arms.push((*id, *arm));
 
                             if let Some(name_binding) = pattern.get_name_binding(*id) {
@@ -334,24 +334,24 @@ pub(crate) fn build_state_machine(
                 }
             }
 
-            // TODO: remove overlaps in transitions
+            // TODO: remove overlaps in branches
 
-            let mut transitions = Vec::with_capacity(transitions_with_overlap.len());
+            let mut branches = Vec::with_capacity(branches_with_overlap.len());
             let mut has_error = false;
 
-            for (range, arms, name_bindings) in transitions_with_overlap.into_iter() {
-                match build_state_machine(
-                    state_id,
+            for (range, arms, name_bindings) in branches_with_overlap.into_iter() {
+                match build_tree(
+                    tree_id,
                     &matrix[1..],
                     &arms,
                     errors,
                     warnings,
                 ) {
-                    Ok(state) => {
-                        transitions.push(Transition {
+                    Ok(node) => {
+                        branches.push(DecisionTreeBranch {
                             condition: Constructor::Range(range),
                             guard: None,
-                            state,
+                            node,
                             name_bindings,
                         });
                     },
@@ -366,11 +366,11 @@ pub(crate) fn build_state_machine(
             }
 
             else {
-                *state_id += 1;
-                Ok(StateMachineOrArm::StateMachine(StateMachine {
-                    id: *state_id,
+                *tree_id += 1;
+                Ok(DecisionTreeNode::Tree(DecisionTree {
+                    id: *tree_id,
                     field: Some(matrix[0].0.clone()),
-                    transitions,
+                    branches,
                 }))
             }
         },
