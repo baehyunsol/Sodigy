@@ -273,9 +273,12 @@ impl<'t, 's> Tokens<'t, 's> {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
 
-                match id.try_unintern_short_string() {
-                    Some(id) if id == b"_" => Ok(Type::Wildcard(span)),
-                    _ => Ok(Type::Ident { id, span }),
+                if id.eq(b"_") {
+                    Ok(Type::Wildcard(span))
+                }
+
+                else {
+                    Ok(Type::Ident { id, span })
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {

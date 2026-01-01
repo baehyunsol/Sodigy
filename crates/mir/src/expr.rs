@@ -5,7 +5,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::InfixOp;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -236,7 +236,7 @@ impl Expr {
                                                     }
 
                                                     else {
-                                                        let keyword_str = String::from_utf8_lossy(&unintern_string(keyword, &session.intermediate_dir).unwrap().unwrap()).to_string();
+                                                        let keyword_str = keyword.unintern_or_default(&session.intermediate_dir);
 
                                                         match repeated_arguments.entry(keyword) {
                                                             Entry::Occupied(mut e) => {
@@ -669,7 +669,7 @@ impl Expr {
                                     mir_fields_unwrapped.push(mir_field);
                                 },
                                 None => {
-                                    let field_name = String::from_utf8_lossy(&unintern_string(field_defs[i].name, &session.intermediate_dir).unwrap().unwrap()).to_string();
+                                    let field_name = field_defs[i].name.unintern_or_default(&session.intermediate_dir);
                                     session.errors.push(Error {
                                         kind: ErrorKind::MissingStructField(field_defs[i].name),
                                         spans: vec![

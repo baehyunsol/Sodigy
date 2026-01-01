@@ -20,7 +20,6 @@ use sodigy_hir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -270,7 +269,7 @@ impl Session {
                                     auxiliary: true,
                                     note: Some(format!(
                                         "`{}` is defined here.",
-                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                        id.id.unintern_or_default(&self.intermediate_dir),
                                     )),
                                 },
                             ],
@@ -278,12 +277,12 @@ impl Session {
                                 if is_func {
                                     format!(
                                         "Use `#[poly]` to make `{}` a poly generic function.",
-                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                        id.id.unintern_or_default(&self.intermediate_dir),
                                     )
                                 } else {
                                     format!(
                                         "`{}` is not even a function. Only a function can be a poly generic function.",
-                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                        id.id.unintern_or_default(&self.intermediate_dir),
                                     )
                                 }
                             ),
@@ -615,7 +614,7 @@ impl Session {
                                     auxiliary: true,
                                     note: Some(format!(
                                         "`{}` is just a type alias. It doesn't have any fields.",
-                                        String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap_or(b"????".to_vec())),
+                                        r#use.root.id.unintern_or_default(&self.intermediate_dir),
                                     )),
                                 },
                             ],
@@ -666,13 +665,13 @@ impl Session {
                             let error_message = match kind {
                                 NameKind::Module => format!(
                                     "Module `{}` doesn't have an item named `{}`.",
-                                    String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
-                                    String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                    r#use.root.id.unintern_or_default(&self.intermediate_dir),
+                                    field_name.unintern_or_default(&self.intermediate_dir),
                                 ),
                                 NameKind::Enum => format!(
                                     "Enum `{}` doesn't have a variant named `{}`.",
-                                    String::from_utf8_lossy(&unintern_string(r#use.root.id, &self.intermediate_dir).unwrap().unwrap()),
-                                    String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                    r#use.root.id.unintern_or_default(&self.intermediate_dir),
+                                    field_name.unintern_or_default(&self.intermediate_dir),
                                 ),
                                 _ => unreachable!(),
                             };
@@ -893,8 +892,8 @@ impl Session {
                                     spans: field_span.simple_error(),
                                     note: Some(format!(
                                         "Module `{}` doesn't have an item named `{}`.",
-                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                        String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                        id.id.unintern_or_default(&self.intermediate_dir),
+                                        field_name.unintern_or_default(&self.intermediate_dir),
                                     )),
                                 });
                                 Err(())
@@ -920,8 +919,8 @@ impl Session {
                                     spans: field_span.simple_error(),
                                     note: Some(format!(
                                         "Enum `{}` doesn't have a variant named `{}`.",
-                                        String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                        String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                        id.id.unintern_or_default(&self.intermediate_dir),
+                                        field_name.unintern_or_default(&self.intermediate_dir),
                                     )),
                                 });
                                 Err(())
@@ -1054,8 +1053,8 @@ impl Session {
                                             spans: field_span.simple_error(),
                                             note: Some(format!(
                                                 "Module `{}` doesn't have an item named `{}`.",
-                                                String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                                id.id.unintern_or_default(&self.intermediate_dir),
+                                                field_name.unintern_or_default(&self.intermediate_dir),
                                             )),
                                         });
                                         return Err(());
@@ -1081,8 +1080,8 @@ impl Session {
                                             spans: field_span.simple_error(),
                                             note: Some(format!(
                                                 "Enum `{}` doesn't have a variant named `{}`.",
-                                                String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                                String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                                id.id.unintern_or_default(&self.intermediate_dir),
+                                                field_name.unintern_or_default(&self.intermediate_dir),
                                             )),
                                         });
                                         return Err(());
@@ -1341,13 +1340,13 @@ impl Session {
                                     let error_message = match kind {
                                         NameKind::Module => format!(
                                             "Module `{}` doesn't have an item named `{}`.",
-                                            String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                            String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                            id.id.unintern_or_default(&self.intermediate_dir),
+                                            field_name.unintern_or_default(&self.intermediate_dir),
                                         ),
                                         NameKind::Enum => format!(
                                             "Enum `{}` doesn't have a variant named `{}`.",
-                                            String::from_utf8_lossy(&unintern_string(id.id, &self.intermediate_dir).unwrap().unwrap()),
-                                            String::from_utf8_lossy(&unintern_string(field_name, &self.intermediate_dir).unwrap().unwrap()),
+                                            id.id.unintern_or_default(&self.intermediate_dir),
+                                            field_name.unintern_or_default(&self.intermediate_dir),
                                         ),
                                         _ => unreachable!(),
                                     };

@@ -166,22 +166,25 @@ impl Type {
 
                 match Type::from_ast(r#type, session) {
                     // TODO: I want to use lang items...
-                    Ok(Type::Ident(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => match f.try_unintern_short_string() {
-                        Some(f) if f == b"Fn" => {
+                    Ok(Type::Ident(IdentWithOrigin { def_span: Span::Prelude(f), span, .. })) => {
+                        if f.eq(b"Fn") {
                             purity = FuncPurity::Both;
                             fn_span = span;
-                        },
-                        Some(f) if f == b"PureFn" => {
+                        }
+
+                        else if f.eq(b"PureFn") {
                             purity = FuncPurity::Pure;
                             fn_span = span;
-                        },
-                        Some(f) if f == b"ImpureFn" => {
+                        }
+
+                        else if f.eq(b"ImpureFn") {
                             purity = FuncPurity::Impure;
                             fn_span = span;
-                        },
-                        _ => {
+                        }
+
+                        else {
                             has_wrong_identifier = true;
-                        },
+                        }
                     },
                     Ok(_) => {
                         has_wrong_identifier = true;

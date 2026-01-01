@@ -6,7 +6,6 @@ use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::Span;
-use sodigy_string::intern_string;
 use std::collections::HashMap;
 
 impl Solver {
@@ -614,7 +613,7 @@ impl Solver {
                             for i in 0..args.len() {
                                 let i_s = format!("_{i}");
 
-                                if intern_string(i_s.as_bytes(), &self.intermediate_dir).unwrap() == *name {
+                                if name.eq(i_s.as_bytes()) {
                                     field_type = Some(args[i].clone());
                                     break;
                                 }

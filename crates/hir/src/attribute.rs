@@ -16,11 +16,7 @@ use sodigy_error::{Error, ErrorKind, ErrorToken, ItemKind, comma_list_strs};
 use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{
-    InternedString,
-    intern_string,
-    unintern_string,
-};
+use sodigy_string::{InternedString, intern_string};
 use std::collections::hash_map::{Entry, HashMap};
 
 mod decorator_docs;
@@ -560,7 +556,7 @@ impl Attribute {
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
         match self.decorators.get(&intern_string(b"lang_item", intermediate_dir).unwrap()) {
             Some(d) => match d.args.get(0) {
-                Some(Expr::String { s, .. }) => Some(String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string()),
+                Some(Expr::String { s, .. }) => Some(s.unintern_or_default(intermediate_dir)),
                 _ => unreachable!(),
             },
             None => None,
@@ -573,7 +569,7 @@ impl Attribute {
                 d.name_span,
                 d.args.iter().map(
                     |arg| match arg {
-                        Expr::String { s, .. } => String::from_utf8_lossy(&unintern_string(*s, intermediate_dir).unwrap().unwrap()).to_string(),
+                        Expr::String { s, .. } => s.unintern_or_default(intermediate_dir),
                         _ => unreachable!(),
                     }
                 ).collect(),

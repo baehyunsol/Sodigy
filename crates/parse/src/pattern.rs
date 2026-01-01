@@ -2,7 +2,7 @@ use crate::Tokens;
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::InternedString;
 use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -325,7 +325,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 let (id, span) = (*id, *span);
                 self.cursor += 1;
 
-                if &id.try_unintern_short_string().unwrap_or(vec![]) == b"_" {
+                if id.eq(b"_") {
                     Pattern {
                         name: None,
                         name_span: None,
@@ -611,7 +611,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                 auxiliary: false,
                                                 note: Some(format!(
                                                     "It already has a name `{}`. You can just use this name.",
-                                                    String::from_utf8_lossy(&unintern_string(*id, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                    id.unintern_or_default(&self.intermediate_dir),
                                                 )),
                                             },
                                         ],
@@ -879,7 +879,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                             auxiliary: true,
                                                             note: Some(format!(
                                                                 "There's a name binding `{}`.",
-                                                                String::from_utf8_lossy(&unintern_string(aux_name, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                                aux_name.unintern_or_default(&self.intermediate_dir),
                                                             )),
                                                         },
                                                     ],
@@ -910,7 +910,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",
-                                                        String::from_utf8_lossy(&unintern_string(lhs_name_binding, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                        lhs_name_binding.unintern_or_default(&self.intermediate_dir),
                                                     )),
                                                 },
                                                 RenderableSpan {
@@ -918,7 +918,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                                     auxiliary: true,
                                                     note: Some(format!(
                                                         "There's a name binding `{}`.",
-                                                        String::from_utf8_lossy(&unintern_string(rhs_name_binding, self.intermediate_dir).unwrap().unwrap_or(b"???".to_vec())),
+                                                        rhs_name_binding.unintern_or_default(&self.intermediate_dir),
                                                     )),
                                                 },
                                             ],

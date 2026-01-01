@@ -35,7 +35,6 @@ use sodigy_hir as hir;
 use sodigy_mir::Session as MirSession;
 use sodigy_session::Session;
 use sodigy_span::Span;
-use sodigy_string::unintern_string;
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
 use std::thread;
@@ -545,8 +544,7 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
 
                 if find_modules {
                     for module in hir_session.modules.iter() {
-                        let module_name = unintern_string(module.name, &intermediate_dir)?.unwrap();
-                        let module_name = String::from_utf8_lossy(&module_name).to_string();
+                        let module_name = module.name.unintern_or_default(&intermediate_dir);
                         tx_to_main.send(MessageToMain::FoundModuleDef {
                             path: input_module_path.join(module_name),
                             span: module.name_span,

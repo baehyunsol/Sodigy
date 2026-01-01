@@ -1,7 +1,7 @@
 use crate::{Pattern, PatternKind, PatternValueKind, Session};
 use sodigy_error::{Error, ErrorKind, comma_list_strs};
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Pattern {
@@ -207,10 +207,10 @@ impl PatternKind {
 
                 if lhs_name_binds != rhs_name_binds {
                     let mut lhs_name_binds = lhs_name_binds.iter().map(
-                        |name| String::from_utf8_lossy(&unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()).to_string()
+                        |name| name.unintern_or_default(&session.intermediate_dir)
                     ).collect::<Vec<_>>();
                     let mut rhs_name_binds = rhs_name_binds.iter().map(
-                        |name| String::from_utf8_lossy(&unintern_string(*name, &session.intermediate_dir).unwrap().unwrap()).to_string()
+                        |name| name.unintern_or_default(&session.intermediate_dir)
                     ).collect::<Vec<_>>();
                     lhs_name_binds.sort();
                     rhs_name_binds.sort();

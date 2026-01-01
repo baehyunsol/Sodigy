@@ -14,7 +14,7 @@ use crate::{
     Use,
 };
 use sodigy_error::ItemKind;
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 struct DecoratorInfo {
@@ -33,7 +33,7 @@ struct DecoratorInfo {
 
 // TODO: maybe there's a better return type than `String`...
 // TODO: this function requiring `intermediate_dir` is ridiculuous
-//       this function calling `unintern_string` is also ridiculuous
+//       this function calling `unintern_or_default` is also ridiculuous
 //
 // I want a complete document for decorators, and I want it to be semi-auto-generated.
 // I think this is the best place to write/implement the docs.
@@ -106,7 +106,7 @@ pub fn generate_decorator_docs(intermediate_dir: &str) -> String {
 
     let mut decorators = decorators.into_iter().map(
         |(name, decorator)| (
-            String::from_utf8(unintern_string(decorator.name, intermediate_dir).unwrap().unwrap()).unwrap(),
+            decorator.name.unintern_or_default(intermediate_dir),
             decorator,
         )
     ).collect::<Vec<(String, DecoratorInfo)>>();

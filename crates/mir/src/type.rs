@@ -3,7 +3,6 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity, StructShape};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 // This enum is originally meant for type annotations, but
@@ -87,7 +86,7 @@ impl Type {
         match hir_type {
             hir::Type::Ident(id) => match id.origin {
                 NameOrigin::FuncParam { .. } => {
-                    let param_name = String::from_utf8_lossy(&unintern_string(id.id, &session.intermediate_dir).unwrap().unwrap()).to_string();
+                    let param_name = id.id.unintern_or_default(&session.intermediate_dir);
                     session.errors.push(Error {
                         kind: ErrorKind::DependentTypeNotAllowed,
                         spans: vec![

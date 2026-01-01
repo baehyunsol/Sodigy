@@ -1,14 +1,13 @@
 use super::ErrorKind;
 use crate::comma_list_strs;
 use sodigy_name_analysis::NameKind;
-use sodigy_string::unintern_string;
 
 impl ErrorKind {
     pub fn render(&self, intermediate_dir: &str) -> String {
         match self {
             ErrorKind::UnusedNames { names, kind } => {
                 let names = names.iter().map(
-                    |name| String::from_utf8_lossy(&unintern_string(*name, intermediate_dir).unwrap().unwrap_or(b"???".to_vec())).to_string()
+                    |name| name.unintern_or_default(intermediate_dir)
                 ).collect::<Vec<_>>();
                 let names_joined = comma_list_strs(&names, "`", "`", "and");
                 let kind = match kind {

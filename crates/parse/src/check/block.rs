@@ -2,7 +2,7 @@ use crate::{Block, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
@@ -126,8 +126,7 @@ impl Block {
                     } else {
                         (spans[1].0, spans[0].0)
                     };
-                    let name_rendered = unintern_string(*name, &session.intermediate_dir).unwrap().unwrap();
-                    let name_rendered = String::from_utf8_lossy(&name_rendered).to_string();
+                    let name_rendered = name.unintern_or_default(&session.intermediate_dir);
 
                     vec![
                         RenderableSpan {

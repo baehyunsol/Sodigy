@@ -3,7 +3,7 @@ use sodigy_error::{Error, ErrorKind, Warning, WarningKind, comma_list_strs};
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::Session as MirSession;
 use sodigy_span::{RenderableSpan, Span};
-use sodigy_string::{InternedString, unintern_string};
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 pub type TypeWarning = TypeError;
@@ -176,7 +176,7 @@ impl ErrorContext {
             ErrorContext::OrPatternEqual => Some(String::from("Lhs and rhs of `|` pattern must have the same type.")),
             ErrorContext::OrPatternNameBinding(name) => Some(format!(
                 "Name `{}` is bound multiple times in `|` pattern, but they have different types.",
-                String::from_utf8_lossy(&unintern_string(*name, intermediate_dir).unwrap().unwrap_or(b"????".to_vec())),
+                name.unintern_or_default(intermediate_dir),
             )),
             ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
             ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
@@ -335,7 +335,7 @@ impl RenderTypeError for MirSession {
                                 if func_shape.generics.len() == 1 { "" } else { "s" },
                                 comma_list_strs(
                                     &func_shape.generics.iter().map(
-                                        |generic_def| String::from_utf8_lossy(&unintern_string(generic_def.name, &self.intermediate_dir).unwrap().unwrap()).to_string()
+                                        |generic_def| generic_def.name.unintern_or_default(&self.intermediate_dir)
                                     ).collect::<Vec<_>>(),
                                     "`",
                                     "`",
@@ -552,15 +552,9 @@ impl RenderTypeError for MirSession {
 
     fn span_to_string(&self, span: Span) -> Option<String> {
         match span {
-            Span::Prelude(p) => match unintern_string(p, &self.intermediate_dir) {
-                Ok(Some(p)) => Some(String::from_utf8_lossy(&p).to_string()),
-                _ => None,
-            },
+            Span::Prelude(p) => Some(p.unintern_or_default(&self.intermediate_dir)),
             Span::Range { .. } | Span::Derived { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
-                Some(Some(s)) => match unintern_string(*s, &self.intermediate_dir) {
-                    Ok(Some(s)) => Some(String::from_utf8_lossy(&s).to_string()),
-                    _ => None,
-                },
+                Some(Some(s)) => Some(s.unintern_or_default(&self.intermediate_dir)),
                 _ => None,
             },
             Span::None => None,

@@ -98,8 +98,7 @@ fn encode_fs_map(data: &[(u128, Vec<u8>)]) -> Vec<u8> {
     let mut result = vec![];
 
     for (id, s) in data.iter() {
-        // We don't have to encode the first 3 bytes because it's always 0x800.
-        result.extend(&id.to_be_bytes()[3..]);
+        result.extend(id.to_be_bytes());
         result.extend(s);
     }
 
@@ -111,16 +110,16 @@ fn decode_fs_map(bytes: &[u8], path: &str) -> Result<Vec<(u128, Vec<u8>)>, FileE
     let mut cursor = 0;
 
     loop {
-        let s_length = match bytes.get(cursor) {
-            Some(l) => *l as usize,
+        let (s_length, s_meta): (usize, [u8; 4]) = match bytes.get(cursor..(cursor + 4)) {
+            Some(bs) => (bs[3] as usize, bs.try_into().unwrap()),
             None => {
                 break;
             },
         };
-        cursor += 1;
+        cursor += 4;
 
-        let s_id = match bytes.get(cursor..(cursor + 12)) {
-            Some(id) => id.to_vec(),
+        let s_id: [u8; 12] = match bytes.get(cursor..(cursor + 12)) {
+            Some(id) => id.try_into().unwrap(),
             None => {
                 return Err(FileError {
                     kind: FileErrorKind::CannotDecodeFile,
@@ -141,12 +140,10 @@ fn decode_fs_map(bytes: &[u8], path: &str) -> Result<Vec<(u128, Vec<u8>)>, FileE
         };
         cursor += s_length;
 
-        result.push((u128::from_be_bytes([
-            128, 0, 0, s_length as u8,
-            s_id[0], s_id[1], s_id[2], s_id[3],
-            s_id[4], s_id[5], s_id[6], s_id[7],
-            s_id[8], s_id[9], s_id[10], s_id[11],
-        ]), s_content));
+        let mut u128_bytes = [0; 16];
+        u128_bytes[..4].copy_from_slice(&s_meta);
+        u128_bytes[4..].copy_from_slice(&s_id);
+        result.push((u128::from_be_bytes(u128_bytes), s_content));
     }
 
     Ok(result)

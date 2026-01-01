@@ -11,7 +11,6 @@ use sodigy_error::{Error, Warning};
 use sodigy_mir::{Callable, Expr, Intrinsic, Session as MirSession};
 use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
-use sodigy_string::unintern_string;
 use std::collections::HashMap;
 
 pub struct Session {
@@ -252,7 +251,7 @@ impl Session {
         Executable {
             asserts: self.asserts.iter().map(
                 |assert| (
-                    String::from_utf8_lossy(&unintern_string(assert.name, &self.intermediate_dir).unwrap().unwrap()).to_string(),
+                    assert.name.unintern_or_default(&self.intermediate_dir),
                     *label_map.get(&(assert.keyword_span, Label::Global(assert.keyword_span))).unwrap(),
                 )
             ).collect(),

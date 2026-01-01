@@ -13,7 +13,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, Field};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::{InternedString, intern_string, unintern_string};
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 
 mod pipeline;
@@ -363,8 +363,8 @@ impl Expr {
                         let value_note = match value {
                             ast::Expr::Ident { id, .. } => format!(
                                 "Unlike gleam or bash, you have to explicitly pipe the value. Try `{}($)` instead of `{}`",
-                                String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
-                                String::from_utf8_lossy(&unintern_string(*id, &session.intermediate_dir).unwrap().unwrap()),
+                                id.unintern_or_default(&session.intermediate_dir),
+                                id.unintern_or_default(&session.intermediate_dir),
                             ),
                             ast::Expr::Path { lhs, field } => match try_render_dotted_name(lhs, field, &session.intermediate_dir) {
                                 Some(name) => format!("Unlike gleam or bash, you have to explicitly use the value. Try `{name}($)` instead of `{name}`"),
@@ -540,10 +540,7 @@ fn try_render_dotted_name(
     intermediate_dir: &str,
 ) -> Option<String> {
     let lhs = match lhs {
-        ast::Expr::Ident { id, .. } => match unintern_string(*id, intermediate_dir) {
-            Ok(Some(s)) => String::from_utf8_lossy(&s).to_string(),
-            _ => { return None; },
-        },
+        ast::Expr::Ident { id, .. } => id.unintern_or_default(intermediate_dir),
         ast::Expr::Path { lhs, field } => match try_render_dotted_name(&lhs, &field, intermediate_dir) {
             Some(name) => name,
             None => { return None; },
@@ -552,10 +549,7 @@ fn try_render_dotted_name(
     };
 
     match field {
-        ast::Field::Name { name, .. } => match unintern_string(*name, intermediate_dir) {
-            Ok(Some(s)) => Some(format!("{lhs}.{}", String::from_utf8_lossy(&s))),
-            _ => None,
-        },
+        ast::Field::Name { name, .. } => Some(format!("{lhs}.{}", name.unintern_or_default(intermediate_dir))),
         _ => None,
     }
 }
