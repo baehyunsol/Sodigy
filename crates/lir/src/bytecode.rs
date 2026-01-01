@@ -87,6 +87,23 @@ pub enum Bytecode {
         dst: Memory,
     },
 
+    // `InitTuple` and `InitList` are very similar.
+    // It allocates a heap memory, copies the elements on stack,
+    // and saves the pointer to `dst`.
+    // The elements are at stack[(stack_pointer + stack_offset)..(stack_pointer + stack_offset + elements)].
+    // In runtime's point of view, tuples and structs are the same. So
+    // the compiler emits `InitTuple` to initialize a struct.
+    InitTuple {
+        stack_offset: usize,
+        elements: usize,
+        dst: Memory,
+    },
+    InitList {
+        stack_offset: usize,
+        elements: usize,
+        dst: Memory,
+    },
+
     // The runtime has to implement a special control flow for assertions.
     // An assertion may panic, but there's no (and will never be a) way to
     // catch a panic and recover. Then how does the runtime throw an appropriate

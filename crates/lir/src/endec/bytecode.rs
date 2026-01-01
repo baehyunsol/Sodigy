@@ -84,13 +84,25 @@ impl Endec for Bytecode {
                 stack_offset.encode_impl(buffer);
                 dst.encode_impl(buffer);
             },
-            Bytecode::PushDebugInfo { kind, src } => {
+            Bytecode::InitTuple { stack_offset, elements, dst } => {
                 buffer.push(15);
+                stack_offset.encode_impl(buffer);
+                elements.encode_impl(buffer);
+                dst.encode_impl(buffer);
+            },
+            Bytecode::InitList { stack_offset, elements, dst } => {
+                buffer.push(16);
+                stack_offset.encode_impl(buffer);
+                elements.encode_impl(buffer);
+                dst.encode_impl(buffer);
+            },
+            Bytecode::PushDebugInfo { kind, src } => {
+                buffer.push(17);
                 kind.encode_impl(buffer);
                 src.encode_impl(buffer);
             },
             Bytecode::PopDebugInfo => {
-                buffer.push(16);
+                buffer.push(18);
             },
         }
     }
@@ -164,12 +176,24 @@ impl Endec for Bytecode {
                 Ok((Bytecode::Intrinsic { intrinsic, stack_offset, dst }, cursor))
             },
             Some(15) => {
+                let (stack_offset, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (elements, cursor) = usize::decode_impl(buffer, cursor)?;
+                let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::InitTuple { stack_offset, elements, dst }, cursor))
+            },
+            Some(16) => {
+                let (stack_offset, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                let (elements, cursor) = usize::decode_impl(buffer, cursor)?;
+                let (dst, cursor) = Memory::decode_impl(buffer, cursor)?;
+                Ok((Bytecode::InitList { stack_offset, elements, dst }, cursor))
+            },
+            Some(17) => {
                 let (kind, cursor) = DebugInfoKind::decode_impl(buffer, cursor + 1)?;
                 let (src, cursor) = Memory::decode_impl(buffer, cursor)?;
                 Ok((Bytecode::PushDebugInfo { kind, src }, cursor))
             },
-            Some(16) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
-            Some(n @ 17..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(18) => Ok((Bytecode::PopDebugInfo, cursor + 1)),
+            Some(n @ 19..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -250,6 +250,34 @@ pub fn lower_expr(
                         }
                     },
                 },
+                Callable::StructInit { .. } | Callable::TupleInit { .. } | Callable::ListInit { .. } => {
+                    let bytecode = match func {
+                        Callable::StructInit { .. } | Callable::TupleInit { .. } => Bytecode::InitTuple {
+                            stack_offset,
+                            elements: args.len(),
+                            dst,
+                        },
+                        Callable::ListInit { .. } => Bytecode::InitList {
+                            stack_offset,
+                            elements: args.len(),
+                            dst,
+                        },
+                        _ => unreachable!(),
+                    };
+                    bytecodes.push(bytecode);
+
+                    // TODO: how do we know whether we should drop the args?
+                    for (i, arg) in args.iter().enumerate() {
+                        // if has_to_drop(arg) {
+                        //     drop Memory::Stack(i + stack_offset)
+                        // }
+                    }
+
+                    if is_tail_call {
+                        session.drop_all_locals(bytecodes);
+                        bytecodes.push(Bytecode::Return);
+                    }
+                },
                 _ => todo!(),
             }
         },
