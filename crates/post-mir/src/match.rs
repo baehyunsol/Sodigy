@@ -191,6 +191,7 @@ pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
             &mir_session.lang_items,
             &mut mir_session.errors,
             &mut mir_session.warnings,
+            &mir_session.intermediate_dir,
         ).is_err();
     }
 
@@ -202,6 +203,7 @@ pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
             &mir_session.lang_items,
             &mut mir_session.errors,
             &mut mir_session.warnings,
+            &mir_session.intermediate_dir,
         ).is_err();
     }
 
@@ -214,6 +216,7 @@ pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
                 &mir_session.lang_items,
                 &mut mir_session.errors,
                 &mut mir_session.warnings,
+                &mir_session.intermediate_dir,
             ).is_err();
         }
 
@@ -224,6 +227,7 @@ pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
             &mir_session.lang_items,
             &mut mir_session.errors,
             &mut mir_session.warnings,
+            &mir_session.intermediate_dir,
         ).is_err();
     }
 
@@ -243,6 +247,7 @@ fn lower_matches_expr_recursive(
     lang_items: &HashMap<String, Span>,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
+    intermediate_dir: &str,
 ) -> Result<(), ()> {
     match expr {
         Expr::Ident(_) |
@@ -251,9 +256,9 @@ fn lower_matches_expr_recursive(
         Expr::Char { .. } |
         Expr::Byte { .. } => Ok(()),
         Expr::If(r#if) => match (
-            lower_matches_expr_recursive(r#if.cond.as_mut(), types, struct_shapes, lang_items, errors, warnings),
-            lower_matches_expr_recursive(r#if.true_value.as_mut(), types, struct_shapes, lang_items, errors, warnings),
-            lower_matches_expr_recursive(r#if.false_value.as_mut(), types, struct_shapes, lang_items, errors, warnings),
+            lower_matches_expr_recursive(r#if.cond.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
+            lower_matches_expr_recursive(r#if.true_value.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
+            lower_matches_expr_recursive(r#if.false_value.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
         ) {
             (Ok(()), Ok(()), Ok(())) => Ok(()),
             _ => Err(()),
@@ -269,6 +274,7 @@ fn lower_matches_expr_recursive(
                     lang_items,
                     errors,
                     warnings,
+                    intermediate_dir,
                 ).is_err();
             }
 
@@ -281,6 +287,7 @@ fn lower_matches_expr_recursive(
                         lang_items,
                         errors,
                         warnings,
+                        intermediate_dir,
                     ).is_err();
                 }
 
@@ -291,6 +298,7 @@ fn lower_matches_expr_recursive(
                     lang_items,
                     errors,
                     warnings,
+                    intermediate_dir,
                 ).is_err();
             }
 
@@ -301,6 +309,7 @@ fn lower_matches_expr_recursive(
                 lang_items,
                 errors,
                 warnings,
+                intermediate_dir,
             ).is_err();
 
             if has_error {
@@ -318,6 +327,7 @@ fn lower_matches_expr_recursive(
             lang_items,
             errors,
             warnings,
+            intermediate_dir,
         ),
         Expr::Match(r#match) => {
             let mut has_error = false;
@@ -329,6 +339,7 @@ fn lower_matches_expr_recursive(
                 lang_items,
                 errors,
                 warnings,
+                intermediate_dir,
             ).is_err();
 
             for arm in r#match.arms.iter_mut() {
@@ -340,6 +351,7 @@ fn lower_matches_expr_recursive(
                         lang_items,
                         errors,
                         warnings,
+                        intermediate_dir,
                     ).is_err();
                 }
 
@@ -350,6 +362,7 @@ fn lower_matches_expr_recursive(
                     lang_items,
                     errors,
                     warnings,
+                    intermediate_dir,
                 ).is_err();
             }
 
@@ -360,6 +373,7 @@ fn lower_matches_expr_recursive(
                 lang_items,
                 errors,
                 warnings,
+                intermediate_dir,
             ) {
                 Ok(lowered) => {
                     *expr = lowered;
@@ -389,6 +403,7 @@ fn lower_matches_expr_recursive(
                         lang_items,
                         errors,
                         warnings,
+                        intermediate_dir,
                     ) {
                         has_error = true;
                     }
@@ -404,6 +419,7 @@ fn lower_matches_expr_recursive(
                     lang_items,
                     errors,
                     warnings,
+                    intermediate_dir,
                 ) {
                     has_error = true;
                 }
@@ -428,6 +444,7 @@ fn lower_match(
     lang_items: &HashMap<String, Span>,
     errors: &mut Vec<Error>,
     warnings: &mut Vec<Warning>,
+    intermediate_dir: &str,
 ) -> Result<Expr, ()> {
     let scrutinee_type = type_of(
         &match_expr.scrutinee,
@@ -489,7 +506,7 @@ fn lower_match(
         _ => (Expr::Ident(another_name_binding), true),
     };
 
-    let tree_expr = tree.into_expr(&scrutinee, &arms);
+    let tree_expr = tree.into_expr(&scrutinee, &arms, lang_items, intermediate_dir);
     let tree_expr = if needs_another_name_binding {
         // We have to bind the name!!
         Expr::Block(Block {

@@ -1,16 +1,18 @@
 use super::{
     Constructor,
+    LiteralType,
     NameBinding,
     Range,
     read_field_of_pattern,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_hir::LetOrigin;
-use sodigy_mir::{Block, Expr, If, Let, MatchArm};
+use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
+use std::collections::HashMap;
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
 // `.condition` of each branch must be non-overlapping.
@@ -64,12 +66,26 @@ impl DecisionTree {
     ///     }
     /// }
     /// ```
-    pub fn into_expr(&self, scrutinee: &Expr, arms: &[(usize, &MatchArm)]) -> Expr {
+    pub fn into_expr(
+        &self,
+        scrutinee: &Expr,
+        arms: &[(usize, &MatchArm)],
+        lang_items: &HashMap<String, Span>,
+        intermediate_dir: &str,
+    ) -> Expr {
         // TODO: We need some kinda cache for the scrutinee.
         //       For example, if there's `let curr = scrutinee._0._0` and `let curr = scrutinee._0._0._1`,
         //       we don't have to evaluate `scrutinee._0._0` twice.
         let curr_field_name = intern_string(b"curr", "").unwrap();
         let curr_field_span = scrutinee.error_span_wide().derive(SpanDeriveKind::MatchScrutinee(self.id));
+        let curr_field = Expr::Ident(IdentWithOrigin {
+            id: curr_field_name,
+            span: curr_field_span,
+            def_span: curr_field_span,
+            origin: NameOrigin::Local {
+                kind: NameKind::Let { is_top_level: false },
+            },
+        });
         let mut lets = match &self.field {
             Some(field) => vec![Let {
                 keyword_span: Span::None,
@@ -105,7 +121,14 @@ impl DecisionTree {
             }
         }
 
-        let value = branches_to_expr(&self.branches, scrutinee, arms);
+        let value = branches_to_expr(
+            &self.branches,
+            scrutinee,
+            &curr_field,
+            arms,
+            lang_items,
+            intermediate_dir,
+        );
 
         Expr::Block(Block {
             group_span: Span::None,
@@ -130,40 +153,109 @@ pub struct DecisionTreeBranch {
 fn branches_to_expr(
     branches: &[DecisionTreeBranch],
     scrutinee: &Expr,
+    curr_field: &Expr,
     arms: &[(usize, &MatchArm)],
+    lang_items: &HashMap<String, Span>,
+    intermediate_dir: &str,
 ) -> Expr {
     match branches {
         [branch] => match &branch.node {
-            DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms),
+            DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms, lang_items, intermediate_dir),
             DecisionTreeNode::Leaf { matched, .. } => arms[*matched].1.value.clone(),
         },
         branches => Expr::If(If {
             if_span: Span::None,
-            cond: Box::new(branch_condition_to_expr(&branches[0])),
+            cond: Box::new(branch_condition_to_expr(&branches[0], curr_field, lang_items, intermediate_dir)),
             else_span: Span::None,
-            true_value: Box::new(branches_to_expr(&branches[0..1], scrutinee, arms)),
+            true_value: Box::new(branches_to_expr(&branches[0..1], curr_field, scrutinee, arms, lang_items, intermediate_dir)),
             true_group_span: Span::None,
-            false_value: Box::new(branches_to_expr(&branches[1..], scrutinee, arms)),
+            false_value: Box::new(branches_to_expr(&branches[1..], curr_field, scrutinee, arms, lang_items, intermediate_dir)),
             false_group_span: Span::None,
             from_short_circuit: None,
         }),
     }
 }
 
-fn branch_condition_to_expr(branch: &DecisionTreeBranch) -> Expr {
+fn branch_condition_to_expr(
+    branch: &DecisionTreeBranch,
+    curr_field: &Expr,
+    lang_items: &HashMap<String, Span>,
+    intermediate_dir: &str,
+) -> Expr {
     match &branch.condition {
-        Constructor::Tuple(_) => unreachable!(),
-
-        // TODO: there's a very big problem
-        //       mir-lowering, poly-solving and monomorphizing is already done,
-        //       so we cannot use generic functions...
-        Constructor::Range(r) => todo!(),
-        Constructor::Or(cs) => todo!(),
         Constructor::Wildcard => match &branch.guard {
             Some(guard) => guard.clone(),
-            None => unreachable!(),
+            None => true_value(lang_items, intermediate_dir),
         },
-        _ => todo!(),
+        c => constructor_to_expr(c, curr_field, lang_items, intermediate_dir),
+    }
+}
+
+fn constructor_to_expr(
+    constructor: &Constructor,
+    curr_field: &Expr,
+    lang_items: &HashMap<String, Span>,
+    intermediate_dir: &str,
+) -> Expr {
+    match constructor {
+        Constructor::Tuple(_) => true_value(lang_items, intermediate_dir),
+        Constructor::DefSpan(_) => todo!(),
+        Constructor::Range(r) => match (&r.lhs, &r.rhs) {
+            (Some(n), Some(m)) if n == m && r.lhs_inclusive && r.rhs_inclusive => match r.r#type {
+                LiteralType::Int => Expr::Call {
+                    func: Callable::Static {
+                        def_span: *lang_items.get("built_in.eq_int").unwrap(),
+                        span: Span::None,
+                    },
+                    args: vec![
+                        curr_field.clone(),
+                        Expr::Number {
+                            n: n.clone(),
+                            span: Span::None,
+                        },
+                    ],
+                    arg_group_span: Span::None,
+                    // Poly-solving is already done, so we don't need this.
+                    generic_defs: vec![],
+                    given_keyword_arguments: vec![],
+                },
+                _ => todo!(),
+            },
+            (None, None) => true_value(lang_items, intermediate_dir),
+            _ => panic!("TODO: {r:?}"),
+        },
+        Constructor::Or(cs) => constructors_to_expr(cs, curr_field, lang_items, intermediate_dir),
+        Constructor::Wildcard => true_value(lang_items, intermediate_dir),
+    }
+}
+
+fn constructors_to_expr(
+    constructors: &[Constructor],
+    curr_field: &Expr,
+    lang_items: &HashMap<String, Span>,
+    intermediate_dir: &str,
+) -> Expr {
+    match constructors.len() {
+        1 => constructor_to_expr(&constructors[0], curr_field, lang_items, intermediate_dir),
+        _ => Expr::If(If {
+            if_span: Span::None,
+            cond: Box::new(constructor_to_expr(&constructors[0], curr_field, lang_items, intermediate_dir,)),
+            else_span: Span::None,
+            true_value: Box::new(Expr::Ident(IdentWithOrigin {
+                id: intern_string(b"True", intermediate_dir).unwrap(),
+                span: Span::None,
+                origin: NameOrigin::Foreign {
+                    kind: NameKind::EnumVariant {
+                        parent: *lang_items.get("type.Bool").unwrap(),
+                    },
+                },
+                def_span: *lang_items.get("variant.Bool.True").unwrap(),
+            })),
+            true_group_span: Span::None,
+            false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, lang_items, intermediate_dir)),
+            false_group_span: Span::None,
+            from_short_circuit: None,
+        }),
     }
 }
 
@@ -413,4 +505,17 @@ pub(crate) fn build_tree(
         },
         c => panic!("TODO: {c:?}"),
     }
+}
+
+fn true_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Expr {
+    Expr::Ident(IdentWithOrigin {
+        id: intern_string(b"True", intermediate_dir).unwrap(),
+        span: Span::None,
+        origin: NameOrigin::Foreign {
+            kind: NameKind::EnumVariant {
+                parent: *lang_items.get("type.Bool").unwrap(),
+            },
+        },
+        def_span: *lang_items.get("variant.Bool.True").unwrap(),
+    })
 }
