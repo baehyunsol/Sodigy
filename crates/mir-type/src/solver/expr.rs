@@ -626,6 +626,7 @@ impl Solver {
                         },
                         Field::Index(i) => todo!(),
                         Field::Range(start, end) => todo!(),
+                        Field::Variant => todo!(),
                         Field::Constructor | Field::Payload => unreachable!(),
                     };
 

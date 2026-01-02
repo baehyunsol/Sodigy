@@ -245,6 +245,9 @@ pub enum Field {
     /// I'm not sure whether I should implement 1, but 2 must be implemented.
     Range(i64, i64),
 
+    /// Returns a variant index of an enum value.
+    Variant,
+
     /// Special field for pattern analysis.
     Constructor,
 
@@ -258,6 +261,7 @@ impl Field {
             Field::Name { dot_span, .. } => Some(*dot_span),
             Field::Index(_) |
             Field::Range(_, _) |
+            Field::Variant |
             Field::Constructor |
             Field::Payload => None,
         }

@@ -572,7 +572,8 @@ struct Range {
 //     ([constructor], Tuple(3)),
 //     ([index(0), constructor], Range { Int, -inf..inf }),
 //     ([index(1), constructor], Range { Int, -inf..inf }),
-//     ([index(2), constructor], Or(DefSpan(Some), DefSpan(None))),
+//     ([index(2), constructor], DefSpan(Option)),
+//     ([index(2), variant], Or(DefSpan(Some), DefSpan(None))),
 //     ([index(2), payload], EnumPayload(Option)),
 // ]
 fn get_matrix(

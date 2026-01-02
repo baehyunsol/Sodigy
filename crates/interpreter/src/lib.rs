@@ -3,6 +3,7 @@ use sodigy_lir::{
     Executable,
     Label,
     Memory,
+    Offset,
 };
 use sodigy_mir::Intrinsic;
 use sodigy_number::{
@@ -93,6 +94,36 @@ fn execute(
                     },
                     Memory::Global(s) => {
                         heap.global_values.insert(*s, src);
+                    },
+                }
+            },
+            Bytecode::Read { src, offset, dst } => {
+                let src = match src {
+                    Memory::Return => stack.r#return,
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                } as usize;
+                let offset = match offset {
+                    Offset::Static(n) => *n,
+                    Offset::Dynamic(src) => match src {
+                        Memory::Return => stack.r#return,
+                        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                        Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                    },
+                } as usize;
+
+                let result = heap.data[src + offset + 2];
+                // TODO: increment ref count of result, if it has to
+
+                match dst {
+                    Memory::Return => {
+                        stack.r#return = result;
+                    },
+                    Memory::Stack(i) => {
+                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
+                    },
+                    Memory::Global(s) => {
+                        heap.global_values.insert(*s, result);
                     },
                 }
             },
@@ -260,6 +291,28 @@ fn execute(
                     }
                 },
                 Intrinsic::RandomInt => todo!(),
+            },
+            Bytecode::InitTuple { stack_offset, elements, dst } => {
+                let result = heap.alloc(*elements);
+
+                for i in 0..*elements {
+                    heap.data[result + i + 2] = stack.stack[stack.stack_pointer + *stack_offset + i];
+                    // TODO: inc_rc the copied value, if it has to
+                }
+
+                let result = result as u32;
+
+                match dst {
+                    Memory::Return => {
+                        stack.r#return = result;
+                    },
+                    Memory::Stack(i) => {
+                        *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result;
+                    },
+                    Memory::Global(s) => {
+                        heap.global_values.insert(*s, result);
+                    },
+                }
             },
             Bytecode::PushDebugInfo { kind, src } => {
                 let src = match src {

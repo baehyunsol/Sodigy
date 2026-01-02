@@ -3,11 +3,13 @@ use crate::{
     Bytecode,
     Label,
     Memory,
+    Offset,
     Session,
     Value,
 };
 use sodigy_mir::{Block, Callable, Expr, If, Match};
 use sodigy_name_analysis::{NameKind, NameOrigin};
+use sodigy_parse::Field;
 
 // caller is responsible for inc/decrementing the stack pointer
 // callee is responsible for dropping the local values
@@ -171,6 +173,48 @@ pub fn lower_expr(
 
             if !is_tail_call {
                 session.drop_block(&local_names);
+            }
+        },
+        Expr::Path { lhs, fields } => {
+            lower_expr(
+                lhs,
+                session,
+                bytecodes,
+                Memory::Return,
+                /* is_tail_call: */ false,
+            );
+
+            for field in fields.iter() {
+                match field {
+                    Field::Index(i) => {
+                        // TODO: drop `Memory::Return` if it has to
+
+                        bytecodes.push(Bytecode::Read {
+                            src: Memory::Return,
+                            // TODO: negative indexes
+                            offset: Offset::Static(*i as u32),
+                            dst: Memory::Return,
+                        });
+                    },
+                    Field::Constructor => {
+                        // nop
+                    },
+                    _ => todo!(),
+                }
+            }
+
+            if dst != Memory::Return {
+                bytecodes.push(Bytecode::Move {
+                    src: Memory::Return,
+                    dst,
+                    // TODO: inc_rc if it has to
+                    inc_rc: false,
+                });
+            }
+
+            if is_tail_call {
+                session.drop_all_locals(bytecodes);
+                bytecodes.push(Bytecode::Return);
             }
         },
         Expr::Call { func, args, .. } => {

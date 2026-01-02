@@ -97,7 +97,18 @@ impl Endec for Offset {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        todo!()
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (n, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((Offset::Static(n), cursor))
+            },
+            Some(1) => {
+                let (src, cursor) = Memory::decode_impl(buffer, cursor + 1)?;
+                Ok((Offset::Dynamic(src), cursor))
+            },
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
     }
 }
 

@@ -32,11 +32,14 @@ impl Endec for Field {
                 a.encode_impl(buffer);
                 b.encode_impl(buffer);
             },
-            Field::Constructor => {
+            Field::Variant => {
                 buffer.push(3);
             },
-            Field::Payload => {
+            Field::Constructor => {
                 buffer.push(4);
+            },
+            Field::Payload => {
+                buffer.push(5);
             },
         }
     }
@@ -67,9 +70,10 @@ impl Endec for Field {
                 let (b, cursor) = i64::decode_impl(buffer, cursor)?;
                 Ok((Field::Range(a, b), cursor))
             },
-            Some(3) => Ok((Field::Constructor, cursor + 1)),
+            Some(3) => Ok((Field::Variant, cursor + 1)),
             Some(4) => Ok((Field::Constructor, cursor + 1)),
-            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(5) => Ok((Field::Payload, cursor + 1)),
+            Some(n @ 6..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
