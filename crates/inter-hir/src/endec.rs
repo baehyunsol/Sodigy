@@ -1,5 +1,5 @@
 use crate::Session;
-use sodigy_endec::{DecodeError, DumpIr, Endec};
+use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{Expr, FuncShape, Poly, StructShape};
 use sodigy_name_analysis::NameKind;
@@ -57,11 +57,10 @@ impl Endec for Session {
     }
 }
 
-impl DumpIr for Session {
-    fn dump_ir(&self) -> Vec<u8> {
+impl DumpSession for Session {
+    fn dump_session(&self) -> Vec<u8> {
         let s = format!(
-            "{}func_shapes: {:?}, struct_shapes: {:?}, name_aliases: {:?}, type_aliases: {:?}, item_name_map: {:?}, lang_items: {:?}, polys: {:?}{}",
-            "{",
+            "{{ func_shapes: {:?}, struct_shapes: {:?}, name_aliases: {:?}, type_aliases: {:?}, item_name_map: {:?}, lang_items: {:?}, polys: {:?} }}",
             self.func_shapes,
             self.struct_shapes,
             self.name_aliases,
@@ -69,7 +68,6 @@ impl DumpIr for Session {
             self.item_name_map,
             self.lang_items,
             self.polys,
-            "}",
         );
         let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());
         c.step_all();

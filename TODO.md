@@ -1,3 +1,11 @@
+# 136. dump mir and hir
+
+이제 mir이랑 hir이 너무 복잡해져서 현재 방식의 dump로는 잘 안보임...
+
+지금 match를 block + let + if로 바꾸지? 이게 엄청 복잡할텐데 debug할 방법이 필요함...
+
+rust 문법으로 dump하는 함수를 만들자!
+
 # 135. spawning a subprocess
 
 - What Python/Rust api provides

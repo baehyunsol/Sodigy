@@ -1,10 +1,12 @@
 mod error;
 mod impls;
+mod indented_lines;
 
 #[cfg(test)]
 mod tests;
 
 pub use error::DecodeError;
+pub use indented_lines::IndentedLines;
 
 pub trait Endec {
     fn encode(&self) -> Vec<u8> {
@@ -30,15 +32,14 @@ pub trait Endec {
 }
 
 // It dumps contents of a session in a human-readable format.
-pub trait DumpIr {
-    fn dump_ir(&self) -> Vec<u8>;
+pub trait DumpSession {
+    fn dump_session(&self) -> Vec<u8>;
 }
 
-// `DumpIr` is used to dump sessions.
-// But the last stage (code gen) doesn't have a session and instead directly generates the code (in Vec<u8>).
-// So, this trait is used to dump the code (which is nop).
-impl DumpIr for Vec<u8> {
-    fn dump_ir(&self) -> Vec<u8> {
+// The last stage (code gen) doesn't have a session and instead directly generates the code (in Vec<u8>).
+// So, this trait is used to dump the code.
+impl DumpSession for Vec<u8> {
+    fn dump_session(&self) -> Vec<u8> {
         self.to_vec()
     }
 }

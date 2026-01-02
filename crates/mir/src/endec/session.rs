@@ -1,5 +1,5 @@
 use crate::{Assert, Enum, Func, Let, Session, Struct, Type};
-use sodigy_endec::{DecodeError, DumpIr, Endec};
+use sodigy_endec::{DecodeError, DumpSession, Endec, IndentedLines};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{FuncShape, Poly, StructShape};
 use sodigy_span::Span;
@@ -76,18 +76,31 @@ impl Endec for Session {
     }
 }
 
-impl DumpIr for Session {
-    fn dump_ir(&self) -> Vec<u8> {
+impl DumpSession for Session {
+    fn dump_session(&self) -> Vec<u8> {
         let s = format!(
-            "{}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
-            "{",
+            "{{ lets: {:?}, funcs: {:?}, asserts: {:?} }}",
             self.lets,
             self.funcs,
             self.asserts,
-            "}",
         );
         let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());
         c.step_all();
-        c.output().to_vec()
+        let s = String::from_utf8(c.output().to_vec()).unwrap();
+        let mut indented_lines = IndentedLines::new();
+
+        for r#let in self.lets.iter() {
+            dump_let(r#let, &mut indented_lines, self);
+        }
+
+        for func in self.funcs.iter() {
+            dump_func(func, &mut indented_lines, self);
+        }
+
+        for assert in self.asserts.iter() {
+            dump_assert(assert, &mut indented_lines, self);
+        }
+
+        format!("{}\n\nlet session = {s};", indented_lines.dump()).into_bytes()
     }
 }
