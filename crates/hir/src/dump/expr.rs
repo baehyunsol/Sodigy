@@ -1,5 +1,7 @@
+use super::{dump_assert, dump_let, dump_pattern};
 use crate::{Expr, Session};
 use sodigy_endec::IndentedLines;
+use sodigy_parse::Field;
 
 pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
     match expr {
@@ -7,7 +9,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
         },
         Expr::Number { n, .. } => {
-            lines.push(&n.render());
+            lines.push(&n.dump());
         },
         Expr::String { binary, s, .. } => {
             let s = format!(
@@ -81,7 +83,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
 
             for assert in block.asserts.iter() {
-                dump_let(assert, lines, session);
+                dump_assert(assert, lines, session);
             }
 
             dump_expr(&block.value, lines, session);
@@ -89,7 +91,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.break_line();
         },
         Expr::Call { func, args, .. } => {
-            match func {
+            match &**func {
                 Expr::Ident(_) | Expr::Path { .. } => {
                     dump_expr(func, lines, session);
                 },
@@ -106,8 +108,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 lines.inc_indent();
                 lines.break_line();
 
-                for arg in args.len() {
-                    dump_expr(arg, lines, session);
+                for arg in args.iter() {
+                    dump_expr(&arg.arg, lines, session);
                     lines.push(",");
                     lines.break_line();
                 }
@@ -117,12 +119,63 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
 
             else {
-                for arg in args.len() {
-                    dump_expr(arg, lines, session);
+                for arg in args.iter() {
+                    dump_expr(&arg.arg, lines, session);
                 }
             }
 
             lines.push(")");
         },
+        Expr::FormattedString { .. } => {
+            lines.push(&format!("/* TODO: dump formatted string {expr:?} */"));
+        },
+        Expr::Tuple { elements, .. } | Expr::List { elements, .. } => {
+            let is_tuple = matches!(expr, Expr::Tuple { .. });
+            lines.push(if is_tuple { "(" } else { "[" });
+
+            if elements.len() > 1 {
+                lines.inc_indent();
+                lines.break_line();
+
+                for element in elements.iter() {
+                    dump_expr(&element, lines, session);
+                    lines.push(",");
+                    lines.break_line();
+                }
+
+                lines.dec_indent();
+                lines.break_line();
+            }
+
+            else {
+                for element in elements.iter() {
+                    dump_expr(&element, lines, session);
+                }
+
+                if is_tuple && elements.len() == 1 {
+                    lines.push(",");
+                }
+            }
+
+            lines.push(if is_tuple { ")" } else { "]" });
+        },
+        Expr::StructInit { .. } => {
+            lines.push(&format!("/* TODO: dump struct init {expr:?} */"));
+        },
+        Expr::Path { lhs, fields } => {
+            dump_expr(lhs, lines, session);
+
+            for field in fields.iter() {
+                lines.push(".");
+
+                match field {
+                    Field::Name { name, .. } => {
+                        lines.push(&name.unintern_or_default(&session.intermediate_dir));
+                    },
+                    _ => todo!(),
+                }
+            }
+        },
+        _ => todo!(),
     }
 }

@@ -5,6 +5,8 @@ use sodigy_endec::IndentedLines;
 pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session) {
     lines.break_line();
 
+    lines.push(&format!("// name_span: {:?}", r#let.name_span));
+    lines.break_line();
     lines.push(&format!("// origin: {:?}", r#let.origin));
     lines.break_line();
     lines.push(&format!("// foreign_names: {:?}", r#let.foreign_names));
