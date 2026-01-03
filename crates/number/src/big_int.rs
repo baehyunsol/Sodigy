@@ -2,7 +2,7 @@ use crate::error::ParseIntError;
 
 pub mod op;
 pub mod cmp;
-mod convert;
+pub mod convert;
 
 use op::{add_ubi, mul_ubi, shl_ubi};
 

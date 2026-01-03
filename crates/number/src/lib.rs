@@ -8,6 +8,7 @@ pub use base::Base;
 pub use big_int::{
     BigInt,
     cmp::*,
+    convert::*,
     op::*,
 };
 pub(crate) use error::ParseIntError;
@@ -25,6 +26,40 @@ pub struct InternedNumber {
     // For example, `1.0` and `1` has the same `value` but different `is_integer`.
     // When doing comptime-eval, this field acts like a type-information.
     pub is_integer: bool,
+}
+
+impl InternedNumber {
+    /// This is for debugging.
+    pub fn dump(&self) -> String {
+        let mut n = unintern_number(self.value.clone());
+
+        if self.is_integer {
+            let (is_neg, nums) = div_bi(n.numer.is_neg, &n.numer.nums, n.denom.is_neg, &n.denom.nums);
+            bi_to_string(is_neg, &nums)
+        }
+
+        else {
+            let int_nums = div_ubi(&n.numer.nums, &n.denom.nums);
+
+            // numer % denom * 1_000_000 / denom
+            let frac = div_ubi(&mul_ubi(&rem_ubi(&n.numer.nums, &n.denom.nums), &[1_000_000]), &n.denom.nums)[0];
+            let mut s = format!("{}.{frac:06}", ubi_to_string(&int_nums)).into_bytes();
+
+            while s.len() > 3 && *s.last().unwrap() == b'0' {
+                s.pop().unwrap();
+            }
+
+            let s = String::from_utf8(s).unwrap();
+
+            if n.numer.is_neg {
+                format!("-{s}")
+            }
+
+            else {
+                s
+            }
+        }
+    }
 }
 
 // Caution: A number must be represented in a most efficient way.
