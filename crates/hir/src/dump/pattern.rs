@@ -40,8 +40,37 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
                 |(id, _)| id.unintern_or_default(&session.intermediate_dir)
             ).collect::<Vec<_>>().join("."));
         },
-        PatternKind::Tuple { elements, rest, .. } | PatternKind::List { elements, rest, .. } => {
-            let is_tuple = matches!(pattern_kind, PatternKind::Tuple { .. });
+        PatternKind::Struct { r#struct, fields, rest, .. } => {
+            lines.push(&r#struct.iter().map(
+                |(id, _)| id.unintern_or_default(&session.intermediate_dir)
+            ).collect::<Vec<_>>().join("."));
+
+            lines.push("{");
+            lines.inc_indent();
+            lines.break_line();
+
+            for field in fields.iter() {
+                lines.push(&field.name.unintern_or_default(&session.intermediate_dir));
+
+                if !field.is_shorthand {
+                    lines.push(": ");
+                    dump_pattern(&field.pattern, lines, session);
+                }
+
+                lines.push(",");
+                lines.break_line();
+            }
+        },
+        PatternKind::TupleStruct { elements, rest, .. } |
+        PatternKind::Tuple { elements, rest, .. } |
+        PatternKind::List { elements, rest, .. } => {
+            if let PatternKind::TupleStruct { r#struct, .. } = pattern_kind {
+                lines.push(&r#struct.iter().map(
+                    |(id, _)| id.unintern_or_default(&session.intermediate_dir)
+                ).collect::<Vec<_>>().join("."));
+            }
+
+            let is_tuple = matches!(pattern_kind, PatternKind::TupleStruct { .. } | PatternKind::Tuple { .. });
             lines.push(if is_tuple { "(" } else { "[" });
 
             if elements.len() > 1 {
@@ -99,6 +128,5 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
         PatternKind::Wildcard(_) => {
             lines.push("_");
         },
-        _ => todo!(),
     }
 }

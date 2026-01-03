@@ -11,7 +11,7 @@ use sodigy::{
     StoreIrAt,
     parse_args,
 };
-use sodigy_endec::{DumpIr, Endec};
+use sodigy_endec::{DumpSession, Endec};
 use sodigy_error::Error as SodigyError;
 use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
@@ -846,7 +846,7 @@ fn init_ir_dir(intermediate_dir: &str) -> Result<(), FileError> {
     Ok(())
 }
 
-fn emit_irs_if_has_to<T: Endec + DumpIr>(
+fn emit_irs_if_has_to<T: Endec + DumpSession>(
     session: &T,
     emit_ir_options: &[EmitIrOption],
     finished_stage: CompileStage,
@@ -874,7 +874,7 @@ fn emit_irs_if_has_to<T: Endec + DumpIr>(
         None
     };
     let human_readable = if human_readable {
-        Some(session.dump_ir())
+        Some(session.dump_session())
     } else {
         None
     };

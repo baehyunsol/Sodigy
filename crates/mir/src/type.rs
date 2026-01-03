@@ -436,3 +436,47 @@ pub fn type_of(
         _ => todo!(),
     }
 }
+
+impl Session {
+    /// It's used for error messages and `dump_type` function.
+    /// Make sure to call `init_span_string_map` before calling this function.
+    pub fn render_type(&self, r#type: &Type) -> String {
+        match r#type {
+            Type::Static { def_span, .. } | Type::GenericDef { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
+            Type::Unit(_) => String::from("()"),
+            Type::Param {
+                constructor,
+                args,
+                ..
+            } if matches!(constructor.as_ref(), Type::Unit(_)) => format!(
+                "({}{})",
+                args.iter().map(
+                    |arg| self.render_type(arg)
+                ).collect::<Vec<_>>().join(", "),
+                if args.len() == 1 { "," } else { "" },
+            ),
+            // TODO: alias `List<T>` to `[T]`?
+            Type::Param { constructor, args, .. } => format!(
+                "{}<{}>",
+                self.render_type(constructor),
+                args.iter().map(
+                    |arg| self.render_type(arg)
+                ).collect::<Vec<_>>().join(", "),
+            ),
+            Type::Func { params, r#return, purity, .. } => format!(
+                "{}({}) -> {}",
+                match purity {
+                    FuncPurity::Pure => "PureFn",
+                    FuncPurity::Impure => "ImpureFn",
+                    FuncPurity::Both => "Fn",
+                },
+                params.iter().map(
+                    |param| self.render_type(param)
+                ).collect::<Vec<_>>().join(", "),
+                self.render_type(r#return.as_ref()),
+            ),
+            Type::Var { .. } | Type::GenericInstance { .. } => String::from("_"),
+            Type::Never { .. } => String::from("!"),
+        }
+    }
+}

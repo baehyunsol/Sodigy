@@ -1,5 +1,5 @@
-use super::{dump_expr, dump_type, dump_visibility};
-use crate::{Func, Session};
+use super::{dump_expr, dump_type};
+use crate::{Func, Session, Type};
 use sodigy_endec::IndentedLines;
 
 pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
@@ -7,20 +7,14 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
 
     lines.push(&format!("// name_span: {:?}", func.name_span));
     lines.break_line();
-    lines.push(&format!("// origin: {:?}", func.origin));
-    lines.break_line();
-    lines.push(&format!("// foreign_names: {:?}", func.foreign_names));
-    lines.break_line();
 
     if func.built_in {
         lines.push("#[built_in]");
         lines.break_line();
     }
 
-    dump_visibility(&func.visibility, lines, session);
-
     if !func.is_pure {
-        lines.push(" impure");
+        lines.push("impure");
     }
 
     lines.push(&format!(" fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
@@ -40,10 +34,14 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
 
     for param in func.params.iter() {
         lines.push(&param.name.unintern_or_default(&session.intermediate_dir));
+        lines.push(": ");
 
-        if let Some(type_annot) = &param.type_annot {
-            lines.push(": ");
+        if let Some(type_annot) = session.types.get(&param.name_span) {
             dump_type(type_annot, lines, session);
+        }
+
+        else {
+            lines.push("_");
         }
 
         if let Some(default_value) = param.default_value {
@@ -51,11 +49,14 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
         }
     }
 
-    lines.push(")");
+    lines.push(") -> ");
 
-    if let Some(type_annot) = &func.type_annot {
-        lines.push(" -> ");
-        dump_type(type_annot, lines, session);
+    if let Some(Type::Func { r#return, .. }) = session.types.get(&func.name_span) {
+        dump_type(r#return, lines, session);
+    }
+
+    else {
+        lines.push("_");
     }
 
     lines.push(" = ");

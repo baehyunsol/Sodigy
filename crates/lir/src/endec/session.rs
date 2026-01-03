@@ -1,5 +1,5 @@
 use crate::{Assert, Func, Let, Session};
-use sodigy_endec::{DecodeError, DumpIr, Endec};
+use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_mir::Intrinsic;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -55,15 +55,13 @@ impl Endec for Session {
     }
 }
 
-impl DumpIr for Session {
-    fn dump_ir(&self) -> Vec<u8> {
+impl DumpSession for Session {
+    fn dump_session(&self) -> Vec<u8> {
         let s = format!(
-            "{}lets: {:?}, funcs: {:?}, asserts: {:?}{}",
-            "{",
+            "{{ lets: {:?}, funcs: {:?}, asserts: {:?} }}",
             self.lets,
             self.funcs,
             self.asserts,
-            "}",
         );
         let mut c = sodigy_prettify::Context::new(s.as_bytes().to_vec());
         c.step_all();

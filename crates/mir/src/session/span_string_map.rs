@@ -6,6 +6,21 @@ use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 impl Session {
+    /// Make sure to call `init_span_string_map` before calling this.
+    pub fn span_to_string(&self, span: Span) -> Option<String> {
+        match span {
+            Span::Prelude(p) => Some(p.unintern_or_default(&self.intermediate_dir)),
+            Span::Range { .. } | Span::Derived { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
+                Some(Some(s)) => Some(s.unintern_or_default(&self.intermediate_dir)),
+                _ => None,
+            },
+            Span::None => None,
+            _ => todo!(),
+        }
+    }
+
+    /// Be careful, this is extremely expensive!!
+    /// Call this only when necessary.
     pub fn init_span_string_map(&mut self) {
         if self.span_string_map.is_some() {
             return;

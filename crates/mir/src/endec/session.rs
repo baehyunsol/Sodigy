@@ -1,4 +1,13 @@
-use crate::{Assert, Enum, Func, Let, Session, Struct, Type};
+use crate::{
+    Assert,
+    Enum,
+    Func,
+    Let,
+    Session,
+    Struct,
+    Type,
+    dump::{dump_assert, dump_func, dump_let},
+};
 use sodigy_endec::{DecodeError, DumpSession, Endec, IndentedLines};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{FuncShape, Poly, StructShape};

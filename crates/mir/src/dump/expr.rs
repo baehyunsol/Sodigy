@@ -1,8 +1,8 @@
-use super::{dump_assert, dump_let, dump_pattern};
-use crate::{Expr, Session};
+use super::{dump_assert, dump_let};
+use crate::{Callable, Expr, Session};
 use sodigy_endec::IndentedLines;
+use sodigy_hir::dump::dump_pattern;
 use sodigy_parse::Field;
-use sodigy_token::InfixOp;
 
 pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
     match expr {
@@ -29,11 +29,6 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::If(r#if) => {
             lines.push("if ");
 
-            if let Some(pattern) = &r#if.pattern {
-                dump_pattern(pattern, lines, session);
-                lines.push(" = ");
-            }
-
             dump_expr(&r#if.cond, lines, session);
             lines.push(" {");
             lines.inc_indent();
@@ -50,6 +45,10 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.push("}");
         },
         Expr::Match(r#match) => {
+            if r#match.lowered_from_if {
+                lines.push("/* lowered from if */");
+            }
+
             lines.push("match ");
             dump_expr(&r#match.scrutinee, lines, session);
             lines.push(" {");
@@ -57,7 +56,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.break_line();
 
             for arm in r#match.arms.iter() {
-                dump_pattern(&arm.pattern, lines, session);
+                dump_pattern(&arm.pattern, lines, todo!());
 
                 if let Some(guard) = &arm.guard {
                     lines.push(" if ");
@@ -91,78 +90,6 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.dec_indent();
             lines.break_line();
         },
-        Expr::Call { func, args, .. } => {
-            match &**func {
-                Expr::Ident(_) | Expr::Path { .. } => {
-                    dump_expr(func, lines, session);
-                },
-                _ => {
-                    lines.push("(");
-                    dump_expr(func, lines, session);
-                    lines.push(")");
-                },
-            }
-
-            lines.push("(");
-
-            if args.len() > 1 {
-                lines.inc_indent();
-                lines.break_line();
-
-                for arg in args.iter() {
-                    dump_expr(&arg.arg, lines, session);
-                    lines.push(",");
-                    lines.break_line();
-                }
-
-                lines.dec_indent();
-                lines.break_line();
-            }
-
-            else {
-                for arg in args.iter() {
-                    dump_expr(&arg.arg, lines, session);
-                }
-            }
-
-            lines.push(")");
-        },
-        Expr::FormattedString { .. } => {
-            lines.push(&format!("/* TODO: dump formatted string {expr:?} */"));
-        },
-        Expr::Tuple { elements, .. } | Expr::List { elements, .. } => {
-            let is_tuple = matches!(expr, Expr::Tuple { .. });
-            lines.push(if is_tuple { "(" } else { "[" });
-
-            if elements.len() > 1 {
-                lines.inc_indent();
-                lines.break_line();
-
-                for element in elements.iter() {
-                    dump_expr(&element, lines, session);
-                    lines.push(",");
-                    lines.break_line();
-                }
-
-                lines.dec_indent();
-                lines.break_line();
-            }
-
-            else {
-                for element in elements.iter() {
-                    dump_expr(&element, lines, session);
-                }
-
-                if is_tuple && elements.len() == 1 {
-                    lines.push(",");
-                }
-            }
-
-            lines.push(if is_tuple { ")" } else { "]" });
-        },
-        Expr::StructInit { .. } => {
-            lines.push(&format!("/* TODO: dump struct init {expr:?} */"));
-        },
         Expr::Path { lhs, fields } => {
             dump_expr(lhs, lines, session);
 
@@ -188,25 +115,46 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.push(" ");
             dump_expr(rhs, lines, session);
         },
-        Expr::PrefixOp { op, rhs, .. } => {
-            lines.push(op.render_error());
-            dump_expr(rhs, lines, session);
-        },
-        Expr::InfixOp { lhs, op, rhs, .. } => {
-            dump_expr(lhs, lines, session);
+        Expr::Call { func, args, .. } => {
+            let (open_delim, close_delim) = match func {
+                Callable::Static { def_span, .. } => {
+                    lines.push(&session.span_to_string(*def_span).unwrap());
+                    ("(", ")")
+                },
+                Callable::StructInit { .. } => todo!(),
+                Callable::TupleInit { .. } => ("(", ")"),
+                Callable::ListInit { .. } => ("[", "]"),
+                Callable::Dynamic(f) => {
+                    lines.push("(");
+                    dump_expr(f, lines, session);
+                    lines.push(")");
+                    ("(", ")")
+                },
+            };
 
-            match op {
-                InfixOp::Index => {
-                    lines.push("[");
-                    dump_expr(rhs, lines, session);
-                    lines.push("]");
-                },
-                _ => {
-                    lines.push(op.render_error());
-                    dump_expr(rhs, lines, session);
-                },
+            lines.push(open_delim);
+
+            if args.len() > 1 {
+                lines.inc_indent();
+                lines.break_line();
+
+                for arg in args.iter() {
+                    dump_expr(&arg, lines, session);
+                    lines.push(",");
+                    lines.break_line();
+                }
+
+                lines.dec_indent();
+                lines.break_line();
             }
+
+            else {
+                for arg in args.iter() {
+                    dump_expr(&arg, lines, session);
+                }
+            }
+
+            lines.push(close_delim);
         },
-        Expr::PostfixOp { .. } => todo!(),
     }
 }

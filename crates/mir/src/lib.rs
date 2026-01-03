@@ -3,6 +3,7 @@ use sodigy_inter_hir::Session as InterHirSession;
 
 mod assert;
 mod block;
+pub(crate) mod dump;
 mod endec;
 mod r#enum;
 mod expr;

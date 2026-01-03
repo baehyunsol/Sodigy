@@ -20,6 +20,14 @@ impl PrefixOp {
             PrefixOp::Neg => vec!["op.neg.generic.0"],
         }
     }
+
+    // Used when generating error messages.
+    pub fn render_error(&self) -> &'static str {
+        match self {
+            PrefixOp::Not => "!",
+            PrefixOp::Neg => "-",
+        }
+    }
 }
 
 impl TryFrom<Punct> for PrefixOp {

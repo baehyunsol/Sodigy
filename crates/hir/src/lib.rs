@@ -13,7 +13,7 @@ mod alias;
 mod assert;
 mod attribute;
 mod block;
-pub(crate) mod dump;
+pub mod dump;
 mod endec;
 mod eval;
 mod r#enum;

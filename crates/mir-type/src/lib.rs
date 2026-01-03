@@ -7,7 +7,7 @@ mod mono;
 mod poly;
 mod solver;
 
-pub use error::{ErrorContext, ExprContext, RenderTypeError, TypeError};
+pub use error::{ErrorContext, ExprContext, TypeError, type_error_to_general_error};
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 use solver::Solver;
@@ -122,7 +122,7 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
     }
 
     for warning in type_solver.warnings.iter() {
-        session.warnings.push(session.type_error_to_general_error(warning));
+        session.warnings.push(type_error_to_general_error(warning, &session));
     }
 
     if has_error {
@@ -131,7 +131,7 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
         session.init_span_string_map();
 
         for error in type_solver.errors.iter() {
-            session.errors.push(session.type_error_to_general_error(error));
+            session.errors.push(type_error_to_general_error(error, &session));
         }
     }
 
