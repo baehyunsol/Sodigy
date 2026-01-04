@@ -1,0 +1,23 @@
+// This file is a sibling of `subtype-3.sdg`
+// Read `subtype-3.sdg` for more context.
+
+type Subtype = PureFn() -> ();
+type Supertype = Fn() -> ();
+
+type SubSub = Fn(Subtype) -> Subtype;
+type SubSuper = Fn(Subtype) -> Supertype;
+type SuperSub = Fn(Supertype) -> Subtype;
+type SuperSuper = Fn(Supertype) -> Supertype;
+
+let subsubs: [SubSub] = [];
+let subsupers: [SubSuper] = [];
+let supersubs: [SuperSub] = [];
+let supersupers: [SuperSuper] = [];
+
+let s2: [SubSub] = subsupers;
+let s4: [SubSub] = supersupers;
+let s9: [SuperSub] = subsubs;
+let s10: [SuperSub] = subsupers;
+let s12: [SuperSub] = supersupers;
+let s13: [SuperSuper] = subsubs;
+let s14: [SuperSuper] = subsupers;

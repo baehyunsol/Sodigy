@@ -11,25 +11,22 @@ let subsupers: [SubSuper] = [];
 let supersubs: [SuperSub] = [];
 let supersupers: [SuperSuper] = [];
 
-// TODO: It seems like something's wrong with the compiler
-//       fix the compiler and add `subtype-error-3.sdg`
-
 let s1: [SubSub] = subsubs;
-let s2: [SubSub] = subsupers;
+// let s2: [SubSub] = subsupers;  // type error
 let s3: [SubSub] = supersubs;
-let s4: [SubSub] = supersupers;
+// let s4: [SubSub] = supersupers;  // type error
 
 let s5: [SubSuper] = subsubs;
 let s6: [SubSuper] = subsupers;
 let s7: [SubSuper] = supersubs;
 let s8: [SubSuper] = supersupers;
 
-let s9: [SuperSub] = subsubs;
-let s10: [SuperSub] = subsupers;
+// let s9: [SuperSub] = subsubs;  // type error
+// let s10: [SuperSub] = subsupers;  // type error
 let s11: [SuperSub] = supersubs;
-let s12: [SuperSub] = supersupers;
+// let s12: [SuperSub] = supersupers;  // type error
 
-let s13: [SuperSuper] = subsubs;
-let s14: [SuperSuper] = subsupers;
+// let s13: [SuperSuper] = subsubs;  // type error
+// let s14: [SuperSuper] = subsupers;  // type error
 let s15: [SuperSuper] = supersubs;
 let s16: [SuperSuper] = supersupers;

@@ -379,9 +379,18 @@ impl Solver {
                     let mut args = Vec::with_capacity(args1.len());
 
                     for i in 0..args1.len() {
+                        // TOOD: For function parameters, we need `solve_subtype`, but we don't have such.
+                        //       So, 1) we swap `args1[i]` and `args2[i]` and 2) discard the result (which is the supertype)
+                        //       and push `args1[i]` (which is the subtype) to `args`.
+                        let (lhs_, rhs_, is_func) = if let Type::Func { .. } = lhs {
+                            (&args2[i], &args1[i], true)
+                        } else {
+                            (&args1[i], &args2[i], false)
+                        };
+
                         match self.solve_supertype(
-                            &args1[i],
-                            &args2[i],
+                            lhs_,
+                            rhs_,
                             types,
                             generic_instances,
                             true,  // is_checking_argument
@@ -391,7 +400,13 @@ impl Solver {
                             bidirectional,
                         ) {
                             Ok(arg) => {
-                                args.push(arg);
+                                if is_func {
+                                    args.push(arg);
+                                }
+
+                                else {
+                                    args.push(rhs_.clone());
+                                }
                             },
                             Err(()) => {
                                 if !is_checking_argument {
