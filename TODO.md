@@ -1,3 +1,77 @@
+# 138. match-expr 왜 안되냐...
+
+드디어 dump를 다 구현했음!!
+사실 완벽하진 않고, type-check가 끝난 다음에 무조건 `../dump.rs`로 뱉도록 했음.
+
+`sample/match-1.sdg`의 `num3`를 뱉어보니 아래처럼 나옴.
+
+```rs
+fn num3(a, b, c) = match (a, b, c) {
+    (0, 0, _) => 1,
+    (0, _, _) => 2,
+    (_, _, 0) => 3,
+    (_, _, _) => 4,
+};
+
+// name_span: Range { file: File { project: 0, file: 0 }, start: 54, end: 58 }
+ fn num3(a: Int,b: Int,c: Int,) -> Int = {
+    // name_span: Derived { kind: MatchScrutinee(0), file: File { project: 0, file: 0 }, start: 70, end: 75 }
+    // There's no type annotation. The type is infered.
+     let scrutinee: _ = (a, b, c);
+
+    {
+        // name_span: None
+        // There's no type annotation. The type is infered.
+        let curr: _ = scrutinee.__CONSTRUCTOR__;
+
+        {
+            // name_span: None
+            // There's no type annotation. The type is infered.
+            let curr: _ = scrutinee._0.__CONSTRUCTOR__;
+
+            if True {
+                // name_span: None
+                // There's no type annotation. The type is infered.
+                let curr: _ = curr._1.__CONSTRUCTOR__;
+                {
+                    // name_span: None
+                    // There's no type annotation. The type is infered.
+                    let curr: _ = curr._2.__CONSTRUCTOR__;
+
+                    if True { 4 } else { 3 }
+                }
+            } else {
+                // name_span: None
+                // There's no type annotation. The type is infered.
+                let curr: _ = curr._1.__CONSTRUCTOR__;
+
+                if True {
+                    // name_span: None
+                    // There's no type annotation. The type is infered.
+                    let curr: _ = curr._2.__CONSTRUCTOR__;
+
+                    if True { 2 } else { 3 }
+                } else {
+                    // name_span: None
+                    // There's no type annotation. The type is infered.
+                    let curr: _ = curr._2.__CONSTRUCTOR__;
+
+                    if True { 1 } else { 3 }
+                }
+            }
+        }
+    }
+};
+```
+
+1. `if True`가 나오는 이유: decision tree에서 `0`보다 `_`가 먼저 나오기 때문!
+  - wildcard가 뒤로 가도록 고쳐야함 (optimization)
+  - `0`이랑 `_`랑 있으면 `_`를 `..0 | 1..`로 고쳐야함 (soundness)
+
+# 137. Subtyping in function objects
+
+Params of function objects 볼 때는 subtyping 반대로 해야하는 거 아님??
+
 # 136. dump mir and hir
 
 이제 mir이랑 hir이 너무 복잡해져서 현재 방식의 dump로는 잘 안보임...
@@ -65,11 +139,13 @@ It has to be written in Sodigy... In order to do that,
 
 How about first implement it in Python and later use Sodigy? -> it already is implemented in Python!
 
-# 132. `void` return types
+# 132. `Void` return types
 
 Some functions (e.g. primitive `print`) return control flow, but their return value has no meaning. I want a type for these.
 
-I'll call it `void`. If a function's return type is `void`, it's a compile error to look at the return value. Like `Never` type, the type checker has to treat `void` specially.
+I'll call it `void`. If a function's return type is `Void`. In runtime, it's just a scalar 0 value (or, if we have ZST, it's a ZST).
+
+The compiler doesn't treat it specially at all. It's just a value that has no meaning. I first wanted it to be supertype of every type, but then we can't drop this value (cuz we don't know whether we should drop this). It has nothing to do with purity. A pure function can return `Void`, or take `Void` as an input.
 
 # 131. logger
 

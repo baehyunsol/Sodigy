@@ -9,7 +9,7 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session) {
     lines.break_line();
 
     if let Some(type_annot_span) = r#let.type_annot_span {
-        lines.push("// type_annot_span: {type_annot_span:?}");
+        lines.push(&format!("// type_annot_span: {type_annot_span:?}"));
         lines.break_line();
     }
 

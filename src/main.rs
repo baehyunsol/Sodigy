@@ -342,6 +342,12 @@ fn main() -> Result<(), Error> {
                                 },
                                 // for debugging
                                 EmitIrOption {
+                                    stage: CompileStage::TypeCheck,
+                                    store: StoreIrAt::IntermediateDir,
+                                    human_readable: true,
+                                },
+                                // for debugging
+                                EmitIrOption {
                                     stage: CompileStage::Bytecode,
                                     store: StoreIrAt::IntermediateDir,
                                     human_readable: true,
@@ -694,8 +700,15 @@ pub fn run(commands: Vec<Command>, tx_to_main: mpsc::Sender<MessageToMain>) -> R
                 let mir_session = merged_mir_session.unwrap();
                 let (mut mir_session, type_solver) = sodigy_mir_type::solve(mir_session);
 
+                // TODO: we can do this per-file
                 let _ = sodigy_post_mir::lower_matches(&mut mir_session);
                 mir_session.continue_or_dump_errors().map_err(|_| Error::CompileError)?;
+
+                // FIXME: this is just for debugging
+                //        it is extremely expensive!!
+                //        I have added this because `emit_irs_if_has_to` cannot handle this case
+                mir_session.init_span_string_map();
+                write_bytes("../dump.rs", &mir_session.dump_session(), WriteMode::CreateOrTruncate).unwrap();
 
                 if let CompileStage::TypeCheck = stop_after {
                     continue;

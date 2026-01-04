@@ -49,6 +49,8 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
         if let Some(default_value) = param.default_value {
             lines.push(&format!(" = {}", default_value.id.unintern_or_default(&session.intermediate_dir)));
         }
+
+        lines.push(",");
     }
 
     lines.push(")");

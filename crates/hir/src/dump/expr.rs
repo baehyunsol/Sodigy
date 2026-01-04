@@ -72,7 +72,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
 
             lines.dec_indent();
             lines.break_line();
-            lines.push(" {");
+            lines.push("}");
         },
         Expr::Block(block) => {
             lines.push("{");
@@ -90,6 +90,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             dump_expr(&block.value, lines, session);
             lines.dec_indent();
             lines.break_line();
+            lines.push("}");
         },
         Expr::Call { func, args, .. } => {
             match &**func {

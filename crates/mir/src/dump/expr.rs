@@ -56,7 +56,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.break_line();
 
             for arm in r#match.arms.iter() {
-                dump_pattern(&arm.pattern, lines, todo!());
+                dump_pattern(&arm.pattern, lines, &into_hir_session(session));
 
                 if let Some(guard) = &arm.guard {
                     lines.push(" if ");
@@ -71,7 +71,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
 
             lines.dec_indent();
             lines.break_line();
-            lines.push(" {");
+            lines.push("}");
         },
         Expr::Block(block) => {
             lines.push("{");
@@ -89,6 +89,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             dump_expr(&block.value, lines, session);
             lines.dec_indent();
             lines.break_line();
+            lines.push("}");
         },
         Expr::Path { lhs, fields } => {
             dump_expr(lhs, lines, session);
@@ -100,7 +101,20 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                     Field::Name { name, .. } => {
                         lines.push(&name.unintern_or_default(&session.intermediate_dir));
                     },
-                    _ => todo!(),
+                    Field::Index(i) => {
+                        if *i < 0 { todo!() }
+                        lines.push(&format!("_{i}"));
+                    },
+                    Field::Range(_, _) => todo!(),
+                    Field::Variant => {
+                        lines.push("__VARIANT__");
+                    },
+                    Field::Constructor => {
+                        lines.push("__CONSTRUCTOR__");
+                    },
+                    Field::Payload => {
+                        lines.push("__PAYLOAD__");
+                    },
                 }
             }
         },
@@ -118,7 +132,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::Call { func, args, .. } => {
             let (open_delim, close_delim) = match func {
                 Callable::Static { def_span, .. } => {
-                    lines.push(&session.span_to_string(*def_span).unwrap());
+                    lines.push(&session.span_to_string(*def_span).unwrap_or(String::from("????")));
                     ("(", ")")
                 },
                 Callable::StructInit { .. } => todo!(),
@@ -156,5 +170,34 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
 
             lines.push(close_delim);
         },
+    }
+}
+
+use std::collections::HashMap;
+
+// TODO: In order to `dump_type`, I need an HirSession, but I don't have one.
+//       This is just a quick hack. I don't like it and I have to find a better way.
+fn into_hir_session(session: &Session) -> sodigy_hir::Session {
+    sodigy_hir::Session {
+        intermediate_dir: session.intermediate_dir.to_string(),
+        name_stack: vec![],
+        attribute_rule_cache: HashMap::new(),
+        func_default_values: vec![],
+        is_in_debug_context: false,
+        is_std: false,
+        nested_pipeline_depth: 0,
+        lets: vec![],
+        funcs: vec![],
+        structs: vec![],
+        enums: vec![],
+        asserts: vec![],
+        aliases: vec![],
+        uses: vec![],
+        modules: vec![],
+        lang_items: HashMap::new(),
+        polys: HashMap::new(),
+        poly_impls: vec![],
+        errors: vec![],
+        warnings: vec![],
     }
 }
