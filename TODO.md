@@ -1,3 +1,41 @@
+# 139. use asserts instead of panics in std
+
+```rs
+fn div_int_wrapper(a: Int, b: Int) -> Int = {
+    if b == 0 {
+        // TODO: error message
+        std.panic()
+    }
+
+    else {
+        div_int(a, b)
+    }
+};
+
+fn div_int_wrapper(a: Int, b: Int) -> Int = {
+    assert b != 0;
+    div_int(a, b)
+};
+```
+
+전자보다 후자가 훨씬 나은듯? 저기 말고도 비슷하게 panic 쓰는 부분들 다 저렇게 바꾸고 싶음.
+
+근데 assertion note를 붙이고 싶은데 지금은 assertion note를 먼저 eval하고 assertion을 검사하거든? 그럼 너무 비효율적임... assert가 실패했을 때만 note를 eval하게 해야함 -> 이러면 assertion이 panic 하는 경우에는...?? panic 하면서 생긴 garbage를 다 정리한 다음에 (stack unwind & drop values on stack) assertion note를 eval해야하는데 그게 너무 어려움 ㅠㅠ
+
+아니면 함수가 호출되었을 때 검사하는 `#[pre_assert(b != 0)]` 이런 거 만들까?
+
+1. 이러면 호출 부분의 span에다가 밑줄을 칠 수 있기 때문에 사용자가 보기에 더 좋음!!
+2. 이렇게 하더라도 note를 lazy하게 eval하려면 구현하는게 좀 빡세지만... 해야지!
+3. `#[pre_assert(b != 0, note="blahblah")] fn div_int_wrapper(a, b) = { ... }`가 있고 `a / b`가 있으면 `a / b`를 `if b != 0 { div_int_wrapper(a, b) } else { std.panic("blahblah") }`로 고쳐버려도 됨!!
+  - 이러면 호출 부분의 span에 밑줄 치기도 쉽고 (여전히 컴파일러 도움이 필요하긴 함)
+  - 이러면 `b != 0`이 panic 하더라도 span이 보존이 잘되고
+  - note를 lazy하게 eval하는 거는 자동으로 구현이 되고...
+
+이거랑 별개로 assertion이 실패 했을 때만 note를 eval하도록 고치자
+
+1. assertion이나 note가 panic하면 note를 못 보겠지만 그건 감수해야지 ㅋㅋㅋ
+2. 이거 테스트 케이스 추가하자 note는 panic하지만 assertion은 성공하는 케이스 만들어서 돌리기!!
+
 # 138. match-expr 왜 안되냐...
 
 드디어 dump를 다 구현했음!!
