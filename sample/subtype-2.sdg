@@ -1,0 +1,15 @@
+type Subtype = PureFn() -> ();
+type Supertype = Fn() -> ();
+
+let subtypes: [Subtype] = [];
+let supertypes: [Supertype] = [];
+
+let nested1: [[Subtype]] = [subtypes, subtypes];
+// let nested2: [[Subtype]] = [subtypes, supertypes];  // type error
+// let nested3: [[Subtype]] = [supertypes, subtypes];  // type error
+// let nested4: [[Subtype]] = [supertypes, supertypes];  // type error
+
+let nested5: [[Supertype]] = [subtypes, subtypes];
+let nested6: [[Supertype]] = [subtypes, supertypes];
+let nested7: [[Supertype]] = [supertypes, subtypes];
+let nested8: [[Supertype]] = [supertypes, supertypes];

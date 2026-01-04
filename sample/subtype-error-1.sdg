@@ -1,0 +1,11 @@
+// This file is a sibling of `subtype-1.sdg`
+// Read `subtype-1.sdg` for more context.
+
+let never_value2 = std.panic();
+let value2: Int = never_value2;
+let values2: [Int] = never_value2;  // error
+
+let never_value4: ! = 3;
+
+let never_values1: [!] = std.panic();
+let never_tuple: (!,) = never_values1;  // error

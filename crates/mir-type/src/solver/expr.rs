@@ -38,7 +38,7 @@ impl Solver {
                             NameKind::PatternNameBind => {
                                 self.pattern_name_bindings.insert(id.def_span);
                             },
-                            _ => panic!("TODO: {id:?}"),
+                            _ => {},
                         },
                         _ => {},
                     }

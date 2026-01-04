@@ -1,0 +1,35 @@
+type Subtype = PureFn() -> ();
+type Supertype = Fn() -> ();
+
+type SubSub = Fn(Subtype) -> Subtype;
+type SubSuper = Fn(Subtype) -> Supertype;
+type SuperSub = Fn(Supertype) -> Subtype;
+type SuperSuper = Fn(Supertype) -> Supertype;
+
+let subsubs: [SubSub] = [];
+let subsupers: [SubSuper] = [];
+let supersubs: [SuperSub] = [];
+let supersupers: [SuperSuper] = [];
+
+// TODO: It seems like something's wrong with the compiler
+//       fix the compiler and add `subtype-error-3.sdg`
+
+let s1: [SubSub] = subsubs;
+let s2: [SubSub] = subsupers;
+let s3: [SubSub] = supersubs;
+let s4: [SubSub] = supersupers;
+
+let s5: [SubSuper] = subsubs;
+let s6: [SubSuper] = subsupers;
+let s7: [SubSuper] = supersubs;
+let s8: [SubSuper] = supersupers;
+
+let s9: [SuperSub] = subsubs;
+let s10: [SuperSub] = subsupers;
+let s11: [SuperSub] = supersubs;
+let s12: [SuperSub] = supersupers;
+
+let s13: [SuperSuper] = subsubs;
+let s14: [SuperSuper] = subsupers;
+let s15: [SuperSuper] = supersubs;
+let s16: [SuperSuper] = supersupers;

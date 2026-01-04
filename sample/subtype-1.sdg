@@ -1,0 +1,20 @@
+// `!` is subtype of every type.
+let never_value1: ! = std.panic();
+let value1: Int = never_value1;
+let values1: [Int] = never_value1;
+
+// `!` is subtype of every type, but `never_value2` will be infered to have type `Int`,
+// so `values2` is a type error.
+let never_value2 = std.panic();
+let value2: Int = never_value2;
+// let values2: [Int] = never_value2;
+
+let never_value3: Int = std.panic();
+
+// `Int` is not a subtype of `!`, so this is an error.
+// let never_value4: ! = 3;
+
+let never_values1: [!] = std.panic();
+
+// `List` is not subtype of `()`, so this is a type error.
+// let never_tuple: (!,) = never_values1;

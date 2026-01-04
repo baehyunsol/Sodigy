@@ -1,0 +1,12 @@
+// This file is a sibling of `subtype-2.sdg`
+// Read `subtype-2.sdg` for more context.
+
+type Subtype = PureFn() -> ();
+type Supertype = Fn() -> ();
+
+let subtypes: [Subtype] = [];
+let supertypes: [Supertype] = [];
+
+let nested2: [[Subtype]] = [subtypes, supertypes];
+let nested3: [[Subtype]] = [supertypes, subtypes];
+let nested4: [[Subtype]] = [supertypes, supertypes];

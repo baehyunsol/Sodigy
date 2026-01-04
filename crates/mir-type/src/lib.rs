@@ -77,6 +77,12 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
 
         // TODO: structs and enums
 
+        // We don't want to do monomorphization if there's a type error
+        // -> an erroneous monomorphization might generate very unreadable error messages
+        if has_error {
+            break;
+        }
+
         // If we initialize it at every iteration, that'd be too expensive.
         // If we initialize it before the first iteration, we have too small type information to use.
         if poly_solver.is_empty() {

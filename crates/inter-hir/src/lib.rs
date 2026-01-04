@@ -19,7 +19,7 @@ use sodigy_hir::{
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -811,7 +811,7 @@ impl Session {
                         Type::Path { id: alias_id, fields: alias_fields } => todo!(),
                         Type::Param { .. } => {
                             // r#type: `type x = y;`
-                            // alias: `type y = Option<Int>`
+                            // alias: `type y = Option<Int>;`
                             if alias.generics.is_empty() {
                                 log.push(id.span);
                                 log.push(id.def_span);
@@ -821,9 +821,48 @@ impl Session {
                             }
 
                             // r#type: `type x = y;`
-                            // alias: `type y<T> = Option<T>`
+                            // alias: `type y<T> = Option<T>;`
                             // TODO: This is not an error, it's just an alias.
                             //       But this function cannot make this kinda alias.
+                            else {
+                                todo!()
+                            }
+                        },
+                        Type::Tuple { types, .. } => {
+                            // r#type: `type x = y;`
+                            // alias: `type y = (Int, Int);`
+                            if alias.generics.is_empty() {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                // TODO: do we have to replace all the spans inside `types`?
+                                let alias = Type::Tuple {
+                                    types: types.clone(),
+                                    group_span: id.span.derive(SpanDeriveKind::Trivial),
+                                };
+                                *r#type = alias;
+                            }
+
+                            else {
+                                todo!()
+                            }
+                        },
+                        Type::Func { params, r#return, purity, .. } => {
+                            // r#type: `type x = y;`
+                            // alias: `type y = Fn(Int) -> Int;`
+                            if alias.generics.is_empty() {
+                                log.push(id.span);
+                                log.push(id.def_span);
+                                // TODO: do we have to replace all the spans inside `params` and `r#return`?
+                                let alias = Type::Func {
+                                    fn_span: id.span.derive(SpanDeriveKind::Trivial),
+                                    group_span: id.span.derive(SpanDeriveKind::Trivial),
+                                    params: params.clone(),
+                                    r#return: r#return.clone(),
+                                    purity: *purity,
+                                };
+                                *r#type = alias;
+                            }
+
                             else {
                                 todo!()
                             }

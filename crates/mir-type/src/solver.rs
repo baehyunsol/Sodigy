@@ -617,7 +617,7 @@ impl Solver {
                 unreachable!()
             },
             (never @ Type::Never(_), concrete) | (concrete, never @ Type::Never(_)) => {
-                let never_type_expected = matches!(never, Type::Never(_));
+                let never_type_expected = matches!(lhs, Type::Never(_));
 
                 // We don't solve the variable, because we might solve it with a more concrete type.
                 // But we still have to remember that this variable might be `Type::Never`.
