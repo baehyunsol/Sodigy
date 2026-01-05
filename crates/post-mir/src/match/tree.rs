@@ -463,12 +463,11 @@ pub(crate) fn build_tree(
                 }
             }
 
-            // TODO: remove overlaps in branches
-
-            let mut branches = Vec::with_capacity(branches_with_overlap.len());
+            let branches_without_overlap = remove_overlaps(branches_with_overlap);
+            let mut branches = Vec::with_capacity(branches_without_overlap.len());
             let mut has_error = false;
 
-            for (range, arms, name_bindings) in branches_with_overlap.into_iter() {
+            for (condition, arms, name_bindings) in branches_without_overlap.into_iter() {
                 match build_tree(
                     tree_id,
                     &matrix[1..],
@@ -478,7 +477,7 @@ pub(crate) fn build_tree(
                 ) {
                     Ok(node) => {
                         branches.push(DecisionTreeBranch {
-                            condition: Constructor::Range(range),
+                            condition,
                             guard: None,
                             node,
                             name_bindings,
@@ -518,4 +517,29 @@ fn true_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Exp
         },
         def_span: *lang_items.get("variant.Bool.True").unwrap(),
     })
+}
+
+// [
+//     (== 1, arm-0),
+//     (== 2, arm-1),
+//     (< 0,  arm-3),
+//     (_,    arm-4),
+// ]
+// ->
+// [
+//     (< 0, [arm-3, arm-4]),
+//     (== 1, [arm-0, arm-4]),
+//     (== 2, [arm-1, arm-4]),
+//     (> 2,  [arm-4]),
+// ]
+fn remove_overlaps(branches: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)>) -> Vec<(Constructor, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> {
+    let mut result = Vec::with_capacity(branches.len());
+
+    for (range, arms, name_bindings) in branches.into_iter() {
+        // 1. flatten all the ranges
+        // 2. ... then what?
+        todo!()
+    }
+
+    result
 }

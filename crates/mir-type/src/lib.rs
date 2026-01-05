@@ -113,18 +113,22 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
         }
     }
 
-    type_solver.apply_never_types(
-        &mut session.types,
-        &mut session.generic_instances,
-    );
+    // If we already have an error, it's likely that type-inference is not complete,
+    // and there's no point to check whether the type-inference is complete.
+    if !has_error {
+        type_solver.apply_never_types(
+            &mut session.types,
+            &mut session.generic_instances,
+        );
 
-    if let Err(()) = type_solver.check_all_types_infered(
-        &session.types,
-        &session.generic_instances,
-        &session.generic_def_span_rev,
-        &dispatched_calls,
-    ) {
-        has_error = true;
+        if let Err(()) = type_solver.check_all_types_infered(
+            &session.types,
+            &session.generic_instances,
+            &session.generic_def_span_rev,
+            &dispatched_calls,
+        ) {
+            has_error = true;
+        }
     }
 
     for warning in type_solver.warnings.iter() {
