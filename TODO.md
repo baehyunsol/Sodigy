@@ -1,3 +1,64 @@
+# 142. multiple rest patterns
+
+`[x @ Person { age: 30, .. }, .., y @ Person { age: 30, .. }, .., z @ Person { age: 30, .. }]`
+
+arbitrary length list에서 30살 먹은 사람 3명 뽑는 패턴 -> 말되지 않음?
+list에서는 이래도 될 거 같은데...
+
+# 141. refactor `main.rs`
+
+What the main function does now.
+
+1. Init workers
+2. Generate HIR of `lib.sdg` and std files.
+3. Generate HIR of dependencies.
+  - It has to wait until all the dependencies are complete.
+4. Inter-HIR.
+5. MIR for each file.
+6. Inter-MIR.
+7. MIR for each file, again.
+8. Run/Test
+
+Step 7 is not in the current implementation, but I want to add it.
+
+- Worker has to send `Vec<Warning>` and `Vec<Error>` after each pass is complete.
+  - The compiler keeps the errors and warnings and dumps them at the end.
+- The compiler gracefully shuts down if a worker reports an error.
+- I want each worker to log when they start/end each pass.
+- After each pass, the worker may have to dump the ir in readable/unreadable format (already implemented).
+- `MessageToMain`
+  - `FoundModuleDef`: add this module to the dependency list
+  - `Complete { id, errors, warnings }`: If `!errors.is_empty()`, it's a compile error.
+  - `Error { id, e }`: something other than `sodigy_error::Error` (e.g. failed to dump ir)
+
+# 140. more fine-grained warnings for int ranges
+
+```rs
+let x: i32 = 100;
+match x {
+    0 => 1,       // arm 1
+    1 => 100,     // arm 2
+    2 => 0,       // arm 3
+    1.. => 1000,  // arm 4
+    _ => 20020,   // arm 5
+}
+```
+
+arm 4에 아무 문제도 없긴 하지만 이왕이면 `3..`으로 쓰는게 더 좋음... 근데 이걸 잡을 수가 있나?
+보니까 일단 rust는 못 잡음 ㅋㅋㅋ
+
+Sodigy에서 잡으려면...??
+
+1. arm 4로 가는 조건이 `if 2 < x`가 유일하다는 걸 파악
+  - 이건 현재도 파악함
+2. arm 4가 wildcard가 아니고 explicit range라는 걸 파악
+3. ... 와 이건 edge case가 너무 많은데??
+
+아니면, arm 4의 condition의 `1..`를 `2..`나 `3..`으로 바꿔도 아무 문제가 없거든?
+
+1. 저렇게 바꿔도 문제가 없다는 걸 파악하는 건 쉬움. 바꿔서 다시 검사하면 되니까!
+2. 그럼 int range가 있으면 다 바꿔봐? 그건 말도 안됨 ㅋㅋㅋ
+
 # 139. use asserts instead of panics in std
 
 ```rs
@@ -13,6 +74,9 @@ fn div_int_wrapper(a: Int, b: Int) -> Int = {
 };
 
 fn div_int_wrapper(a: Int, b: Int) -> Int = {
+    #[name("ZeroDivisionError")]
+    #[note(f"{a} / {b}")]
+    #[always]
     assert b != 0;
     div_int(a, b)
 };
@@ -35,6 +99,22 @@ fn div_int_wrapper(a: Int, b: Int) -> Int = {
 
 1. assertion이나 note가 panic하면 note를 못 보겠지만 그건 감수해야지 ㅋㅋㅋ
 2. 이거 테스트 케이스 추가하자 note는 panic하지만 assertion은 성공하는 케이스 만들어서 돌리기!!
+
+---
+
+지금 if문을 쓰려는 이유가, compile time에 `b == 0`을 검사할 수 있으면 if문을 통째로 날리려는 거였음. assert도 비슷한 최적화를 만들자! compile time에 assertion 몇개 돌려보고 날릴 수 있는 건 다 날리자!!
+
+---
+
+더 중요한 걸 놓치고 있는 거 같음. Python/Rust에서 zero-division이 발생할 경우, 정확히 어떤 `/` operator인지 span을 정확히 집어줌. 지금 Sodigy에선 그게 안되지 않음?
+
+1. 일단은 runtime에서 span 사용하는 거 자체가 안됨. 어떻게 쓰지...
+2. 된다고 쳐도, assert의 span을 그대로 보여주는 건 의미가 없음. 어떤 나눗셈인지를 알려줘야지
+  - Rust에서는 나눗셈 자체가 assertion을 하도록 해서 해결
+  - Python에서는 stacktrace를 찍어서 해결
+3. 그럼 나도 stacktrace를 찍는게 답인데, 그럼 inline을 못하게 되는게 문제!
+  - inlining을 하면서 직접 연결된 assert는 span을 추가로 줄까?
+  - 이 경우에는 `/`를 inlining 하면서 `div_int_wrapper` 안에 있는 assert에다가 `/`의 callspan을 물려주는 거지...
 
 # 138. match-expr 왜 안되냐...
 
@@ -109,14 +189,6 @@ fn num3(a, b, c) = match (a, b, c) {
 # 137. Subtyping in function objects
 
 Params of function objects 볼 때는 subtyping 반대로 해야하는 거 아님??
-
-# 136. dump mir and hir
-
-이제 mir이랑 hir이 너무 복잡해져서 현재 방식의 dump로는 잘 안보임...
-
-지금 match를 block + let + if로 바꾸지? 이게 엄청 복잡할텐데 debug할 방법이 필요함...
-
-rust 문법으로 dump하는 함수를 만들자!
 
 # 135. spawning a subprocess
 
@@ -670,20 +742,23 @@ We draw the dependency graph between def_spans, in MIR level. By doing this we c
 
 # 95. dumping warning/errors
 
-I implemented a deduplication for warnings/errors, but I just realized that it's useless.
+We have to rewrite a lot of stuffs.
 
-Each process will dump errors and quit, so if different processes have the same error, we'll see duplicated errors!
+1. When a session finishes its job, it sends all the errors and warnings to the master.
+  - The errors and warnings are cloned: the session doesn't discard them
+2. The master keeps all the errors and warnings. They're all dumped at the end.
+  - The errors and warnings have to be deduplicated.
+  - They're all sorted by span.
+  - Warnings are dumped before the errors.
+3. If there's an error, the compiler has to terminate, instead of waiting for all the other workers to finish their job.
+  - Otherwise, LSP would take forever to analyze an erroneous code.
+4. The program's status code tell whether it's a compile error or a test error.
+  - If `sodigy test` successfully compiled the code but the runtime threw (whatever) error, that's a test-error.
+  - Otherwise, it's all compile error.
 
-Also, if there're 2 processes and one has warnings and the other has warnings and errors, we'll not see the warnings from the un-error process.
+I guess we have to rewrite the main function. It's too redundant and it's likely that I have to repeat this for `sodigy run` and `sodigy compile`.
 
-What I propose is:
-
-1. Each session sends errors and warnings to the main process
-2. the main process may dump the errors immediately, or defer
-  - the main process deduplicates the errors
-3. each session still remembers the errors and warnings after sending them to the main process, and they're encoded to the ir-cache
-  - so that, it can retrieve warnings from cached sessions
-  - we have to rely on the main process' deduplication!
+---
 
 ```
 type x<T> = Int;
