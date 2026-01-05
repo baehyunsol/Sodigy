@@ -60,33 +60,6 @@ impl Assert {
         });
         debug_info_count += 1;
 
-        if let (Some(note), Some(note_decorator_span)) = (&mir_assert.note, &mir_assert.note_decorator_span) {
-            // If it panics while evaluating `note`, the runtime will see the
-            // `NoteDecoratorSpan` and throw an according error message.
-            bytecodes.push(Bytecode::Const {
-                value: Value::Span(*note_decorator_span),
-                dst: Memory::Return,
-            });
-            bytecodes.push(Bytecode::PushDebugInfo {
-                kind: DebugInfoKind::AssertionNoteDecoratorSpan,
-                src: Memory::Return,
-            });
-            debug_info_count += 1;
-
-            lower_expr(
-                note,
-                session,
-                &mut bytecodes,
-                Memory::Return,
-                /* is_tail_call: */ false,
-            );
-            bytecodes.push(Bytecode::PushDebugInfo {
-                kind: DebugInfoKind::AssertionNote,
-                src: Memory::Return,
-            });
-            debug_info_count += 1;
-        }
-
         lower_expr(
             &mir_assert.value,
             session,
@@ -100,6 +73,32 @@ impl Assert {
             value: Memory::Return,
             label: no_panic,
         });
+
+        // We don't pop_debug_info for error notes because notes are evaluated only if the assertion has failed.
+        if let (Some(note), Some(note_decorator_span)) = (&mir_assert.note, &mir_assert.note_decorator_span) {
+            // If it panics while evaluating `note`, the runtime will see the
+            // `NoteDecoratorSpan` and throw an according error message.
+            bytecodes.push(Bytecode::Const {
+                value: Value::Span(*note_decorator_span),
+                dst: Memory::Return,
+            });
+            bytecodes.push(Bytecode::PushDebugInfo {
+                kind: DebugInfoKind::AssertionNoteDecoratorSpan,
+                src: Memory::Return,
+            });
+
+            lower_expr(
+                note,
+                session,
+                &mut bytecodes,
+                Memory::Return,
+                /* is_tail_call: */ false,
+            );
+            bytecodes.push(Bytecode::PushDebugInfo {
+                kind: DebugInfoKind::AssertionNote,
+                src: Memory::Return,
+            });
+        }
 
         // When it panics, the runtime will see the values in the AssertionMetadata stack
         // and throw an error message.

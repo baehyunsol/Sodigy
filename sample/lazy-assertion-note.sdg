@@ -1,0 +1,4 @@
+// There's no problem with the assertion (`0 == 0` is true), but evaluating
+// the note will panic. We have to make sure that the error note is lazily evaluated.
+#[note(std.panic())]
+assert 0 == 0;
