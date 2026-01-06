@@ -8,7 +8,6 @@ use sodigy_hir::{
     Use,
 };
 use sodigy_name_analysis::NameKind;
-use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
@@ -72,19 +71,5 @@ impl Session {
             errors: vec![],
             warnings: vec![],
         }
-    }
-}
-
-impl SodigySession for Session {
-    fn get_errors(&self) -> &[Error] {
-        &self.errors
-    }
-
-    fn get_warnings(&self) -> &[Warning] {
-        &self.warnings
-    }
-
-    fn get_intermediate_dir(&self) -> &str {
-        &self.intermediate_dir
     }
 }

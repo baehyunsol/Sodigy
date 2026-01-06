@@ -9,7 +9,6 @@ use crate::{
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{Callable, Expr, Intrinsic, Session as MirSession};
-use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -257,19 +256,5 @@ impl Session {
             ).collect(),
             bytecodes: result,
         }
-    }
-}
-
-impl SodigySession for Session {
-    fn get_errors(&self) -> &[Error] {
-        &[]
-    }
-
-    fn get_warnings(&self) -> &[Warning] {
-        &[]
-    }
-
-    fn get_intermediate_dir(&self) -> &str {
-        &self.intermediate_dir
     }
 }

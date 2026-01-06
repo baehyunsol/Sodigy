@@ -1,8 +1,0 @@
-[package]
-name = "sodigy-session"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-sodigy-error = { version = "0.1.0", path = "../error" }
-sodigy-span = { version = "0.1.0", path = "../span" }

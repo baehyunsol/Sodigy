@@ -1,8 +1,6 @@
 use crate::{
-    Backend,
     CompileStage,
     EmitIrOption,
-    Optimization,
     Profile,
     StoreIrAt,
 };
@@ -10,11 +8,9 @@ use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
+// Read `src/compile_stage.rs` for more information.
 #[derive(Clone, Debug)]
 pub enum Command {
-    InitIrDir {
-        intermediate_dir: String,
-    },
     PerFileIr {
         // A module is (almost always) a file.
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
@@ -31,21 +27,13 @@ pub enum Command {
         emit_ir_options: Vec<EmitIrOption>,
         stop_after: CompileStage,
     },
-    // Run this after you have hir of all the modules.
     InterHir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
     },
-    // Run this after you have mir of all the modules.
     InterMir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
-        stop_after: CompileStage,
-        emit_ir_options: Vec<EmitIrOption>,
-        output_path: Option<String>,
-        backend: Backend,
-        profile: Profile,
-        optimization: Optimization,
     },
     Interpret {
         bytecodes_path: StoreIrAt,

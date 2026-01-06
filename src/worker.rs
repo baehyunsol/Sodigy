@@ -1,4 +1,5 @@
-use crate::{Command, Error, run};
+use crate::{Command, CompileStage, Error, run};
+use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::ModulePath;
 use sodigy_span::Span;
 use std::sync::mpsc;
@@ -12,19 +13,20 @@ pub enum MessageToWorker {
 }
 
 pub enum MessageToMain {
-    FoundModuleDef {
+    AddModule {
         path: ModulePath,
 
         // def_span of the module
         span: Span,
     },
-    RunComplete {
-        id: usize,
+    IrComplete {
+        // inter-file irs don't have `module_path`
+        module_path: Option<ModulePath>,
+        compile_stage: CompileStage,
+        errors: Vec<SodigyError>,
+        warnings: Vec<SodigyWarning>,
     },
-    Error {
-        id: usize,
-        e: Error,
-    },
+    Error(Error),
 }
 
 pub struct Channel {
@@ -59,8 +61,8 @@ fn init_worker() -> Channel {
         rx_from_main,
     ) {
         Ok(()) => {},
-        Err((id, e)) => {
-            tx_to_main.send(MessageToMain::Error { id, e }).unwrap();
+        Err(e) => {
+            tx_to_main.send(MessageToMain::Error(e)).unwrap();
         },
     });
 
@@ -72,12 +74,11 @@ fn init_worker() -> Channel {
 fn worker_loop(
     tx_to_main: mpsc::Sender<MessageToMain>,
     rx_from_main: mpsc::Receiver<MessageToWorker>,
-) -> Result<(), (usize, Error)> {
+) -> Result<(), Error> {
     for msg in rx_from_main {
         match msg {
             MessageToWorker::Run { commands, id } => {
-                run(commands, tx_to_main.clone()).map_err(|e| (id, e))?;
-                tx_to_main.send(MessageToMain::RunComplete { id }).map_err(|e| (id, e.into()))?;
+                run(commands, tx_to_main.clone(), id)?;
             },
         }
     }

@@ -1,3 +1,6 @@
+use sodigy_file::{FileOrStd, ModulePath};
+use sodigy_span::Span;
+
 mod cli;
 mod command;
 mod compile_stage;
@@ -6,30 +9,7 @@ mod error;
 pub use cli::{CliCommand, parse_args};
 pub use command::Command;
 pub use compile_stage::{CompileStage, COMPILE_STAGES};
-pub use error::{Error, QuickError};
-
-impl CompileStage {
-    pub fn all() -> Vec<CompileStage> {
-        vec![
-            CompileStage::Lex,
-            CompileStage::Parse,
-            CompileStage::Hir,
-            CompileStage::InterHir,
-            CompileStage::Mir,
-            CompileStage::TypeCheck,
-            CompileStage::Bytecode,
-            CompileStage::CodeGen,
-        ]
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum Backend {
-    C,
-    Rust,
-    Python,
-    Bytecode,
-}
+pub use error::Error;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Profile {
@@ -60,4 +40,21 @@ pub struct EmitIrOption {
     pub stage: CompileStage,
     pub store: StoreIrAt,
     pub human_readable: bool,
+}
+
+// The compiler compiles a project module-by-module. This is the status
+// of each module's compilation.
+//
+// If `path` is `foo.sdg`, `compile_stage` is `Hir` and `running` is `false`,
+// hir for `foo.sdg` is complete and no worker is working on this module.
+// If `path` is `foo.sdg`, `compile_stage` is `Hir` and `running` is `true`,
+// 1 worker is working on this module and when the worker is done, hir for
+// the module will be complete.
+#[derive(Clone, Debug)]
+pub struct ModuleCompileState {
+    pub module_path: ModulePath,
+    pub file_path: FileOrStd,
+    pub compile_stage: CompileStage,
+    pub running: bool,
+    pub span: Span,
 }

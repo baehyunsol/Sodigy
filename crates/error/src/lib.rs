@@ -4,11 +4,13 @@ mod endec;
 mod kind;
 mod level;
 mod token;
+mod util;
 mod warning;
 
 pub use kind::ErrorKind;
 pub use level::ErrorLevel;
 pub use token::ErrorToken;
+pub use util::{deduplicate, dump};
 pub use warning::{Warning, WarningKind};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

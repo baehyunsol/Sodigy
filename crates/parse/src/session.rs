@@ -2,7 +2,6 @@ use crate::Block;
 use sodigy_error::{Error, Warning};
 use sodigy_file::File;
 use sodigy_lex::Session as LexSession;
-use sodigy_session::Session as SodigySession;
 
 pub struct Session {
     pub file: File,
@@ -23,19 +22,5 @@ impl Session {
             errors: lex_session.errors.clone(),
             warnings: lex_session.warnings.clone(),
         }
-    }
-}
-
-impl SodigySession for Session {
-    fn get_errors(&self) -> &[Error] {
-        &self.errors
-    }
-
-    fn get_warnings(&self) -> &[Warning] {
-        &self.warnings
-    }
-
-    fn get_intermediate_dir(&self) -> &str {
-        &self.intermediate_dir
     }
 }

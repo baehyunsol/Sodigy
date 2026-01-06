@@ -12,7 +12,6 @@ sodigy-number = { version = "0.1.0", path = "../number" }
 sodigy-number-eval = { version = "0.1.0", path = "../number-eval" }
 sodigy-parse = { version = "0.1.0", path = "../parse" }
 sodigy-prettify = { version = "0.1.0", path = "../prettify" }
-sodigy-session = { version = "0.1.0", path = "../session" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
 sodigy-token = { version = "0.1.0", path = "../token" }

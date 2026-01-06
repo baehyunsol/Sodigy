@@ -2,7 +2,6 @@ use crate::{Assert, Enum, Func, Let, Struct, Type};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
-use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -112,19 +111,5 @@ impl Session {
                 note.dispatch(map, &self.func_shapes, &mut self.generic_instances);
             }
         }
-    }
-}
-
-impl SodigySession for Session {
-    fn get_errors(&self) -> &[Error] {
-        &self.errors
-    }
-
-    fn get_warnings(&self) -> &[Warning] {
-        &self.warnings
-    }
-
-    fn get_intermediate_dir(&self) -> &str {
-        &self.intermediate_dir
     }
 }

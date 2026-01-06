@@ -1,18 +1,21 @@
 pub(crate) use sodigy_mir::{Expr, Type};
-use sodigy_mir::Session;
+use sodigy_mir::Session as MirSession;
 use std::collections::{HashMap, HashSet};
 
+mod endec;
 mod error;
 mod mono;
 mod poly;
+mod session;
 mod solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, type_error_to_general_error};
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
+pub use session::Session;
 use solver::Solver;
 
-pub fn solve(mut session: Session) -> (Session, Solver) {
+pub fn solve(mut session: MirSession) -> Session {
     let mut has_error = false;
     let mut type_solver = Solver::new(session.lang_items.clone(), session.intermediate_dir.clone());
     let mut poly_solver = HashMap::new();
@@ -145,5 +148,10 @@ pub fn solve(mut session: Session) -> (Session, Solver) {
         }
     }
 
-    (session, type_solver)
+    Session {
+        types: session.types.drain().collect(),
+        generic_instances: session.generic_instances.drain().collect(),
+        errors: session.errors.drain(..).collect(),
+        warnings: session.errors.drain(..).collect(),
+    }
 }

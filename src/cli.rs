@@ -1,4 +1,4 @@
-use crate::{Backend, Optimization, Profile};
+use crate::{Optimization, Profile};
 use ragit_cli::{
     ArgCount,
     ArgParser,
@@ -10,7 +10,6 @@ use ragit_cli::{
 pub enum CliCommand {
     Build {
         output_path: String,
-        backend: Backend,
         optimization: Optimization,
         import_std: bool,
         profile: Profile,
@@ -42,7 +41,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("build") => {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--output", ArgType::String)
-                .optional_arg_flag("--backend", ArgType::enum_(&["c", "rust", "python", "bytecode"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
@@ -58,14 +56,6 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             }
 
             let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
-            let backend = match parsed_args.arg_flags.get("--backend").map(|f| f.as_str()) {
-                Some("c") => Backend::C,
-                Some("rust") => Backend::Rust,
-                Some("python") => Backend::Python,
-                Some("bytecode") => Backend::Bytecode,
-                None => Backend::Bytecode,  // default
-                _ => unreachable!(),
-            };
             let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
 
             // Do you see `.as_ref()` and `.map()` below? It's one of the reasons why I'm creating Sodigy.
@@ -86,17 +76,11 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             let output_path = match output_path {
                 Some(output_path) => output_path,
-                None => match backend {
-                    Backend::C => "out.c",
-                    Backend::Rust => "out.rs",
-                    Backend::Python => "out.py",
-                    Backend::Bytecode => "out.sdgbc",
-                }.to_string(),
+                None => String::from("out.sdgbc"),
             };
 
             Ok(CliCommand::Build {
                 output_path,
-                backend,
                 optimization,
                 import_std,
                 profile,

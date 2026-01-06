@@ -1,3 +1,11 @@
+# 143. consistent crate names
+
+`CompileStage`하고 crate 이름하고 다 일치했으면 좋겠음! 일단 mir-type부터 inter-mir로 바꿔야함 ㅋㅋㅋ
+
+Parse vs AST -> 와 이거는 엄청 고민됨 ㅠㅠ
+
+lir도 bytecode로 바꾸셈
+
 # 142. multiple rest patterns
 
 `[x @ Person { age: 30, .. }, .., y @ Person { age: 30, .. }, .., z @ Person { age: 30, .. }]`

@@ -1,7 +1,6 @@
 use crate::{LexState, TokensOrString};
 use sodigy_error::{Error, Warning};
 use sodigy_file::File;
-use sodigy_session::Session as SodigySession;
 use sodigy_span::Span;
 use sodigy_token::Token;
 
@@ -29,18 +28,4 @@ pub struct Session {
     pub(crate) fstring_cursor: usize,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
-}
-
-impl SodigySession for Session {
-    fn get_errors(&self) -> &[Error] {
-        &self.errors
-    }
-
-    fn get_warnings(&self) -> &[Warning] {
-        &self.warnings
-    }
-
-    fn get_intermediate_dir(&self) -> &str {
-        &self.intermediate_dir
-    }
 }
