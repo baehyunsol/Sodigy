@@ -1,5 +1,5 @@
+use sodigy_bytecode::Session;
 use sodigy_endec::Endec;
-use sodigy_lir::Session;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Backend {
@@ -9,10 +9,10 @@ pub enum Backend {
     Bytecode,
 }
 
-pub fn lower(lir_session: Session, backend: Backend) -> Vec<u8> {
+pub fn lower(bytecode_session: Session, backend: Backend) -> Vec<u8> {
     match backend {
         Backend::Bytecode => {
-            let executable = lir_session.into_executable();
+            let executable = bytecode_session.into_executable();
             executable.encode()
         },
         _ => todo!(),

@@ -1,4 +1,4 @@
-use super::Solver;
+use super::TypeSolver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_hir::FuncPurity;
@@ -8,7 +8,7 @@ use sodigy_parse::Field;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Solver {
+impl TypeSolver {
     // FIXME: there are A LOT OF heap allocations
     //
     // It can solve type of any expression, but the result maybe `Type::Var`.

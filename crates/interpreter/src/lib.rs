@@ -1,4 +1,4 @@
-use sodigy_lir::{
+use sodigy_bytecode::{
     Bytecode,
     Executable,
     Label,

@@ -1,11 +1,11 @@
-use super::Solver;
+use super::TypeSolver;
 use crate::Type;
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_mir::Func;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Solver {
+impl TypeSolver {
     pub fn solve_func(
         &mut self,
         func: &Func,

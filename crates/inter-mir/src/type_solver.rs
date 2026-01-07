@@ -16,7 +16,7 @@ mod pattern;
 // not in `type_vars`, because
 // 1. We'll later use `type_vars` to distinguish what're infered types and what're annotated types.
 // 2. If we don't remove entries in `type_var_refs`, cyclic type vars will cause a stack overflow.
-pub struct Solver {
+pub struct TypeSolver {
     // Whenever `types.get(span)` returns `None`, it creates a type variable
     // and inserts the `span` to this hash set. It's later used to check
     // if all the type variables are infered.
@@ -61,9 +61,9 @@ pub struct Solver {
     pub intermediate_dir: String,
 }
 
-impl Solver {
+impl TypeSolver {
     pub fn new(lang_items: HashMap<String, Span>, intermediate_dir: String) -> Self {
-        Solver {
+        TypeSolver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),

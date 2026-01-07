@@ -1,15 +1,16 @@
 [package]
-name = "sodigy-lir"
+name = "sodigy-inter-mir"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 sodigy-endec = { version = "0.1.0", path = "../endec" }
 sodigy-error = { version = "0.1.0", path = "../error" }
+sodigy-hir = { version = "0.1.0", path = "../hir" }
 sodigy-mir = { version = "0.1.0", path = "../mir" }
 sodigy-name-analysis = { version = "0.1.0", path = "../name-analysis" }
-sodigy-number = { version = "0.1.0", path = "../number" }
 sodigy-parse = { version = "0.1.0", path = "../parse" }
 sodigy-prettify = { version = "0.1.0", path = "../prettify" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
+sodigy-token = { version = "0.1.0", path = "../token" }

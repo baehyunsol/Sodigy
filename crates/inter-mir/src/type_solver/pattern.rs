@@ -1,10 +1,10 @@
-use super::Solver;
+use super::TypeSolver;
 use crate::{ErrorContext, Type};
 use sodigy_hir::{Pattern, PatternKind};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Solver {
+impl TypeSolver {
     pub fn solve_pattern(
         &mut self,
         pattern: &Pattern,

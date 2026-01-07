@@ -1,5 +1,5 @@
+use sodigy_bytecode::{DebugInfoKind, Value};
 use sodigy_file::File;
-use sodigy_lir::{DebugInfoKind, Value};
 use sodigy_span::Span;
 use std::collections::HashMap;
 

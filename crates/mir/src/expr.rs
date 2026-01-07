@@ -52,7 +52,7 @@ pub enum Expr {
         arg_group_span: Span,
 
         // If it's a generic function, def_spans of its generics (T, U, ...)
-        // are stored here so that `mir_type::Solver::solve_expr` can use.
+        // are stored here so that `inter_mir::TypeSolver::solve_expr` can use.
         generic_defs: Vec<Span>,
 
         // It helps generating error messages.

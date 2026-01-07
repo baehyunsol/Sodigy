@@ -643,7 +643,7 @@ pub fn run(
                     CompileStage::InterMir,
                     None,
                 )?.ok_or(Error::IrCacheNotFound(CompileStage::InterMir))?;
-                let mut inter_mir_session = sodigy_mir_type::Session::decode(&inter_mir_session_bytes)?;
+                let mut inter_mir_session = sodigy_inter_mir::Session::decode(&inter_mir_session_bytes)?;
                 mir_session.errors.extend(inter_mir_session.errors.drain(..));
                 mir_session.warnings.extend(inter_mir_session.warnings.drain(..));
                 mir_session.types = inter_mir_session.types.drain().collect();
@@ -756,7 +756,7 @@ pub fn run(
                 }
 
                 let mir_session = merged_mir_session.unwrap();
-                let inter_mir_session = sodigy_mir_type::solve(mir_session);
+                let inter_mir_session = sodigy_inter_mir::solve_type(mir_session);
 
                 emit_irs_if_has_to(
                     &inter_mir_session,
@@ -828,9 +828,9 @@ pub fn run(
                     }
                 }
 
-                let lir_session = sodigy_lir::lower(optimized_mir_session);
+                let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
 
-                // lir doesn't emit any errors.
+                // bytecode stage doesn't emit any errors.
                 if stop_after <= CompileStage::Bytecode {
                     tx_to_main.send(MessageToMain::IrComplete {
                         module_path: None,
@@ -844,7 +844,7 @@ pub fn run(
                     continue;
                 }
 
-                let result = sodigy_code_gen::lower(lir_session, backend);
+                let result = sodigy_code_gen::lower(bytecode_session, backend);
 
                 match output_path {
                     StoreIrAt::File(f) => {
@@ -865,7 +865,7 @@ pub fn run(
                     StoreIrAt::Memory => memory.clone().ok_or(Error::IrCacheNotFound(CompileStage::CodeGen))?,
                     StoreIrAt::IntermediateDir => todo!(),
                 };
-                let executable = sodigy_lir::Executable::decode(&bytecodes_bytes)?;
+                let executable = sodigy_bytecode::Executable::decode(&bytecodes_bytes)?;
 
                 match profile {
                     Profile::Test => {

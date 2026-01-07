@@ -7,17 +7,17 @@ mod error;
 mod mono;
 mod poly;
 mod session;
-mod solver;
+mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError, type_error_to_general_error};
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
-use solver::Solver;
+use type_solver::TypeSolver;
 
-pub fn solve(mut session: MirSession) -> Session {
+pub fn solve_type(mut session: MirSession) -> Session {
     let mut has_error = false;
-    let mut type_solver = Solver::new(session.lang_items.clone(), session.intermediate_dir.clone());
+    let mut type_solver = TypeSolver::new(session.lang_items.clone(), session.intermediate_dir.clone());
     let mut poly_solver = HashMap::new();
 
     // It does 2 things.

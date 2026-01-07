@@ -1,11 +1,11 @@
-use super::Solver;
+use super::TypeSolver;
 use crate::Type;
 use crate::error::ErrorContext;
 use sodigy_mir::Assert;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Solver {
+impl TypeSolver {
     pub fn solve_assert(
         &mut self,
         assert: &Assert,

@@ -1,4 +1,4 @@
-use crate::{ErrorContext, GenericCall, Solver, TypeError};
+use crate::{ErrorContext, GenericCall, TypeError, TypeSolver};
 use sodigy_hir::Poly;
 use sodigy_mir::{Func, Session, Type};
 use sodigy_span::Span;
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 //        The most naive way is to check `Fn(String, String) -> Int` against every impl
 //        of the poly, but we're doing some kinda optimization here.
 
-impl Solver {
+impl TypeSolver {
     pub fn try_solve_poly(
         &mut self,
         polys: &HashMap<Span, Poly>,
@@ -307,7 +307,7 @@ fn solve_fn_types(
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
-    let mut solver = Solver::new(lang_items, intermediate_dir);
+    let mut type_solver = TypeSolver::new(lang_items, intermediate_dir);
     let mut types = HashMap::new();
     let mut constraints = vec![];
     let mut errors = vec![];
@@ -316,7 +316,7 @@ fn solve_fn_types(
         |i| (&def.params[i], &r#impl.params[i])
     ).chain(std::iter::once((&def.r#return, &r#impl.r#return))).enumerate() {
         // Solves `?T = Int`, `?U = Int` and `Int = Int`.
-        if let Err(()) = solver.solve_supertype(
+        if let Err(()) = type_solver.solve_supertype(
             &def_type,
             &impl_type,
             &mut types,

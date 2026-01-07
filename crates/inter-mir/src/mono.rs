@@ -1,4 +1,4 @@
-use crate::{PolySolver, SolvePolyResult, Solver, TypeError};
+use crate::{PolySolver, SolvePolyResult, TypeError, TypeSolver};
 use sodigy_mir::{Session, Type};
 use sodigy_span::Span;
 use std::collections::HashSet;
@@ -16,7 +16,7 @@ impl MonomorphizePlan {
     }
 }
 
-impl Solver {
+impl TypeSolver {
     pub fn get_mono_plan(
         &mut self,
         poly_solver: &HashMap<Span, PolySolver>,
