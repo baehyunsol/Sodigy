@@ -679,11 +679,13 @@ pub fn get_decorator_error_notes(item_kind: ItemKind, intermediate_dir: &str) ->
         "built_in",
         "lang_item",
         "lang_item_generics",
+        "always",
     ] {
         let note = match (decorator, item_kind) {
             ("built_in", _) => "You cannot define a built-in item.",
             ("lang_item" | "lang_item_generics", _) => "Lang-items are only allowed for special items in std.",
-            _ => unreachable!(),
+            ("always", ItemKind::Assert) => "Only inline assertions can have this attribute.",
+            _ => continue,
         };
 
         result.push((decorator, note));

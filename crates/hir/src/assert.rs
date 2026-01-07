@@ -95,49 +95,54 @@ impl Assert {
         }
     }
 
-    pub fn get_attribute_rule(_is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+    pub fn get_attribute_rule(is_top_level: bool, is_std: bool, intermediate_dir: &str) -> AttributeRule {
+        let mut decorators = vec![
+            (
+                intern_string(b"name", intermediate_dir).unwrap(),
+                DecoratorRule {
+                    name: intern_string(b"name", intermediate_dir).unwrap(),
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Must,
+                    arg_count: ArgCount::Eq(1),
+                    arg_count_error_note: Some(String::from("A name of an assertion must be unique.")),
+                    arg_type: ArgType::StringLiteral,
+                    arg_type_error_note: Some(String::from("A name of an assertion must be a string literal, which is compile-time-evaluable.")),
+                    keyword_args: HashMap::new(),
+                },
+            ),
+            (
+                intern_string(b"note", intermediate_dir).unwrap(),
+                DecoratorRule {
+                    name: intern_string(b"note", intermediate_dir).unwrap(),
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Must,
+                    arg_count: ArgCount::Eq(1),
+                    arg_count_error_note: Some(String::from("There must be at most 1 note for an assertion.")),
+                    arg_type: ArgType::Expr,
+                    arg_type_error_note: None,  // infallible
+                    keyword_args: HashMap::new(),
+                },
+            ),
+        ];
+
+        if !is_top_level {
+            decorators.push((
+                intern_string(b"always", intermediate_dir).unwrap(),
+                DecoratorRule {
+                    name: intern_string(b"always", intermediate_dir).unwrap(),
+                    requirement: Requirement::Maybe,
+                    arg_requirement: Requirement::Never,
+                    ..DecoratorRule::default()
+                },
+            ));
+        }
+
         let mut attribute_rule = AttributeRule {
             doc_comment: Requirement::Never,
             doc_comment_error_note: Some(String::from("Use `#[note(\"...\")]` decorator instead.")),
             visibility: Requirement::Never,
             visibility_error_note: Some(String::from("You cannot set visibility of an assertion.")),
-            decorators: vec![
-                (
-                    intern_string(b"name", intermediate_dir).unwrap(),
-                    DecoratorRule {
-                        name: intern_string(b"name", intermediate_dir).unwrap(),
-                        requirement: Requirement::Maybe,
-                        arg_requirement: Requirement::Must,
-                        arg_count: ArgCount::Eq(1),
-                        arg_count_error_note: Some(String::from("A name of an assertion must be unique.")),
-                        arg_type: ArgType::StringLiteral,
-                        arg_type_error_note: Some(String::from("A name of an assertion must be a string literal, which is compile-time-evaluable.")),
-                        keyword_args: HashMap::new(),
-                    },
-                ),
-                (
-                    intern_string(b"note", intermediate_dir).unwrap(),
-                    DecoratorRule {
-                        name: intern_string(b"note", intermediate_dir).unwrap(),
-                        requirement: Requirement::Maybe,
-                        arg_requirement: Requirement::Must,
-                        arg_count: ArgCount::Eq(1),
-                        arg_count_error_note: Some(String::from("There must be at most 1 note for an assertion.")),
-                        arg_type: ArgType::Expr,
-                        arg_type_error_note: None,  // infallible
-                        keyword_args: HashMap::new(),
-                    },
-                ),
-                (
-                    intern_string(b"always", intermediate_dir).unwrap(),
-                    DecoratorRule {
-                        name: intern_string(b"always", intermediate_dir).unwrap(),
-                        requirement: Requirement::Maybe,
-                        arg_requirement: Requirement::Never,
-                        ..DecoratorRule::default()
-                    },
-                ),
-            ].into_iter().collect(),
+            decorators: decorators.into_iter().collect(),
             decorator_error_notes: get_decorator_error_notes(ItemKind::Assert, intermediate_dir),
         };
 
