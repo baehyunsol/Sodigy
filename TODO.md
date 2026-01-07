@@ -10,15 +10,6 @@
 4. output만 만들고 나가기 vs 실행까지 하기
 5. backend
 
-# 143. consistent crate names
-
-`CompileStage`하고 crate 이름하고 다 일치했으면 좋겠음! 일단 mir-type부터 inter-mir로 바꿔야함 ㅋㅋㅋ
--> 바꾸면 solver도 type-solver로 바꿔야겠네
-
-Parse vs AST -> 와 이거는 엄청 고민됨 ㅠㅠ
-
-lir도 bytecode로 바꾸셈
-
 # 142. multiple rest patterns
 
 `[x @ Person { age: 30, .. }, .., y @ Person { age: 30, .. }, .., z @ Person { age: 30, .. }]`
@@ -208,10 +199,6 @@ fn num3(a, b, c) = match (a, b, c) {
 1. `if True`가 나오는 이유: decision tree에서 `0`보다 `_`가 먼저 나오기 때문!
   - wildcard가 뒤로 가도록 고쳐야함 (optimization)
   - `0`이랑 `_`랑 있으면 `_`를 `..0 | 1..`로 고쳐야함 (soundness)
-
-# 137. Subtyping in function objects
-
-Params of function objects 볼 때는 subtyping 반대로 해야하는 거 아님??
 
 # 135. spawning a subprocess
 
@@ -951,28 +938,6 @@ Poly 갖고 어떻게 구현이 되지 않을까?
     - 그나마 inter-hir?? inter-hir에 visibility 검사 자세하게 하도록 수정하면 검사할 수 있을 듯!
   - 어차피 inter-module로 검사할 거면 intra-module에서 검사할 필요가 없는 거 아님..?? ㅋㅋㅋ
 
-# 82. inter-mir
-
-1. in order to type-check,
-  - it needs `types: HashMap<Span, Type>`, `generic_instances: HashMap<(Span, Span), Type>`, `solver`, `lang_items: HashMap<String, Span>` and items (`&[Func]`, `&[Let]`, ...).
-    - `types` and `solver` must be separated in order to avoid mut-ref issues.
-    - `generic_instances` and `solver` must be separated for the same reason.
-    - currently, `solver` has `lang_items` field. It doesn't matter who has this field.
-    - currently, `solver` collects the errors and warnings, and passes it to mir-session in the end.
-    - mir-session or `solver` might have to create `span_string_map` for error messages
-      - the map is global, and has to be generated once (or never).
-    - `types` and `generic_instances` have to be global, while items can be local.
-    - we can't run it in parallel, because the global `types` and `generic_instances` have to be updated.
-2. We might do extra checks or analysis. We have to implement that in inter-mir pass.
-3. All the optimizations must come after type-check, hence in inter-mir.
-
----
-
-그럼 inter_mir_session이랑 mir_session이랑 type_solver를 다 따로 해야할 거 같은데?? ㅜㅜㅜ
-
-생각해보니까 items가 `&[Item]`이 아니고 `&mut Vec<Item>`임!! monomorphize를 하거나 optimization을 하면 수정해야하잖아...
-그럼 좀 나음. mir_session을 하나로 합쳐버린 다음에 작업하면 됨!!
-
 # 81. new issues in inter-hir
 
 ```
@@ -1024,57 +989,6 @@ How about, `a`, `b` and `c` all use `x`'s span?
 3. I want to run the codes in the document's code blocks.
   - Some blocks assert that they don't compile. Some assert that they compile but don't pass the test.
   - I want it to create a new code block with the compile error messages (colored).
-
-# 79. Commit hash
-
-사실 Sodigy랑은 큰 상관없고 그냥 심심풀이용임.
-
-1. `sodigy version`을 하면 commit hash가 나오게 하고 싶음!
-2. 보통은 `build.rs`를 이용해서 commit hash를 집어넣음
-3. 왜냐면 commit hash를 hard-code하는 순간 commit hash가 바뀌어버리기 때문에 hard-code할 수가 없거든
-  - ... 그렇지 않음!! 비트코인 채굴하는 거랑 똑같은 원리로 넣을 수 있음. commit hash를 무작위로 hard-code 하다보면 언젠간 일치하거든!!
-  - (commit hash 변경, `git add <file>`, `git commit --amend`, commit hash 확인) -> 이거를 계속 loop 돌리면 됨!!
-
-```py
-# params
-file = "src/lib.rs"
-line = "pub const COMMIT_HASH: &'static str = \"{{replace}}\";"
-
-import subprocess
-rep_at = line.index("{{replace}}")
-prefix = line[:rep_at]
-suffix = line[(rep_at + len("{{replace}}")):]
-
-with open(file, "r") as f:
-    lines = f.read().split("\n")
-
-line_no = [i for i, line in enumerate(lines) if line.startswith(prefix) and line.endswith(suffix)][0]
-
-for i in range(4096):
-    hash = f"{i:03x}"
-    new_line = line.replace("{{replace}}", hash)
-    lines[line_no] = new_line
-
-    with open(file, "w") as f:
-        f.write("\n".join(lines))
-
-    subprocess.run(["git", "add", file], check=True)
-    subprocess.run(["git", "commit", "--amend", "--no-edit"], check=True)
-    real_hash = subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout
-
-    if real_hash.startswith(hash):
-        break
-```
-
-이렇게 하니까 너무 오래 걸림... 4096개 도는데 몇분은 걸리는듯 ㅠㅠ
-또다른 문제: 4096개 다 돌았는데 collision이 하나도 없을 수도 있음!
-또다른 문제: `.git/`에 쓰레기가 조금씩 쌓임 -> 이건 사소
-
-Rust로 짜면 더 빨리 짤 수 있을 거 같기도 하고??
-
-1. `git cat-file commit <hash>` 하면 현재 commit의 정보가 나옴. 아마 이거 hash하면 그대로 commit hash 될텐데?
-  - ㄴㄴ perplexity한테 물어보니까 `"commit " + content.len() + "\0" + content` 한 다음에 hash해야한대. 참고로 content.len()은 byte로 계산
-2. tree도 마찬가지래 `"tree " + content.len() + "\0" + content` 해야한대...
 
 # 78. Generic functions with default values
 
@@ -1181,17 +1095,6 @@ Wildcard 사용처를 생각해보자
 
 How about just using `::<>` instead of `.<>`?
 
-# 66. Assertion loops
-
-Rust로 코드를 짜다 보면 for문을 돌면서 assert를 할 일이 많음!! 그럼 자연스럽게 assertion note도 for문에서 만들게 됨. 이걸 Sodigy로 하려면??
-
-1. for문 대신 recursion을 해야함. 이건 타협 불가
-2. recursion 안에서 assert를 한 다음에 뭔가를 return 해야함. 이게 좀 애매
-  - `assert`를 expr로 쓰기? 는 힘듦 -> block 안에서 syntactic ambiguity가 생기거든
-3. assertion note나 assertion name을 pragmatic하게 만들고 싶은데, 이건 구현해야함
-  - name을 pragmatic하게 만드는 거는 애매. 이름이 겹치면 어떻게 하지?
-  - name은 identifier로 받고 note는 expr로 받을까?
-
 # 65. explicit type casts
 
 1. `String(x)`, `Int(x)`처럼 하기!
@@ -1238,10 +1141,6 @@ new draft
   - `1010..xxxx`: an arbitrary size integer that starts with `1010`. It matches the last 4 bit of the integer.
     - No... not this way. It's too confusing.
   - `#(1100xxxx0000yyyy)`: 16 bit integer that looks like the pattern. The matched integers (x, y) are both in range `0..=15`
-
-# 55. `r#keyword` -> implement this in lexer
-
-`fn use(x) = { ... };` 이런 거 보면 "expected an identifer, got a keyword"라고 할 거잖아? 그럼 note로 "use r#"이라고 알려주고 싶음. 지금은 이걸 표시할 자리가 없는데... `ErrorKind::render`를 조금 수정해서 자리를 만드는게 최선일 듯!
 
 # 50. generic functions
 
@@ -1331,33 +1230,6 @@ interned_string이든 file이든 작업하기 전에 lock 걸고 하고 있음. 
   - 이거 하면 curly brace 쓰는 문법이 3개나 돼버림 ㅠㅠ struct-init, block, map...
   - struct-init을 없애버릴까?
     - struct-init을 parenthesis로 쓰는 것도 괜찮을 거 같기는 한데, 그럼 struct pattern이 애매해짐 ㅠㅠ
-
-# 37. debug function
-
-- 단순 print문이나 log문으로 디버깅하기 -> 필수!
-- Sodigy로 서버를 만들면 log를 엄청 남겨야하는데? -> 필..수?
-
-1. `fn debug<T>(v: T, pre: String = "", post: String = "") -> T;`
-  - `v`의 값을 출력하고, `v`를 그대로 반환
-  - 앞뒤에 추가로 문자열 붙일 수 있음!!
-  - 문제점
-    - 어느 시점에 호출될지를 정할 수 없음
-    - 사용되지 않는 값은 출력이 불가능.
-2. `echo` statement
-  - 당연히 debug-mode에만 작동
-  - 인수를 그대로 출력
-  - 문제점
-    - statement를 추가하는 거 자체가 별로임
-    - debug-mode에만 작동된다는 걸 납득 못하는 사람들이 많을 듯
-    - 그냥 print문 대용으로 쓰려고 할 듯
-    - 그럼 이름을 `debug`로 바꾸면 되지 ㅋㅋㅋ
-3. breakpoint를 걸 수 있게 할까?
-  - 그럼 debugger가 필요한데...
-4. 함수 로그 찍는 decorator를 만들까?
-  - 진입할 때 arg 전부 다 보여주고, 빠져나올 때 결과값도 보여줌 -> 이러면 tail-call을 못하는데??
-  - 진입할 때 arg, datetime만 찍어도 괜찮을 거 같은데??
-
-일단은 보류하고 (아직은 debugging이 필요할 정도로 긴 Sodigy 코드를 못 짬), Sodigy 코드를 많이 짜고 나서 그때 생각할까?
 
 # 32. Removing reference counts
 
