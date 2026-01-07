@@ -1,6 +1,19 @@
+# 144. build profiles
+
+1. test vs script vs lib
+  - test: top-level assertion만 전부 돌리고 나가기
+  - script: main 함수 실행
+  - lib: ???
+2. debug assert 죽이기 vs 살리기
+  - 이거 말고도 켜고 끌 수 있는 debug info가 더 있지 않을까?
+3. optimize level
+4. output만 만들고 나가기 vs 실행까지 하기
+5. backend
+
 # 143. consistent crate names
 
 `CompileStage`하고 crate 이름하고 다 일치했으면 좋겠음! 일단 mir-type부터 inter-mir로 바꿔야함 ㅋㅋㅋ
+-> 바꾸면 solver도 type-solver로 바꿔야겠네
 
 Parse vs AST -> 와 이거는 엄청 고민됨 ㅠㅠ
 
@@ -12,6 +25,8 @@ lir도 bytecode로 바꾸셈
 
 arbitrary length list에서 30살 먹은 사람 3명 뽑는 패턴 -> 말되지 않음?
 list에서는 이래도 될 거 같은데...
+
+이걸 하려면 일단 list pattern에서 decision tree를 어떻게 만들지를 정해야함!!
 
 # 141. refactor `main.rs`
 
@@ -1344,199 +1359,6 @@ interned_string이든 file이든 작업하기 전에 lock 걸고 하고 있음. 
 
 일단은 보류하고 (아직은 debugging이 필요할 정도로 긴 Sodigy 코드를 못 짬), Sodigy 코드를 많이 짜고 나서 그때 생각할까?
 
-# 36. Sodigy-Shell
-
-There's a shell-script on top of sodigy. It is a completely different language, can call arbitrary sodigy functions (does it?), and is impure.
-
-So, basically, sodigy is a library-only language. If you want to *execute* something, you have to use sodigy shell.
-
-Things that I need: read/write/append to files (including stdin/stdout/stderr). random_int, date, ...
-
-옛날에 sreq에서 하려고 했던 것들 여기서 할까?
-
-1. pipe operator
-  - `$in`으로 이전에서 넘어온 값 받게 하자... cause I don't like being implicit
-  - `$in`이 들어갈 자리가 명확하면 생략가능하게 하자!
-2. params and flags
-  - a command takes a small number of params (can be zero) and a lot of flags
-  - you can use parenthesis to make params less ambiguous
-3. command
-  - a command may 1) return a value or 2) fail
-    - it must return a single value. there's no tuple in sdgsh
-    - if it fails, it might pass `$err` to pipe
-4. `or` command
-  - if the previous command failed, it's executed
-  - if there's no `or` command after a failed command, the entire shell dies immediately
-  - can it catch panics?
-    - sodigy-shell must be implemented using sodigy bytecodes. so if it can catch panics, we have to allow sodigy bytecodes to catch panics... oh no...
-5. calling sodigy functions
-  - can the sodigy function take arbitrary types of input?
-    - I don't think so...
-    - okay types: int, number, string, list of okay types (does it allow list of list of list of integers?)
-  - can the sodigy function return arbitrary types?
-    - I want the `or` command to take care of sodigy's `Result` type.
-    - what if it panics? does the shell die?
-    - If we're implementing REPL, it has to be able to return arbitrary types
-6. Type checks?
-  - the current runtime has no type information... so if we pass an integer to a function that expects a string, it'll behave in a really weird way but doesn't throw any error
-  - commands have very dynamic types (e.g. return type changes depending on flags)... can we check that?
-  - I still want type checks because
-    - 1, it provides better error messages, both in compile-mode and REPL-mode
-    - 2, I don't want to add runtime type information
-  - In order to check types, we need type information (of course), and in order to check types at runtime, we need the type information at runtime...
-7. Global variables
-  - can we type check this?
-  - in order to type check this, users have to annotate the types of global variables... 으악!
-8. User-defined commands
-  - only a simple macro (text substitution)
-9. Interpreted vs compiled
-  - if it's interpreted, we have REPL!
-  - if it's interpreted, how do we distribute the language?
-10. if it's not repl, there must be some kinda entry point
-  - it has to read stdin, argv, env vars -> easy as cake
-11. comments: `#` vs `//`
-  - if it's shell... then we have to use `#` for comments
-  - but then, we have to rewrite EVERYTHING, even the lexer...
-12. inline expressions
-  - bash/zsh doesn't allow that. nu allows that
-  - if I have to allow this, the language would be at least 3 times more complicated
-13. formatted strings
-  - lexing an f-string is a big deal. it's such a big deal that even sodigy can't do that.
-  - I don't want to implement such thing again...
-14. string escapes
-  - it's a big deal to implement escapes in the lexer
-  - do I have to do that again...??
-15. bash style names (ls, cat, cd, mkdir) vs modern names (read, write, append, list_dir, create_dir, make_dir)
-16. dynamically import sodigy functions
-  - in order to dynamically import sodigy functions, the sodigy functions cannot use static labels
-  - but if the shell is compiled (for distribution), I want them to use static labels
-  - how can it dynamically load bytecodes... we need a whole new architecture
-  - the user points to sodigy source files, not compiled libraries
-    - does it compile the sodigy source on the fly? what if the compilation fails?
-    - how does it find the compiled libraries, or check if it exists?
-  - `use lib_sth.fn_sth as foo;` -> I want this syntax but I cannot reuse the parser in the sodigy compiler ... :(
-17. Then, what happens to the sodigy compiler?
-  - `sodigy new <project_name>` creates a new project
-  - `sodigy run` in the project dir runs the sodigy-shell file in the project
-    - Can a project have multiple shells?
-  - `sodigy test` in the project dir runs the tests in the sodigy files
-  - `sodigy build` emits an output (C/Rust/Python/Bytecode) (including sodigy-shell)
-  - `sodigy interpret <bytecodes_path>` interprets bytecodes
-    - The sodigy binary has to be able to run bytecodes anyway (in order to run tests).
-18. How about this? Sodigy creating `[Command]` at runtime and the shell executes it.
-  - Can we type-check this?
-19. Executing arbitrary binary files
-  - zsh and nu can execute `~/Documents/Rust/hgp/target/release/hgp`... can it? nope!
-20. Another idea for implementation
-  - sodigy-shell is just a thin syntactic sugar over sodigy. for example, `ls -l "../" | do_something | do_another_thing $in 3;` is desugared to `do_another_thing(do_something(ls_long(path="../").unwrap()), 3)`.
-  - Then, it's passed to the sodigy compiler. Sodigy compiler can do everything. It can even type-check the script.
-    - We have to do something with the spans, so that it's error message is readable.
-  - The functions in the generated sodigy code are impure, but the compiler doesn't care about that.
-  - how does it lower `or` command?
-    - `ls -l "../" | or (do_something $err) | do_another_thing $in 3`
-    - `do_another_thing(match ls_long(path="../") { Ok(i) => i, Err(e) => do_something(e) }, 3)`
-    - Wow... this is strong...
-
-TODO: call it `sodigy-script`, not `sodigy-shell` -> fix everything accordingly
-
----
-
-다시 생각
-
-1. 지금 컨셉이 너무 애매함
-  - shell이라고 하기에는 너무 다르고 (path에 항상 quote해야하고, 기본 명령어 (ls, chdir, mv, cp)들도 다 다르고, arbitrary process 실행도 못하고, 특정 명령어에서 panic이 발생하면 shell 전체가 죽어버리고)
-  - script라고 하기에는 너무 약하고 (기본적인 expression도 못씀, 함수 호출 방식도 다름, Python REPL을 쓰던 사람이 sodigy REPL에서 기대하는 거를 아무것도 못함)
-  - 아예 다른 언어를 하나 만들고 컨셉을 확실히 해야함 (그게 꼭 shell이나 script일 필요는 없지만)
-2. Sodigy에는 없지만 action-language에는 필요한 것들
-  - Sodigy는 값 하나만 eval하고 바로 return 하지? action-language는 action 여러개를 연속적으로 실행할 수 있어야함
-  - action의 실행 순서를 정할 수 있어야함.
-  - 위의 2가지가 생기면 for문도 필요해짐
-3. Action-language의 방향
-  - 최대한 간단해야함. 복잡한 logic은 Sodigy로 다 구현해야하거든
-  - action이 sodigy func를 호출하는 건 가능하지만 반대는 불가능
-  - Sodigy와 동일한 VM 위에서 돌아가야함
-
-결론: action 여러개를 연속으로 실행하되, 이전 action의 결과가 이후 action의 실행에 영향을 줌
--> elixir랑 gleam에서 어떻게 구현했는지 좀 볼까...
-
-`read sodigy.toml |> parse |> gen-code |> write -o bin.exe;`
-
----
-
-How about this? A script language that's very similar to Sodigy, except that,
-
-1. You cannot define new a struct/enum/func/alias, only `let` or `assert`.
-2. You can evaluate or execute a function (an action, actually), without `let` or `assert`.
-3. `let` and `assert` are always executed in the order
-4. You can mutate values
-  - `let x = foo();` declares `x` and `x = bar();` assigns `bar()` to `x` (mutates `x`).
-
-근데 이거를 하려면 for문을 만들어야하는데...
-
----
-
-또다시 정리 ㅋㅋㅋ 쟁점들
-
-1. 기존 Sodigy compiler를 얼마나 재활용할 것인가?
-2. 예외처리를 어떻게 할 것인가
-3. inline expression을 허용할 것인가
-4. for문을 구현해야하나
-5. type check를 언제 할 것인가
-  - type check를 할지말지는 선택사항이 아님... runtime에라도 해야지...
-  - 만약에 runtime에 할 거면 Sodigy가 내놓은 값을 enum으로 감싸서 (`serde_json::Value`처럼) 써야함
-  - compile time에 할 거면 기존 type checker를 재활용해?
-    - 재활용하기에는 기존 type checker가 너무 무겁고 (inference는 필요가 없거든), 새로 만들기에는 너무 중복되는게 많음
-    - 재활용하려면 hir->inter-hir->mir을 전부 다 태워야 함
-
----
-
-아니면 이건 ㅇㄸ
-
-`main.sdgcmd`가 따로 있음. Sodigy와 완전히 동일한 문법을 사용하지만 몇몇 impure function을 추가로 사용할 수 있고, `#[impure]`를 이용해서 impure function을 정의할 수 있음.
-
-module hierarchy를 잘 만들면 impure context를 완전히 격리시키는게 가능 (일반 sodigy 파일에서는 impure function을 사용 불가)
-
-Action을 순서대로 실행하기 위해서는 `exec_actions(a1, a2, ...)`가 필요!! 모든 action을 주어진 순서로 실행한 다음에 제일 첫번째 값을 반환 (제일 마지막 값을 반환하는 함수도 만들어야할 듯?). -> 이거 std에서도 써먹을 수 있을 거 같은데??
-
-아마 최적화를 구현하면 pure-function을 상정한 최적화가 많이 들어갈텐데, 걔네를 잘 걷어내는게 관건!
-
-# 34. Errors, Panics and Crashes
-
-1. Errors: `Result<T, E>`
-2. Panics: `panic(msg: String) -> !`
-  - It's impossible to catch a panic.
-  - It prints the message to stderr and terminates the process with a non-zero code.
-  - Printing a span...??
-    - Or... a stacktrace?
-    - Stacktrace를 만드려면 runtime을 수정해야하고, 그럼 모든 runtime을 똑같이 구현해야함! 귀찮쓰...
-3. Crashes: OOM, Stack overflow, ...
-  - 사실 stack overflow도 panic으로 구현하는게 가능함. stack에 뭐 넣을 때마다 크기 검사하는 거임. 그러면 프로그램이 무지 느려지겠지?? ㅋㅋㅋ
-  - 생각보다 안 느릴 거같은데?? 그냥 call stack 깊이만 보고 하면 안됨??
-
-모든 예외는 1이나 2를 통해야함. Runtime이 자체적으로 예외를 발생시키는 건 안됨. 예를 들어서 integer division을 한다? divisor가 0인지 아닌지를 Sodigy가 판단을 하고 Sodigy가 panic을 해야함. Python이 ZeroDivisionError를 내는 건 안됨!
-
-Intrinsic 안에서는 safety check를 하지말고, 전부 Sodigy로 구현하자! 예를 들면,
-
-```
-// Division
-fn div(a: Int, b: Int) -> Int = match b {
-    0 => panic("Zero Division Error"),
-    _ => Intrinsic.IntegerDiv(a, b),
-};
-
-// Array Index
-fn index<T>(ls: [T], i: Int) -> T = match i {
-    // It has to add 1 to `i`, because the first place of the compound value is for the length of the list.
-    i if 0 <= i && i < ls.len() => Builtin.ReadCompound(ls, i + 1),
-    i if -ls.len() <= i => Builtin.ReadCompound(ls, ls.len() + i + 1),
-    _ => panic("Index Error"),
-};
-```
-
-이래야 최적화가 더 잘되지 않을까??
-
-아니면, runtime이 자체적으로 예외를 내는 거를 허용하되, 예외 내는 방식을 정해둘까? 예를 들어서, Sodigy에서 stacktrace 만드는 옵션을 켜면 runtime이 예외를 낼 때도 sodigy stacktrace를 보여줘야하는 거임!
-
 # 32. Removing reference counts
 
 https://www.microsoft.com/en-us/research/wp-content/uploads/2020/11/perceus-tr-v1.pdf
@@ -1585,12 +1407,11 @@ It's a very very common pattern. Tail-call optimization won't help it because it
 
 1. Top-level assertions
   - It's like `#[test]` in Rust.
-  - In test mode, it checks all the assertions.
-    - How do we implement the test runner? If we implement it in Sodigy, it cannot handle panics.
-  - Lowering assertions: `assert x == y;` into `if x == y { True } else { panic() };`
+  - In test mode, it checks all the top-level assertions.
 2. Inline assertions
   - It's like `assert!` in Rust.
-  - In release mode, inline assertions are disabled.
+  - You can turn on/off inline assertions with a compiler flag.
+    - By default, `--release` will disable inline assertions unless they have `#[always]` attribute.
 3. Name-analysis: We have to tweak some logic.
   - If a name is only used by assertions, but not by expressions, we raise an unused name warning.
     - But we add an extra help message here, saying that the name is only used in debug mode.
@@ -1598,10 +1419,10 @@ It's a very very common pattern. Tail-call optimization won't help it because it
   - If a name is used by expressions only once, and multiple time by assertions, we inline the name anyway. For example, `{ let x = foo() + 1; assert x > 0; assert x > 1; [x] }` becomes `{ let x = foo() + 1; assert x > 0; assert x > 1; [foo() + 1] }`.
     - We need a lot of tweaks here...
     - `let x` statement is removed in release mode, but not in debug mode.
-4. Assertions that are enabled in release mode.
-  - How about `#[always]` decorator?
-  - If a top-level assertion is decorated with `#[always]`, it's asserted before entering the main function.
-    - It's treated like a normal test in test context.
+4. `#[always]`
+  - By default, assertions are enabled/disabled with a compiler flag.
+  - If an assertion has `#[always]` attribute, it's always enabled.
+  - You can't add `#[always]` to a top-level assertion!
 5. Syntactic sugar for `assert x == y;`
   - 이게 실패하면 lhs와 rhs를 확인해야함...
   - 근데 syntax 기준으로 뜯어내는 거는 너무 더러운데... ㅜㅜ 이건 마치 `==`를 syntactic sugar로 쓰겠다는 발상이잖아 ㅋㅋㅋ
@@ -1610,9 +1431,11 @@ It's a very very common pattern. Tail-call optimization won't help it because it
     - value가 `Block { lets: Vec<Let>, value: Expr }`인 경우, `lets`를 dump (expr만), `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `if { cond: Expr, .. }`인 경우, `cond`를 dump, `value`는 dump할 필요없음 (당연히 False일테니)
     - value가 `match { value: Expr, .. }`인 경우, `value`를 dump하고 어느 branch에 걸렸는지도 dump
+  - F#에 이런 거 하는 라이브러리가 있대: https://github.com/SwensenSoftware/unquote
 6. pre/post assertions
-  - 함수 진입할 때마다 특정 assertion을 자동으로 호출하거나 함수 나갈 때마다 특정 assertion을 자동으로 호출하는 기능
-    - 생각해보니까, 함수 나갈 때마다 assertion 호출하면 tail-call이 안되는데??
+  - Nope.
+  - pre-assertion은 그냥 함수 body에 assert 넣는 거랑 다를게 없음. 굳이 새로운 문법 만들 필요가 없음
+  - post-assertion을 쓰면 tail call이 안됨!!
 
 # 25. Make it more Rust-like!! ... 하다가 생긴 문제점
 

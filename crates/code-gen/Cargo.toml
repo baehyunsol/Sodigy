@@ -1,0 +1,8 @@
+[package]
+name = "sodigy-code-gen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sodigy-endec = { version = "0.1.0", path = "../endec" }
+sodigy-lir = { version = "0.1.0", path = "../lir" }

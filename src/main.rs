@@ -10,6 +10,7 @@ use sodigy::{
     StoreIrAt,
     parse_args,
 };
+use sodigy_code_gen::Backend;
 use sodigy_endec::{DumpSession, Endec};
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
@@ -59,23 +60,41 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
     let args = std::env::args().collect::<Vec<_>>();
 
     match parse_args(&args) {
-        Ok(command) => match command {
+        Ok(cli_command) => match cli_command {
             CliCommand::New { project_name } => {
                 init_project(&project_name)?;
                 Ok(())
             },
-            CliCommand::Test {
-                optimization,
-                import_std,
-                jobs,
-            } => {
+            CliCommand::Build { optimize_level, import_std, emit_irs, jobs, .. } |
+            CliCommand::Run { optimize_level, import_std, emit_irs, jobs } |
+            CliCommand::Test { optimize_level, import_std, emit_irs, jobs } => {
                 // TODO: make it configurable
                 let ir_dir = String::from("target");
 
                 goto_root_dir()?;
                 let workers = worker::init_workers(jobs);
-                let mut run_id = 0;
+                let mut round_robin = 0;
                 let mut modules: HashMap<ModulePath, ModuleCompileState> = HashMap::new();
+                let emit_irs = if emit_irs {
+                    [
+                        CompileStage::Lex,
+                        CompileStage::Parse,
+                        CompileStage::Hir,
+                        CompileStage::InterHir,
+                        CompileStage::Mir,
+                        CompileStage::InterMir,
+                        CompileStage::PostMir,
+                        CompileStage::Bytecode,
+                    ].into_iter().map(
+                        |stage| EmitIrOption {
+                            stage,
+                            store: StoreIrAt::IntermediateDir,
+                            human_readable: true,
+                        }
+                    ).collect()
+                } else {
+                    vec![]
+                };
 
                 let lib_module_path = ModulePath::lib();
                 let lib_file_path = match lib_module_path.get_file_path() {
@@ -92,9 +111,9 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                 modules.insert(lib_module_path.clone(), ModuleCompileState {
                     module_path: lib_module_path,
                     file_path: lib_file_path,
+                    span: Span::Lib,
                     compile_stage: CompileStage::Load,
                     running: false,
-                    span: Span::Lib,
                 });
                 init_ir_dir(&ir_dir)?;
 
@@ -105,9 +124,9 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                         ModuleCompileState {
                             module_path: std_module_path,
                             file_path: std_file_path,
+                            span: Span::Std,
                             compile_stage: CompileStage::Load,
                             running: false,
-                            span: Span::Std,
                         },
                     );
                 }
@@ -115,27 +134,27 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                 loop {
                     let mut every_hir_complete = true;
                     let mut every_mir_complete = true;
+                    let mut every_post_mir_complete = true;
 
                     for module in modules.values_mut() {
                         if let (CompileStage::Load, false) = (module.compile_stage, module.running) {
-                            workers[run_id % workers.len()].send(MessageToWorker::Run {
-                                commands: vec![Command::PerFileIr {
+                            workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                                Command::PerFileIr {
                                     input_file_path: module.file_path.clone(),
                                     input_module_path: module.module_path.clone(),
                                     intermediate_dir: ir_dir.clone(),
                                     find_modules: true,
-                                    emit_ir_options: vec![
+                                    emit_ir_options: emit_irs.clone_and_push(
                                         EmitIrOption {
                                             stage: CompileStage::Hir,
                                             store: StoreIrAt::IntermediateDir,
                                             human_readable: false,
                                         },
-                                    ],
+                                    ),
                                     stop_after: CompileStage::Hir,
-                                }],
-                                id: run_id,
-                            })?;
-                            run_id += 1;
+                                },
+                            ]))?;
+                            round_robin += 1;
                             module.compile_stage = CompileStage::Hir;
                             module.running = true;
                         }
@@ -147,28 +166,102 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                         if (module.compile_stage, module.running) != (CompileStage::Mir, false) {
                             every_mir_complete = false;
                         }
+
+                        if (module.compile_stage, module.running) != (CompileStage::PostMir, false) {
+                            every_post_mir_complete = false;
+                        }
                     }
 
                     if every_hir_complete {
-                        workers[run_id % workers.len()].send(MessageToWorker::Run {
-                            commands: vec![Command::InterHir {
-                                modules: modules.values().map(|module| (module.module_path.clone(), module.span)).collect(),
+                        workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                            Command::InterHir {
+                                modules: modules.values().map(
+                                    |module| (module.module_path.clone(), module.span)
+                                ).collect(),
                                 intermediate_dir: ir_dir.clone(),
-                            }],
-                            id: run_id,
-                        })?;
-                        run_id += 1;
+                                emit_ir_options: emit_irs.clone_and_push(
+                                    EmitIrOption {
+                                        stage: CompileStage::InterHir,
+                                        store: StoreIrAt::IntermediateDir,
+                                        human_readable: false,
+                                    },
+                                ),
+                            },
+                        ]))?;
+                        round_robin += 1;
+
+                        for module in modules.values_mut() {
+                            module.compile_stage = CompileStage::InterHir;
+                            module.running = true;
+                        }
                     }
 
                     if every_mir_complete {
-                        workers[run_id % workers.len()].send(MessageToWorker::Run {
-                            commands: vec![Command::InterMir {
-                                modules: modules.values().map(|module| (module.module_path.clone(), module.span)).collect(),
+                        workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                            Command::InterMir {
+                                modules: modules.values().map(
+                                    |module| (module.module_path.clone(), module.span)
+                                ).collect(),
                                 intermediate_dir: ir_dir.clone(),
-                            }],
-                            id: run_id,
-                        })?;
-                        run_id += 1;
+                                emit_ir_options: emit_irs.clone_and_push(
+                                    EmitIrOption {
+                                        stage: CompileStage::InterMir,
+                                        store: StoreIrAt::IntermediateDir,
+                                        human_readable: false,
+                                    },
+                                ),
+                            },
+                        ]))?;
+                        round_robin += 1;
+
+                        for module in modules.values_mut() {
+                            module.compile_stage = CompileStage::InterMir;
+                            module.running = true;
+                        }
+                    }
+
+                    if every_post_mir_complete {
+                        let (output_path, backend) = match &cli_command {
+                            CliCommand::Run { .. } => (StoreIrAt::Memory, Backend::Bytecode),
+                            CliCommand::Test { .. } => (StoreIrAt::Memory, Backend::Bytecode),
+                            CliCommand::Build { output_path, backend, .. } => (StoreIrAt::File(output_path.to_string()), *backend),
+                            _ => todo!(),
+                        };
+
+                        let mut commands = vec![Command::Bytecode {
+                            modules: modules.values().map(
+                                |module| (module.module_path.clone(), module.span)
+                            ).collect(),
+                            intermediate_dir: ir_dir.clone(),
+                            optimize_level,
+                            backend,
+                            output_path,
+                            stop_after: CompileStage::CodeGen,
+                        }];
+
+                        match cli_command {
+                            CliCommand::Run { .. } => {
+                                commands.push(Command::Interpret {
+                                    bytecodes_path: StoreIrAt::Memory,
+                                    profile: Profile::Script,
+                                });
+                            },
+                            CliCommand::Test { .. } => {
+                                commands.push(Command::Interpret {
+                                    bytecodes_path: StoreIrAt::Memory,
+                                    profile: Profile::Test,
+                                });
+                            },
+                            _ => {},
+                        }
+
+                        workers[round_robin % workers.len()].send(MessageToWorker::Run(commands))?;
+                        round_robin += 1;
+
+                        for module in modules.values_mut() {
+                            module.compile_stage = CompileStage::CodeGen;
+                            module.running = true;
+                        }
                     }
 
                     for worker in workers.iter() {
@@ -192,9 +285,9 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                                             ModuleCompileState {
                                                 module_path: path,
                                                 file_path,
+                                                span,
                                                 compile_stage: CompileStage::Load,
                                                 running: false,
-                                                span,
                                             },
                                         );
                                     }
@@ -220,24 +313,23 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                                                 module.compile_stage = CompileStage::InterHir;
                                                 module.running = false;
 
-                                                workers[run_id % workers.len()].send(MessageToWorker::Run {
-                                                    commands: vec![Command::PerFileIr {
+                                                workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                                                    Command::PerFileIr {
                                                         input_file_path: module.file_path.clone(),
                                                         input_module_path: module.module_path.clone(),
                                                         intermediate_dir: ir_dir.clone(),
                                                         find_modules: false,
-                                                        emit_ir_options: vec![
+                                                        emit_ir_options: emit_irs.clone_and_push(
                                                             EmitIrOption {
                                                                 stage: CompileStage::Mir,
                                                                 store: StoreIrAt::IntermediateDir,
                                                                 human_readable: false,
                                                             },
-                                                        ],
+                                                        ),
                                                         stop_after: CompileStage::Mir,
-                                                    }],
-                                                    id: run_id,
-                                                })?;
-                                                run_id += 1;
+                                                    },
+                                                ]))?;
+                                                round_robin += 1;
                                             }
                                         },
                                         (CompileStage::InterMir, None) => {
@@ -245,24 +337,23 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                                                 module.compile_stage = CompileStage::InterMir;
                                                 module.running = false;
 
-                                                workers[run_id % workers.len()].send(MessageToWorker::Run {
-                                                    commands: vec![Command::PerFileIr {
+                                                workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                                                    Command::PerFileIr {
                                                         input_file_path: module.file_path.clone(),
                                                         input_module_path: module.module_path.clone(),
                                                         intermediate_dir: ir_dir.clone(),
                                                         find_modules: false,
-                                                        emit_ir_options: vec![
+                                                        emit_ir_options: emit_irs.clone_and_push(
                                                             EmitIrOption {
                                                                 stage: CompileStage::PostMir,
                                                                 store: StoreIrAt::IntermediateDir,
                                                                 human_readable: false,
                                                             },
-                                                        ],
+                                                        ),
                                                         stop_after: CompileStage::PostMir,
                                                     }],
-                                                    id: run_id,
-                                                })?;
-                                                run_id += 1;
+                                                ))?;
+                                                round_robin += 1;
                                             }
                                         },
                                         (_, Some(module_path)) => {
@@ -289,7 +380,7 @@ fn run_compiler(errors: &mut Vec<SodigyError>, warnings: &mut Vec<SodigyWarning>
                     }
                 }
             },
-            _ => panic!("TODO: {command:?}"),
+            _ => todo!(),
         },
         Err(e) => {
             let message = e.kind.render();
@@ -358,7 +449,6 @@ fn init_project(name: &str) -> Result<(), FileError> {
 pub fn run(
     commands: Vec<Command>,
     tx_to_main: mpsc::Sender<MessageToMain>,
-    run_id: usize,
 ) -> Result<(), Error> {
     let mut memory = None;
 
@@ -386,7 +476,7 @@ pub fn run(
                 };
                 let content_hash = file.get_content_hash(&intermediate_dir)?;
 
-                let mut mir_session = if let Some(mir_session_bytes) = get_cached_ir(
+                let mut mir_session = if stop_after >= CompileStage::Mir && let Some(mir_session_bytes) = get_cached_ir(
                     &intermediate_dir,
                     CompileStage::Mir,
                     Some(content_hash),
@@ -509,17 +599,15 @@ pub fn run(
                         &intermediate_dir,
                         CompileStage::InterHir,
                         None,
-                    )?.ok_or(Error::MiscError)?;
+                    )?.ok_or(Error::IrCacheNotFound(CompileStage::InterHir))?;
                     let mut inter_hir_session = sodigy_inter_hir::Session::decode(&inter_hir_session_bytes)?;
                     inter_hir_session.intermediate_dir = intermediate_dir.clone();
                     let _ = inter_hir_session.resolve_module(&mut hir_session);
                     hir_session.errors.extend(inter_hir_session.errors.drain(..));
                     hir_session.warnings.extend(inter_hir_session.warnings.drain(..));
 
-                    // We don't check errors here.
-                    // If InterHir has an error, this code cannot be reached.
-
-                    let mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
+                    let mut mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
+                    init_span_string_map_if_necessary(&mut mir_session, &emit_ir_options);
                     emit_irs_if_has_to(
                         &mir_session,
                         &emit_ir_options,
@@ -529,44 +617,73 @@ pub fn run(
                         &mut memory,
                     )?;
 
-                    if !mir_session.errors.is_empty() || stop_after <= CompileStage::Mir {
-                        tx_to_main.send(MessageToMain::IrComplete {
-                            module_path: Some(input_module_path),
-                            compile_stage: CompileStage::Mir,
-                            errors: mir_session.errors.clone(),
-                            warnings: mir_session.warnings.clone(),
-                        })?;
-
-                        if !mir_session.errors.is_empty() {
-                            return Err(Error::CompileError);
-                        }
-
-                        else {
-                            continue;
-                        }
-                    }
-
                     mir_session
                 };
+
+                if !mir_session.errors.is_empty() || stop_after <= CompileStage::Mir {
+                    tx_to_main.send(MessageToMain::IrComplete {
+                        module_path: Some(input_module_path),
+                        compile_stage: CompileStage::Mir,
+                        errors: mir_session.errors.clone(),
+                        warnings: mir_session.warnings.clone(),
+                    })?;
+
+                    if !mir_session.errors.is_empty() {
+                        return Err(Error::CompileError);
+                    }
+
+                    else {
+                        continue;
+                    }
+                }
 
                 // the inter-mir session must have been created at this point
                 let inter_mir_session_bytes = get_cached_ir(
                     &intermediate_dir,
                     CompileStage::InterMir,
                     None,
-                )?.ok_or(Error::MiscError)?;
+                )?.ok_or(Error::IrCacheNotFound(CompileStage::InterMir))?;
                 let mut inter_mir_session = sodigy_mir_type::Session::decode(&inter_mir_session_bytes)?;
                 mir_session.errors.extend(inter_mir_session.errors.drain(..));
                 mir_session.warnings.extend(inter_mir_session.warnings.drain(..));
                 mir_session.types = inter_mir_session.types.drain().collect();
                 mir_session.generic_instances = inter_mir_session.generic_instances.drain().collect();
 
-                // post mir
-                todo!()
+                let _ = sodigy_post_mir::lower_matches(&mut mir_session);
+
+                init_span_string_map_if_necessary(&mut mir_session, &emit_ir_options);
+                emit_irs_if_has_to(
+                    &mir_session,
+                    &emit_ir_options,
+                    CompileStage::PostMir,
+                    Some(content_hash),
+                    &intermediate_dir,
+                    &mut memory,
+                )?;
+
+                if !mir_session.errors.is_empty() || stop_after <= CompileStage::PostMir {
+                    tx_to_main.send(MessageToMain::IrComplete {
+                        module_path: Some(input_module_path),
+                        compile_stage: CompileStage::PostMir,
+                        errors: mir_session.errors.clone(),
+                        warnings: mir_session.warnings.clone(),
+                    })?;
+
+                    if !mir_session.errors.is_empty() {
+                        return Err(Error::CompileError);
+                    }
+
+                    else {
+                        continue;
+                    }
+                }
+
+                unreachable!()
             },
             Command::InterHir {
                 modules,
                 intermediate_dir,
+                emit_ir_options,
             } => {
                 let mut inter_hir_session = sodigy_inter_hir::Session::new(&intermediate_dir);
 
@@ -581,7 +698,7 @@ pub fn run(
                         &intermediate_dir,
                         CompileStage::Hir,
                         Some(content_hash),
-                    )?.ok_or(Error::MiscError)?;
+                    )?.ok_or(Error::IrCacheNotFound(CompileStage::Hir))?;
                     let mut hir_session = sodigy_hir::Session::decode(&hir_session_bytes)?;
                     hir_session.intermediate_dir = intermediate_dir.clone();
                     inter_hir_session.ingest(*span, hir_session);
@@ -593,13 +710,7 @@ pub fn run(
 
                 emit_irs_if_has_to(
                     &inter_hir_session,
-                    &[
-                        EmitIrOption {
-                            stage: CompileStage::InterHir,
-                            store: StoreIrAt::IntermediateDir,
-                            human_readable: false,
-                        },
-                    ],
+                    &emit_ir_options,
                     CompileStage::InterHir,
                     None,
                     &intermediate_dir,
@@ -615,6 +726,7 @@ pub fn run(
             Command::InterMir {
                 modules,
                 intermediate_dir,
+                emit_ir_options,
             } => {
                 let mut merged_mir_session: Option<mir::Session> = None;
 
@@ -629,7 +741,7 @@ pub fn run(
                         &intermediate_dir,
                         CompileStage::Mir,
                         Some(content_hash),
-                    )?.ok_or(Error::MiscError)?;
+                    )?.ok_or(Error::IrCacheNotFound(CompileStage::Mir))?;
                     let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
                     mir_session.intermediate_dir = intermediate_dir.clone();
 
@@ -648,13 +760,7 @@ pub fn run(
 
                 emit_irs_if_has_to(
                     &inter_mir_session,
-                    &[
-                        EmitIrOption {
-                            stage: CompileStage::InterMir,
-                            store: StoreIrAt::IntermediateDir,
-                            human_readable: false,
-                        },
-                    ],
+                    &emit_ir_options,
                     CompileStage::InterMir,
                     None,
                     &intermediate_dir,
@@ -667,31 +773,122 @@ pub fn run(
                     warnings: inter_mir_session.warnings.clone(),
                 })?;
             },
+            Command::Bytecode {
+                modules,
+                intermediate_dir,
+                optimize_level,
+                backend,
+                output_path,
+                stop_after,
+            } => {
+                let mut merged_mir_session: Option<mir::Session> = None;
+
+                for path in modules.keys() {
+                    let file = File::from_module_path(
+                        0,  // project_id
+                        &path.to_string(),
+                        &intermediate_dir,
+                    )?.ok_or(Error::MiscError)?;
+                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let mir_session_bytes = get_cached_ir(
+                        &intermediate_dir,
+                        CompileStage::Mir,
+                        Some(content_hash),
+                    )?.ok_or(Error::IrCacheNotFound(CompileStage::PostMir))?;
+                    let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
+                    mir_session.intermediate_dir = intermediate_dir.clone();
+
+                    match &mut merged_mir_session {
+                        Some(s) => {
+                            s.merge(mir_session);
+                        },
+                        None => {
+                            merged_mir_session = Some(mir_session);
+                        },
+                    }
+                }
+
+                let mir_session = merged_mir_session.unwrap();
+                let optimized_mir_session = sodigy_optimize::optimize(mir_session, optimize_level);
+
+                if !optimized_mir_session.errors.is_empty() || stop_after <= CompileStage::Optimize {
+                    tx_to_main.send(MessageToMain::IrComplete {
+                        module_path: None,
+                        compile_stage: CompileStage::Optimize,
+                        errors: optimized_mir_session.errors.clone(),
+                        warnings: optimized_mir_session.warnings.clone(),
+                    })?;
+
+                    if !optimized_mir_session.errors.is_empty() {
+                        return Err(Error::CompileError);
+                    }
+
+                    else {
+                        continue;
+                    }
+                }
+
+                let lir_session = sodigy_lir::lower(optimized_mir_session);
+
+                // lir doesn't emit any errors.
+                if stop_after <= CompileStage::Bytecode {
+                    tx_to_main.send(MessageToMain::IrComplete {
+                        module_path: None,
+                        compile_stage: CompileStage::Bytecode,
+
+                        // TODO: `optimized_mir_session`'s warnings are lost!!
+                        errors: vec![],
+                        warnings: vec![],
+                    })?;
+
+                    continue;
+                }
+
+                let result = sodigy_code_gen::lower(lir_session, backend);
+
+                match output_path {
+                    StoreIrAt::File(f) => {
+                        write_bytes(&f, &result, WriteMode::CreateOrTruncate)?;
+                    },
+                    StoreIrAt::Memory => {
+                        memory = Some(result);
+                    },
+                    StoreIrAt::IntermediateDir => unreachable!(),
+                }
+            },
             Command::Interpret {
                 bytecodes_path,
                 profile,
             } => {
                 let bytecodes_bytes = match bytecodes_path {
                     StoreIrAt::File(path) => read_bytes(&path)?,
-                    StoreIrAt::Memory => memory.clone().ok_or(Error::MiscError)?,
+                    StoreIrAt::Memory => memory.clone().ok_or(Error::IrCacheNotFound(CompileStage::CodeGen))?,
                     StoreIrAt::IntermediateDir => todo!(),
                 };
-                let bytecodes_bytes = Vec::<u8>::decode(&bytecodes_bytes)?;
                 let executable = sodigy_lir::Executable::decode(&bytecodes_bytes)?;
-                let mut ever_failed = false;
 
-                for (name, label) in executable.asserts.iter() {
-                    let fail = sodigy_interpreter::interpret(&executable, *label).is_err();
-                    println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
+                match profile {
+                    Profile::Test => {
+                        let mut ever_failed = false;
 
-                    if fail {
-                        ever_failed = true;
-                    }
+                        for (name, label) in executable.asserts.iter() {
+                            let fail = sodigy_interpreter::interpret(&executable, *label).is_err();
+                            println!("assertion `{name}`: {}", if fail { "fail" } else { "success" });
+
+                            if fail {
+                                ever_failed = true;
+                            }
+                        }
+
+                        if ever_failed {
+                            return Err(Error::RuntimeError);
+                        }
+                    },
+                    _ => todo!(),
                 }
 
-                if ever_failed {
-                    return Err(Error::RuntimeError);
-                }
+                // we have to signal the master that the interpretation is complete!!
+                todo!()
             },
             Command::Help(doc) => match doc {
                 _ => todo!(),
@@ -807,6 +1004,25 @@ fn emit_irs_if_has_to<T: Endec + DumpSession>(
     Ok(())
 }
 
+fn init_span_string_map_if_necessary(
+    session: &mut mir::Session,
+    emit_ir_options: &[EmitIrOption],
+) {
+    for option in emit_ir_options.iter() {
+        match option {
+            EmitIrOption {
+                stage: CompileStage::Mir | CompileStage::PostMir,
+                human_readable: true,
+                ..
+            } => {
+                session.init_span_string_map();
+                break;
+            },
+            _ => {},
+        }
+    }
+}
+
 fn get_cached_ir(
     intermediate_dir: &str,
     stage: CompileStage,
@@ -830,5 +1046,18 @@ fn get_cached_ir(
 
     else {
         Ok(None)
+    }
+}
+
+// I want purely functional `push` method, but rust doesn't have one. So I created one!
+trait CloneAndPush<T> {
+    fn clone_and_push(&self, element: T) -> Vec<T>;
+}
+
+impl<T: Clone> CloneAndPush<T> for Vec<T> {
+    fn clone_and_push(&self, element: T) -> Vec<T> {
+        let mut r = self.to_vec();
+        r.push(element);
+        r
     }
 }

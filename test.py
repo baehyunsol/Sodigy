@@ -29,11 +29,14 @@ if filter is not None and filter != "all":
 sample_files.sort()
 result = {}
 
+if os.path.exists("sodigy-test"):
+    shutil.rmtree("sodigy-test")
+
 features = (["debug-bytecode"] if debug_bytecode else []) + (["debug-heap"] if debug_heap else [])
 features = ["--features=" + ",".join(features)] if features else []
 subprocess.run(["cargo", "build", *features], check=True)
-subprocess.run(["target/debug/sodigy", "new", "__test"], capture_output=True, check=True)
-os.chdir("__test/src")
+subprocess.run(["target/debug/sodigy", "new", "sodigy-test"], capture_output=True, check=True)
+os.chdir("sodigy-test/src")
 
 try:
     for file in sample_files:
@@ -48,6 +51,7 @@ try:
                 f.write(sample)
 
             flags = ["--no-std"] if no_std else []
+            flags += ["--emit-irs"]
             p = subprocess.run(["../../target/debug/sodigy", "test", *flags], timeout=999)
 
             if p.returncode == 0:
@@ -67,6 +71,6 @@ finally:
     os.chdir("../..")
 
     if not no_clean:
-        shutil.rmtree("__test")
+        shutil.rmtree("sodigy-test")
 
 print(result)

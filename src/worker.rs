@@ -6,10 +6,7 @@ use std::sync::mpsc;
 use std::thread;
 
 pub enum MessageToWorker {
-    Run {
-        commands: Vec<Command>,
-        id: usize,
-    },
+    Run(Vec<Command>),
 }
 
 pub enum MessageToMain {
@@ -48,7 +45,7 @@ impl Channel {
     }
 }
 
-pub fn init_workers(n: u32) -> Vec<Channel> {
+pub fn init_workers(n: usize) -> Vec<Channel> {
     (0..n).map(|_| init_worker()).collect()
 }
 
@@ -77,8 +74,8 @@ fn worker_loop(
 ) -> Result<(), Error> {
     for msg in rx_from_main {
         match msg {
-            MessageToWorker::Run { commands, id } => {
-                run(commands, tx_to_main.clone(), id)?;
+            MessageToWorker::Run(commands) => {
+                run(commands, tx_to_main.clone())?;
             },
         }
     }

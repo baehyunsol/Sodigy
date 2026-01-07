@@ -1,3 +1,4 @@
+use crate::CompileStage;
 use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 
@@ -16,6 +17,7 @@ pub enum Error {
     DecodeError(DecodeError),
     CliError,
     MpscError,
+    IrCacheNotFound(CompileStage),
 
     /// Errors other than the above errors.
     MiscError,
@@ -27,11 +29,10 @@ impl Error {
         match self {
             Error::RuntimeError => 10,
             Error::CompileError => 11,
-            Error::FileError(_) => 12,
-            Error::DecodeError(_) => 13,
-            Error::CliError => 14,
-            Error::MpscError => 15,
-            Error::MiscError => 16,
+
+            // `RuntimeError` and `CompileError` are obvious, but
+            // the other variants are subject to change.
+            _ => 12,
         }
     }
 }

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sodigy-backend = { version = "0.1.0", path = "crates/backend" }
+sodigy-code-gen = { version = "0.1.0", path = "crates/code-gen" }
 sodigy-error = { version = "0.1.0", path = "crates/error" }
 sodigy-endec = { version = "0.1.0", path = "crates/endec" }
 sodigy-file = { version = "0.1.0", path = "crates/file" }
@@ -17,13 +17,14 @@ sodigy-lir = { version = "0.1.0", path = "crates/lir" }
 sodigy-mir = { version = "0.1.0", path = "crates/mir" }
 sodigy-mir-type = { version = "0.1.0", path = "crates/mir-type" }
 sodigy-name-analysis = { version = "0.1.0", path = "crates/name-analysis" }
+sodigy-optimize = { version = "0.1.0", path = "crates/optimize" }
 sodigy-parse = { version = "0.1.0", path = "crates/parse" }
 sodigy-post-mir = { version = "0.1.0", path = "crates/post-mir" }
 sodigy-span = { version = "0.1.0", path = "crates/span" }
 sodigy-string = { version = "0.1.0", path = "crates/string" }
 
 # TODO: I want everything to be inside this repository
-ragit-cli = "0.4.4"
+ragit-cli = "0.4.5"
 
 [features]
 debug-bytecode = ["sodigy-interpreter/debug-bytecode"]

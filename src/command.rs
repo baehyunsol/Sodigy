@@ -4,7 +4,9 @@ use crate::{
     Profile,
     StoreIrAt,
 };
+use sodigy_code_gen::Backend;
 use sodigy_file::{FileOrStd, ModulePath};
+use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -27,20 +29,31 @@ pub enum Command {
         emit_ir_options: Vec<EmitIrOption>,
         stop_after: CompileStage,
     },
+    // Collects HIRs and runs InterHir stage.
     InterHir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
+        emit_ir_options: Vec<EmitIrOption>,
     },
+    // Collects MIRs and runs InterMir stage.
     InterMir {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
+        emit_ir_options: Vec<EmitIrOption>,
+    },
+    // Collects post-MIRs and runs Optimize/Bytecode stage.
+    // This command is also responsible for code-gen, but code-gen is WIP.
+    // The result (bytecode or generated executable) is saved at `output_path`.
+    Bytecode {
+        modules: HashMap<ModulePath, Span>,
+        intermediate_dir: String,
+        optimize_level: OptimizeLevel,
+        backend: Backend,
+        output_path: StoreIrAt,
+        stop_after: CompileStage,
     },
     Interpret {
         bytecodes_path: StoreIrAt,
-
-        // It's either `Test` or not.
-        // The bytecode will tell you where the tests are, if exist, and where the
-        // main function is, if exists. But it won't tell you how to optimize itself.
         profile: Profile,
     },
     Help(String),

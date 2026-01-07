@@ -28,13 +28,6 @@ pub enum StoreIrAt {
     IntermediateDir,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Optimization {
-    None,
-    Mild,
-    Extreme,
-}
-
 #[derive(Clone, Debug)]
 pub struct EmitIrOption {
     pub stage: CompileStage,
@@ -54,7 +47,7 @@ pub struct EmitIrOption {
 pub struct ModuleCompileState {
     pub module_path: ModulePath,
     pub file_path: FileOrStd,
+    pub span: Span,
     pub compile_stage: CompileStage,
     pub running: bool,
-    pub span: Span,
 }

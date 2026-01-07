@@ -1,20 +1,35 @@
-use crate::{Optimization, Profile};
+use crate::Profile;
 use ragit_cli::{
     ArgCount,
     ArgParser,
     ArgType,
     Error as CliError,
 };
+use sodigy_code_gen::Backend;
+use sodigy_optimize::OptimizeLevel;
 
 #[derive(Debug)]
 pub enum CliCommand {
     Build {
         output_path: String,
-        optimization: Optimization,
+        backend: Backend,
+        optimize_level: OptimizeLevel,
         import_std: bool,
         profile: Profile,
         emit_irs: bool,
-        jobs: u32,
+        jobs: usize,
+    },
+    Run {
+        optimize_level: OptimizeLevel,
+        import_std: bool,
+        emit_irs: bool,
+        jobs: usize,
+    },
+    Test {
+        optimize_level: OptimizeLevel,
+        import_std: bool,
+        emit_irs: bool,
+        jobs: usize,
     },
     Clean,
     Help(String),
@@ -24,16 +39,6 @@ pub enum CliCommand {
     New {
         project_name: String,
     },
-    Run {
-        optimization: Optimization,
-        import_std: bool,
-        jobs: u32,
-    },
-    Test {
-        optimization: Optimization,
-        import_std: bool,
-        jobs: u32,
-    },
 }
 
 pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
@@ -41,6 +46,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         Some("build") => {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--output", ArgType::String)
+                .optional_arg_flag("--backend", ArgType::enum_(&["c", "rust", "python", "bytecode"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
@@ -56,12 +62,24 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             }
 
             let output_path = parsed_args.arg_flags.get("--output").map(|p| p.to_string());
-            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
+            let backend = match parsed_args.arg_flags.get("--backend").map(|f| f.as_str()) {
+                Some("c") => Backend::C,
+                Some("rust") => Backend::Rust,
+                Some("python") => Backend::Python,
+                Some("bytecode") => Backend::Bytecode,
+                None => Backend::Bytecode,  // default
+                _ => unreachable!(),
+            };
+            let jobs = parsed_args.arg_flags.get("--jobs").map(
+                |n| n.parse::<usize>().unwrap()
+            ).unwrap_or_else(
+                || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
+            );
 
             // Do you see `.as_ref()` and `.map()` below? It's one of the reasons why I'm creating Sodigy.
-            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
-                Some("--release") => Optimization::Mild,
-                None => Optimization::None,
+            let optimize_level = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => OptimizeLevel::Mild,
+                None => OptimizeLevel::None,
                 _ => unreachable!(),
             };
 
@@ -81,7 +99,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
 
             Ok(CliCommand::Build {
                 output_path,
-                optimization,
+                backend,
+                optimize_level,
                 import_std,
                 profile,
                 emit_irs,
@@ -142,6 +161,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
@@ -152,17 +172,23 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 return Ok(CliCommand::Help(String::from("run")));
             }
 
-            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
-                Some("--release") => Optimization::Mild,
-                None => Optimization::None,
+            let optimize_level = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => OptimizeLevel::Mild,
+                None => OptimizeLevel::None,
                 _ => unreachable!(),
             };
-            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
-            let import_std = !parsed_args.get_flag(1).is_some();
+            let jobs = parsed_args.arg_flags.get("--jobs").map(
+                |n| n.parse::<usize>().unwrap()
+            ).unwrap_or_else(
+                || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
+            );
+            let emit_irs = parsed_args.get_flag(1).is_some();
+            let import_std = !parsed_args.get_flag(2).is_some();
 
             Ok(CliCommand::Run {
-                optimization,
+                optimize_level,
                 import_std,
+                emit_irs,
                 jobs,
             })
         },
@@ -170,6 +196,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
+                .optional_flag(&["--emit-irs"])
                 .optional_flag(&["--no-std"])
                 .alias("-O", "--release")
                 .short_flag(&["--jobs"])
@@ -180,17 +207,23 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 return Ok(CliCommand::Help(String::from("test")));
             }
 
-            let optimization = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
-                Some("--release") => Optimization::Mild,
-                None => Optimization::None,
+            let optimize_level = match parsed_args.get_flag(0).as_ref().map(|f| f.as_str()) {
+                Some("--release") => OptimizeLevel::Mild,
+                None => OptimizeLevel::None,
                 _ => unreachable!(),
             };
-            let jobs = parsed_args.arg_flags.get("--jobs").map(|n| n.parse::<u32>().unwrap()).unwrap_or(4);
-            let import_std = !parsed_args.get_flag(1).is_some();
+            let jobs = parsed_args.arg_flags.get("--jobs").map(
+                |n| n.parse::<usize>().unwrap()
+            ).unwrap_or_else(
+                || std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)
+            );
+            let emit_irs = parsed_args.get_flag(1).is_some();
+            let import_std = !parsed_args.get_flag(2).is_some();
 
             Ok(CliCommand::Test {
-                optimization,
+                optimize_level,
                 import_std,
+                emit_irs,
                 jobs,
             })
         },
