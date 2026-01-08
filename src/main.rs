@@ -50,6 +50,18 @@ fn main() {
         Ok(()) => {},
         Err(e) => {
             match &e {
+                Error::RuntimeError => {
+                    // TODO: what do I do here?
+                },
+                Error::CompileError => {
+                    // The errors are already dumped!
+                },
+                Error::FileError(e) => {
+                    eprintln!("FileError: {e:?}");
+                },
+                Error::DecodeError(e) => {
+                    eprintln!("DecodeError: {e:?}");
+                },
                 Error::CliError(e) => {
                     let message = e.kind.render();
                     eprintln!(
@@ -61,10 +73,15 @@ fn main() {
                         },
                     );
                 },
-                Error::CompileError => {
-                    // The errors are already dumped!
+                Error::MpscError => {
+                    eprintln!("MpscError");
                 },
-                _ => todo!(),
+                Error::IrCacheNotFound(s) => {
+                    eprintln!("IrCacheNotFound({s:?})");
+                },
+                Error::MiscError => {
+                    eprintln!("Unknown Error");
+                },
             }
 
             std::process::exit(e.exit_code())
@@ -837,6 +854,11 @@ pub fn run_worker(
 
                 let mir_session = merged_mir_session.unwrap();
                 let inter_mir_session = sodigy_inter_mir::solve_type(mir_session);
+
+                // TODO: sodigy_inter_mir may change mir (e.g. monomorphization adds functions and
+                // poly-solver changes existing expressions by dispatching), but the mir sessions
+                // in IntermediateDir are not updated...
+                todo!();
 
                 emit_irs_if_has_to(
                     &inter_mir_session,

@@ -219,7 +219,8 @@ impl Func {
             None => {
                 if is_poly || built_in {
                     // nobody cares!
-                    Some(Expr::Char { ch: 0, span: Span::None })
+                    // I put a random-looking number for easier debugging.
+                    Some(Expr::Char { ch: 49773, span: Span::None })
                 }
 
                 else {

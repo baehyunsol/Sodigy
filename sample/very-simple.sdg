@@ -1,0 +1,3 @@
+// When something's seriously wrong, test this file.
+
+assert 0 == 0;
