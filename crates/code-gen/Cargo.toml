@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 sodigy-bytecode = { version = "0.1.0", path = "../bytecode" }
 sodigy-endec = { version = "0.1.0", path = "../endec" }
+sodigy-error = { version = "0.1.0", path = "../error" }

@@ -33,6 +33,9 @@ pub struct Session {
     // key: def_span of the built-in function (in sodigy std)
     pub intrinsics: HashMap<Span, Intrinsic>,
     pub lang_items: HashMap<String, Span>,
+
+    pub errors: Vec<Error>,
+    pub warnings: Vec<Warning>,
 }
 
 #[derive(Clone, Debug)]
@@ -46,7 +49,7 @@ pub struct LocalValue {
 }
 
 impl Session {
-    pub fn from_mir(mir_session: &MirSession) -> Self {
+    pub fn from_mir(mut mir_session: MirSession) -> Self {
         Session {
             intermediate_dir: mir_session.intermediate_dir.to_string(),
             label_counter: 0,
@@ -58,7 +61,9 @@ impl Session {
             intrinsics: Intrinsic::ALL_WITH_LANG_ITEM.iter().map(
                 |(intrinsic, lang_item)| (*mir_session.lang_items.get(*lang_item).unwrap(), *intrinsic)
             ).collect(),
-            lang_items: mir_session.lang_items.clone(),
+            lang_items: mir_session.lang_items.drain().collect(),
+            errors: mir_session.errors.drain(..).collect(),
+            warnings: mir_session.warnings.drain(..).collect(),
         }
     }
 

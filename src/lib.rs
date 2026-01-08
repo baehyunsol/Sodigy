@@ -24,7 +24,6 @@ pub enum Profile {
 #[derive(Clone, Debug)]
 pub enum StoreIrAt {
     File(String),
-    Memory,
     IntermediateDir,
 }
 

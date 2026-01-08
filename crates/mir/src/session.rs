@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 mod span_string_map;
 
+#[derive(Clone, Debug)]
 pub struct Session {
     pub intermediate_dir: String,
     pub func_shapes: HashMap<Span, FuncShape>,

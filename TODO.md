@@ -1,3 +1,13 @@
+# 146. intermediate_dir / ir_dir
+
+저 두 용어가 혼용되고 있음. 걍 싹다 버리고 target_dir이라고 부를까?
+
+# 145. span_string_map
+
+span_string_map에는 모든 module의 span을 다 담아야하는데 현재 각 mir마다 따로 span_string_map을 만드니까 다른 모듈에서 온 이름을 표시를 못함...
+
+inter_mir 끝나고 나서 span string map을 만든 다음에 그걸 파일에 저장해놓고 다 같이 공유해야함!!
+
 # 144. build profiles
 
 1. test vs script vs lib

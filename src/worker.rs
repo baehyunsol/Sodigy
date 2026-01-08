@@ -1,12 +1,13 @@
-use crate::{Command, CompileStage, Error, run};
+use crate::{Command, CompileStage, Error, run_worker};
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::ModulePath;
 use sodigy_span::Span;
 use std::sync::mpsc;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 pub enum MessageToWorker {
     Run(Vec<Command>),
+    Kill,
 }
 
 pub enum MessageToMain {
@@ -29,6 +30,7 @@ pub enum MessageToMain {
 pub struct Channel {
     tx_from_main: mpsc::Sender<MessageToWorker>,
     rx_to_main: mpsc::Receiver<MessageToMain>,
+    join_handle: JoinHandle<()>,
 }
 
 impl Channel {
@@ -43,6 +45,10 @@ impl Channel {
     pub fn recv(&self) -> Result<MessageToMain, mpsc::RecvError> {
         self.rx_to_main.recv()
     }
+
+    pub fn join(self) -> Result<(), Box<dyn std::any::Any + Send + 'static>> {
+        self.join_handle.join()
+    }
 }
 
 pub fn init_workers(n: usize) -> Vec<Channel> {
@@ -53,7 +59,7 @@ fn init_worker() -> Channel {
     let (tx_to_main, rx_to_main) = mpsc::channel();
     let (tx_from_main, rx_from_main) = mpsc::channel();
 
-    thread::spawn(move || match worker_loop(
+    let join_handle = thread::spawn(move || match worker_loop(
         tx_to_main.clone(),
         rx_from_main,
     ) {
@@ -64,7 +70,9 @@ fn init_worker() -> Channel {
     });
 
     Channel {
-        rx_to_main, tx_from_main
+        rx_to_main,
+        tx_from_main,
+        join_handle,
     }
 }
 
@@ -75,7 +83,10 @@ fn worker_loop(
     for msg in rx_from_main {
         match msg {
             MessageToWorker::Run(commands) => {
-                run(commands, tx_to_main.clone())?;
+                run_worker(commands, tx_to_main.clone())?;
+            },
+            MessageToWorker::Kill => {
+                break;
             },
         }
     }

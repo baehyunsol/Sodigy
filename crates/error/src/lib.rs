@@ -1,16 +1,15 @@
 use sodigy_span::{RenderableSpan, Span};
+use std::collections::HashSet;
 
+mod dump;
 mod endec;
 mod kind;
-mod level;
 mod token;
-mod util;
 mod warning;
 
+pub use dump::{DumpErrorOption, dump_errors};
 pub use kind::ErrorKind;
-pub use level::ErrorLevel;
 pub use token::ErrorToken;
-pub use util::{deduplicate, dump};
 pub use warning::{Warning, WarningKind};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -32,6 +31,12 @@ impl Error {
             note: None,
         }
     }
+}
+
+// TODO: maybe more levels?
+pub enum ErrorLevel {
+    Error,
+    Warning,
 }
 
 // I defined it here because it's usually for error messages.
@@ -87,4 +92,8 @@ impl ItemKind {
             ItemKind::Use => "`use` statement",
         }
     }
+}
+
+pub fn deduplicate(errors: &mut Vec<Error>) -> Vec<Error> {
+    errors.drain(..).collect::<HashSet<_>>().into_iter().collect()
 }

@@ -3,7 +3,6 @@ use sodigy_endec::DecodeError;
 use sodigy_fs_api::FileError;
 
 /// It decides the exit code of the compiler process.
-#[derive(Clone, Debug)]
 pub enum Error {
     /// When the interpreter panics (not Rust's panic, but Sodigy's panic).
     RuntimeError,
@@ -15,7 +14,7 @@ pub enum Error {
 
     FileError(FileError),
     DecodeError(DecodeError),
-    CliError,
+    CliError(ragit_cli::Error),
     MpscError,
     IrCacheNotFound(CompileStage),
 
@@ -29,10 +28,11 @@ impl Error {
         match self {
             Error::RuntimeError => 10,
             Error::CompileError => 11,
+            Error::CliError(_) => 12,
 
-            // `RuntimeError` and `CompileError` are obvious, but
+            // `RuntimeError`, `CompileError` and `CliError` are obvious, but
             // the other variants are subject to change.
-            _ => 12,
+            _ => 13,
         }
     }
 }
@@ -46,6 +46,12 @@ impl From<FileError> for Error {
 impl From<DecodeError> for Error {
     fn from(e: DecodeError) -> Error {
         Error::DecodeError(e)
+    }
+}
+
+impl From<ragit_cli::Error> for Error {
+    fn from(e: ragit_cli::Error) -> Error {
+        Error::CliError(e)
     }
 }
 

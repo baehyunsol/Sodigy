@@ -1,7 +1,6 @@
 use crate::{
     CompileStage,
     EmitIrOption,
-    Profile,
     StoreIrAt,
 };
 use sodigy_code_gen::Backend;
@@ -52,9 +51,4 @@ pub enum Command {
         output_path: StoreIrAt,
         stop_after: CompileStage,
     },
-    Interpret {
-        bytecodes_path: StoreIrAt,
-        profile: Profile,
-    },
-    Help(String),
 }

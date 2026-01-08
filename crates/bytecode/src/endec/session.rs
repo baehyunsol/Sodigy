@@ -1,5 +1,6 @@
 use crate::{Assert, Func, Let, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
+use sodigy_error::{Error, Warning};
 use sodigy_mir::Intrinsic;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -22,6 +23,8 @@ impl Endec for Session {
 
         self.intrinsics.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
+        self.errors.encode_impl(buffer);
+        self.warnings.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -30,6 +33,8 @@ impl Endec for Session {
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (intrinsics, cursor) = HashMap::<Span, Intrinsic>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
+        let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
+        let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
         Ok((
             Session {
@@ -49,6 +54,8 @@ impl Endec for Session {
 
                 intrinsics,
                 lang_items,
+                errors,
+                warnings,
             },
             cursor,
         ))
