@@ -7,7 +7,7 @@
 //!
 //! ## Example 1
 //!
-//! ```
+//! ```ignore
 //! match (a, b, c) {
 //!     (0, 0, _) => 1,
 //!     (0, _, _) => 2,
@@ -18,7 +18,7 @@
 //!
 //! becomes
 //!
-//! ```
+//! ```ignore
 //! let scrutinee = (a, b, c);
 //!
 //! match scrutinee.constructor {
@@ -52,7 +52,7 @@
 //!
 //! ## Example 2
 //!
-//! ```
+//! ```ignore
 //! // Name bindings are unused, but I want to demo how name bindings are processed.
 //! match foo() {
 //!     (Some(a @ 0..40), _) => 1,
@@ -66,7 +66,7 @@
 //!
 //! becomes
 //!
-//! ```
+//! ```ignore
 //! let scrutinee = foo();
 //!
 //! match scrutinee.constructor {
@@ -166,14 +166,17 @@ use sodigy_mir::{
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::{InternedNumber, InternedNumberValue};
+use sodigy_number::InternedNumberValue;
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
+mod range;
 mod tree;
+
+pub(crate) use range::{LiteralType, Range, merge_conditions, remove_overlaps};
 use tree::{
     DecisionTree,
     DecisionTreeNode,
@@ -528,30 +531,13 @@ fn lower_match(
     Ok(tree_expr)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum LiteralType {
-    Int,
-    Number,
-    Byte,
-    Char,
-}
-
 #[derive(Clone, Debug)]
-enum Constructor {
+pub enum Constructor {
     Tuple(usize),
     DefSpan(Span),
     Range(Range),
     Or(Vec<Constructor>),
     Wildcard,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Range {
-    r#type: LiteralType,
-    lhs: Option<InternedNumber>,
-    lhs_inclusive: bool,
-    rhs: Option<InternedNumber>,
-    rhs_inclusive: bool,
 }
 
 // Int: [([constructor], Range { Int, -inf..inf })]
@@ -746,7 +732,7 @@ fn read_field_of_pattern<'p>(
 }
 
 #[derive(Clone, Debug)]
-struct NameBinding {
+pub struct NameBinding {
     id: usize,
     name: InternedString,
     name_span: Span,

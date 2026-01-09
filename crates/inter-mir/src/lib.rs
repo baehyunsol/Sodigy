@@ -15,9 +15,9 @@ pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 use type_solver::TypeSolver;
 
-pub fn solve_type(mut session: MirSession) -> Session {
+pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     let mut has_error = false;
-    let mut type_solver = TypeSolver::new(session.lang_items.clone(), session.intermediate_dir.clone());
+    let mut type_solver = TypeSolver::new(mir_session.lang_items.clone(), mir_session.intermediate_dir.clone());
     let mut poly_solver = HashMap::new();
 
     // It does 2 things.
@@ -27,23 +27,23 @@ pub fn solve_type(mut session: MirSession) -> Session {
     let mut dispatched_calls = HashSet::new();
 
     loop {
-        for func in session.funcs.iter() {
+        for func in mir_session.funcs.iter() {
             // We'll check generic functions after monomorphization.
             if func.generics.is_empty() && !func.built_in {
-                if let (_, true) = type_solver.solve_func(func, &mut session.types, &mut session.generic_instances) {
+                if let (_, true) = type_solver.solve_func(func, &mut mir_session.types, &mut mir_session.generic_instances) {
                     has_error = true;
                 }
             }
         }
 
-        for r#let in session.lets.iter() {
+        for r#let in mir_session.lets.iter() {
             let mut impure_calls = vec![];
 
             if let (_, true) = type_solver.solve_let(
                 r#let,
                 &mut impure_calls,
-                &mut session.types,
-                &mut session.generic_instances,
+                &mut mir_session.types,
+                &mut mir_session.generic_instances,
             ) {
                 has_error = true;
             }
@@ -57,14 +57,14 @@ pub fn solve_type(mut session: MirSession) -> Session {
             }
         }
 
-        for assert in session.asserts.iter() {
+        for assert in mir_session.asserts.iter() {
             let mut impure_calls = vec![];
 
             if let Err(()) = type_solver.solve_assert(
                 assert,
                 &mut impure_calls,
-                &mut session.types,
-                &mut session.generic_instances,
+                &mut mir_session.types,
+                &mut mir_session.generic_instances,
             ) {
                 has_error = true;
             }
@@ -89,7 +89,7 @@ pub fn solve_type(mut session: MirSession) -> Session {
         // If we initialize it at every iteration, that'd be too expensive.
         // If we initialize it before the first iteration, we have too small type information to use.
         if poly_solver.is_empty() {
-            poly_solver = match type_solver.init_poly_solvers(&session) {
+            poly_solver = match type_solver.init_poly_solvers(&mir_session) {
                 Ok(s) => s,
                 Err(()) => {
                     has_error = true;
@@ -98,14 +98,14 @@ pub fn solve_type(mut session: MirSession) -> Session {
             };
         }
 
-        match type_solver.get_mono_plan(&poly_solver, &mut dispatched_calls, &session) {
+        match type_solver.get_mono_plan(&poly_solver, &mut dispatched_calls, &mir_session) {
             Ok(mono) => {
                 if mono.is_empty() {
                     break;
                 }
 
                 else {
-                    session.dispatch(&mono.dispatch_map);
+                    mir_session.dispatch(&mono.dispatch_map);
                     // TODO: do we have to invalidate previous `generic_instances` after dispatching?
                 }
             },
@@ -120,14 +120,14 @@ pub fn solve_type(mut session: MirSession) -> Session {
     // and there's no point to check whether the type-inference is complete.
     if !has_error {
         type_solver.apply_never_types(
-            &mut session.types,
-            &mut session.generic_instances,
+            &mut mir_session.types,
+            &mut mir_session.generic_instances,
         );
 
         if let Err(()) = type_solver.check_all_types_infered(
-            &session.types,
-            &session.generic_instances,
-            &session.generic_def_span_rev,
+            &mir_session.types,
+            &mir_session.generic_instances,
+            &mir_session.generic_def_span_rev,
             &dispatched_calls,
         ) {
             has_error = true;
@@ -135,23 +135,26 @@ pub fn solve_type(mut session: MirSession) -> Session {
     }
 
     for warning in type_solver.warnings.iter() {
-        session.warnings.push(type_error_to_general_error(warning, &session));
+        mir_session.warnings.push(type_error_to_general_error(warning, &mir_session));
     }
 
     if has_error {
         // In order to create error messages, we have to convert spans to strings.
         // But that's very expensive operation, so we initialize this map only when there's an error.
-        session.init_span_string_map();
+        mir_session.init_span_string_map();
 
         for error in type_solver.errors.iter() {
-            session.errors.push(type_error_to_general_error(error, &session));
+            mir_session.errors.push(type_error_to_general_error(error, &mir_session));
         }
     }
 
-    Session {
-        types: session.types.drain().collect(),
-        generic_instances: session.generic_instances.drain().collect(),
-        errors: session.errors.drain(..).collect(),
-        warnings: session.errors.drain(..).collect(),
-    }
+    // It's relatively cheap. It'll be stored in cache-dir.
+    let inter_mir_session = Session {
+        types: mir_session.types.clone(),
+        generic_instances: mir_session.generic_instances.clone(),
+        errors: mir_session.errors.clone(),
+        warnings: mir_session.warnings.clone(),
+    };
+
+    (inter_mir_session, mir_session)
 }

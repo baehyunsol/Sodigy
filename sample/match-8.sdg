@@ -1,0 +1,243 @@
+fn match_test(
+    a: Option<Int>,
+    b: Option<Int>,
+    c: Option<Int>,
+    d: Option<Int>,
+    e: Option<Int>,
+) -> String = {
+    match (a, b, c, d, e) {
+        (Some(a @ 20..90), Some(b @ 10..80), Some(c @ 50..80), Some(d @ 50..100), Some(e @ 20..80)) => f"0/{a}/{b}/{c}/{d}/{e}",
+        (Some(a @ 20..70), Some(b @ 30..90), Some(c @ 40..90), Some(d @ 40..70), Some(e @ 30..90)) => f"1/{a}/{b}/{c}/{d}/{e}",
+        (Some(a @ 10..70), Some(b @ 10..80), None, Some(d @ 10..60), Some(e @ 20..80)) => f"2/{a}/{b}/{d}/{e}",
+        (None, Some(b @ 30..70), Some(c @ 10..100), Some(d @ 40..80), Some(e @ 30..60)) => f"3/{b}/{c}/{d}/{e}",
+        (Some(a @ 10..100), Some(b @ 10..60), Some(c @ 30..100), Some(d @ 40..70), None) => f"4/{a}/{b}/{c}/{d}",
+        (Some(a @ 50..60), None, Some(c @ 10..70), Some(d @ 10..70), Some(e @ 20..100)) => f"5/{a}/{c}/{d}/{e}",
+        (Some(a @ 40..60), Some(b @ 40..60), None, Some(d @ 10..100), Some(e @ 20..100)) => f"6/{a}/{b}/{d}/{e}",
+        (Some(a @ 30..80), Some(b @ 30..60), None, Some(d @ 30..70), Some(e @ 20..70)) => f"7/{a}/{b}/{d}/{e}",
+        (None, Some(b @ 10..70), Some(c @ 20..90), Some(d @ 50..70), Some(e @ 50..90)) => f"8/{b}/{c}/{d}/{e}",
+        (None, Some(b @ 40..80), Some(c @ 30..60), None, Some(e @ 10..70)) => f"9/{b}/{c}/{e}",
+        (None, Some(b @ 30..90), Some(c @ 20..100), None, Some(e @ 20..80)) => f"10/{b}/{c}/{e}",
+        (Some(a @ 20..60), Some(b @ 10..80), None, Some(d @ 40..70), None) => f"11/{a}/{b}/{d}",
+        (None, None, Some(c @ 50..100), Some(d @ 20..60), Some(e @ 50..90)) => f"12/{c}/{d}/{e}",
+        (None, Some(b @ 50..90), Some(c @ 10..70), Some(d @ 40..60), None) => f"13/{b}/{c}/{d}",
+        (Some(a @ 40..100), None, Some(c @ 40..90), Some(d @ 50..60), None) => f"14/{a}/{c}/{d}",
+        (Some(a @ 50..80), None, None, Some(d @ 50..70), Some(e @ 30..80)) => f"15/{a}/{d}/{e}",
+        (Some(a @ 50..80), Some(b @ 10..60), None, Some(d @ 40..100), None) => f"16/{a}/{b}/{d}",
+        (Some(a @ 30..60), None, Some(c @ 20..90), Some(d @ 30..70), None) => f"17/{a}/{c}/{d}",
+        (Some(a @ 50..90), Some(b @ 20..100), None, None, Some(e @ 50..60)) => f"18/{a}/{b}/{e}",
+        (None, None, Some(c @ 10..90), Some(d @ 30..80), Some(e @ 20..60)) => f"19/{c}/{d}/{e}",
+        (None, Some(b @ 20..60), None, Some(d @ 30..100), Some(e @ 30..60)) => f"20/{b}/{d}/{e}",
+        (Some(a @ 40..80), None, None, Some(d @ 30..60), None) => f"21/{a}/{d}",
+        (Some(a @ 50..100), Some(b @ 30..60), None, None, None) => f"22/{a}/{b}",
+        (Some(a @ 20..70), None, Some(c @ 20..60), None, None) => f"23/{a}/{c}",
+        (Some(a @ 50..70), None, None, Some(d @ 10..100), None) => f"24/{a}/{d}",
+        (None, None, Some(c @ 20..90), None, Some(e @ 50..70)) => f"25/{c}/{e}",
+        (None, None, None, Some(d @ 10..60), Some(e @ 30..60)) => f"26/{d}/{e}",
+        (Some(a @ 40..60), None, Some(c @ 20..80), None, None) => f"27/{a}/{c}",
+        (Some(a @ 20..60), Some(b @ 20..70), None, None, None) => f"28/{a}/{b}",
+        (None, Some(b @ 50..100), None, Some(d @ 50..100), None) => f"29/{b}/{d}",
+        (Some(a @ 50..90), None, None, None, Some(e @ 20..80)) => f"30/{a}/{e}",
+        (Some(a @ 10..60), None, None, None, Some(e @ 50..100)) => f"31/{a}/{e}",
+        (None, Some(b @ 40..60), Some(c @ 50..90), None, None) => f"32/{b}/{c}",
+        (None, None, Some(c @ 20..70), None, None) => f"33/{c}",
+        (None, None, Some(c @ 20..90), None, None) => f"34/{c}",
+        (Some(a @ 20..80), None, None, None, None) => f"35/{a}",
+        (None, None, Some(c @ 40..100), None, None) => f"36/{c}",
+        (Some(a @ 10..90), None, None, None, None) => f"37/{a}",
+        (Some(a @ 40..70), _, Some(c @ 10..80), Some(d @ 10..90), Some(e @ 50..70)) => f"38/{a}/{c}/{d}/{e}",
+        (Some(a @ 50..80), _, Some(c @ 30..70), Some(d @ 40..100), Some(e @ 50..60)) => f"39/{a}/{c}/{d}/{e}",
+        (Some(a @ 40..100), Some(b @ 30..100), Some(c @ 10..60), _, Some(e @ 30..100)) => f"40/{a}/{b}/{c}/{e}",
+        (Some(a @ 20..100), Some(b @ 30..80), _, Some(d @ 40..70), None) => f"41/{a}/{b}/{d}",
+        (Some(a @ 20..70), None, _, Some(d @ 40..60), Some(e @ 50..90)) => f"42/{a}/{d}/{e}",
+        (Some(a @ 50..80), _, Some(c @ 20..80), Some(d @ 20..80), None) => f"43/{a}/{c}/{d}",
+        (Some(a @ 50..70), Some(b @ 20..60), None, _, Some(e @ 40..100)) => f"44/{a}/{b}/{e}",
+        (Some(a @ 40..70), Some(b @ 30..70), _, None, Some(e @ 20..60)) => f"45/{a}/{b}/{e}",
+        (Some(a @ 30..70), Some(b @ 50..90), _, None, Some(e @ 30..60)) => f"46/{a}/{b}/{e}",
+        (_, Some(b @ 10..80), Some(c @ 40..80), Some(d @ 10..80), None) => f"47/{b}/{c}/{d}",
+        (Some(a @ 30..70), None, Some(c @ 10..80), Some(d @ 50..90), _) => f"48/{a}/{c}/{d}",
+        (Some(a @ 50..70), Some(b @ 40..60), None, Some(d @ 20..80), _) => f"49/{a}/{b}/{d}",
+        (Some(a @ 20..60), None, _, Some(d @ 50..70), None) => f"50/{a}/{d}",
+        (None, Some(b @ 40..100), Some(c @ 50..100), _, None) => f"51/{b}/{c}",
+        (Some(a @ 50..100), _, Some(c @ 50..90), None, None) => f"52/{a}/{c}",
+        (None, _, None, Some(d @ 50..80), Some(e @ 30..80)) => f"53/{d}/{e}",
+        (Some(a @ 30..100), None, None, Some(d @ 40..80), _) => f"54/{a}/{d}",
+        (None, Some(b @ 20..80), None, _, Some(e @ 30..70)) => f"55/{b}/{e}",
+        (None, None, Some(c @ 10..100), Some(d @ 20..80), _) => f"56/{c}/{d}",
+        (Some(a @ 30..70), _, None, None, Some(e @ 50..60)) => f"57/{a}/{e}",
+        (Some(a @ 20..80), _, None, None, Some(e @ 50..100)) => f"58/{a}/{e}",
+        (None, None, _, Some(d @ 10..90), Some(e @ 10..60)) => f"59/{d}/{e}",
+        (None, _, Some(c @ 10..80), Some(d @ 40..60), None) => f"60/{c}/{d}",
+        (None, Some(b @ 20..90), Some(c @ 30..80), _, None) => f"61/{b}/{c}",
+        (Some(a @ 30..90), None, None, None, _) => f"62/{a}",
+        (None, _, Some(c @ 20..60), None, None) => f"63/{c}",
+        (None, None, _, None, Some(e @ 10..100)) => f"64/{e}",
+        (_, Some(b @ 40..60), None, None, None) => f"65/{b}",
+        (None, Some(b @ 40..70), None, None, _) => f"66/{b}",
+        (_, Some(b @ 40..80), None, None, None) => f"67/{b}",
+        (_, Some(b @ 40..100), None, None, None) => f"68/{b}",
+        (None, None, Some(c @ 10..100), _, None) => f"69/{c}",
+        (_, None, None, Some(d @ 40..70), None) => f"70/{d}",
+        (None, None, None, _, Some(e @ 20..90)) => f"71/{e}",
+        (None, _, None, Some(d @ 30..100), None) => f"72/{d}",
+        (None, _, None, None, Some(e @ 20..90)) => f"73/{e}",
+        (None, None, None, _, Some(e @ 20..60)) => f"74/{e}",
+        (None, _, None, Some(d @ 10..90), None) => f"75/{d}",
+        (None, _, Some(c @ 30..90), None, None) => f"76/{c}",
+        (None, Some(b @ 20..90), _, None, None) => f"77/{b}",
+        (None, None, None, _, None) => f"78",
+        (Some(a @ 20..80), Some(b @ 40..70), Some(c @ 30..100), _, _) => f"79/{a}/{b}/{c}",
+        (Some(a @ 10..90), _, Some(c @ 20..70), _, Some(e @ 30..90)) => f"80/{a}/{c}/{e}",
+        (Some(a @ 20..70), _, None, _, Some(e @ 20..70)) => f"81/{a}/{e}",
+        (Some(a @ 20..100), _, None, _, Some(e @ 20..80)) => f"82/{a}/{e}",
+        (_, Some(b @ 10..60), None, _, Some(e @ 20..70)) => f"83/{b}/{e}",
+        (Some(a @ 50..60), None, Some(c @ 50..90), _, _) => f"84/{a}/{c}",
+        (None, _, Some(c @ 20..70), Some(d @ 20..80), _) => f"85/{c}/{d}",
+        (Some(a @ 10..60), Some(b @ 50..100), _, _, None) => f"86/{a}/{b}",
+        (_, Some(b @ 40..70), _, None, None) => f"87/{b}",
+        (Some(a @ 10..70), None, _, None, _) => f"88/{a}",
+        (None, Some(b @ 50..100), _, _, None) => f"89/{b}",
+        (_, _, Some(c @ 20..90), None, None) => f"90/{c}",
+        (_, _, None, None, None) => f"91",
+        (None, _, None, None, _) => f"92",
+        (_, _, None, None, None) => f"93",
+        (_, None, None, _, None) => f"94",
+        (_, Some(b @ 50..90), Some(c @ 30..60), _, _) => f"95/{b}/{c}",
+        (Some(a @ 40..80), _, _, _, Some(e @ 10..60)) => f"96/{a}/{e}",
+        (_, Some(b @ 40..60), _, _, None) => f"97/{b}",
+        (_, _, None, _, Some(e @ 20..90)) => f"98/{e}",
+        (_, _, None, None, _) => f"99",
+        (None, None, _, _, _) => f"100",
+        (_, _, None, _, None) => f"101",
+        (None, _, None, _, _) => f"102",
+        _ => f"103",
+    }
+}
+
+assert match_test(None, Some(75), Some(45), Some(60), Some(95)) == "85/45/60";
+assert match_test(Some(55), Some(75), Some(70), Some(55), Some(30)) == "0/55/75/70/55/30";
+assert match_test(Some(30), Some(80), Some(100), Some(80), Some(25)) == "103";
+assert match_test(Some(105), Some(30), Some(95), Some(55), Some(5)) == "103";
+assert match_test(Some(55), Some(100), Some(50), Some(65), Some(15)) == "96/55/15";
+assert match_test(Some(20), None, None, None, Some(20)) == "81/20/20";
+assert match_test(Some(10), Some(100), Some(40), Some(45), None) == "103";
+assert match_test(None, None, None, Some(90), Some(95)) == "100";
+assert match_test(Some(35), Some(10), None, Some(40), Some(30)) == "2/35/10/40/30";
+assert match_test(Some(10), None, Some(20), None, Some(20)) == "88/10";
+assert match_test(Some(70), None, Some(45), Some(75), Some(95)) == "103";
+assert match_test(None, Some(55), Some(5), Some(80), Some(65)) == "103";
+assert match_test(None, None, None, Some(85), Some(45)) == "59/85/45";
+assert match_test(None, None, Some(70), Some(55), None) == "56/70/55";
+assert match_test(None, Some(95), None, Some(20), None) == "75/20";
+assert match_test(Some(75), Some(60), None, Some(90), None) == "101";
+assert match_test(Some(10), Some(105), Some(20), Some(60), Some(10)) == "103";
+assert match_test(None, None, Some(95), None, None) == "36/95";
+assert match_test(None, Some(85), Some(40), None, Some(10)) == "95/85/40";
+assert match_test(None, Some(40), None, Some(35), None) == "72/35";
+assert match_test(None, None, Some(105), Some(55), Some(45)) == "59/55/45";
+assert match_test(Some(75), Some(10), Some(85), Some(45), Some(105)) == "103";
+assert match_test(Some(55), Some(95), Some(10), Some(20), Some(80)) == "40/55/95/10/80";
+assert match_test(Some(20), Some(80), Some(5), Some(15), None) == "86/20/80";
+assert match_test(Some(20), Some(85), Some(25), None, Some(95)) == "103";
+assert match_test(None, None, None, None, Some(50)) == "64/50";
+assert match_test(Some(50), None, None, None, Some(25)) == "30/50/25";
+assert match_test(Some(40), Some(25), None, Some(90), Some(90)) == "103";
+assert match_test(Some(100), Some(60), Some(95), None, Some(5)) == "103";
+assert match_test(Some(10), Some(80), Some(30), None, Some(70)) == "80/10/30/70";
+assert match_test(Some(85), Some(50), None, Some(30), None) == "97/50";
+assert match_test(Some(60), Some(50), Some(60), None, Some(65)) == "79/60/50/60";
+assert match_test(Some(70), Some(25), Some(45), Some(65), Some(90)) == "103";
+assert match_test(None, Some(5), None, Some(15), Some(30)) == "98/30";
+assert match_test(Some(100), Some(60), Some(100), Some(15), Some(85)) == "103";
+assert match_test(Some(15), Some(40), None, Some(45), Some(105)) == "103";
+assert match_test(Some(100), Some(35), Some(10), Some(65), Some(70)) == "103";
+assert match_test(Some(40), Some(25), None, Some(5), Some(5)) == "103";
+assert match_test(Some(60), None, Some(20), Some(65), None) == "43/60/20/65";
+assert match_test(Some(55), Some(75), Some(40), None, Some(100)) == "95/75/40";
+assert match_test(Some(45), None, None, Some(50), None) == "21/45/50";
+assert match_test(None, Some(35), Some(80), None, Some(20)) == "10/35/80/20";
+assert match_test(Some(70), Some(45), Some(95), Some(35), None) == "79/70/45/95";
+assert match_test(Some(5), Some(35), Some(30), Some(75), Some(80)) == "103";
+assert match_test(Some(20), Some(25), Some(25), None, Some(70)) == "80/20/25/70";
+assert match_test(Some(25), Some(70), Some(95), Some(15), Some(35)) == "103";
+assert match_test(Some(15), Some(10), Some(45), Some(60), None) == "4/15/10/45/60";
+assert match_test(Some(45), Some(80), Some(105), Some(25), Some(75)) == "103";
+assert match_test(Some(20), Some(80), Some(50), None, None) == "86/20/80";
+assert match_test(None, Some(5), Some(55), Some(40), Some(25)) == "85/55/40";
+assert match_test(None, None, None, Some(95), None) == "72/95";
+assert match_test(None, Some(20), Some(45), Some(10), Some(105)) == "103";
+assert match_test(Some(25), Some(50), Some(55), Some(90), None) == "79/25/50/55";
+assert match_test(Some(95), Some(35), Some(100), Some(25), Some(100)) == "103";
+assert match_test(Some(30), Some(50), Some(35), None, None) == "79/30/50/35";
+assert match_test(Some(50), Some(25), Some(55), None, None) == "52/50/55";
+assert match_test(Some(60), Some(30), None, Some(45), Some(10)) == "96/60/10";
+assert match_test(Some(25), None, Some(60), Some(100), None) == "103";
+assert match_test(Some(40), Some(45), Some(105), Some(15), Some(105)) == "103";
+assert match_test(None, None, None, Some(65), Some(75)) == "53/65/75";
+assert match_test(Some(20), None, Some(85), None, None) == "88/20";
+assert match_test(Some(35), Some(30), None, None, None) == "28/35/30";
+assert match_test(Some(85), Some(70), None, Some(5), None) == "101";
+assert match_test(Some(25), None, Some(85), Some(75), None) == "103";
+assert match_test(Some(60), Some(70), Some(5), None, None) == "103";
+assert match_test(Some(65), Some(35), Some(55), None, Some(85)) == "40/65/35/55/85";
+assert match_test(Some(60), Some(25), Some(45), Some(80), Some(10)) == "96/60/10";
+assert match_test(Some(70), Some(90), None, Some(25), Some(100)) == "103";
+assert match_test(None, Some(60), None, Some(55), Some(100)) == "102";
+assert match_test(Some(100), Some(60), None, None, Some(5)) == "99";
+assert match_test(Some(25), Some(45), Some(5), None, Some(75)) == "103";
+assert match_test(None, None, Some(95), Some(80), None) == "69/95";
+assert match_test(Some(35), None, Some(100), None, None) == "88/35";
+assert match_test(None, Some(85), Some(30), Some(80), Some(35)) == "95/85/30";
+assert match_test(Some(80), Some(20), Some(15), None, Some(80)) == "103";
+assert match_test(Some(80), Some(80), Some(35), None, None) == "90/35";
+assert match_test(Some(35), Some(105), None, None, Some(80)) == "58/35/80";
+assert match_test(Some(70), Some(25), Some(50), Some(70), None) == "43/70/50/70";
+assert match_test(Some(35), Some(10), None, Some(55), None) == "11/35/10/55";
+assert match_test(Some(80), Some(75), Some(70), Some(95), None) == "103";
+assert match_test(Some(105), Some(80), None, Some(15), Some(55)) == "98/55";
+assert match_test(Some(40), None, Some(85), None, Some(105)) == "88/40";
+assert match_test(None, Some(80), Some(80), Some(5), Some(10)) == "103";
+assert match_test(Some(55), Some(65), None, Some(55), Some(20)) == "2/55/65/55/20";
+assert match_test(None, None, Some(20), Some(105), Some(40)) == "100";
+assert match_test(Some(55), Some(70), None, Some(75), Some(100)) == "103";
+assert match_test(Some(25), Some(20), None, Some(45), None) == "11/25/20/45";
+assert match_test(Some(20), None, None, Some(55), Some(30)) == "81/20/30";
+assert match_test(None, Some(20), Some(25), Some(10), None) == "103";
+assert match_test(Some(90), Some(35), Some(35), None, Some(15)) == "103";
+assert match_test(None, None, None, None, None) == "78";
+assert match_test(None, Some(55), None, None, Some(70)) == "66/55";
+assert match_test(Some(25), Some(10), Some(90), Some(105), Some(80)) == "103";
+assert match_test(None, Some(75), Some(50), None, None) == "51/75/50";
+assert match_test(Some(70), Some(50), Some(90), Some(90), Some(60)) == "79/70/50/90";
+assert match_test(Some(25), Some(50), Some(50), None, None) == "79/25/50/50";
+assert match_test(Some(80), Some(35), Some(50), None, Some(90)) == "40/80/35/50/90";
+assert match_test(Some(95), None, None, Some(5), Some(100)) == "103";
+assert match_test(Some(50), None, None, None, None) == "35/50";
+assert match_test(Some(80), None, Some(30), None, None) == "90/30";
+assert match_test(None, Some(15), None, Some(95), None) == "72/95";
+assert match_test(Some(5), Some(100), Some(35), None, Some(80)) == "103";
+assert match_test(Some(60), Some(45), Some(50), Some(95), Some(50)) == "0/60/45/50/95/50";
+assert match_test(None, Some(105), Some(100), Some(95), None) == "103";
+assert match_test(Some(105), Some(15), Some(75), Some(80), None) == "103";
+assert match_test(None, Some(10), None, Some(55), Some(35)) == "53/55/35";
+assert match_test(Some(45), Some(15), Some(45), Some(10), Some(100)) == "103";
+assert match_test(None, Some(40), Some(15), None, Some(10)) == "103";
+assert match_test(Some(60), Some(65), Some(100), Some(40), Some(100)) == "103";
+assert match_test(Some(40), Some(15), Some(95), Some(90), Some(80)) == "103";
+assert match_test(None, None, Some(35), None, Some(5)) == "100";
+assert match_test(Some(35), Some(75), None, Some(85), Some(90)) == "103";
+assert match_test(None, None, Some(40), Some(50), Some(30)) == "19/40/50/30";
+assert match_test(Some(95), Some(5), Some(65), Some(15), Some(105)) == "103";
+assert match_test(Some(30), None, Some(95), Some(45), Some(55)) == "42/30/45/55";
+assert match_test(None, Some(50), Some(20), Some(85), Some(25)) == "103";
+assert match_test(Some(70), None, None, Some(35), Some(40)) == "82/70/40";
+assert match_test(Some(5), Some(15), Some(5), Some(95), Some(65)) == "103";
+assert match_test(Some(35), None, None, Some(45), Some(50)) == "42/35/45/50";
+assert match_test(Some(80), None, Some(50), Some(70), None) == "103";
+assert match_test(None, None, Some(85), None, Some(100)) == "100";
+assert match_test(None, Some(25), Some(10), Some(45), Some(5)) == "103";
+assert match_test(Some(90), None, Some(60), None, None) == "52/90/60";
+assert match_test(Some(70), None, None, Some(25), Some(25)) == "82/70/25";
+assert match_test(Some(50), None, Some(5), Some(70), Some(95)) == "103";
+assert match_test(None, Some(20), Some(100), Some(90), None) == "103";
+assert match_test(Some(60), Some(25), Some(85), Some(75), None) == "103";
+assert match_test(None, Some(75), None, None, Some(75)) == "73/75";

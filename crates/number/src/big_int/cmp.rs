@@ -114,6 +114,24 @@ pub fn gt_ubi(lhs: &[u32], rhs: &[u32]) -> bool {
     }
 }
 
+pub fn cmp_bi(
+    lhs_neg: bool,
+    lhs: &[u32],
+    rhs_neg: bool,
+    rhs: &[u32],
+) -> Ordering {
+    match (lhs_neg, rhs_neg) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (false, false) => cmp_ubi(lhs, rhs),
+        (true, true) => match cmp_ubi(lhs, rhs) {
+            Ordering::Less => Ordering::Greater,
+            Ordering::Greater => Ordering::Less,
+            Ordering::Equal => Ordering::Equal,
+        },
+    }
+}
+
 pub fn cmp_ubi(lhs: &[u32], rhs: &[u32]) -> Ordering {
     if lhs.len() > rhs.len() {
         Ordering::Greater

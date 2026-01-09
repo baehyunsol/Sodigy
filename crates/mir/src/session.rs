@@ -6,6 +6,7 @@ use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
+mod item_map;
 mod span_string_map;
 
 #[derive(Clone, Debug)]

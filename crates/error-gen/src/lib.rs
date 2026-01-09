@@ -225,11 +225,13 @@ pub fn error_kinds(tokens: TokenStream) -> TokenStream {
             )
         ).collect::<Vec<_>>().join("\n");
 
-        sodigy_fs_api::write_string(
-            "crates/error-gen/errors.txt",
-            &dump,
-            sodigy_fs_api::WriteMode::CreateOrTruncate,
-        ).unwrap();
+        if sodigy_fs_api::exists("crates/error-gen") {
+            sodigy_fs_api::write_string(
+                "crates/error-gen/errors.txt",
+                &dump,
+                sodigy_fs_api::WriteMode::CreateOrTruncate,
+            ).unwrap();
+        }
     }
 
     render(definitions)
@@ -391,11 +393,13 @@ fn render(definitions: Vec<ErrorKind>) -> TokenStream {
             }
         }
 
-        sodigy_fs_api::write_string(
-            "crates/error/src/proc_macro.rs",
-            &dump.concat(),
-            sodigy_fs_api::WriteMode::CreateOrTruncate,
-        ).unwrap();
+        if sodigy_fs_api::exists("crates/error/src/") {
+            sodigy_fs_api::write_string(
+                "crates/error/src/proc_macro.rs",
+                &dump.concat(),
+                sodigy_fs_api::WriteMode::CreateOrTruncate,
+            ).unwrap();
+        }
     }
 
     result

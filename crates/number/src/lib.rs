@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 mod base;
 mod big_int;
 mod endec;
@@ -12,7 +14,7 @@ pub use big_int::{
     op::*,
 };
 pub(crate) use error::ParseIntError;
-pub use ratio::{Ratio, op::*};
+pub use ratio::{Ratio, cmp::*, op::*};
 
 // `InternedString` implements `Copy` (hence "interned"), but
 // `InternedNumber` doesn't. My idea is that strings, including identifiers
@@ -100,6 +102,17 @@ impl InternedNumber {
                 Some(nn) => {
                     *numer = nn;
                 },
+                None => todo!(),
+            },
+            _ => todo!(),
+        }
+    }
+
+    #[must_use = "method returns a new number and does not mutate the original value"]
+    pub fn add_one(&self) -> Self {
+        match &self.value {
+            InternedNumberValue::SmallInt(n) => match n.checked_add(1) {
+                Some(n) => InternedNumber { value: InternedNumberValue::SmallInt(n), is_integer: self.is_integer },
                 None => todo!(),
             },
             _ => todo!(),
@@ -239,5 +252,38 @@ fn gcd(a: u64, b: u64) -> u64 {
 
     else {
         gcd(b, a % b)
+    }
+}
+
+impl Ord for InternedNumber {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl Ord for InternedNumberValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
+impl PartialOrd for InternedNumber {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl PartialOrd for InternedNumberValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (InternedNumberValue::SmallInt(a), InternedNumberValue::SmallInt(b)) => a.partial_cmp(b),
+            (
+                InternedNumberValue::SmallRatio { numer: numer_a, denom: denom_a },
+                InternedNumberValue::SmallRatio { numer: numer_b, denom: denom_b },
+            ) => (*numer_a as i128 * *denom_b as i128).partial_cmp(&(*numer_b as i128 * *denom_b as i128)),
+            (InternedNumberValue::BigInt(a), InternedNumberValue::BigInt(b)) => Some(cmp_bi(a.is_neg, &a.nums, b.is_neg, &b.nums)),
+            (InternedNumberValue::BigRatio(a), InternedNumberValue::BigRatio(b)) => Some(cmp_ratio(a, b)),
+            (a, b) => Some(cmp_ratio(&unintern_number(a.clone()), &unintern_number(b.clone()))),
+        }
     }
 }

@@ -853,12 +853,49 @@ pub fn run_worker(
                 }
 
                 let mir_session = merged_mir_session.unwrap();
-                let inter_mir_session = sodigy_inter_mir::solve_type(mir_session);
 
-                // TODO: sodigy_inter_mir may change mir (e.g. monomorphization adds functions and
-                // poly-solver changes existing expressions by dispatching), but the mir sessions
-                // in IntermediateDir are not updated...
-                todo!();
+                // `inter_mir_session` has type information of every items in the project.
+                // It's relatively cheap to load/store, so post-mir and later stages will
+                // use this session to get type information.
+                //
+                // `mir_session` has definition of every items, after poly-solving and
+                // monomorphization. It's very heavy, and we're not gonna store this.
+                let (inter_mir_session, mut mir_session) = sodigy_inter_mir::solve_type(mir_session);
+
+                // InterMir may have modified MIRs, so we have to update all the cached MIRs.
+                // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
+                // TODO: This is (potentially) one of the biggest bottleneck in the compiler.
+                let items = mir_session.get_item_map();
+
+                for path in modules.keys() {
+                    let file = File::from_module_path(
+                        0,  // project_id
+                        &path.to_string(),
+                        &intermediate_dir,
+                    )?.ok_or(Error::MiscError)?;
+                    let content_hash = file.get_content_hash(&intermediate_dir)?;
+                    let mir_session_bytes = get_cached_ir(
+                        &intermediate_dir,
+                        CompileStage::Mir,
+                        Some(content_hash),
+                    )?.ok_or(Error::IrCacheNotFound(CompileStage::Mir))?;
+                    let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
+                    mir_session.intermediate_dir = intermediate_dir.clone();
+                    mir_session.update_items(&items);
+                    emit_irs_if_has_to(
+                        &mir_session,
+                        &[
+                            EmitIrOption {
+                                stage: CompileStage::Mir,
+                                store: StoreIrAt::IntermediateDir,
+                                human_readable: false,
+                            },
+                        ],
+                        CompileStage::Mir,
+                        Some(content_hash),
+                        &intermediate_dir,
+                    )?;
+                }
 
                 emit_irs_if_has_to(
                     &inter_mir_session,
@@ -870,8 +907,8 @@ pub fn run_worker(
                 tx_to_main.send(MessageToMain::IrComplete {
                     module_path: None,
                     compile_stage: CompileStage::InterMir,
-                    errors: inter_mir_session.errors.clone(),
-                    warnings: inter_mir_session.warnings.clone(),
+                    errors: inter_mir_session.errors,
+                    warnings: inter_mir_session.warnings,
                 })?;
             },
             Command::Bytecode {

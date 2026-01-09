@@ -3,7 +3,9 @@ use super::{
     LiteralType,
     NameBinding,
     Range,
+    merge_conditions,
     read_field_of_pattern,
+    remove_overlaps,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_hir::LetOrigin;
@@ -29,7 +31,7 @@ pub struct DecisionTree {
 }
 
 impl DecisionTree {
-    /// ```
+    /// ```ignore
     /// match (x, y) {
     ///     (0, 0) => 0,
     ///     (0, a) => a,
@@ -38,7 +40,7 @@ impl DecisionTree {
     /// }
     /// ```
     /// ->
-    /// ```
+    /// ```ignore
     /// {
     ///     let scrutinee = (x, y);
     ///     let curr = scrutinee._0;
@@ -399,7 +401,7 @@ pub(crate) fn build_tree(
             }))
         },
         Constructor::Range(Range { r#type, .. }) => {
-            let mut branches_with_overlap: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> = vec![];
+            let mut branches_with_overlap: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> = vec![];
 
             // default: wildcard
             branches_with_overlap.push((
@@ -410,8 +412,7 @@ pub(crate) fn build_tree(
                     rhs: None,
                     rhs_inclusive: false,
                 },
-                vec![],
-                vec![],
+                (vec![], vec![]),
             ));
 
             for (id, arm, pattern) in destructured_patterns.iter() {
@@ -424,7 +425,7 @@ pub(crate) fn build_tree(
                         else {
                             let mut is_new = true;
 
-                            for (br, arms, name_bindings) in branches_with_overlap.iter_mut() {
+                            for (br, (arms, name_bindings)) in branches_with_overlap.iter_mut() {
                                 if br == r {
                                     arms.push((*id, *arm));
 
@@ -444,12 +445,12 @@ pub(crate) fn build_tree(
                                     name_bindings.push(name_binding);
                                 }
 
-                                branches_with_overlap.push((r.clone(), vec![(*id, *arm)], name_bindings));
+                                branches_with_overlap.push((r.clone(), (vec![(*id, *arm)], name_bindings)));
                             }
                         }
                     },
                     Constructor::Wildcard => {
-                        for (_, arms, name_bindings) in branches_with_overlap.iter_mut() {
+                        for (_, (arms, name_bindings)) in branches_with_overlap.iter_mut() {
                             arms.push((*id, *arm));
 
                             if let Some(name_binding) = pattern.get_name_binding(*id) {
@@ -464,10 +465,11 @@ pub(crate) fn build_tree(
             }
 
             let branches_without_overlap = remove_overlaps(branches_with_overlap);
+            let branches_without_overlap = merge_conditions(branches_without_overlap);
             let mut branches = Vec::with_capacity(branches_without_overlap.len());
             let mut has_error = false;
 
-            for (condition, arms, name_bindings) in branches_without_overlap.into_iter() {
+            for (condition, (arms, name_bindings)) in branches_without_overlap.into_iter() {
                 match build_tree(
                     tree_id,
                     &matrix[1..],
@@ -517,29 +519,4 @@ fn true_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Exp
         },
         def_span: *lang_items.get("variant.Bool.True").unwrap(),
     })
-}
-
-// [
-//     (== 1, arm-0),
-//     (== 2, arm-1),
-//     (< 0,  arm-3),
-//     (_,    arm-4),
-// ]
-// ->
-// [
-//     (< 0, [arm-3, arm-4]),
-//     (== 1, [arm-0, arm-4]),
-//     (== 2, [arm-1, arm-4]),
-//     (> 2,  [arm-4]),
-// ]
-fn remove_overlaps(branches: Vec<(Range, Vec<(usize, &MatchArm)>, Vec<NameBinding>)>) -> Vec<(Constructor, Vec<(usize, &MatchArm)>, Vec<NameBinding>)> {
-    let mut result = Vec::with_capacity(branches.len());
-
-    for (range, arms, name_bindings) in branches.into_iter() {
-        // 1. flatten all the ranges
-        // 2. ... then what?
-        todo!()
-    }
-
-    result
 }

@@ -33,7 +33,9 @@ pub fn mul_ratio(lhs: &Ratio, rhs: &Ratio) -> Ratio {
 }
 
 pub fn div_ratio(lhs: &Ratio, rhs: &Ratio) -> Ratio {
-    todo!()
+    let res_numer = mul_bi(lhs.numer.is_neg, &lhs.numer.nums, rhs.denom.is_neg, &rhs.denom.nums);
+    let res_denom = mul_bi(lhs.denom.is_neg, &lhs.denom.nums, rhs.numer.is_neg, &rhs.numer.nums);
+    reduce_and_return(res_numer, res_denom)
 }
 
 fn reduce_and_return(mut numer: (bool, Vec<u32>), mut denom: (bool, Vec<u32>)) -> Ratio {

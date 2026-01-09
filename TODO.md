@@ -1,3 +1,10 @@
+# 147. range of characters
+
+`_` pattern이 byte이면 당연히 `#0..=#255`에 대응됨. 만약 char이면?? 위키피디아에 검색해보니까 0..=1114111인데, 0xd800..=0xdfff는 빼면 된대!
+
+1. lexer도 이 범위 피하기
+2. decision tree 만들 때도 저 범위 고려하기
+
 # 146. intermediate_dir / ir_dir
 
 저 두 용어가 혼용되고 있음. 걍 싹다 버리고 target_dir이라고 부를까?
