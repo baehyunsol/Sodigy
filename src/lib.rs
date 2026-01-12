@@ -6,7 +6,7 @@ mod command;
 mod compile_stage;
 mod error;
 
-pub use cli::{CliCommand, parse_args};
+pub use cli::{CliCommand, ColorWhen, parse_args};
 pub use command::Command;
 pub use compile_stage::{CompileStage, COMPILE_STAGES};
 pub use error::Error;

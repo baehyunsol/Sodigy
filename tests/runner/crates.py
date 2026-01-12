@@ -7,7 +7,8 @@ def run_all():
     os.chdir("crates")
     result_all = {}
 
-    for crate in os.listdir():
+    for crate in sorted(os.listdir()):
+        print(f"testing crates/{crate}...")
         result = run_test(crate)
 
         for key, error in result.items():
@@ -36,3 +37,7 @@ def run_test(crate: str) -> dict[str, str]:
         errors["doc"] = r3.stderr
 
     return errors
+
+if __name__ == "__main__":
+    import json
+    print(json.dumps(run_all(), indent=4))

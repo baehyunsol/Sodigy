@@ -303,6 +303,14 @@ fn parse_definition(tokens: TokenStream) -> Result<ErrorKind, TokenStream> {
                     Ok(n) => {
                         index = Some(n);
                         expecting_comma = true;
+
+                        if n >= 10000 {
+                            return Err(error_message(
+                                token.span(),
+                                format!("Expected an index in range 0..10000, but got an index {n}."),
+                            ));
+                        }
+
                         continue;
                     },
                     _ => {},
@@ -377,6 +385,7 @@ fn parse_definition(tokens: TokenStream) -> Result<ErrorKind, TokenStream> {
 fn render(definitions: Vec<ErrorKind>) -> TokenStream {
     let mut result = TokenStream::new();
     result.extend(render_enum_definition(&definitions));
+    result.extend(render_enum_methods(&definitions));
     result.extend(render_error_level(&definitions));
     result.extend(render_error_kind_endec(&definitions));
 
@@ -440,6 +449,75 @@ fn render_enum_definition(definitions: &[ErrorKind]) -> TokenStream {
         TokenTree::Ident(Ident::new("enum", Span::call_site())),
         TokenTree::Ident(Ident::new("ErrorKind", Span::call_site())),
         TokenTree::Group(Group::new(Delimiter::Brace, variants)),
+    ].into_iter().collect()
+}
+
+fn render_enum_methods(definitions: &[ErrorKind]) -> TokenStream {
+    let index_match_arms = definitions.iter().map(
+        |def| {
+            let mut arm = vec![
+                TokenTree::Ident(Ident::new("ErrorKind", Span::call_site())),
+                TokenTree::Punct(Punct::new(':', Spacing::Joint)),
+                TokenTree::Punct(Punct::new(':', Spacing::Alone)),
+                TokenTree::Ident(Ident::new(&def.name, Span::call_site())),
+            ];
+
+            match &def.fields_parsed {
+                EnumFields::None => {},
+                EnumFields::Tuple(t) => {
+                    let mut fields = vec![];
+
+                    for _ in t.iter() {
+                        fields.push(TokenTree::Ident(Ident::new("_", Span::call_site())));
+                        fields.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
+                    }
+
+                    arm.push(TokenTree::Group(Group::new(
+                        Delimiter::Parenthesis,
+                        fields.into_iter().collect(),
+                    )));
+                },
+                EnumFields::Struct(_) => {
+                    arm.push(TokenTree::Group(Group::new(
+                        Delimiter::Brace,
+                        vec![
+                            TokenTree::Punct(Punct::new('.', Spacing::Joint)),
+                            TokenTree::Punct(Punct::new('.', Spacing::Alone)),
+                        ].into_iter().collect(),
+                    )));
+                },
+            }
+
+            arm.extend(vec![
+                TokenTree::Punct(Punct::new('=', Spacing::Joint)),
+                TokenTree::Punct(Punct::new('>', Spacing::Alone)),
+                TokenTree::Literal(Literal::u16_suffixed(def.index)),
+                TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+            ]);
+            arm
+        }
+    ).collect::<Vec<_>>().concat();
+
+    vec![
+        TokenTree::Ident(Ident::new("impl", Span::call_site())),
+        TokenTree::Ident(Ident::new("ErrorKind", Span::call_site())),
+        TokenTree::Group(Group::new(Delimiter::Brace, vec![
+            TokenTree::Ident(Ident::new("pub", Span::call_site())),
+            TokenTree::Ident(Ident::new("fn", Span::call_site())),
+            TokenTree::Ident(Ident::new("index", Span::call_site())),
+            TokenTree::Group(Group::new(Delimiter::Parenthesis, vec![
+                TokenTree::Punct(Punct::new('&', Spacing::Alone)),
+                TokenTree::Ident(Ident::new("self", Span::call_site())),
+            ].into_iter().collect())),
+            TokenTree::Punct(Punct::new('-', Spacing::Joint)),
+            TokenTree::Punct(Punct::new('>', Spacing::Alone)),
+            TokenTree::Ident(Ident::new("u16", Span::call_site())),
+            TokenTree::Group(Group::new(Delimiter::Brace, vec![
+                TokenTree::Ident(Ident::new("match", Span::call_site())),
+                TokenTree::Ident(Ident::new("self", Span::call_site())),
+                TokenTree::Group(Group::new(Delimiter::Brace, index_match_arms.into_iter().collect())),
+            ].into_iter().collect())),
+        ].into_iter().collect())),
     ].into_iter().collect()
 }
 

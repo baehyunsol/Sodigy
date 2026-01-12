@@ -1,5 +1,6 @@
 use sodigy::{
     CliCommand,
+    ColorWhen,
     Command,
     CompileStage,
     COMPILE_STAGES,
@@ -12,7 +13,7 @@ use sodigy::{
 };
 use sodigy_code_gen::Backend;
 use sodigy_endec::{DumpSession, Endec};
-use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
+use sodigy_error::{DumpErrorOption, Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
@@ -35,7 +36,7 @@ use sodigy_fs_api::{
 use sodigy_hir as hir;
 use sodigy_mir as mir;
 use sodigy_optimize::OptimizeLevel;
-use sodigy_span::Span;
+use sodigy_span::{Color, Span};
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Instant;
@@ -103,9 +104,9 @@ fn run() -> Result<(), Error> {
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, emit_irs, jobs, .. } |
-            CliCommand::Run { optimize_level, import_std, emit_irs, jobs } |
-            CliCommand::Test { optimize_level, import_std, emit_irs, jobs }
+            CliCommand::Build { optimize_level, import_std, emit_irs, jobs, color, .. } |
+            CliCommand::Run { optimize_level, import_std, emit_irs, jobs, color } |
+            CliCommand::Test { optimize_level, import_std, emit_irs, jobs, color }
         ) => {
             let started_at = Instant::now();
             let mut errors = vec![];
@@ -131,11 +132,23 @@ fn run() -> Result<(), Error> {
             );
 
             let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
+            let dump_error_option = match color {
+                // TODO: `ColorWhen::Auto` is WIP
+                ColorWhen::Auto | ColorWhen::Always => DumpErrorOption::default(),
+                ColorWhen::Never => DumpErrorOption {
+                    error_color: Color::None,
+                    warning_color: Color::None,
+                    auxiliary_color: Color::None,
+                    info_color: Color::None,
+                    ..DumpErrorOption::default()
+                },
+            };
+
             sodigy_error::dump_errors(
                 errors,
                 warnings,
                 &ir_dir,
-                sodigy_error::DumpErrorOption::default(),
+                dump_error_option,
                 Some(elapsed_ms as u64),
             );
 

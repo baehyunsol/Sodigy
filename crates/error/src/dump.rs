@@ -57,9 +57,10 @@ pub fn dump_errors(
             ErrorLevel::Warning => option.warning_color,
         };
         let title = match level {
-            ErrorLevel::Error => color.render_fg("error"),
-            ErrorLevel::Warning => color.render_fg("warning"),
+            ErrorLevel::Error => format!("error (e-{:04})", error.kind.index()),
+            ErrorLevel::Warning => format!("warning (w-{:04})", error.kind.index()),
         };
+        let colored_title = color.render_fg(&title);
         let note = if let Some(note) = &error.note {
             format!("\nnote: {note}")
         } else {
@@ -83,7 +84,7 @@ pub fn dump_errors(
         ));
 
         stderr.push(format!(
-            "{title}: {}{note}{rendered_span}",
+            "{colored_title}: {}{note}{rendered_span}",
             error.kind.render(intermediate_dir),
         ));
     }

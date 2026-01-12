@@ -4,6 +4,7 @@ import sys
 args = sys.argv
 no_std = "--no-std" in args
 debug_bytecode = "--debug-bytecode" in args
+dump = "--dump" in args
 
 # It's always enabled!
 # debug_heap = "--debug-heap" in args
@@ -18,4 +19,5 @@ single_files(
     debug_bytecode,
     debug_heap,
     20,
+    dump,
 )

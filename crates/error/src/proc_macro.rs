@@ -54,6 +54,95 @@
     { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
     NoImpureCallInImpureContext, Todo { id: u32, message: String },
     InternalCompilerError { id: u32 },
+} impl ErrorKind {
+    pub fn index(& self) -> u16
+    {
+        match self
+        {
+            ErrorKind :: InvalidNumberLiteral => 0u16, ErrorKind ::
+            InvalidStringLiteralPrefix(_,) => 5u16, ErrorKind :: EmptyIdent =>
+            10u16, ErrorKind :: InvalidCharacterInIdent(_,) => 15u16,
+            ErrorKind :: WrongNumberOfQuotesInRawStringLiteral => 20u16,
+            ErrorKind :: UnterminatedStringLiteral => 25u16, ErrorKind ::
+            NotAllowedCharInFormattedString(_,) => 30u16, ErrorKind ::
+            UnmatchedBraceInFormattedString => 35u16, ErrorKind ::
+            EmptyBraceInFormattedString => 40u16, ErrorKind :: DotDotDot =>
+            45u16, ErrorKind :: InvalidCharLiteral => 50u16, ErrorKind ::
+            InvalidCharLiteralPrefix(_,) => 55u16, ErrorKind ::
+            UnterminatedCharLiteral => 60u16, ErrorKind :: InvalidByteLiteral
+            => 65u16, ErrorKind :: InvalidEscape => 70u16, ErrorKind ::
+            EmptyCharLiteral => 75u16, ErrorKind :: UnterminatedBlockComment
+            => 80u16, ErrorKind :: InvalidUtf8 => 85u16, ErrorKind ::
+            InvalidUnicodeCharacter => 90u16, ErrorKind ::
+            InvalidUnicodeEscape => 95u16, ErrorKind :: UnmatchedGroup { .. }
+            => 100u16, ErrorKind :: TooManyQuotes => 105u16, ErrorKind ::
+            UnclosedDelimiter(_,) => 110u16, ErrorKind :: UnexpectedToken
+            { .. } => 115u16, ErrorKind :: UnexpectedEof { .. } => 120u16,
+            ErrorKind :: UnexpectedEog { .. } => 125u16, ErrorKind ::
+            MissingDocComment => 130u16, ErrorKind :: DocCommentNotAllowed =>
+            135u16, ErrorKind :: ModuleDocCommentNotAtTop => 140u16, ErrorKind
+            :: MissingDecorator(_,) => 145u16, ErrorKind ::
+            DecoratorNotAllowed => 150u16, ErrorKind ::
+            UnexpectedDecorator(_,) => 155u16, ErrorKind ::
+            ModuleDecoratorNotAtTop => 160u16, ErrorKind :: MissingVisibility
+            => 165u16, ErrorKind :: CannotBePublic => 170u16, ErrorKind ::
+            FunctionWithoutBody => 175u16, ErrorKind :: BlockWithoutValue =>
+            180u16, ErrorKind :: StructWithoutField => 185u16, ErrorKind ::
+            EmptyCurlyBraceBlock => 190u16, ErrorKind ::
+            PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
+            NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
+            CannotDeclareInlineModule => 205u16, ErrorKind ::
+            InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
+            MultipleRestPatterns => 215u16, ErrorKind ::
+            DifferentNameBindingsInOrPattern => 220u16, ErrorKind ::
+            InvalidFnType => 225u16, ErrorKind :: EmptyMatchStatement =>
+            230u16, ErrorKind :: RedundantDecorator(_,) => 235u16, ErrorKind
+            :: InvalidDecorator(_,) => 240u16, ErrorKind ::
+            MissingDecoratorArgument { .. } => 245u16, ErrorKind ::
+            UnexpectedDecoratorArgument { .. } => 250u16, ErrorKind ::
+            WrongNumberOfLangItemGenerics { .. } => 255u16, ErrorKind ::
+            CannotEvaluateConst => 260u16, ErrorKind :: InvalidRangePattern =>
+            265u16, ErrorKind :: InvalidConcatPattern => 270u16, ErrorKind ::
+            CannotBindName(_,) => 275u16, ErrorKind ::
+            CannotApplyInfixOpToMultipleBindings => 280u16, ErrorKind ::
+            CannotApplyInfixOpToBinding => 285u16, ErrorKind ::
+            CannotAnnotateType => 290u16, ErrorKind ::
+            RedundantNameBinding(_, _,) => 295u16, ErrorKind ::
+            UnsupportedInfixOpInPattern(_,) => 300u16, ErrorKind ::
+            NameCollision { .. } => 305u16, ErrorKind :: CyclicLet { .. } =>
+            310u16, ErrorKind :: CyclicAlias { .. } => 315u16, ErrorKind ::
+            DollarOutsidePipeline => 320u16, ErrorKind :: DisconnectedPipeline
+            => 325u16, ErrorKind :: UndefinedName(_,) => 330u16, ErrorKind ::
+            EnumVariantInTypeAnnotation => 335u16, ErrorKind ::
+            KeywordArgumentRepeated(_,) => 340u16, ErrorKind ::
+            KeywordArgumentNotAllowed => 345u16, ErrorKind ::
+            AliasResolveRecursionLimitReached => 350u16, ErrorKind ::
+            MissingTypeParameter { .. } => 355u16, ErrorKind ::
+            UnexpectedTypeParameter { .. } => 360u16, ErrorKind ::
+            MissingKeywordArgument(_,) => 366u16, ErrorKind ::
+            InvalidKeywordArgument(_,) => 370u16, ErrorKind ::
+            MissingFunctionParameter { .. } => 375u16, ErrorKind ::
+            UnexpectedFunctionParameter { .. } => 380u16, ErrorKind ::
+            StructFieldRepeated(_,) => 385u16, ErrorKind ::
+            MissingStructField(_,) => 390u16, ErrorKind ::
+            InvalidStructField(_,) => 395u16, ErrorKind ::
+            DependentTypeNotAllowed => 400u16, ErrorKind :: NotStruct { .. }
+            => 405u16, ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind
+            :: UnexpectedType { .. } => 415u16, ErrorKind :: CannotInferType
+            { .. } => 420u16, ErrorKind :: PartiallyInferedType { .. } =>
+            425u16, ErrorKind :: CannotInferGenericType { .. } => 430u16,
+            ErrorKind :: PartiallyInferedGenericType { .. } => 435u16,
+            ErrorKind :: CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
+            CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
+            ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
+            => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
+            ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
+            LibFileNotFound => 470u16, ErrorKind :: UnusedNames { .. } =>
+            5000u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind ::
+            NoImpureCallInImpureContext => 5010u16, ErrorKind :: Todo { .. }
+            => 9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
+        }
+    }
 } impl ErrorLevel {
     pub fn from_error_kind(k : & ErrorKind) -> ErrorLevel
     {

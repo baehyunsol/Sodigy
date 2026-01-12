@@ -18,18 +18,21 @@ pub enum CliCommand {
         profile: Profile,
         emit_irs: bool,
         jobs: usize,
+        color: ColorWhen,
     },
     Run {
         optimize_level: OptimizeLevel,
         import_std: bool,
         emit_irs: bool,
         jobs: usize,
+        color: ColorWhen,
     },
     Test {
         optimize_level: OptimizeLevel,
         import_std: bool,
         emit_irs: bool,
         jobs: usize,
+        color: ColorWhen,
     },
     Clean,
     Help(String),
@@ -41,12 +44,20 @@ pub enum CliCommand {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ColorWhen {
+    Auto,
+    Always,
+    Never,
+}
+
 pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
     match args.get(1).map(|a| a.as_str()) {
         Some("build") => {
             let parsed_args = ArgParser::new()
                 .optional_arg_flag("--output", ArgType::String)
                 .optional_arg_flag("--backend", ArgType::enum_(&["c", "rust", "python", "bytecode"]))
+                .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--test"])
@@ -68,6 +79,13 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 Some("python") => Backend::Python,
                 Some("bytecode") => Backend::Bytecode,
                 None => Backend::Bytecode,  // default
+                _ => unreachable!(),
+            };
+            let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
+                Some("auto") => ColorWhen::Auto,
+                Some("always") => ColorWhen::Always,
+                Some("never") => ColorWhen::Never,
+                None => ColorWhen::Auto,  // default
                 _ => unreachable!(),
             };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
@@ -105,6 +123,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 profile,
                 emit_irs,
                 jobs,
+                color,
             })
         },
         Some("clean") => {
@@ -159,6 +178,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
         },
         Some("run") => {
             let parsed_args = ArgParser::new()
+                .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
@@ -177,6 +197,13 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 None => OptimizeLevel::None,
                 _ => unreachable!(),
             };
+            let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
+                Some("auto") => ColorWhen::Auto,
+                Some("always") => ColorWhen::Always,
+                Some("never") => ColorWhen::Never,
+                None => ColorWhen::Auto,  // default
+                _ => unreachable!(),
+            };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
                 |n| n.parse::<usize>().unwrap()
             ).unwrap_or_else(
@@ -190,10 +217,12 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 import_std,
                 emit_irs,
                 jobs,
+                color,
             })
         },
         Some("test") => {
             let parsed_args = ArgParser::new()
+                .optional_arg_flag("--color", ArgType::enum_(&["auto", "always", "never"]))
                 .optional_arg_flag("--jobs", ArgType::integer_between(Some(1), Some(u32::MAX.into())))
                 .optional_flag(&["--release"])
                 .optional_flag(&["--emit-irs"])
@@ -212,6 +241,13 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 None => OptimizeLevel::None,
                 _ => unreachable!(),
             };
+            let color = match parsed_args.arg_flags.get("--color").map(|f| f.as_str()) {
+                Some("auto") => ColorWhen::Auto,
+                Some("always") => ColorWhen::Always,
+                Some("never") => ColorWhen::Never,
+                None => ColorWhen::Auto,  // default
+                _ => unreachable!(),
+            };
             let jobs = parsed_args.arg_flags.get("--jobs").map(
                 |n| n.parse::<usize>().unwrap()
             ).unwrap_or_else(
@@ -225,6 +261,7 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 import_std,
                 emit_irs,
                 jobs,
+                color,
             })
         },
         Some(_) => todo!(),

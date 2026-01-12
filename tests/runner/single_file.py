@@ -14,6 +14,9 @@ def single_files(
 
     # seconds
     timeout: int = 20,
+
+    # If it's set, it doesn't run the test, but stdout/stderr are not captured.
+    dump_only: bool = False,
 ):
     goto_root()
 
@@ -33,10 +36,12 @@ def single_files(
         raise ValueError(f"There's no test that matches `{filter}`")
 
     for file in files:
-        print(f"running `{file}`...")
-        error = single_file(file, no_std, "target/debug/sodigy", timeout)
+        print(f"running `single-file/{file}`...")
+        error = single_file(file, no_std, "target/debug/sodigy", timeout, dump_only)
         color, status = (32, "success") if error is None else (31, "fail")
-        print(f"{file}: \033[{color}m{status}\033[0m")
+
+        if not dump_only:
+            print(f"{file}: \033[{color}m{status}\033[0m")
 
         if error is not None:
             print(error)
@@ -45,13 +50,16 @@ def single_files(
         else:
             succ += 1
 
-    print(f"succ: {succ}, fail: {fail}")
+    if not dump_only:
+        print(f"succ: {succ}, fail: {fail}")
+
     return succ, fail
 
 def single_file(
     # just a file name, without directories
     file: str,
 
+    # It compiles the sodigy code with `--no-std` option.
     no_std: bool,
 
     # the path has to be absolute, or relative to the repository root
@@ -59,6 +67,9 @@ def single_file(
 
     # seconds
     timeout: int = 20,
+
+    # If it's set, it doesn't run the test, but stdout/stderr are not captured.
+    dump_only: bool = False,
 ) -> Optional[str]:  # If there's an error, it returns the error message.
     goto_root()
 
@@ -79,19 +90,38 @@ def single_file(
     flags = ["--no-std"] if no_std else []
     flags += ["--emit-irs"]
 
+    if not dump_only:
+        flags += ["--color=never"]
+
+    os.chdir("sodigy-test")
+    kwargs = {
+        "capture_output": True,
+        "text": True,
+        "timeout": timeout,
+    }
+
+    if dump_only:
+        kwargs.pop("capture_output")
+        kwargs.pop("text")
+
     try:
-        os.chdir("sodigy-test")
-        p = subprocess.run([os.path.join("..", sodigy_binary), "test", *flags], timeout=timeout)
-        errors, warnings = parse_errors(p.stderr)
-        status = "success" if p.returncode == 0 else "test-fail" if p.returncode == 10 else "compile-fail" if p.returncode == 11 else "misc-error"
-        result = RunResult(status, errors, warnings)
+        p = subprocess.run([os.path.join("..", sodigy_binary), "test", *flags], **kwargs)
+
+        if not dump_only:
+            status = "success" if p.returncode == 0 else "test-fail" if p.returncode == 10 else "compile-fail" if p.returncode == 11 else "misc-error"
+            errors, warnings = parse_errors(p.stderr) if status != "misc-error" else ([], [])
+            result = RunResult(status, errors, warnings)
 
     except subprocess.TimeoutExpired:
         result = RunResult("timeout", [], [])
 
-    try:
-        result.expect(expectation)
-        return None
+    if not dump_only:
+        try:
+            result.expect(expectation)
+            return None
 
-    except Exception as e:
-        return str(e)
+        except Exception as e:
+            return str(e)
+
+    else:
+        return None

@@ -64,13 +64,15 @@ impl Span {
     pub fn derive(&self, kind: SpanDeriveKind) -> Span {
         match self {
             Span::None => Span::None,
-            Span::Range { file, start, end } => Span::Derived {
+            // TODO: If it derives a derived-span, the previous information is gone!
+            //       But it would be toooo tricky to track the history of derivations...
+            Span::Range { file, start, end } | Span::Derived { file, start, end, .. } => Span::Derived {
                 kind,
                 file: *file,
                 start: *start,
                 end: *end,
             },
-            _ => panic!("TODO: {self:?}"),
+            _ => panic!("TODO: {self:?}, {kind:?}"),
         }
     }
 }

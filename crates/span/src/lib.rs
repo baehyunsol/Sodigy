@@ -81,9 +81,15 @@ impl Span {
                         Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
                         Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
                     ) => Span::Derived { kind: SpanDeriveKind::Trivial, file, start, end },
+                    (Span::Derived { kind: kind1, .. }, Span::Derived { kind: kind2, .. }) if *kind1 == kind2 => Span::Derived {
+                        kind: *kind1,
+                        file,
+                        start,
+                        end,
+                    },
 
                     // I want to preserve as much information as possible, but there are so many cases!!
-                    _ => todo!(),
+                    _ => panic!("TODO: {self:?} ++ {other:?}"),
                 }
             },
             (Span::None, s) => s,

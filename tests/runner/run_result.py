@@ -14,7 +14,13 @@ class RunResult:
 
     def expect(self, expectation):
         names = {}
-        exec(expectation, names)
+
+        try:
+            exec(expectation, names)
+
+        except Exception as e:
+            raise Exception(f"error in the expectation: {e}")
+
         expect = names["expect"]
         expect(self)
 
