@@ -23,6 +23,7 @@ pub enum Error {
 }
 
 impl Error {
+    // Sodigy test runner uses the exit code (10 and 11), so please don't modify this method.
     // NOTE: rust's `panic!` macro always uses exit code 101.
     pub fn exit_code(&self) -> i32 {
         match self {

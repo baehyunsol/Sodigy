@@ -1,4 +1,5 @@
 target/
+__pycache__/
 
 # tmp dir created by test.py
 sodigy-test

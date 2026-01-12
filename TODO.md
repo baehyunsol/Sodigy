@@ -1,3 +1,19 @@
+# 149. expectations
+
+test sodigy file 최상단에다가 아래처럼 추가
+
+```
+/*<expect>
+
+def expect(result):
+    if result.status != "success":
+        raise Exception(result.status)
+
+</expect>*/
+```
+
+단순 Python func여서 아무거나 실행 가능. exception 던지는지 아닌지로만 소통 (던질 때 string 하나 던지면 됨!)
+
 # 148. dollar-idents in a range
 
 ```sodigy
