@@ -2,8 +2,10 @@ use super::{dump_expr, dump_type};
 use crate::{Let, Session};
 use sodigy_endec::IndentedLines;
 
-pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session) {
-    lines.break_line();
+pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session, with_newline: bool) {
+    if with_newline {
+        lines.break_line();
+    }
 
     lines.push(&format!("// name_span: {:?}", r#let.name_span));
     lines.break_line();
@@ -18,7 +20,7 @@ pub fn dump_let(r#let: &Let, lines: &mut IndentedLines, session: &Session) {
         lines.break_line();
     }
 
-    lines.push(&format!(" let {}", r#let.name.unintern_or_default(&session.intermediate_dir)));
+    lines.push(&format!("let {}", r#let.name.unintern_or_default(&session.intermediate_dir)));
     lines.push(": ");
 
     if let Some(r#type) = session.types.get(&r#let.name_span) {

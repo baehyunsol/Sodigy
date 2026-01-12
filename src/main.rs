@@ -23,6 +23,7 @@ use sodigy_fs_api::{
     create_dir_all,
     exists,
     join,
+    join3,
     join4,
     parent,
     read_bytes,
@@ -707,7 +708,13 @@ pub fn run_worker(
                     hir_session.warnings.extend(inter_hir_session.warnings.drain(..));
 
                     let mut mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
-                    init_span_string_map_if_necessary(&mut mir_session, &emit_ir_options);
+                    init_span_string_map_if_necessary(
+                        &mut mir_session,
+                        &emit_ir_options,
+                        &intermediate_dir,
+                        /* read_from_file: */ false,
+                        /* write_to_file: */ false,
+                    )?;
                     emit_irs_if_has_to(
                         &mir_session,
                         &emit_ir_options,
@@ -750,7 +757,13 @@ pub fn run_worker(
 
                 let _ = sodigy_post_mir::lower_matches(&mut mir_session);
 
-                init_span_string_map_if_necessary(&mut mir_session, &emit_ir_options);
+                init_span_string_map_if_necessary(
+                    &mut mir_session,
+                    &emit_ir_options,
+                    &intermediate_dir,
+                    /* read_from_file: */ true,
+                    /* write_to_file: */ false,
+                )?;
                 emit_irs_if_has_to(
                     &mir_session,
                     &emit_ir_options,
@@ -862,6 +875,14 @@ pub fn run_worker(
                 // monomorphization. It's very heavy, and we're not gonna store this.
                 let (inter_mir_session, mut mir_session) = sodigy_inter_mir::solve_type(mir_session);
 
+                init_span_string_map_if_necessary(
+                    &mut mir_session,
+                    &emit_ir_options,
+                    &intermediate_dir,
+                    /* read_from_file: */ false,
+                    /* write_to_file: */ true,
+                )?;
+
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.
                 // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
                 // TODO: This is (potentially) one of the biggest bottleneck in the compiler.
@@ -896,7 +917,6 @@ pub fn run_worker(
                         &intermediate_dir,
                     )?;
                 }
-
                 emit_irs_if_has_to(
                     &inter_mir_session,
                     &emit_ir_options,
@@ -930,7 +950,7 @@ pub fn run_worker(
                     let content_hash = file.get_content_hash(&intermediate_dir)?;
                     let mir_session_bytes = get_cached_ir(
                         &intermediate_dir,
-                        CompileStage::Mir,
+                        CompileStage::PostMir,
                         Some(content_hash),
                     )?.ok_or(Error::IrCacheNotFound(CompileStage::PostMir))?;
                     let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
@@ -1123,20 +1143,45 @@ fn emit_irs_if_has_to<T: Endec + DumpSession>(
 fn init_span_string_map_if_necessary(
     session: &mut mir::Session,
     emit_ir_options: &[EmitIrOption],
-) {
+    intermediate_dir: &str,
+    read_from_file: bool,
+    write_to_file: bool,
+) -> Result<(), Error> {
     for option in emit_ir_options.iter() {
         match option {
             EmitIrOption {
-                stage: CompileStage::Mir | CompileStage::PostMir,
+                stage: CompileStage::Mir | CompileStage::InterMir | CompileStage::PostMir,
                 human_readable: true,
                 ..
             } => {
-                session.init_span_string_map();
+                let path = join3(
+                    intermediate_dir,
+                    "irs",
+                    "span_string_map",
+                )?;
+
+                if read_from_file {
+                    let bytes = read_bytes(&path)?;
+                    session.span_string_map = Some(HashMap::<_, _>::decode(&bytes)?);
+                }
+
+                else {
+                    session.init_span_string_map();
+                }
+
+                if write_to_file {
+                    let Some(span_string_map) = &session.span_string_map else { unreachable!() };
+                    let bytes = span_string_map.encode();
+                    write_bytes(&path, &bytes, WriteMode::CreateOrTruncate)?;
+                }
+
                 break;
             },
             _ => {},
         }
     }
+
+    Ok(())
 }
 
 fn get_cached_ir(

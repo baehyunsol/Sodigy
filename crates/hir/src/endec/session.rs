@@ -105,7 +105,7 @@ impl DumpSession for Session {
         let mut indented_lines = IndentedLines::new();
 
         for r#let in self.lets.iter() {
-            dump_let(r#let, &mut indented_lines, self);
+            dump_let(r#let, &mut indented_lines, self, true);
         }
 
         for func in self.funcs.iter() {

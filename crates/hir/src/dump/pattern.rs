@@ -49,7 +49,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
             lines.inc_indent();
             lines.break_line();
 
-            for field in fields.iter() {
+            for (i, field) in fields.iter().enumerate() {
                 lines.push(&field.name.unintern_or_default(&session.intermediate_dir));
 
                 if !field.is_shorthand {
@@ -58,7 +58,10 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
                 }
 
                 lines.push(",");
-                lines.break_line();
+
+                if i != fields.len() - 1 {
+                    lines.break_line();
+                }
             }
         },
         PatternKind::TupleStruct { elements, rest, .. } |
@@ -72,24 +75,57 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
 
             let is_tuple = matches!(pattern_kind, PatternKind::TupleStruct { .. } | PatternKind::Tuple { .. });
             lines.push(if is_tuple { "(" } else { "[" });
+            let element_per_line = lookahead_elements(&elements, session) > 20;
 
             if elements.len() > 1 {
-                lines.inc_indent();
-                lines.break_line();
+                if element_per_line {
+                    lines.inc_indent();
+                    lines.break_line();
+                }
 
                 for (i, element) in elements.iter().enumerate() {
                     if let Some(rest) = rest && rest.index == i {
                         lines.push("..,");
-                        lines.break_line();
+
+                        if element_per_line {
+                            lines.break_line();
+                        }
+
+                        else {
+                            lines.push(" ");
+                        }
                     }
 
                     dump_pattern(&element, lines, session);
                     lines.push(",");
-                    lines.break_line();
+
+                    if i != elements.len() - 1 {
+                        if element_per_line {
+                            lines.break_line();
+                        }
+
+                        else {
+                            lines.push(" ");
+                        }
+                    }
                 }
 
-                lines.dec_indent();
-                lines.break_line();
+                if let Some(rest) = rest && rest.index == elements.len() {
+                    if element_per_line {
+                        lines.break_line();
+                    }
+
+                    else {
+                        lines.push(" ");
+                    }
+
+                    lines.push("..,");
+                }
+
+                if element_per_line {
+                    lines.dec_indent();
+                    lines.break_line();
+                }
             }
 
             else {
@@ -129,4 +165,16 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
             lines.push("_");
         },
     }
+}
+
+fn lookahead_elements(elements: &[Pattern], session: &Session) -> usize {
+    let mut count = 0;
+
+    for element in elements.iter() {
+        let mut indented_lines = IndentedLines::new();
+        dump_pattern(element, &mut indented_lines, session);
+        count += indented_lines.dump().len();
+    }
+
+    count
 }

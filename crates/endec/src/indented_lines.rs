@@ -40,4 +40,8 @@ impl IndentedLines {
         ).collect::<Vec<_>>();
         lines.join("\n")
     }
+
+    pub fn total_chars(&self) -> usize {
+        self.lines.iter().map(|(s, _)| s.len()).sum()
+    }
 }

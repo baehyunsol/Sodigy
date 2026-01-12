@@ -1,5 +1,5 @@
 use super::{dump_assert, dump_let, dump_pattern};
-use crate::{Expr, Session};
+use crate::{CallArg, Expr, Session};
 use sodigy_endec::IndentedLines;
 use sodigy_parse::Field;
 use sodigy_token::InfixOp;
@@ -34,20 +34,60 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 lines.push(" = ");
             }
 
+            let if_cond = matches!(&*r#if.cond, Expr::If(_));
+
+            if if_cond {
+                lines.push("(");
+            }
+
             dump_expr(&r#if.cond, lines, session);
-            lines.push(" {");
-            lines.inc_indent();
-            lines.break_line();
-            dump_expr(&r#if.true_value, lines, session);
-            lines.dec_indent();
-            lines.break_line();
-            lines.push("} else {");
-            lines.inc_indent();
-            lines.break_line();
-            dump_expr(&r#if.false_value, lines, session);
-            lines.dec_indent();
-            lines.break_line();
-            lines.push("}");
+
+            if if_cond {
+                lines.push(")");
+            }
+
+            match get_if_value_dump_type(&r#if.true_value, session) {
+                IfValueDumpType::Block => {
+                    lines.push(" ");
+                    dump_expr(&r#if.true_value, lines, session);
+                    lines.push(" else");
+                },
+                IfValueDumpType::ShortExpr => {
+                    lines.push(" { ");
+                    dump_expr(&r#if.true_value, lines, session);
+                    lines.push(" } else");
+                },
+                IfValueDumpType::LongExpr => {
+                    lines.push(" {");
+                    lines.inc_indent();
+                    lines.break_line();
+                    dump_expr(&r#if.true_value, lines, session);
+                    lines.dec_indent();
+                    lines.break_line();
+                    lines.push("} else");
+                },
+            }
+
+            match get_if_value_dump_type(&r#if.false_value, session) {
+                IfValueDumpType::Block => {
+                    lines.push(" ");
+                    dump_expr(&r#if.false_value, lines, session);
+                },
+                IfValueDumpType::ShortExpr => {
+                    lines.push(" { ");
+                    dump_expr(&r#if.false_value, lines, session);
+                    lines.push(" }");
+                },
+                IfValueDumpType::LongExpr => {
+                    lines.push(" {");
+                    lines.inc_indent();
+                    lines.break_line();
+                    dump_expr(&r#if.false_value, lines, session);
+                    lines.dec_indent();
+                    lines.break_line();
+                    lines.push("}");
+                },
+            }
         },
         Expr::Match(r#match) => {
             lines.push("match ");
@@ -56,7 +96,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.inc_indent();
             lines.break_line();
 
-            for arm in r#match.arms.iter() {
+            for (i, arm) in r#match.arms.iter().enumerate() {
                 dump_pattern(&arm.pattern, lines, session);
 
                 if let Some(guard) = &arm.guard {
@@ -67,7 +107,10 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 lines.push(" => ");
                 dump_expr(&arm.value, lines, session);
                 lines.push(",");
-                lines.break_line();
+
+                if i != r#match.arms.len() - 1 {
+                    lines.break_line();
+                }
             }
 
             lines.dec_indent();
@@ -79,8 +122,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.inc_indent();
             lines.break_line();
 
-            for r#let in block.lets.iter() {
-                dump_let(r#let, lines, session);
+            for (i, r#let) in block.lets.iter().enumerate() {
+                dump_let(r#let, lines, session, i != 0);
             }
 
             for assert in block.asserts.iter() {
@@ -105,19 +148,33 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
 
             lines.push("(");
+            let arg_per_line = lookahead_args(&args, session) > 20;
 
             if args.len() > 1 {
-                lines.inc_indent();
-                lines.break_line();
-
-                for arg in args.iter() {
-                    dump_expr(&arg.arg, lines, session);
-                    lines.push(",");
+                if arg_per_line {
+                    lines.inc_indent();
                     lines.break_line();
                 }
 
-                lines.dec_indent();
-                lines.break_line();
+                for (i, arg) in args.iter().enumerate() {
+                    dump_expr(&arg.arg, lines, session);
+                    lines.push(",");
+
+                    if i != args.len() - 1 {
+                        if arg_per_line {
+                            lines.break_line();
+                        }
+
+                        else {
+                            lines.push(" ");
+                        }
+                    }
+                }
+
+                if arg_per_line {
+                    lines.dec_indent();
+                    lines.break_line();
+                }
             }
 
             else {
@@ -134,19 +191,33 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::Tuple { elements, .. } | Expr::List { elements, .. } => {
             let is_tuple = matches!(expr, Expr::Tuple { .. });
             lines.push(if is_tuple { "(" } else { "[" });
+            let element_per_line = lookahead_exprs(elements, session) > 20;
 
             if elements.len() > 1 {
-                lines.inc_indent();
-                lines.break_line();
-
-                for element in elements.iter() {
-                    dump_expr(&element, lines, session);
-                    lines.push(",");
+                if element_per_line {
+                    lines.inc_indent();
                     lines.break_line();
                 }
 
-                lines.dec_indent();
-                lines.break_line();
+                for (i, element) in elements.iter().enumerate() {
+                    dump_expr(&element, lines, session);
+                    lines.push(",");
+
+                    if i != elements.len() - 1 {
+                        if element_per_line {
+                            lines.break_line();
+                        }
+
+                        else {
+                            lines.push(" ");
+                        }
+                    }
+                }
+
+                if element_per_line {
+                    lines.dec_indent();
+                    lines.break_line();
+                }
             }
 
             else {
@@ -209,5 +280,51 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             }
         },
         Expr::PostfixOp { .. } => todo!(),
+    }
+}
+
+fn lookahead_args(args: &[CallArg], session: &Session) -> usize {
+    let mut count = 0;
+
+    for arg in args.iter() {
+        let mut indented_lines = IndentedLines::new();
+        dump_expr(&arg.arg, &mut indented_lines, session);
+        count += indented_lines.dump().len();
+    }
+
+    count
+}
+
+fn lookahead_exprs(exprs: &[Expr], session: &Session) -> usize {
+    let mut count = 0;
+
+    for expr in exprs.iter() {
+        let mut indented_lines = IndentedLines::new();
+        dump_expr(&expr, &mut indented_lines, session);
+        count += indented_lines.dump().len();
+    }
+
+    count
+}
+
+enum IfValueDumpType {
+    Block,
+    ShortExpr,
+    LongExpr,
+}
+
+fn get_if_value_dump_type(value: &Expr, session: &Session) -> IfValueDumpType {
+    match value {
+        Expr::Block(_) => IfValueDumpType::Block,
+        _ => {
+            let mut indented_lines = IndentedLines::new();
+            dump_expr(value, &mut indented_lines, session);
+
+            if indented_lines.dump().len() > 20 {
+                IfValueDumpType::LongExpr
+            } else {
+                IfValueDumpType::ShortExpr
+            }
+        },
     }
 }
