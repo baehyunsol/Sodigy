@@ -1,3 +1,15 @@
+# 148. dollar-idents in a range
+
+```sodigy
+fn mm(x: Int, y: Int) -> Int = match x {
+    0..100 => 0,
+    0..$y => 1,
+    _ => 2,
+};
+```
+
+에서 `0..$y` 되게 만들기? 지금은 안되지만 어찌저찌하면 구현 가능할 듯?
+
 # 147. range of characters
 
 `_` pattern이 byte이면 당연히 `#0..=#255`에 대응됨. 만약 char이면?? 위키피디아에 검색해보니까 0..=1114111인데, 0xd800..=0xdfff는 빼면 된대!

@@ -166,7 +166,7 @@ use sodigy_mir::{
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::InternedNumberValue;
+use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
@@ -473,7 +473,7 @@ fn lower_match(
 
     let matrix = get_matrix(&scrutinee_type, lang_items);
 
-    let tree = match build_tree(
+    let mut tree = match build_tree(
         &mut 1,
         &matrix,
         &arms,
@@ -492,6 +492,8 @@ fn lower_match(
         errors,
         warnings,
     )?;
+
+    tree.optimize();
 
     // We have to evaluate the scrutinee multiple times.
     // If it's `match (x, y) { .. }`, we convert this to `{ let s = (x, y); match s { .. } }`.
@@ -694,6 +696,43 @@ fn read_field_of_pattern<'p>(
                         name_binding_offset: None,
                     })
                 }
+            },
+            PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
+                let lhs = lhs.as_ref().map(
+                    |lhs| match &lhs.kind {
+                        PatternKind::Number { n, .. } => n.clone(),
+                        PatternKind::Char { ch, .. } => InternedNumber::from_u32(*ch, true),
+                        PatternKind::Byte { b, .. } => InternedNumber::from_u32(*b as u32, true),
+                        _ => unreachable!(),
+                    }
+                );
+                let rhs = rhs.as_ref().map(
+                    |rhs| match &rhs.kind {
+                        PatternKind::Number { n, .. } => n.clone(),
+                        PatternKind::Char { ch, .. } => InternedNumber::from_u32(*ch, true),
+                        PatternKind::Byte { b, .. } => InternedNumber::from_u32(*b as u32, true),
+                        _ => unreachable!(),
+                    }
+                );
+
+                let is_integer = match (&lhs, &rhs) {
+                    (Some(lhs), _) => lhs.is_integer,
+                    (_, Some(rhs)) => rhs.is_integer,
+                    _ => unreachable!(),
+                };
+
+                Ok(DestructuredPattern {
+                    pattern,
+                    constructor: Constructor::Range(Range {
+                        r#type: if is_integer { LiteralType::Int } else { LiteralType::Number },
+                        lhs,
+                        lhs_inclusive: true,
+                        rhs,
+                        rhs_inclusive: *is_inclusive,
+                    }),
+                    name_binding,
+                    name_binding_offset: None,
+                })
             },
             PatternKind::Wildcard(_) => Ok(DestructuredPattern {
                 pattern,

@@ -52,6 +52,24 @@ fn eq_int(a: Int, b: Int) -> Bool;
 #[lang_item("built_in.gt_int")]
 fn gt_int(a: Int, b: Int) -> Bool;
 
+// Sodigy can run fine without this because `std.op.leq` has a default implementation.
+// But the compiler needs a lang item for leq_int, so it's implemented here.
+#[impl(std.op.leq)]
+#[lang_item("fn.leq_int")]
+fn leq_int(a: Int, b: Int) -> Bool = !gt_int(a, b);
+
+// Sodigy can run fine without this because `std.op.neq` has a default implementation.
+// But the compiler needs a lang item for neq_int, so it's implemented here.
+#[impl(std.op.neq)]
+#[lang_item("fn.neq_int")]
+fn neq_int(a: Int, b: Int) -> Bool = !eq_int(a, b);
+
+// Sodigy can run fine without this because `std.op.geq` has a default implementation.
+// But the compiler needs a lang item for geq_int, so it's implemented here.
+#[impl(std.op.geq)]
+#[lang_item("fn.geq_int")]
+fn geq_int(a: Int, b: Int) -> Bool = !lt_int(a, b);
+
 #[impl(std.op.div)]
 fn div_int_wrapper(a: Int, b: Int) -> Int = {
     if b == 0 {

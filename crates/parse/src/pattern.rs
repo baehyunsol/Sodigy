@@ -252,7 +252,30 @@ impl PatternKind {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            _ => todo!(),
+            PatternKind::Number { span, .. } |
+            PatternKind::String { span, .. } |
+            PatternKind::Regex { span, .. } |
+            PatternKind::Char { span, .. } |
+            PatternKind::Byte { span, .. } |
+            PatternKind::Ident { span, .. } |
+            PatternKind::Wildcard(span) |
+            PatternKind::PipelineData(span) |
+            PatternKind::DollarIdent { span, .. } |
+            PatternKind::Tuple { group_span: span, .. } |
+            PatternKind::List { group_span: span, .. } => *span,
+            PatternKind::Range { lhs, op_span, rhs, .. } => {
+                let mut span = match lhs {
+                    Some(lhs) => lhs.error_span_wide().merge(*op_span),
+                    None => *op_span,
+                };
+
+                if let Some(rhs) = rhs {
+                    span = span.merge(rhs.error_span_wide());
+                }
+
+                span
+            },
+            _ => panic!("TODO: {self:?}"),
         }
     }
 

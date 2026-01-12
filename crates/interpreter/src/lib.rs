@@ -105,10 +105,14 @@ fn execute(
                 } as usize;
                 let offset = match offset {
                     Offset::Static(n) => *n,
-                    Offset::Dynamic(src) => match src {
-                        Memory::Return => stack.r#return,
-                        Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
-                        Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                    Offset::Dynamic(src) => {
+                        let offset_ptr = match src {
+                            Memory::Return => stack.r#return,
+                            Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                            Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                        };
+
+                        todo!()
                     },
                 } as usize;
 
@@ -401,6 +405,10 @@ fn inspect_int(heap: &[u32], ptr: usize) -> (bool, &[u32]) {
     let metadata = heap[ptr + 2];
     let is_neg = metadata > 0x7fff_ffff;
     let length = metadata & 0x7fff_ffff;
+
+    // TODO: should I do runtime checks..??
+    assert!(length > 0);
+
     let nums = &heap[(ptr + 3)..(ptr + 3 + length as usize)];
     (is_neg, nums)
 }

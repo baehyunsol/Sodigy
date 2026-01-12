@@ -53,17 +53,17 @@ fn eq<T>(lhs: T, rhs: T) -> Bool;
 #[lang_item_generics("op.gt.generic.0")]
 fn gt<T>(lhs: T, rhs: T) -> Bool;
 
-/// You can't implement `<=` operator. It's always a negation of `>` operator.
+#[poly]
 #[lang_item("op.leq")]
 #[lang_item_generics("op.leq.generic.0")]
 fn leq<T>(lhs: T, rhs: T) -> Bool = !gt(lhs, rhs);
 
-/// You can't implement `!=` operator. It's always a negation of `==` operator.
+#[poly]
 #[lang_item("op.neq")]
 #[lang_item_generics("op.neq.generic.0")]
 fn neq<T>(lhs: T, rhs: T) -> Bool = !eq(lhs, rhs);
 
-/// You can't implement `>=` operator. It's always a negation of `<` operator.
+#[poly]
 #[lang_item("op.geq")]
 #[lang_item_generics("op.geq.generic.0")]
 fn geq<T>(lhs: T, rhs: T) -> Bool = !lt(lhs, rhs);

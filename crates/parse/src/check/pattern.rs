@@ -63,7 +63,6 @@ impl Pattern {
 
     pub fn check_range_argument(&self, is_lhs: bool) -> Result<(), Vec<Error>> {
         match &self.kind {
-            PatternKind::DollarIdent { .. } |
             PatternKind::Number { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } => Ok(()),

@@ -14,7 +14,8 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
 // `.condition` of each branch must be non-overlapping.
@@ -103,8 +104,16 @@ impl DecisionTree {
             None => vec![],
         };
 
+        // Name bindings can be duplicated while constructing a tree.
+        // We have to deduplicate them here.
+        let mut name_binding_spans = HashSet::new();
+
         for DecisionTreeBranch { name_bindings, .. } in self.branches.iter() {
             for name_binding in name_bindings.iter() {
+                if name_binding_spans.contains(&name_binding.name_span) {
+                    continue;
+                }
+
                 lets.push(Let {
                     keyword_span: Span::None,
                     name: name_binding.name,
@@ -120,6 +129,7 @@ impl DecisionTree {
                     }),
                     origin: LetOrigin::Match,
                 });
+                name_binding_spans.insert(name_binding.name_span);
             }
         }
 
@@ -138,6 +148,69 @@ impl DecisionTree {
             asserts: vec![],
             value: Box::new(value),
         })
+    }
+
+    // 1. If all the leaves in a node have the same arm id (`matched` field),
+    //    there's no need for branch.
+    // 2. It changes the order of `branches`: an arm with the most expensive condition
+    //    will go to the end.
+    //
+    // TODO: Let's say there are 3 branches. The first branch's node matches arm-0 and the other
+    // nodes match arm-1. In this case, we'd better merge the second and the third nodes.
+    pub fn optimize(&mut self) {
+        for branch in self.branches.iter_mut() {
+            match &mut branch.node {
+                DecisionTreeNode::Tree(tree) => {
+                    tree.optimize();
+                    let mut matched_arm_ids = vec![];
+                    let mut unmatched_arm_ids = vec![];
+                    let mut has_name_bindings = false;
+                    tree.collect_matched_arm_ids(&mut matched_arm_ids, &mut unmatched_arm_ids, &mut has_name_bindings);
+                    matched_arm_ids = matched_arm_ids.into_iter().collect::<HashSet<_>>().into_iter().collect();
+                    unmatched_arm_ids = unmatched_arm_ids.into_iter().collect::<HashSet<_>>().into_iter().collect();
+
+                    if let Some(arm_id) = matched_arm_ids.get(0) && matched_arm_ids.len() == 1 && !has_name_bindings {
+                        branch.node = DecisionTreeNode::Leaf {
+                            matched: *arm_id,
+                            unmatched: unmatched_arm_ids,
+                        };
+                    }
+                },
+                DecisionTreeNode::Leaf { .. } => {},
+            }
+        }
+
+        // very naive heuristic: the more constructors you have in `Constructor::Or`,
+        // the more expensive it is to evaluate the condition.
+        self.branches.sort_by_key(
+            |branch| match &branch.condition {
+                Constructor::Or(cs) => cs.len(),
+                _ => 0,
+            }
+        );
+    }
+
+    fn collect_matched_arm_ids(
+        &self,
+        matched_arm_ids: &mut Vec<usize>,
+        unmatched_arm_ids: &mut Vec<usize>,
+        has_name_bindings: &mut bool,
+    ) {
+        for branch in self.branches.iter() {
+            match &branch.node {
+                DecisionTreeNode::Tree(tree) => {
+                    tree.collect_matched_arm_ids(matched_arm_ids, unmatched_arm_ids, has_name_bindings);
+                },
+                DecisionTreeNode::Leaf { matched, unmatched } => {
+                    matched_arm_ids.push(*matched);
+                    unmatched_arm_ids.extend(unmatched);
+                },
+            }
+
+            if !branch.name_bindings.is_empty() {
+                *has_name_bindings = true;
+            }
+        }
     }
 }
 
@@ -169,9 +242,9 @@ fn branches_to_expr(
             if_span: Span::None,
             cond: Box::new(branch_condition_to_expr(&branches[0], curr_field, lang_items, intermediate_dir)),
             else_span: Span::None,
-            true_value: Box::new(branches_to_expr(&branches[0..1], curr_field, scrutinee, arms, lang_items, intermediate_dir)),
+            true_value: Box::new(branches_to_expr(&branches[0..1], scrutinee, curr_field, arms, lang_items, intermediate_dir)),
             true_group_span: Span::None,
-            false_value: Box::new(branches_to_expr(&branches[1..], curr_field, scrutinee, arms, lang_items, intermediate_dir)),
+            false_value: Box::new(branches_to_expr(&branches[1..], scrutinee, curr_field, arms, lang_items, intermediate_dir)),
             false_group_span: Span::None,
             from_short_circuit: None,
         }),
@@ -202,29 +275,131 @@ fn constructor_to_expr(
     match constructor {
         Constructor::Tuple(_) => true_value(lang_items, intermediate_dir),
         Constructor::DefSpan(_) => todo!(),
-        Constructor::Range(r) => match (&r.lhs, &r.rhs) {
-            (Some(n), Some(m)) if n == m && r.lhs_inclusive && r.rhs_inclusive => match r.r#type {
-                LiteralType::Int => Expr::Call {
-                    func: Callable::Static {
-                        def_span: *lang_items.get("built_in.eq_int").unwrap(),
-                        span: Span::None,
+        Constructor::Range(range) => {
+            let (lang_item, operand) = match (&range.lhs, &range.rhs) {
+                (Some(lhs), Some(rhs)) => match lhs.cmp(rhs) {
+                    Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
+                        LiteralType::Int => ("built_in.eq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                        _ => todo!(),
                     },
-                    args: vec![
-                        curr_field.clone(),
-                        Expr::Number {
-                            n: n.clone(),
-                            span: Span::None,
-                        },
-                    ],
-                    arg_group_span: Span::None,
-                    // Poly-solving is already done, so we don't need this.
-                    generic_defs: vec![],
-                    given_keyword_arguments: vec![],
+                    Ordering::Less => {
+                        if range.r#type.is_int_like() && &lhs.add_one() == rhs {
+                            // `3 < x && x <= 4` is just `x == 4`
+                            match (range.r#type, range.lhs_inclusive, range.rhs_inclusive) {
+                                (LiteralType::Int, false, true) => ("built_in.eq_int", Expr::Number { n: rhs.clone(), span: Span::None }),
+                                (LiteralType::Int, true, false) => ("built_in.eq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                                (LiteralType::Int, _, _) => {
+                                    return true_value(lang_items, intermediate_dir);
+                                },
+                                // we need `built_in.eq_scalar`
+                                _ => todo!(),
+                            }
+                        }
+
+                        // `0..10` is lowered to `0 <= x && x < 10`, which is then lowered to
+                        // `if 0 <= x { x < 10 } else { False }`
+                        else {
+                            let (lhs, rhs) = match range.r#type {
+                                LiteralType::Int => (
+                                    Expr::Number { n: lhs.clone(), span: Span::None },
+                                    Expr::Number { n: rhs.clone(), span: Span::None },
+                                ),
+                                _ => todo!(),
+                            };
+                            let f1 = if range.lhs_inclusive {
+                                "fn.leq_int"
+                            } else {
+                                "built_in.lt_int"
+                            };
+                            let f2 = if range.rhs_inclusive {
+                                "fn.leq_int"
+                            } else {
+                                "built_in.lt_int"
+                            };
+
+                            return Expr::If(If {
+                                if_span: Span::None,
+                                cond: Box::new(Expr::Call {
+                                    func: Callable::Static {
+                                        def_span: *lang_items.get(f1).unwrap(),
+                                        span: Span::None,
+                                    },
+                                    args: vec![
+                                        lhs,
+                                        curr_field.clone(),
+                                    ],
+                                    arg_group_span: Span::None,
+                                    // Poly-solving is already done, so we don't need this.
+                                    generic_defs: vec![],
+                                    given_keyword_arguments: vec![],
+                                }),
+                                else_span: Span::None,
+                                true_value: Box::new(Expr::Call {
+                                    func: Callable::Static {
+                                        def_span: *lang_items.get(f2).unwrap(),
+                                        span: Span::None,
+                                    },
+                                    args: vec![
+                                        curr_field.clone(),
+                                        rhs,
+                                    ],
+                                    arg_group_span: Span::None,
+                                    // Poly-solving is already done, so we don't need this.
+                                    generic_defs: vec![],
+                                    given_keyword_arguments: vec![],
+                                }),
+                                true_group_span: Span::None,
+                                false_value: Box::new(Expr::Ident(IdentWithOrigin {
+                                    id: intern_string(b"False", intermediate_dir).unwrap(),
+                                    span: Span::None,
+                                    origin: NameOrigin::Foreign {
+                                        kind: NameKind::EnumVariant {
+                                            parent: *lang_items.get("type.Bool").unwrap(),
+                                        },
+                                    },
+                                    def_span: *lang_items.get("variant.Bool.False").unwrap(),
+                                })),
+                                false_group_span: Span::None,
+                                from_short_circuit: None,
+                            });
+                        }
+                    },
+                    // `4 < x && x < 3` is just impossible
+                    // `3 < x && x <= 3` is just impossible
+                    // TODO: It's likely to be a compiler bug. Maybe we should write some log here?
+                    Ordering::Greater | Ordering::Equal => {
+                        return false_value(lang_items, intermediate_dir);
+                    },
                 },
-                _ => todo!(),
-            },
-            (None, None) => true_value(lang_items, intermediate_dir),
-            _ => panic!("TODO: {r:?}"),
+                (Some(lhs), None) => match (range.r#type, range.lhs_inclusive) {
+                    (LiteralType::Int, true) => ("built_in.geq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                    (LiteralType::Int, false) => ("built_in.gt_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                    _ => todo!(),
+                },
+                (None, Some(rhs)) => match (range.r#type, range.rhs_inclusive) {
+                    (LiteralType::Int, true) => ("built_in.leq_int", Expr::Number { n: rhs.clone(), span: Span::None }),
+                    (LiteralType::Int, false) => ("built_in.lt_int", Expr::Number { n: rhs.clone(), span: Span::None }),
+                    _ => todo!(),
+                },
+                (None, None) => {
+                    return true_value(lang_items, intermediate_dir);
+                },
+            };
+
+            Expr::Call {
+                func: Callable::Static {
+                    def_span: *lang_items.get(lang_item).unwrap(),
+                    span: Span::None,
+                },
+                args: vec![
+                    curr_field.clone(),
+                    operand,
+                ],
+                arg_group_span: Span::None,
+                // Poly-solving is already done, so we don't need this.
+                generic_defs: vec![],
+                given_keyword_arguments: vec![],
+            }
         },
         Constructor::Or(cs) => constructors_to_expr(cs, curr_field, lang_items, intermediate_dir),
         Constructor::Wildcard => true_value(lang_items, intermediate_dir),
@@ -518,5 +693,18 @@ fn true_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Exp
             },
         },
         def_span: *lang_items.get("variant.Bool.True").unwrap(),
+    })
+}
+
+fn false_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Expr {
+    Expr::Ident(IdentWithOrigin {
+        id: intern_string(b"False", intermediate_dir).unwrap(),
+        span: Span::None,
+        origin: NameOrigin::Foreign {
+            kind: NameKind::EnumVariant {
+                parent: *lang_items.get("type.Bool").unwrap(),
+            },
+        },
+        def_span: *lang_items.get("variant.Bool.False").unwrap(),
     })
 }
