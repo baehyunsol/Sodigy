@@ -1,17 +1,17 @@
-use crate::{Session, Struct};
-use sodigy_error::{Error, ErrorKind};
+use crate::Struct;
+use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Struct {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
         let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
-        if let Err(e) = self.attribute.check(session) {
+        if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -24,7 +24,7 @@ impl Struct {
         }
 
         for field in self.fields.iter() {
-            if let Err(e) = field.check(session) {
+            if let Err(e) = field.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -43,6 +43,7 @@ impl Struct {
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
+                        kind: NameCollisionKind::Struct,
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {

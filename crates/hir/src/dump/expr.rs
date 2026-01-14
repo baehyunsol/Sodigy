@@ -279,7 +279,10 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 },
             }
         },
-        Expr::PostfixOp { .. } => todo!(),
+        Expr::PostfixOp { lhs, op, .. } => {
+            dump_expr(lhs, lines, session);
+            lines.push(op.render_error());
+        },
     }
 }
 

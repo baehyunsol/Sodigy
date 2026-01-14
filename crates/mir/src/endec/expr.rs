@@ -280,7 +280,10 @@ impl Endec for Callable {
                 buffer.push(3);
                 group_span.encode_impl(buffer);
             },
-            _ => panic!("TODO: {self:?}"),
+            Callable::Dynamic(f) => {
+                buffer.push(4);
+                f.encode_impl(buffer);
+            },
         }
     }
 
@@ -304,7 +307,11 @@ impl Endec for Callable {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Callable::ListInit { group_span }, cursor))
             },
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => {
+                let (f, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
+                Ok((Callable::Dynamic(f), cursor))
+            },
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

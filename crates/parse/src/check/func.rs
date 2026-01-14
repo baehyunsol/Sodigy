@@ -1,17 +1,17 @@
-use crate::{Func, FuncParam, Session};
-use sodigy_error::{Error, ErrorKind};
+use crate::{Func, FuncParam};
+use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Func {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
-        let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
+        let mut spans_by_name: HashMap<InternedString, Vec<(Span, /* is_generic */ bool)>> = HashMap::new();
 
-        if let Err(e) = self.attribute.check(session) {
+        if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -21,10 +21,10 @@ impl Func {
         for generic in self.generics.iter() {
             match spans_by_name.entry(generic.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(generic.name_span);
+                    e.get_mut().push((generic.name_span, true));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![generic.name_span]);
+                    e.insert(vec![(generic.name_span, true)]);
                 },
             }
         }
@@ -49,7 +49,7 @@ impl Func {
                 });
             }
 
-            if let Err(e) = param.check(session) {
+            if let Err(e) = param.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -59,22 +59,26 @@ impl Func {
 
             match spans_by_name.entry(param.name) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().push(param.name_span);
+                    e.get_mut().push((param.name_span, false));
                 },
                 Entry::Vacant(e) => {
-                    e.insert(vec![param.name_span]);
+                    e.insert(vec![(param.name_span, false)]);
                 },
             }
         }
 
         for (name, spans) in spans_by_name.iter() {
             if spans.len() > 1 {
+                let params = spans.iter().any(|(_, is_generic)| !*is_generic);
+                let generics = spans.iter().any(|(_, is_generic)| *is_generic);
+
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
+                        kind: NameCollisionKind::Func { params, generics },
                     },
                     spans: spans.iter().map(
-                        |span| RenderableSpan {
+                        |(span, _)| RenderableSpan {
                             span: *span,
                             auxiliary: false,
                             note: None,
@@ -92,7 +96,7 @@ impl Func {
         }
 
         if let Some(value) = &self.value {
-            if let Err(e) = value.check(session) {
+            if let Err(e) = value.check(intermediate_dir) {
                 errors.extend(e);
             }
         }
@@ -108,10 +112,10 @@ impl Func {
 }
 
 impl FuncParam {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.attribute.check(session) {
+        if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -122,7 +126,7 @@ impl FuncParam {
         }
 
         if let Some(default_value) = &self.default_value {
-            if let Err(e) = default_value.check(session) {
+            if let Err(e) = default_value.check(intermediate_dir) {
                 errors.extend(e);
             }
         }

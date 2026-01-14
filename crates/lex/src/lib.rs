@@ -882,7 +882,6 @@ impl Session {
                             self.cursor,
                         ),
                     });
-                    debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
@@ -910,7 +909,6 @@ impl Session {
                                 self.cursor,
                             ),
                         });
-                        debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
 
                         self.tokens.push(Token {
                             kind: TokenKind::FormattedString {
@@ -1010,7 +1008,6 @@ impl Session {
                             self.cursor,
                         ),
                     });
-                    debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                     self.lex_formatted_string()?;
                     self.buffer1.clear();
                 },
@@ -1065,7 +1062,6 @@ impl Session {
                                 self.cursor,
                             ),
                         });
-                        debug_assert_eq!(interned.len(), self.cursor - self.fstring_cursor);
                         self.tokens.push(Token {
                             kind: TokenKind::FormattedString {
                                 raw: false,

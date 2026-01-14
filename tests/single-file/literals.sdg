@@ -5,6 +5,8 @@ assert 0x00ff_ffff == 16777216;
 
 assert 123e4 == 1230000.0;
 assert 1.23e-4 == 0.000123;
+assert 0.0123e4 == 123.0;
+assert 0.0123e-4 == 0.00000123;
 
 assert #x33 == #51;
 assert #65 == b'A';

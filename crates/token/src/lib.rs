@@ -149,7 +149,9 @@ impl TokenKind {
                 _ => false,
             },
             TokenKind::Group { delim, .. } => match delim {
-                _ => todo!(),
+                Delim::Parenthesis |
+                Delim::Bracket => true,
+                _ => false,
             },
             TokenKind::Ident(_) |
             TokenKind::Number(_) |

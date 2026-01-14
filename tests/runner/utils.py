@@ -3,3 +3,51 @@ import os
 def goto_root():
     while "crates" not in (ll := os.listdir()) or "Cargo.toml" not in ll:
         os.chdir("..")
+
+# Python's try-catch statement sucks. Sodigy's is superior.
+def get_meta():
+    import platform
+    import subprocess
+
+    goto_root()
+    result = {}
+
+    try:
+        result["sodigy-commit-hash"] = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+
+    except Exception as e:
+        result["sodigy-commit-hash"] = f"cannot get sodigy-commit-hash: {e}"
+
+    try:
+        result["cargo-version"] = subprocess.run(["cargo", "version"], capture_output=True, text=True, check=True).stdout.strip()
+
+    except Exception as e:
+        result["cargo-version"] = f"cannot get cargo-version: {e}"
+
+    try:
+        result["rustc-version"] = subprocess.run(["rustc", "--version"], capture_output=True, text=True, check=True).stdout.strip()
+
+    except Exception as e:
+        result["rustc-version"] = f"cannot get rustc-version: {e}"
+
+    try:
+        result["python-version"] = platform.python_version()
+
+    except Exception as e:
+        result["python-version"] = f"cannot get python-version: {e}"
+
+    try:
+        result["platform"] = platform.platform()
+
+    except Exception as e:
+        result["platform"] = f"cannot get platform: {e}"
+
+    return result
+
+# r: result of `python3 main.py all`
+def get_file_name(r: dict) -> str:
+    hash = r["meta"]["sodigy-commit-hash"]
+    hash = ("?" * 9) if hash.startswith("cannot get") else hash
+    os = r["meta"]["platform"].lower()
+    os = "windows" if "windows" in os else "mac" if "mac" in os else "linux" if "linux" in os else None
+    return f"result-{hash[:9]}-{os}.json"

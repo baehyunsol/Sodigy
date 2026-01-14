@@ -291,10 +291,30 @@ impl PatternKind {
             PatternKind::PipelineData(_) |
             PatternKind::DollarIdent { .. } => vec![],
             PatternKind::Ident { id, span } => vec![(*id, *span)],
-            PatternKind::Struct { fields, .. } => fields.iter().flat_map(|f| f.pattern.bound_names()).collect(),
-            PatternKind::TupleStruct { elements, .. } |
-            PatternKind::Tuple { elements, .. } |
-            PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
+            PatternKind::Struct { fields, rest, .. } => {
+                let mut result = fields.iter().flat_map(|f| f.pattern.bound_names()).collect::<Vec<_>>();
+
+                if let Some(rest) = rest {
+                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
+                        result.push((name, name_span));
+                    }
+                }
+
+                result
+            },
+            PatternKind::TupleStruct { elements, rest, .. } |
+            PatternKind::Tuple { elements, rest, .. } |
+            PatternKind::List { elements, rest, .. } => {
+                let mut result = elements.iter().flat_map(|e| e.bound_names()).collect::<Vec<_>>();
+
+                if let Some(rest) = rest {
+                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
+                        result.push((name, name_span));
+                    }
+                }
+
+                result
+            },
             PatternKind::Range { lhs, rhs, .. } => {
                 let mut result = vec![];
 
@@ -971,8 +991,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                     }
                 },
-                Some(t) => panic!("TODO: {t:?}"),
-                None => {
+                _ => {
                     break;
                 },
             }

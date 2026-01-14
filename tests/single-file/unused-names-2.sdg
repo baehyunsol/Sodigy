@@ -1,15 +1,21 @@
-// TODO: make a test runner that checks this file generates warnings
+//# assert success, "compilation and assertions all must succeed"
+//# assert len(warnings) == 3, f"expected exactly 3 warnings, got {len(warnings)} warnings"
+//# assert all([warning.index == 5000 for warning in warnings]), "expected all the warnings to be warning-5000, but some are not"
+
+//# assert any(["`xx`" in warning.title for warning in warnings])
+//# assert any(["`yy`" in warning.title for warning in warnings])
+//# assert any(["`factorial`" in warning.title for warning in warnings])
 
 fn foo() -> Option<Int> = None;
 
 assert unused_if_let_bind() == 2;
 fn unused_if_let_bind() = {
-    if let Some(x) = foo() { 1 } else { 2 }
+    if let Some(xx) = foo() { 1 } else { 2 }
 };
 
 assert unused_match_bind() == 2;
 fn unused_match_bind() = match foo() {
-    Some(x) => { 1 },
+    Some(yy) => { 1 },
     None => { 2 },
 };
 

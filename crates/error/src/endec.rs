@@ -1,4 +1,4 @@
-use crate::{Error, ErrorKind, ErrorToken};
+use crate::{Error, ErrorKind, ErrorToken, NameCollisionKind};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
 use sodigy_token::{Delim, Keyword, Punct};
@@ -154,6 +154,51 @@ impl Endec for ErrorToken {
             Some(25) => Ok((ErrorToken::CommaOrGt, cursor + 1)),
             Some(26) => Ok((ErrorToken::DotOrSemicolon, cursor + 1)),
             Some(n @ 27..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for NameCollisionKind {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            NameCollisionKind::Block { is_top_level } => {
+                buffer.push(0);
+                is_top_level.encode_impl(buffer);
+            },
+            NameCollisionKind::Enum => {
+                buffer.push(1);
+            },
+            NameCollisionKind::Func { params, generics } => {
+                buffer.push(2);
+                params.encode_impl(buffer);
+                generics.encode_impl(buffer);
+            },
+            NameCollisionKind::Pattern => {
+                buffer.push(3);
+            },
+            NameCollisionKind::Struct => {
+                buffer.push(4);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (is_top_level, cursor) = bool::decode_impl(buffer, cursor + 1)?;
+                Ok((NameCollisionKind::Block { is_top_level }, cursor))
+            },
+            Some(1) => Ok((NameCollisionKind::Enum, cursor + 1)),
+            Some(2) => {
+                let (params, cursor) = bool::decode_impl(buffer, cursor + 1)?;
+                let (generics, cursor) = bool::decode_impl(buffer, cursor)?;
+
+                Ok((NameCollisionKind::Func { params, generics }, cursor))
+            },
+            Some(3) => Ok((NameCollisionKind::Pattern, cursor + 1)),
+            Some(4) => Ok((NameCollisionKind::Struct, cursor + 1)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

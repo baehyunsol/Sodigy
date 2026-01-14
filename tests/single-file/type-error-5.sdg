@@ -1,0 +1,5 @@
+
+let empty_list = [];
+
+fn id<T>(x: T) = x;
+fn foo(y) = id(y);

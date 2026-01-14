@@ -305,9 +305,19 @@ impl PatternKind {
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) => vec![],
             PatternKind::Ident { id, span } => vec![(*id, *span)],
-            PatternKind::TupleStruct { elements, .. } |
-            PatternKind::Tuple { elements, .. } |
-            PatternKind::List { elements, .. } => elements.iter().flat_map(|e| e.bound_names()).collect(),
+            PatternKind::TupleStruct { elements, rest, .. } |
+            PatternKind::Tuple { elements, rest, .. } |
+            PatternKind::List { elements, rest, .. } => {
+                let mut result = elements.iter().flat_map(|e| e.bound_names()).collect::<Vec<_>>();
+
+                if let Some(rest) = rest {
+                    if let (Some(name), Some(name_span)) = (rest.name, rest.name_span) {
+                        result.push((name, name_span));
+                    }
+                }
+
+                result
+            },
             _ => todo!(),
         }
     }

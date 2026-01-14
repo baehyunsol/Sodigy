@@ -1,6 +1,14 @@
+//# assert success, "compilation and assertions all must succeed"
+//# assert len(warnings) == 5, f"expected exactly 5 warnings, got {len(warnings)} warnings"
+//# assert all([warning.index == 5000 for warning in warnings]), "expected all the warnings to be warning-5000, but some are not"
+
+//# assert any(["`x3`" in warning.title for warning in warnings])
+//# assert any(["`local3`" in warning.title for warning in warnings])
+//# assert any(["`local4`" in warning.title and "`local6`" in warning.title for warning in warnings])
+//# assert any(["`y`" in warning.title for warning in warnings])
+
 let global_value = 42;
 
-// TODO: a decorator or a test runner that asserts unused_name_warnings
 assert outer(10, 20, 30) == 882;
 fn outer(x1, x2, x3) = {  // x3 is unused
     let local1 = 100;

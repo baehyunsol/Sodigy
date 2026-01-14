@@ -807,6 +807,7 @@ fn field_modifier_binding_power() -> (u32, u32) {
 fn prefix_binding_power(op: PrefixOp) -> u32 {
     match op {
         PrefixOp::Not | PrefixOp::Neg => NEG,
+        PrefixOp::Range { .. } => RANGE,
     }
 }
 

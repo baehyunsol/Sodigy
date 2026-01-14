@@ -27,8 +27,9 @@
     CannotApplyInfixOpToBinding, CannotAnnotateType,
     RedundantNameBinding(InternedString, InternedString),
     UnsupportedInfixOpInPattern(InfixOp), NameCollision
-    { name: InternedString }, CyclicLet { names: Vec<InternedString> },
-    CyclicAlias { names: Vec<InternedString> }, DollarOutsidePipeline,
+    { name: InternedString, kind: NameCollisionKind }, CyclicLet
+    { names: Vec<InternedString> }, CyclicAlias
+    { names: Vec<InternedString> }, DollarOutsidePipeline,
     DisconnectedPipeline, UndefinedName(InternedString),
     EnumVariantInTypeAnnotation, KeywordArgumentRepeated(InternedString),
     KeywordArgumentNotAllowed, AliasResolveRecursionLimitReached,
@@ -382,10 +383,10 @@
                 t1.encode_impl(buffer);
             }, ErrorKind :: UnsupportedInfixOpInPattern(t0,) =>
             { buffer.push(1u8); buffer.push(44u8); t0.encode_impl(buffer); },
-            ErrorKind :: NameCollision { r#name, } =>
+            ErrorKind :: NameCollision { r#name, r#kind, } =>
             {
                 buffer.push(1u8); buffer.push(49u8);
-                r#name.encode_impl(buffer);
+                r#name.encode_impl(buffer); r#kind.encode_impl(buffer);
             }, ErrorKind :: CyclicLet { r#names, } =>
             {
                 buffer.push(1u8); buffer.push(54u8);
@@ -658,8 +659,9 @@
             }, 305u16 =>
             {
                 let (r#name, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: NameCollision { r#name, }, cursor))
+                decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
+                NameCollisionKind :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NameCollision { r#name, r#kind, }, cursor))
             }, 310u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString > ::

@@ -1,5 +1,5 @@
-use crate::{Pattern, PatternKind, PatternValueKind, Session};
-use sodigy_error::{Error, ErrorKind, comma_list_strs};
+use crate::{Pattern, PatternKind, PatternValueKind};
+use sodigy_error::{Error, ErrorKind, NameCollisionKind, comma_list_strs};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
@@ -11,7 +11,7 @@ impl Pattern {
         // If patterns are nested, we don't have to check name collisions
         // in the inner patterns. Also, we only type-check the outer-most pattern.
         is_inner_pattern: bool,
-        session: &Session,
+        intermediate_dir: &str,
     ) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
@@ -33,7 +33,8 @@ impl Pattern {
                 if spans.len() > 1 {
                     errors.push(Error {
                         kind: ErrorKind::NameCollision {
-                            name: *name
+                            name: *name,
+                            kind: NameCollisionKind::Pattern,
                         },
                         spans: spans.iter().map(
                             |span| RenderableSpan {
@@ -48,7 +49,7 @@ impl Pattern {
             }
         }
 
-        if let Err(e) = self.kind.check(session) {
+        if let Err(e) = self.kind.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -100,7 +101,7 @@ impl Pattern {
 }
 
 impl PatternKind {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
             PatternKind::Number { .. } |
             PatternKind::String { .. } |
@@ -117,7 +118,7 @@ impl PatternKind {
                 let mut errors = vec![];
 
                 for field in fields.iter() {
-                    if let Err(e) = field.pattern.check(/* is_inner_pattern: */ true, session) {
+                    if let Err(e) = field.pattern.check(/* is_inner_pattern: */ true, intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -136,7 +137,7 @@ impl PatternKind {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
-                    if let Err(e) = element.check(/* is_inner_pattern: */ true, session) {
+                    if let Err(e) = element.check(/* is_inner_pattern: */ true, intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -165,7 +166,7 @@ impl PatternKind {
                         errors.extend(e)
                     }
 
-                    if let Err(e) = lhs.check(/* is_inner_pattern: */ true, session) {
+                    if let Err(e) = lhs.check(/* is_inner_pattern: */ true, intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -175,7 +176,7 @@ impl PatternKind {
                         errors.extend(e)
                     }
 
-                    if let Err(e) = rhs.check(/* is_inner_pattern: */ true, session) {
+                    if let Err(e) = rhs.check(/* is_inner_pattern: */ true, intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -191,11 +192,11 @@ impl PatternKind {
             PatternKind::Or { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(/* is_inner_pattern: */ true, session) {
+                if let Err(e) = lhs.check(/* is_inner_pattern: */ true, intermediate_dir) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(/* is_inner_pattern: */ true, session) {
+                if let Err(e) = rhs.check(/* is_inner_pattern: */ true, intermediate_dir) {
                     errors.extend(e);
                 }
 
@@ -206,10 +207,10 @@ impl PatternKind {
 
                 if lhs_name_binds != rhs_name_binds {
                     let mut lhs_name_binds = lhs_name_binds.iter().map(
-                        |name| name.unintern_or_default(&session.intermediate_dir)
+                        |name| name.unintern_or_default(intermediate_dir)
                     ).collect::<Vec<_>>();
                     let mut rhs_name_binds = rhs_name_binds.iter().map(
-                        |name| name.unintern_or_default(&session.intermediate_dir)
+                        |name| name.unintern_or_default(intermediate_dir)
                     ).collect::<Vec<_>>();
                     lhs_name_binds.sort();
                     rhs_name_binds.sort();
@@ -252,11 +253,11 @@ impl PatternKind {
             PatternKind::InfixOp { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(true, session) {
+                if let Err(e) = lhs.check(true, intermediate_dir) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(true, session) {
+                if let Err(e) = rhs.check(true, intermediate_dir) {
                     errors.extend(e);
                 }
 

@@ -1,13 +1,13 @@
 // TODO: I want it to be in std when it's stable.
 
 fn isqrt(n: Int) -> Int = match n {
-    ..0 => panic(),
+    ..0 => std.panic(),
     ..9 => isqrt_dumb(n),
     _ => isqrt_iter(n, isqrt_dumb(n)),
 };
 
 fn isqrt_dumb(n: Int) -> Int = match n {
-    ..0 => panic(),
+    ..0 => std.panic(),
     0 | 1 => n,
     _ => {
         let nl = n.ilog2();
@@ -58,13 +58,14 @@ fn assert_isqrt(n: Int) = {
     if s * s <= n && n < (s + 1) * (s + 1) {
         True
     } else {
-        panic(f"n: {n}, isqrt(n): {s}")
+        std.panic(f"n: {n}, isqrt(n): {s}")
     }
 };
 
 fn assert_isqrt_multi(ns: [Int]) = match ns {
     [] => True,
     [n] ++ ns => {
+        #[always]
         assert assert_isqrt(n);
         assert_isqrt_multi(ns)
     },

@@ -1,18 +1,33 @@
-# 149. expectations
+# 152. `#[assert_type(Int)]`
 
-test sodigy file 최상단에다가 아래처럼 추가
+1. let, func에 붙일 수 있음.
+2. `#[assert_type(Int)] let x = _;`가 있으면,
+  - `x`의 name_span과 type annotation `Int`를 `HashMap<Span, Type>`에 저장
+  - `sodigy_hir::Let`에서는 더이상 저 attribute를 신경쓰지 않음
+  - type-inference가 다 끝나면 저 hash map을 돌면서 type이 다 일치하는지 확인!!
+3. `#[assert_type(Fn(Int) -> Int)] fn foo(x) = x + 1;`처럼 씀. 즉, `fn`에 붙을 때는 input/output을 모두 포함하는 type annotation을 붙여야 함!
+4. asserted type이 actual type의 supertype이면 됨!
+5. 모든 type이 다 infer가 됐는지 확인하고 나서 assert_type을 돌려야 함. 그렇게 해야 assert_type으로 인해서 애먼 type-inference가 되는 걸 방지할 수 있음
 
-```
-/*<expect>
+# 151. fine-grained accessibility control
 
-def expect(result):
-    if result.status != "success":
-        raise Exception(result.status)
+struct field에 대해서 read/write 권한을 따로 관리할까?
 
-</expect>*/
-```
+- read 권한은 `.` operator로 값 읽는 거고
+- write 권한은 field-modifier로 값 수정하는 거!
+- write 권한 있으면 read 권한도 자동으로 줄까? 아니면 아예 별개로 할까?
+  - write가 있으면 read도 자동으로 주는게 사람들에게 익숙 (무의식적으로 그렇게 가정하고 코드 짤 확률이 높음)
+    - 익숙하지 않은 방식으로 돼 있으면 사람들이 헷갈릴 우려가 있음
+  - write 권한만 필요하고 read 권한은 필요없는 경우가 있을 수도 있음!
 
-단순 Python func여서 아무거나 실행 가능. exception 던지는지 아닌지로만 소통 (던질 때 string 하나 던지면 됨!)
+# 150. test strategies
+
+[MSVC testing strategies](https://devblogs.microsoft.com/cppblog/testing-the-msvc-compiler-backend/)에서 흥미로운 거 몇가지 발견함.
+
+1. [FileCheck](https://llvm.org/docs/CommandGuide/FileCheck.html)라는 툴이 있대. output이 특정 조건을 만족하는지 검사하는 프로그램인데, LLVM 테스트용으로 만들어진 거라서 내가 쓰기도 좋을 듯?
+2. assembly diff: 서로 다른 버전의 sodigy compiler에서 `Vec<Bytecode>`를 human-readable하게 dump하고 (deterministic해야함), 둘을 비교
+  - 버전이 바뀌면서 output이 어떻게 바뀌는지 직관적으로 확인 가능!
+  - 만약 백엔드가 추가되면 다른 백엔드 가지고도 똑같이 할 수 있음!
 
 # 148. dollar-idents in a range
 
@@ -63,32 +78,6 @@ arbitrary length list에서 30살 먹은 사람 3명 뽑는 패턴 -> 말되지 
 list에서는 이래도 될 거 같은데...
 
 이걸 하려면 일단 list pattern에서 decision tree를 어떻게 만들지를 정해야함!!
-
-# 141. refactor `main.rs`
-
-What the main function does now.
-
-1. Init workers
-2. Generate HIR of `lib.sdg` and std files.
-3. Generate HIR of dependencies.
-  - It has to wait until all the dependencies are complete.
-4. Inter-HIR.
-5. MIR for each file.
-6. Inter-MIR.
-7. MIR for each file, again.
-8. Run/Test
-
-Step 7 is not in the current implementation, but I want to add it.
-
-- Worker has to send `Vec<Warning>` and `Vec<Error>` after each pass is complete.
-  - The compiler keeps the errors and warnings and dumps them at the end.
-- The compiler gracefully shuts down if a worker reports an error.
-- I want each worker to log when they start/end each pass.
-- After each pass, the worker may have to dump the ir in readable/unreadable format (already implemented).
-- `MessageToMain`
-  - `FoundModuleDef`: add this module to the dependency list
-  - `Complete { id, errors, warnings }`: If `!errors.is_empty()`, it's a compile error.
-  - `Error { id, e }`: something other than `sodigy_error::Error` (e.g. failed to dump ir)
 
 # 140. more fine-grained warnings for int ranges
 
@@ -175,76 +164,6 @@ fn div_int_wrapper(a: Int, b: Int) -> Int = {
   - inlining을 하면서 직접 연결된 assert는 span을 추가로 줄까?
   - 이 경우에는 `/`를 inlining 하면서 `div_int_wrapper` 안에 있는 assert에다가 `/`의 callspan을 물려주는 거지...
 
-# 138. match-expr 왜 안되냐...
-
-드디어 dump를 다 구현했음!!
-사실 완벽하진 않고, type-check가 끝난 다음에 무조건 `../dump.rs`로 뱉도록 했음.
-
-`sample/match-1.sdg`의 `num3`를 뱉어보니 아래처럼 나옴.
-
-```rs
-fn num3(a, b, c) = match (a, b, c) {
-    (0, 0, _) => 1,
-    (0, _, _) => 2,
-    (_, _, 0) => 3,
-    (_, _, _) => 4,
-};
-
-// name_span: Range { file: File { project: 0, file: 0 }, start: 54, end: 58 }
- fn num3(a: Int,b: Int,c: Int,) -> Int = {
-    // name_span: Derived { kind: MatchScrutinee(0), file: File { project: 0, file: 0 }, start: 70, end: 75 }
-    // There's no type annotation. The type is infered.
-     let scrutinee: _ = (a, b, c);
-
-    {
-        // name_span: None
-        // There's no type annotation. The type is infered.
-        let curr: _ = scrutinee.__CONSTRUCTOR__;
-
-        {
-            // name_span: None
-            // There's no type annotation. The type is infered.
-            let curr: _ = scrutinee._0.__CONSTRUCTOR__;
-
-            if True {
-                // name_span: None
-                // There's no type annotation. The type is infered.
-                let curr: _ = curr._1.__CONSTRUCTOR__;
-                {
-                    // name_span: None
-                    // There's no type annotation. The type is infered.
-                    let curr: _ = curr._2.__CONSTRUCTOR__;
-
-                    if True { 4 } else { 3 }
-                }
-            } else {
-                // name_span: None
-                // There's no type annotation. The type is infered.
-                let curr: _ = curr._1.__CONSTRUCTOR__;
-
-                if True {
-                    // name_span: None
-                    // There's no type annotation. The type is infered.
-                    let curr: _ = curr._2.__CONSTRUCTOR__;
-
-                    if True { 2 } else { 3 }
-                } else {
-                    // name_span: None
-                    // There's no type annotation. The type is infered.
-                    let curr: _ = curr._2.__CONSTRUCTOR__;
-
-                    if True { 1 } else { 3 }
-                }
-            }
-        }
-    }
-};
-```
-
-1. `if True`가 나오는 이유: decision tree에서 `0`보다 `_`가 먼저 나오기 때문!
-  - wildcard가 뒤로 가도록 고쳐야함 (optimization)
-  - `0`이랑 `_`랑 있으면 `_`를 `..0 | 1..`로 고쳐야함 (soundness)
-
 # 135. spawning a subprocess
 
 - What Python/Rust api provides
@@ -273,36 +192,6 @@ fn num3(a, b, c) = match (a, b, c) {
   - There must be built-in api for `process.wait()`, `process.terminate()`, `process.kill()`, ...
 
 # 134. Make the lexer ignore shebang
-
-# 133. tests in `./sample/`
-
-1. Maybe I need better organization?
-2. Multi-file samples?
-3. Test-level assertions
-  - Assert whether it compiles or not.
-  - Assert that there are certain errors/warnings.
-    - error no (mandatory) + string included in the error message (optional)
-    - does it assert the order of the error messages?
-    - how does it check that? parsing stderr with regex would be too error prone, right?
-  - Assert certain `assert` statement fails or not.
-    - by default, the test runner expects that all the `assert` statements succeed.
-    - it can expect individual `assert` statements to fail (choose by name)
-  - The assertions, if exist, are at the top of the test file.
-    - It's a block comment and the test runner will parse it.
-    - If it's multi-file, it's at the top of `lib.sdg`.
-4. It writes the result to a file.
-
-It has to be written in Sodigy... In order to do that,
-
-1. Sodigy has to spawn a compiler process.
-  - path to compiler + args
-  - timeout
-  - read the status code / stderr / stdout
-2. Sodigy has to read file / dir
-3. Sodigy has to parse test files and stderr outputs.
-  - maybe regex?
-
-How about first implement it in Python and later use Sodigy? -> it already is implemented in Python!
 
 # 132. `Void` return types
 
@@ -406,6 +295,7 @@ user code에서도 쓸 수는 있는데 다 경고 날릴까?
   - impure let, impure assertion 따위는 없음. let/assert/struct/enum은 모두 pure 해야함!!
 - execution의 outer-most call이 pure function이면 경고를 날림
 - 근데 이러면 if문 하고 match문 뒤에 `;`가 붙잖아... 그것도 좀 이상한데 ㅠㅠ
+- 이러면 else 없는 if문도 허용해줘야함, 그것도 좀 그런데 ㅠㅠ
 
 ---
 
@@ -532,18 +422,13 @@ Scenarios:
 
 # 119. idea for testing the type-solver
 
-원래 정상적으로 도는 프로그램이 있을 때, 그 프로그램 안에 있는 type annotation을 삭제한 다음 돌리면 type-error (cannot-infer)가 나거나 정상적으로 돌거나 둘 중에 하나이어야함!!
-
-compiler가 type annotation을 무시하도록 구현해야할 듯??
-
-1. type annotation을 다 지우고 돌리기
-2. 랜덤으로 일부만 지우고 돌리기
-
-근데 assertion이 있으면 type-infer가 너무 쉬운데...
-
-아니면, assertion도 지우고 type annotation도 지운 다음에 결과물의 type을 직접 비교할 수도 있음 (어차피 span은 다 똑같으니까 type이 완전히 동일해야함) -> (type annotation을 실제로 삭제하는게 아니고 숨기는 거여서 span은 변하면 안됨)
-
-아니면, type annotation을 잘못 준 다음에 (정답이 `String`인 걸 알 때 강제로 `Int`를 집어넣음), 오류가 나는지 확인해도 되고
+1. 정상적으로 도는 프로그램 X가 있음
+2. X에 type annotation `t_1`, `t_2`, .. , `t_n`이 있음
+3. type annotation 중 일부 (`t_i`, `t_j`, ..)를 `#[assert_type]`으로 바꿈
+4. 새 프로그램을 돌렸을 때 정상적으로 돌거나 infer가 실패해야함.
+  - type error가 나는 건 안됨!
+5. 4가 성공했을 경우, `assert_type`의 일부를 일부러 틀리게 바꿈 (e.g. `String`을 찾아서 `Int`로 고치기)
+6. 새 프로그램을 돌렸을 때 `assert_type`이 실패해야함
 
 # 118. un-static top-level let
 

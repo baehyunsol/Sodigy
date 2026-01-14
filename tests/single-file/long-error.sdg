@@ -1,3 +1,8 @@
+// I want this test case to dump a readable error message.
+// There's no way the machine can check whether the message is "readable"...
+// So we only assert that it's a compile_error. We have to manually check the result.
+//# assert compile_error
+
 let horizontal_left: Int = 3.14159265358979323846264338327950288419716939937510582097494459230781640628620899862803482534211706798214808651328230664709384460955058223172535940812848111745028410270193852110555964462294895493038196;
 let horizontal_right: Int =                                                                                                                                                                            3.14159265358979;
 let vertical: Int = "

@@ -152,7 +152,7 @@ impl Session {
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
                 let mut alias_log = vec![];
 
-                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log, i) {
+                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log, 0) {
                     has_error = true;
                 }
 

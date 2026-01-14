@@ -1,19 +1,19 @@
-use crate::{Block, Session};
-use sodigy_error::{Error, ErrorKind};
+use crate::Block;
+use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Block {
-    pub fn check(&self, is_top_level: bool, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, is_top_level: bool, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
         let mut spans_by_name: HashMap<InternedString, Vec<(Span, NameKind)>> = HashMap::new();
 
         for r#let in self.lets.iter() {
-            if let Err(e) = r#let.check(session) {
+            if let Err(e) = r#let.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -28,7 +28,7 @@ impl Block {
         }
 
         for func in self.funcs.iter() {
-            if let Err(e) = func.check(session) {
+            if let Err(e) = func.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -43,7 +43,7 @@ impl Block {
         }
 
         for r#struct in self.structs.iter() {
-            if let Err(e) = r#struct.check(session) {
+            if let Err(e) = r#struct.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -58,7 +58,7 @@ impl Block {
         }
 
         for r#enum in self.enums.iter() {
-            if let Err(e) = r#enum.check(session) {
+            if let Err(e) = r#enum.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -126,7 +126,7 @@ impl Block {
                     } else {
                         (spans[1].0, spans[0].0)
                     };
-                    let name_rendered = name.unintern_or_default(&session.intermediate_dir);
+                    let name_rendered = name.unintern_or_default(intermediate_dir);
 
                     vec![
                         RenderableSpan {
@@ -153,6 +153,7 @@ impl Block {
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
+                        kind: NameCollisionKind::Block { is_top_level },
                     },
                     spans,
                     note,
@@ -161,7 +162,7 @@ impl Block {
         }
 
         if let Some(value) = self.value.as_ref() {
-            if let Err(e) = value.check(session) {
+            if let Err(e) = value.check(intermediate_dir) {
                 errors.extend(e);
             }
         }

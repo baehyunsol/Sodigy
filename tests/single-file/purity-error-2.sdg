@@ -1,3 +1,6 @@
+//# assert len(errors) == 5, f"expected exactly 5 errors, got {len(errors)} errors"
+//# assert all([error.index == 450 for error in errors]), "expected all the errors to be error-450, but some are not"
+
 // This file is a sibling of `purity-2.sdg`
 // All the `let` statements and function definitions in this file must be a type error.
 // Read `purity-2.sdg` for more context.

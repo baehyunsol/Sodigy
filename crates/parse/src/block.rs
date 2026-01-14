@@ -414,24 +414,33 @@ impl<'t, 's> Tokens<'t, 's> {
             });
         }
 
+        let result = Block {
+            group_span,
+            lets,
+            funcs,
+            structs,
+            enums,
+            asserts,
+            aliases,
+            modules,
+            uses,
+            value: Box::new(value),
+            attribute,
+            from_pipeline: false,
+        };
+
         if errors.is_empty() {
-            Ok(Block {
-                group_span,
-                lets,
-                funcs,
-                structs,
-                enums,
-                asserts,
-                aliases,
-                modules,
-                uses,
-                value: Box::new(value),
-                attribute,
-                from_pipeline: false,
-            })
+            Ok(result)
         }
 
+        // The items in `result` are all valid, so we'd better check the items so that
+        // we can emit as many error messages as possible.
+        // But since we discard `result` here, we have to check the `result` before we discard it.
         else {
+            if let Err(more_errors) = result.check(is_top_level, &self.intermediate_dir) {
+                errors.extend(more_errors);
+            }
+
             Err(errors)
         }
     }

@@ -1,0 +1,10 @@
+let alphabets = "abcdefghijklmnop";
+
+assert alphabets[0] == "a";
+assert alphabets[0..] == alphabets;
+assert alphabets[1..] == "bcdefghijklmnop";
+assert alphabets[1..5] == "bcde";
+assert alphabets[1..=5] == "bcdef";
+assert alphabets[-1] == "p";
+assert alphabets[..-1] == "abcdefghijklmno";
+assert alphabets[1..-1] == "bcdefghijklmno";

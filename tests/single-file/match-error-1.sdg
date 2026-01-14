@@ -1,3 +1,7 @@
+//# assert len(errors) == 1, "there should be exactly 1 error"
+//# assert len(warnings) == 0, "there should be no warnings"
+//# assert all([error.index == 455 for error in errors]), f"expected error-455, got error-{errors[0].index}"
+
 fn is_odd(n) = match n {
     0 => False,
     1 => True,

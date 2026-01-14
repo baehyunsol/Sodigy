@@ -1,6 +1,5 @@
+//# assert len(errors) == 3, f"expected 3 errors, got {len(errors)} errors"
+//# assert all([error.index == 415 for error in errors]), "expected all the errors to be type errors, but some are not"
+
 let x: Int = "";
 let y = if 3 { 0 } else { "" };
-let empty_list = [];
-
-fn id<T>(x: T) = x;
-fn foo(y) = id(y);

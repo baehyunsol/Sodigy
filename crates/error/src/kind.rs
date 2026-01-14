@@ -96,7 +96,7 @@ error_kinds!(
     (UnsupportedInfixOpInPattern(InfixOp),                           300,    Error),
 
     // TODO: more context!
-    (NameCollision { name: InternedString },                         305,    Error),
+    (NameCollision { name: InternedString, kind: NameCollisionKind },   305,    Error),
 
     (CyclicLet { names: Vec<InternedString> },                       310,    Error),
     (CyclicAlias { names: Vec<InternedString> },                     315,    Error),
@@ -187,4 +187,13 @@ impl From<GetFilePathError> for ErrorKind {
             unreachable!()
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum NameCollisionKind {
+    Block { is_top_level: bool },   // all items
+    Enum,     // variants
+    Func { params: bool, generics: bool },     // params and/or generics
+    Pattern,  // name bindings
+    Struct,   // fields
 }

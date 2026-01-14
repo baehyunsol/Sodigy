@@ -1,29 +1,29 @@
 use super::check_call_args;
-use crate::{Expr, ExprOrString, Lambda, Session};
-use sodigy_error::{Error, ErrorKind};
+use crate::{Expr, ExprOrString, Lambda};
+use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Expr {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
             Expr::Ident { .. } |
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |
             Expr::Byte { .. } => Ok(()),
-            Expr::If(r#if) => r#if.check(session),
-            Expr::Match(r#match) => r#match.check(session),
-            Expr::Block(block) => block.check(false /* top_level */, session),
+            Expr::If(r#if) => r#if.check(intermediate_dir),
+            Expr::Match(r#match) => r#match.check(intermediate_dir),
+            Expr::Block(block) => block.check(false /* top_level */, intermediate_dir),
             Expr::Call { func, args, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = func.check(session) {
+                if let Err(e) = func.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = check_call_args(args, session) {
+                if let Err(e) = check_call_args(args, intermediate_dir) {
                     errors.extend(e);
                 }
 
@@ -40,7 +40,7 @@ impl Expr {
 
                 for element in elements.iter() {
                     if let ExprOrString::Expr(expr) = element {
-                        if let Err(e) = expr.check(session) {
+                        if let Err(e) = expr.check(intermediate_dir) {
                             errors.extend(e);
                         }
                     }
@@ -59,7 +59,7 @@ impl Expr {
                 let mut errors = vec![];
 
                 for element in elements.iter() {
-                    if let Err(e) = element.check(session) {
+                    if let Err(e) = element.check(intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -79,12 +79,12 @@ impl Expr {
             } => {
                 let mut errors = vec![];
 
-                if let Err(e) = r#struct.check(session) {
+                if let Err(e) = r#struct.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
                 for field in fields.iter() {
-                    if let Err(e) = field.value.check(session) {
+                    if let Err(e) = field.value.check(intermediate_dir) {
                         errors.extend(e);
                     }
                 }
@@ -100,7 +100,7 @@ impl Expr {
             Expr::Path { lhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(session) {
+                if let Err(e) = lhs.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
@@ -139,7 +139,7 @@ impl Expr {
                         });
                     }
 
-                    if let Err(e) = param.check(session) {
+                    if let Err(e) = param.check(intermediate_dir) {
                         errors.extend(e);
                     }
 
@@ -161,6 +161,8 @@ impl Expr {
                             errors.push(Error {
                                 kind: ErrorKind::NameCollision {
                                     name: *name,
+                                    // a lambda cannot be generic
+                                    kind: NameCollisionKind::Func { params: true, generics: false },
                                 },
                                 spans: spans.iter().map(
                                     |span| RenderableSpan {
@@ -181,7 +183,7 @@ impl Expr {
                     }
                 }
 
-                if let Err(e) = value.check(session) {
+                if let Err(e) = value.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
@@ -197,11 +199,11 @@ impl Expr {
             Expr::FieldModifier { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
-                if let Err(e) = lhs.check(session) {
+                if let Err(e) = lhs.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
-                if let Err(e) = rhs.check(session) {
+                if let Err(e) = rhs.check(intermediate_dir) {
                     errors.extend(e);
                 }
 
@@ -214,7 +216,7 @@ impl Expr {
                 }
             },
             Expr::PrefixOp { rhs: operand, .. } |
-            Expr::PostfixOp { lhs: operand, .. } => operand.check(session),
+            Expr::PostfixOp { lhs: operand, .. } => operand.check(intermediate_dir),
 
             // Hir will lower a pipeline to a block, and hir will do the checks.
             Expr::Pipeline { values, pipe_spans } => Ok(()),

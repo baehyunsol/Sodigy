@@ -4,6 +4,7 @@ use crate::Punct;
 pub enum PrefixOp {
     Not,
     Neg,
+    Range { inclusive: bool },
 }
 
 impl PrefixOp {
@@ -11,6 +12,8 @@ impl PrefixOp {
         match self {
             PrefixOp::Not => "op.not",
             PrefixOp::Neg => "op.neg",
+            PrefixOp::Range { inclusive: true } => "op.inclusive_pre_range",
+            PrefixOp::Range { inclusive: false } => "op.exclusive_pre_range",
         }
     }
 
@@ -18,6 +21,8 @@ impl PrefixOp {
         match self {
             PrefixOp::Not => vec![],
             PrefixOp::Neg => vec!["op.neg.generic.0"],
+            PrefixOp::Range { inclusive: true } => vec!["op.inclusive_pre_range.generic.0"],
+            PrefixOp::Range { inclusive: false } => vec!["op.exclusive_pre_range.generic.0"],
         }
     }
 
@@ -26,6 +31,8 @@ impl PrefixOp {
         match self {
             PrefixOp::Not => "!",
             PrefixOp::Neg => "-",
+            PrefixOp::Range { inclusive: true } => "..=",
+            PrefixOp::Range { inclusive: false } => "..",
         }
     }
 }
@@ -37,6 +44,8 @@ impl TryFrom<Punct> for PrefixOp {
         match p {
             Punct::Sub => Ok(PrefixOp::Neg),
             Punct::Factorial => Ok(PrefixOp::Not),
+            Punct::DotDotEq => Ok(PrefixOp::Range { inclusive: true }),
+            Punct::DotDot => Ok(PrefixOp::Range { inclusive: false }),
             // Do not use a wildcard!
             Punct::Add | Punct::Mul | Punct::Div | Punct::Rem |
             Punct::Colon | Punct::Semicolon |
@@ -48,8 +57,7 @@ impl TryFrom<Punct> for PrefixOp {
             Punct::Shl | Punct::Shr | Punct::Eq |
             Punct::Leq | Punct::Neq | Punct::Geq |
             Punct::Concat | Punct::Append | Punct::Prepend |
-            Punct::Arrow | Punct::DotDot | Punct::DotDotEq |
-            Punct::ReturnType | Punct::Pipeline => Err(()),
+            Punct::Arrow | Punct::ReturnType | Punct::Pipeline => Err(()),
         }
     }
 }

@@ -1,6 +1,13 @@
+//# assert len(errors) > 0, "there should be errors"
+//# assert len(warnings) == 0, "there should be no warnings"
+//# assert any([error.index == 310 for error in errors]), f"at least 1 error is expected to be error-310, but there are none"
+//# assert any([error.index == 315 for error in errors]), f"at least 1 error is expected to be error-315, but there are none"
+//# assert any([error.index == 350 for error in errors]), f"at least 1 error is expected to be error-350, but there are none"
+
 let x = y + 1;
 let y = x + 1;
 
+// TODO: The compiler has to catch this.
 // This is also a cyclic definition, but the compiler cannot catch this.
 // Instead, it'll cause an infinite recursion at runtime.
 let foo = bar();

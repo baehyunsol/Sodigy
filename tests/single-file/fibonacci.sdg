@@ -3,7 +3,7 @@ assert fibonacci(12) == 233;
 fn fibonacci(n: Int) -> Int = match n {
     0 | 1 => 1,
     2.. => fibonacci(n - 1) + fibonacci(n - 2),
-    _ => panic("negative fibonacci"),
+    _ => std.panic("negative fibonacci"),
 };
 
 assert fibonacci_if(9) == 55;

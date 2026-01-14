@@ -27,6 +27,14 @@ pub fn eval_number_prefix_op(
             spans: op_span.simple_error(),
             note: Some(String::from("Const-eval is not implemented for `!` operator.")),
         }]),
+        PrefixOp::Range { inclusive } => Err(vec![Error {
+            kind: ErrorKind::CannotEvaluateConst,
+            spans: op_span.simple_error(),
+            note: Some(format!(
+                "Const-eval is not implemented for `{}` operator.",
+                if inclusive { "..=" } else { ".." },
+            )),
+        }]),
     }
 }
 

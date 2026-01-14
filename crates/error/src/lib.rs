@@ -8,7 +8,7 @@ mod token;
 mod warning;
 
 pub use dump::{DumpErrorOption, dump_errors};
-pub use kind::ErrorKind;
+pub use kind::{ErrorKind, NameCollisionKind};
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};
 

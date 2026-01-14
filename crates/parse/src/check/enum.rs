@@ -1,17 +1,17 @@
-use crate::{Enum, EnumVariant, Session};
-use sodigy_error::{Error, ErrorKind};
+use crate::{Enum, EnumVariant};
+use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Enum {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // name collision check
         let mut spans_by_name: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
-        if let Err(e) = self.attribute.check(session) {
+        if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -27,7 +27,7 @@ impl Enum {
         }
 
         for variant in self.variants.iter() {
-            if let Err(e) = variant.check(session) {
+            if let Err(e) = variant.check(intermediate_dir) {
                 errors.extend(e);
             }
 
@@ -46,6 +46,7 @@ impl Enum {
                 errors.push(Error {
                     kind: ErrorKind::NameCollision {
                         name: *name,
+                        kind: NameCollisionKind::Enum,
                     },
                     spans: spans.iter().map(
                         |span| RenderableSpan {
@@ -70,7 +71,7 @@ impl Enum {
 }
 
 impl EnumVariant {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
-        self.attribute.check(session)
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
+        self.attribute.check(intermediate_dir)
     }
 }

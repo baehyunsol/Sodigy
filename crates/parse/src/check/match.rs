@@ -1,8 +1,8 @@
-use crate::{Match, MatchArm, Session};
+use crate::{Match, MatchArm};
 use sodigy_error::{Error, ErrorKind};
 
 impl Match {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         if self.arms.is_empty() {
@@ -14,7 +14,7 @@ impl Match {
         }
 
         for arm in self.arms.iter() {
-            if let Err(e) = arm.check(session) {
+            if let Err(e) = arm.check(intermediate_dir) {
                 errors.extend(e);
             }
         }
@@ -30,20 +30,20 @@ impl Match {
 }
 
 impl MatchArm {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.pattern.check(/* is_inner_pattern: */ false, session) {
+        if let Err(e) = self.pattern.check(/* is_inner_pattern: */ false, intermediate_dir) {
             errors.extend(e);
         }
 
         if let Some(guard) = &self.guard {
-            if let Err(e) = guard.check(session) {
+            if let Err(e) = guard.check(intermediate_dir) {
                 errors.extend(e);
             }
         }
 
-        if let Err(e) = self.value.check(session) {
+        if let Err(e) = self.value.check(intermediate_dir) {
             errors.extend(e);
         }
 

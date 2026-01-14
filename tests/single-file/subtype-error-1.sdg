@@ -1,3 +1,6 @@
+//# assert len(errors) == 3, f"expected exactly 3 errors, got {len(errors)} errors"
+//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
+
 // This file is a sibling of `subtype-1.sdg`
 // Read `subtype-1.sdg` for more context.
 
@@ -5,7 +8,7 @@ let never_value2 = std.panic();
 let value2: Int = never_value2;
 let values2: [Int] = never_value2;  // error
 
-let never_value4: ! = 3;
+let never_value4: ! = 3;  // error
 
 let never_values1: [!] = std.panic();
 let never_tuple: (!,) = never_values1;  // error

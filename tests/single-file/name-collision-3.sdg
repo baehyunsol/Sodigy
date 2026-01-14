@@ -1,0 +1,5 @@
+//# assert len(errors) == 1, f"expected exactly 1 error, got {len(errors)} errors"
+//# assert errors[0].index == 305, f"the error is supposed to be error-305, but it is error-{errors[0].index}"
+//# assert "`x`" in errors[0].title, "I want the error message to pin-point which name is defined multiple times"
+
+fn params(x, x) = x + x;

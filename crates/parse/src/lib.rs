@@ -57,7 +57,7 @@ pub fn parse(lex_session: LexSession) -> Session {
         },
     };
 
-    if let Err(errors) = ast.check(true /* top_level */, &session) {
+    if let Err(errors) = ast.check(true /* is_top_level */, &session.intermediate_dir) {
         session.errors = errors;
     }
 

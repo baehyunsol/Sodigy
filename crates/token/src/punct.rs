@@ -56,6 +56,7 @@ impl Punct {
             Punct::QuestionMark => "?",
             Punct::Factorial => "!",
             Punct::And => "&&",
+            Punct::DotDot => "..",
             _ => panic!("TODO: {self:?}"),
         }
     }

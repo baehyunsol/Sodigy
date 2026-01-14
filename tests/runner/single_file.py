@@ -3,6 +3,7 @@ import os
 from run_result import RunResult, parse_expectation
 import shutil
 import subprocess
+import time
 from typing import Optional
 from utils import goto_root
 
@@ -12,13 +13,21 @@ def single_files(
     debug_bytecode: bool,
     debug_heap: bool,
 
+    # batch | dump
+    # batch: run and return the result
+    # dump: run and dump the result to stdout/stderr
+    mode: str = "batch",
+
+    # If it's `batch` mode, this function will return
+    # a list of results, and each result has captured stdout/stderr.
+    # If you want to keep the colors (ANSI terminal colors), set this flag.
+    save_with_color: bool = True,
+
     # seconds
     timeout: int = 20,
-
-    # If it's set, it doesn't run the test, but stdout/stderr are not captured.
-    dump_only: bool = False,
 ):
     goto_root()
+    result_all = []
 
     features = (["debug-bytecode"] if debug_bytecode else []) + (["debug-heap"] if debug_heap else [])
     features = ["--features=" + ",".join(features)] if features else []
@@ -36,12 +45,20 @@ def single_files(
         raise ValueError(f"There's no test that matches `{filter}`")
 
     for file in files:
+        print("\n\n")
         print(f"running `single-file/{file}`...")
-        error = single_file(file, no_std, "target/debug/sodigy", timeout, dump_only)
+        result = single_file(
+            file,
+            no_std,
+            "target/debug/sodigy",
+            ["capture_and_parse", "capture_and_save"] if mode == "batch" else ["capture_and_parse", "dump"],
+            save_with_color,
+            timeout,
+        )
+        error = result["error"]
         color, status = (32, "success") if error is None else (31, "fail")
-
-        if not dump_only:
-            print(f"{file}: \033[{color}m{status}\033[0m")
+        result_all.append(result)
+        print(f"{file}: \033[{color}m{status}\033[0m")
 
         if error is not None:
             print(error)
@@ -50,10 +67,9 @@ def single_files(
         else:
             succ += 1
 
-    if not dump_only:
-        print(f"succ: {succ}, fail: {fail}")
-
-    return succ, fail
+    print("---------------------------")
+    print(f"succ: {succ}, fail: {fail}")
+    return result_all, succ, fail
 
 def single_file(
     # just a file name, without directories
@@ -63,15 +79,25 @@ def single_file(
     no_std: bool,
 
     # the path has to be absolute, or relative to the repository root
-    sodigy_binary: str = "target/debug/sodigy",
+    sodigy_binary: str,
+
+    # "capture_and_parse"
+    # "capture_and_save"
+    # "dump"
+    modes: list[str],
+
+    save_with_color: bool,
 
     # seconds
     timeout: int = 20,
-
-    # If it's set, it doesn't run the test, but stdout/stderr are not captured.
-    dump_only: bool = False,
 ) -> Optional[str]:  # If there's an error, it returns the error message.
     goto_root()
+    result = {
+        "name": file,
+        "error": None,
+        "stdout": None,
+        "stderr": None,
+    }
 
     if os.path.exists("sodigy-test/"):
         shutil.rmtree("sodigy-test/")
@@ -87,41 +113,56 @@ def single_file(
     with open("sodigy-test/src/lib.sdg", "w") as f:
         f.write(code)
 
-    flags = ["--no-std"] if no_std else []
-    flags += ["--emit-irs"]
-
-    if not dump_only:
-        flags += ["--color=never"]
-
     os.chdir("sodigy-test")
-    kwargs = {
-        "capture_output": True,
-        "text": True,
-        "timeout": timeout,
-    }
+    error = None
+    stdout = None
+    stderr = None
 
-    if dump_only:
-        kwargs.pop("capture_output")
-        kwargs.pop("text")
+    for mode in modes:
+        flags = ["--no-std"] if no_std else []
+        flags += ["--emit-irs"]
 
-    try:
-        p = subprocess.run([os.path.join("..", sodigy_binary), "test", *flags], **kwargs)
+        if mode == "capture_and_parse" or mode == "capture_and_save" and not save_with_color:
+            flags += ["--color=never"]
 
-        if not dump_only:
-            status = "success" if p.returncode == 0 else "test-fail" if p.returncode == 10 else "compile-fail" if p.returncode == 11 else "misc-error"
-            errors, warnings = parse_errors(p.stderr) if status != "misc-error" else ([], [])
-            result = RunResult(status, errors, warnings)
+        else:
+            flags += ["--color=always"]
 
-    except subprocess.TimeoutExpired:
-        result = RunResult("timeout", [], [])
+        kwargs = {
+            "capture_output": True,
+            "text": True,
+            "timeout": timeout,
+        }
 
-    if not dump_only:
+        if mode == "dump":
+            kwargs.pop("capture_output")
+            kwargs.pop("text")
+
         try:
-            result.expect(expectation)
-            return None
+            started_at = time.time()
+            p = subprocess.run(
+                [os.path.join("..", sodigy_binary), "test", *flags],
+                **kwargs,
+            )
+            elapsed = int((time.time() - started_at) * 1000)
 
-        except Exception as e:
-            return str(e)
+            if mode == "capture_and_parse":
+                status = "success" if p.returncode == 0 else "test-error" if p.returncode == 10 else "compile-error" if p.returncode == 11 else "misc-error"
+                errors, warnings = parse_errors(p.stderr) if status != "misc-error" else ([], [])
+                run_result = RunResult(status, errors, warnings)
 
-    else:
-        return None
+            elif mode == "capture_and_save":
+                result["stdout"] = p.stdout
+                result["stderr"] = p.stderr
+
+        except subprocess.TimeoutExpired:
+            run_result = RunResult("timeout", [], [])
+
+        if mode == "capture_and_parse":
+            try:
+                run_result.expect(expectation)
+
+            except Exception as e:
+                result["error"] = str(e)
+
+    return result

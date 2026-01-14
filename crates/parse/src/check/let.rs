@@ -1,11 +1,11 @@
-use crate::{Let, Session};
+use crate::Let;
 use sodigy_error::Error;
 
 impl Let {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
-        if let Err(e) = self.attribute.check(session) {
+        if let Err(e) = self.attribute.check(intermediate_dir) {
             errors.extend(e);
         }
 
@@ -15,7 +15,7 @@ impl Let {
             }
         }
 
-        if let Err(e) = self.value.check(session) {
+        if let Err(e) = self.value.check(intermediate_dir) {
             errors.extend(e);
         }
 

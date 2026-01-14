@@ -10,6 +10,12 @@ impl Endec for PrefixOp {
             PrefixOp::Neg => {
                 buffer.push(1);
             },
+            PrefixOp::Range { inclusive: true } => {
+                buffer.push(2);
+            },
+            PrefixOp::Range { inclusive: false } => {
+                buffer.push(3);
+            },
         }
     }
 
@@ -17,7 +23,9 @@ impl Endec for PrefixOp {
         match buffer.get(cursor) {
             Some(0) => Ok((PrefixOp::Not, cursor + 1)),
             Some(1) => Ok((PrefixOp::Neg, cursor + 1)),
-            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(2) => Ok((PrefixOp::Range { inclusive: true }, cursor + 1)),
+            Some(3) => Ok((PrefixOp::Range { inclusive: false }, cursor + 1)),
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

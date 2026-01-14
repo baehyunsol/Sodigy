@@ -1,10 +1,35 @@
-use super::ErrorKind;
+use super::{ErrorKind, NameCollisionKind};
 use crate::comma_list_strs;
 use sodigy_name_analysis::NameKind;
 
 impl ErrorKind {
     pub fn render(&self, intermediate_dir: &str) -> String {
         match self {
+            ErrorKind::NameCollision { name, kind } => {
+                let name = name.unintern_or_default(intermediate_dir);
+
+                match kind {
+                    NameCollisionKind::Block { is_top_level: true } => format!("Top-level item `{name}` is defined multiple times."),
+                    NameCollisionKind::Block { is_top_level: false } => format!("Item `{name}` is defined multiple times in a block."),
+                    NameCollisionKind::Enum => format!("An enum variant `{name}` is defined multiple times."),
+                    NameCollisionKind::Func { params: true, generics: true } => format!(
+                        "There are parameters and generics that have the same name: `{name}`.",
+                    ),
+                    NameCollisionKind::Func { params: true, generics: false } => format!(
+                        "Function parameter `{name}` is defined multiple times.",
+                    ),
+                    NameCollisionKind::Func { params: false, generics: true } => format!(
+                        "Function generic parameter `{name}` is defined multiple times.",
+                    ),
+                    NameCollisionKind::Func { params: false, generics: false } => unreachable!(),
+                    NameCollisionKind::Pattern => format!("Name `{name}` is bound multiple times in a pattern."),
+                    NameCollisionKind::Struct => format!("A struct field `{name}` is defined multiple times."),
+                }
+            },
+            ErrorKind::KeywordArgumentRepeated(keyword) => format!(
+                "Keyword argument `{}` is repeated.",
+                keyword.unintern_or_default(intermediate_dir),
+            ),
             ErrorKind::UnusedNames { names, kind } => {
                 let names = names.iter().map(
                     |name| name.unintern_or_default(intermediate_dir)

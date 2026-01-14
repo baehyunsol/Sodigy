@@ -1,15 +1,15 @@
 use super::check_call_args;
-use crate::{Attribute, Decorator, Session};
+use crate::{Attribute, Decorator};
 use sodigy_error::Error;
 
 impl Attribute {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         // TODO: how about doc comments?
 
         for decorator in self.decorators.iter() {
-            if let Err(e) = decorator.check(session) {
+            if let Err(e) = decorator.check(intermediate_dir) {
                 errors.extend(e);
             }
         }
@@ -25,11 +25,11 @@ impl Attribute {
 }
 
 impl Decorator {
-    pub fn check(&self, session: &Session) -> Result<(), Vec<Error>> {
+    pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         let mut errors = vec![];
 
         if let Some(args) = &self.args {
-            if let Err(e) = check_call_args(args, session) {
+            if let Err(e) = check_call_args(args, intermediate_dir) {
                 errors.extend(e);
             }
         }
