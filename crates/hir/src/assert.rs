@@ -3,6 +3,7 @@ use crate::{
     ArgType,
     Attribute,
     AttributeRule,
+    DecoratorArg,
     DecoratorRule,
     Expr,
     Requirement,
@@ -186,7 +187,7 @@ impl AssertAttribute {
 
         if let Some(name_) = attribute.decorators.get(&intern_string(b"name", &session.intermediate_dir).unwrap()) {
             match name_.args.get(0) {
-                Some(Expr::String { s, .. }) => {
+                Some(DecoratorArg::Expr(Expr::String { s, .. })) => {
                     name = Some(*s);
                 },
                 _ => unreachable!(),
@@ -197,7 +198,7 @@ impl AssertAttribute {
             match note_.args.get(0) {
                 Some(e) => {
                     note_decorator_span = Some(note_.name_span);
-                    note = Some(e.clone());
+                    note = Some(e.clone().unwrap_expr());
                 },
                 _ => unreachable!(),
             }

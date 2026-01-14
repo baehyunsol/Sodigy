@@ -40,6 +40,7 @@ pub use attribute::{
     Attribute,
     AttributeRule,
     AttributeRuleKey,
+    DecoratorArg,
     DecoratorRule,
     KeywordArgRule,
     Requirement,

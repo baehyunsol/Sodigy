@@ -26,6 +26,36 @@ impl<T: Endec> Endec for Option<T> {
     }
 }
 
+impl<T: Endec, E: Endec> Endec for Result<T, E> {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            Ok(v) => {
+                buffer.push(0);
+                v.encode_impl(buffer);
+            },
+            Err(e) => {
+                buffer.push(1);
+                e.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (v, cursor) = T::decode_impl(buffer, cursor + 1)?;
+                Ok((Ok(v), cursor))
+            },
+            Some(1) => {
+                let (e, cursor) = E::decode_impl(buffer, cursor + 1)?;
+                Ok((Err(e), cursor))
+            },
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
 impl Endec for () {
     fn encode_impl(&self, _: &mut Vec<u8>) {
         // ZST

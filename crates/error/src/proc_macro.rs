@@ -10,11 +10,13 @@
     { expected: u8, got: u8 }, TooManyQuotes, UnclosedDelimiter(u8),
     UnexpectedToken { expected: ErrorToken, got: ErrorToken }, UnexpectedEof
     { expected: ErrorToken }, UnexpectedEog { expected: ErrorToken },
-    MissingDocComment, DocCommentNotAllowed, ModuleDocCommentNotAtTop,
-    MissingDecorator(InternedString), DecoratorNotAllowed,
+    MissingDocComment, DocCommentNotAllowed, DanglingDocComment,
+    ModuleDocCommentNotAtTop, MissingDecorator(InternedString),
+    DecoratorNotAllowed, DanglingDecorator,
     UnexpectedDecorator(InternedString), ModuleDecoratorNotAtTop,
-    MissingVisibility, CannotBePublic, FunctionWithoutBody, BlockWithoutValue,
-    StructWithoutField, EmptyCurlyBraceBlock, PositionalArgAfterKeywordArg,
+    MissingVisibility, CannotBePublic, DanglingVisibility,
+    FunctionWithoutBody, BlockWithoutValue, StructWithoutField,
+    EmptyCurlyBraceBlock, PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue, CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd, MultipleRestPatterns,
     DifferentNameBindingsInOrPattern, InvalidFnType, EmptyMatchStatement,
@@ -81,18 +83,19 @@
             { .. } => 115u16, ErrorKind :: UnexpectedEof { .. } => 120u16,
             ErrorKind :: UnexpectedEog { .. } => 125u16, ErrorKind ::
             MissingDocComment => 130u16, ErrorKind :: DocCommentNotAllowed =>
-            135u16, ErrorKind :: ModuleDocCommentNotAtTop => 140u16, ErrorKind
-            :: MissingDecorator(_,) => 145u16, ErrorKind ::
-            DecoratorNotAllowed => 150u16, ErrorKind ::
+            135u16, ErrorKind :: DanglingDocComment => 136u16, ErrorKind ::
+            ModuleDocCommentNotAtTop => 140u16, ErrorKind ::
+            MissingDecorator(_,) => 145u16, ErrorKind :: DecoratorNotAllowed
+            => 150u16, ErrorKind :: DanglingDecorator => 151u16, ErrorKind ::
             UnexpectedDecorator(_,) => 155u16, ErrorKind ::
             ModuleDecoratorNotAtTop => 160u16, ErrorKind :: MissingVisibility
             => 165u16, ErrorKind :: CannotBePublic => 170u16, ErrorKind ::
-            FunctionWithoutBody => 175u16, ErrorKind :: BlockWithoutValue =>
-            180u16, ErrorKind :: StructWithoutField => 185u16, ErrorKind ::
-            EmptyCurlyBraceBlock => 190u16, ErrorKind ::
-            PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
-            NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
-            CannotDeclareInlineModule => 205u16, ErrorKind ::
+            DanglingVisibility => 171u16, ErrorKind :: FunctionWithoutBody =>
+            175u16, ErrorKind :: BlockWithoutValue => 180u16, ErrorKind ::
+            StructWithoutField => 185u16, ErrorKind :: EmptyCurlyBraceBlock =>
+            190u16, ErrorKind :: PositionalArgAfterKeywordArg => 195u16,
+            ErrorKind :: NonDefaultValueAfterDefaultValue => 200u16, ErrorKind
+            :: CannotDeclareInlineModule => 205u16, ErrorKind ::
             InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
             MultipleRestPatterns => 215u16, ErrorKind ::
             DifferentNameBindingsInOrPattern => 220u16, ErrorKind ::
@@ -177,13 +180,16 @@
             UnexpectedEog { .. } => ErrorLevel :: Error, ErrorKind ::
             MissingDocComment => ErrorLevel :: Error, ErrorKind ::
             DocCommentNotAllowed => ErrorLevel :: Error, ErrorKind ::
+            DanglingDocComment => ErrorLevel :: Error, ErrorKind ::
             ModuleDocCommentNotAtTop => ErrorLevel :: Error, ErrorKind ::
             MissingDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
             DecoratorNotAllowed => ErrorLevel :: Error, ErrorKind ::
+            DanglingDecorator => ErrorLevel :: Error, ErrorKind ::
             UnexpectedDecorator(_,) => ErrorLevel :: Error, ErrorKind ::
             ModuleDecoratorNotAtTop => ErrorLevel :: Error, ErrorKind ::
             MissingVisibility => ErrorLevel :: Error, ErrorKind ::
             CannotBePublic => ErrorLevel :: Error, ErrorKind ::
+            DanglingVisibility => ErrorLevel :: Error, ErrorKind ::
             FunctionWithoutBody => ErrorLevel :: Error, ErrorKind ::
             BlockWithoutValue => ErrorLevel :: Error, ErrorKind ::
             StructWithoutField => ErrorLevel :: Error, ErrorKind ::
@@ -313,26 +319,30 @@
             }, ErrorKind :: MissingDocComment =>
             { buffer.push(0u8); buffer.push(130u8); }, ErrorKind ::
             DocCommentNotAllowed => { buffer.push(0u8); buffer.push(135u8); },
-            ErrorKind :: ModuleDocCommentNotAtTop =>
+            ErrorKind :: DanglingDocComment =>
+            { buffer.push(0u8); buffer.push(136u8); }, ErrorKind ::
+            ModuleDocCommentNotAtTop =>
             { buffer.push(0u8); buffer.push(140u8); }, ErrorKind ::
             MissingDecorator(t0,) =>
             { buffer.push(0u8); buffer.push(145u8); t0.encode_impl(buffer); },
             ErrorKind :: DecoratorNotAllowed =>
             { buffer.push(0u8); buffer.push(150u8); }, ErrorKind ::
-            UnexpectedDecorator(t0,) =>
+            DanglingDecorator => { buffer.push(0u8); buffer.push(151u8); },
+            ErrorKind :: UnexpectedDecorator(t0,) =>
             { buffer.push(0u8); buffer.push(155u8); t0.encode_impl(buffer); },
             ErrorKind :: ModuleDecoratorNotAtTop =>
             { buffer.push(0u8); buffer.push(160u8); }, ErrorKind ::
             MissingVisibility => { buffer.push(0u8); buffer.push(165u8); },
             ErrorKind :: CannotBePublic =>
             { buffer.push(0u8); buffer.push(170u8); }, ErrorKind ::
-            FunctionWithoutBody => { buffer.push(0u8); buffer.push(175u8); },
-            ErrorKind :: BlockWithoutValue =>
-            { buffer.push(0u8); buffer.push(180u8); }, ErrorKind ::
-            StructWithoutField => { buffer.push(0u8); buffer.push(185u8); },
-            ErrorKind :: EmptyCurlyBraceBlock =>
-            { buffer.push(0u8); buffer.push(190u8); }, ErrorKind ::
-            PositionalArgAfterKeywordArg =>
+            DanglingVisibility => { buffer.push(0u8); buffer.push(171u8); },
+            ErrorKind :: FunctionWithoutBody =>
+            { buffer.push(0u8); buffer.push(175u8); }, ErrorKind ::
+            BlockWithoutValue => { buffer.push(0u8); buffer.push(180u8); },
+            ErrorKind :: StructWithoutField =>
+            { buffer.push(0u8); buffer.push(185u8); }, ErrorKind ::
+            EmptyCurlyBraceBlock => { buffer.push(0u8); buffer.push(190u8); },
+            ErrorKind :: PositionalArgAfterKeywordArg =>
             { buffer.push(0u8); buffer.push(195u8); }, ErrorKind ::
             NonDefaultValueAfterDefaultValue =>
             { buffer.push(0u8); buffer.push(200u8); }, ErrorKind ::
@@ -579,21 +589,23 @@
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedEog { r#expected, }, cursor))
             }, 130u16 => Ok((ErrorKind :: MissingDocComment, cursor)), 135u16
-            => Ok((ErrorKind :: DocCommentNotAllowed, cursor)), 140u16 =>
+            => Ok((ErrorKind :: DocCommentNotAllowed, cursor)), 136u16 =>
+            Ok((ErrorKind :: DanglingDocComment, cursor)), 140u16 =>
             Ok((ErrorKind :: ModuleDocCommentNotAtTop, cursor)), 145u16 =>
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: MissingDecorator(t0,), cursor))
             }, 150u16 => Ok((ErrorKind :: DecoratorNotAllowed, cursor)),
-            155u16 =>
+            151u16 => Ok((ErrorKind :: DanglingDecorator, cursor)), 155u16 =>
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedDecorator(t0,), cursor))
             }, 160u16 => Ok((ErrorKind :: ModuleDecoratorNotAtTop, cursor)),
             165u16 => Ok((ErrorKind :: MissingVisibility, cursor)), 170u16 =>
-            Ok((ErrorKind :: CannotBePublic, cursor)), 175u16 =>
+            Ok((ErrorKind :: CannotBePublic, cursor)), 171u16 =>
+            Ok((ErrorKind :: DanglingVisibility, cursor)), 175u16 =>
             Ok((ErrorKind :: FunctionWithoutBody, cursor)), 180u16 =>
             Ok((ErrorKind :: BlockWithoutValue, cursor)), 185u16 =>
             Ok((ErrorKind :: StructWithoutField, cursor)), 190u16 =>

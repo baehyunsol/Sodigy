@@ -1,6 +1,6 @@
 use crate::{
     Block,
-    CallArg,
+    FuncArg,
     If,
     Lambda,
     Match,
@@ -57,7 +57,7 @@ pub enum Expr {
     Block(Block),
     Call {
         func: Box<Expr>,
-        args: Vec<CallArg>,
+        args: Vec<FuncArg>,
         arg_group_span: Span,
     },
     FormattedString {
@@ -630,7 +630,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             }
 
                             let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                            let args = tokens.parse_call_args()?;
+                            let args = tokens.parse_func_args()?;
                             self.cursor += 1;
                             lhs = Expr::Call {
                                 func: Box::new(lhs),

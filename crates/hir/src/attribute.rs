@@ -10,6 +10,7 @@ use crate::{
     Module,
     Session,
     Struct,
+    Type,
     Use,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken, ItemKind, comma_list_strs};
@@ -300,8 +301,8 @@ impl Attribute {
                             });
                         },
                         (_, Some(ast_args)) => {
-                            let mut keyword_args: HashMap<InternedString, Expr> = HashMap::new();
-                            let mut positional_args: Vec<&ast::Expr> = vec![];
+                            let mut keyword_args: HashMap<InternedString, DecoratorArg> = HashMap::new();
+                            let mut positional_args: Vec<&ast::DecoratorArg> = vec![];
                             let mut spans_by_keyword: HashMap<InternedString, Vec<Span>> = HashMap::new();
 
                             for ast_arg in ast_args.iter() {
@@ -331,7 +332,7 @@ impl Attribute {
                                                 },
                                             }
 
-                                            match Expr::from_ast(&ast_arg.arg, session) {
+                                            match DecoratorArg::from_ast(&ast_arg, *arg_type, session) {
                                                 Ok(arg) => match check_arg_type(&arg, *arg_type, arg_type_error_note, session) {
                                                     Ok(()) => {
                                                         keyword_args.insert(keyword, arg);
@@ -355,7 +356,7 @@ impl Attribute {
                                         },
                                     },
                                     None => {
-                                        positional_args.push(&ast_arg.arg);
+                                        positional_args.push(ast_arg);
                                     },
                                 }
                             }
@@ -451,7 +452,7 @@ impl Attribute {
                                     let mut args = Vec::with_capacity(positional_args.len());
 
                                     for ast_arg in positional_args.iter() {
-                                        match Expr::from_ast(ast_arg, session) {
+                                        match DecoratorArg::from_ast(ast_arg, rule.arg_type, session) {
                                             Ok(arg) => match check_arg_type(&arg, rule.arg_type, &rule.arg_type_error_note, session) {
                                                 Ok(()) => {
                                                     args.push(arg);
@@ -556,7 +557,7 @@ impl Attribute {
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
         match self.decorators.get(&intern_string(b"lang_item", intermediate_dir).unwrap()) {
             Some(d) => match d.args.get(0) {
-                Some(Expr::String { s, .. }) => Some(s.unintern_or_default(intermediate_dir)),
+                Some(DecoratorArg::Expr(Expr::String { s, .. })) => Some(s.unintern_or_default(intermediate_dir)),
                 _ => unreachable!(),
             },
             None => None,
@@ -569,7 +570,7 @@ impl Attribute {
                 d.name_span,
                 d.args.iter().map(
                     |arg| match arg {
-                        Expr::String { s, .. } => s.unintern_or_default(intermediate_dir),
+                        DecoratorArg::Expr(Expr::String { s, .. }) => s.unintern_or_default(intermediate_dir),
                         _ => unreachable!(),
                     }
                 ).collect(),
@@ -736,8 +737,66 @@ impl Visibility {
 pub struct Decorator {
     pub name: InternedString,
     pub name_span: Span,
-    pub args: Vec<Expr>,
-    pub keyword_args: HashMap<InternedString, Expr>,
+    pub args: Vec<DecoratorArg>,
+    pub keyword_args: HashMap<InternedString, DecoratorArg>,
+}
+
+#[derive(Clone, Debug)]
+pub enum DecoratorArg {
+    Expr(Expr),
+    Type(Type),
+}
+
+impl DecoratorArg {
+    pub fn from_ast(ast_arg: &ast::DecoratorArg, arg_type: ArgType, session: &mut Session) -> Result<DecoratorArg, ()> {
+        if arg_type.is_expr() {
+            match &ast_arg.expr {
+                Ok(expr) => Expr::from_ast(expr, session).map(|expr| DecoratorArg::Expr(expr)),
+                Err(e) => {
+                    session.errors.extend(e.clone());
+                    Err(())
+                },
+            }
+        }
+
+        else {
+            match &ast_arg.r#type {
+                Ok(r#type) => Type::from_ast(r#type, session).map(|r#type| DecoratorArg::Type(r#type)),
+                Err(e) => {
+                    session.errors.extend(e.clone());
+                    Err(())
+                },
+            }
+        }
+    }
+
+    pub fn unwrap_expr(self) -> Expr {
+        match self {
+            DecoratorArg::Expr(expr) => expr,
+            _ => panic!(),
+        }
+    }
+
+    pub fn unwrap_type(self) -> Type {
+        match self {
+            DecoratorArg::Type(r#type) => r#type,
+            _ => panic!(),
+        }
+    }
+
+    pub fn error_span_narrow(&self) -> Span {
+        match self {
+            DecoratorArg::Expr(expr) => expr.error_span_narrow(),
+            DecoratorArg::Type(r#type) => r#type.error_span_narrow(),
+        }
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        match self {
+            DecoratorArg::Expr(expr) => expr.error_span_wide(),
+            DecoratorArg::Type(r#type) => r#type.error_span_wide(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -781,10 +840,20 @@ pub struct KeywordArgRule {
 
 #[derive(Clone, Copy, Debug)]
 pub enum ArgType {
+    // These are all expressions
     Expr,
     StringLiteral,
-    Generic,
     Path,
+
+    // These are all type annotations
+    Type,
+    Generic,
+}
+
+impl ArgType {
+    pub fn is_expr(&self) -> bool {
+        matches!(self, ArgType::Expr | ArgType::StringLiteral | ArgType::Path)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -795,10 +864,11 @@ pub enum ArgCount {
     Lt(usize),
 }
 
-fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, session: &mut Session) -> Result<(), ()> {
+fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<String>, session: &mut Session) -> Result<(), ()> {
     match (arg_type, arg) {
-        (ArgType::Expr, _) => Ok(()),
-        (ArgType::StringLiteral, Expr::String { .. }) => Ok(()),
+        (ArgType::Expr, DecoratorArg::Expr(_)) => Ok(()),
+        (ArgType::Expr, DecoratorArg::Type(_)) => unreachable!(),
+        (ArgType::StringLiteral, DecoratorArg::Expr(Expr::String { .. })) => Ok(()),
         (ArgType::StringLiteral, _) => {
             session.errors.push(Error {
                 // It's not a type error. An f-string token has type `String`, but it's still an error.
@@ -811,11 +881,12 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             });
             Err(())
         },
-        (ArgType::Generic, Expr::Ident(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. })) => Ok(()),
-        (ArgType::Generic, _) => {
+        (ArgType::Path, DecoratorArg::Expr(Expr::Ident(_))) => Ok(()),
+        (ArgType::Path, DecoratorArg::Expr(Expr::Path { lhs, .. })) if matches!(&**lhs, Expr::Ident(_)) => Ok(()),
+        (ArgType::Path, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
-                    expected: ErrorToken::Generic,
+                    expected: ErrorToken::Path,
                     got: ErrorToken::Expr,
                 },
                 spans: arg.error_span_wide().simple_error(),
@@ -823,13 +894,14 @@ fn check_arg_type(arg: &Expr, arg_type: ArgType, error_note: &Option<String>, se
             });
             Err(())
         },
-        (ArgType::Path, Expr::Ident(_)) => Ok(()),
-        (ArgType::Path, Expr::Path { lhs, .. }) if matches!(&**lhs, Expr::Ident(_)) => Ok(()),
-        (ArgType::Path, _) => {
+        (ArgType::Type, DecoratorArg::Type(_)) => Ok(()),
+        (ArgType::Type, DecoratorArg::Expr(_)) => unreachable!(),
+        (ArgType::Generic, DecoratorArg::Type(Type::Ident(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. }))) => Ok(()),
+        (ArgType::Generic, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
-                    expected: ErrorToken::Path,
-                    got: ErrorToken::Expr,
+                    expected: ErrorToken::Generic,
+                    got: ErrorToken::TypeAnnotation,
                 },
                 spans: arg.error_span_wide().simple_error(),
                 note: error_note.clone(),

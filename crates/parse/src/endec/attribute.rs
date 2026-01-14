@@ -1,5 +1,15 @@
-use crate::{Attribute, CallArg, Decorator, DocComment, DocCommentLine, Visibility};
+use crate::{
+    Attribute,
+    Decorator,
+    DecoratorArg,
+    DocComment,
+    DocCommentLine,
+    Expr,
+    Type,
+    Visibility,
+};
 use sodigy_endec::{DecodeError, Endec};
+use sodigy_error::Error;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -75,7 +85,7 @@ impl Endec for Decorator {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (args, cursor) = Option::<Vec<CallArg>>::decode_impl(buffer, cursor)?;
+        let (args, cursor) = Option::<Vec<DecoratorArg>>::decode_impl(buffer, cursor)?;
         let (arg_group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -83,7 +93,30 @@ impl Endec for Decorator {
                 name,
                 name_span,
                 args,
-                arg_group_span
+                arg_group_span,
+            },
+            cursor,
+        ))
+    }
+}
+
+impl Endec for DecoratorArg {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.keyword.encode_impl(buffer);
+        self.expr.encode_impl(buffer);
+        self.r#type.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (keyword, cursor) = Option::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
+        let (expr, cursor) = Result::<Expr, Vec<Error>>::decode_impl(buffer, cursor)?;
+        let (r#type, cursor) = Result::<Type, Vec<Error>>::decode_impl(buffer, cursor)?;
+
+        Ok((
+            DecoratorArg {
+                keyword,
+                expr,
+                r#type,
             },
             cursor,
         ))

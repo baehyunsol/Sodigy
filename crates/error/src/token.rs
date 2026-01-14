@@ -36,9 +36,10 @@ impl From<&TokenKind> for ErrorToken {
     fn from(t: &TokenKind) -> ErrorToken {
         match t {
             TokenKind::Keyword(k) => ErrorToken::Keyword(*k),
-            TokenKind::Punct(p) => ErrorToken::Punct(*p),
             TokenKind::Ident(_) => ErrorToken::Ident,
             TokenKind::Number(_) => ErrorToken::Number,
+            TokenKind::String { .. } => ErrorToken::String,
+            TokenKind::Punct(p) => ErrorToken::Punct(*p),
             TokenKind::Group { delim, .. } => ErrorToken::Group(*delim),
             _ => panic!("TODO: {t:?}"),
         }

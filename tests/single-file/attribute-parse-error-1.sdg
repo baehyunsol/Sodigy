@@ -1,0 +1,11 @@
+// Arguments of decorators are parsed in a complicated way, so we have to make sure that
+// parse errors in the arguments are handled correctly.
+
+//# assert len(errors) == 2, f"expected exactly 2 errors, got {len(errors)} errors"
+//# assert all([error.index == 125 for error in errors]), "expected all errors to be error-125, but some are not"
+
+#[note([][])]
+assert True;
+
+#[note([][])]
+assert True;

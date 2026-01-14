@@ -304,47 +304,9 @@ impl<'t, 's> Tokens<'t, 's> {
                 (Some(t), _) => {
                     let initial_token = t.clone();
 
-                    if let Some(doc_comment) = &attribute.doc_comment {
-                        errors.push(Error {
-                            kind: ErrorKind::DocCommentNotAllowed,
-                            spans: vec![
-                                RenderableSpan {
-                                    span: doc_comment.0[0].marker_span,
-                                    auxiliary: false,
-                                    note: Some(String::from("This doc comment is documenting the expression.")),
-                                },
-                                RenderableSpan {
-                                    span: self.peek().unwrap().span.begin(),
-                                    auxiliary: true,
-                                    note: Some(String::from("This expression is documented by the doc comment.")),
-                                },
-                            ],
-                            note: Some(String::from("You can't add a document for an expression.")),
-                        });
-                        return Err(errors);
+                    if let Err(e) = attribute_not_allowed(&attribute, self.peek().map(|token| token.span.begin()), true) {
+                        errors.extend(e);
                     }
-
-                    if let Some(decorator) = attribute.decorators.get(0) {
-                        errors.push(Error {
-                            kind: ErrorKind::DecoratorNotAllowed,
-                            spans: vec![
-                                RenderableSpan {
-                                    span: decorator.name_span,
-                                    auxiliary: false,
-                                    note: Some(String::from("This decorator is decorating the expression.")),
-                                },
-                                RenderableSpan {
-                                    span: self.peek().unwrap().span.begin(),
-                                    auxiliary: true,
-                                    note: Some(String::from("This expression is decorated by the decorator.")),
-                                },
-                            ],
-                            note: Some(String::from("You can't decorate an expression.")),
-                        });
-                        return Err(errors);
-                    }
-
-                    // TODO: throw an error if there's `pub` keyword
 
                     // If it's top-level, there shouldn't be an expr here. But we still parse
                     // the expr for the sake of better error message.
@@ -401,6 +363,10 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 (None, _) => {
+                    if let Err(e) = attribute_not_allowed(&attribute, None, false) {
+                        errors.extend(e);
+                    }
+
                     break;
                 },
             }
@@ -464,5 +430,126 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
             }
         }
+    }
+}
+
+fn attribute_not_allowed(
+    attribute: &Attribute,
+    expr_begin_span: Option<Span>,
+    is_expr: bool,  // otherwise, it's a dangling attribute
+) -> Result<(), Vec<Error>> {
+    let mut errors = vec![];
+
+    if let Some(doc_comment) = &attribute.doc_comment {
+        if is_expr {
+            errors.push(Error {
+                kind: ErrorKind::DocCommentNotAllowed,
+                spans: vec![
+                    RenderableSpan {
+                        span: doc_comment.0[0].marker_span,
+                        auxiliary: false,
+                        note: Some(String::from("This doc comment is documenting the expression.")),
+                    },
+                    RenderableSpan {
+                        span: expr_begin_span.unwrap(),
+                        auxiliary: true,
+                        note: Some(String::from("This expression is documented by the doc comment.")),
+                    },
+                ],
+                note: Some(String::from("You can't add a document for an expression.")),
+            });
+        }
+
+        else {
+            errors.push(Error {
+                kind: ErrorKind::DanglingDocComment,
+                spans: vec![
+                    RenderableSpan {
+                        span: doc_comment.0[0].marker_span,
+                        auxiliary: false,
+                        note: None,
+                    },
+                ],
+                note: None,
+            });
+        }
+    }
+
+    if let Some(decorator) = attribute.decorators.get(0) {
+        if is_expr {
+            errors.push(Error {
+                kind: ErrorKind::DecoratorNotAllowed,
+                spans: vec![
+                    RenderableSpan {
+                        span: decorator.name_span,
+                        auxiliary: false,
+                        note: Some(String::from("This decorator is decorating the expression.")),
+                    },
+                    RenderableSpan {
+                        span: expr_begin_span.unwrap(),
+                        auxiliary: true,
+                        note: Some(String::from("This expression is decorated by the decorator.")),
+                    },
+                ],
+                note: Some(String::from("You can't decorate an expression.")),
+            });
+        }
+
+        else {
+            errors.push(Error {
+                kind: ErrorKind::DanglingDecorator,
+                spans: vec![
+                    RenderableSpan {
+                        span: decorator.name_span,
+                        auxiliary: false,
+                        note: None,
+                    },
+                ],
+                note: None,
+            });
+        }
+    }
+
+    if let Some(visibility) = &attribute.visibility {
+        if is_expr {
+            errors.push(Error {
+                kind: ErrorKind::CannotBePublic,
+                spans: vec![
+                    RenderableSpan {
+                        span: visibility.keyword_span,
+                        auxiliary: false,
+                        note: Some(String::from("This keyword is making the expression public.")),
+                    },
+                    RenderableSpan {
+                        span: expr_begin_span.unwrap(),
+                        auxiliary: true,
+                        note: Some(String::from("You're trying to make this expression public.")),
+                    },
+                ],
+                note: Some(String::from("An expression cannot be public.")),
+            });
+        }
+
+        else {
+            errors.push(Error {
+                kind: ErrorKind::DanglingVisibility,
+                spans: vec![
+                    RenderableSpan {
+                        span: visibility.keyword_span,
+                        auxiliary: false,
+                        note: None,
+                    },
+                ],
+                note: None,
+            });
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    }
+
+    else {
+        Err(errors)
     }
 }

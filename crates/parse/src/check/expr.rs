@@ -1,4 +1,4 @@
-use super::check_call_args;
+use super::check_func_args;
 use crate::{Expr, ExprOrString, Lambda};
 use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
@@ -23,7 +23,7 @@ impl Expr {
                     errors.extend(e);
                 }
 
-                if let Err(e) = check_call_args(args, intermediate_dir) {
+                if let Err(e) = check_func_args(args, intermediate_dir) {
                     errors.extend(e);
                 }
 

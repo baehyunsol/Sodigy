@@ -1,4 +1,4 @@
-use crate::{CallArg, Tokens};
+use crate::{Expr, Tokens, Type};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -73,8 +73,61 @@ pub struct Decorator {
     pub name_span: Span,
 
     // `#[public]` and `#[public()]` are different!
-    pub args: Option<Vec<CallArg>>,
+    pub args: Option<Vec<DecoratorArg>>,
     pub arg_group_span: Option<Span>,
+}
+
+// A decorator argument can be an expression or a type annotation,
+// but the parser doesn't know which one to choose. So the parser
+// parses both, and remembers the results of both. Hir will choose
+// one, and throw errors, if there is.
+#[derive(Clone, Debug)]
+pub struct DecoratorArg {
+    pub keyword: Option<(InternedString, Span)>,
+    pub expr: Result<Expr, Vec<Error>>,
+    pub r#type: Result<Type, Vec<Error>>,
+}
+
+impl DecoratorArg {
+    pub fn error_span_narrow(&self) -> Span {
+        let mut span = Span::None;
+
+        if let Some((_, name_span)) = self.keyword {
+            span = name_span;
+        }
+
+        // It'd be okay even if both `expr` and `type` have spans.
+        // Merging them would just choose the wider one.
+        if let Ok(expr) = &self.expr {
+            span = span.merge(expr.error_span_narrow());
+        }
+
+        if let Ok(r#type) = &self.r#type {
+            span = span.merge(r#type.error_span_narrow());
+        }
+
+        span
+    }
+
+    pub fn error_span_wide(&self) -> Span {
+        let mut span = Span::None;
+
+        if let Some((_, name_span)) = self.keyword {
+            span = name_span;
+        }
+
+        // It'd be okay even if both `expr` and `type` have spans.
+        // Merging them would just choose the wider one.
+        if let Ok(expr) = &self.expr {
+            span = span.merge(expr.error_span_wide());
+        }
+
+        if let Ok(r#type) = &self.r#type {
+            span = span.merge(r#type.error_span_wide());
+        }
+
+        span
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -216,7 +269,7 @@ impl<'t, 's> Tokens<'t, 's> {
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {
                 let group_span = *span;
                 let mut tokens = Tokens::new(tokens, group_span.end(), &self.intermediate_dir);
-                let args = tokens.parse_call_args()?;
+                let args = tokens.parse_decorator_args()?;
                 let result = Decorator {
                     name,
                     name_span,
@@ -259,6 +312,81 @@ impl<'t, 's> Tokens<'t, 's> {
                     arg_group_span: None,
                 });
             },
+        }
+    }
+
+    pub fn parse_decorator_args(&mut self) -> Result<Vec<DecoratorArg>, Vec<Error>> {
+        let mut args = vec![];
+
+        if self.is_empty() {
+            return Ok(args);
+        }
+
+        loop {
+            let keyword = match self.peek2() {
+                (
+                    Some(Token { kind: TokenKind::Ident(id), span }),
+                    Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }),
+                ) => {
+                    let (id, span) = (*id, *span);
+                    self.cursor += 2;
+
+                    Some((id, span))
+                },
+                _ => None,
+            };
+
+            let cursor = self.cursor;
+            let arg_expr = self.parse_expr();
+            let expr_end_cursor = self.cursor;
+            let is_expr_err = arg_expr.is_err();
+            self.cursor = cursor;
+            let arg_type = self.parse_type();
+            let type_end_cursor = self.cursor;
+            let is_type_err = arg_type.is_err();
+
+            // It's very tricky part. After parsing the argument, the cursor has to point to
+            // the begin of the next argument (or eof).
+            // The argument may be an expr or a type annotation, but we don't know that yet.
+            //
+            // But the good news is that, 1) the parser expects a comma or eof after parsing
+            // an argument and 2) a comma is not a valid expr/type. So, it just moves the
+            // cursor as far as possible.
+            self.cursor = expr_end_cursor.max(type_end_cursor);
+
+            args.push(DecoratorArg {
+                keyword,
+                expr: arg_expr,
+                r#type: arg_type,
+            });
+
+            // We are not sure which error to throw, so we don't throw any.
+            // But the errors are in `args`, so hir will throw the appropriate errors.
+            if is_expr_err && is_type_err {
+                return Ok(args);
+            }
+
+            match self.peek2() {
+                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), Some(_)) => {
+                    self.cursor += 1;
+                },
+                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) => {
+                    return Ok(args);
+                },
+                (Some(t), _) => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: ErrorToken::Punct(Punct::Comma),
+                            got: (&t.kind).into(),
+                        },
+                        spans: t.span.simple_error(),
+                        note: None,
+                    }]);
+                },
+                (None, _) => {
+                    return Ok(args);
+                },
+            }
         }
     }
 }

@@ -38,7 +38,7 @@ pub struct FuncParam {
 }
 
 #[derive(Clone, Debug)]
-pub struct CallArg {
+pub struct FuncArg {
     pub keyword: Option<(InternedString, Span)>,
     pub arg: Expr,
 }
@@ -240,11 +240,11 @@ impl<'t, 's> Tokens<'t, 's> {
     }
 
     // (3, 4, x = 4, y = 5)
-    pub fn parse_call_args(&mut self) -> Result<Vec<CallArg>, Vec<Error>> {
-        let mut call_args = vec![];
+    pub fn parse_func_args(&mut self) -> Result<Vec<FuncArg>, Vec<Error>> {
+        let mut func_args = vec![];
 
         if self.is_empty() {
-            return Ok(call_args);
+            return Ok(func_args);
         }
 
         loop {
@@ -261,14 +261,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 _ => None,
             };
             let arg = self.parse_expr()?;
-            call_args.push(CallArg { keyword, arg });
+            func_args.push(FuncArg { keyword, arg });
 
             match self.peek2() {
                 (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), Some(_)) => {
                     self.cursor += 1;
                 },
                 (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) => {
-                    return Ok(call_args);
+                    return Ok(func_args);
                 },
                 (Some(t), _) => {
                     return Err(vec![Error {
@@ -281,7 +281,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }]);
                 },
                 (None, _) => {
-                    return Ok(call_args);
+                    return Ok(func_args);
                 },
             }
         }

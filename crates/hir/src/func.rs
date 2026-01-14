@@ -154,7 +154,7 @@ impl Func {
 
         let is_impl = match attribute.get_decorator(b"impl", &session.intermediate_dir) {
             Some(d) => {
-                session.poly_impls.push((d.args[0].clone(), ast_func.name_span));
+                session.poly_impls.push((d.args[0].clone().unwrap_expr(), ast_func.name_span));
                 true
             },
             None => false,

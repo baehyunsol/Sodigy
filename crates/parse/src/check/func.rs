@@ -1,4 +1,4 @@
-use crate::{Func, FuncParam};
+use crate::{Func, FuncArg, FuncParam};
 use sodigy_error::{Error, ErrorKind, NameCollisionKind};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -138,5 +138,51 @@ impl FuncParam {
         else {
             Err(errors)
         }
+    }
+}
+
+pub(crate) fn check_func_args(args: &[FuncArg], intermediate_dir: &str) -> Result<(), Vec<Error>> {
+    // Like Python, a positional argument cannot follow a keyword argument
+    let mut has_to_be_kwarg = false;
+    let mut keyword_span = None;
+    let mut errors = vec![];
+
+    for arg in args.iter() {
+        // It doesn't check the name collisions in keyword args -> will be done later.
+        if has_to_be_kwarg && arg.keyword.is_none() {
+            errors.push(Error {
+                kind: ErrorKind::PositionalArgAfterKeywordArg,
+                spans: vec![
+                    RenderableSpan {
+                        span: arg.arg.error_span_wide(),
+                        auxiliary: false,
+                        note: Some(String::from("A positional argument cannot come after a keyword argument.")),
+                    },
+                    RenderableSpan {
+                        span: keyword_span.unwrap(),
+                        auxiliary: true,
+                        note: Some(String::from("We have a keyword argument here.")),
+                    },
+                ],
+                note: None,
+            });
+        }
+
+        if let Err(e) = arg.arg.check(intermediate_dir) {
+            errors.extend(e);
+        }
+
+        if let Some((_, span)) = arg.keyword {
+            has_to_be_kwarg = true;
+            keyword_span = Some(span);
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
+    }
+
+    else {
+        Err(errors)
     }
 }

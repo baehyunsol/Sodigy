@@ -1,9 +1,9 @@
-use crate::{CallArg, Expr};
+use crate::{Expr, FuncArg};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
-impl Endec for CallArg {
+impl Endec for FuncArg {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         self.keyword.encode_impl(buffer);
         self.arg.encode_impl(buffer);
@@ -14,7 +14,7 @@ impl Endec for CallArg {
         let (arg, cursor) = Expr::decode_impl(buffer, cursor)?;
 
         Ok((
-            CallArg {
+            FuncArg {
                 keyword,
                 arg,
             },

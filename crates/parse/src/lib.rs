@@ -24,11 +24,18 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
-pub use attribute::{Attribute, Decorator, DocComment, DocCommentLine, Visibility};
+pub use attribute::{
+    Attribute,
+    Decorator,
+    DecoratorArg,
+    DocComment,
+    DocCommentLine,
+    Visibility,
+};
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use expr::{Expr, ExprOrString, Field};
-pub use func::{CallArg, Func, FuncParam};
+pub use func::{Func, FuncArg, FuncParam};
 pub use r#if::If;
 pub use lambda::Lambda;
 pub use r#let::Let;
