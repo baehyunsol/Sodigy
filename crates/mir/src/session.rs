@@ -24,6 +24,9 @@ pub struct Session {
     pub structs: Vec<Struct>,
     pub asserts: Vec<Assert>,
 
+    // It's already lowered, but we need this for `span_string_map`.
+    pub aliases: Vec<(InternedString, Span)>,
+
     // It's `def_span -> type_annotation` map.
     // It has type information of *every* name in the code.
     // If you query a def_span of a function, it'll give you something like `Fn(Int, Int) -> Int`.
@@ -58,6 +61,8 @@ impl Session {
             func_shapes: inter_hir_session.func_shapes.clone(),
             struct_shapes: inter_hir_session.struct_shapes.clone(),
             generic_def_span_rev: HashMap::new(),
+
+            // will be lowered soon
             lets: vec![],
             funcs: vec![],
 
@@ -65,7 +70,10 @@ impl Session {
             enums: hir_session.enums.clone(),
             structs: hir_session.structs.clone(),
 
+            // will be lowered soon
             asserts: vec![],
+
+            aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
             types: HashMap::new(),
             generic_instances: HashMap::new(),
             span_string_map: Some(HashMap::new()),
@@ -90,6 +98,7 @@ impl Session {
         self.enums.extend(s.enums.drain(..));
         self.structs.extend(s.structs.drain(..));
         self.asserts.extend(s.asserts.drain(..));
+        self.aliases.extend(s.aliases.drain(..));
         self.types.extend(s.types.drain());
         self.generic_instances.extend(s.generic_instances.drain());
         self.errors.extend(s.errors.drain(..));

@@ -48,6 +48,10 @@ impl Session {
             self.init_span_string_map_assert(assert, &mut result);
         }
 
+        for (name, span) in self.aliases.iter() {
+            result.insert(*span, *name);
+        }
+
         self.span_string_map = Some(result);
     }
 

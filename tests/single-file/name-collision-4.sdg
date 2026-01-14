@@ -1,0 +1,7 @@
+// This is a special case because `fn` and `\()` are parsed by different
+// functions.
+
+//# assert len(errors) == 1, f"expected exactly 1 error, got {len(errors)} errors"
+//# assert errors[0].index == 305, f"expected error-305, got error-{errors[0].index}"
+
+let lambda = \(x, x) => x + x;

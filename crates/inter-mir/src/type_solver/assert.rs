@@ -50,16 +50,25 @@ impl TypeSolver {
 
             if let Some(note_type) = note_type {
                 if let Err(()) = self.solve_supertype(
-                    &Type::Static {
-                        def_span: self.get_lang_item_span("type.String"),
-                        span: Span::None,
+                    // We shouldn't use `Type::Static { def_span: lang_item("type.String") }` here!!
+                    // `String` is just an alias to `[Char]` and it's already resolved.
+                    &Type::Param {
+                        constructor: Box::new(Type::Static {
+                            def_span: self.get_lang_item_span("type.List"),
+                            span: Span::None,
+                        }),
+                        args: vec![Type::Static {
+                            def_span: self.get_lang_item_span("type.Char"),
+                            span: Span::None,
+                        }],
+                        group_span: Span::None,
                     },
                     &note_type,
                     types,
                     generic_instances,
                     false,
                     None,
-                    Some(assert.value.error_span_wide()),
+                    Some(note.error_span_wide()),
                     ErrorContext::AssertConditionBool,
                     false,
                 ) {

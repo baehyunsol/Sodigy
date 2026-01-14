@@ -1,0 +1,5 @@
+// TODO: `Fn()` is supposed to be a type error (return type is missing),
+//       but the compiler is not smart enough to check that.
+
+#[assert_type(Fn())]
+fn foo() = 100;

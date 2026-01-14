@@ -12,6 +12,16 @@ impl Block {
         // name collision check
         let mut spans_by_name: HashMap<InternedString, Vec<(Span, NameKind)>> = HashMap::new();
 
+        for assert in self.asserts.iter() {
+            if let Err(e) = assert.value.check(intermediate_dir) {
+                errors.extend(e);
+            }
+
+            if let Err(e) = assert.attribute.check(intermediate_dir) {
+                errors.extend(e);
+            }
+        }
+
         for r#let in self.lets.iter() {
             if let Err(e) = r#let.check(intermediate_dir) {
                 errors.extend(e);
