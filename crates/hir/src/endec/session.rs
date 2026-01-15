@@ -9,6 +9,7 @@ use crate::{
     Poly,
     Session,
     Struct,
+    TypeAssertion,
     Use,
     dump::{dump_assert, dump_func, dump_let},
 };
@@ -39,6 +40,7 @@ impl Endec for Session {
         self.aliases.encode_impl(buffer);
         self.uses.encode_impl(buffer);
         self.modules.encode_impl(buffer);
+        self.type_assertions.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
@@ -56,6 +58,7 @@ impl Endec for Session {
         let (aliases, cursor) = Vec::<Alias>::decode_impl(buffer, cursor)?;
         let (uses, cursor) = Vec::<Use>::decode_impl(buffer, cursor)?;
         let (modules, cursor) = Vec::<Module>::decode_impl(buffer, cursor)?;
+        let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
@@ -80,6 +83,7 @@ impl Endec for Session {
                 aliases,
                 uses,
                 modules,
+                type_assertions,
                 lang_items,
                 polys,
                 poly_impls,

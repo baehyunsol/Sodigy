@@ -1,0 +1,21 @@
+#[assert_type(Fn(Int, Bool) -> Int)]
+fn foo(x, y) = if y { x } else { 0 };
+
+#[assert_type(Fn(Int) -> Int)]
+fn fibonacci(n) = match n {
+    2.. => fibonacci(n - 1) + fibonacci(n - 2),
+    _ => 1,
+};
+
+#[assert_type(Fn(Int) -> Int)]
+fn factorial(n) = match n {
+    2.. => n * factorial(n - 1),
+    _ => 1,
+};
+
+#[assert_type(Fn(Int) -> Int)]
+fn add_forever(n) = n + 1;
+
+#[assert_type(Fn(Int) -> Int)]
+fn id_int(x) = x;
+let x = id_int(3);

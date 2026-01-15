@@ -37,6 +37,13 @@ pub enum Type {
     Never(Span),
 }
 
+#[derive(Clone, Debug)]
+pub struct TypeAssertion {
+    pub name_span: Span,
+    pub type_span: Span,
+    pub r#type: Type,
+}
+
 impl Type {
     pub fn from_ast(ast_type: &ast::Type, session: &mut Session) -> Result<Type, ()> {
         match ast_type {

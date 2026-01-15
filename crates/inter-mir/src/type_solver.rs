@@ -1,6 +1,7 @@
 use crate::Type;
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_hir::FuncPurity;
+use sodigy_mir::TypeAssertion;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashSet;
@@ -232,6 +233,48 @@ impl TypeSolver {
                     }
                 },
                 _ => unreachable!(),
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn check_type_assertions(
+        &mut self,
+        type_assertions: &[TypeAssertion],
+        types: &mut HashMap<Span, Type>,
+        generic_instances: &mut HashMap<(Span, Span), Type>,
+    ) -> Result<(), ()> {
+        let mut has_error = false;
+
+        // We assume that `solve_supertype` doesn't affect each other
+        // because all the type variables are already solved!
+        for type_assertion in type_assertions.iter() {
+            match types.get(&type_assertion.name_span) {
+                Some(solved_type) => {
+                    let solved_type = solved_type.clone();
+
+                    if let Err(()) = self.solve_supertype(
+                        &type_assertion.r#type,
+                        &solved_type,
+                        types,
+                        generic_instances,
+                        false,
+                        Some(type_assertion.type_span),
+                        Some(type_assertion.name_span),
+                        ErrorContext::TypeAssertion,
+                        false,
+                    ) {
+                        has_error = true;
+                    }
+                },
+                None => unreachable!(),
             }
         }
 
@@ -482,73 +525,29 @@ impl TypeSolver {
                     Ok(lhs.clone())
                 }
 
-                else if !*is_return1 && !*is_return2 {
-                    match types.get(v1) {
-                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
-                        Some(type1) => {
-                            let type1 = type1.clone();
-                            return self.solve_supertype(
-                                &type1,
-                                t2,
-                                types,
-                                generic_instances,
-                                is_checking_argument,
-                                lhs_span,
-                                rhs_span,
-                                ErrorContext::Deep,
-                                bidirectional,
-                            );
-                        },
-                        None => {},
-                    }
+                else {
+                    let maybe_solved_t1 = match types.get(v1) {
+                        Some(Type::Func { r#return, .. }) if *is_return1 => r#return,
+                        Some(t) => t,
+                        _ => t1,
+                    };
+                    let maybe_solved_t2 = match types.get(v2) {
+                        Some(Type::Func { r#return, .. }) if *is_return2 => r#return,
+                        Some(t) => t,
+                        _ => t2,
+                    };
 
-                    match types.get(v2) {
-                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => {},
-                        Some(type2) => {
-                            let type2 = type2.clone();
-                            return self.solve_supertype(
-                                t1,
-                                &type2,
-                                types,
-                                generic_instances,
-                                is_checking_argument,
-                                lhs_span,
-                                rhs_span,
-                                ErrorContext::Deep,
-                                bidirectional,
-                            );
-                        },
-                        None => {},
-                    }
-
-                    types.insert(*v1, t2.clone());
-                    self.add_type_var(t1.clone(), None);
-                    self.add_type_var_ref(t1.clone(), t2.clone());
-                    types.insert(*v2, t1.clone());
-                    self.add_type_var(t2.clone(), None);
-                    self.add_type_var_ref(t2.clone(), t1.clone());
-                    Ok(t1.clone())
-                }
-
-                // `fn foo(x) = bar(x);`
-                // in this case, we know that the return type of `foo` and the return type of `bar` are the same.
-                else if *is_return1 && *is_return2 {
-                    let (
-                        Some(Type::Func { r#return: r1, .. }),
-                        Some(Type::Func { r#return: r2, .. }),
-                    ) = (types.get(v1), types.get(v2)) else { unreachable!() };
-
-                    match (&**r1, &**r2) {
+                    match (maybe_solved_t1, maybe_solved_t2) {
                         (
                             Type::Var { .. } | Type::GenericInstance { .. },
                             Type::Var { .. } | Type::GenericInstance { .. },
                         ) => {},
-                        (r1, r2) => {
-                            let r1 = r1.clone();
-                            let r2 = r2.clone();
+                        (c1, c2) => {
+                            let c1 = c1.clone();
+                            let c2 = c2.clone();
                             return self.solve_supertype(
-                                &r1,
-                                &r2,
+                                &c1,
+                                &c2,
                                 types,
                                 generic_instances,
                                 is_checking_argument,
@@ -560,18 +559,35 @@ impl TypeSolver {
                         },
                     }
 
-                    types.insert(*v1, t2.clone());
+
+                    if *is_return1 {
+                        match types.get_mut(v1) {
+                            Some(Type::Func { r#return, .. }) => {
+                                *r#return = Box::new(t2.clone());
+                            },
+                            _ => unreachable!(),
+                        }
+                    } else {
+                        types.insert(*v1, t2.clone());
+                    }
+
                     self.add_type_var(t1.clone(), None);
                     self.add_type_var_ref(t1.clone(), t2.clone());
-                    types.insert(*v2, t1.clone());
+
+                    if *is_return2 {
+                        match types.get_mut(v2) {
+                            Some(Type::Func { r#return, .. }) => {
+                                *r#return = Box::new(t1.clone());
+                            },
+                            _ => unreachable!(),
+                        }
+                    } else {
+                        types.insert(*v2, t1.clone());
+                    }
+
                     self.add_type_var(t2.clone(), None);
                     self.add_type_var_ref(t2.clone(), t1.clone());
                     Ok(t1.clone())
-                }
-
-                // `fn foo() = x;`, and we don't know the return type of `foo` and type of `x`.
-                else {
-                    panic!("TODO: {t1:?}, {t2:?}")
                 }
             },
             (t1 @ Type::GenericInstance { call: c1, generic: g1 }, t2 @ Type::GenericInstance { call: c2, generic: g2 }) => {

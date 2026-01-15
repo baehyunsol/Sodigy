@@ -73,7 +73,42 @@ impl Endec for Punct {
             Punct::Shr => {
                 buffer.push(22);
             },
-            _ => panic!("TODO: {self:?}"),
+            Punct::Eq => {
+                buffer.push(23);
+            },
+            Punct::Leq => {
+                buffer.push(24);
+            },
+            Punct::Neq => {
+                buffer.push(25);
+            },
+            Punct::Geq => {
+                buffer.push(26);
+            },
+            Punct::Concat => {
+                buffer.push(27);
+            },
+            Punct::Append => {
+                buffer.push(28);
+            },
+            Punct::Prepend => {
+                buffer.push(29);
+            },
+            Punct::DotDot => {
+                buffer.push(30);
+            },
+            Punct::DotDotEq => {
+                buffer.push(31);
+            },
+            Punct::Arrow => {
+                buffer.push(32);
+            },
+            Punct::ReturnType => {
+                buffer.push(33);
+            },
+            Punct::Pipeline => {
+                buffer.push(34);
+            },
         }
     }
 
@@ -102,7 +137,19 @@ impl Endec for Punct {
             Some(20) => Ok((Punct::OrOr, cursor + 1)),
             Some(21) => Ok((Punct::Shl, cursor + 1)),
             Some(22) => Ok((Punct::Shr, cursor + 1)),
-            Some(n @ 23..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(23) => Ok((Punct::Eq, cursor + 1)),
+            Some(24) => Ok((Punct::Leq, cursor + 1)),
+            Some(25) => Ok((Punct::Neq, cursor + 1)),
+            Some(26) => Ok((Punct::Geq, cursor + 1)),
+            Some(27) => Ok((Punct::Concat, cursor + 1)),
+            Some(28) => Ok((Punct::Append, cursor + 1)),
+            Some(29) => Ok((Punct::Prepend, cursor + 1)),
+            Some(30) => Ok((Punct::DotDot, cursor + 1)),
+            Some(31) => Ok((Punct::DotDotEq, cursor + 1)),
+            Some(32) => Ok((Punct::Arrow, cursor + 1)),
+            Some(33) => Ok((Punct::ReturnType, cursor + 1)),
+            Some(34) => Ok((Punct::Pipeline, cursor + 1)),
+            Some(n @ 35..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

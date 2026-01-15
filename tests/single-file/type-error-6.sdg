@@ -1,0 +1,8 @@
+fn empty_list() = [];
+
+let lists = [
+    empty_list(),
+    [empty_list()],
+];
+
+fn recursive_list() = [recursive_list()];

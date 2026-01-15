@@ -11,6 +11,7 @@ use crate::{
     Requirement,
     Session,
     Type,
+    TypeAssertion,
     Visibility,
     get_decorator_error_notes,
 };
@@ -160,6 +161,14 @@ impl Func {
             None => false,
         };
 
+        if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
+            session.type_assertions.push(TypeAssertion {
+                name_span: ast_func.name_span,
+                type_span: asserted_type.args[0].error_span_wide(),
+                r#type: asserted_type.args[0].clone().unwrap_type(),
+            });
+        }
+
         if is_poly || is_impl {
             // TODO: error if it's a poly and has no generic args
         }
@@ -303,6 +312,17 @@ impl Func {
                         arg_count_error_note: Some(String::from("It can implement exactly 1 poly.")),
                         arg_type: ArgType::Path,
                         arg_type_error_note: Some(String::from("Please specify which poly it implements.")),
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"assert_type", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"assert_type", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_type: ArgType::Type,
+                        arg_type_error_note: Some(String::from("Please give me the type of the function.")),
                         ..DecoratorRule::default()
                     },
                 ),

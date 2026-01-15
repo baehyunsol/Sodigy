@@ -144,6 +144,7 @@ pub enum ErrorContext {
     OrPatternEqual,
     OrPatternNameBinding(InternedString),
     RangePatternEqual,
+    TypeAssertion,
 
     // It infered the type of the same type var multiple times,
     // and got different result.
@@ -179,6 +180,7 @@ impl ErrorContext {
                 name.unintern_or_default(intermediate_dir),
             )),
             ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
+            ErrorContext::TypeAssertion => Some(String::from("Asserted type and the actual type are different.")),
             ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
             ErrorContext::Deep => Some(String::from("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location.")),
             ErrorContext::None => None,

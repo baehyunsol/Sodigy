@@ -13,12 +13,7 @@ impl TypeSolver {
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         let mut impure_calls = vec![];
-        let (infered_type, mut has_error) = self.solve_expr(
-            &func.value,
-            &mut impure_calls,
-            types,
-            generic_instances,
-        );
+        let mut has_error = false;
         let mut span_to_name_map = vec![(func.name_span, func.name)];
 
         for param in func.params.iter() {
@@ -49,8 +44,16 @@ impl TypeSolver {
 
             // even though there's no type annotation at all, the mir pass will create the type annotation
             // e.g. `fn add(x, y) = x + y;` has type `Type::Func { params: [Type::Var(x), Type::Var(y)], return: Type::Var(add) }`
-            _ => unreachable!(),
+            t => unreachable!(),
         };
+
+        let (infered_type, e) = self.solve_expr(
+            &func.value,
+            &mut impure_calls,
+            types,
+            generic_instances,
+        );
+        has_error |= e;
 
         if let Some(infered_type) = infered_type {
             if let Err(()) = self.solve_supertype(

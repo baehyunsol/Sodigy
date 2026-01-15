@@ -11,6 +11,7 @@ use crate::{
     Module,
     Poly,
     Struct,
+    TypeAssertion,
     Use,
     prelude::prelude_namespace,
 };
@@ -56,6 +57,9 @@ pub struct Session {
 
     // modules are always top-level
     pub modules: Vec<Module>,
+
+    // collected all the `#[assert_type(..)]` in this module
+    pub type_assertions: Vec<TypeAssertion>,
 
     // inter-hir will collect these
     pub lang_items: HashMap<String, Span>,
@@ -107,6 +111,7 @@ impl Session {
             asserts: vec![],
             uses: vec![],
             modules: vec![],
+            type_assertions: vec![],
             lang_items: HashMap::new(),
             polys: HashMap::new(),
             poly_impls: vec![],

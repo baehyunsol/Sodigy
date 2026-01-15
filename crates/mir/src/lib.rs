@@ -28,7 +28,7 @@ pub use r#let::Let;
 pub use r#match::{Match, MatchArm};
 pub use session::Session;
 pub use r#struct::Struct;
-pub use r#type::{Type, type_of};
+pub use r#type::{Type, TypeAssertion, type_of};
 
 pub fn lower(
     hir_session: HirSession,
@@ -51,6 +51,16 @@ pub fn lower(
     for hir_assert in hir_session.asserts.iter() {
         if let Ok(assert) = Assert::from_hir(hir_assert, &mut session) {
             session.asserts.push(assert);
+        }
+    }
+
+    for type_assertion in hir_session.type_assertions.iter() {
+        if let Ok(r#type) = Type::from_hir(&type_assertion.r#type, &mut session) {
+            session.type_assertions.push(TypeAssertion {
+                name_span: type_assertion.name_span,
+                type_span: type_assertion.type_span,
+                r#type,
+            });
         }
     }
 

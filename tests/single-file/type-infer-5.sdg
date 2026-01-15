@@ -1,0 +1,26 @@
+enum Either<X, Y> = {
+    Left(X),
+    Right(Y),
+};
+
+#[assert_type(Either<Int, Bool>)]
+let int_bool_1 = Either.Left(3);
+
+#[assert_type(Either<Int, Bool>)]
+let int_bool_2 = Either.Right(True);
+
+let merge_int_bool = [
+    int_bool_1,
+    int_bool_2,
+];
+
+#[assert_type(Either<Bool, Bool>)]
+let bool_bool_1 = Either.Left(False);
+
+#[assert_type(Either<Int, Bool>)]
+let bool_bool_2 = Either.Right(True);
+
+let merge_bool_bool = [
+    bool_bool_1,
+    bool_bool_2,
+];

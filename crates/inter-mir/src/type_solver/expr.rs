@@ -446,10 +446,31 @@ impl TypeSolver {
                         Some(Type::GenericDef { .. }) => unreachable!(),
                         // This is not a type error because `!` is subtype of every type.
                         Some(t @ Type::Never(_)) => (Some(t.clone()), has_error),
-                        // `let foo = bar(); foo()`.
-                        // We're solving the expression `foo()`, we don't know the exact type
-                        // of `foo` and `bar()`, but we now know that they have the same type.
-                        Some(Type::Var { .. } | Type::GenericInstance { .. }) => todo!(),
+                        // `fn foo(x) = x;`.
+                        // When someone calls `foo`, they'll reach this branch.
+                        // `def_span` will have `foo`'s span and `v` will have
+                        // `x` (the param definition)'s span.
+                        Some(v @ (Type::Var { .. } | Type::GenericInstance { .. })) => {
+                            let v = v.clone();
+
+                            match self.solve_supertype(
+                                &Type::Var {
+                                    def_span: *def_span,
+                                    is_return: true,
+                                },
+                                &v,
+                                types,
+                                generic_instances,
+                                false,
+                                None,
+                                None,
+                                ErrorContext::Deep,
+                                true,
+                            ) {
+                                Ok(r#type) => (Some(r#type), has_error),
+                                Err(()) => (Some(v), has_error),
+                            }
+                        },
                         None => todo!(),
                     },
                     Callable::TupleInit { .. } => (

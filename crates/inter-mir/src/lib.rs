@@ -132,6 +132,16 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         ) {
             has_error = true;
         }
+
+        // If the solver has failed to infer some types, it's dangerous to check type assertions.
+        // Checking type assertions may solve type variables, which may introduce false-positives.
+        else if let Err(()) = type_solver.check_type_assertions(
+            &mir_session.type_assertions,
+            &mut mir_session.types,
+            &mut mir_session.generic_instances,
+        ) {
+            has_error = true;
+        }
     }
 
     for warning in type_solver.warnings.iter() {

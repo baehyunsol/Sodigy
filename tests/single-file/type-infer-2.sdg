@@ -1,0 +1,8 @@
+#[assert_type(Int)]
+let x = 1;
+
+#[assert_type(Int)]
+let y = x;
+
+#[assert_type([Int])]
+let z = [x, y];

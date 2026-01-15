@@ -1,4 +1,4 @@
-use crate::{Assert, Enum, Func, Let, Struct, Type};
+use crate::{Assert, Enum, Func, Let, Struct, Type, TypeAssertion};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{self as hir, FuncShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
@@ -26,6 +26,8 @@ pub struct Session {
 
     // It's already lowered, but we need this for `span_string_map`.
     pub aliases: Vec<(InternedString, Span)>,
+
+    pub type_assertions: Vec<TypeAssertion>,
 
     // It's `def_span -> type_annotation` map.
     // It has type information of *every* name in the code.
@@ -72,6 +74,7 @@ impl Session {
 
             // will be lowered soon
             asserts: vec![],
+            type_assertions: vec![],
 
             aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
             types: HashMap::new(),
@@ -99,6 +102,7 @@ impl Session {
         self.structs.extend(s.structs.drain(..));
         self.asserts.extend(s.asserts.drain(..));
         self.aliases.extend(s.aliases.drain(..));
+        self.type_assertions.extend(s.type_assertions.drain(..));
         self.types.extend(s.types.drain());
         self.generic_instances.extend(s.generic_instances.drain());
         self.errors.extend(s.errors.drain(..));

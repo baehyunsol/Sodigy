@@ -282,6 +282,7 @@ fn into_hir_session(session: &Session) -> sodigy_hir::Session {
         aliases: vec![],
         uses: vec![],
         modules: vec![],
+        type_assertions: vec![],
         lang_items: HashMap::new(),
         polys: HashMap::new(),
         poly_impls: vec![],

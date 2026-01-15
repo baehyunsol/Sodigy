@@ -339,6 +339,12 @@ impl Session {
             }
         }
 
+        for type_assertion in hir_session.type_assertions.iter_mut() {
+            if let Err(()) = self.resolve_type(&mut type_assertion.r#type, &mut vec![], 0) {
+                has_error = true;
+            }
+        }
+
         if has_error {
             Err(())
         }

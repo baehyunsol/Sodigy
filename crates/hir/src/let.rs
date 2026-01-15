@@ -1,10 +1,14 @@
 use crate::{
+    ArgCount,
+    ArgType,
     Attribute,
     AttributeRule,
+    DecoratorRule,
     Expr,
     Requirement,
     Session,
     Type,
+    TypeAssertion,
     Visibility,
     get_decorator_error_notes,
 };
@@ -12,7 +16,7 @@ use sodigy_error::ItemKind;
 use sodigy_name_analysis::{NameOrigin, Namespace};
 use sodigy_parse as ast;
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -63,6 +67,14 @@ impl Let {
             },
         };
         let visibility = attribute.visibility.clone();
+
+        if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
+            session.type_assertions.push(TypeAssertion {
+                name_span: ast_let.name_span,
+                type_span: asserted_type.args[0].error_span_wide(),
+                r#type: asserted_type.args[0].clone().unwrap_type(),
+            });
+        }
 
         if let Some(ast_type) = &ast_let.type_annot {
             match Type::from_ast(ast_type, session) {
@@ -118,7 +130,20 @@ impl Let {
             doc_comment_error_note: Some(String::from("You can only add doc comments to top-level items.")),
             visibility: if is_top_level { Requirement::Maybe } else { Requirement::Never },
             visibility_error_note: Some(String::from("Only top-level items can be public.")),
-            decorators: HashMap::new(),
+            decorators: vec![
+                (
+                    intern_string(b"assert_type", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"assert_type", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_type: ArgType::Type,
+                        arg_type_error_note: Some(String::from("Please give me the type of the value.")),
+                        ..DecoratorRule::default()
+                    },
+                ),
+            ].into_iter().collect(),
             decorator_error_notes: get_decorator_error_notes(ItemKind::Let, intermediate_dir),
         };
 

@@ -1,0 +1,7 @@
+#[assert_type([Int])]
+fn empty_list() = [];
+
+let lists = [
+    [3],
+    empty_list(),
+];

@@ -13,12 +13,7 @@ impl TypeSolver {
         types: &mut HashMap<Span, Type>,
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
-        let (infered_type, mut has_error) = self.solve_expr(
-            &r#let.value,
-            impure_calls,
-            types,
-            generic_instances,
-        );
+        let mut has_error = false;
 
         let (
             annotated_type,
@@ -45,6 +40,14 @@ impl TypeSolver {
                 ErrorContext::VerifyTypeAnnotation,
             ),
         };
+
+        let (infered_type, e) = self.solve_expr(
+            &r#let.value,
+            impure_calls,
+            types,
+            generic_instances,
+        );
+        has_error |= e;
 
         match infered_type {
             Some(infered_type) => {

@@ -476,6 +476,14 @@ impl<'t, 's> Tokens<'t, 's> {
                                     };
                                 },
                                 _ => {
+                                    if inclusive {
+                                        return Err(vec![Error {
+                                            kind: ErrorKind::InclusiveRangeWithNoEnd,
+                                            spans: punct_span.simple_error(),
+                                            note: None,
+                                        }]);
+                                    }
+
                                     lhs = Expr::PostfixOp {
                                         op,
                                         op_span: punct_span,

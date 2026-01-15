@@ -6,6 +6,7 @@ use crate::{
     Session,
     Struct,
     Type,
+    TypeAssertion,
     dump::{dump_assert, dump_func, dump_let},
 };
 use sodigy_endec::{DecodeError, DumpSession, Endec, IndentedLines};
@@ -31,6 +32,7 @@ impl Endec for Session {
         self.structs.encode_impl(buffer);
         self.asserts.encode_impl(buffer);
         self.aliases.encode_impl(buffer);
+        self.type_assertions.encode_impl(buffer);
 
         // These 2 are likely to be empty... but encoding/decoding an empty
         // map is very cheap, so who cares!
@@ -56,6 +58,7 @@ impl Endec for Session {
         let (structs, cursor) = Vec::<Struct>::decode_impl(buffer, cursor)?;
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (aliases, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
+        let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_instances, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
@@ -76,6 +79,7 @@ impl Endec for Session {
                 structs,
                 asserts,
                 aliases,
+                type_assertions,
                 types,
                 generic_instances,
                 span_string_map: None,

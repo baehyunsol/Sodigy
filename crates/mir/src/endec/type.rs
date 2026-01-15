@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{Type, TypeAssertion};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_hir::FuncPurity;
 use sodigy_span::Span;
@@ -98,5 +98,28 @@ impl Endec for Type {
             Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for TypeAssertion {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name_span.encode_impl(buffer);
+        self.type_span.encode_impl(buffer);
+        self.r#type.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (type_span, cursor) = Span::decode_impl(buffer, cursor)?;
+        let (r#type, cursor) = Type::decode_impl(buffer, cursor)?;
+
+        Ok((
+            TypeAssertion {
+                name_span,
+                type_span,
+                r#type,
+            },
+            cursor,
+        ))
     }
 }
