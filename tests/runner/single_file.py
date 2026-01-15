@@ -90,13 +90,15 @@ def single_file(
 
     # seconds
     timeout: int = 20,
-) -> Optional[str]:  # If there's an error, it returns the error message.
+):
     goto_root()
     result = {
         "name": file,
         "error": None,
         "stdout": None,
         "stderr": None,
+        "compile-errors": [],
+        "compile-warnings": [],
     }
 
     if os.path.exists("sodigy-test/"):
@@ -150,6 +152,8 @@ def single_file(
                 status = "success" if p.returncode == 0 else "test-error" if p.returncode == 10 else "compile-error" if p.returncode == 11 else "misc-error"
                 errors, warnings = parse_errors(p.stderr) if status != "misc-error" else ([], [])
                 run_result = RunResult(status, errors, warnings)
+                result["compile-errors"] = [error.to_dict() for error in errors]
+                result["compile-warnings"] = [warning.to_dict() for warning in warnings]
 
             elif mode == "capture_and_save":
                 result["stdout"] = p.stdout

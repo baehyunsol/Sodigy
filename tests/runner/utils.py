@@ -4,6 +4,16 @@ def goto_root():
     while "crates" not in (ll := os.listdir()) or "Cargo.toml" not in ll:
         os.chdir("..")
 
+def check_repo_clean():
+    import subprocess
+    status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True).stdout
+
+    for line in status.split("\n"):
+        if "M" in line[:2] or "A" in line[:2] or "D" in line[:2]:
+            return False
+
+    return True
+
 # Python's try-catch statement sucks. Sodigy's is superior.
 def get_meta():
     import platform

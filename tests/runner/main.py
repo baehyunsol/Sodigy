@@ -4,7 +4,7 @@ import os
 from single_file import single_files
 import sys
 import time
-from utils import get_file_name, get_meta, goto_root
+from utils import check_repo_clean, get_file_name, get_meta, goto_root
 
 args = sys.argv
 command = args[1] if len(args) > 1 else None
@@ -13,23 +13,32 @@ args = args[1:]
 if command == "single-file":
     no_std = "--no-std" in args
     debug_bytecode = "--debug-bytecode" in args
+    all = "--all" in args
 
     # It's always enabled!
     # debug_heap = "--debug-heap" in args
     debug_heap = True
 
     args = [arg for arg in args if not arg.startswith("-")]
-    filter = args[1]
+    filter = None if all else args[1]
+
+    if all and len(args) > 1:
+        raise ValueError(f"Unexpected cli argument: {args[1].__repr__()}")
 
     single_files(
         filter,
         no_std,
         debug_bytecode,
         debug_heap,
-        "dump",
+        "batch" if all else "dump",
     )
 
 elif command == "all":
+    force = "--force" in args
+
+    if not force and not check_repo_clean():
+        raise ValueError("Git repository is not clean. Please commit your changes beforehand. If you want to override the status check, run it with `--force`")
+
     meta = get_meta()
     sf_started_at = time.time()
     sf_result, sf_succ, sf_fail = single_files(

@@ -13,6 +13,14 @@ class Error:
         self.title = title
         self.body = body
 
+    def to_dict(self):
+        return {
+            "level": self.level,
+            "index": self.index,
+            "title": self.title,
+            "body": self.body,
+        }
+
 def parse_errors(stderr: str) -> Tuple[list[Error], list[Error]]:  # (errors, warnings)
     result = []
     level, index, title, body = None, None, None, []
