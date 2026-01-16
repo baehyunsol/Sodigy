@@ -61,3 +61,10 @@ def get_file_name(r: dict) -> str:
     os = r["meta"]["platform"].lower()
     os = "windows" if "windows" in os else "mac" if "mac" in os else "linux" if "linux" in os else None
     return f"result-{hash[:9]}-{os}.json"
+
+# returns the hash of the content of the file
+# I'm using git's hash function because I'll rewrite the entire test framework in Sodigy someday,
+# and I want a universal hash function, not Python-specific one.
+def get_file_hash(file: str) -> str:
+    import subprocess
+    return subprocess.run(["git", "hash-object", file], check=True, capture_output=True, text=True).stdout

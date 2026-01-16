@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import time
 from typing import Optional
-from utils import goto_root
+from utils import get_file_hash, goto_root
 
 def single_files(
     filter: Optional[str],
@@ -99,6 +99,7 @@ def single_file(
         "stderr": None,
         "compile-errors": [],
         "compile-warnings": [],
+        "hash": None,
     }
 
     if os.path.exists("sodigy-test/"):
@@ -106,6 +107,7 @@ def single_file(
 
     subprocess.run([sodigy_binary, "new", "sodigy-test"], capture_output=True, check=True)
     file = os.path.join("tests/single-file/", file)
+    result["hash"] = get_file_hash(file)
 
     with open(file, "r") as f:
         code = f.read()
