@@ -16,10 +16,10 @@ impl Endec for Expr {
 impl Endec for Field {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Field::Name { name, span, dot_span, is_from_alias } => {
+            Field::Name { name, name_span, dot_span, is_from_alias } => {
                 buffer.push(0);
                 name.encode_impl(buffer);
-                span.encode_impl(buffer);
+                name_span.encode_impl(buffer);
                 dot_span.encode_impl(buffer);
                 is_from_alias.encode_impl(buffer);
             },
@@ -48,13 +48,13 @@ impl Endec for Field {
         match buffer.get(cursor) {
             Some(0) => {
                 let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (dot_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (is_from_alias, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((
                     Field::Name {
                         name,
-                        span,
+                        name_span,
                         dot_span,
                         is_from_alias,
                     },

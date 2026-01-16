@@ -332,6 +332,34 @@ fn lower_matches_expr_recursive(
             warnings,
             intermediate_dir,
         ),
+        Expr::FieldModifier { lhs, rhs, .. } => {
+            let lhs_err = lower_matches_expr_recursive(
+                lhs,
+                types,
+                struct_shapes,
+                lang_items,
+                errors,
+                warnings,
+                intermediate_dir,
+            ).is_err();
+            let rhs_err = lower_matches_expr_recursive(
+                rhs,
+                types,
+                struct_shapes,
+                lang_items,
+                errors,
+                warnings,
+                intermediate_dir,
+            ).is_err();
+
+            if lhs_err || rhs_err {
+                Err(())
+            }
+
+            else {
+                Ok(())
+            }
+        },
         Expr::Match(r#match) => {
             let mut has_error = false;
 

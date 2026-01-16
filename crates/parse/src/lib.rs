@@ -34,7 +34,7 @@ pub use attribute::{
 };
 pub use block::Block;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
-pub use expr::{Expr, ExprOrString, Field};
+pub use expr::{Expr, ExprOrString, Field, merge_field_spans};
 pub use func::{Func, FuncArg, FuncParam};
 pub use r#if::If;
 pub use lambda::Lambda;

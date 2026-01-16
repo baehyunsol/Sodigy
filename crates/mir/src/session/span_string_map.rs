@@ -95,8 +95,8 @@ impl Session {
     pub fn init_span_string_map_struct(&self, r#struct: &Struct, result: &mut HashMap<Span, InternedString>) {
         result.insert(r#struct.name_span, r#struct.name);
 
-        for field in r#struct.fields.iter() {
-            result.insert(field.name_span, field.name);
+        for (name, name_span) in r#struct.fields.iter() {
+            result.insert(*name_span, *name);
         }
 
         for generic in r#struct.generics.iter() {

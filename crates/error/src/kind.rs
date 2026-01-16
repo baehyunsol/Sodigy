@@ -125,10 +125,8 @@ error_kinds!(
     (MissingFunctionParameter { expected: usize, got: usize },       375,    Error),
     (UnexpectedFunctionParameter { expected: usize, got: usize },    380,    Error),
     (StructFieldRepeated(InternedString),                            385,    Error),
-    (MissingStructField(InternedString),                             390,    Error),
-
-    // TODO: suggest similar names
-    (InvalidStructField(InternedString),                             395,    Error),
+    (MissingStructFields { struct_name: InternedString, missing_fields: Vec<InternedString> }, 390,    Error),
+    (InvalidStructFields { struct_name: InternedString, invalid_fields: Vec<InternedString> }, 395,    Error),
 
     (DependentTypeNotAllowed,                                        400,    Error),
     (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),

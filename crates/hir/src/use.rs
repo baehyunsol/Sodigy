@@ -48,7 +48,7 @@ impl Use {
     ) -> Result<Use, ()> {
         let mut has_error = false;
         let (name, span) = match ast_use.full_path[0] {
-            Field::Name { name, span, .. } => (name, span),
+            Field::Name { name, name_span, .. } => (name, name_span),
             _ => unreachable!(),
         };
 

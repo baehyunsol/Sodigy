@@ -67,10 +67,10 @@ impl Session {
             // will be lowered soon
             lets: vec![],
             funcs: vec![],
+            structs: vec![],
 
             // TODO: actually lower these
             enums: hir_session.enums.clone(),
-            structs: hir_session.structs.clone(),
 
             // will be lowered soon
             asserts: vec![],

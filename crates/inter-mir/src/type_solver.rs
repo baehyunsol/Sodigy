@@ -1,6 +1,6 @@
 use crate::Type;
 use crate::error::{ErrorContext, TypeError, TypeWarning};
-use sodigy_hir::FuncPurity;
+use sodigy_hir::{FuncPurity, FuncShape, StructShape};
 use sodigy_mir::TypeAssertion;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -18,6 +18,9 @@ mod pattern;
 // 1. We'll later use `type_vars` to distinguish what're infered types and what're annotated types.
 // 2. If we don't remove entries in `type_var_refs`, cyclic type vars will cause a stack overflow.
 pub struct TypeSolver {
+    pub func_shapes: HashMap<Span, FuncShape>,
+    pub struct_shapes: HashMap<Span, StructShape>,
+
     // Whenever `types.get(span)` returns `None`, it creates a type variable
     // and inserts the `span` to this hash set. It's later used to check
     // if all the type variables are infered.
@@ -63,8 +66,15 @@ pub struct TypeSolver {
 }
 
 impl TypeSolver {
-    pub fn new(lang_items: HashMap<String, Span>, intermediate_dir: String) -> Self {
+    pub fn new(
+        func_shapes: HashMap<Span, FuncShape>,
+        struct_shapes: HashMap<Span, StructShape>,
+        lang_items: HashMap<String, Span>,
+        intermediate_dir: String,
+    ) -> Self {
         TypeSolver {
+            func_shapes,
+            struct_shapes,
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),

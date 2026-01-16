@@ -174,7 +174,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                     fields: path[1..].iter().zip(dot_spans.iter()).map(
                                         |((id, id_span), dot_span)| Field::Name {
                                             name: *id,
-                                            span: *id_span,
+                                            name_span: *id_span,
                                             dot_span: *dot_span,
                                             is_from_alias: false,
                                         },
@@ -197,7 +197,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                 fields: path[1..].iter().zip(dot_spans.iter()).map(
                                     |((id, id_span), dot_span)| Field::Name {
                                         name: *id,
-                                        span: *id_span,
+                                        name_span: *id_span,
                                         dot_span: *dot_span,
                                         is_from_alias: false,
                                     },

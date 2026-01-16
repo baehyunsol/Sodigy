@@ -44,7 +44,7 @@ impl TypeSolver {
 
             // even though there's no type annotation at all, the mir pass will create the type annotation
             // e.g. `fn add(x, y) = x + y;` has type `Type::Func { params: [Type::Var(x), Type::Var(y)], return: Type::Var(add) }`
-            t => unreachable!(),
+            _ => unreachable!(),
         };
 
         let (infered_type, e) = self.solve_expr(

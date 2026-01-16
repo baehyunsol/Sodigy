@@ -1,0 +1,15 @@
+//# assert len(errors) == 2, f"expected exactly 2 errors, got {len(errors)} errors"
+//# assert all([error.index == 390 for error in errors]), "expected all the errors to be error-390, but some are not"
+//# assert "`name`" in errors[0].title
+//# assert "`age`" in errors[1].title and "`is_sodigian`" in errors[1].title
+
+struct Person = {
+    name: String,
+    age: Int,
+    is_sodigian: Bool,
+};
+
+let unnamed_person = Person { age: 0, is_sodigian: False };
+
+// This value is missing 2 fields. I want the compiler to throw a single error with the 2 fields.
+let only_name = Person { name: "Bae" };

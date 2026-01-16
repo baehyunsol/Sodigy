@@ -124,7 +124,7 @@ impl Endec for Expr {
                 Ok((Expr::Path { lhs, fields }, cursor))
             },
             Some(9) => {
-                let (fields, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
+                let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))

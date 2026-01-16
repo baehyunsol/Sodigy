@@ -54,6 +54,12 @@ pub fn lower(
         }
     }
 
+    for hir_struct in hir_session.structs.iter() {
+        if let Ok(r#struct) = Struct::from_hir(hir_struct, &mut session) {
+            session.structs.push(r#struct);
+        }
+    }
+
     for type_assertion in hir_session.type_assertions.iter() {
         if let Ok(r#type) = Type::from_hir(&type_assertion.r#type, &mut session) {
             session.type_assertions.push(TypeAssertion {

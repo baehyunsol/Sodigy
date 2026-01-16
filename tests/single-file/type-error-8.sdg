@@ -1,0 +1,13 @@
+//# assert len(errors) == 2, f"expected exactly 2 errors, got {len(errors)} errors"
+//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
+
+pub struct Person = {
+    name: String,
+    age: Int,
+    is_rustacean: Bool,
+};
+
+fn get_what(p: Person) -> Person = p `age "";  // err 1
+
+let me = Person { name: "Bae", age: 27, is_rustacean: True };
+let my_age: String = me.age;  // err 2

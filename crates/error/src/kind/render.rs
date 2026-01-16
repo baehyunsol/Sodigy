@@ -30,6 +30,29 @@ impl ErrorKind {
                 "Keyword argument `{}` is repeated.",
                 keyword.unintern_or_default(intermediate_dir),
             ),
+            ErrorKind::MissingStructFields { struct_name, missing_fields } => format!(
+                "Field{} {} of struct `{}` {} missing.",
+                if missing_fields.len() == 1 { "" } else { "s" },
+                comma_list_strs(
+                    &missing_fields.iter().map(|name| name.unintern_or_default(intermediate_dir)).collect::<Vec<_>>(),
+                    "`",
+                    "`",
+                    "and",
+                ),
+                struct_name.unintern_or_default(intermediate_dir),
+                if missing_fields.len() == 1 { "is" } else { "are" },
+            ),
+            ErrorKind::InvalidStructFields { struct_name, invalid_fields } => format!(
+                "Struct `{}` has no field{} {}.",
+                struct_name.unintern_or_default(intermediate_dir),
+                if invalid_fields.len() == 1 { "" } else { "s" },
+                comma_list_strs(
+                    &invalid_fields.iter().map(|name| name.unintern_or_default(intermediate_dir)).collect::<Vec<_>>(),
+                    "`",
+                    "`",
+                    "and",
+                ),
+            ),
             ErrorKind::UnusedNames { names, kind } => {
                 let names = names.iter().map(
                     |name| name.unintern_or_default(intermediate_dir)

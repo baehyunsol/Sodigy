@@ -41,7 +41,10 @@
     InvalidKeywordArgument(InternedString), MissingFunctionParameter
     { expected: usize, got: usize }, UnexpectedFunctionParameter
     { expected: usize, got: usize }, StructFieldRepeated(InternedString),
-    MissingStructField(InternedString), InvalidStructField(InternedString),
+    MissingStructFields
+    { struct_name: InternedString, missing_fields: Vec<InternedString> },
+    InvalidStructFields
+    { struct_name: InternedString, invalid_fields: Vec<InternedString> },
     DependentTypeNotAllowed, NotStruct { id: Option<IdentWithOrigin> },
     NotPolyGeneric { id: Option<IdentWithOrigin> }, UnexpectedType
     { expected: String, got: String }, CannotInferType
@@ -128,8 +131,8 @@
             MissingFunctionParameter { .. } => 375u16, ErrorKind ::
             UnexpectedFunctionParameter { .. } => 380u16, ErrorKind ::
             StructFieldRepeated(_,) => 385u16, ErrorKind ::
-            MissingStructField(_,) => 390u16, ErrorKind ::
-            InvalidStructField(_,) => 395u16, ErrorKind ::
+            MissingStructFields { .. } => 390u16, ErrorKind ::
+            InvalidStructFields { .. } => 395u16, ErrorKind ::
             DependentTypeNotAllowed => 400u16, ErrorKind :: NotStruct { .. }
             => 405u16, ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind
             :: UnexpectedType { .. } => 415u16, ErrorKind :: CannotInferType
@@ -233,8 +236,8 @@
             Error, ErrorKind :: MissingFunctionParameter { .. } => ErrorLevel
             :: Error, ErrorKind :: UnexpectedFunctionParameter { .. } =>
             ErrorLevel :: Error, ErrorKind :: StructFieldRepeated(_,) =>
-            ErrorLevel :: Error, ErrorKind :: MissingStructField(_,) =>
-            ErrorLevel :: Error, ErrorKind :: InvalidStructField(_,) =>
+            ErrorLevel :: Error, ErrorKind :: MissingStructFields { .. } =>
+            ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: DependentTypeNotAllowed =>
             ErrorLevel :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel
             :: Error, ErrorKind :: NotPolyGeneric { .. } => ErrorLevel ::
@@ -441,11 +444,19 @@
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
             }, ErrorKind :: StructFieldRepeated(t0,) =>
             { buffer.push(1u8); buffer.push(129u8); t0.encode_impl(buffer); },
-            ErrorKind :: MissingStructField(t0,) =>
-            { buffer.push(1u8); buffer.push(134u8); t0.encode_impl(buffer); },
-            ErrorKind :: InvalidStructField(t0,) =>
-            { buffer.push(1u8); buffer.push(139u8); t0.encode_impl(buffer); },
-            ErrorKind :: DependentTypeNotAllowed =>
+            ErrorKind :: MissingStructFields
+            { r#struct_name, r#missing_fields, } =>
+            {
+                buffer.push(1u8); buffer.push(134u8);
+                r#struct_name.encode_impl(buffer);
+                r#missing_fields.encode_impl(buffer);
+            }, ErrorKind :: InvalidStructFields
+            { r#struct_name, r#invalid_fields, } =>
+            {
+                buffer.push(1u8); buffer.push(139u8);
+                r#struct_name.encode_impl(buffer);
+                r#invalid_fields.encode_impl(buffer);
+            }, ErrorKind :: DependentTypeNotAllowed =>
             { buffer.push(1u8); buffer.push(144u8); }, ErrorKind :: NotStruct
             { r#id, } =>
             {
@@ -745,14 +756,18 @@
                 Ok((ErrorKind :: StructFieldRepeated(t0,), cursor))
             }, 390u16 =>
             {
-                let (t0, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: MissingStructField(t0,), cursor))
+                let (r#struct_name, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let (r#missing_fields, cursor)
+                = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: MissingStructFields
+                { r#struct_name, r#missing_fields, }, cursor))
             }, 395u16 =>
             {
-                let (t0, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: InvalidStructField(t0,), cursor))
+                let (r#struct_name, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let (r#invalid_fields, cursor)
+                = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: InvalidStructFields
+                { r#struct_name, r#invalid_fields, }, cursor))
             }, 400u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
             405u16 =>
             {

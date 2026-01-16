@@ -20,6 +20,7 @@ impl TypeSolver {
         match (&pattern_type, &pattern.name, &pattern.name_span) {
             // we can solve a type var!
             (Some(pattern_type), Some(name_binding), Some(name_span)) => {
+                // TODO: add type var to `type_vars`
                 if let Err(()) = self.solve_supertype(
                     &pattern_type,
                     &Type::Var { def_span: *name_span, is_return: false },

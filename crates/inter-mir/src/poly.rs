@@ -307,7 +307,15 @@ fn solve_fn_types(
         return Err(vec![SolvePolyError::DifferentNumberOfArgs]);
     }
 
-    let mut type_solver = TypeSolver::new(lang_items, intermediate_dir);
+    let mut type_solver = TypeSolver::new(
+        // this tmp type_solver doesn't call `solve_expr`, so these
+        // 2 arguments (func_shapes and struct_shapes) are unnecessary
+        HashMap::new(),
+        HashMap::new(),
+
+        lang_items,
+        intermediate_dir,
+    );
     let mut types = HashMap::new();
     let mut constraints = vec![];
     let mut errors = vec![];

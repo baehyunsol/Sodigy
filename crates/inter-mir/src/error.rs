@@ -60,6 +60,10 @@ pub enum TypeError {
         r#type: Type,
         func_span: Span,
     },
+    NotAStruct {
+        // TODO: more information
+        span: Span,
+    },
     CannotSpecializePolyGeneric {
         call: Span,
         poly_def: Span,
@@ -139,12 +143,14 @@ pub enum ErrorContext {
     VerifyTypeAnnotation,
     ListElementEqual,
     FuncArgs,
+    StructFields,
     EqValueEqual,
     NeqValueEqual,
     OrPatternEqual,
     OrPatternNameBinding(InternedString),
     RangePatternEqual,
     TypeAssertion,
+    FieldModifier,
 
     // It infered the type of the same type var multiple times,
     // and got different result.
@@ -172,6 +178,7 @@ impl ErrorContext {
             ErrorContext::VerifyTypeAnnotation => Some(String::from("A value's type annotation and its actual type do not match.")),
             ErrorContext::ListElementEqual => Some(String::from("All elements of a list must have the same type.")),
             ErrorContext::FuncArgs => Some(String::from("Arguments of this function are incorrect.")),
+            ErrorContext::StructFields => Some(String::from("Fields of this struct are incorrect.")),
             ErrorContext::EqValueEqual => Some(String::from("Lhs and rhs of `==` operator must have the same type.")),
             ErrorContext::NeqValueEqual => Some(String::from("Lhs and rhs of `!=` operator must have the same type.")),
             ErrorContext::OrPatternEqual => Some(String::from("Lhs and rhs of `|` pattern must have the same type.")),
@@ -181,6 +188,7 @@ impl ErrorContext {
             )),
             ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
             ErrorContext::TypeAssertion => Some(String::from("Asserted type and the actual type are different.")),
+            ErrorContext::FieldModifier => Some(String::from("In a field modifier expression, the type of the value and the field have to be the same.")),
             ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
             ErrorContext::Deep => Some(String::from("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location.")),
             ErrorContext::None => None,
@@ -250,17 +258,23 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
 
             else {
                 if let Some(span) = *expected_span {
-                    spans.push(RenderableSpan {
-                        span,
-                        auxiliary: true,
-                        note: Some(format!(
+                    let note = if let ErrorContext::FieldModifier = context {
+                        format!("The type of this field is `{expected_type}`.")
+                    } else {
+                        format!(
                             "The value should have type `{expected_type}`{}.",
                             if let ErrorContext::VerifyTypeAnnotation = context {
                                 ", according to this type annotation"
                             } else {
                                 ""
                             },
-                        )),
+                        )
+                    };
+
+                    spans.push(RenderableSpan {
+                        span,
+                        auxiliary: true,
+                        note: Some(note),
                     });
                 }
 

@@ -4,7 +4,7 @@ use crate::error::{ErrorContext, TypeError};
 use sodigy_hir::FuncPurity;
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
-use sodigy_parse::Field;
+use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -207,6 +207,7 @@ impl TypeSolver {
             // 2. guard_type == bool
             // 3. arm_type == all the other arm_types
             // 4. arm_type == expr_type
+            // 5. scrutinee_type == pattern_types
             Expr::Match(r#match) => {
                 let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), impure_calls, types, generic_instances);
                 let mut arm_types = Vec::with_capacity(r#match.arms.len());
@@ -333,7 +334,7 @@ impl TypeSolver {
             },
             Expr::Path { lhs, fields } => match self.solve_expr(lhs, impure_calls, types, generic_instances) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_instances) {
-                    Ok(lhs_type) => (Some(lhs_type), has_error),
+                    Ok(field_type) => (Some(field_type), has_error),
                     Err(()) => (None, true),
                 },
                 (None, _) => (None, true),
@@ -341,7 +342,34 @@ impl TypeSolver {
             // 1. Make sure that `lhs` has the fields.
             // 2. Make sure that the field's type and `rhs`' type are the same.
             // 3. Return the type of `lhs`.
-            Expr::FieldModifier { fields, lhs, rhs } => todo!(),
+            Expr::FieldModifier { fields, lhs, rhs } => match self.solve_expr(lhs, impure_calls, types, generic_instances) {
+                (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_instances) {
+                    Ok(field_type) => match self.solve_expr(rhs, impure_calls, types, generic_instances) {
+                        (Some(rhs_type), e) => {
+                            has_error |= e;
+
+                            if let Err(()) = self.solve_supertype(
+                                &field_type,
+                                &rhs_type,
+                                types,
+                                generic_instances,
+                                false,
+                                Some(merge_field_spans(fields)),
+                                Some(rhs.error_span_wide()),
+                                ErrorContext::FieldModifier,
+                                false,
+                            ) {
+                                has_error = true;
+                            }
+
+                            (Some(lhs_type), has_error)
+                        },
+                        (None, _) => (Some(lhs_type), true),
+                    },
+                    Err(()) => (Some(lhs_type), true),
+                },
+                (None, _) => (None, true),
+            },
             // 1. we can solve types of args
             // 2. if callable is...
             //    - a function without generic
@@ -472,6 +500,42 @@ impl TypeSolver {
                             }
                         },
                         None => todo!(),
+                    },
+                    Callable::StructInit { def_span, span } => match self.struct_shapes.get(def_span) {
+                        Some(s) => {
+                            // The compiler checked it when lowering hir to mir.
+                            assert_eq!(s.fields.len(), arg_types.len());
+                            let s = s.clone();
+
+                            for i in 0..arg_types.len() {
+                                let field_type = match types.get(&s.fields[i].name_span) {
+                                    Some(r#type) => r#type.clone(),
+                                    None => Type::Var { def_span: s.fields[i].name_span, is_return: false },
+                                };
+
+                                if let Err(()) = self.solve_supertype(
+                                    &field_type,
+                                    &arg_types[i],
+                                    types,
+                                    generic_instances,
+                                    false,
+                                    None,
+                                    Some(args[i].error_span_wide()),
+                                    ErrorContext::StructFields,
+                                    false,
+                                ) {
+                                    has_error = true;
+                                }
+                            }
+
+                            // TODO: If it's generic, the type has to be `Type::Param`.
+                            //       But there's no way we can check whether it's generic or not
+                            (Some(Type::Static { def_span: *def_span, span: Span::None }), has_error)
+                        },
+                        None => {
+                            self.errors.push(TypeError::NotAStruct { span: *span });
+                            (None, true)
+                        },
                     },
                     Callable::TupleInit { .. } => (
                         Some(Type::Param {
@@ -609,7 +673,6 @@ impl TypeSolver {
                             _ => panic!("TODO: {func:?}"),
                         }
                     },
-                    _ => panic!("TODO: {func:?}"),
                 }
             },
         }
@@ -623,7 +686,50 @@ impl TypeSolver {
         generic_instances: &mut HashMap<(Span, Span), Type>,
     ) -> Result<Type, ()> {
         match r#type {
-            Type::Static { def_span, .. } => todo!(),
+            Type::Static { def_span, .. } => {
+                let mut field_type = None;
+
+                match &field[0] {
+                    Field::Name { name, .. } => match self.struct_shapes.get(def_span) {
+                        Some(s) => {
+                            for field in s.fields.iter() {
+                                if field.name == *name {
+                                    match types.get(&field.name_span) {
+                                        Some(t) => {
+                                            field_type = Some(t.clone());
+                                        },
+                                        None => {
+                                            field_type = Some(Type::Var { def_span: field.name_span, is_return: false });
+                                        },
+                                    }
+
+                                    break;
+                                }
+                            }
+                        },
+                        _ => todo!(),
+                    },
+                    _ => todo!(),
+                }
+
+                match field_type {
+                    Some(field_type) => {
+                        if field.len() == 1 {
+                            Ok(field_type)
+                        }
+
+                        else {
+                            self.get_type_of_field(
+                                &field_type,
+                                &field[1..],
+                                types,
+                                generic_instances,
+                            )
+                        }
+                    },
+                    None => todo!(),  // type error!
+                }
+            },
             Type::Unit(_) => todo!(),  // It must be an error... right?
             Type::Param { constructor, args, .. } => {
                 if let Type::Unit(_) = &**constructor {

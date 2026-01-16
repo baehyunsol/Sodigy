@@ -62,13 +62,13 @@ pub fn use_prelude(name: InternedString) -> Use {
         fields: vec![
             Field::Name {
                 name: prelude,
-                span: Span::None,
+                name_span: Span::None,
                 dot_span: Span::None,
                 is_from_alias: false,
             },
             Field::Name {
                 name,
-                span: Span::None,
+                name_span: Span::None,
                 dot_span: Span::None,
                 is_from_alias: false,
             },

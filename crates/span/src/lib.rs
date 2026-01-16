@@ -58,6 +58,10 @@ impl Span {
         Span::Range { file, start, end }
     }
 
+    pub fn single(file: File, offset: usize) -> Self {
+        Span::Range { file, start: offset, end: offset + 1 }
+    }
+
     pub fn eof(file: File) -> Self {
         Span::Eof(file)
     }

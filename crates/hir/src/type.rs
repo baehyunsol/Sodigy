@@ -255,7 +255,7 @@ impl Type {
                 let mut span = id.span;
 
                 for field in fields.iter() {
-                    if let Field::Name { span: field_span, .. } = field {
+                    if let Field::Name { name_span: field_span, .. } = field {
                         span = span.merge(*field_span);
                     }
                 }
@@ -278,7 +278,7 @@ impl Type {
                 let mut span = id.span;
 
                 for field in fields.iter() {
-                    if let Field::Name { span: field_span, .. } = field {
+                    if let Field::Name { name_span: field_span, .. } = field {
                         span = span.merge(*field_span);
                     }
                 }
@@ -318,7 +318,7 @@ impl Type {
                     |field| match field {
                         Field::Name { name, .. } => Field::Name {
                             name: *name,
-                            span: span,
+                            name_span: span,
                             dot_span: span,
                             is_from_alias: true,
                         },

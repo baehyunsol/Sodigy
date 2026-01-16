@@ -11,7 +11,7 @@ use crate::{
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
-use sodigy_parse::{self as ast, Field};
+use sodigy_parse::{self as ast, Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
@@ -71,7 +71,7 @@ pub enum Expr {
         fields: Vec<Field>,
     },
     FieldModifier {
-        fields: Vec<(InternedString, Span)>,
+        fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -459,24 +459,8 @@ impl Expr {
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
-            Expr::Path { lhs, fields } => {
-                let mut span = lhs.error_span_narrow();
-
-                for field in fields.iter() {
-                    span = span.merge(field.unwrap_span());
-                }
-
-                span
-            },
-            Expr::FieldModifier { fields, .. } => {
-                let mut span = fields[0].1;
-
-                for (_, field_span) in fields.iter().skip(1) {
-                    span = span.merge(*field_span);
-                }
-
-                span
-            },
+            Expr::Path { fields, .. } |
+            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
             Expr::PostfixOp { op_span, .. } => *op_span,
@@ -502,25 +486,10 @@ impl Expr {
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
-            Expr::Path { lhs, fields } => {
-                let mut span = lhs.error_span_wide();
-
-                for field in fields.iter() {
-                    span = span.merge(field.unwrap_span());
-                }
-
-                span
-            },
-            Expr::FieldModifier { lhs, fields, rhs } => {
-                let mut span = lhs.error_span_wide();
-
-                for (_, field_span) in fields.iter() {
-                    span = span.merge(*field_span);
-                }
-
-                span = span.merge(rhs.error_span_wide());
-                span
-            },
+            Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+                .merge(merge_field_spans(fields))
+                .merge(rhs.error_span_wide()),
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),
             Expr::InfixOp { lhs, op_span, rhs, .. } => lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()),
             Expr::PostfixOp { op_span, lhs, .. } => lhs.error_span_wide().merge(*op_span),

@@ -79,8 +79,8 @@ InvalidKeywordArgument/370/Error
 MissingFunctionParameter/375/Error
 UnexpectedFunctionParameter/380/Error
 StructFieldRepeated/385/Error
-MissingStructField/390/Error
-InvalidStructField/395/Error
+MissingStructFields/390/Error
+InvalidStructFields/395/Error
 DependentTypeNotAllowed/400/Error
 NotStruct/405/Error
 NotPolyGeneric/410/Error

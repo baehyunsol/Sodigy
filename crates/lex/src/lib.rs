@@ -1627,7 +1627,11 @@ impl Session {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
-                        kind: TokenKind::FieldModifier(interned),
+                        kind: TokenKind::FieldModifier {
+                            field: interned,
+                            backtick_span: Span::single(self.file, self.token_start),
+                            field_span: Span::range(self.file, self.token_start + 1, self.cursor),
+                        },
                         span: Span::range(
                             self.file,
                             self.token_start,

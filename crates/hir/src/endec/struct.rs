@@ -61,13 +61,15 @@ impl Endec for StructInitField {
 
 impl Endec for StructShape {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
         self.fields.encode_impl(buffer);
         self.generics.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (fields, cursor) = Vec::<StructField>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
-        Ok((StructShape { fields, generics }, cursor))
+        Ok((StructShape { name, fields, generics }, cursor))
     }
 }

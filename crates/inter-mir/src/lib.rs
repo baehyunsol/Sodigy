@@ -17,7 +17,12 @@ use type_solver::TypeSolver;
 
 pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     let mut has_error = false;
-    let mut type_solver = TypeSolver::new(mir_session.lang_items.clone(), mir_session.intermediate_dir.clone());
+    let mut type_solver = TypeSolver::new(
+        mir_session.func_shapes.clone(),
+        mir_session.struct_shapes.clone(),
+        mir_session.lang_items.clone(),
+        mir_session.intermediate_dir.clone(),
+    );
     let mut poly_solver = HashMap::new();
 
     // It does 2 things.
@@ -25,6 +30,9 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     // 2. If a call is dispatched, we shouldn't throw `CannotInferGeneric` error for the call.
     //    -> this happens for poly generics. You can dispatch a poly generic with partially infered types!
     let mut dispatched_calls = HashSet::new();
+
+    // There's nothing to solve for structs and enums.
+    // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
     loop {
         for func in mir_session.funcs.iter() {
@@ -77,8 +85,6 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
                 });
             }
         }
-
-        // TODO: structs and enums
 
         // We don't want to do monomorphization if there's a type error
         // -> an erroneous monomorphization might generate very unreadable error messages

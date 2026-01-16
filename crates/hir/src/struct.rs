@@ -39,6 +39,7 @@ pub struct StructInitField {
 
 #[derive(Clone, Debug)]
 pub struct StructShape {
+    pub name: InternedString,
     pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
 }

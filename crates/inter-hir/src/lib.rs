@@ -12,6 +12,7 @@ use sodigy_hir::{
     Pattern,
     PatternKind,
     Session as HirSession,
+    Struct,
     StructField,
     StructShape,
     Type,
@@ -59,6 +60,7 @@ impl Session {
             |r#struct| (
                 r#struct.name_span,
                 StructShape {
+                    name: r#struct.name,
                     fields: r#struct.fields.iter().map(
                         |field| StructField {
                             name: field.name,
@@ -331,7 +333,13 @@ impl Session {
             }
         }
 
-        // TODO: structs, enums
+        for r#struct in hir_session.structs.iter_mut() {
+            if let Err(()) = self.resolve_struct(r#struct) {
+                has_error = true;
+            }
+        }
+
+        // TODO: enums
 
         for assert in hir_session.asserts.iter_mut() {
             if let Err(()) = self.resolve_assert(assert) {
@@ -406,6 +414,26 @@ impl Session {
         }
     }
 
+    pub fn resolve_struct(&mut self, r#struct: &mut Struct) -> Result<(), ()> {
+        let mut has_error = false;
+
+        for field in r#struct.fields.iter_mut() {
+            if let Some(type_annot) = &mut field.type_annot {
+                if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
+                    has_error = true;
+                }
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
     pub fn resolve_assert(&mut self, assert: &mut Assert) -> Result<(), ()> {
         let mut has_error = false;
 
@@ -457,7 +485,7 @@ impl Session {
                     |field| match field {
                         Field::Name { name, .. } => Field::Name {
                             name: *name,
-                            span: r#use.root.span,
+                            name_span: r#use.root.span,
                             dot_span: r#use.root.span,
                             is_from_alias: true,
                         },
@@ -515,7 +543,7 @@ impl Session {
                                 |field| match field {
                                     Field::Name { name, .. } => Field::Name {
                                         name: *name,
-                                        span: r#use.root.span,
+                                        name_span: r#use.root.span,
                                         dot_span: r#use.root.span,
                                         is_from_alias: true,
                                     },
@@ -603,7 +631,7 @@ impl Session {
                     // -> error
                     else {
                         let (field_name, field_span) = match r#use.fields.get(0) {
-                            Some(Field::Name { name, span, .. }) => (*name, *span),
+                            Some(Field::Name { name, name_span, .. }) => (*name, *name_span),
                             _ => unreachable!(),
                         };
 
@@ -635,7 +663,7 @@ impl Session {
 
         if let Some(field) = r#use.fields.get(0) {
             let (field_name, field_span, is_from_alias) = match field {
-                Field::Name { name, span, is_from_alias, .. } => (*name, *span, *is_from_alias),
+                Field::Name { name, name_span, is_from_alias, .. } => (*name, *name_span, *is_from_alias),
                 _ => unreachable!(),
             };
 
@@ -752,7 +780,7 @@ impl Session {
                                     |field| match field {
                                         Field::Name { name, .. } => Field::Name {
                                             name: *name,
-                                            span: id.span,
+                                            name_span: id.span,
                                             dot_span: id.span,
                                             is_from_alias: true,
                                         },
@@ -905,7 +933,7 @@ impl Session {
 
                 match self.item_name_map.get(&id.def_span) {
                     Some((NameKind::Module, items)) => {
-                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
 
                         match items.get(&field_name) {
                             Some((item, item_kind)) => {
@@ -947,7 +975,7 @@ impl Session {
                     },
                     // r#type: `type x = Option.Some;`
                     Some((NameKind::Enum, items)) => {
-                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
 
                         match items.get(&field_name) {
                             Some(_) => {
@@ -1023,7 +1051,7 @@ impl Session {
                                                 |field| match field {
                                                     Field::Name { name, .. } => Field::Name {
                                                         name: *name,
-                                                        span: id.span,
+                                                        name_span: id.span,
                                                         dot_span: id.span,
                                                         is_from_alias: true,
                                                     },
@@ -1058,7 +1086,7 @@ impl Session {
 
                         match self.item_name_map.get(&id.def_span) {
                             Some((NameKind::Module, items)) => {
-                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
 
                                 match items.get(&field_name) {
                                     Some((item, item_kind)) => {
@@ -1108,7 +1136,7 @@ impl Session {
                             },
                             // r#type: `type x = Option.Some<Int>;`
                             Some((NameKind::Enum, items)) => {
-                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
 
                                 match items.get(&field_name) {
                                     Some(_) => {
@@ -1351,13 +1379,30 @@ impl Session {
                     Ok(())
                 }
             },
+            Expr::StructInit { r#struct, fields, .. } => {
+                let mut has_error = self.resolve_expr(r#struct).is_err();
+
+                for field in fields.iter_mut() {
+                    if let Err(()) = self.resolve_expr(&mut field.value) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             Expr::Path { lhs, fields } => {
                 self.resolve_expr(lhs)?;
 
                 match &**lhs {
                     Expr::Ident(id) => match self.item_name_map.get(&id.def_span) {
                         Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
-                            let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_span());
+                            let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
 
                             match items.get(&field_name) {
                                 Some((item, item_kind)) => {
@@ -1416,6 +1461,7 @@ impl Session {
             },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
+            Expr::FieldModifier { lhs, rhs, .. } |
             Expr::InfixOp { lhs, rhs, .. } => match (
                 self.resolve_expr(lhs),
                 self.resolve_expr(rhs),
@@ -1423,7 +1469,6 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
-            _ => panic!("TODO: {expr:?}"),
         }
     }
 

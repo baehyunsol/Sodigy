@@ -44,10 +44,10 @@ impl<'t, 's> Tokens<'t, 's> {
         loop {
             // `use a.{b`
             // `use a`
-            let (name, span) = self.pop_name_and_span()?;
+            let (name, name_span) = self.pop_name_and_span()?;
             prefix.push(Field::Name {
                 name,
-                span,
+                name_span,
                 dot_span,
                 is_from_alias: false,
             });
@@ -172,7 +172,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             result.push(Use {
                                 full_path: prefix.clone(),
                                 name: prefix.last().unwrap().unwrap_name(),
-                                name_span: prefix.last().unwrap().unwrap_span(),
+                                name_span: prefix.last().unwrap().unwrap_name_span(),
 
                                 // not available yet
                                 keyword_span: Span::None,
@@ -211,7 +211,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             result.push(Use {
                                 full_path: prefix.clone(),
                                 name: prefix.last().unwrap().unwrap_name(),
-                                name_span: prefix.last().unwrap().unwrap_span(),
+                                name_span: prefix.last().unwrap().unwrap_name_span(),
 
                                 // not available yet
                                 keyword_span: Span::None,
@@ -335,7 +335,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     result.push(Use {
                         full_path: prefix.clone(),
                         name: prefix.last().unwrap().unwrap_name(),
-                        name_span: prefix.last().unwrap().unwrap_span(),
+                        name_span: prefix.last().unwrap().unwrap_name_span(),
 
                         // not available yet
                         keyword_span: Span::None,

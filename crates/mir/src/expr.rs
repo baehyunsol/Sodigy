@@ -1,12 +1,13 @@
 use crate::{Block, If, Match, Session, Type, lower_hir_if};
-use sodigy_error::{Error, ErrorKind, to_ordinal};
+use sodigy_error::{Error, ErrorKind, comma_list_strs, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
-use sodigy_parse::Field;
+use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::InfixOp;
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
 mod dispatch;
@@ -42,7 +43,7 @@ pub enum Expr {
         fields: Vec<Field>,
     },
     FieldModifier {
-        fields: Vec<(InternedString, Span)>,
+        fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -500,6 +501,8 @@ impl Expr {
                     })
                 }
             },
+            // Unlike hir::Expr::Call, we'll raise an error here if the number of
+            // fields is wrong.
             hir::Expr::StructInit { r#struct, fields: hir_fields, group_span } => {
                 let group_span = *group_span;
                 let mut has_error = false;
@@ -554,6 +557,11 @@ impl Expr {
 
                 match session.struct_shapes.get(&def_span) {
                     Some(struct_shape) => {
+                        let struct_shape = struct_shape.clone();
+                        let field_defs = struct_shape.fields.clone();
+                        let mut missing_fields = vec![];
+                        let mut invalid_fields = vec![];
+
                         if !struct_shape.generics.is_empty() {
                             for generic_def in struct_shape.generics.iter() {
                                 session.generic_instances.insert(
@@ -567,131 +575,207 @@ impl Expr {
                             }
                         }
 
-                        let field_defs = struct_shape.fields.clone();
-                        let mut mir_fields = vec![None; hir_fields.len()];
-                        let mut name_spans = vec![None; hir_fields.len()];
+                        let mut mir_fields = vec![None; field_defs.len()];
+                        let mut name_spans = vec![None; field_defs.len()];
+                        let mut mir_fields_final = Vec::with_capacity(mir_fields.len());
 
-                        for hir_field in hir_fields.iter() {
-                            let mut field_index = None;
+                        if hir_fields.len() > field_defs.len() {
+                            let field_names = field_defs.iter().map(|field| field.name).collect::<HashSet<_>>();
 
-                            for (i, field_def) in field_defs.iter().enumerate() {
-                                if field_def.name == hir_field.name {
-                                    field_index = Some(i);
-                                    break;
+                            for hir_field in hir_fields.iter() {
+                                match repeated_fields.entry(hir_field.name) {
+                                    Entry::Occupied(mut e) => {
+                                        e.get_mut().push(RenderableSpan {
+                                            span: hir_field.name_span,
+                                            auxiliary: false,
+                                            note: None,
+                                        });
+                                    },
+                                    Entry::Vacant(e) => {
+                                        e.insert(vec![
+                                            RenderableSpan {
+                                                span: hir_field.name_span,
+                                                auxiliary: false,
+                                                note: None,
+                                            },
+                                        ]);
+                                    },
+                                }
+
+                                if !field_names.contains(&hir_field.name) {
+                                    invalid_fields.push((hir_field.name, hir_field.name_span));
                                 }
                             }
 
-                            match field_index {
-                                Some(i) => {
-                                    if mir_fields[i].is_some() {
-                                        match repeated_fields.entry(hir_field.name) {
-                                            Entry::Occupied(mut e) => {
-                                                e.get_mut().push(RenderableSpan {
-                                                    span: hir_field.name_span,
-                                                    auxiliary: false,
-                                                    note: None,
-                                                });
-                                                e.get_mut().push(RenderableSpan {
-                                                    span: name_spans[i].unwrap(),
-                                                    auxiliary: false,
-                                                    note: None,
-                                                });
-                                            },
-                                            Entry::Vacant(e) => {
-                                                e.insert(vec![
-                                                    RenderableSpan {
+                            has_error = true;
+                        }
+
+                        else {
+                            for hir_field in hir_fields.iter() {
+                                let mut field_index = None;
+
+                                for (i, field_def) in field_defs.iter().enumerate() {
+                                    if field_def.name == hir_field.name {
+                                        field_index = Some(i);
+                                        break;
+                                    }
+                                }
+
+                                match field_index {
+                                    Some(i) => {
+                                        if mir_fields[i].is_some() {
+                                            match repeated_fields.entry(hir_field.name) {
+                                                Entry::Occupied(mut e) => {
+                                                    e.get_mut().push(RenderableSpan {
                                                         span: hir_field.name_span,
                                                         auxiliary: false,
                                                         note: None,
-                                                    },
-                                                    RenderableSpan {
+                                                    });
+                                                    e.get_mut().push(RenderableSpan {
                                                         span: name_spans[i].unwrap(),
                                                         auxiliary: false,
                                                         note: None,
-                                                    },
-                                                ]);
+                                                    });
+                                                },
+                                                Entry::Vacant(e) => {
+                                                    e.insert(vec![
+                                                        RenderableSpan {
+                                                            span: hir_field.name_span,
+                                                            auxiliary: false,
+                                                            note: None,
+                                                        },
+                                                        RenderableSpan {
+                                                            span: name_spans[i].unwrap(),
+                                                            auxiliary: false,
+                                                            note: None,
+                                                        },
+                                                    ]);
+                                                },
+                                            }
+                                        }
+
+                                        match Expr::from_hir(&hir_field.value, session) {
+                                            Ok(field) => {
+                                                mir_fields[i] = Some(field);
+                                            },
+                                            Err(()) => {
+                                                has_error = true;
                                             },
                                         }
-                                    }
 
-                                    match Expr::from_hir(&hir_field.value, session) {
-                                        Ok(field) => {
-                                            mir_fields[i] = Some(field);
-                                        },
-                                        Err(()) => {
-                                            has_error = true;
-                                        },
-                                    }
-
-                                    name_spans[i] = Some(hir_field.name_span);
-                                },
-                                None => {
-                                    has_error = true;
-                                    session.errors.push(Error {
-                                        kind: ErrorKind::InvalidStructField(hir_field.name),
-                                        spans: hir_field.name_span.simple_error(),
-                                        note: None,
-                                    });
-                                },
+                                        name_spans[i] = Some(hir_field.name_span);
+                                    },
+                                    None => {
+                                        invalid_fields.push((hir_field.name, hir_field.name_span));
+                                        has_error = true;
+                                    },
+                                }
                             }
-                        }
 
-                        for (field_name, error_spans) in repeated_fields.into_iter() {
-                            // remove repeats and sort by span
-                            let mut error_spans = error_spans.into_iter().map(
-                                |span| (span.span, span)
-                            ).collect::<HashMap<_, _>>().into_iter().map(
-                                |(_, span)| span
-                            ).collect::<Vec<_>>();
-                            error_spans.sort_by_key(|span| span.span);
+                            for (field_name, error_spans) in repeated_fields.into_iter() {
+                                // remove repeats and sort by span
+                                let mut error_spans = error_spans.into_iter().map(
+                                    |span| (span.span, span)
+                                ).collect::<HashMap<_, _>>().into_iter().map(
+                                    |(_, span)| span
+                                ).collect::<Vec<_>>();
+                                error_spans.sort_by_key(|span| span.span);
 
-                            session.errors.push(Error {
-                                kind: ErrorKind::StructFieldRepeated(field_name),
-                                spans: error_spans,
-                                note: None,
-                            });
-                        }
-
-                        for i in 0..field_defs.len() {
-                            match (&mir_fields[i], &field_defs[i].default_value) {
-                                (None, Some(default_value)) => {
-                                    mir_fields[i] = Some(Expr::Ident(*default_value));
-                                },
-                                _ => {},
+                                session.errors.push(Error {
+                                    kind: ErrorKind::StructFieldRepeated(field_name),
+                                    spans: error_spans,
+                                    note: None,
+                                });
+                                has_error = true;
                             }
-                        }
 
-                        let mut mir_fields_unwrapped = Vec::with_capacity(mir_fields.len());
+                            for i in 0..field_defs.len() {
+                                match (&mir_fields[i], &field_defs[i].default_value) {
+                                    (None, Some(default_value)) => {
+                                        mir_fields[i] = Some(Expr::Ident(*default_value));
+                                    },
+                                    _ => {},
+                                }
+                            }
 
-                        for (i, mir_field) in mir_fields.into_iter().enumerate() {
-                            match mir_field {
-                                Some(mir_field) => {
-                                    mir_fields_unwrapped.push(mir_field);
-                                },
-                                None => {
-                                    let field_name = field_defs[i].name.unintern_or_default(&session.intermediate_dir);
-                                    session.errors.push(Error {
-                                        kind: ErrorKind::MissingStructField(field_defs[i].name),
-                                        spans: vec![
-                                            RenderableSpan {
-                                                span: group_span,
-                                                auxiliary: false,
-                                                note: Some(format!("This instance is missing field `{field_name}`.")),
-                                            },
-                                            RenderableSpan {
-                                                span: field_defs[i].name_span,
-                                                auxiliary: true,
-                                                note: Some(format!("The field `{field_name}` is defined here.")),
-                                            },
-                                        ],
-                                        note: None,
-                                    });
-                                    has_error = true;
-                                },
+                            for (i, mir_field) in mir_fields.into_iter().enumerate() {
+                                match mir_field {
+                                    Some(mir_field) => {
+                                        mir_fields_final.push(mir_field);
+                                    },
+                                    None => {
+                                        missing_fields.push(&field_defs[i]);
+                                        has_error = true;
+                                    },
+                                }
                             }
                         }
 
                         if has_error {
+                            let struct_name = struct_shape.name;
+
+                            if !missing_fields.is_empty() {
+                                let names = missing_fields.iter().map(|field| field.name).collect::<Vec<_>>();
+                                let mut spans = missing_fields.iter().map(
+                                    |field| RenderableSpan {
+                                        span: field.name_span,
+                                        auxiliary: true,
+                                        note: Some(format!(
+                                            "Field `{}` is defined here.",
+                                            field.name.unintern_or_default(&session.intermediate_dir),
+                                        )),
+                                    }
+                                ).collect::<Vec<_>>();
+                                spans.push(RenderableSpan {
+                                    span: group_span,
+                                    auxiliary: false,
+                                    note: Some(format!(
+                                        "Field{} {} {} missing here.",
+                                        if missing_fields.len() == 1 { "" } else { "s" },
+                                        comma_list_strs(
+                                            &names.iter().map(|name| name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                                            "`",
+                                            "`",
+                                            "and",
+                                        ),
+                                        if missing_fields.len() == 1 { "is" } else { "are" },
+                                    )),
+                                });
+
+                                session.errors.push(Error {
+                                    kind: ErrorKind::MissingStructFields { struct_name, missing_fields: names },
+                                    spans,
+                                    note: None,
+                                });
+                            }
+
+                            if !invalid_fields.is_empty() {
+                                let names = invalid_fields.iter().map(|(name, _)| *name).collect();
+                                let mut spans = invalid_fields.iter().map(
+                                    |(_, name_span)| RenderableSpan {
+                                        span: *name_span,
+                                        auxiliary: false,
+                                        note: None,
+                                    }
+                                ).collect::<Vec<_>>();
+
+                                session.errors.push(Error {
+                                    kind: ErrorKind::InvalidStructFields { struct_name, invalid_fields: names },
+                                    spans,
+                                    note: Some(format!(
+                                        "Available field{} {} {}.",
+                                        if field_defs.len() == 1 { "" } else { "s" },
+                                        if field_defs.len() == 1 { "is" } else { "are" },
+                                        comma_list_strs(
+                                            &field_defs.iter().map(|field| field.name.unintern_or_default(&session.intermediate_dir)).collect::<Vec<_>>(),
+                                            "`",
+                                            "`",
+                                            "and",
+                                        ),
+                                    )),
+                                });
+                            }
+
                             Err(())
                         }
 
@@ -701,7 +785,7 @@ impl Expr {
                                     def_span,
                                     span,
                                 },
-                                args: mir_fields_unwrapped,
+                                args: mir_fields_final,
                                 arg_group_span: group_span,
                                 generic_defs,
                                 given_keyword_arguments: vec![],
@@ -853,17 +937,8 @@ impl Expr {
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
             Expr::Block(block) => block.group_span,
-            // Let's hope it doesn't panic...
-            Expr::Path { fields, .. } => fields[0].dot_span().unwrap(),
-            Expr::FieldModifier { fields, .. } => {
-                let mut merged_span = fields[0].1;
-
-                for (_, span) in fields.iter() {
-                    merged_span = merged_span.merge(*span);
-                }
-
-                merged_span
-            },
+            Expr::Path { fields, .. } |
+            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
             Expr::Call { func, .. } => func.error_span_narrow(),
         }
     }
@@ -878,29 +953,10 @@ impl Expr {
             Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
             Expr::Block(block) => block.group_span,
-            Expr::Path { lhs, fields } => {
-                let mut span = lhs.error_span_wide();
-
-                for field in fields.iter() {
-                    match field {
-                        Field::Name { span: s, .. } => {
-                            span = span.merge(*s);
-                        },
-                        _ => unreachable!(),
-                    }
-                }
-
-                span
-            },
-            Expr::FieldModifier { lhs, fields, rhs } => {
-                let mut span = lhs.error_span_wide();
-
-                for (_, field_span) in fields.iter() {
-                    span = span.merge(*field_span);
-                }
-
-                span.merge(rhs.error_span_wide())
-            },
+            Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+                .merge(merge_field_spans(fields))
+                .merge(rhs.error_span_wide()),
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
         }
     }

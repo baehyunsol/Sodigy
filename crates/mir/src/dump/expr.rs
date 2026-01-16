@@ -161,9 +161,9 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::FieldModifier { lhs, fields, rhs } => {
             dump_expr(lhs, lines, session);
 
-            for (field, _) in fields.iter() {
+            for field in fields.iter() {
                 lines.push(" `");
-                lines.push(&field.unintern_or_default(&session.intermediate_dir));
+                lines.push(&field.unwrap_name().unintern_or_default(&session.intermediate_dir));
             }
 
             lines.push(" ");
@@ -175,7 +175,10 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                     lines.push(&session.span_to_string(*def_span).unwrap_or_else(|| format!("({def_span:?})")));
                     ("(", ")")
                 },
-                Callable::StructInit { .. } => todo!(),
+                Callable::StructInit { def_span, .. } => {
+                    lines.push(&session.span_to_string(*def_span).unwrap_or_else(|| format!("({def_span:?})")));
+                    ("{", "}")
+                },
                 Callable::TupleInit { .. } => ("(", ")"),
                 Callable::ListInit { .. } => ("[", "]"),
                 Callable::Dynamic(f) => {

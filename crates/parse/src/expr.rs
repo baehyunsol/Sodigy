@@ -83,7 +83,7 @@ pub enum Expr {
         field: Field,
     },
     FieldModifier {
-        fields: Vec<(InternedString, Span)>,
+        fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
     },
@@ -136,19 +136,8 @@ impl Expr {
             Expr::Block(block) => block.group_span,
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
-            Expr::Path { field, .. } => {
-                let Field::Name { dot_span, .. } = field else { unreachable!() };
-                *dot_span
-            },
-            Expr::FieldModifier { fields, .. } => {
-                let mut span = fields[0].1;
-
-                for (_, field_span) in fields.iter().skip(1) {
-                    span = span.merge(*field_span);
-                }
-
-                span
-            },
+            Expr::Path { field, .. } => merge_field_spans(&[*field]),
+            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => *arrow_span,
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
         }
@@ -170,23 +159,10 @@ impl Expr {
             Expr::Block(block) => block.group_span,
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_narrow().merge(*group_span),
-            Expr::Path { lhs, field } => {
-                let span = lhs.error_span_wide();
-
-                match field {
-                    Field::Name { span: s, .. } => span.merge(*s),
-                    _ => unreachable!(),
-                }
-            },
-            Expr::FieldModifier { lhs, fields, rhs } => {
-                let mut span = lhs.error_span_wide();
-
-                for (_, field_span) in fields.iter() {
-                    span = span.merge(*field_span);
-                }
-
-                span.merge(rhs.error_span_wide())
-            },
+            Expr::Path { lhs, field } => lhs.error_span_wide().merge(merge_field_spans(&[*field])),
+            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+                .merge(merge_field_spans(fields))
+                .merge(rhs.error_span_wide()),
             Expr::Lambda(Lambda { param_group_span, arrow_span, value, .. }) => param_group_span
                 .merge(*arrow_span)
                 .merge(value.error_span_wide()),
@@ -230,7 +206,7 @@ impl Expr {
 pub enum Field {
     Name {
         name: InternedString,
-        span: Span,
+        name_span: Span,
         dot_span: Span,
         is_from_alias: bool,
     },
@@ -274,12 +250,28 @@ impl Field {
         }
     }
 
-    pub fn unwrap_span(&self) -> Span {
+    pub fn unwrap_name_span(&self) -> Span {
         match self {
-            Field::Name { span, .. } => *span,
+            Field::Name { name_span, .. } => *name_span,
             _ => panic!(),
         }
     }
+}
+
+pub fn merge_field_spans(fields: &[Field]) -> Span {
+    let mut span = Span::None;
+
+    for field in fields.iter() {
+        match field {
+            Field::Name { dot_span, name_span, .. } => {
+                span = span.merge(*dot_span);
+                span = span.merge(*name_span);
+            },
+            _ => {},
+        }
+    }
+
+    span
 }
 
 impl<'t, 's> Tokens<'t, 's> {
@@ -528,7 +520,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             lhs: Box::new(lhs),
                             field: Field::Name {
                                 name,
-                                span: name_span,
+                                name_span,
                                 dot_span: punct_span,
                                 is_from_alias: false,
                             },
@@ -708,8 +700,8 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Some(Token {
-                    kind: TokenKind::FieldModifier(field),
-                    span,
+                    kind: TokenKind::FieldModifier { field, backtick_span, field_span },
+                    ..
                 }) => {
                     let (l_bp, r_bp) = field_modifier_binding_power();
 
@@ -717,14 +709,24 @@ impl<'t, 's> Tokens<'t, 's> {
                         break;
                     }
 
-                    let mut fields = vec![(*field, *span)];
+                    let mut fields = vec![Field::Name {
+                        name: *field,
+                        name_span: *field_span,
+                        dot_span: *backtick_span,
+                        is_from_alias: false,
+                    }];
                     self.cursor += 1;
 
                     while let Some(Token {
-                        kind: TokenKind::FieldModifier(field),
+                        kind: TokenKind::FieldModifier { field, backtick_span, field_span },
                         span,
                     }) = self.peek() {
-                        fields.push((*field, *span));
+                        fields.push(Field::Name {
+                            name: *field,
+                            name_span: *field_span,
+                            dot_span: *backtick_span,
+                            is_from_alias: false,
+                        });
                         self.cursor += 1;
                     }
 

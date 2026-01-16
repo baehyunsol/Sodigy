@@ -219,7 +219,7 @@ impl Expr {
             Expr::PostfixOp { lhs: operand, .. } => operand.check(intermediate_dir),
 
             // Hir will lower a pipeline to a block, and hir will do the checks.
-            Expr::Pipeline { values, pipe_spans } => Ok(()),
+            Expr::Pipeline { .. } => Ok(()),
             Expr::PipelineData(_) => Ok(()),
         }
     }
