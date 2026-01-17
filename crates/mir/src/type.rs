@@ -79,6 +79,19 @@ pub enum Type {
         // span of `T` in `fn first<T>`
         generic: Span,
     },
+
+    // It's kinda type variable, but the compiler will not try to unify this.
+    // It's for "a type equation that is too difficult for the compiler to solve".
+    // Let's say `x.y` and `z` has the same type, and it doesn't know the type of `x`.
+    // It's too difficult to solve the type of `z`, so the compiler just returns
+    // `Type::Blocked { origin: x.def_span }`. It just (temporarily) gives up the inference.
+    // When the type-analysis is complete, the compiler checks if it has ever encountered
+    // `Type::Blocked`. If so, it does the type-analysis again. Since it has more information
+    // than before, it may successfully infer/check all the types without encountering
+    // `Type::Blocked` again.
+    Blocked {
+        origin: Span,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -250,7 +263,8 @@ impl Type {
             Type::Static { .. } |
             Type::GenericDef { .. } |
             Type::Unit(_) |
-            Type::Never(_) => vec![],
+            Type::Never(_) |
+            Type::Blocked { .. } => vec![],
             Type::Param { constructor: t, args, .. } |
             Type::Func { r#return: t, params: args, .. } => {
                 let mut result = t.get_type_vars();
@@ -270,7 +284,8 @@ impl Type {
             Type::Static { .. } |
             Type::GenericDef { .. } |
             Type::Unit(_) |
-            Type::Never(_) => {},
+            Type::Never(_) |
+            Type::Blocked { .. } => {},
             Type::Param {
                 constructor: t,
                 args,
@@ -305,7 +320,8 @@ impl Type {
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
-            Type::GenericInstance { .. } => {},
+            Type::GenericInstance { .. } |
+            Type::Blocked { .. } => {},
             Type::Param {
                 constructor: t,
                 args,
@@ -333,7 +349,8 @@ impl Type {
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
-            Type::GenericInstance { .. } => {},
+            Type::GenericInstance { .. } |
+            Type::Blocked { .. } => {},
             Type::Param {
                 constructor: t,
                 args,
@@ -482,7 +499,9 @@ impl Session {
                 ).collect::<Vec<_>>().join(", "),
                 self.render_type(r#return.as_ref()),
             ),
-            Type::Var { .. } | Type::GenericInstance { .. } => String::from("_"),
+            Type::Var { .. } |
+            Type::GenericInstance { .. } |
+            Type::Blocked { .. } => String::from("_"),
             Type::Never { .. } => String::from("!"),
         }
     }

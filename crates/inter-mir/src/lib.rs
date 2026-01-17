@@ -24,6 +24,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         mir_session.intermediate_dir.clone(),
     );
     let mut poly_solver = HashMap::new();
+    let mut prev_blocked_type_var_count = None;
 
     // It does 2 things.
     // 1. It prevents the compiler from dispatching the same call (with the same dispatch) multiple times.
@@ -35,6 +36,9 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
     loop {
+        prev_blocked_type_var_count = Some(type_solver.blocked_type_vars.len());
+        type_solver.blocked_type_vars = HashSet::new();
+
         for func in mir_session.funcs.iter() {
             // We'll check generic functions after monomorphization.
             if func.generics.is_empty() && !func.built_in {
@@ -106,13 +110,10 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
 
         match type_solver.get_mono_plan(&poly_solver, &mut dispatched_calls, &mir_session) {
             Ok(mono) => {
-                if mono.is_empty() {
-                    break;
-                }
-
-                else {
+                if !mono.is_empty() {
                     mir_session.dispatch(&mono.dispatch_map);
                     // TODO: do we have to invalidate previous `generic_instances` after dispatching?
+                    continue;
                 }
             },
             Err(()) => {
@@ -120,6 +121,32 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
                 break;
             },
         }
+
+        // Oops, we have a blocked type var, so we cannot finish the pass.
+        // A blocked type var is a type var that "is too difficult to solve now, but maybe
+        // able to solve when we have more information".
+        if type_solver.blocked_type_vars.len() > 0 {
+            // we're making a progress! let's continue
+            if type_solver.blocked_type_vars.len() < prev_blocked_type_var_count.unwrap_or(usize::MAX) {
+                continue;
+            }
+
+            // we can't solve the types even with more information. let's just give up and ask the programmer
+            // to give more type annotations
+            else {
+                for def_span in type_solver.blocked_type_vars.iter() {
+                    type_solver.errors.push(TypeError::CannotInferType {
+                        id: None,
+                        span: *def_span,
+                        is_return: false,
+                    });
+                }
+
+                has_error = true;
+            }
+        }
+
+        break;
     }
 
     // If we already have an error, it's likely that type-inference is not complete,

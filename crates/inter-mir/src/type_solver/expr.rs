@@ -478,7 +478,7 @@ impl TypeSolver {
                         // When someone calls `foo`, they'll reach this branch.
                         // `def_span` will have `foo`'s span and `v` will have
                         // `x` (the param definition)'s span.
-                        Some(v @ (Type::Var { .. } | Type::GenericInstance { .. })) => {
+                        Some(v @ (Type::Var { .. } | Type::GenericInstance { .. } | Type::Blocked { .. })) => {
                             let v = v.clone();
 
                             match self.solve_supertype(
@@ -707,7 +707,7 @@ impl TypeSolver {
                                 }
                             }
                         },
-                        _ => todo!(),
+                        _ => {},
                     },
                     _ => todo!(),
                 }
@@ -727,16 +727,19 @@ impl TypeSolver {
                             )
                         }
                     },
-                    None => todo!(),  // type error!
+                    None => {
+                        // maybe it's an associated function!
+                        todo!()
+                    },
                 }
             },
             Type::Unit(_) => todo!(),  // It must be an error... right?
             Type::Param { constructor, args, .. } => {
                 if let Type::Unit(_) = &**constructor {
-                    let field_type = match &field[0] {
-                        Field::Name { name, .. } => {
-                            let mut field_type = None;
+                    let mut field_type = None;
 
+                    match &field[0] {
+                        Field::Name { name, .. } => {
                             for i in 0..args.len() {
                                 let i_s = format!("_{i}");
 
@@ -745,11 +748,6 @@ impl TypeSolver {
                                     break;
                                 }
                             }
-
-                            match field_type {
-                                Some(field_type) => field_type,
-                                None => todo!(),  // error: no such field
-                            }
                         },
                         Field::Index(i) => todo!(),
                         Field::Range(start, end) => todo!(),
@@ -757,17 +755,25 @@ impl TypeSolver {
                         Field::Constructor | Field::Payload => unreachable!(),
                     };
 
-                    if field.len() == 1 {
-                        Ok(field_type)
-                    }
+                    match field_type {
+                        Some(field_type) => {
+                            if field.len() == 1 {
+                                Ok(field_type)
+                            }
 
-                    else {
-                        self.get_type_of_field(
-                            &field_type,
-                            &field[1..],
-                            types,
-                            generic_instances,
-                        )
+                            else {
+                                self.get_type_of_field(
+                                    &field_type,
+                                    &field[1..],
+                                    types,
+                                    generic_instances,
+                                )
+                            }
+                        },
+                        None => {
+                            // maybe it's an associated function!
+                            todo!()
+                        },
                     }
                 }
 
@@ -775,7 +781,15 @@ impl TypeSolver {
                     todo!()
                 }
             },
-            _ => todo!(),
+            // `Type::Blocked` exists exactly for this reason.
+            // Read the documentation at `crates/mir/src/type.rs`.
+            Type::Var { def_span: span, .. } |
+            Type::GenericInstance { call: span, .. } |
+            Type::Blocked { origin: span } => {
+                self.blocked_type_vars.insert(*span);
+                Ok(Type::Blocked { origin: *span })
+            },
+            _ => panic!("TODO: {type:?}"),
         }
     }
 }

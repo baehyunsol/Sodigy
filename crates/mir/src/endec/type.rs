@@ -48,6 +48,10 @@ impl Endec for Type {
                 call.encode_impl(buffer);
                 generic.encode_impl(buffer);
             },
+            Type::Blocked { origin } => {
+                buffer.push(8);
+                origin.encode_impl(buffer);
+            },
         }
     }
 
@@ -95,7 +99,11 @@ impl Endec for Type {
                 let (generic, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Type::GenericInstance { call, generic }, cursor))
             },
-            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(8) => {
+                let (origin, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((Type::Blocked { origin }, cursor))
+            },
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

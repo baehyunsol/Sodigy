@@ -640,7 +640,8 @@ fn get_matrix(
         Type::Func { params, r#return, .. } => todo!(),
         Type::GenericDef { .. } |
         Type::Var { .. } |
-        Type::GenericInstance { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
+        Type::GenericInstance { .. } |
+        Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
     }
 }
 

@@ -55,6 +55,10 @@ pub struct TypeSolver {
     // is in this set, the type variable has `Type::Never`.
     pub maybe_never_type: HashMap<Type /* TypeVar */, Type /* Type::Never */>,
 
+    // It collects the `origin` field of `Type::Blocked`.
+    // Read `crates/mir/src/type.rs` for more information.
+    pub blocked_type_vars: HashSet<Span>,
+
     // We might fail to infer type of name bindings in patterns, because
     // we don't solve the types of patterns (will later be done by MatchFsm).
     pub pattern_name_bindings: HashSet<Span>,
@@ -78,6 +82,7 @@ impl TypeSolver {
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),
+            blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
             lang_items,
             errors: vec![],
@@ -653,6 +658,7 @@ impl TypeSolver {
                     Ok(t1.clone())
                 }
             },
+            (Type::Blocked { .. }, t) | (t, Type::Blocked { .. }) => Ok(t.clone()),
             (Type::GenericDef { .. }, _) | (_, Type::GenericDef { .. }) => {
                 // We'll only type check/infer monomorphized functions.
                 unreachable!()
