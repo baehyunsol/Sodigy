@@ -433,16 +433,30 @@ impl Session {
                     },
                 },
                 // This is the only 3-character punct in the current spec
-                (Some(b'.'), Some(b'.'), Some(b'=')) => {
-                    self.tokens.push(Token {
-                        kind: TokenKind::Punct(Punct::DotDotEq),
-                        span: Span::range(
-                            self.file,
-                            self.cursor,
-                            self.cursor + 3,
-                        ),
-                    });
-                    self.cursor += 3;
+                (Some(b'.'), Some(b'.'), Some(b'=')) => match self.input_bytes.get(self.cursor + 3) {
+                    // "..=>" is ".." + "=>", not "..=" + ">"
+                    Some(b'>') => {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Punct(Punct::DotDot),
+                            span: Span::range(
+                                self.file,
+                                self.cursor,
+                                self.cursor + 2,
+                            ),
+                        });
+                        self.cursor += 2;
+                    },
+                    _ => {
+                        self.tokens.push(Token {
+                            kind: TokenKind::Punct(Punct::DotDotEq),
+                            span: Span::range(
+                                self.file,
+                                self.cursor,
+                                self.cursor + 3,
+                            ),
+                        });
+                        self.cursor += 3;
+                    },
                 },
                 (
                     Some(x @ (b'!' | b'&' | b'+' | b'-' | b'.' | b'<' | b'=' | b'>' | b'|')),
