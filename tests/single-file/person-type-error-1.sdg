@@ -1,0 +1,25 @@
+//# assert len(errors) == 3, f"expected exactly 3 errors, got {len(errors)} errors"
+//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
+//# assert re.search(r"\`Int\`.+\`\[Char\]\`", errors[0].title)
+//# assert re.search(r"\`Bool\`.+\`Int\`", errors[1].title)
+//# assert re.search(r"\`\[Char\]\`.+\`Bool\`", errors[2].title)
+
+struct Person = {
+    name: String,
+    age: Int,
+    is_sodigian: Bool,
+};
+
+let myself = Person {
+    name: "Bae",
+    age: 27,
+    is_sodigian: True,
+};
+
+fn expect_string(s: String) -> Int = 0;
+fn expect_int(n: Int) -> Int = 0;
+fn expect_bool(b: Bool) -> Int = 0;
+
+assert expect_int(myself.name) == 0;
+assert expect_bool(myself.age) == 0;
+assert expect_string(myself.is_sodigian) == 0;

@@ -129,7 +129,9 @@ error_kinds!(
     (InvalidStructFields { struct_name: InternedString, invalid_fields: Vec<InternedString> }, 395,    Error),
 
     (DependentTypeNotAllowed,                                        400,    Error),
+    (NotCallable { r#type: String },                                 404,    Error),
     (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),
+    (NotExpr { id: InternedString, kind: NotExprBut },               406,    Error),
     (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
 
     // Type errors from here.
@@ -197,4 +199,31 @@ pub enum NameCollisionKind {
     Func { params: bool, generics: bool },     // params and/or generics
     Pattern,  // name bindings
     Struct,   // fields
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum NotExprBut {
+    Struct,
+    Enum,
+    Module,
+    GenericParam,
+}
+
+impl From<NameKind> for NotExprBut {
+    fn from(k: NameKind) -> NotExprBut {
+        match k {
+            NameKind::Let { .. } |
+            NameKind::Func |
+            NameKind::EnumVariant { .. } |
+            NameKind::Alias |
+            NameKind::Use |
+            NameKind::FuncParam |
+            NameKind::PatternNameBind |
+            NameKind::Pipeline => unreachable!(),
+            NameKind::Struct => NotExprBut::Struct,
+            NameKind::Enum => NotExprBut::Enum,
+            NameKind::Module => NotExprBut::Module,
+            NameKind::Generic => NotExprBut::GenericParam,
+        }
+    }
 }

@@ -480,13 +480,16 @@ impl Session {
                 if args.len() == 1 { "," } else { "" },
             ),
             // TODO: alias `List<T>` to `[T]`?
-            Type::Param { constructor, args, .. } => format!(
-                "{}<{}>",
-                self.render_type(constructor),
-                args.iter().map(
+            Type::Param { constructor, args, .. } => {
+                let args = args.iter().map(
                     |arg| self.render_type(arg)
-                ).collect::<Vec<_>>().join(", "),
-            ),
+                ).collect::<Vec<_>>().join(", ");
+
+                match &**constructor {
+                    Type::Static { def_span, .. } if def_span == self.lang_items.get("type.List").unwrap() => format!("[{args}]"),
+                    _ => format!("{}<{args}>", self.render_type(constructor)),
+                }
+            },
             Type::Func { params, r#return, purity, .. } => format!(
                 "{}({}) -> {}",
                 match purity {

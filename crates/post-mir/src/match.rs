@@ -464,7 +464,6 @@ fn lower_matches_expr_recursive(
                 Ok(())
             }
         },
-        _ => panic!("TODO: {expr:?}"),
     }
 }
 

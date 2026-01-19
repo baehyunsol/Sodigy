@@ -1,4 +1,4 @@
-use crate::{Error, ErrorKind, ErrorToken, NameCollisionKind};
+use crate::{Error, ErrorKind, ErrorToken, NameCollisionKind, NotExprBut};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
 use sodigy_token::{Delim, Keyword, Punct};
@@ -199,6 +199,36 @@ impl Endec for NameCollisionKind {
             Some(3) => Ok((NameCollisionKind::Pattern, cursor + 1)),
             Some(4) => Ok((NameCollisionKind::Struct, cursor + 1)),
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for NotExprBut {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            NotExprBut::Struct => {
+                buffer.push(0);
+            },
+            NotExprBut::Enum => {
+                buffer.push(1);
+            },
+            NotExprBut::Module => {
+                buffer.push(2);
+            },
+            NotExprBut::GenericParam => {
+                buffer.push(3);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((NotExprBut::Struct, cursor + 1)),
+            Some(1) => Ok((NotExprBut::Enum, cursor + 1)),
+            Some(2) => Ok((NotExprBut::Module, cursor + 1)),
+            Some(3) => Ok((NotExprBut::GenericParam, cursor + 1)),
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

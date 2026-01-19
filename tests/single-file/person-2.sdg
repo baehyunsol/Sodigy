@@ -1,0 +1,25 @@
+struct Person = {
+    name: String,
+    age: Int,
+    friends: [Person],
+};
+
+let lonely_guy = Person {
+    name: "John",
+    age: 25,
+    friends: [],
+};
+
+let myself = Person {
+    name: "Bae",
+    age: 27,
+    friends: [lonely_guy],
+};
+
+let my_friend = Person {
+    name: "Lee",
+    age: 27,
+    friends: [myself],
+};
+
+assert my_friend.friends[0].friends[0].age == 25;

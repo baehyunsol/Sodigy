@@ -53,6 +53,7 @@ impl ErrorKind {
                     "and",
                 ),
             ),
+            ErrorKind::UnexpectedType { expected, got } => format!("Expected type `{expected}`, got type `{got}`."),
             ErrorKind::UnusedNames { names, kind } => {
                 let names = names.iter().map(
                     |name| name.unintern_or_default(intermediate_dir)

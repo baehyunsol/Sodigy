@@ -82,7 +82,9 @@ StructFieldRepeated/385/Error
 MissingStructFields/390/Error
 InvalidStructFields/395/Error
 DependentTypeNotAllowed/400/Error
+NotCallable/404/Error
 NotStruct/405/Error
+NotExpr/406/Error
 NotPolyGeneric/410/Error
 UnexpectedType/415/Error
 CannotInferType/420/Error

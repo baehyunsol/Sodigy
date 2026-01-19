@@ -46,6 +46,7 @@ def parse_expectation(code: str) -> str:
             else:
                 expectation = f"""
 def expect(status, errors, warnings, success, test_error, compile_error, misc_error, timeout):
+    import re
     {line.strip()}
 """
 

@@ -1,7 +1,15 @@
 use crate::Type;
-use sodigy_error::{Error, ErrorKind, Warning, WarningKind, comma_list_strs};
+use sodigy_error::{
+    Error,
+    ErrorKind,
+    NotExprBut,
+    Warning,
+    WarningKind,
+    comma_list_strs,
+};
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::Session as MirSession;
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -60,9 +68,13 @@ pub enum TypeError {
         r#type: Type,
         func_span: Span,
     },
-    NotAStruct {
+    NotStruct {
         // TODO: more information
         span: Span,
+    },
+    NotExpr {
+        id: IdentWithOrigin,
+        kind: NotExprBut,
     },
     CannotSpecializePolyGeneric {
         call: Span,
@@ -228,11 +240,19 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                             span: *call,
                             auxiliary: false,
                             note: Some(format!(
-                                "This is a generic function, so I tried to figure out its type arguments. There's a problem with the type parameter `{}`. Some information says `{}`'s type is `{}`, while another information says it's `{}`.",
+                                "This is a generic function, so I tried to infer its type arguments, but there's a problem with `{}`. Some information says `{}`'s type is `{}`, while other says it's `{}`.",
+                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
                                 session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
                                 expected_type,
-                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
                                 got_type,
+                            )),
+                        });
+                        spans.push(RenderableSpan {
+                            span: *generic,
+                            auxiliary: true,
+                            note: Some(format!(
+                                "Type parameter `{}` is defined here.",
+                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
                             )),
                         });
                     },
@@ -376,6 +396,60 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                     note: None,
                 },
                 _ => unreachable!(),
+            }
+        },
+        TypeError::NotCallable { r#type, func_span } => Error {
+            kind: ErrorKind::NotCallable {
+                r#type: session.render_type(r#type),
+            },
+            spans: vec![RenderableSpan {
+                span: *func_span,
+                auxiliary: false,
+                note: None,
+            }],
+            note: None,
+        },
+        TypeError::NotStruct { span } => Error {
+            kind: ErrorKind::NotStruct { id: None },
+            spans: span.simple_error(),
+            note: None,
+        },
+        TypeError::NotExpr { id, kind } => {
+            let name = id.id.unintern_or_default(&session.intermediate_dir);
+            let (note, short_note) = match kind {
+                NotExprBut::Struct => (
+                    Some(format!("`{name}` is a name of a struct. Use curly braces to initialize the struct.")),
+                    "a struct",
+                ),
+                NotExprBut::Enum => (
+                    Some(format!("`{name}` is a name of an enum. You have to use one of its variants.")),
+                    "an enum",
+                ),
+                NotExprBut::Module => (
+                    Some(format!("`{name}` is a module, not a value.")),
+                    "a module",
+                ),
+                NotExprBut::GenericParam => (
+                    Some(format!("`{name}` is a generic parameter, which is not a value.")),
+                    "a generic parameter",
+                ),
+            };
+
+            Error {
+                kind: ErrorKind::NotExpr { id: id.id, kind: *kind },
+                spans: vec![
+                    RenderableSpan {
+                        span: id.span,
+                        auxiliary: false,
+                        note: Some(format!("This is not an expression, but {short_note}.")),
+                    },
+                    RenderableSpan {
+                        span: id.def_span,
+                        auxiliary: true,
+                        note: Some(format!("`{name}` is defined here.")),
+                    },
+                ],
+                note,
             }
         },
         // TODO: based on the poly's def_span, I want it to throw

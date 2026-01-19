@@ -1,7 +1,7 @@
 struct Person = {
     name: String,
     age: Int,
-    is_rustacean: Bool,
+    is_sodigian: Bool,
 };
 
 fn get_old(p: Person) -> Person = p `age (p.age + 1);
@@ -10,5 +10,5 @@ assert old_bae.age == 26;
 let old_bae: Person = get_old(Person {
     name: "Bae",
     age: 25,
-    is_rustacean: True,
+    is_sodigian: True,
 });

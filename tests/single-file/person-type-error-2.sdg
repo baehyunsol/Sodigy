@@ -1,0 +1,9 @@
+//# assert len(errors) == 1, f"expected exactly 1 error, got {len(errors)} errors"
+//# assert errors[0].index == 406, f"expected error-406, got error-{errors[0].index}"
+
+struct Person = {
+    name: String,
+    age: Int,
+};
+
+let p: Person = Person;

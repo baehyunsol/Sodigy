@@ -45,8 +45,10 @@
     { struct_name: InternedString, missing_fields: Vec<InternedString> },
     InvalidStructFields
     { struct_name: InternedString, invalid_fields: Vec<InternedString> },
-    DependentTypeNotAllowed, NotStruct { id: Option<IdentWithOrigin> },
-    NotPolyGeneric { id: Option<IdentWithOrigin> }, UnexpectedType
+    DependentTypeNotAllowed, NotCallable { r#type: String }, NotStruct
+    { id: Option<IdentWithOrigin> }, NotExpr
+    { id: InternedString, kind: NotExprBut }, NotPolyGeneric
+    { id: Option<IdentWithOrigin> }, UnexpectedType
     { expected: String, got: String }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String, is_return: bool },
@@ -133,13 +135,15 @@
             StructFieldRepeated(_,) => 385u16, ErrorKind ::
             MissingStructFields { .. } => 390u16, ErrorKind ::
             InvalidStructFields { .. } => 395u16, ErrorKind ::
-            DependentTypeNotAllowed => 400u16, ErrorKind :: NotStruct { .. }
-            => 405u16, ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind
-            :: UnexpectedType { .. } => 415u16, ErrorKind :: CannotInferType
-            { .. } => 420u16, ErrorKind :: PartiallyInferedType { .. } =>
-            425u16, ErrorKind :: CannotInferGenericType { .. } => 430u16,
-            ErrorKind :: PartiallyInferedGenericType { .. } => 435u16,
-            ErrorKind :: CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
+            DependentTypeNotAllowed => 400u16, ErrorKind :: NotCallable { .. }
+            => 404u16, ErrorKind :: NotStruct { .. } => 405u16, ErrorKind ::
+            NotExpr { .. } => 406u16, ErrorKind :: NotPolyGeneric { .. } =>
+            410u16, ErrorKind :: UnexpectedType { .. } => 415u16, ErrorKind ::
+            CannotInferType { .. } => 420u16, ErrorKind ::
+            PartiallyInferedType { .. } => 425u16, ErrorKind ::
+            CannotInferGenericType { .. } => 430u16, ErrorKind ::
+            PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
+            CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
             => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
@@ -239,24 +243,26 @@
             ErrorLevel :: Error, ErrorKind :: MissingStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: DependentTypeNotAllowed =>
-            ErrorLevel :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel
-            :: Error, ErrorKind :: NotPolyGeneric { .. } => ErrorLevel ::
-            Error, ErrorKind :: UnexpectedType { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotInferType { .. } => ErrorLevel :: Error,
-            ErrorKind :: PartiallyInferedType { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotInferGenericType { .. } => ErrorLevel :: Error,
-            ErrorKind :: PartiallyInferedGenericType { .. } => ErrorLevel ::
-            Error, ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel ::
-            Error, ErrorKind :: CannotSpecializePolyGeneric { .. } =>
-            ErrorLevel :: Error, ErrorKind :: ImpureCallInPureContext =>
-            ErrorLevel :: Error, ErrorKind :: NonExhaustiveArms => ErrorLevel
-            :: Error, ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel ::
-            Error, ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel ::
-            Error, ErrorKind :: LibFileNotFound => ErrorLevel :: Error,
-            ErrorKind :: UnusedNames { .. } => ErrorLevel :: Warning,
-            ErrorKind :: UnreachableMatchArm => ErrorLevel :: Warning,
-            ErrorKind :: NoImpureCallInImpureContext => ErrorLevel :: Warning,
-            ErrorKind :: Todo { .. } => ErrorLevel :: Error, ErrorKind ::
+            ErrorLevel :: Error, ErrorKind :: NotCallable { .. } => ErrorLevel
+            :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel :: Error,
+            ErrorKind :: NotExpr { .. } => ErrorLevel :: Error, ErrorKind ::
+            NotPolyGeneric { .. } => ErrorLevel :: Error, ErrorKind ::
+            UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
+            PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
+            PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
+            Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
+            Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
+            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
+            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
+            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
+            UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
+            UnreachableMatchArm => ErrorLevel :: Warning, ErrorKind ::
+            NoImpureCallInImpureContext => ErrorLevel :: Warning, ErrorKind ::
+            Todo { .. } => ErrorLevel :: Error, ErrorKind ::
             InternalCompilerError { .. } => ErrorLevel :: Error,
         }
     }
@@ -457,11 +463,19 @@
                 r#struct_name.encode_impl(buffer);
                 r#invalid_fields.encode_impl(buffer);
             }, ErrorKind :: DependentTypeNotAllowed =>
-            { buffer.push(1u8); buffer.push(144u8); }, ErrorKind :: NotStruct
-            { r#id, } =>
+            { buffer.push(1u8); buffer.push(144u8); }, ErrorKind ::
+            NotCallable { r#type, } =>
+            {
+                buffer.push(1u8); buffer.push(148u8);
+                r#type.encode_impl(buffer);
+            }, ErrorKind :: NotStruct { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(149u8);
                 r#id.encode_impl(buffer);
+            }, ErrorKind :: NotExpr { r#id, r#kind, } =>
+            {
+                buffer.push(1u8); buffer.push(150u8);
+                r#id.encode_impl(buffer); r#kind.encode_impl(buffer);
             }, ErrorKind :: NotPolyGeneric { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(154u8);
@@ -769,11 +783,21 @@
                 Ok((ErrorKind :: InvalidStructFields
                 { r#struct_name, r#invalid_fields, }, cursor))
             }, 400u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
-            405u16 =>
+            404u16 =>
+            {
+                let (r#type, cursor) = String :: decode_impl(buffer, cursor) ?
+                ; Ok((ErrorKind :: NotCallable { r#type, }, cursor))
+            }, 405u16 =>
             {
                 let (r#id, cursor) = Option :: < IdentWithOrigin > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: NotStruct { r#id, }, cursor))
+            }, 406u16 =>
+            {
+                let (r#id, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
+                NotExprBut :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotExpr { r#id, r#kind, }, cursor))
             }, 410u16 =>
             {
                 let (r#id, cursor) = Option :: < IdentWithOrigin > ::

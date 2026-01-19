@@ -717,17 +717,17 @@ impl<'t, 's> Tokens<'t, 's> {
                     }];
                     self.cursor += 1;
 
-                    while let Some(Token {
-                        kind: TokenKind::FieldModifier { field, backtick_span, field_span },
-                        span,
-                    }) = self.peek() {
+                    while let (
+                        Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
+                        Some(Token { kind: TokenKind::Ident(id), span: field_span }),
+                    ) = self.peek2() {
                         fields.push(Field::Name {
-                            name: *field,
+                            name: *id,
                             name_span: *field_span,
-                            dot_span: *backtick_span,
+                            dot_span: *dot_span,
                             is_from_alias: false,
                         });
-                        self.cursor += 1;
+                        self.cursor += 2;
                     }
 
                     let rhs = self.pratt_parse(r_bp)?;

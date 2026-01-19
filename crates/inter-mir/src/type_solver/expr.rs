@@ -1,9 +1,10 @@
 use super::TypeSolver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
+use sodigy_error::NotExprBut;
 use sodigy_hir::FuncPurity;
 use sodigy_mir::{Callable, ShortCircuitKind};
-use sodigy_name_analysis::{NameKind, NameOrigin};
+use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -38,9 +39,15 @@ impl TypeSolver {
                             NameKind::PatternNameBind => {
                                 self.pattern_name_bindings.insert(id.def_span);
                             },
-                            _ => {},
+                            _ => {
+                                self.errors.push(not_an_expression(id));
+                                return (None, true);
+                            },
                         },
-                        _ => {},
+                        _ => {
+                            self.errors.push(not_an_expression(id));
+                            return (None, true);
+                        },
                     }
 
                     self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
@@ -533,7 +540,7 @@ impl TypeSolver {
                             (Some(Type::Static { def_span: *def_span, span: Span::None }), has_error)
                         },
                         None => {
-                            self.errors.push(TypeError::NotAStruct { span: *span });
+                            self.errors.push(TypeError::NotStruct { span: *span });
                             (None, true)
                         },
                     },
@@ -791,5 +798,27 @@ impl TypeSolver {
             },
             _ => panic!("TODO: {type:?}"),
         }
+    }
+}
+
+fn not_an_expression(id: &IdentWithOrigin) -> TypeError {
+    match &id.origin {
+        NameOrigin::FuncParam { .. } | NameOrigin::External => unreachable!(),
+        NameOrigin::Generic { .. } => TypeError::NotExpr {
+            id: *id,
+            kind: NotExprBut::GenericParam,
+        },
+        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+            NameKind::Let { .. } |
+            NameKind::Func |
+            NameKind::EnumVariant { .. } |
+            NameKind::FuncParam |
+            NameKind::PatternNameBind |
+            NameKind::Pipeline => unreachable!(),
+            k => TypeError::NotExpr {
+                id: *id,
+                kind: (*k).into(),
+            },
+        },
     }
 }
