@@ -1,6 +1,7 @@
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{
     Alias,
+    AssociatedItem,
     Expr,
     FuncShape,
     Poly,
@@ -42,6 +43,8 @@ pub struct Session {
     pub polys: HashMap<Span, Poly>,
     pub poly_impls: Vec<(Expr, Span)>,
 
+    pub associated_items: Vec<AssociatedItem>,
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -68,6 +71,7 @@ impl Session {
             lang_items: HashMap::new(),
             polys: HashMap::new(),
             poly_impls: vec![],
+            associated_items: vec![],
             errors: vec![],
             warnings: vec![],
         }

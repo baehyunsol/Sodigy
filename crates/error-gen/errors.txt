@@ -81,6 +81,8 @@ UnexpectedFunctionParameter/380/Error
 StructFieldRepeated/385/Error
 MissingStructFields/390/Error
 InvalidStructFields/395/Error
+CannotAssociateItem/398/Error
+TooGeneralToAssociateItem/399/Error
 DependentTypeNotAllowed/400/Error
 NotCallable/404/Error
 NotStruct/405/Error

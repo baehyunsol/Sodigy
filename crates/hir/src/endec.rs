@@ -1,5 +1,6 @@
 mod alias;
 mod assert;
+mod assoc;
 mod attribute;
 mod block;
 mod r#enum;

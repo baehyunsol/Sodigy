@@ -1,6 +1,7 @@
 use crate::{
     ArgCount,
     ArgType,
+    AssociatedItem,
     Attribute,
     AttributeRule,
     DecoratorRule,
@@ -161,6 +162,10 @@ impl Func {
             None => false,
         };
 
+        if is_poly || is_impl {
+            // TODO: error if it's a poly and has no generic args
+        }
+
         if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
             session.type_assertions.push(TypeAssertion {
                 name_span: ast_func.name_span,
@@ -169,8 +174,15 @@ impl Func {
             });
         }
 
-        if is_poly || is_impl {
-            // TODO: error if it's a poly and has no generic args
+        if let Some(association) = attribute.get_decorator(b"associate", &session.intermediate_dir) {
+            session.associated_items.push(AssociatedItem {
+                is_func: true,
+                name: ast_func.name,
+                name_span: ast_func.name_span,
+                params: Some(ast_func.params.len()),
+                type_span: association.args[0].error_span_wide(),
+                r#type: association.args[0].clone().unwrap_type(),
+            });
         }
 
         if let Err(()) = session.collect_lang_items(
@@ -323,6 +335,18 @@ impl Func {
                         arg_count: ArgCount::Eq(1),
                         arg_type: ArgType::Type,
                         arg_type_error_note: Some(String::from("Please give me the type of the function.")),
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"associate", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"associate", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_count_error_note: Some(String::from("You can associate at most 1 type with a function.")),
+                        arg_type: ArgType::Type,
+                        arg_type_error_note: Some(String::from("The argument must be a type that you want to associate the function with.")),
                         ..DecoratorRule::default()
                     },
                 ),

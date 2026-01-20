@@ -2,6 +2,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
     Assert,
+    AssociatedItem,
     Expr,
     ExprOrString,
     Func,
@@ -11,6 +12,7 @@ use sodigy_hir::{
     Let,
     Pattern,
     PatternKind,
+    Poly,
     Session as HirSession,
     Struct,
     StructField,
@@ -21,7 +23,8 @@ use sodigy_hir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use std::collections::hash_map::{Entry, HashMap};
 
 mod endec;
 mod session;
@@ -70,6 +73,8 @@ impl Session {
                         }
                     ).collect(),
                     generics: r#struct.generics.clone(),
+                    associated_funcs: HashMap::new(),
+                    associated_lets: HashMap::new(),
                 },
             )
         ) {
@@ -126,6 +131,7 @@ impl Session {
 
         self.polys.extend(hir_session.polys.drain());
         self.poly_impls.extend(hir_session.poly_impls.drain(..));
+        self.associated_items.extend(hir_session.associated_items.drain(..));
     }
 
     // Aliases might be nested. e.g.
@@ -305,6 +311,134 @@ impl Session {
                         note: Some(String::from("Only a function can be a poly generic.")),
                     });
                     has_error = true;
+                },
+            }
+        }
+
+        if has_error {
+            Err(())
+        }
+
+        else {
+            Ok(())
+        }
+    }
+
+    pub fn resolve_associated_items(&mut self) -> Result<(), ()> {
+        fn get_def_span(associated_item: &AssociatedItem, r#type: &Type) -> Result<(bool, Span), Error> {
+            match r#type {
+                Type::Ident(id) => match id.origin {
+                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                        NameKind::Struct => Ok((true, id.def_span)),
+                        NameKind::Enum => Ok((false, id.def_span)),
+                        NameKind::Generic => Err(Error {
+                            kind: ErrorKind::TooGeneralToAssociateItem,
+                            spans: associated_item.type_span.simple_error(),
+                            note: None,
+                        }),
+
+                        // already filtered out by hir
+                        _ => unreachable!(),
+                    },
+
+                    // already filtered out by hir
+                    _ => unreachable!(),
+                },
+
+                // it has to be resolved already
+                Type::Path { .. } => unreachable!(),
+
+                Type::Param { constructor, .. } => get_def_span(associated_item, constructor),
+                Type::Tuple { .. } => todo!(),  // what's def_span of tuple? maybe use lang_item?
+                Type::Func { .. } | Type::Never(_) => Err(Error {
+                    kind: ErrorKind::CannotAssociateItem,
+                    spans: associated_item.type_span.simple_error(),
+                    note: None,
+                }),
+                Type::Wildcard(_) => Err(Error {
+                    kind: ErrorKind::TooGeneralToAssociateItem,
+                    spans: associated_item.type_span.simple_error(),
+                    note: None,
+                }),
+            }
+        }
+
+        let mut has_error = false;
+        let mut associated_items = self.associated_items.drain(..).collect::<Vec<_>>();
+
+        'associated_items: for associated_item in associated_items.iter_mut() {
+            if let Err(()) = self.resolve_type(&mut associated_item.r#type, &mut vec![], 0) {
+                has_error = true;
+                continue;
+            }
+
+            match get_def_span(&associated_item, &associated_item.r#type) {
+                Ok((is_struct, def_span)) => {
+                    if is_struct {
+                        let struct_shape = self.struct_shapes.get_mut(&def_span).unwrap();
+
+                        for (is_associated_func, params, name, name_span) in struct_shape.fields.iter().map(
+                            |field| (false, None, field.name, field.name_span)
+                        ).chain(struct_shape.associated_funcs.iter().map(
+                            // for error messages, `spans[0]` is enough
+                            |(name, (params, spans))| (true, Some(*params), *name, spans[0])
+                        )).chain(struct_shape.associated_lets.iter().map(
+                            |(name, name_span)| (false, None, *name, *name_span)
+                        )) {
+                            if name == associated_item.name {
+                                // there can be associated functions with same names,
+                                // if they have the same number of parameters
+                                if associated_item.is_func && is_associated_func {
+                                    if associated_item.params == params {
+                                        continue;
+                                    }
+                                }
+
+                                // It's a name-collision error, but I guess I have to create an error_kind for this
+                                // there are 3 cases:
+                                // field/ass_let <-> ass_func
+                                // field/ass_let <-> ass_let
+                                // ass_func <-> ass_func, with different number of params
+                                self.errors.push(todo!());
+
+                                has_error = true;
+                                continue 'associated_items;
+                            }
+                        }
+
+                        if associated_item.is_func {
+                            let params = associated_item.params.unwrap();
+
+                            match struct_shape.associated_funcs.entry(associated_item.name) {
+                                Entry::Occupied(mut e) => {
+                                    e.get_mut().1.push(associated_item.name_span);
+                                },
+                                Entry::Vacant(e) => {
+                                    e.insert((params, vec![associated_item.name_span]));
+                                },
+                            }
+
+                            let poly_name = format!("@associated_func_{}_{params}", associated_item.name.unintern_or_default(&self.intermediate_dir));
+
+                            // if `poly_name` is already registered, we can add this func to the poly
+                            // otherwise, we have to register a new one
+                            // TODO: how about spans?
+                            todo!()
+                        }
+
+                        else {
+                            struct_shape.associated_lets.insert(associated_item.name, associated_item.name_span);
+                        }
+                    }
+
+                    else {
+                        todo!()
+                    }
+                },
+                Err(e) => {
+                    self.errors.push(e);
+                    has_error = true;
+                    continue;
                 },
             }
         }

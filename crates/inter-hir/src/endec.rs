@@ -1,7 +1,7 @@
 use crate::Session;
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{Expr, FuncShape, Poly, StructShape};
+use sodigy_hir::{AssociatedItem, Expr, FuncShape, Poly, StructShape};
 use sodigy_name_analysis::NameKind;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -21,6 +21,7 @@ impl Endec for Session {
         self.lang_items.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
+        self.associated_items.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -34,6 +35,7 @@ impl Endec for Session {
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
+        let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -49,6 +51,7 @@ impl Endec for Session {
                 lang_items,
                 polys,
                 poly_impls,
+                associated_items,
                 errors,
                 warnings,
             },

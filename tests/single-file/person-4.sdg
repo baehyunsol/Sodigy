@@ -1,0 +1,22 @@
+struct Person = {
+    name: String,
+    age: Int,
+};
+
+#[associate(Person)]
+fn get_old(self) -> Person = self `age (self.age + 1);
+
+let p1 = Person { name: "Bae", age: 28 };
+let p2 = Person { name: "Kim", age: 29 };
+
+let methods = [p1.get_old, p2.get_old];
+
+let older_p1 = methods[0]();
+let older_p2 = methods[1]();
+
+assert older_p1.name == "Bae" && older_p1.age == 29;
+assert older_p2.name == "Kim" && older_p2.age == 30;
+
+let even_older_p1 = methods[0]().get_old();
+
+assert even_older_p1.age == 30;

@@ -1,6 +1,7 @@
 use crate::{
     Alias,
     Assert,
+    AssociatedItem,
     AttributeRule,
     AttributeRuleKey,
     Enum,
@@ -61,6 +62,8 @@ pub struct Session {
     // collected all the `#[assert_type(..)]` in this module
     pub type_assertions: Vec<TypeAssertion>,
 
+    pub associated_items: Vec<AssociatedItem>,
+
     // inter-hir will collect these
     pub lang_items: HashMap<String, Span>,
     pub polys: HashMap<Span, Poly>,
@@ -112,6 +115,7 @@ impl Session {
             uses: vec![],
             modules: vec![],
             type_assertions: vec![],
+            associated_items: vec![],
             lang_items: HashMap::new(),
             polys: HashMap::new(),
             poly_impls: vec![],

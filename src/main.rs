@@ -829,7 +829,10 @@ pub fn run_worker(
                 }
 
                 if let Ok(()) = inter_hir_session.resolve_alias() {
-                    let _ = inter_hir_session.resolve_poly();
+                    // `resolve_associated_items` will create new poly-impls
+                    if let Ok(()) = inter_hir_session.resolve_associated_items() {
+                        let _ = inter_hir_session.resolve_poly();
+                    }
                 }
 
                 emit_irs_if_has_to(

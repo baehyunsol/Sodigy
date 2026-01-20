@@ -11,6 +11,7 @@ use sodigy_parse::Session as ParseSession;
 
 mod alias;
 mod assert;
+mod assoc;
 mod attribute;
 mod block;
 pub mod dump;
@@ -34,6 +35,7 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
+pub use assoc::AssociatedItem;
 pub use attribute::{
     ArgCount,
     ArgType,

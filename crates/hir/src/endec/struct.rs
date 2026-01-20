@@ -3,6 +3,7 @@ use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::Generic;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 impl Endec for Struct {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -64,12 +65,22 @@ impl Endec for StructShape {
         self.name.encode_impl(buffer);
         self.fields.encode_impl(buffer);
         self.generics.encode_impl(buffer);
+        self.associated_funcs.encode_impl(buffer);
+        self.associated_lets.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (fields, cursor) = Vec::<StructField>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
-        Ok((StructShape { name, fields, generics }, cursor))
+        let (associated_funcs, cursor) = HashMap::<InternedString, (usize, Vec<Span>)>::decode_impl(buffer, cursor)?;
+        let (associated_lets, cursor) = HashMap::<InternedString, Span>::decode_impl(buffer, cursor)?;
+        Ok((StructShape {
+            name,
+            fields,
+            generics,
+            associated_funcs,
+            associated_lets,
+        }, cursor))
     }
 }

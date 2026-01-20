@@ -42,6 +42,12 @@ pub struct StructShape {
     pub name: InternedString,
     pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
+
+    // There can be multiple associated functions with the same name,
+    // hence `Vec<Span>`. But they all must have the same number of params,
+    // hence `usize`.
+    pub associated_funcs: HashMap<InternedString, (usize, Vec<Span>)>,
+    pub associated_lets: HashMap<InternedString, Span>,
 }
 
 impl Struct {

@@ -39,15 +39,14 @@ impl TypeSolver {
                             NameKind::PatternNameBind => {
                                 self.pattern_name_bindings.insert(id.def_span);
                             },
-                            _ => {
-                                self.errors.push(not_an_expression(id));
-                                return (None, true);
-                            },
+                            _ => {},
                         },
-                        _ => {
-                            self.errors.push(not_an_expression(id));
-                            return (None, true);
-                        },
+                        _ => {},
+                    }
+
+                    if let Err(e) = is_expression_or_error(id) {
+                        self.errors.push(e);
+                        return (None, true);
                     }
 
                     self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
@@ -801,24 +800,25 @@ impl TypeSolver {
     }
 }
 
-fn not_an_expression(id: &IdentWithOrigin) -> TypeError {
+fn is_expression_or_error(id: &IdentWithOrigin) -> Result<(), TypeError> {
     match &id.origin {
-        NameOrigin::FuncParam { .. } | NameOrigin::External => unreachable!(),
-        NameOrigin::Generic { .. } => TypeError::NotExpr {
+        NameOrigin::FuncParam { .. } => Ok(()),
+        NameOrigin::Generic { .. } => Err(TypeError::NotExpr {
             id: *id,
             kind: NotExprBut::GenericParam,
-        },
+        }),
         NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
             NameKind::Let { .. } |
             NameKind::Func |
             NameKind::EnumVariant { .. } |
             NameKind::FuncParam |
             NameKind::PatternNameBind |
-            NameKind::Pipeline => unreachable!(),
-            k => TypeError::NotExpr {
+            NameKind::Pipeline => Ok(()),
+            k => Err(TypeError::NotExpr {
                 id: *id,
                 kind: (*k).into(),
-            },
+            }),
         },
+        NameOrigin::External => unreachable!(),
     }
 }

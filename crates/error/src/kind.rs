@@ -128,6 +128,8 @@ error_kinds!(
     (MissingStructFields { struct_name: InternedString, missing_fields: Vec<InternedString> }, 390,    Error),
     (InvalidStructFields { struct_name: InternedString, invalid_fields: Vec<InternedString> }, 395,    Error),
 
+    (CannotAssociateItem,                                            398,    Error),
+    (TooGeneralToAssociateItem,                                      399,    Error),
     (DependentTypeNotAllowed,                                        400,    Error),
     (NotCallable { r#type: String },                                 404,    Error),
     (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),

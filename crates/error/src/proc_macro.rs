@@ -45,9 +45,9 @@
     { struct_name: InternedString, missing_fields: Vec<InternedString> },
     InvalidStructFields
     { struct_name: InternedString, invalid_fields: Vec<InternedString> },
-    DependentTypeNotAllowed, NotCallable { r#type: String }, NotStruct
-    { id: Option<IdentWithOrigin> }, NotExpr
-    { id: InternedString, kind: NotExprBut }, NotPolyGeneric
+    CannotAssociateItem, TooGeneralToAssociateItem, DependentTypeNotAllowed,
+    NotCallable { r#type: String }, NotStruct { id: Option<IdentWithOrigin> },
+    NotExpr { id: InternedString, kind: NotExprBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, UnexpectedType
     { expected: String, got: String }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
@@ -135,6 +135,8 @@
             StructFieldRepeated(_,) => 385u16, ErrorKind ::
             MissingStructFields { .. } => 390u16, ErrorKind ::
             InvalidStructFields { .. } => 395u16, ErrorKind ::
+            CannotAssociateItem => 398u16, ErrorKind ::
+            TooGeneralToAssociateItem => 399u16, ErrorKind ::
             DependentTypeNotAllowed => 400u16, ErrorKind :: NotCallable { .. }
             => 404u16, ErrorKind :: NotStruct { .. } => 405u16, ErrorKind ::
             NotExpr { .. } => 406u16, ErrorKind :: NotPolyGeneric { .. } =>
@@ -242,6 +244,8 @@
             ErrorLevel :: Error, ErrorKind :: StructFieldRepeated(_,) =>
             ErrorLevel :: Error, ErrorKind :: MissingStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
+            ErrorLevel :: Error, ErrorKind :: CannotAssociateItem =>
+            ErrorLevel :: Error, ErrorKind :: TooGeneralToAssociateItem =>
             ErrorLevel :: Error, ErrorKind :: DependentTypeNotAllowed =>
             ErrorLevel :: Error, ErrorKind :: NotCallable { .. } => ErrorLevel
             :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel :: Error,
@@ -462,7 +466,11 @@
                 buffer.push(1u8); buffer.push(139u8);
                 r#struct_name.encode_impl(buffer);
                 r#invalid_fields.encode_impl(buffer);
-            }, ErrorKind :: DependentTypeNotAllowed =>
+            }, ErrorKind :: CannotAssociateItem =>
+            { buffer.push(1u8); buffer.push(142u8); }, ErrorKind ::
+            TooGeneralToAssociateItem =>
+            { buffer.push(1u8); buffer.push(143u8); }, ErrorKind ::
+            DependentTypeNotAllowed =>
             { buffer.push(1u8); buffer.push(144u8); }, ErrorKind ::
             NotCallable { r#type, } =>
             {
@@ -782,7 +790,9 @@
                 = Vec :: < InternedString > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: InvalidStructFields
                 { r#struct_name, r#invalid_fields, }, cursor))
-            }, 400u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
+            }, 398u16 => Ok((ErrorKind :: CannotAssociateItem, cursor)),
+            399u16 => Ok((ErrorKind :: TooGeneralToAssociateItem, cursor)),
+            400u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
             404u16 =>
             {
                 let (r#type, cursor) = String :: decode_impl(buffer, cursor) ?

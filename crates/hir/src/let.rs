@@ -1,6 +1,7 @@
 use crate::{
     ArgCount,
     ArgType,
+    AssociatedItem,
     Attribute,
     AttributeRule,
     DecoratorRule,
@@ -76,6 +77,17 @@ impl Let {
             });
         }
 
+        if let Some(association) = attribute.get_decorator(b"associate", &session.intermediate_dir) {
+            session.associated_items.push(AssociatedItem {
+                is_func: false,
+                name: ast_let.name,
+                name_span: ast_let.name_span,
+                params: None,
+                type_span: association.args[0].error_span_wide(),
+                r#type: association.args[0].clone().unwrap_type(),
+            });
+        }
+
         if let Some(ast_type) = &ast_let.type_annot {
             match Type::from_ast(ast_type, session) {
                 Ok(ty) => {
@@ -140,6 +152,18 @@ impl Let {
                         arg_count: ArgCount::Eq(1),
                         arg_type: ArgType::Type,
                         arg_type_error_note: Some(String::from("Please give me the type of the value.")),
+                        ..DecoratorRule::default()
+                    },
+                ), (
+                    intern_string(b"associate", intermediate_dir).unwrap(),
+                    DecoratorRule {
+                        name: intern_string(b"associate", intermediate_dir).unwrap(),
+                        requirement: Requirement::Maybe,
+                        arg_requirement: Requirement::Must,
+                        arg_count: ArgCount::Eq(1),
+                        arg_count_error_note: Some(String::from("You can associate at most 1 type with a value.")),
+                        arg_type: ArgType::Type,
+                        arg_type_error_note: Some(String::from("The argument must be a type that you want to associate the value with.")),
                         ..DecoratorRule::default()
                     },
                 ),
