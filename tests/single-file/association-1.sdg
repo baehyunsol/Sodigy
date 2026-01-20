@@ -1,0 +1,15 @@
+pub struct Complex = {
+    real: Number,
+    imag: Number,
+};
+
+#[associate(Complex)]
+let one = Complex { real: 1.0, imag: 0.0 };
+
+assert Complex.one.imag == 0.0;
+
+#[associate(Complex)]
+fn norm(self) = (self.real * self.real + self.imag * self.imag).sqrt();
+
+assert Complex.one.norm() == 1.0;
+assert (Complex { real: 3.0, imag: 4.0 }).norm() == 5.0;

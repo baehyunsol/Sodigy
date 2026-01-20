@@ -86,7 +86,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 spans: self.span_end.simple_error(),
                 note: None,
             },
-            Span::Prelude(_) => unreachable!(),
+            Span::Prelude(_) | Span::Poly(_) => unreachable!(),
         }
     }
 

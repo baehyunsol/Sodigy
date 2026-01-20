@@ -712,6 +712,26 @@ impl TypeSolver {
                                     break;
                                 }
                             }
+
+                            match s.associated_lets.get(name) {
+                                Some(associated_let) => match types.get(associated_let) {
+                                    Some(t) => {
+                                        field_type = Some(t.clone());
+                                    },
+                                    None => {
+                                        field_type = Some(Type::Var { def_span: *associated_let, is_return: false });
+                                    },
+                                },
+                                None => match s.associated_funcs.get(name) {
+                                    // 1. If the user is calling the associated function,
+                                    //    we have to replace `x.unwrap()` with `@associated_func_unwrap_1(x)`.
+                                    // 2. If the user is just referencing the associated function,
+                                    //    we have to replace `x.unwrap` with `\() => @associated_func_unwrap_1(x)`.
+                                    // Either case cannot be handled with `get_type_of_field`.
+                                    Some(_) => todo!(),
+                                    None => {},
+                                },
+                            }
                         },
                         _ => {},
                     },
@@ -734,7 +754,7 @@ impl TypeSolver {
                         }
                     },
                     None => {
-                        // maybe it's an associated function!
+                        // an error
                         todo!()
                     },
                 }

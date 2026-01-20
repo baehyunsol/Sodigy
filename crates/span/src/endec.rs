@@ -37,8 +37,12 @@ impl Endec for Span {
                 buffer.push(6);
                 s.encode_impl(buffer);
             },
-            Span::None => {
+            Span::Poly(s) => {
                 buffer.push(7);
+                s.encode_impl(buffer);
+            },
+            Span::None => {
+                buffer.push(8);
             },
         }
     }
@@ -69,11 +73,15 @@ impl Endec for Span {
                 Ok((Span::Eof(file), cursor))
             },
             Some(6) => {
-                let (file, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((Span::Prelude(file), cursor))
+                let (p, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((Span::Prelude(p), cursor))
             },
-            Some(7) => Ok((Span::None, cursor + 1)),
-            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(7) => {
+                let (p, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                Ok((Span::Prelude(p), cursor))
+            },
+            Some(8) => Ok((Span::None, cursor + 1)),
+            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

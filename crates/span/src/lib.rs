@@ -50,6 +50,11 @@ pub enum Span {
 
     Eof(File),
     Prelude(InternedString),
+
+    // Sometimes the compiler creates new `#[poly]` def out of nowhere...
+    // TODO: make a variant the covers `Span::Prelude` and `Span::Poly`
+    Poly(InternedString),
+
     None,
 }
 
@@ -128,7 +133,7 @@ impl Span {
                 end: *end,
             },
             Span::Lib | Span::Std | Span::None => Span::None,
-            Span::Prelude(_) => unreachable!(),
+            Span::Prelude(_) | Span::Poly(_) => unreachable!(),
         }
     }
 
@@ -138,7 +143,11 @@ impl Span {
             Span::Eof(file) |
             Span::Range { file, .. } |
             Span::Derived { file, .. } => Some(*file),
-            Span::Lib | Span::Std | Span::None | Span::Prelude(_) => None,
+            Span::Lib |
+            Span::Std |
+            Span::Prelude(_) |
+            Span::Poly(_) |
+            Span::None => None,
         }
     }
 

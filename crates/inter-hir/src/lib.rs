@@ -23,6 +23,7 @@ use sodigy_hir::{
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
+use sodigy_string::intern_string;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -419,11 +420,25 @@ impl Session {
                             }
 
                             let poly_name = format!("@associated_func_{}_{params}", associated_item.name.unintern_or_default(&self.intermediate_dir));
+                            let poly_name_interned = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
+                            let poly_span: Span = Span::Poly(poly_name_interned);
 
-                            // if `poly_name` is already registered, we can add this func to the poly
-                            // otherwise, we have to register a new one
-                            // TODO: how about spans?
-                            todo!()
+                            match self.polys.entry(poly_span) {
+                                Entry::Occupied(mut e) => {
+                                    e.get_mut().impls.push(associated_item.name_span);
+                                },
+                                Entry::Vacant(e) => {
+                                    e.insert(Poly {
+                                        // TODO: I want to derive this span, but only spans with ranges (start/end) can be derived.
+                                        decorator_span: poly_span,
+
+                                        name: poly_name_interned,
+                                        name_span: poly_span,
+                                        has_default_impl: false,
+                                        impls: vec![associated_item.name_span],
+                                    });
+                                },
+                            }
                         }
 
                         else {
