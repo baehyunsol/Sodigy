@@ -73,7 +73,7 @@ impl Endec for StructShape {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (fields, cursor) = Vec::<StructField>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
-        let (associated_funcs, cursor) = HashMap::<InternedString, (usize, Vec<Span>)>::decode_impl(buffer, cursor)?;
+        let (associated_funcs, cursor) = HashMap::<InternedString, (usize, bool, Vec<Span>)>::decode_impl(buffer, cursor)?;
         let (associated_lets, cursor) = HashMap::<InternedString, Span>::decode_impl(buffer, cursor)?;
         Ok((StructShape {
             name,

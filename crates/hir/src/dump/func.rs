@@ -17,13 +17,22 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
         lines.break_line();
     }
 
+    let curr_len = lines.total_chars();
     dump_visibility(&func.visibility, lines, session);
 
     if !func.is_pure {
-        lines.push(" impure");
+        if curr_len < lines.total_chars() {
+            lines.push(" ");
+        }
+
+        lines.push("impure");
     }
 
-    lines.push(&format!(" fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
+    if curr_len < lines.total_chars() {
+        lines.push(" ");
+    }
+
+    lines.push(&format!("fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
 
     if !func.generics.is_empty() {
         lines.push("<");
@@ -63,4 +72,5 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     lines.push(" = ");
     dump_expr(&func.value, lines, session);
     lines.push(";");
+    lines.break_line();
 }

@@ -3,9 +3,11 @@ use sodigy_hir::{
     Alias,
     Assert,
     AssociatedItem,
+    AssociatedItemKind,
     Expr,
     ExprOrString,
     Func,
+    FuncOrigin,
     FuncParam,
     FuncShape,
     Generic,
@@ -19,10 +21,11 @@ use sodigy_hir::{
     StructShape,
     Type,
     Use,
+    Visibility,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
-use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
+use sodigy_span::{PolySpanKind, RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -378,64 +381,144 @@ impl Session {
                     if is_struct {
                         let struct_shape = self.struct_shapes.get_mut(&def_span).unwrap();
 
-                        for (is_associated_func, params, name, name_span) in struct_shape.fields.iter().map(
-                            |field| (false, None, field.name, field.name_span)
+                        for (associated_item_kind, params, is_pure, name, name_span) in struct_shape.fields.iter().map(
+                            |field| (AssociatedItemKind::Field, None, None, field.name, field.name_span)
                         ).chain(struct_shape.associated_funcs.iter().map(
                             // for error messages, `spans[0]` is enough
-                            |(name, (params, spans))| (true, Some(*params), *name, spans[0])
+                            |(name, (params, is_pure, spans))| (AssociatedItemKind::Func, Some(*params), Some(*is_pure), *name, spans[0])
                         )).chain(struct_shape.associated_lets.iter().map(
-                            |(name, name_span)| (false, None, *name, *name_span)
+                            |(name, name_span)| (AssociatedItemKind::Let, None, None, *name, *name_span)
                         )) {
                             if name == associated_item.name {
-                                // there can be associated functions with same names,
-                                // if they have the same number of parameters
-                                if associated_item.is_func && is_associated_func {
-                                    if associated_item.params == params {
-                                        continue;
-                                    }
-                                }
+                                let error = match (associated_item_kind, associated_item.kind) {
+                                    (AssociatedItemKind::Field | AssociatedItemKind::Let, AssociatedItemKind::Func) => todo!(),  // err
+                                    (_, AssociatedItemKind::Let) => todo!(),  // err
+                                    (AssociatedItemKind::Func, AssociatedItemKind::Func) => {
+                                        if associated_item.params == params && associated_item.is_pure == is_pure {
+                                            // okay
+                                            continue;
+                                        }
 
-                                // It's a name-collision error, but I guess I have to create an error_kind for this
-                                // there are 3 cases:
-                                // field/ass_let <-> ass_func
-                                // field/ass_let <-> ass_let
-                                // ass_func <-> ass_func, with different number of params
-                                self.errors.push(todo!());
+                                        else {
+                                            todo!()  // err
+                                        }
+                                    },
+                                    (_, AssociatedItemKind::Field) => unreachable!(),
+                                    (AssociatedItemKind::Variant, _) | (_, AssociatedItemKind::Variant) => unreachable!(),
+                                };
 
+                                self.errors.push(error);
                                 has_error = true;
                                 continue 'associated_items;
                             }
                         }
 
-                        if associated_item.is_func {
+                        if let AssociatedItemKind::Func = associated_item.kind {
                             let params = associated_item.params.unwrap();
+                            let is_pure = associated_item.is_pure.unwrap();
 
                             match struct_shape.associated_funcs.entry(associated_item.name) {
                                 Entry::Occupied(mut e) => {
-                                    e.get_mut().1.push(associated_item.name_span);
+                                    e.get_mut().2.push(associated_item.name_span);
                                 },
                                 Entry::Vacant(e) => {
-                                    e.insert((params, vec![associated_item.name_span]));
+                                    e.insert((params, is_pure, vec![associated_item.name_span]));
                                 },
                             }
 
-                            let poly_name = format!("@associated_func_{}_{params}", associated_item.name.unintern_or_default(&self.intermediate_dir));
+                            let poly_name = format!(
+                                "associated_func::{}::{}::{params}",
+                                associated_item.name.unintern_or_default(&self.intermediate_dir),
+                                if is_pure { "pure" } else { "impure" },
+                            );
                             let poly_name_interned = intern_string(poly_name.as_bytes(), &self.intermediate_dir).unwrap();
-                            let poly_span: Span = Span::Poly(poly_name_interned);
+                            let poly_span: Span = Span::Poly {
+                                name: poly_name_interned,
+                                kind: PolySpanKind::Name,
+                            };
 
-                            match self.polys.entry(poly_span) {
+                            match self.new_polys.entry(poly_span) {
                                 Entry::Occupied(mut e) => {
                                     e.get_mut().impls.push(associated_item.name_span);
                                 },
                                 Entry::Vacant(e) => {
-                                    e.insert(Poly {
-                                        // TODO: I want to derive this span, but only spans with ranges (start/end) can be derived.
-                                        decorator_span: poly_span,
+                                    let generic_names = (0..(params + 1)).map(
+                                        |i| intern_string(
+                                            if i != params {
+                                                format!("T{i}")
+                                            } else {
+                                                String::from("V")
+                                            }.as_bytes(),
+                                            &self.intermediate_dir,
+                                        ).unwrap()
+                                    ).collect::<Vec<_>>();
+                                    let param_names = (0..params).map(
+                                        |i| intern_string(format!("p{i}").as_bytes(), &self.intermediate_dir).unwrap()
+                                    ).collect::<Vec<_>>();
 
+                                    e.insert(Poly {
+                                        decorator_span: Span::None,
                                         name: poly_name_interned,
                                         name_span: poly_span,
                                         has_default_impl: false,
                                         impls: vec![associated_item.name_span],
+                                    });
+
+                                    // push `#[poly] fn @associated_func_unwrap_1<T1, T2>(x: T1) -> T2;` to the session.
+                                    self.new_funcs.push(Func {
+                                        is_pure,
+                                        impure_keyword_span: None,
+
+                                        // TODO: I'm not sure whether it should be private/public
+                                        //       I'll know that when I implement the visibility checker.
+                                        visibility: Visibility::private(),
+
+                                        keyword_span: Span::None,
+                                        name: poly_name_interned,
+                                        name_span: poly_span,
+                                        generics: (0..(params + 1)).map(
+                                            |i| Generic {
+                                                name: generic_names[i],
+                                                name_span: Span::Poly {
+                                                    name: poly_name_interned,
+                                                    kind: if i == params {
+                                                        PolySpanKind::Return
+                                                    } else {
+                                                        PolySpanKind::Param(i)
+                                                    },
+                                                },
+                                            },
+                                        ).collect(),
+                                        params: (0..params).map(
+                                            |i| FuncParam {
+                                                name: param_names[i],
+                                                name_span: Span::None,
+                                                type_annot: Some(Type::Ident(IdentWithOrigin {
+                                                    id: generic_names[i],
+                                                    span: Span::None,
+                                                    def_span: Span::Poly {
+                                                        name: poly_name_interned,
+                                                        kind: PolySpanKind::Param(i),
+                                                    },
+                                                    origin: NameOrigin::Generic { index: i },
+                                                })),
+                                                default_value: None,
+                                            }
+                                        ).collect(),
+                                        type_annot: Some(Type::Ident(IdentWithOrigin {
+                                            id: generic_names[params],
+                                            span: Span::None,
+                                            def_span: Span::Poly {
+                                                name: poly_name_interned,
+                                                kind: PolySpanKind::Return,
+                                            },
+                                            origin: NameOrigin::Generic { index: params },
+                                        })),
+                                        value: Expr::dummy(),
+                                        origin: FuncOrigin::AssociatedFunc,
+                                        built_in: false,
+                                        foreign_names: HashMap::new(),
+                                        use_counts: HashMap::new(),
                                     });
                                 },
                             }

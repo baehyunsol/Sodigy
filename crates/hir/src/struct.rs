@@ -46,7 +46,8 @@ pub struct StructShape {
     // There can be multiple associated functions with the same name,
     // hence `Vec<Span>`. But they all must have the same number of params,
     // hence `usize`.
-    pub associated_funcs: HashMap<InternedString, (usize, Vec<Span>)>,
+    // They all must have the same `is_pure`, hence `bool`.
+    pub associated_funcs: HashMap<InternedString, (usize, bool, Vec<Span>)>,
     pub associated_lets: HashMap<InternedString, Span>,
 }
 

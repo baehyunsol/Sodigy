@@ -3,6 +3,7 @@ use sodigy_hir::{
     Alias,
     AssociatedItem,
     Expr,
+    Func,
     FuncShape,
     Poly,
     StructShape,
@@ -43,6 +44,10 @@ pub struct Session {
     pub polys: HashMap<Span, Poly>,
     pub poly_impls: Vec<(Expr, Span)>,
 
+    // Inter-hir may create new functions and poly-generics while resolving associated items.
+    pub new_funcs: Vec<Func>,
+    pub new_polys: HashMap<Span, Poly>,
+
     pub associated_items: Vec<AssociatedItem>,
 
     pub errors: Vec<Error>,
@@ -71,6 +76,8 @@ impl Session {
             lang_items: HashMap::new(),
             polys: HashMap::new(),
             poly_impls: vec![],
+            new_funcs: vec![],
+            new_polys: HashMap::new(),
             associated_items: vec![],
             errors: vec![],
             warnings: vec![],

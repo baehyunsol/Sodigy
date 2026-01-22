@@ -110,6 +110,9 @@ impl Endec for FuncOrigin {
             FuncOrigin::Lambda => {
                 buffer.push(2);
             },
+            FuncOrigin::AssociatedFunc => {
+                buffer.push(3);
+            },
         }
     }
 
@@ -118,7 +121,8 @@ impl Endec for FuncOrigin {
             Some(0) => Ok((FuncOrigin::TopLevel, cursor + 1)),
             Some(1) => Ok((FuncOrigin::Inline, cursor + 1)),
             Some(2) => Ok((FuncOrigin::Lambda, cursor + 1)),
-            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(3) => Ok((FuncOrigin::AssociatedFunc, cursor + 1)),
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

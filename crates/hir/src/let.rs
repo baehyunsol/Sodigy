@@ -2,6 +2,7 @@ use crate::{
     ArgCount,
     ArgType,
     AssociatedItem,
+    AssociatedItemKind,
     Attribute,
     AttributeRule,
     DecoratorRule,
@@ -79,9 +80,10 @@ impl Let {
 
         if let Some(association) = attribute.get_decorator(b"associate", &session.intermediate_dir) {
             session.associated_items.push(AssociatedItem {
-                is_func: false,
+                kind: AssociatedItemKind::Let,
                 name: ast_let.name,
                 name_span: ast_let.name_span,
+                is_pure: None,
                 params: None,
                 type_span: association.args[0].error_span_wide(),
                 r#type: association.args[0].clone().unwrap_type(),

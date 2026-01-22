@@ -154,6 +154,11 @@ impl Expr {
                         NameOrigin::Generic { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
+                    // call_span has to be the name_span of the last field, because `get_type_of_field` works this way
+                    Ok(Expr::Path { lhs, fields }) => (
+                        fields.last().unwrap().unwrap_name_span(),
+                        Callable::Dynamic(Box::new(Expr::Path { lhs, fields })),
+                    ),
                     Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
                         has_error = true;

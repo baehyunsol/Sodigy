@@ -6,7 +6,8 @@ use sodigy_hir::FuncPurity;
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
-use sodigy_span::Span;
+use sodigy_span::{PolySpanKind, Span};
+use sodigy_string::intern_string;
 use std::collections::HashMap;
 
 impl TypeSolver {
@@ -676,7 +677,21 @@ impl TypeSolver {
 
                                 (Some(*r#return.clone()), has_error)
                             },
-                            _ => panic!("TODO: {func:?}"),
+
+                            // This is difficult...
+                            // `let x = { ... }; let y = x();`
+                            // Let's say we don't know the type of `x` and we want to infer the type of `y`.
+                            // When we look at `x()`, we'll reach this branch (with `func_type = Type::Var(x)`).
+                            // We can't create a type equation here because there's no direct relationship between
+                            // TypeVar(x) and TypeVar(y). TypeVar(x)'s return type is equal to TypeVar(y), but there's
+                            // no way to represent "TypeVar(x)'s return type".
+                            Type::Var { def_span: span, .. } | Type::GenericInstance { call: span, .. } => {
+                                self.blocked_type_vars.insert(span);
+                                (Some(Type::Blocked { origin: span }), has_error)
+                            },
+
+                            t @ Type::Blocked { .. } => (Some(t), has_error),
+                            _ => panic!("TODO: {func:?}, {func_type:?}"),
                         }
                     },
                 }
@@ -696,7 +711,7 @@ impl TypeSolver {
                 let mut field_type = None;
 
                 match &field[0] {
-                    Field::Name { name, .. } => match self.struct_shapes.get(def_span) {
+                    Field::Name { name, name_span, .. } => match self.struct_shapes.get(def_span) {
                         Some(s) => {
                             for field in s.fields.iter() {
                                 if field.name == *name {
@@ -723,12 +738,44 @@ impl TypeSolver {
                                     },
                                 },
                                 None => match s.associated_funcs.get(name) {
-                                    // 1. If the user is calling the associated function,
-                                    //    we have to replace `x.unwrap()` with `@associated_func_unwrap_1(x)`.
-                                    // 2. If the user is just referencing the associated function,
-                                    //    we have to replace `x.unwrap` with `\() => @associated_func_unwrap_1(x)`.
-                                    // Either case cannot be handled with `get_type_of_field`.
-                                    Some(_) => todo!(),
+                                    // `x.unwrap()` is desugared to `@associated_func_unwrap_1(x)`.
+                                    // `@associated_func_unwrap_1` is a poly-generic function and we can
+                                    // easily reference the function with its name.
+                                    Some((params, is_pure, _)) => {
+                                        let func_name = name.unintern_or_default(&self.intermediate_dir);
+                                        let purity = if *is_pure { "pure" } else { "impure" };
+                                        let poly_name = intern_string(
+                                            format!("associated_func::{func_name}::{purity}::{params}").as_bytes(),
+                                            &self.intermediate_dir,
+                                        ).unwrap();
+
+                                        field_type = Some(Type::Func {
+                                            fn_span: Span::None,
+                                            group_span: Span::None,
+                                            // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
+                                            params: (1..*params).map(
+                                                |i| Type::GenericInstance {
+                                                    call: *name_span,
+                                                    generic: Span::Poly {
+                                                        name: poly_name,
+                                                        kind: PolySpanKind::Param(i),
+                                                    },
+                                                }
+                                            ).collect(),
+                                            r#return: Box::new(Type::GenericInstance {
+                                                call: *name_span,
+                                                generic: Span::Poly {
+                                                    name: poly_name,
+                                                    kind: PolySpanKind::Return,
+                                                },
+                                            }),
+                                            purity: if *is_pure {
+                                                FuncPurity::Pure
+                                            } else {
+                                                FuncPurity::Impure
+                                            },
+                                        });
+                                    },
                                     None => {},
                                 },
                             }

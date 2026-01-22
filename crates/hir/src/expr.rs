@@ -94,6 +94,12 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn dummy() -> Self {
+        // You shouldn't see this value in bytecodes.
+        // I put a random-looking number for easier debugging.
+        Expr::Char { ch: 49773, span: Span::None }
+    }
+
     pub fn from_ast(ast_expr: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
         match ast_expr {
             ast::Expr::Ident { id, span } => match session.find_origin_and_count_usage(*id) {

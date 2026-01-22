@@ -25,9 +25,12 @@ impl Ord for Span {
             (_, Span::Lib) => Ordering::Greater,
 
             // `Span::Poly` is the next smallest
-            (Span::Poly(p1), Span::Poly(p2)) => p1.cmp(p2),
-            (Span::Poly(_), _) => Ordering::Less,
-            (_, Span::Poly(_)) => Ordering::Greater,
+            (Span::Poly { name: name1, kind: kind1 }, Span::Poly { name: name2, kind: kind2 }) => match name1.cmp(name2) {
+                Ordering::Equal => kind1.cmp(kind2),
+                c => c,
+            },
+            (Span::Poly { .. }, _) => Ordering::Less,
+            (_, Span::Poly { .. }) => Ordering::Greater,
 
             // Then, it compares files.
             (

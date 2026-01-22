@@ -61,7 +61,7 @@ impl Expr {
             },
             Expr::Call { func, args, generic_defs, .. } => {
                 let dispatch = match func {
-                    Callable::Static { def_span, span } => match map.get(span) {
+                    Callable::Static { span, .. } => match map.get(span) {
                         Some(new_def_span) => Some((*new_def_span, *span)),
                         None => None,
                     },

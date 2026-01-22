@@ -1,4 +1,4 @@
-use crate::{RenderableSpan, Span, SpanDeriveKind};
+use crate::{PolySpanKind, RenderableSpan, Span, SpanDeriveKind};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_file::File;
 use sodigy_string::InternedString;
@@ -37,9 +37,10 @@ impl Endec for Span {
                 buffer.push(6);
                 s.encode_impl(buffer);
             },
-            Span::Poly(s) => {
+            Span::Poly { name, kind } => {
                 buffer.push(7);
-                s.encode_impl(buffer);
+                name.encode_impl(buffer);
+                kind.encode_impl(buffer);
             },
             Span::None => {
                 buffer.push(8);
@@ -77,8 +78,9 @@ impl Endec for Span {
                 Ok((Span::Prelude(p), cursor))
             },
             Some(7) => {
-                let (p, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                Ok((Span::Prelude(p), cursor))
+                let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                let (kind, cursor) = PolySpanKind::decode_impl(buffer, cursor)?;
+                Ok((Span::Poly { name, kind }, cursor))
             },
             Some(8) => Ok((Span::None, cursor + 1)),
             Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
@@ -171,6 +173,36 @@ impl Endec for SpanDeriveKind {
             Some(10) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
             Some(11) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
             Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for PolySpanKind {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            PolySpanKind::Name => {
+                buffer.push(0);
+            },
+            PolySpanKind::Param(i) => {
+                buffer.push(1);
+                i.encode_impl(buffer);
+            },
+            PolySpanKind::Return => {
+                buffer.push(2);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((PolySpanKind::Name, cursor + 1)),
+            Some(1) => {
+                let (i, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                Ok((PolySpanKind::Param(i), cursor))
+            },
+            Some(2) => Ok((PolySpanKind::Return, cursor + 1)),
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

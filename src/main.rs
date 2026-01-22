@@ -720,6 +720,13 @@ pub fn run_worker(
                     hir_session.errors.extend(inter_hir_session.errors.drain(..));
                     hir_session.warnings.extend(inter_hir_session.warnings.drain(..));
 
+                    // inter-hir may create new funcs and poly-generics, and the new functions
+                    // must belong to some module. They all go to `lib.sdg`.
+                    if input_module_path.is_lib() {
+                        hir_session.funcs.extend(inter_hir_session.new_funcs.drain(..));
+                        hir_session.polys.extend(inter_hir_session.new_polys.drain());
+                    }
+
                     let mut mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
                     init_span_string_map_if_necessary(
                         &mut mir_session,
@@ -933,6 +940,7 @@ pub fn run_worker(
                         &intermediate_dir,
                     )?;
                 }
+
                 emit_irs_if_has_to(
                     &inter_mir_session,
                     &emit_ir_options,

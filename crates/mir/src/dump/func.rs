@@ -14,10 +14,10 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     }
 
     if !func.is_pure {
-        lines.push("impure");
+        lines.push("impure ");
     }
 
-    lines.push(&format!(" fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
+    lines.push(&format!("fn {}", func.name.unintern_or_default(&session.intermediate_dir)));
 
     if !func.generics.is_empty() {
         lines.push("<");
@@ -67,4 +67,5 @@ pub fn dump_func(func: &Func, lines: &mut IndentedLines, session: &Session) {
     }
 
     lines.push(";");
+    lines.break_line();
 }

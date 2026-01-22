@@ -1,0 +1,12 @@
+struct Greeter = {
+    name: String,
+};
+
+#[associate(Greeter)]
+fn greet(self) -> String = f"hello, {self.name}!";
+
+let john = Greeter { name: "John" };
+let bae = Greeter { name: "Bae" };
+
+assert john.greet() == "hello, John!";
+assert bae.greet() == "hello, Bae!";

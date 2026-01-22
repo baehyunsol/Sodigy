@@ -136,6 +136,7 @@ impl From<FuncOrigin> for ExprContext {
             FuncOrigin::TopLevel => ExprContext::TopLevelFunc,
             FuncOrigin::Inline => ExprContext::InlineFunc,
             FuncOrigin::Lambda => ExprContext::Lambda,
+            FuncOrigin::AssociatedFunc => ExprContext::TopLevelFunc,
         }
     }
 }

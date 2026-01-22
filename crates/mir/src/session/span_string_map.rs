@@ -1,7 +1,7 @@
 use super::Session;
 use crate::{Assert, Callable, Enum, Expr, Func, Let, Struct};
 use sodigy_hir::EnumVariantFields;
-use sodigy_span::Span;
+use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
@@ -15,6 +15,15 @@ impl Session {
                 _ => None,
             },
             Span::None => None,
+            Span::Poly { name, kind } => {
+                let name = name.unintern_or_default(&self.intermediate_dir);
+
+                match kind {
+                    PolySpanKind::Name => Some(name),
+                    PolySpanKind::Param(i) => Some(format!("T{i}")),
+                    PolySpanKind::Return => Some(String::from("V")),
+                }
+            },
             _ => todo!(),
         }
     }

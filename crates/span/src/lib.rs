@@ -51,9 +51,15 @@ pub enum Span {
     Eof(File),
     Prelude(InternedString),
 
-    // Sometimes the compiler creates new `#[poly]` def out of nowhere...
-    // TODO: make a variant the covers `Span::Prelude` and `Span::Poly`
-    Poly(InternedString),
+    // The compiler might create poly-generic functions while compilation (e.g. associated functions).
+    // There are 3 kinds of spans to track:
+    //    1. name_span, for the poly-solver
+    //    2. generic param for the func params, for the type-checker and generic-solver
+    //    3. generic param for the return types, for the type-checker and generic-solver
+    Poly {
+        name: InternedString,
+        kind: PolySpanKind,
+    },
 
     None,
 }
@@ -133,7 +139,7 @@ impl Span {
                 end: *end,
             },
             Span::Lib | Span::Std | Span::None => Span::None,
-            Span::Prelude(_) | Span::Poly(_) => unreachable!(),
+            Span::Prelude(_) | Span::Poly { .. } => unreachable!(),
         }
     }
 
@@ -146,7 +152,7 @@ impl Span {
             Span::Lib |
             Span::Std |
             Span::Prelude(_) |
-            Span::Poly(_) |
+            Span::Poly { .. } |
             Span::None => None,
         }
     }
@@ -178,4 +184,11 @@ impl Span {
             note: Some(note.to_string()),
         }]
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PolySpanKind {
+    Name,
+    Param(usize),
+    Return,
 }

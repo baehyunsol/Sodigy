@@ -24,7 +24,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         mir_session.intermediate_dir.clone(),
     );
     let mut poly_solver = HashMap::new();
-    let mut prev_blocked_type_var_count = None;
+    let mut prev_blocked_type_var_count = usize::MAX;
 
     // It does 2 things.
     // 1. It prevents the compiler from dispatching the same call (with the same dispatch) multiple times.
@@ -36,7 +36,6 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
     loop {
-        prev_blocked_type_var_count = Some(type_solver.blocked_type_vars.len());
         type_solver.blocked_type_vars = HashSet::new();
 
         for func in mir_session.funcs.iter() {
@@ -127,7 +126,8 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         // able to solve when we have more information".
         if type_solver.blocked_type_vars.len() > 0 {
             // we're making a progress! let's continue
-            if type_solver.blocked_type_vars.len() < prev_blocked_type_var_count.unwrap_or(usize::MAX) {
+            if type_solver.blocked_type_vars.len() < prev_blocked_type_var_count {
+                prev_blocked_type_var_count = type_solver.blocked_type_vars.len();
                 continue;
             }
 

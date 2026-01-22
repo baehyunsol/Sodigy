@@ -35,7 +35,7 @@ mod r#use;
 
 pub use alias::Alias;
 pub use assert::Assert;
-pub use assoc::AssociatedItem;
+pub use assoc::{AssociatedItem, AssociatedItemKind};
 pub use attribute::{
     ArgCount,
     ArgType,

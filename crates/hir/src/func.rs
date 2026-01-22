@@ -2,6 +2,7 @@ use crate::{
     ArgCount,
     ArgType,
     AssociatedItem,
+    AssociatedItemKind,
     Attribute,
     AttributeRule,
     DecoratorRule,
@@ -69,6 +70,7 @@ pub enum FuncOrigin {
     TopLevel,
     Inline,  // `fn` keyword in an inline block
     Lambda,
+    AssociatedFunc,
 }
 
 #[derive(Clone, Debug)]
@@ -176,13 +178,22 @@ impl Func {
 
         if let Some(association) = attribute.get_decorator(b"associate", &session.intermediate_dir) {
             session.associated_items.push(AssociatedItem {
-                is_func: true,
+                kind: AssociatedItemKind::Func,
                 name: ast_func.name,
                 name_span: ast_func.name_span,
+                is_pure: Some(ast_func.is_pure),
                 params: Some(ast_func.params.len()),
                 type_span: association.args[0].error_span_wide(),
                 r#type: association.args[0].clone().unwrap_type(),
             });
+
+            // TODO
+            // 1. make sure that there's at least 1 parameter
+            //    - maybe a warning if the name is not `self`?
+            // 2. make sure that the first parameter has no type annotation
+            // 3. annotate the first parameter with the type in the decorator arg
+            // 4. if there's a func-type-annotation lint (WIP), tell him it's okay...
+            todo!()
         }
 
         if let Err(()) = session.collect_lang_items(
@@ -239,9 +250,7 @@ impl Func {
             },
             None => {
                 if is_poly || built_in {
-                    // nobody cares!
-                    // I put a random-looking number for easier debugging.
-                    Some(Expr::Char { ch: 49773, span: Span::None })
+                    Some(Expr::dummy())
                 }
 
                 else {
