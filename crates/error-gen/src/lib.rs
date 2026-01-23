@@ -327,14 +327,14 @@ fn parse_definition(tokens: TokenStream) -> Result<ErrorKind, TokenStream> {
         else if level.is_none() {
             match token {
                 TokenTree::Ident(ref id) => match id.to_string().as_str() {
-                    "Error" | "Warning" => {
+                    "Error" | "Warning" | "Lint" => {
                         level = Some(id.to_string());
                         expecting_comma = true;
                     },
                     _ => {
                         return Err(error_message(
                             token.span(),
-                            format!("{:?} is not a valid level of an error kind. It should be either \"Error\" or \"Warning\".", id.to_string()),
+                            format!("{:?} is not a valid level of an error kind. It should be either \"Error\", \"Warning\" or \"Lint\".", id.to_string()),
                         ));
                     },
                 },

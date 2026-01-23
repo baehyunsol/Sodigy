@@ -4,11 +4,13 @@ use std::collections::HashSet;
 mod dump;
 mod endec;
 mod kind;
+mod lint;
 mod token;
 mod warning;
 
 pub use dump::{DumpErrorOption, dump_errors};
 pub use kind::{ErrorKind, NameCollisionKind, NotExprBut};
+pub use lint::{Lint, LintKind};
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};
 
@@ -33,10 +35,29 @@ impl Error {
     }
 }
 
-// TODO: maybe more levels?
+/// By default,
+///
+/// 1. If the compiler finds an `Error`, it halts the compilation almost immediately.
+/// 2. If the compiler finds a `Warning`, it continues the compilation, and dumps the warnings.
+/// 3. If the compiler finds a `Lint`, it continues the compilation, and doesn't dump the lints.
+///
+/// But the user can forbid/warn/allow `Warning`s and `Lint`s.
+/// If the compiler finds a forbidden `Warning`/`Lint`, it halts the compilation before the optimization stage
+/// and dumps the forbidden `Warning`/`Lint` as if it were an error.
+/// If the compiler finds a warned `Lint`, it dumps the lint as if it were a warning.
+/// If the compiler finds an allowed `Warning`, it just ignores the `Warning` as if it were a `Lint`.
+#[derive(Clone, Copy, Debug)]
 pub enum ErrorLevel {
     Error,
     Warning,
+    Lint,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum CustomErrorLevel {
+    Forbid,
+    Warn,
+    Allow,
 }
 
 // I defined it here because it's usually for error messages.

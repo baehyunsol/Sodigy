@@ -13,11 +13,14 @@ mod render;
 // An error kind's index is not just for endec, but also for documentation (WIP).
 // When you add an error kind and give an index to it:
 // 1. Make sure that the index has never been used before.
-// 2. Make sure that the index is in range 0..65536.
+// 2. Make sure that the index is in range 0..=9999.
 // 3. Try to make similar error kinds have similar indexes.
 //    - That's why there are gaps in the indexes: so that I can insert new error kinds.
 //
 // You can see the result of the macro expansion in `src/proc_macro.rs`.
+// `ErrorKind` implements 1 method: `fn index(&self) -> u16;`.
+// `ErrorKind` also implements `Endec`.
+// `ErrorLevel` implements 1 method: `fn from_error_kind(k: &ErrorKind) -> Self;`.
 error_kinds!(
     // error variant,                                              index,    Error | Warning
     (InvalidNumberLiteral,                                             0,    Error),
@@ -156,10 +159,19 @@ error_kinds!(
     (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),
     (LibFileNotFound,                                                470,    Error),
 
+    (SelfParamWithTypeAnnotation,                                    475,    Error),
+    (AssociatedFuncWithoutSelfParam,                                 480,    Error),
+
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
     (NoImpureCallInImpureContext,                                   5010,  Warning),
+
+    // Lints from here
+    (FuncWithoutTypeAnnotation,                                     8000,  Lint),
+    (LetWithoutTypeAnnotation,                                      8005,  Lint),
+    (FieldWithoutTypeAnnotation,                                    8010,  Lint),
+    (SelfParamNotNamedSelf,                                         8015,  Lint),
 
     // These are very special kinds of errors.
     // These are bugs in the compiler, not in the user's Sodigy code.

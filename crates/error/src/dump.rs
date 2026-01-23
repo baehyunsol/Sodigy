@@ -55,10 +55,12 @@ pub fn dump_errors(
         let color = match level {
             ErrorLevel::Error => option.error_color,
             ErrorLevel::Warning => option.warning_color,
+            ErrorLevel::Lint => unreachable!(),
         };
         let title = match level {
             ErrorLevel::Error => format!("error (e-{:04})", error.kind.index()),
             ErrorLevel::Warning => format!("warning (w-{:04})", error.kind.index()),
+            ErrorLevel::Lint => unreachable!(),
         };
         let colored_title = color.render_fg(&title);
         let note = if let Some(note) = &error.note {

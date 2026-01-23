@@ -17,7 +17,15 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::{Error, ErrorKind, ItemKind};
+use sodigy_error::{
+    Error,
+    ErrorKind,
+    ItemKind,
+    Lint,
+    LintKind,
+    comma_list_strs,
+    to_ordinal,
+};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     Namespace,
@@ -26,7 +34,7 @@ use sodigy_name_analysis::{
     UseCount,
 };
 use sodigy_parse::{self as ast, Generic};
-use sodigy_span::{Span, SpanDeriveKind};
+use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use std::collections::HashMap;
 
@@ -166,6 +174,7 @@ impl Func {
 
         if is_poly || is_impl {
             // TODO: error if it's a poly and has no generic args
+            // TODO: can they have default values?
         }
 
         if let Some(asserted_type) = attribute.get_decorator(b"assert_type", &session.intermediate_dir) {
@@ -176,7 +185,12 @@ impl Func {
             });
         }
 
+        let mut associated_type = None;
+        let mut is_associated_func = false;
+
         if let Some(association) = attribute.get_decorator(b"associate", &session.intermediate_dir) {
+            associated_type = Some(association.args[0].clone().unwrap_type());
+            is_associated_func = true;
             session.associated_items.push(AssociatedItem {
                 kind: AssociatedItemKind::Func,
                 name: ast_func.name,
@@ -184,16 +198,51 @@ impl Func {
                 is_pure: Some(ast_func.is_pure),
                 params: Some(ast_func.params.len()),
                 type_span: association.args[0].error_span_wide(),
-                r#type: association.args[0].clone().unwrap_type(),
+                r#type: associated_type.clone().unwrap(),
             });
 
-            // TODO
-            // 1. make sure that there's at least 1 parameter
-            //    - maybe a warning if the name is not `self`?
-            // 2. make sure that the first parameter has no type annotation
-            // 3. annotate the first parameter with the type in the decorator arg
-            // 4. if there's a func-type-annotation lint (WIP), tell him it's okay...
-            todo!()
+            match ast_func.params.get(0) {
+                Some(ast_param) => {
+                    if !ast_param.name.eq(b"self") {
+                        session.warnings.push(Lint {
+                            kind: LintKind::SelfParamNotNamedSelf,
+                            spans: ast_param.name_span.simple_error(),
+                            note: None,
+                        });
+                    }
+
+                    if let Some(type_annot) = &ast_param.type_annot {
+                        session.errors.push(Error {
+                            kind: ErrorKind::SelfParamWithTypeAnnotation,
+                            spans: vec![
+                                RenderableSpan {
+                                    span: type_annot.error_span_wide(),
+                                    auxiliary: false,
+                                    note: Some(String::from("Remove this type annotation.")),
+                                },
+                                RenderableSpan {
+                                    span: associated_type.as_ref().unwrap().error_span_wide(),
+                                    auxiliary: true,
+                                    note: Some(format!(
+                                        "This is the type of `{}`.",
+                                        ast_func.name.unintern_or_default(&session.intermediate_dir),
+                                    )),
+                                },
+                            ],
+                            note: None,
+                        });
+                        has_error = true;
+                    }
+                },
+                None => {
+                    session.errors.push(Error {
+                        kind: ErrorKind::AssociatedFuncWithoutSelfParam,
+                        spans: ast_func.name_span.simple_error(),
+                        note: None,
+                    });
+                    has_error = true;
+                },
+            }
         }
 
         if let Err(()) = session.collect_lang_items(
@@ -209,10 +258,19 @@ impl Func {
         // 1. Sodigy doesn't allow dependent types.
         // 2. A param's default value should not reference other params.
         let mut params = Vec::with_capacity(ast_func.params.len());
+        let mut missing_type_annotations = vec![];
 
-        for param in ast_func.params.iter() {
-            match FuncParam::from_ast(param, session, is_top_level) {
-                Ok(param) => {
+        for (i, ast_param) in ast_func.params.iter().enumerate() {
+            if !(i == 0 && is_associated_func) && ast_param.type_annot.is_none() {
+                missing_type_annotations.push(i as i64);
+            }
+
+            match FuncParam::from_ast(ast_param, session, is_top_level) {
+                Ok(mut param) => {
+                    if i == 0 && is_associated_func {
+                        param.type_annot = associated_type.clone();
+                    }
+
                     params.push(param);
                 },
                 Err(()) => {
@@ -237,6 +295,33 @@ impl Func {
                     has_error = true;
                 },
             }
+        }
+
+        else {
+            missing_type_annotations.push(-1);
+        }
+
+        if !missing_type_annotations.is_empty() {
+            let mut missing_params = missing_type_annotations.iter().filter(
+                |i| **i >= 0
+            ).map(
+                |i| format!("{} parameter", to_ordinal((i + 1) as usize))
+            ).collect::<Vec<_>>();
+
+            if missing_type_annotations.contains(&-1) {
+                missing_params.push(String::from("return type"));
+            }
+
+            session.warnings.push(Lint {
+                kind: LintKind::FuncWithoutTypeAnnotation,
+                spans: ast_func.name_span.simple_error(),
+                note: Some(format!(
+                    "Type annotation{} for {} {} missing.",
+                    if missing_params.len() == 1 { "" } else { "s" },
+                    comma_list_strs(&missing_params, "", "", "and"),
+                    if missing_params.len() == 1 { "is" } else { "are" },
+                )),
+            });
         }
 
         let value = match &ast_func.value {

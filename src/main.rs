@@ -13,7 +13,13 @@ use sodigy::{
 };
 use sodigy_code_gen::Backend;
 use sodigy_endec::{DumpSession, Endec};
-use sodigy_error::{DumpErrorOption, Error as SodigyError, Warning as SodigyWarning};
+use sodigy_error::{
+    CustomErrorLevel,
+    DumpErrorOption,
+    Error as SodigyError,
+    ErrorLevel,
+    Warning as SodigyWarning,
+};
 use sodigy_file::{File, FileOrStd, ModulePath};
 use sodigy_fs_api::{
     FileError,
@@ -98,21 +104,21 @@ fn run() -> Result<(), Error> {
     // TODO: make it configurable
     let ir_dir = String::from("target");
 
-    match parse_args(&args)? {
+    match &parse_args(&args)? {
         CliCommand::New { project_name } => {
-            init_project(&project_name)?;
+            init_project(project_name)?;
             Ok(())
         },
         cli_command @ (
-            CliCommand::Build { optimize_level, import_std, emit_irs, jobs, color, .. } |
-            CliCommand::Run { optimize_level, import_std, emit_irs, jobs, color } |
-            CliCommand::Test { optimize_level, import_std, emit_irs, jobs, color }
+            CliCommand::Build { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color, .. } |
+            CliCommand::Run { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color } |
+            CliCommand::Test { optimize_level, import_std, custom_error_levels, emit_irs, graceful_shutdown, jobs, color }
         ) => {
             let started_at = Instant::now();
             let mut errors = vec![];
             let mut warnings = vec![];
-            let workers = init_workers(jobs);
-            let (output_path, backend) = match &cli_command {
+            let workers = init_workers(*jobs);
+            let (output_path, backend) = match cli_command {
                 CliCommand::Run { .. } => (StoreIrAt::IntermediateDir, Backend::Bytecode),
                 CliCommand::Test { .. } => (StoreIrAt::IntermediateDir, Backend::Bytecode),
                 CliCommand::Build { output_path, backend, .. } => (StoreIrAt::File(output_path.to_string()), *backend),
@@ -123,9 +129,11 @@ fn run() -> Result<(), Error> {
                 output_path,
                 backend,
                 ir_dir.clone(),
-                optimize_level,
-                import_std,
-                emit_irs,
+                *optimize_level,
+                *import_std,
+                &custom_error_levels,
+                *emit_irs,
+                *graceful_shutdown,
                 &workers,
                 &mut errors,
                 &mut warnings,
@@ -144,6 +152,11 @@ fn run() -> Result<(), Error> {
                 },
             };
 
+            apply_custom_error_levels(
+                &custom_error_levels,
+                &mut errors,
+                &mut warnings,
+            );
             sodigy_error::dump_errors(
                 errors,
                 warnings,
@@ -186,12 +199,15 @@ fn compile(
     ir_dir: String,
     optimize_level: OptimizeLevel,
     import_std: bool,
+    custom_error_levels: &HashMap<u16, CustomErrorLevel>,
     emit_irs: bool,
+    graceful_shutdown: u32,  // in milliseconds
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,
 ) -> Result<(), Error> {
     goto_root_dir()?;
+    let mut shutdown_countdown: Option<Instant> = None;
     let mut round_robin = 0;
     let mut modules: HashMap<ModulePath, ModuleCompileState> = HashMap::new();
     let emit_irs = if emit_irs {
@@ -251,6 +267,16 @@ fn compile(
     }
 
     loop {
+        // TODO: It has to immediately return if no worker's working.
+        //       Naively checking `modules.all(|m| m.running)` isn't enough because
+        //       an errorneous worker won't change its status and there can be
+        //       multiple erroneous workers!
+        if let Some(started_at) = &shutdown_countdown {
+            if Instant::now().duration_since(started_at.clone()).as_millis() >= graceful_shutdown as u128 {
+                return Err(Error::CompileError);
+            }
+        }
+
         let mut every_hir_complete = true;
         let mut every_mir_complete = true;
         let mut every_post_mir_complete = true;
@@ -399,8 +425,17 @@ fn compile(
                         *errors = sodigy_error::deduplicate(errors);
                         *warnings = sodigy_error::deduplicate(warnings);
 
-                        if !errors.is_empty() {
-                            return Err(Error::CompileError);
+                        if !errors.is_empty() || has_forbidden_warning(warnings, custom_error_levels) {
+                            // There's only 1 worker, so graceful shutdown doesn't make sense!
+                            if compile_stage == CompileStage::InterHir || compile_stage == CompileStage::InterMir {
+                                return Err(Error::CompileError);
+                            }
+
+                            if shutdown_countdown.is_none() {
+                                shutdown_countdown = Some(Instant::now());
+                            }
+
+                            continue;
                         }
 
                         match (compile_stage, module_path) {
@@ -1232,6 +1267,54 @@ fn get_cached_ir(
     else {
         Ok(None)
     }
+}
+
+fn apply_custom_error_levels(
+    custom_error_levels: &HashMap<u16, CustomErrorLevel>,
+    errors: &mut Vec<SodigyError>,
+    warnings: &mut Vec<SodigyWarning>,
+) {
+    let mut new_warnings = Vec::with_capacity(warnings.len());
+
+    for warning in warnings.drain(..) {
+        match ErrorLevel::from_error_kind(&warning.kind) {
+            ErrorLevel::Error => unreachable!(),
+            l @ (ErrorLevel::Warning | ErrorLevel::Lint) => match custom_error_levels.get(&warning.kind.index()) {
+                Some(CustomErrorLevel::Forbid) => {
+                    errors.push(warning);
+                },
+                Some(CustomErrorLevel::Warn) => {
+                    new_warnings.push(warning);
+                },
+                Some(CustomErrorLevel::Allow) => {},
+                None => match l {
+                    ErrorLevel::Error => unreachable!(),
+                    ErrorLevel::Warning => {
+                        new_warnings.push(warning);
+                    },
+                    ErrorLevel::Lint => {},
+                },
+            },
+        }
+    }
+
+    *warnings = new_warnings;
+}
+
+fn has_forbidden_warning(
+    warnings: &[SodigyWarning],
+    custom_error_levels: &HashMap<u16, CustomErrorLevel>,
+) -> bool {
+    for warning in warnings.iter() {
+        match custom_error_levels.get(&warning.kind.index()) {
+            Some(CustomErrorLevel::Forbid) => {
+                return true;
+            },
+            _ => {},
+        }
+    }
+
+    false
 }
 
 // I want purely functional `push` method, but rust doesn't have one. So I created one!

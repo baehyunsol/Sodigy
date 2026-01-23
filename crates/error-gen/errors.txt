@@ -100,8 +100,14 @@ NonExhaustiveArms/455/Error
 MultipleModuleFiles/460/Error
 ModuleFileNotFound/465/Error
 LibFileNotFound/470/Error
+SelfParamWithTypeAnnotation/475/Error
+AssociatedFuncWithoutSelfParam/480/Error
 UnusedNames/5000/Warning
 UnreachableMatchArm/5005/Warning
 NoImpureCallInImpureContext/5010/Warning
+FuncWithoutTypeAnnotation/8000/Lint
+LetWithoutTypeAnnotation/8005/Lint
+FieldWithoutTypeAnnotation/8010/Lint
+SelfParamNotNamedSelf/8015/Lint
 Todo/9998/Error
 InternalCompilerError/9999/Error

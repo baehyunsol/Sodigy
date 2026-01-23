@@ -6,7 +6,9 @@ use ragit_cli::{
     Error as CliError,
 };
 use sodigy_code_gen::Backend;
+use sodigy_error::CustomErrorLevel;
 use sodigy_optimize::OptimizeLevel;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum CliCommand {
@@ -15,22 +17,28 @@ pub enum CliCommand {
         backend: Backend,
         optimize_level: OptimizeLevel,
         import_std: bool,
+        custom_error_levels: HashMap<u16, CustomErrorLevel>,
         profile: Profile,
         emit_irs: bool,
+        graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
     },
     Run {
         optimize_level: OptimizeLevel,
         import_std: bool,
+        custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
+        graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
     },
     Test {
         optimize_level: OptimizeLevel,
         import_std: bool,
+        custom_error_levels: HashMap<u16, CustomErrorLevel>,
         emit_irs: bool,
+        graceful_shutdown: u32,  // in millis
         jobs: usize,
         color: ColorWhen,
     },
@@ -120,6 +128,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
                 backend,
                 optimize_level,
                 import_std,
+                custom_error_levels: HashMap::new(),  // TODO: make it configurable
+                graceful_shutdown: 300,  // TODO: make it configurable
                 profile,
                 emit_irs,
                 jobs,
@@ -215,6 +225,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             Ok(CliCommand::Run {
                 optimize_level,
                 import_std,
+                custom_error_levels: HashMap::new(),  // TODO: make it configurable
+                graceful_shutdown: 300,  // TODO: make it configurable
                 emit_irs,
                 jobs,
                 color,
@@ -259,6 +271,8 @@ pub fn parse_args(args: &[String]) -> Result<CliCommand, CliError> {
             Ok(CliCommand::Test {
                 optimize_level,
                 import_std,
+                custom_error_levels: HashMap::new(),  // TODO: make it configurable
+                graceful_shutdown: 300,  // TODO: make it configurable
                 emit_irs,
                 jobs,
                 color,

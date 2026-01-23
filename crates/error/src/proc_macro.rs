@@ -58,9 +58,12 @@
     { num_candidates: usize }, ImpureCallInPureContext, NonExhaustiveArms,
     MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
     ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },
-    LibFileNotFound, UnusedNames
+    LibFileNotFound, SelfParamWithTypeAnnotation,
+    AssociatedFuncWithoutSelfParam, UnusedNames
     { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
-    NoImpureCallInImpureContext, Todo { id: u32, message: String },
+    NoImpureCallInImpureContext, FuncWithoutTypeAnnotation,
+    LetWithoutTypeAnnotation, FieldWithoutTypeAnnotation,
+    SelfParamNotNamedSelf, Todo { id: u32, message: String },
     InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
@@ -150,10 +153,16 @@
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
             => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
             ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
-            LibFileNotFound => 470u16, ErrorKind :: UnusedNames { .. } =>
-            5000u16, ErrorKind :: UnreachableMatchArm => 5005u16, ErrorKind ::
-            NoImpureCallInImpureContext => 5010u16, ErrorKind :: Todo { .. }
-            => 9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
+            LibFileNotFound => 470u16, ErrorKind ::
+            SelfParamWithTypeAnnotation => 475u16, ErrorKind ::
+            AssociatedFuncWithoutSelfParam => 480u16, ErrorKind :: UnusedNames
+            { .. } => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16,
+            ErrorKind :: NoImpureCallInImpureContext => 5010u16, ErrorKind ::
+            FuncWithoutTypeAnnotation => 8000u16, ErrorKind ::
+            LetWithoutTypeAnnotation => 8005u16, ErrorKind ::
+            FieldWithoutTypeAnnotation => 8010u16, ErrorKind ::
+            SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo { .. } =>
+            9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
         }
     }
 } impl ErrorLevel {
@@ -263,11 +272,17 @@
             ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
             ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
             ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
-            UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
+            SelfParamWithTypeAnnotation => ErrorLevel :: Error, ErrorKind ::
+            AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
+            :: UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
             UnreachableMatchArm => ErrorLevel :: Warning, ErrorKind ::
             NoImpureCallInImpureContext => ErrorLevel :: Warning, ErrorKind ::
-            Todo { .. } => ErrorLevel :: Error, ErrorKind ::
-            InternalCompilerError { .. } => ErrorLevel :: Error,
+            FuncWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
+            LetWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
+            FieldWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
+            SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
+            { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
+            { .. } => ErrorLevel :: Error,
         }
     }
 } impl Endec for ErrorKind {
@@ -534,6 +549,10 @@
                 r#candidates.encode_impl(buffer);
             }, ErrorKind :: LibFileNotFound =>
             { buffer.push(1u8); buffer.push(214u8); }, ErrorKind ::
+            SelfParamWithTypeAnnotation =>
+            { buffer.push(1u8); buffer.push(219u8); }, ErrorKind ::
+            AssociatedFuncWithoutSelfParam =>
+            { buffer.push(1u8); buffer.push(224u8); }, ErrorKind ::
             UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
@@ -541,7 +560,15 @@
             }, ErrorKind :: UnreachableMatchArm =>
             { buffer.push(19u8); buffer.push(141u8); }, ErrorKind ::
             NoImpureCallInImpureContext =>
-            { buffer.push(19u8); buffer.push(146u8); }, ErrorKind :: Todo
+            { buffer.push(19u8); buffer.push(146u8); }, ErrorKind ::
+            FuncWithoutTypeAnnotation =>
+            { buffer.push(31u8); buffer.push(64u8); }, ErrorKind ::
+            LetWithoutTypeAnnotation =>
+            { buffer.push(31u8); buffer.push(69u8); }, ErrorKind ::
+            FieldWithoutTypeAnnotation =>
+            { buffer.push(31u8); buffer.push(74u8); }, ErrorKind ::
+            SelfParamNotNamedSelf =>
+            { buffer.push(31u8); buffer.push(79u8); }, ErrorKind :: Todo
             { r#id, r#message, } =>
             {
                 buffer.push(39u8); buffer.push(14u8);
@@ -875,7 +902,9 @@
                 Vec :: < String > :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: ModuleFileNotFound
                 { r#module, r#candidates, }, cursor))
-            }, 470u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 5000u16
+            }, 470u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 475u16 =>
+            Ok((ErrorKind :: SelfParamWithTypeAnnotation, cursor)), 480u16 =>
+            Ok((ErrorKind :: AssociatedFuncWithoutSelfParam, cursor)), 5000u16
             =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::
@@ -884,6 +913,10 @@
                 Ok((ErrorKind :: UnusedNames { r#names, r#kind, }, cursor))
             }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
             5010u16 => Ok((ErrorKind :: NoImpureCallInImpureContext, cursor)),
+            8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnotation, cursor)),
+            8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnotation, cursor)),
+            8010u16 => Ok((ErrorKind :: FieldWithoutTypeAnnotation, cursor)),
+            8015u16 => Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)),
             9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
