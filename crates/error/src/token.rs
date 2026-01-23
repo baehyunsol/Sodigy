@@ -32,6 +32,15 @@ pub enum ErrorToken {
     DotOrSemicolon,
 }
 
+impl ErrorToken {
+    pub fn unwrap_punct(&self) -> Punct {
+        match self {
+            ErrorToken::Punct(p) => *p,
+            _ => panic!(),
+        }
+    }
+}
+
 impl From<&TokenKind> for ErrorToken {
     fn from(t: &TokenKind) -> ErrorToken {
         match t {

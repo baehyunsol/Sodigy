@@ -351,6 +351,16 @@ pub(crate) enum ParsePatternContext {
     Group,
 }
 
+impl ParsePatternContext {
+    pub fn expected_token(&self) -> ErrorToken {
+        match self {
+            ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
+            ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
+            ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
+        }
+    }
+}
+
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_pattern(&mut self, context: ParsePatternContext) -> Result<Pattern, Vec<Error>> {
         self.pratt_parse_pattern(context, 0)
@@ -548,7 +558,19 @@ impl<'t, 's> Tokens<'t, 's> {
                     },
                 }
             },
-            ts => panic!("TODO: {ts:?}"),
+            (Some(t), _) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::UnexpectedToken {
+                        expected: ErrorToken::Pattern,
+                        got: (&t.kind).into(),
+                    },
+                    spans: t.span.simple_error(),
+                    note: None,
+                }]);
+            },
+            (None, _) => {
+                return Err(vec![self.unexpected_end(ErrorToken::Pattern)]);
+            },
         };
 
         loop {
@@ -599,15 +621,9 @@ impl<'t, 's> Tokens<'t, 's> {
                                     }
                                 },
                                 _ => {
-                                    let expected_token = match context {
-                                        ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
-                                        ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
-                                        ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
-                                    };
-
                                     return Err(vec![Error {
                                         kind: ErrorKind::UnexpectedToken {
-                                            expected: expected_token,
+                                            expected: context.expected_token(),
                                             got: ErrorToken::Punct(Punct::At),
                                         },
                                         spans: op_span.simple_error(),
@@ -815,50 +831,6 @@ impl<'t, 's> Tokens<'t, 's> {
                                 },
                             }
                         },
-                        Punct::Eq => match context {
-                            ParsePatternContext::Let | ParsePatternContext::IfLet => {
-                                return Err(vec![Error {
-                                    kind: ErrorKind::UnexpectedToken {
-                                        expected: ErrorToken::Punct(Punct::Assign),
-                                        got: ErrorToken::Punct(Punct::Eq),
-                                    },
-                                    spans: vec![
-                                        RenderableSpan {
-                                            span: op_span,
-                                            auxiliary: false,
-                                            note: Some(String::from("Use `=` instead of `==` here.")),
-                                        },
-                                    ],
-                                    note: None,
-                                }]);
-                            },
-                            _ => {
-                                // Likely to be an error, another parser will catch this.
-                                break;
-                            },
-                        },
-                        Punct::ReturnType => match context {
-                            ParsePatternContext::MatchArm => {
-                                return Err(vec![Error {
-                                    kind: ErrorKind::UnexpectedToken {
-                                        expected: ErrorToken::Punct(Punct::Arrow),
-                                        got: ErrorToken::Punct(Punct::ReturnType),
-                                    },
-                                    spans: vec![
-                                        RenderableSpan {
-                                            span: op_span,
-                                            auxiliary: false,
-                                            note: Some(String::from("Use `=>` instead of `->` here.")),
-                                        },
-                                    ],
-                                    note: None,
-                                }]);
-                            },
-                            _ => {
-                                // Likely to be an error, another parser will catch this.
-                                break;
-                            },
-                        },
                         p => match InfixOp::try_from(p) {
                             Ok(op) => {
                                 let (l_bp, r_bp) = match infix_binding_power(op) {
@@ -985,14 +957,137 @@ impl<'t, 's> Tokens<'t, 's> {
                                 continue;
                             },
                             Err(_) => {
-                                // Okay, `p` is not an operator. we should not touch this.
-                                break;
+                                let (expected, note) = match p {
+                                    Punct::Eq => match context {
+                                        ParsePatternContext::Let | ParsePatternContext::IfLet => (
+                                            ErrorToken::Punct(Punct::Assign),
+                                            Some("Use `=` instead of `==` here."),
+                                        ),
+                                        ParsePatternContext::MatchArm => (
+                                            ErrorToken::Punct(Punct::Arrow),
+                                            Some("Use `=>` instead of `==` here."),
+                                        ),
+                                        ParsePatternContext::Group => (
+                                            ErrorToken::Punct(Punct::Comma),
+                                            Some("You can't assign anything here"),
+                                        ),
+                                    },
+                                    Punct::ReturnType => match context {
+                                        ParsePatternContext::Let | ParsePatternContext::IfLet => (
+                                            ErrorToken::Punct(Punct::Assign),
+                                            None,
+                                        ),
+                                        ParsePatternContext::MatchArm => (
+                                            ErrorToken::Punct(Punct::Arrow),
+                                            Some("Use `=>` instead of `->` here."),
+                                        ),
+                                        ParsePatternContext::Group => (
+                                            ErrorToken::Punct(Punct::Comma),
+                                            None,
+                                        ),
+                                    },
+                                    _ if context.expected_token().unwrap_punct() == p => {
+                                        break;
+                                    },
+                                    _ => match context {
+                                        ParsePatternContext::Let | ParsePatternContext::IfLet => (
+                                            ErrorToken::Punct(Punct::Assign),
+                                            None,
+                                        ),
+                                        ParsePatternContext::MatchArm => (
+                                            ErrorToken::Punct(Punct::Arrow),
+                                            None,
+                                        ),
+                                        ParsePatternContext::Group => (
+                                            ErrorToken::Punct(Punct::Comma),
+                                            None,
+                                        ),
+                                    },
+                                };
+
+                                return Err(vec![Error {
+                                    kind: ErrorKind::UnexpectedToken {
+                                        expected,
+                                        got: ErrorToken::Punct(p),
+                                    },
+                                    spans: vec![
+                                        RenderableSpan {
+                                            span: op_span,
+                                            auxiliary: false,
+                                            note: note.map(|n| n.to_string()),
+                                        },
+                                    ],
+                                    note: None,
+                                }]);
                             },
                         },
                     }
                 },
-                _ => {
-                    break;
+                // struct or a tuple_struct
+                Some(t @ Token { kind: TokenKind::Group { delim, tokens }, span }) => {
+                    let r#struct = match &lhs.kind {
+                        PatternKind::Ident { id, span } => vec![(*id, *span)],
+                        PatternKind::Path(path) => path.to_vec(),
+                        _ => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: context.expected_token(),
+                                    got: (&t.kind).into(),
+                                },
+                                spans: span.simple_error(),
+                                note: None,
+                            }]);
+                        },
+                    };
+
+                    match delim {
+                        Delim::Parenthesis => {
+                            let group_span = *span;
+                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                            let (elements, rest) = tokens.parse_patterns(/* may_have_dot_dot: */ true)?;
+                            self.cursor += 1;
+
+                            lhs = Pattern {
+                                name: None,
+                                name_span: None,
+                                kind: PatternKind::TupleStruct {
+                                    r#struct,
+                                    elements,
+                                    group_span,
+                                    rest,
+                                },
+                            };
+                        },
+                        Delim::Brace => todo!(),
+                        _ => {
+                            return Err(vec![Error {
+                                kind: ErrorKind::UnexpectedToken {
+                                    expected: ErrorToken::BraceOrParenthesis,
+                                    got: (&t.kind).into(),
+                                },
+                                spans: span.simple_error(),
+                                note: None,
+                            }]);
+                        },
+                    }
+                },
+                Some(t) => {
+                    return Err(vec![Error {
+                        kind: ErrorKind::UnexpectedToken {
+                            expected: context.expected_token(),
+                            got: (&t.kind).into(),
+                        },
+                        spans: t.span.simple_error(),
+                        note: None,
+                    }]);
+                },
+                None => match context {
+                    ParsePatternContext::Group => {
+                        break;
+                    },
+                    _ => {
+                        return Err(vec![self.unexpected_end(context.expected_token())]);
+                    },
                 },
             }
         }

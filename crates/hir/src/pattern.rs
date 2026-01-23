@@ -196,6 +196,34 @@ impl PatternKind {
             },
             ast::PatternKind::Char { ch, span } => Ok(PatternKind::Char { ch: *ch, span: *span }),
             ast::PatternKind::Byte { b, span } => Ok(PatternKind::Byte { b: *b, span: *span }),
+            ast::PatternKind::TupleStruct { r#struct, elements: ast_elements, rest, group_span } => {
+                let mut has_error = false;
+                let mut elements = Vec::with_capacity(ast_elements.len());
+
+                for ast_element in ast_elements.iter() {
+                    match Pattern::from_ast(ast_element, session, extra_guards) {
+                        Ok(pattern) => {
+                            elements.push(pattern);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(PatternKind::TupleStruct {
+                        r#struct: r#struct.clone(),
+                        elements,
+                        rest: *rest,
+                        group_span: *group_span,
+                    })
+                }
+            },
             ast::PatternKind::Tuple { elements: ast_elements, rest, group_span } |
             ast::PatternKind::List { elements: ast_elements, rest, group_span, .. } => {
                 let is_tuple = matches!(ast_pattern, ast::PatternKind::Tuple { .. });
