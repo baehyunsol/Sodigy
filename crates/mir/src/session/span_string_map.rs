@@ -125,7 +125,7 @@ impl Session {
             Expr::Char { .. } |
             Expr::Byte { .. } |
             Expr::Path { .. } |
-            Expr::FieldModifier { .. } => {},
+            Expr::FieldUpdate { .. } => {},
             Expr::If(r#if) => {
                 self.init_span_string_map_expr(&r#if.cond, result);
                 self.init_span_string_map_expr(&r#if.true_value, result);

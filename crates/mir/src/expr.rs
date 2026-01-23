@@ -42,7 +42,7 @@ pub enum Expr {
         lhs: Box<Expr>,
         fields: Vec<Field>,
     },
-    FieldModifier {
+    FieldUpdate {
         fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
@@ -151,7 +151,7 @@ impl Expr {
                             _ => panic!("TODO: {kind:?}"),
                         },
                         NameOrigin::FuncParam { .. } => (id.span, Callable::Dynamic(Box::new(e))),
-                        NameOrigin::Generic { .. } => unreachable!(),
+                        NameOrigin::GenericParam { .. } => unreachable!(),
                         NameOrigin::External => unreachable!(),
                     },
                     // call_span has to be the name_span of the last field, because `get_type_of_field` works this way
@@ -172,9 +172,9 @@ impl Expr {
                     Some(def_span) => match session.func_shapes.get(&def_span) {
                         Some(func_shape) => {
                             for generic_def in func_shape.generics.iter() {
-                                session.generic_instances.insert(
+                                session.generic_args.insert(
                                     (call_span, generic_def.name_span),
-                                    Type::GenericInstance {
+                                    Type::GenericArg {
                                         call: call_span,
                                         generic: generic_def.name_span,
                                     },
@@ -527,12 +527,12 @@ impl Expr {
                                 NameKind::Module => (false, Some("a module")),
                                 NameKind::Use => unreachable!(),
                                 NameKind::FuncParam => (false, Some("a function parameter")),
-                                NameKind::Generic => (false, Some("a generic parameter")),
+                                NameKind::GenericParam => (false, Some("a generic parameter")),
                                 NameKind::PatternNameBind => (false, Some("a pattern name bind")),
                                 NameKind::Pipeline => (false, Some("a piped value")),
                             },
                             NameOrigin::FuncParam { .. } => (false, Some("a function parameter")),
-                            NameOrigin::Generic { .. } => (false, Some("a generic parameter")),
+                            NameOrigin::GenericParam { .. } => (false, Some("a generic parameter")),
                             NameOrigin::External => unreachable!(),
                         };
 
@@ -569,9 +569,9 @@ impl Expr {
 
                         if !struct_shape.generics.is_empty() {
                             for generic_def in struct_shape.generics.iter() {
-                                session.generic_instances.insert(
+                                session.generic_args.insert(
                                     (r#struct.error_span_wide(), generic_def.name_span),
-                                    Type::GenericInstance {
+                                    Type::GenericArg {
                                         call: r#struct.error_span_wide(),
                                         generic: generic_def.name_span,
                                     },
@@ -808,11 +808,11 @@ impl Expr {
                 }),
                 Err(()) => Err(()),
             },
-            hir::Expr::FieldModifier { fields, lhs, rhs } => match (
+            hir::Expr::FieldUpdate { fields, lhs, rhs } => match (
                 Expr::from_hir(lhs, session),
                 Expr::from_hir(rhs, session),
             ) {
-                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldModifier {
+                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldUpdate {
                     fields: fields.clone(),
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
@@ -943,7 +943,7 @@ impl Expr {
             Expr::Match(r#match) => r#match.keyword_span,
             Expr::Block(block) => block.group_span,
             Expr::Path { fields, .. } |
-            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
+            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Call { func, .. } => func.error_span_narrow(),
         }
     }
@@ -959,7 +959,7 @@ impl Expr {
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
             Expr::Block(block) => block.group_span,
             Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
-            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),

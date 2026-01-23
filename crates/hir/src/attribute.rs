@@ -63,7 +63,7 @@ impl Session {
         &mut self,
         attribute: &Attribute,
         lang_item_span: Span,
-        generic_defs: Option<&[Generic]>,
+        generic_params: Option<&[Generic]>,
         generic_group_span: Option<Span>,
     ) -> Result<(), ()> {
         if let Some(lang_item) = attribute.lang_item(&self.intermediate_dir) {
@@ -71,10 +71,10 @@ impl Session {
         }
 
         if let Some((deco_span, lang_item_generics)) = attribute.lang_item_generics(&self.intermediate_dir) {
-            if let (Some(generic_defs), Some(generic_group_span)) = (generic_defs, generic_group_span) {
-                if lang_item_generics.len() == generic_defs.len() {
-                    for i in 0..generic_defs.len() {
-                        self.lang_items.insert(lang_item_generics[i].to_string(), generic_defs[i].name_span);
+            if let (Some(generic_params), Some(generic_group_span)) = (generic_params, generic_group_span) {
+                if lang_item_generics.len() == generic_params.len() {
+                    for i in 0..generic_params.len() {
+                        self.lang_items.insert(lang_item_generics[i].to_string(), generic_params[i].name_span);
                     }
                 }
 
@@ -82,7 +82,7 @@ impl Session {
                     self.errors.push(Error {
                         kind: ErrorKind::WrongNumberOfLangItemGenerics {
                             lang_items: lang_item_generics.len(),
-                            generic_def: generic_defs.len(),
+                            generic_params: generic_params.len(),
                         },
                         spans: vec![
                             RenderableSpan {
@@ -99,8 +99,8 @@ impl Session {
                                 auxiliary: true,
                                 note: Some(format!(
                                     "It has {} generic parameter{}.",
-                                    generic_defs.len(),
-                                    if generic_defs.len() == 1 { "" } else { "s" },
+                                    generic_params.len(),
+                                    if generic_params.len() == 1 { "" } else { "s" },
                                 )),
                             },
                         ],
@@ -113,8 +113,8 @@ impl Session {
             else {
                 self.errors.push(Error {
                     kind: ErrorKind::WrongNumberOfLangItemGenerics {
-                        generic_def: 0,
                         lang_items: lang_item_generics.len(),
+                        generic_params: 0,
                     },
                     spans: vec![
                         RenderableSpan {
@@ -896,7 +896,7 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
         },
         (ArgType::Type, DecoratorArg::Type(_)) => Ok(()),
         (ArgType::Type, DecoratorArg::Expr(_)) => unreachable!(),
-        (ArgType::Generic, DecoratorArg::Type(Type::Ident(IdentWithOrigin { origin: NameOrigin::Generic { .. }, .. }))) => Ok(()),
+        (ArgType::Generic, DecoratorArg::Type(Type::Ident(IdentWithOrigin { origin: NameOrigin::GenericParam { .. }, .. }))) => Ok(()),
         (ArgType::Generic, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {

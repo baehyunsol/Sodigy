@@ -88,7 +88,7 @@ error_kinds!(
 
     (MissingDecoratorArgument { expected: usize, got: usize },       245,    Error),
     (UnexpectedDecoratorArgument { expected: usize, got: usize },    250,    Error),
-    (WrongNumberOfLangItemGenerics { lang_items: usize, generic_def: usize },    255,    Error),
+    (WrongNumberOfLangItemGenerics { lang_items: usize, generic_params: usize },    255,    Error),
     (CannotEvaluateConst,                                            260,    Error),
 
     // syntax errors in patterns
@@ -237,7 +237,7 @@ impl From<NameKind> for NotExprBut {
             NameKind::Struct => NotExprBut::Struct,
             NameKind::Enum => NotExprBut::Enum,
             NameKind::Module => NotExprBut::Module,
-            NameKind::Generic => NotExprBut::GenericParam,
+            NameKind::GenericParam => NotExprBut::GenericParam,
         }
     }
 }

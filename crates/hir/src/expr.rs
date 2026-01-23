@@ -70,7 +70,7 @@ pub enum Expr {
         lhs: Box<Expr>,
         fields: Vec<Field>,
     },
-    FieldModifier {
+    FieldUpdate {
         fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
@@ -266,11 +266,11 @@ impl Expr {
                 }),
                 Err(()) => Err(()),
             },
-            ast::Expr::FieldModifier { fields, lhs, rhs } => match (
+            ast::Expr::FieldUpdate { fields, lhs, rhs } => match (
                 Expr::from_ast(lhs, session),
                 Expr::from_ast(rhs, session),
             ) {
-                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldModifier {
+                (Ok(lhs), Ok(rhs)) => Ok(Expr::FieldUpdate {
                     fields: fields.clone(),
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
@@ -466,7 +466,7 @@ impl Expr {
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
             Expr::Path { fields, .. } |
-            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
+            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
             Expr::PostfixOp { op_span, .. } => *op_span,
@@ -493,7 +493,7 @@ impl Expr {
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
             Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
-            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),
             Expr::PrefixOp { op_span, rhs, .. } => op_span.merge(rhs.error_span_wide()),

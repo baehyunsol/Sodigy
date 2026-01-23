@@ -11,7 +11,7 @@ impl TypeSolver {
         r#let: &Let,
         impure_calls: &mut Vec<Span>,
         types: &mut HashMap<Span, Type>,
-        generic_instances: &mut HashMap<(Span, Span), Type>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         let mut has_error = false;
 
@@ -45,7 +45,7 @@ impl TypeSolver {
             &r#let.value,
             impure_calls,
             types,
-            generic_instances,
+            generic_args,
         );
         has_error |= e;
 
@@ -55,7 +55,7 @@ impl TypeSolver {
                     &annotated_type,
                     &infered_type,
                     types,
-                    generic_instances,
+                    generic_args,
                     false,
                     type_annot_span,
                     Some(value_span),

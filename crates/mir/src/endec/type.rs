@@ -11,7 +11,7 @@ impl Endec for Type {
                 def_span.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Type::GenericDef { def_span, span } => {
+            Type::GenericParam { def_span, span } => {
                 buffer.push(1);
                 def_span.encode_impl(buffer);
                 span.encode_impl(buffer);
@@ -43,7 +43,7 @@ impl Endec for Type {
                 def_span.encode_impl(buffer);
                 is_return.encode_impl(buffer);
             },
-            Type::GenericInstance { call, generic } => {
+            Type::GenericArg { call, generic } => {
                 buffer.push(7);
                 call.encode_impl(buffer);
                 generic.encode_impl(buffer);
@@ -65,7 +65,7 @@ impl Endec for Type {
             Some(1) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::GenericDef { def_span, span }, cursor))
+                Ok((Type::GenericParam { def_span, span }, cursor))
             },
             Some(2) => {
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
@@ -97,7 +97,7 @@ impl Endec for Type {
             Some(7) => {
                 let (call, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (generic, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::GenericInstance { call, generic }, cursor))
+                Ok((Type::GenericArg { call, generic }, cursor))
             },
             Some(8) => {
                 let (origin, cursor) = Span::decode_impl(buffer, cursor + 1)?;

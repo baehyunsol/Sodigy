@@ -808,7 +808,7 @@ pub fn run_worker(
                 mir_session.errors.extend(inter_mir_session.errors.drain(..));
                 mir_session.warnings.extend(inter_mir_session.warnings.drain(..));
                 mir_session.types = inter_mir_session.types.drain().collect();
-                mir_session.generic_instances = inter_mir_session.generic_instances.drain().collect();
+                mir_session.generic_args = inter_mir_session.generic_args.drain().collect();
 
                 let _ = sodigy_post_mir::lower_matches(&mut mir_session);
 

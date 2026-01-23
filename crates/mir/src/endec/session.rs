@@ -37,7 +37,7 @@ impl Endec for Session {
         // These 2 are likely to be empty... but encoding/decoding an empty
         // map is very cheap, so who cares!
         self.types.encode_impl(buffer);
-        self.generic_instances.encode_impl(buffer);
+        self.generic_args.encode_impl(buffer);
 
         // you can re-construct it from scratch
         // self.span_string_map.encode_impl(buffer);
@@ -60,7 +60,7 @@ impl Endec for Session {
         let (aliases, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor)?;
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
-        let (generic_instances, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
+        let (generic_args, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
@@ -81,7 +81,7 @@ impl Endec for Session {
                 aliases,
                 type_assertions,
                 types,
-                generic_instances,
+                generic_args,
                 span_string_map: None,
                 lang_items,
                 polys,

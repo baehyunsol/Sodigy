@@ -35,12 +35,12 @@ impl TypeSolver {
 
         for type_var in self.type_vars.keys() {
             match type_var {
-                Type::GenericInstance { call, generic } => {
+                Type::GenericArg { call, generic } => {
                     if already_dispatched.contains(&(*call, *generic)) {
                         continue;
                     }
 
-                    let r#type = match session.generic_instances.get(&(*call, *generic)) {
+                    let r#type = match session.generic_args.get(&(*call, *generic)) {
                         Some(r#type) => {
                             if !r#type.get_type_vars().is_empty() {
                                 incomplete_generics.insert(*call);

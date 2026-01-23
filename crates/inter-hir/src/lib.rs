@@ -335,7 +335,7 @@ impl Session {
                     NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
                         NameKind::Struct => Ok((true, id.def_span)),
                         NameKind::Enum => Ok((false, id.def_span)),
-                        NameKind::Generic => Err(Error {
+                        NameKind::GenericParam => Err(Error {
                             kind: ErrorKind::TooGeneralToAssociateItem,
                             spans: associated_item.type_span.simple_error(),
                             note: None,
@@ -442,7 +442,7 @@ impl Session {
                                     e.get_mut().impls.push(associated_item.name_span);
                                 },
                                 Entry::Vacant(e) => {
-                                    let generic_names = (0..(params + 1)).map(
+                                    let generic_params = (0..(params + 1)).map(
                                         |i| intern_string(
                                             if i != params {
                                                 format!("T{i}")
@@ -478,7 +478,7 @@ impl Session {
                                         name_span: poly_span,
                                         generics: (0..(params + 1)).map(
                                             |i| Generic {
-                                                name: generic_names[i],
+                                                name: generic_params[i],
                                                 name_span: Span::Poly {
                                                     name: poly_name_interned,
                                                     kind: if i == params {
@@ -494,25 +494,25 @@ impl Session {
                                                 name: param_names[i],
                                                 name_span: Span::None,
                                                 type_annot: Some(Type::Ident(IdentWithOrigin {
-                                                    id: generic_names[i],
+                                                    id: generic_params[i],
                                                     span: Span::None,
                                                     def_span: Span::Poly {
                                                         name: poly_name_interned,
                                                         kind: PolySpanKind::Param(i),
                                                     },
-                                                    origin: NameOrigin::Generic { index: i },
+                                                    origin: NameOrigin::GenericParam { index: i },
                                                 })),
                                                 default_value: None,
                                             }
                                         ).collect(),
                                         type_annot: Some(Type::Ident(IdentWithOrigin {
-                                            id: generic_names[params],
+                                            id: generic_params[params],
                                             span: Span::None,
                                             def_span: Span::Poly {
                                                 name: poly_name_interned,
                                                 kind: PolySpanKind::Return,
                                             },
-                                            origin: NameOrigin::Generic { index: params },
+                                            origin: NameOrigin::GenericParam { index: params },
                                         })),
                                         value: Expr::dummy(),
                                         origin: FuncOrigin::AssociatedFunc,
@@ -1693,7 +1693,7 @@ impl Session {
             },
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
-            Expr::FieldModifier { lhs, rhs, .. } |
+            Expr::FieldUpdate { lhs, rhs, .. } |
             Expr::InfixOp { lhs, rhs, .. } => match (
                 self.resolve_expr(lhs),
                 self.resolve_expr(rhs),

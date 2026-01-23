@@ -42,11 +42,11 @@ impl Alias {
         is_top_level: bool,
     ) -> Result<Alias, ()> {
         let mut has_error = false;
-        let mut generic_names = HashMap::new();
+        let mut generic_params = HashMap::new();
         let mut generic_index = HashMap::new();
 
         for (index, Generic { name, name_span }) in ast_alias.generics.iter().enumerate() {
-            generic_names.insert(*name, (*name_span, NameKind::Generic, UseCount::new()));
+            generic_params.insert(*name, (*name_span, NameKind::GenericParam, UseCount::new()));
             generic_index.insert(*name, index);
         }
 
@@ -54,8 +54,8 @@ impl Alias {
             is_func: false,
             foreign_names: HashMap::new(),
         });
-        session.name_stack.push(Namespace::Generic {
-            names: generic_names,
+        session.name_stack.push(Namespace::GenericParam {
+            names: generic_params,
             index: generic_index,
         });
 
@@ -90,7 +90,7 @@ impl Alias {
             },
         };
 
-        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
+        let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
         session.warn_unused_names(&names);
 
         let Some(Namespace::ForeignNameCollector { foreign_names, .. }) = session.name_stack.pop() else { unreachable!() };

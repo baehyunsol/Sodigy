@@ -82,7 +82,7 @@ pub enum Expr {
         lhs: Box<Expr>,
         field: Field,
     },
-    FieldModifier {
+    FieldUpdate {
         fields: Vec<Field>,
         lhs: Box<Expr>,
         rhs: Box<Expr>,
@@ -137,7 +137,7 @@ impl Expr {
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
             Expr::Path { field, .. } => merge_field_spans(&[*field]),
-            Expr::FieldModifier { fields, .. } => merge_field_spans(fields),
+            Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => *arrow_span,
             Expr::Pipeline { pipe_spans, .. } => pipe_spans[0],
         }
@@ -160,7 +160,7 @@ impl Expr {
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_narrow().merge(*group_span),
             Expr::Path { lhs, field } => lhs.error_span_wide().merge(merge_field_spans(&[*field])),
-            Expr::FieldModifier { lhs, fields, rhs } => lhs.error_span_wide()
+            Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),
             Expr::Lambda(Lambda { param_group_span, arrow_span, value, .. }) => param_group_span
@@ -700,10 +700,10 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Some(Token {
-                    kind: TokenKind::FieldModifier { field, backtick_span, field_span },
+                    kind: TokenKind::FieldUpdate { field, backtick_span, field_span },
                     ..
                 }) => {
-                    let (l_bp, r_bp) = field_modifier_binding_power();
+                    let (l_bp, r_bp) = field_update_binding_power();
 
                     if l_bp < min_bp {
                         break;
@@ -731,7 +731,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
 
                     let rhs = self.pratt_parse(r_bp)?;
-                    lhs = Expr::FieldModifier {
+                    lhs = Expr::FieldUpdate {
                         fields,
                         lhs: Box::new(lhs),
                         rhs: Box::new(rhs),
@@ -810,7 +810,7 @@ fn call_binding_power() -> (u32, u32) {
     (CALL, CALL + 1)
 }
 
-fn field_modifier_binding_power() -> (u32, u32) {
+fn field_update_binding_power() -> (u32, u32) {
     (MODIFY, MODIFY + 1)
 }
 

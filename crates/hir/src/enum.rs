@@ -51,16 +51,16 @@ impl Enum {
         let mut has_error = false;
         let mut variants = Vec::with_capacity(ast_enum.variants.len());
 
-        let mut generic_names = HashMap::new();
+        let mut generic_params = HashMap::new();
         let mut generic_index = HashMap::new();
 
         for (index, generic) in ast_enum.generics.iter().enumerate() {
-            generic_names.insert(generic.name, (generic.name_span, NameKind::Generic, UseCount::new()));
+            generic_params.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
         }
 
-        session.name_stack.push(Namespace::Generic {
-            names: generic_names,
+        session.name_stack.push(Namespace::GenericParam {
+            names: generic_params,
             index: generic_index,
         });
 
@@ -98,7 +98,7 @@ impl Enum {
             }
         }
 
-        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
+        let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
         session.warn_unused_names(&names);
 
         if has_error {

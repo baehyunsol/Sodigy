@@ -41,7 +41,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         for func in mir_session.funcs.iter() {
             // We'll check generic functions after monomorphization.
             if func.generics.is_empty() && !func.built_in {
-                if let (_, true) = type_solver.solve_func(func, &mut mir_session.types, &mut mir_session.generic_instances) {
+                if let (_, true) = type_solver.solve_func(func, &mut mir_session.types, &mut mir_session.generic_args) {
                     has_error = true;
                 }
             }
@@ -54,7 +54,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
                 r#let,
                 &mut impure_calls,
                 &mut mir_session.types,
-                &mut mir_session.generic_instances,
+                &mut mir_session.generic_args,
             ) {
                 has_error = true;
             }
@@ -75,7 +75,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
                 assert,
                 &mut impure_calls,
                 &mut mir_session.types,
-                &mut mir_session.generic_instances,
+                &mut mir_session.generic_args,
             ) {
                 has_error = true;
             }
@@ -111,7 +111,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
             Ok(mono) => {
                 if !mono.is_empty() {
                     mir_session.dispatch(&mono.dispatch_map);
-                    // TODO: do we have to invalidate previous `generic_instances` after dispatching?
+                    // TODO: do we have to invalidate previous `generic_args` after dispatching?
                     continue;
                 }
             },
@@ -154,12 +154,12 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     if !has_error {
         type_solver.apply_never_types(
             &mut mir_session.types,
-            &mut mir_session.generic_instances,
+            &mut mir_session.generic_args,
         );
 
         if let Err(()) = type_solver.check_all_types_infered(
             &mir_session.types,
-            &mir_session.generic_instances,
+            &mir_session.generic_args,
             &mir_session.generic_def_span_rev,
             &dispatched_calls,
         ) {
@@ -171,7 +171,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
         else if let Err(()) = type_solver.check_type_assertions(
             &mir_session.type_assertions,
             &mut mir_session.types,
-            &mut mir_session.generic_instances,
+            &mut mir_session.generic_args,
         ) {
             has_error = true;
         }
@@ -194,7 +194,7 @@ pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     // It's relatively cheap. It'll be stored in cache-dir.
     let inter_mir_session = Session {
         types: mir_session.types.clone(),
-        generic_instances: mir_session.generic_instances.clone(),
+        generic_args: mir_session.generic_args.clone(),
         errors: mir_session.errors.clone(),
         warnings: mir_session.warnings.clone(),
     };

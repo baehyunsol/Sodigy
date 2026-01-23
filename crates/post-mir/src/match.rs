@@ -332,7 +332,7 @@ fn lower_matches_expr_recursive(
             warnings,
             intermediate_dir,
         ),
-        Expr::FieldModifier { lhs, rhs, .. } => {
+        Expr::FieldUpdate { lhs, rhs, .. } => {
             let lhs_err = lower_matches_expr_recursive(
                 lhs,
                 types,
@@ -637,9 +637,9 @@ fn get_matrix(
             _ => unreachable!(),
         },
         Type::Func { params, r#return, .. } => todo!(),
-        Type::GenericDef { .. } |
+        Type::GenericParam { .. } |
         Type::Var { .. } |
-        Type::GenericInstance { .. } |
+        Type::GenericArg { .. } |
         Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
     }
 }

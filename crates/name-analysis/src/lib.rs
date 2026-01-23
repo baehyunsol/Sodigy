@@ -13,7 +13,7 @@ pub enum Namespace {
         names: HashMap<InternedString, (Span, NameKind, UseCount)>,
         index: HashMap<InternedString, usize>,
     },
-    Generic {
+    GenericParam {
         names: HashMap<InternedString, (Span, NameKind, UseCount)>,
         index: HashMap<InternedString, usize>,
     },
@@ -50,7 +50,7 @@ pub enum NameOrigin {
         index: usize,
     },
     // If funcs are nested, only the inner-most function counts.
-    Generic {
+    GenericParam {
         index: usize,
     },
     // Local value that's declared inside the same function (inner-most).
@@ -78,7 +78,7 @@ pub enum NameKind {
     Module,
     Use,
     FuncParam,
-    Generic,
+    GenericParam,
     PatternNameBind,
     Pipeline,
 }

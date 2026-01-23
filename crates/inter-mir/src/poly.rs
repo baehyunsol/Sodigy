@@ -74,7 +74,7 @@ impl TypeSolver {
             // we can't solve anything!
             if def_type.has_type_var() {
                 has_error = true;
-                self.errors.push(TypeError::CannotInferPolyGenericDef);
+                self.errors.push(TypeError::CannotInferPolyGenericParam);
                 continue;
             }
 
@@ -159,7 +159,7 @@ impl Constraint {
                     (Type::Never(_), Type::Never(_)) => CheckResult::Pass,
                     (Type::Param { .. }, Type::Param { .. }) => todo!(),
                     (Type::Func { .. }, Type::Func { .. }) => todo!(),
-                    (Type::Var { .. } | Type::GenericInstance { .. }, _) => CheckResult::Maybe,
+                    (Type::Var { .. } | Type::GenericArg { .. }, _) => CheckResult::Maybe,
                     (
                         Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
                         Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
@@ -329,8 +329,8 @@ fn solve_fn_types(
             &impl_type,
             &mut types,
 
-            // We don't care about `generic_instances` because the caller
-            // guarantees that there's no generic instance.
+            // We don't care about `generic_args` because the caller
+            // guarantees that there's no generic call.
             &mut HashMap::new(),
 
             // Below 4 arguments are for error messages.

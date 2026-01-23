@@ -50,7 +50,7 @@ pub(crate) enum LexState {
         // `r#`-prefixed identifier
         raw: bool,
     },
-    FieldModifier,
+    FieldUpdate,
     Integer(Base),
     Fraction,
     Exp,
@@ -131,7 +131,7 @@ impl Session {
                     self.buffer1.push(*y);
 
                     self.token_start = self.cursor;
-                    self.state = LexState::FieldModifier;
+                    self.state = LexState::FieldUpdate;
                     self.cursor += 2;
                 },
                 // It's `Number + Punct("..")`, and we have to prevent the lexer reading it `DottedNumber + Punct(".")`.
@@ -1632,7 +1632,7 @@ impl Session {
                     self.state = LexState::Init;
                 },
             },
-            LexState::FieldModifier => match self.input_bytes.get(self.cursor) {
+            LexState::FieldUpdate => match self.input_bytes.get(self.cursor) {
                 Some(x @ (b'0'..=b'9' | b'a'..=b'z' | b'A'..=b'Z' | b'_')) => {
                     self.buffer1.push(*x);
                     self.cursor += 1;
@@ -1641,7 +1641,7 @@ impl Session {
                     let interned = intern_string(&self.buffer1, &self.intermediate_dir).unwrap();
 
                     self.tokens.push(Token {
-                        kind: TokenKind::FieldModifier {
+                        kind: TokenKind::FieldUpdate {
                             field: interned,
                             backtick_span: Span::single(self.file, self.token_start),
                             field_span: Span::range(self.file, self.token_start + 1, self.cursor),

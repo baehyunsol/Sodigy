@@ -113,8 +113,8 @@ impl Func {
         let mut has_error = false;
         let mut func_param_names = HashMap::new();
         let mut func_param_index = HashMap::new();
-        let mut generic_names = HashMap::new();
-        let mut generic_index = HashMap::new();
+        let mut generic_param_names = HashMap::new();
+        let mut generic_param_index = HashMap::new();
 
         for (index, param) in ast_func.params.iter().enumerate() {
             func_param_names.insert(param.name, (param.name_span, NameKind::FuncParam, UseCount::new()));
@@ -122,17 +122,17 @@ impl Func {
         }
 
         for (index, generic) in ast_func.generics.iter().enumerate() {
-            generic_names.insert(generic.name, (generic.name_span, NameKind::Generic, UseCount::new()));
-            generic_index.insert(generic.name, index);
+            generic_param_names.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
+            generic_param_index.insert(generic.name, index);
         }
 
         session.name_stack.push(Namespace::ForeignNameCollector {
             is_func: true,
             foreign_names: HashMap::new(),
         });
-        session.name_stack.push(Namespace::Generic {
-            names: generic_names,
-            index: generic_index,
+        session.name_stack.push(Namespace::GenericParam {
+            names: generic_param_names,
+            index: generic_param_index,
         });
 
         let attribute = match session.lower_attribute(
@@ -361,7 +361,7 @@ impl Func {
             session.warn_unused_names(&names);
         }
 
-        let Some(Namespace::Generic { names, .. }) = session.name_stack.pop() else { unreachable!() };
+        let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };
 
         if ast_func.value.is_some() {
             session.warn_unused_names(&names);

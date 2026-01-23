@@ -249,7 +249,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                 }
             }
         },
-        Expr::FieldModifier { lhs, fields, rhs } => {
+        Expr::FieldUpdate { lhs, fields, rhs } => {
             dump_expr(lhs, lines, session);
 
             for field in fields.iter() {

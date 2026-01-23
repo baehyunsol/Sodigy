@@ -173,7 +173,7 @@ impl Session {
             Expr::Path { lhs, .. } => {
                 self.collect_local_names(lhs, offset);
             },
-            Expr::FieldModifier { lhs, rhs, .. } => {
+            Expr::FieldUpdate { lhs, rhs, .. } => {
                 self.collect_local_names(lhs, offset);
                 self.collect_local_names(rhs, offset);
             },

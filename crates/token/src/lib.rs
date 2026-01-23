@@ -82,7 +82,7 @@ pub enum TokenKind {
         // For example, `f""`'s `elements` is `vec![]`.
         elements: Vec<TokensOrString>,
     },
-    FieldModifier {
+    FieldUpdate {
         field: InternedString,
 
         // Token's span is the merged span of these
@@ -129,8 +129,8 @@ impl TokenKind {
             (TokenKind::Byte(_), _) => false,
             (TokenKind::FormattedString { .. }, TokenKind::FormattedString { .. }) => true,
             (TokenKind::FormattedString { .. }, _) => false,
-            (TokenKind::FieldModifier { .. }, TokenKind::FieldModifier { .. }) => true,
-            (TokenKind::FieldModifier { .. }, _) => false,
+            (TokenKind::FieldUpdate { .. }, TokenKind::FieldUpdate { .. }) => true,
+            (TokenKind::FieldUpdate { .. }, _) => false,
             (TokenKind::DocComment { top_level: a, .. }, TokenKind::DocComment { top_level: b, .. }) => a == b,
             (TokenKind::DocComment { .. }, _) => false,
             (TokenKind::Punct(a), TokenKind::Punct(b)) => a == b,
@@ -165,7 +165,7 @@ impl TokenKind {
             TokenKind::Char(_) |
             TokenKind::Byte(_) => true,
             TokenKind::FormattedString { .. } |
-            TokenKind::FieldModifier { .. } |
+            TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { .. } => false,
         }
@@ -180,7 +180,7 @@ impl TokenKind {
             TokenKind::Byte(_) |
             TokenKind::FormattedString { .. } => true,
 
-            TokenKind::FieldModifier { .. } |
+            TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
             TokenKind::GroupDelim { delim: None, .. } => false,
 

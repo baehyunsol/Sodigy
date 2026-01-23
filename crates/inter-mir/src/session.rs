@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub struct Session {
     pub types: HashMap<Span, Type>,
-    pub generic_instances: HashMap<(Span, Span), Type>,
+    pub generic_args: HashMap<(Span, Span), Type>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }

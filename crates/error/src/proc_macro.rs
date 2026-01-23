@@ -23,11 +23,11 @@
     RedundantDecorator(InternedString), InvalidDecorator(InternedString),
     MissingDecoratorArgument { expected: usize, got: usize },
     UnexpectedDecoratorArgument { expected: usize, got: usize },
-    WrongNumberOfLangItemGenerics { lang_items: usize, generic_def: usize },
-    CannotEvaluateConst, InvalidRangePattern, InvalidConcatPattern,
-    CannotBindName(InternedString), CannotApplyInfixOpToMultipleBindings,
-    CannotApplyInfixOpToBinding, CannotAnnotateType,
-    RedundantNameBinding(InternedString, InternedString),
+    WrongNumberOfLangItemGenerics
+    { lang_items: usize, generic_params: usize }, CannotEvaluateConst,
+    InvalidRangePattern, InvalidConcatPattern, CannotBindName(InternedString),
+    CannotApplyInfixOpToMultipleBindings, CannotApplyInfixOpToBinding,
+    CannotAnnotateType, RedundantNameBinding(InternedString, InternedString),
     UnsupportedInfixOpInPattern(InfixOp), NameCollision
     { name: InternedString, kind: NameCollisionKind }, CyclicLet
     { names: Vec<InternedString> }, CyclicAlias
@@ -398,11 +398,11 @@
                 buffer.push(0u8); buffer.push(250u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
             }, ErrorKind :: WrongNumberOfLangItemGenerics
-            { r#lang_items, r#generic_def, } =>
+            { r#lang_items, r#generic_params, } =>
             {
                 buffer.push(0u8); buffer.push(255u8);
                 r#lang_items.encode_impl(buffer);
-                r#generic_def.encode_impl(buffer);
+                r#generic_params.encode_impl(buffer);
             }, ErrorKind :: CannotEvaluateConst =>
             { buffer.push(1u8); buffer.push(4u8); }, ErrorKind ::
             InvalidRangePattern => { buffer.push(1u8); buffer.push(9u8); },
@@ -704,10 +704,10 @@
             }, 255u16 =>
             {
                 let (r#lang_items, cursor) = usize ::
-                decode_impl(buffer, cursor) ? ; let (r#generic_def, cursor) =
-                usize :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#generic_params, cursor)
+                = usize :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: WrongNumberOfLangItemGenerics
-                { r#lang_items, r#generic_def, }, cursor))
+                { r#lang_items, r#generic_params, }, cursor))
             }, 260u16 => Ok((ErrorKind :: CannotEvaluateConst, cursor)),
             265u16 => Ok((ErrorKind :: InvalidRangePattern, cursor)), 270u16
             => Ok((ErrorKind :: InvalidConcatPattern, cursor)), 275u16 =>

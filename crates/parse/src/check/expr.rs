@@ -196,7 +196,7 @@ impl Expr {
                 }
             },
             Expr::InfixOp { lhs, rhs, .. } |
-            Expr::FieldModifier { lhs, rhs, .. } => {
+            Expr::FieldUpdate { lhs, rhs, .. } => {
                 let mut errors = vec![];
 
                 if let Err(e) = lhs.check(intermediate_dir) {

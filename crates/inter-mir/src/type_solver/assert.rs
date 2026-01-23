@@ -11,13 +11,13 @@ impl TypeSolver {
         assert: &Assert,
         impure_calls: &mut Vec<Span>,
         types: &mut HashMap<Span, Type>,
-        generic_instances: &mut HashMap<(Span, Span), Type>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> Result<(), ()> {
         let (assertion_type, mut has_error) = self.solve_expr(
             &assert.value,
             impure_calls,
             types,
-            generic_instances,
+            generic_args,
         );
 
         if let Some(assertion_type) = assertion_type {
@@ -28,7 +28,7 @@ impl TypeSolver {
                 },
                 &assertion_type,
                 types,
-                generic_instances,
+                generic_args,
                 false,
                 None,
                 Some(assert.value.error_span_wide()),
@@ -44,7 +44,7 @@ impl TypeSolver {
                 note,
                 impure_calls,
                 types,
-                generic_instances,
+                generic_args,
             );
             has_error |= e;
 
@@ -65,7 +65,7 @@ impl TypeSolver {
                     },
                     &note_type,
                     types,
-                    generic_instances,
+                    generic_args,
                     false,
                     None,
                     Some(note.error_span_wide()),

@@ -62,7 +62,7 @@ impl Endec for Expr {
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
-            Expr::FieldModifier { fields, lhs, rhs } => {
+            Expr::FieldUpdate { fields, lhs, rhs } => {
                 buffer.push(9);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
@@ -127,7 +127,7 @@ impl Endec for Expr {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
-                Ok((Expr::FieldModifier { fields, lhs, rhs }, cursor))
+                Ok((Expr::FieldUpdate { fields, lhs, rhs }, cursor))
             },
             Some(10) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;

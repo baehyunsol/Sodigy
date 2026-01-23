@@ -9,7 +9,7 @@ impl Expr {
         &mut self,
         map: &HashMap<Span, Span>,
         func_shapes: &HashMap<Span, FuncShape>,
-        generic_instances: &mut HashMap<(Span, Span), Type>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
     ) {
         match self {
             // TODO: I guess we have to dispatch identifiers, too?
@@ -22,42 +22,42 @@ impl Expr {
             Expr::Char { .. } |
             Expr::Byte { .. } => {},
             Expr::If(r#if) => {
-                r#if.cond.dispatch(map, func_shapes, generic_instances);
-                r#if.true_value.dispatch(map, func_shapes, generic_instances);
-                r#if.false_value.dispatch(map, func_shapes, generic_instances);
+                r#if.cond.dispatch(map, func_shapes, generic_args);
+                r#if.true_value.dispatch(map, func_shapes, generic_args);
+                r#if.false_value.dispatch(map, func_shapes, generic_args);
             },
             Expr::Match(r#match) => {
-                r#match.scrutinee.dispatch(map, func_shapes, generic_instances);
+                r#match.scrutinee.dispatch(map, func_shapes, generic_args);
 
                 for arm in r#match.arms.iter_mut() {
                     if let Some(guard) = &mut arm.guard {
-                        guard.dispatch(map, func_shapes, generic_instances);
+                        guard.dispatch(map, func_shapes, generic_args);
                     }
 
-                    arm.value.dispatch(map, func_shapes, generic_instances);
+                    arm.value.dispatch(map, func_shapes, generic_args);
                 }
             },
             Expr::Block(block) => {
                 for r#let in block.lets.iter_mut() {
-                    r#let.value.dispatch(map, func_shapes, generic_instances);
+                    r#let.value.dispatch(map, func_shapes, generic_args);
                 }
 
                 for assert in block.asserts.iter_mut() {
-                    assert.value.dispatch(map, func_shapes, generic_instances);
+                    assert.value.dispatch(map, func_shapes, generic_args);
 
                     if let Some(note) = &mut assert.note {
-                        note.dispatch(map, func_shapes, generic_instances);
+                        note.dispatch(map, func_shapes, generic_args);
                     }
                 }
 
-                block.value.dispatch(map, func_shapes, generic_instances);
+                block.value.dispatch(map, func_shapes, generic_args);
             },
             Expr::Path { lhs, .. } => {
-                lhs.dispatch(map, func_shapes, generic_instances);
+                lhs.dispatch(map, func_shapes, generic_args);
             },
-            Expr::FieldModifier { lhs, rhs, .. } => {
-                lhs.dispatch(map, func_shapes, generic_instances);
-                rhs.dispatch(map, func_shapes, generic_instances);
+            Expr::FieldUpdate { lhs, rhs, .. } => {
+                lhs.dispatch(map, func_shapes, generic_args);
+                rhs.dispatch(map, func_shapes, generic_args);
             },
             Expr::Call { func, args, generic_defs, .. } => {
                 let dispatch = match func {
@@ -76,9 +76,9 @@ impl Expr {
                     match func_shapes.get(&def_span) {
                         Some(func_shape) => {
                             for generic_def in func_shape.generics.iter() {
-                                generic_instances.insert(
+                                generic_args.insert(
                                     (span, generic_def.name_span),
-                                    Type::GenericInstance {
+                                    Type::GenericArg {
                                         call: span,
                                         generic: generic_def.name_span,
                                     },
@@ -93,7 +93,7 @@ impl Expr {
                 }
 
                 for arg in args.iter_mut() {
-                    arg.dispatch(map, func_shapes, generic_instances);
+                    arg.dispatch(map, func_shapes, generic_args);
                 }
             },
         }

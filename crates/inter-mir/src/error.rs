@@ -95,7 +95,7 @@ pub enum TypeError {
     },
 
     // TODO: more fields
-    CannotInferPolyGenericDef,
+    CannotInferPolyGenericParam,
     CannotInferPolyGenericImpl,
 
     ImpureCallInPureContext {
@@ -163,7 +163,7 @@ pub enum ErrorContext {
     OrPatternNameBinding(InternedString),
     RangePatternEqual,
     TypeAssertion,
-    FieldModifier,
+    FieldUpdate,
 
     // It infered the type of the same type var multiple times,
     // and got different result.
@@ -201,7 +201,7 @@ impl ErrorContext {
             )),
             ErrorContext::RangePatternEqual => Some(String::from("Lhs and rhs of `..` pattern must have the same type.")),
             ErrorContext::TypeAssertion => Some(String::from("Asserted type and the actual type are different.")),
-            ErrorContext::FieldModifier => Some(String::from("In a field modifier expression, the type of the value and the field have to be the same.")),
+            ErrorContext::FieldUpdate => Some(String::from("In a field-update expression, the type of the value and the field have to be the same.")),
             ErrorContext::InferedAgain { .. } => Some(String::from("I infered a type of the same value multiple times, and got different results.")),
             ErrorContext::Deep => Some(String::from("A contradiction is found while solving a chain of type-equations. There must be type error somewhere, but I can't find the exact location.")),
             ErrorContext::None => None,
@@ -236,7 +236,7 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                             )),
                         });
                     },
-                    Type::GenericInstance { call, generic } => {
+                    Type::GenericArg { call, generic } => {
                         spans.push(RenderableSpan {
                             span: *call,
                             auxiliary: false,
@@ -279,7 +279,7 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
 
             else {
                 if let Some(span) = *expected_span {
-                    let note = if let ErrorContext::FieldModifier = context {
+                    let note = if let ErrorContext::FieldUpdate = context {
                         format!("The type of this field is `{expected_type}`.")
                     } else {
                         format!(
@@ -365,7 +365,7 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                             if func_shape.generics.len() == 1 { "" } else { "s" },
                             comma_list_strs(
                                 &func_shape.generics.iter().map(
-                                    |generic_def| generic_def.name.unintern_or_default(&session.intermediate_dir)
+                                    |generic_param| generic_param.name.unintern_or_default(&session.intermediate_dir)
                                 ).collect::<Vec<_>>(),
                                 "`",
                                 "`",

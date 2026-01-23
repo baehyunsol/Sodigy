@@ -36,7 +36,7 @@ impl Endec for NameOrigin {
                 buffer.push(0);
                 index.encode_impl(buffer);
             },
-            NameOrigin::Generic { index } => {
+            NameOrigin::GenericParam { index } => {
                 buffer.push(1);
                 index.encode_impl(buffer);
             },
@@ -62,7 +62,7 @@ impl Endec for NameOrigin {
             },
             Some(1) => {
                 let (index, cursor) = usize::decode_impl(buffer, cursor + 1)?;
-                Ok((NameOrigin::Generic { index }, cursor))
+                Ok((NameOrigin::GenericParam { index }, cursor))
             },
             Some(2) => {
                 let (kind, cursor) = NameKind::decode_impl(buffer, cursor + 1)?;
@@ -113,7 +113,7 @@ impl Endec for NameKind {
             NameKind::FuncParam => {
                 buffer.push(9);
             },
-            NameKind::Generic => {
+            NameKind::GenericParam => {
                 buffer.push(10);
             },
             NameKind::PatternNameBind => {
@@ -140,7 +140,7 @@ impl Endec for NameKind {
             Some(7) => Ok((NameKind::Module, cursor + 1)),
             Some(8) => Ok((NameKind::Use, cursor + 1)),
             Some(9) => Ok((NameKind::FuncParam, cursor + 1)),
-            Some(10) => Ok((NameKind::Generic, cursor + 1)),
+            Some(10) => Ok((NameKind::GenericParam, cursor + 1)),
             Some(11) => Ok((NameKind::PatternNameBind, cursor + 1)),
             Some(12) => Ok((NameKind::Pipeline, cursor + 1)),
             Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),

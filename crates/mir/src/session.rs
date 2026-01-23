@@ -41,7 +41,7 @@ pub struct Session {
     // If the programmer calls a generic function, either the programmer has to
     // annotate type, or the compiler has to infer it.
     // It's also a `type_var -> type_annotation` map. It works like `Session.types`, but for generic instances.
-    pub generic_instances: HashMap<(Span, Span), Type>,
+    pub generic_args: HashMap<(Span, Span), Type>,
 
     // We need this when we create error messages.
     // This is really expensive to initialize, so think twice before you init this.
@@ -78,7 +78,7 @@ impl Session {
 
             aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
             types: HashMap::new(),
-            generic_instances: HashMap::new(),
+            generic_args: HashMap::new(),
             span_string_map: Some(HashMap::new()),
             lang_items: inter_hir_session.lang_items.clone(),
             polys: inter_hir_session.polys.clone(),
@@ -104,7 +104,7 @@ impl Session {
         self.aliases.extend(s.aliases.drain(..));
         self.type_assertions.extend(s.type_assertions.drain(..));
         self.types.extend(s.types.drain());
-        self.generic_instances.extend(s.generic_instances.drain());
+        self.generic_args.extend(s.generic_args.drain());
         self.errors.extend(s.errors.drain(..));
         self.warnings.extend(s.warnings.drain(..));
     }
@@ -112,18 +112,18 @@ impl Session {
     // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
     pub fn dispatch(&mut self, map: &HashMap<Span, Span>) {
         for r#let in self.lets.iter_mut() {
-            r#let.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+            r#let.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
         }
 
         for func in self.funcs.iter_mut() {
-            func.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+            func.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
         }
 
         for assert in self.asserts.iter_mut() {
-            assert.value.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+            assert.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
 
             if let Some(note) = &mut assert.note {
-                note.dispatch(map, &self.func_shapes, &mut self.generic_instances);
+                note.dispatch(map, &self.func_shapes, &mut self.generic_args);
             }
         }
     }

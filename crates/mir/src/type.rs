@@ -19,7 +19,7 @@ pub enum Type {
     },
 
     // T in `fn first<T>(ls: [T]) -> T = ls[0];`
-    GenericDef {
+    GenericParam {
         def_span: Span,
         span: Span,
     },
@@ -72,7 +72,7 @@ pub enum Type {
     // `first` in `bar` has type `Fn([String]) -> String`.
     // In order to infer this, we need a variable that represents
     // each instance of `T` in the invocations of `first`.
-    GenericInstance {
+    GenericArg {
         // span of `first` in `fn foo(ns) = first(ns);`
         call: Span,
 
@@ -125,7 +125,7 @@ impl Type {
                     });
                     Err(())
                 },
-                NameOrigin::Generic { .. } => Ok(Type::GenericDef {
+                NameOrigin::GenericParam { .. } => Ok(Type::GenericParam {
                     def_span: id.def_span,
                     span: id.span,
                 }),
@@ -261,7 +261,7 @@ impl Type {
     pub fn get_type_vars(&self) -> Vec<Type> {
         match self {
             Type::Static { .. } |
-            Type::GenericDef { .. } |
+            Type::GenericParam { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Blocked { .. } => vec![],
@@ -275,14 +275,14 @@ impl Type {
 
                 result
             },
-            Type::Var { .. } | Type::GenericInstance { .. } => vec![self.clone()],
+            Type::Var { .. } | Type::GenericArg { .. } => vec![self.clone()],
         }
     }
 
     pub fn substitute(&mut self, type_var: &Type, r#type: &Type) {
         match self {
             Type::Static { .. } |
-            Type::GenericDef { .. } |
+            Type::GenericParam { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Blocked { .. } => {},
@@ -301,7 +301,7 @@ impl Type {
 
                 t.substitute(type_var, r#type);
             },
-            Type::Var { .. } | Type::GenericInstance { .. } => {
+            Type::Var { .. } | Type::GenericArg { .. } => {
                 if self == type_var {
                     *self = r#type.clone();
                 }
@@ -311,16 +311,16 @@ impl Type {
 
     pub fn substitute_generic_def(&mut self, call: Span, generics: &[Span]) {
         match self {
-            Type::GenericDef { def_span, .. } => {
+            Type::GenericParam { def_span, .. } => {
                 if generics.contains(def_span) {
-                    *self = Type::GenericInstance { call, generic: *def_span };
+                    *self = Type::GenericArg { call, generic: *def_span };
                 }
             },
             Type::Static { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
-            Type::GenericInstance { .. } |
+            Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
             Type::Param {
                 constructor: t,
@@ -342,14 +342,14 @@ impl Type {
 
     pub fn generic_to_type_var(&mut self) {
         match self {
-            Type::GenericDef { def_span, .. } => {
+            Type::GenericParam { def_span, .. } => {
                 *self = Type::Var { def_span: *def_span, is_return: false };
             },
             Type::Static { .. } |
             Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
-            Type::GenericInstance { .. } |
+            Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
             Type::Param {
                 constructor: t,
@@ -466,7 +466,7 @@ impl Session {
     /// Make sure to call `init_span_string_map` before calling this function.
     pub fn render_type(&self, r#type: &Type) -> String {
         match r#type {
-            Type::Static { def_span, .. } | Type::GenericDef { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
+            Type::Static { def_span, .. } | Type::GenericParam { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
             Type::Unit(_) => String::from("()"),
             Type::Param {
                 constructor,
@@ -503,7 +503,7 @@ impl Session {
                 self.render_type(r#return.as_ref()),
             ),
             Type::Var { .. } |
-            Type::GenericInstance { .. } |
+            Type::GenericArg { .. } |
             Type::Blocked { .. } => String::from("_"),
             Type::Never { .. } => String::from("!"),
         }

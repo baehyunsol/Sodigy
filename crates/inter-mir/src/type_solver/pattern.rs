@@ -9,12 +9,12 @@ impl TypeSolver {
         &mut self,
         pattern: &Pattern,
         types: &mut HashMap<Span, Type>,
-        generic_instances: &mut HashMap<(Span, Span), Type>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         let (pattern_type, mut has_error) = self.solve_pattern_kind(
             &pattern.kind,
             types,
-            generic_instances,
+            generic_args,
         );
 
         match (&pattern_type, &pattern.name, &pattern.name_span) {
@@ -25,7 +25,7 @@ impl TypeSolver {
                     &pattern_type,
                     &Type::Var { def_span: *name_span, is_return: false },
                     types,
-                    generic_instances,
+                    generic_args,
                     /* is_checking_argument: */ false,
                     Some(pattern.error_span_wide()),
                     Some(*name_span),
@@ -45,7 +45,7 @@ impl TypeSolver {
         &mut self,
         pattern: &PatternKind,
         types: &mut HashMap<Span, Type>,
-        generic_instances: &mut HashMap<(Span, Span), Type>,
+        generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         match pattern {
             PatternKind::Ident { id, span } => match types.get(span) {
@@ -145,7 +145,7 @@ impl TypeSolver {
                     let mut has_error = false;
 
                     for element in elements.iter() {
-                        let (elem_type, e) = self.solve_pattern(element, types, generic_instances);
+                        let (elem_type, e) = self.solve_pattern(element, types, generic_args);
                         has_error |= e;
 
                         if let Some(elem_type) = elem_type {
@@ -165,8 +165,8 @@ impl TypeSolver {
             },
             PatternKind::Range { lhs, rhs, .. } => {
                 match (
-                    lhs.as_ref().map(|lhs| self.solve_pattern(lhs, types, generic_instances)),
-                    rhs.as_ref().map(|rhs| self.solve_pattern(rhs, types, generic_instances)),
+                    lhs.as_ref().map(|lhs| self.solve_pattern(lhs, types, generic_args)),
+                    rhs.as_ref().map(|rhs| self.solve_pattern(rhs, types, generic_args)),
                 ) {
                     (Some(result), None) | (None, Some(result)) => result,
                     (Some((Some(lhs_type), e1)), Some((Some(rhs_type), e2))) => {
@@ -174,7 +174,7 @@ impl TypeSolver {
                             &lhs_type,
                             &rhs_type,
                             types,
-                            generic_instances,
+                            generic_args,
                             /* is_checking_argument: */ false,
                             Some(lhs.as_ref().unwrap().error_span_wide()),
                             Some(rhs.as_ref().unwrap().error_span_wide()),
@@ -196,14 +196,14 @@ impl TypeSolver {
             PatternKind::Or { lhs, rhs, .. } => {
                 // 1. lhs and rhs must have the same type.
                 let (pattern_type, mut has_error) = match (
-                    self.solve_pattern(lhs, types, generic_instances),
-                    self.solve_pattern(rhs, types, generic_instances),
+                    self.solve_pattern(lhs, types, generic_args),
+                    self.solve_pattern(rhs, types, generic_args),
                 ) {
                     ((Some(lhs_type), e1), (Some(rhs_type), e2)) => match self.solve_supertype(
                         &lhs_type,
                         &rhs_type,
                         types,
-                        generic_instances,
+                        generic_args,
                         /* is_checking_argument: */ false,
                         Some(lhs.error_span_wide()),
                         Some(rhs.error_span_wide()),
@@ -237,7 +237,7 @@ impl TypeSolver {
                         &lhs_type_var,
                         &rhs_type_var,
                         types,
-                        generic_instances,
+                        generic_args,
                         /* is_checking_argument: */ false,
                         Some(*lhs_span),
                         Some(*rhs_span),

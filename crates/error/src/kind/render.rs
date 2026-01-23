@@ -69,7 +69,7 @@ impl ErrorKind {
                     NameKind::Module => "module",
                     NameKind::Use => "import",
                     NameKind::FuncParam => "function parameter",
-                    NameKind::Generic => "generic parameter",
+                    NameKind::GenericParam => "generic parameter",
                     NameKind::PatternNameBind => "name binding",
                     NameKind::Pipeline => "piped value",
                 };
