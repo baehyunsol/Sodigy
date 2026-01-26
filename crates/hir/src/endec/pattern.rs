@@ -1,4 +1,4 @@
-use crate::{Pattern, PatternKind, StructFieldPattern};
+use crate::{Path, Pattern, PatternKind, StructFieldPattern};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::InternedNumber;
 use sodigy_parse::RestPattern;
@@ -31,40 +31,40 @@ impl Endec for Pattern {
 impl Endec for PatternKind {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            PatternKind::Ident { id, span } => {
+            PatternKind::Path(path) => {
                 buffer.push(0);
+                path.encode_impl(buffer);
+            },
+            PatternKind::NameBinding { id, span } => {
+                buffer.push(1);
                 id.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
             PatternKind::Number { n, span } => {
-                buffer.push(1);
+                buffer.push(2);
                 n.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
             PatternKind::String { binary, s, span } => {
-                buffer.push(2);
+                buffer.push(3);
                 binary.encode_impl(buffer);
                 s.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
             PatternKind::Regex { s, span } => {
-                buffer.push(3);
+                buffer.push(4);
                 s.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
             PatternKind::Char { ch, span } => {
-                buffer.push(4);
+                buffer.push(5);
                 ch.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
             PatternKind::Byte { b, span } => {
-                buffer.push(5);
+                buffer.push(6);
                 b.encode_impl(buffer);
                 span.encode_impl(buffer);
-            },
-            PatternKind::Path(path) => {
-                buffer.push(6);
-                path.encode_impl(buffer);
             },
             PatternKind::Struct { r#struct, fields, rest, group_span } => {
                 buffer.push(7);
@@ -115,49 +115,49 @@ impl Endec for PatternKind {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (id, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((PatternKind::Ident { id, span }, cursor))
+                let (path, cursor) = Path::decode_impl(buffer, cursor + 1)?;
+                Ok((PatternKind::Path(path), cursor))
             },
             Some(1) => {
+                let (id, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((PatternKind::NameBinding { id, span }, cursor))
+            },
+            Some(2) => {
                 let (n, cursor) = InternedNumber::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Number { n, span }, cursor))
             },
-            Some(2) => {
+            Some(3) => {
                 let (binary, cursor) = bool::decode_impl(buffer, cursor + 1)?;
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::String { binary, s, span }, cursor))
             },
-            Some(3) => {
+            Some(4) => {
                 let (s, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Regex { s, span }, cursor))
             },
-            Some(4) => {
+            Some(5) => {
                 let (ch, cursor) = u32::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Char { ch, span }, cursor))
             },
-            Some(5) => {
+            Some(6) => {
                 let (b, cursor) = u8::decode_impl(buffer, cursor + 1)?;
                 let (span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Byte { b, span }, cursor))
             },
-            Some(6) => {
-                let (path, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
-                Ok((PatternKind::Path(path), cursor))
-            },
             Some(7) => {
-                let (r#struct, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
+                let (r#struct, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructFieldPattern>::decode_impl(buffer, cursor)?;
                 let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((PatternKind::Struct { r#struct, fields, rest, group_span }, cursor))
             },
             Some(8) => {
-                let (r#struct, cursor) = Vec::<(InternedString, Span)>::decode_impl(buffer, cursor + 1)?;
+                let (r#struct, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (elements, cursor) = Vec::<Pattern>::decode_impl(buffer, cursor)?;
                 let (rest, cursor) = Option::<RestPattern>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;

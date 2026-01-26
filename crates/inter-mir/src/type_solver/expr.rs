@@ -79,10 +79,8 @@ impl TypeSolver {
             Expr::String { binary, .. } => match *binary {
                 true => (
                     Some(Type::Param {
-                        constructor: Box::new(Type::Static {
-                            def_span: self.get_lang_item_span("type.List"),
-                            span: Span::None,
-                        }),
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
                         args: vec![Type::Static {
                             def_span: self.get_lang_item_span("type.Byte"),
                             span: Span::None,
@@ -93,10 +91,8 @@ impl TypeSolver {
                 ),
                 false => (
                     Some(Type::Param {
-                        constructor: Box::new(Type::Static {
-                            def_span: self.get_lang_item_span("type.List"),
-                            span: Span::None,
-                        }),
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
                         args: vec![Type::Static {
                             def_span: self.get_lang_item_span("type.Char"),
                             span: Span::None,
@@ -339,7 +335,7 @@ impl TypeSolver {
                 let (expr_type, e) = self.solve_expr(block.value.as_ref(), impure_calls, types, generic_args);
                 (expr_type, e || has_error)
             },
-            Expr::Path { lhs, fields } => match self.solve_expr(lhs, impure_calls, types, generic_args) {
+            Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls, types, generic_args) {
                 (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_args) {
                     Ok(field_type) => (Some(field_type), has_error),
                     Err(()) => (None, true),
@@ -470,7 +466,7 @@ impl TypeSolver {
                         },
                         // We're sure that `f` is not a function.
                         // For example, `let f = 3; f()`.
-                        Some(t @ (Type::Static { .. } | Type::Unit(_) | Type::Param { .. })) => {
+                        Some(t @ (Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. })) => {
                             self.errors.push(TypeError::NotCallable {
                                 r#type: t.clone(),
                                 func_span: *span,
@@ -545,10 +541,7 @@ impl TypeSolver {
                         },
                     },
                     Callable::TupleInit { .. } => (
-                        Some(Type::Param {
-                            // `Type::Unit`'s `group_span` is of type annotation,
-                            // and `Callable::TupleInit`'s `group_span` is of the expression.
-                            constructor: Box::new(Type::Unit(Span::None)),
+                        Some(Type::Tuple {
                             args: arg_types,
 
                             // this is for the type annotation, hence None
@@ -567,10 +560,8 @@ impl TypeSolver {
                             self.add_type_var(type_var.clone(), None);
 
                             let r#type = Type::Param {
-                                constructor: Box::new(Type::Static {
-                                    def_span: self.get_lang_item_span("type.List"),
-                                    span: Span::None,
-                                }),
+                                constructor_def_span: self.get_lang_item_span("type.List"),
+                                constructor_span: Span::None,
                                 args: vec![type_var],
 
                                 // this is for the type annotation, hence None
@@ -606,10 +597,8 @@ impl TypeSolver {
                             }
 
                             let r#type = Type::Param {
-                                constructor: Box::new(Type::Static {
-                                    def_span: self.get_lang_item_span("type.List"),
-                                    span: Span::None,
-                                }),
+                                constructor_def_span: self.get_lang_item_span("type.List"),
+                                constructor_span: Span::None,
                                 args: vec![elem_type],
 
                                 // this is for the type annotation, hence None
@@ -628,7 +617,7 @@ impl TypeSolver {
 
                         match func_type {
                             // TODO: What if there's a callable `Type::Static()` or `Type::Param {}`?
-                            Type::Static { .. } | Type::Unit(_) | Type::Param { .. } => {
+                            Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. } => {
                                 self.errors.push(TypeError::NotCallable {
                                     r#type: func_type.clone(),
                                     func_span: func.error_span_wide(),
@@ -806,54 +795,48 @@ impl TypeSolver {
                     },
                 }
             },
-            Type::Unit(_) => todo!(),  // It must be an error... right?
-            Type::Param { constructor, args, .. } => {
-                if let Type::Unit(_) = &**constructor {
-                    let mut field_type = None;
+            Type::Tuple { args, .. } => {
+                let mut field_type = None;
 
-                    match &field[0] {
-                        Field::Name { name, .. } => {
-                            for i in 0..args.len() {
-                                let i_s = format!("_{i}");
+                match &field[0] {
+                    Field::Name { name, .. } => {
+                        for i in 0..args.len() {
+                            let i_s = format!("_{i}");
 
-                                if name.eq(i_s.as_bytes()) {
-                                    field_type = Some(args[i].clone());
-                                    break;
-                                }
+                            if name.eq(i_s.as_bytes()) {
+                                field_type = Some(args[i].clone());
+                                break;
                             }
-                        },
-                        Field::Index(i) => todo!(),
-                        Field::Range(start, end) => todo!(),
-                        Field::Variant => todo!(),
-                        Field::Constructor | Field::Payload => unreachable!(),
-                    };
+                        }
+                    },
+                    Field::Index(i) => todo!(),
+                    Field::Range(start, end) => todo!(),
+                    Field::Variant => todo!(),
+                    Field::Constructor | Field::Payload => unreachable!(),
+                };
 
-                    match field_type {
-                        Some(field_type) => {
-                            if field.len() == 1 {
-                                Ok(field_type)
-                            }
+                match field_type {
+                    Some(field_type) => {
+                        if field.len() == 1 {
+                            Ok(field_type)
+                        }
 
-                            else {
-                                self.get_type_of_field(
-                                    &field_type,
-                                    &field[1..],
-                                    types,
-                                    generic_args,
-                                )
-                            }
-                        },
-                        None => {
-                            // maybe it's an associated function!
-                            todo!()
-                        },
-                    }
-                }
-
-                else {
-                    todo!()
+                        else {
+                            self.get_type_of_field(
+                                &field_type,
+                                &field[1..],
+                                types,
+                                generic_args,
+                            )
+                        }
+                    },
+                    None => {
+                        // maybe it's an associated function!
+                        todo!()
+                    },
                 }
             },
+            Type::Param { .. } => todo!(),
             // `Type::Blocked` exists exactly for this reason.
             // Read the documentation at `crates/mir/src/type.rs`.
             Type::Var { def_span: span, .. } |

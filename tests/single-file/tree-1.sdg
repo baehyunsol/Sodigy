@@ -117,8 +117,8 @@ fn remove<K, V>(head: Node<K, V>, key: K) -> (Node<K, V>, Option<V>) = {
 };
 
 fn length<K, V>(head: Node<K, V>) -> Int = match (head.left_child, head.right_child) {
-    (Some(left), Some(right)) => 1 + length(left) + length(right),
-    (Some(left), None) => 1 + length(left),
-    (None, Some(right)) => 1 + length(right),
+    (Some($left), Some($right)) => 1 + length(left) + length(right),
+    (Some($left), None) => 1 + length(left),
+    (None, Some($right)) => 1 + length(right),
     (None, None) => 1,
 };

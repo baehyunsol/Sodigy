@@ -12,7 +12,11 @@ pub fn dump_pattern(pattern: &Pattern, lines: &mut IndentedLines, session: &Sess
 
 pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, session: &Session) {
     match pattern_kind {
-        PatternKind::Ident { id, .. } => {
+        PatternKind::Path(p) => {
+            lines.push(&p.unintern_or_default(&session.intermediate_dir));
+        },
+        PatternKind::NameBinding { id, .. } => {
+            lines.push("$");
             lines.push(&id.unintern_or_default(&session.intermediate_dir));
         },
         PatternKind::Number { n, .. } => {
@@ -35,16 +39,8 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
         PatternKind::Byte { b, .. } => {
             lines.push(&format!("#{b}"));
         },
-        PatternKind::Path(ids) => {
-            lines.push(&ids.iter().map(
-                |(id, _)| id.unintern_or_default(&session.intermediate_dir)
-            ).collect::<Vec<_>>().join("."));
-        },
         PatternKind::Struct { r#struct, fields, rest, .. } => {
-            lines.push(&r#struct.iter().map(
-                |(id, _)| id.unintern_or_default(&session.intermediate_dir)
-            ).collect::<Vec<_>>().join("."));
-
+            lines.push(&r#struct.unintern_or_default(&session.intermediate_dir));
             lines.push("{");
             lines.inc_indent();
             lines.break_line();
@@ -68,9 +64,7 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
         PatternKind::Tuple { elements, rest, .. } |
         PatternKind::List { elements, rest, .. } => {
             if let PatternKind::TupleStruct { r#struct, .. } = pattern_kind {
-                lines.push(&r#struct.iter().map(
-                    |(id, _)| id.unintern_or_default(&session.intermediate_dir)
-                ).collect::<Vec<_>>().join("."));
+                lines.push(&r#struct.unintern_or_default(&session.intermediate_dir));
             }
 
             let is_tuple = matches!(pattern_kind, PatternKind::TupleStruct { .. } | PatternKind::Tuple { .. });

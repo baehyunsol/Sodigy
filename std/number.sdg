@@ -262,16 +262,16 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
         assert (1 << 80) <= numer_mantissa && numer_mantissa < (1 << 81);
         // numer = numer_mantissa * 2^(numer_exp + 80)
         let (numer_mantissa, numer_exp) = match numer.ilog2() {
-            e @ ..80 => (numer << (80 - e), e - 80),
-            e @ 81.. => (numer >> (e - 80), e - 80),
+            $e @ ..80 => (numer << (80 - e), e - 80),
+            $e @ 81.. => (numer >> (e - 80), e - 80),
             _ => (numer, 0),
         };
 
         assert (1 << 80) <= denom_mantissa && denom_mantissa < (1 << 81);
         // denom = denom_mantissa * 2^(denom_exp + 80)
         let (denom_mantissa, denom_exp) = match denom.ilog2() {
-            e @ ..80 => (denom << (80 - e), e - 80),
-            e @ 81.. => (denom >> (e - 80), e - 80),
+            $e @ ..80 => (denom << (80 - e), e - 80),
+            $e @ 81.. => (denom >> (e - 80), e - 80),
             _ => (denom, 0),
         };
 
@@ -284,8 +284,8 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
 
         // first 42 digits
         let (digits, exp) = match mantissa_digits * exp_digits {
-            d @ 10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (d / 10, exp_exp + 1),
-            d => (d, exp_exp),
+            $d @ 10_000_000_000_000_000_000_000_000_000_000_000_000_000_000.. => (d / 10, exp_exp + 1),
+            $d => (d, exp_exp),
         };
 
         let digits_rem = digits % 1_000;
@@ -304,7 +304,7 @@ fn to_string(n: Number) -> String = match (n.numer, n.denom) {
 // returns the first 21 digits and number of digits of `2^exp`.
 fn get_decimal_digits(exp: Int) -> (Int, Int) = match exp {
     ..0 => {
-        let (r_digits, r_exp) = get_decimal_digits(-exp);
+        let ($r_digits, $r_exp) = get_decimal_digits(-exp);
         (10_000_000_000_000_000_000_000_000_000_000_000_000_000_000 / r_digits, -r_exp - 1)
     },
     0..80 => EXP_TABLE[exp],

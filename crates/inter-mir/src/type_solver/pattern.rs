@@ -1,6 +1,7 @@
 use super::TypeSolver;
 use crate::{ErrorContext, Type};
-use sodigy_hir::{Pattern, PatternKind};
+use sodigy_hir::{Path, Pattern, PatternKind};
+use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
@@ -48,7 +49,8 @@ impl TypeSolver {
         generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         match pattern {
-            PatternKind::Ident { id, span } => match types.get(span) {
+            PatternKind::Path(Path { id: IdentWithOrigin { id, span, .. }, .. }) |
+            PatternKind::NameBinding { id, span, .. } => match types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     self.add_type_var(Type::Var { def_span: *span, is_return: false }, Some(*id));
@@ -93,10 +95,8 @@ impl TypeSolver {
             PatternKind::String { binary, .. } => match *binary {
                 true => (
                     Some(Type::Param {
-                        constructor: Box::new(Type::Static {
-                            def_span: self.get_lang_item_span("type.List"),
-                            span: Span::None,
-                        }),
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
                         args: vec![Type::Static {
                             def_span: self.get_lang_item_span("type.Byte"),
                             span: Span::None,
@@ -107,10 +107,8 @@ impl TypeSolver {
                 ),
                 false => (
                     Some(Type::Param {
-                        constructor: Box::new(Type::Static {
-                            def_span: self.get_lang_item_span("type.List"),
-                            span: Span::None,
-                        }),
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
                         args: vec![Type::Static {
                             def_span: self.get_lang_item_span("type.Char"),
                             span: Span::None,
@@ -154,8 +152,7 @@ impl TypeSolver {
                     }
 
                     (
-                        Some(Type::Param {
-                            constructor: Box::new(Type::Unit(Span::None)),
+                        Some(Type::Tuple {
                             args: elem_types,
                             group_span: Span::None,
                         }),

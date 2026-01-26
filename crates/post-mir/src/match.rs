@@ -55,12 +55,12 @@
 //! ```ignore
 //! // Name bindings are unused, but I want to demo how name bindings are processed.
 //! match foo() {
-//!     (Some(a @ 0..40), _) => 1,
-//!     (Some(b), _) => 2,
-//!     (_, Some(c)) => 3,
-//!     (None, d) => 4,
-//!     (_, e @ None) => 5,
-//!     f => 6,
+//!     (Some($a @ 0..40), _) => 1,
+//!     (Some($b), _) => 2,
+//!     (_, Some($c)) => 3,
+//!     (None, $d) => 4,
+//!     (_, $e @ None) => 5,
+//!     $f => 6,
 //! }
 //! ```
 //!
@@ -323,7 +323,7 @@ fn lower_matches_expr_recursive(
                 Ok(())
             }
         },
-        Expr::Path { lhs, .. } => lower_matches_expr_recursive(
+        Expr::Field { lhs, .. } => lower_matches_expr_recursive(
             lhs,
             types,
             struct_shapes,
@@ -615,28 +615,24 @@ fn get_matrix(
                 todo!()
             }
         },
-        Type::Unit(_) => vec![(vec![Field::Constructor], Constructor::Tuple(0))],
-        Type::Never(_) => todo!(),
-        Type::Param { constructor, args, .. } => match &**constructor {
-            Type::Static { def_span, .. } => todo!(),
-            Type::Unit(_) => {
-                let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
+        Type::Tuple { args, .. } => {
+            let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
 
-                for (i, arg) in args.iter().enumerate() {
-                    let mut arg_matrix = get_matrix(arg, lang_items);
+            for (i, arg) in args.iter().enumerate() {
+                let mut arg_matrix = get_matrix(arg, lang_items);
 
-                    for row in arg_matrix.iter_mut() {
-                        row.0.insert(0, Field::Index(i as i64));
-                    }
-
-                    result.extend(arg_matrix);
+                for row in arg_matrix.iter_mut() {
+                    row.0.insert(0, Field::Index(i as i64));
                 }
 
-                result
-            },
-            _ => unreachable!(),
+                result.extend(arg_matrix);
+            }
+
+            result
         },
-        Type::Func { params, r#return, .. } => todo!(),
+        Type::Never(_) => todo!(),
+        Type::Param { .. } => todo!(),
+        Type::Func { .. } => todo!(),
         Type::GenericParam { .. } |
         Type::Var { .. } |
         Type::GenericArg { .. } |
@@ -688,7 +684,7 @@ fn read_field_of_pattern<'p>(
 
     match &field[0] {
         Field::Constructor => match &pattern.kind {
-            PatternKind::Ident { id, span } => Ok(DestructuredPattern {
+            PatternKind::NameBinding { id, span } => Ok(DestructuredPattern {
                 pattern,
                 constructor: Constructor::Wildcard,
                 name_binding: Some((*id, *span)),
@@ -786,7 +782,7 @@ fn read_field_of_pattern<'p>(
                     }
                 }
             },
-            PatternKind::Ident { .. } | PatternKind::Wildcard(_) => Ok(DestructuredPattern {
+            PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => Ok(DestructuredPattern {
                 pattern,
                 constructor: Constructor::Wildcard,
                 name_binding,

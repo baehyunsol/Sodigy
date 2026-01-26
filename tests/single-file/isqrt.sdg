@@ -64,7 +64,7 @@ fn assert_isqrt(n: Int) = {
 
 fn assert_isqrt_multi(ns: [Int]) = match ns {
     [] => True,
-    [n] ++ ns => {
+    [$n] ++ $ns => {
         #[always]
         assert assert_isqrt(n);
         assert_isqrt_multi(ns)

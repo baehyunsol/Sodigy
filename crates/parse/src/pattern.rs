@@ -1,4 +1,4 @@
-use crate::Tokens;
+use crate::{Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
@@ -16,15 +16,11 @@ pub struct Pattern {
 
 #[derive(Clone, Debug)]
 pub enum PatternKind {
-    // A name binding.
-    // `if let x = foo() { .. }`
-    Ident {
-        id: InternedString,
-        span: Span,
-    },
-    // Capturing a name.
-    // `let x = 3; if let $x = foo() { .. }` matches if `foo()` is `3`.
-    DollarIdent {
+    // An identifier without fields is also a path.
+    Path(Path),
+
+    // `if let Some($x) = foo() { .. }`
+    NameBinding {
         id: InternedString,
         span: Span,
     },
@@ -49,15 +45,14 @@ pub enum PatternKind {
         b: u8,
         span: Span,
     },
-    Path(Vec<(InternedString, Span)>),
     Struct {
-        r#struct: Vec<(InternedString, Span)>,
+        r#struct: Path,
         fields: Vec<StructFieldPattern>,
         rest: Option<RestPattern>,
         group_span: Span,
     },
     TupleStruct {
-        r#struct: Vec<(InternedString, Span)>,
+        r#struct: Path,
         elements: Vec<Pattern>,
         rest: Option<RestPattern>,
         group_span: Span,
@@ -111,11 +106,11 @@ pub enum PatternValueKind {
     // Every operand is a constant, like `Some((1 << 32) - 1)`.
     Constant,
 
-    // Every operand is a constant or a dollar-ident, like `Some($x + $y + 1)`.
-    DollarIdent,
+    // Every operand is a constant or an identifier (value), like `Some(x + y + 1)`.
+    Value,
 
-    // Exactly one operand is an ident and the other operands are constants, like `Some(x + (1 << 32))`.
-    Ident,
+    // Exactly one operand is a name binding and the other operands are constants, like `Some($x + (1 << 32))`.
+    NameBinding,
 }
 
 #[derive(Clone, Debug)]
@@ -126,7 +121,7 @@ pub struct StructFieldPattern {
     pub is_shorthand: bool,
 }
 
-// `..` in `[a, b, .., c]`
+// `..` in `[$a, $b, .., $c]`
 // Parser guarantees that there's at most 1 rest in a group.
 #[derive(Clone, Copy, Debug)]
 pub struct RestPattern {
@@ -134,7 +129,7 @@ pub struct RestPattern {
     pub index: usize,
 
     // You can bind a name to dot_dot.
-    // `[n] ++ ns` is lowered to `[n, ns @ ..]`.
+    // `[$n] ++ $ns` is lowered to `[$n, $ns @ ..]`.
     pub name: Option<InternedString>,
     pub name_span: Option<Span>,
 }
@@ -165,13 +160,13 @@ impl Pattern {
         }
     }
 
-    // It's used to lower `[n] ++ ns` to `[n, ns @ ..]`.
+    // It's used to lower `[$n] ++ $ns` to `[$n, $ns @ ..]`.
     // Lhs and rhs of the concat operator are converted to a list pattern,
     // then their elements are concatonated.
-    // - `ns` -> `[ns @ ..]`
-    // - `[a, b, c]` -> `[a, b, c]`
+    // - `$ns` -> `[$ns @ ..]`
+    // - `[$a, $b, $c]` -> `[$a, $b, $c]`
     // - `"asdf"` -> `['a', 'b', 'c', 'd']`
-    // - `[a] ++ [b]` -> `[a, b]`
+    // - `[$a] ++ [$b]` -> `[$a, $b]`
     pub fn to_list_pattern(self, is_lhs: bool) -> Result<PatternKind, Vec<Error>> {
         let mut errors = vec![];
 
@@ -184,7 +179,7 @@ impl Pattern {
         }
 
         let result = match self.kind {
-            PatternKind::Ident { id, span } => PatternKind::List {
+            PatternKind::NameBinding { id, span } => PatternKind::List {
                 elements: vec![],
                 rest: Some(RestPattern {
                     span: span.derive(SpanDeriveKind::ConcatPatternRest),
@@ -222,15 +217,14 @@ impl Pattern {
 impl PatternKind {
     pub fn error_span_narrow(&self) -> Span {
         match self {
+            PatternKind::NameBinding { span, .. } |
             PatternKind::Number { span, .. } |
             PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
             PatternKind::Char { span, .. } |
             PatternKind::Byte { span, .. } |
-            PatternKind::Ident { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::PipelineData(span) |
-            PatternKind::DollarIdent { span, .. } |
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
@@ -238,31 +232,25 @@ impl PatternKind {
             PatternKind::InfixOp { op_span: span, .. } => *span,
             PatternKind::Path(path) |
             PatternKind::Struct { r#struct: path, .. } |
-            PatternKind::TupleStruct { r#struct: path, .. } => {
-                let mut result = path[0].1;
-
-                for (_, span) in path.iter() {
-                    result = result.merge(*span);
-                }
-
-                result
-            },
+            PatternKind::TupleStruct { r#struct: path, .. } => path.error_span_narrow(),
         }
     }
 
     pub fn error_span_wide(&self) -> Span {
         match self {
+            PatternKind::Path(p) => p.error_span_wide(),
+            PatternKind::NameBinding { span, .. } |
             PatternKind::Number { span, .. } |
             PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
             PatternKind::Char { span, .. } |
             PatternKind::Byte { span, .. } |
-            PatternKind::Ident { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::PipelineData(span) |
-            PatternKind::DollarIdent { span, .. } |
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::List { group_span: span, .. } => *span,
+            PatternKind::Struct { r#struct, group_span, .. } |
+            PatternKind::TupleStruct { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
             PatternKind::Range { lhs, op_span, rhs, .. } => {
                 let mut span = match lhs {
                     Some(lhs) => lhs.error_span_wide().merge(*op_span),
@@ -275,7 +263,10 @@ impl PatternKind {
 
                 span
             },
-            _ => panic!("TODO: {self:?}"),
+            PatternKind::InfixOp { lhs, op_span, rhs, .. } |
+            PatternKind::Or { lhs, op_span, rhs } => lhs.error_span_wide()
+                .merge(*op_span)
+                .merge(rhs.error_span_wide()),
         }
     }
 
@@ -288,9 +279,8 @@ impl PatternKind {
             PatternKind::Byte { .. } |
             PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
-            PatternKind::PipelineData(_) |
-            PatternKind::DollarIdent { .. } => vec![],
-            PatternKind::Ident { id, span } => vec![(*id, *span)],
+            PatternKind::PipelineData(_) => vec![],
+            PatternKind::NameBinding { id, span } => vec![(*id, *span)],
             PatternKind::Struct { fields, rest, .. } => {
                 let mut result = fields.iter().flat_map(|f| f.pattern.bound_names()).collect::<Vec<_>>();
 
@@ -375,14 +365,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
             ) => todo!(),
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
-                let (id, span) = (*id, *span);
+                let (id, id_span) = (*id, *span);
                 self.cursor += 1;
 
                 if id.eq(b"_") {
                     Pattern {
                         name: None,
                         name_span: None,
-                        kind: PatternKind::Wildcard(span),
+                        kind: PatternKind::Wildcard(id_span),
                     }
                 }
 
@@ -390,7 +380,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        kind: PatternKind::Ident { id, span },
+                        kind: PatternKind::Path(Path { id, id_span, fields: vec![] }),
                     }
                 }
             },
@@ -404,7 +394,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::DollarIdent { id, span },
+                    kind: PatternKind::NameBinding { id, span },
                 }
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }), _) => {
@@ -596,11 +586,11 @@ impl<'t, 's> Tokens<'t, 's> {
                                 Pattern {
                                     name,
                                     name_span,
-                                    kind: PatternKind::Ident { id, span },
+                                    kind: PatternKind::NameBinding { id, span },
                                 } => {
                                     name_binding = Some((id, span));
 
-                                    // `a @ b @ 1..2`
+                                    // `$a @ $b @ 1..2`
                                     if let (Some(name), Some(name_span)) = (name, name_span) {
                                         errors.push(Error {
                                             kind: ErrorKind::RedundantNameBinding(name, id),
@@ -633,10 +623,10 @@ impl<'t, 's> Tokens<'t, 's> {
                             }
 
                             match &rhs {
-                                // `a @ b @ 1..2`
+                                // `$a @ $b @ 1..2`
                                 Pattern { name: Some(name), name_span: Some(name_span), .. } |
-                                // `a @ b`
-                                Pattern { kind: PatternKind::Ident { id: name, span: name_span }, .. } => {
+                                // `$a @ $b`
+                                Pattern { kind: PatternKind::NameBinding { id: name, span: name_span }, .. } => {
                                     let (prev_name, prev_name_span) = name_binding.unwrap();
                                     errors.push(Error {
                                         kind: ErrorKind::RedundantNameBinding(*name, prev_name),
@@ -655,7 +645,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         note: None,
                                     });
                                 },
-                                Pattern { kind: PatternKind::DollarIdent { id, span }, .. } => {
+                                Pattern { kind: PatternKind::Path(path), .. } => {
                                     let (name, name_span) = name_binding.unwrap();
                                     errors.push(Error {
                                         kind: ErrorKind::CannotBindName(name),
@@ -666,11 +656,11 @@ impl<'t, 's> Tokens<'t, 's> {
                                                 note: None,
                                             },
                                             RenderableSpan {
-                                                span: *span,
+                                                span: path.error_span_wide(),
                                                 auxiliary: false,
                                                 note: Some(format!(
                                                     "It already has a name `{}`. You can just use this name.",
-                                                    id.unintern_or_default(&self.intermediate_dir),
+                                                    path.unintern_or_default(&self.intermediate_dir),
                                                 )),
                                             },
                                         ],
@@ -856,28 +846,28 @@ impl<'t, 's> Tokens<'t, 's> {
                                         PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
                                     ) => PatternValueKind::Constant,
                                     (
-                                        PatternKind::DollarIdent { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::DollarIdent, .. },
-                                        PatternKind::DollarIdent { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::DollarIdent, .. },
-                                    ) => PatternValueKind::DollarIdent,
+                                        PatternKind::Path { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
+                                        PatternKind::Path { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
+                                    ) => PatternValueKind::Value,
                                     (
-                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                        PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
                                         PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
                                     ) | (
                                         PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
-                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                        PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
                                     ) => {
                                         let (aux_span, aux_name) = match (&lhs.kind, &rhs.kind) {
-                                            (PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }, _) => {
+                                            (PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. }, _) => {
                                                 (lhs.error_span_wide(), find_name_binding_in_const(&lhs.kind).unwrap())
                                             },
-                                            (_, PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. }) => {
+                                            (_, PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. }) => {
                                                 (rhs.error_span_wide(), find_name_binding_in_const(&rhs.kind).unwrap())
                                             },
                                             _ => unreachable!(),
                                         };
 
-                                        // `let x + 1 = 100;` is okay.
-                                        // `let x * 2 = 100;` is not.
+                                        // `let $x + 1 = 100;` is okay.
+                                        // `let $x * 2 = 100;` is not.
                                         match op {
                                             InfixOp::Add | InfixOp::Sub => {},
                                             _ => {
@@ -903,11 +893,11 @@ impl<'t, 's> Tokens<'t, 's> {
                                             },
                                         }
 
-                                        PatternValueKind::Ident
+                                        PatternValueKind::NameBinding
                                     },
                                     (
-                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
-                                        PatternKind::Ident { .. } | PatternKind::InfixOp { kind: PatternValueKind::Ident, .. },
+                                        PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
+                                        PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
                                     ) => {
                                         let lhs_name_binding = find_name_binding_in_const(&lhs.kind).unwrap();
                                         let rhs_name_binding = find_name_binding_in_const(&rhs.kind).unwrap();
@@ -1026,8 +1016,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 // struct or a tuple_struct
                 Some(t @ Token { kind: TokenKind::Group { delim, tokens }, span }) => {
                     let r#struct = match &lhs.kind {
-                        PatternKind::Ident { id, span } => vec![(*id, *span)],
-                        PatternKind::Path(path) => path.to_vec(),
+                        PatternKind::Path(path) => path.clone(),
                         _ => {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
@@ -1235,7 +1224,7 @@ const OR: u32 = 17;
 
 fn find_name_binding_in_const(pattern: &PatternKind) -> Option<InternedString> {
     match pattern {
-        PatternKind::Ident { id, .. } => Some(*id),
+        PatternKind::NameBinding { id, .. } => Some(*id),
         PatternKind::InfixOp { lhs, rhs, .. } => match find_name_binding_in_const(&lhs.kind) {
             Some(id) => Some(id),
             None => find_name_binding_in_const(&rhs.kind),

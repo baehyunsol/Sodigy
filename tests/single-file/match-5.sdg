@@ -1,5 +1,5 @@
 fn const_name_binding(x, y) = match (x, y) {
-    (a @ 0, _) | (_, a @ 1) => a,
+    ($a @ 0, _) | (_, $a @ 1) => a,
     _ => 100,
 };
 

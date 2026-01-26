@@ -12,6 +12,7 @@ use sodigy_hir::{
     FuncShape,
     Generic,
     Let,
+    Path,
     Pattern,
     PatternKind,
     Poly,
@@ -25,7 +26,7 @@ use sodigy_hir::{
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
-use sodigy_span::{PolySpanKind, RenderableSpan, Span, SpanDeriveKind};
+use sodigy_span::{PolySpanKind, RenderableSpan, Span};
 use sodigy_string::intern_string;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -145,8 +146,8 @@ impl Session {
     //
     // Then, we have to resolve the above aliases to
     // `type x = foo;`
-    // `type foo as y;`
-    // `type foo as z;`
+    // `use foo as y;`
+    // `use foo as z;`
     //
     // We have to do this before resolving aliases in expressions and type annotations.
     // We have to do this globally.
@@ -164,7 +165,7 @@ impl Session {
             for (name_span, mut alias) in self.type_aliases.clone().into_iter() {
                 let mut alias_log = vec![];
 
-                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log, 0) {
+                if let Err(()) = self.resolve_type(&mut alias.r#type, &mut alias_log) {
                     has_error = true;
                 }
 
@@ -190,7 +191,7 @@ impl Session {
                     // `use y.c.d as x;`
                     // -> When you resolve this `n` times, the length of the
                     //    field will be `2^n`.
-                    if r#use.fields.len() > 1024 {
+                    if r#use.path.fields.len() > 1024 {
                         suspicious_spans = alias_log;
                         suspicious_spans.push(name_span);
                         emergency_escape = true;
@@ -255,10 +256,16 @@ impl Session {
         for (mut path, impl_span) in self.poly_impls.clone().into_iter() {
             if let Err(()) = self.resolve_expr(&mut path) {
                 has_error = true;
+                continue;
+            }
+        
+            if let Err(()) = self.check_expr(&path) {
+                has_error = true;
+                continue;
             }
 
             match path {
-                Expr::Ident(id) => match self.polys.get_mut(&id.def_span) {
+                Expr::Path(Path { id, fields }) if fields.is_empty() => match self.polys.get_mut(&id.def_span) {
                     Some(poly) => {
                         poly.impls.push(impl_span);
                     },
@@ -331,28 +338,25 @@ impl Session {
     pub fn resolve_associated_items(&mut self) -> Result<(), ()> {
         fn get_def_span(associated_item: &AssociatedItem, r#type: &Type) -> Result<(bool, Span), Error> {
             match r#type {
-                Type::Ident(id) => match id.origin {
-                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::Struct => Ok((true, id.def_span)),
-                        NameKind::Enum => Ok((false, id.def_span)),
-                        NameKind::GenericParam => Err(Error {
-                            kind: ErrorKind::TooGeneralToAssociateItem,
-                            spans: associated_item.type_span.simple_error(),
-                            note: None,
-                        }),
+                Type::Path(path) | Type::Param { constructor: path, .. } => {
+                    match path.id.origin {
+                        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                            NameKind::Struct => Ok((true, path.id.def_span)),
+                            NameKind::Enum => Ok((false, path.id.def_span)),
+                            NameKind::GenericParam => Err(Error {
+                                kind: ErrorKind::TooGeneralToAssociateItem,
+                                spans: associated_item.type_span.simple_error(),
+                                note: None,
+                            }),
 
-                        // already filtered out by hir
+                            // already filtered out by `check_type_annotation`
+                            _ => unreachable!(),
+                        },
+
+                        // already filtered out by `check_type_annotation`
                         _ => unreachable!(),
-                    },
-
-                    // already filtered out by hir
-                    _ => unreachable!(),
+                    }
                 },
-
-                // it has to be resolved already
-                Type::Path { .. } => unreachable!(),
-
-                Type::Param { constructor, .. } => get_def_span(associated_item, constructor),
                 Type::Tuple { .. } => todo!(),  // what's def_span of tuple? maybe use lang_item?
                 Type::Func { .. } | Type::Never(_) => Err(Error {
                     kind: ErrorKind::CannotAssociateItem,
@@ -371,7 +375,12 @@ impl Session {
         let mut associated_items = self.associated_items.drain(..).collect::<Vec<_>>();
 
         'associated_items: for associated_item in associated_items.iter_mut() {
-            if let Err(()) = self.resolve_type(&mut associated_item.r#type, &mut vec![], 0) {
+            if let Err(()) = self.resolve_type(&mut associated_item.r#type, &mut vec![]) {
+                has_error = true;
+                continue;
+            }
+
+            else if let Err(()) = self.check_type_annotation(&associated_item.r#type) {
                 has_error = true;
                 continue;
             }
@@ -493,26 +502,32 @@ impl Session {
                                             |i| FuncParam {
                                                 name: param_names[i],
                                                 name_span: Span::None,
-                                                type_annot: Some(Type::Ident(IdentWithOrigin {
-                                                    id: generic_params[i],
-                                                    span: Span::None,
-                                                    def_span: Span::Poly {
-                                                        name: poly_name_interned,
-                                                        kind: PolySpanKind::Param(i),
+                                                type_annot: Some(Type::Path(Path {
+                                                    id: IdentWithOrigin {
+                                                        id: generic_params[i],
+                                                        span: Span::None,
+                                                        def_span: Span::Poly {
+                                                            name: poly_name_interned,
+                                                            kind: PolySpanKind::Param(i),
+                                                        },
+                                                        origin: NameOrigin::GenericParam { index: i },
                                                     },
-                                                    origin: NameOrigin::GenericParam { index: i },
+                                                    fields: vec![],
                                                 })),
                                                 default_value: None,
                                             }
                                         ).collect(),
-                                        type_annot: Some(Type::Ident(IdentWithOrigin {
-                                            id: generic_params[params],
-                                            span: Span::None,
-                                            def_span: Span::Poly {
-                                                name: poly_name_interned,
-                                                kind: PolySpanKind::Return,
+                                        type_annot: Some(Type::Path(Path {
+                                            id: IdentWithOrigin {
+                                                id: generic_params[params],
+                                                span: Span::None,
+                                                def_span: Span::Poly {
+                                                    name: poly_name_interned,
+                                                    kind: PolySpanKind::Return,
+                                                },
+                                                origin: NameOrigin::GenericParam { index: params },
                                             },
-                                            origin: NameOrigin::GenericParam { index: params },
+                                            fields: vec![],
                                         })),
                                         value: Expr::dummy(),
                                         origin: FuncOrigin::AssociatedFunc,
@@ -580,7 +595,11 @@ impl Session {
         }
 
         for type_assertion in hir_session.type_assertions.iter_mut() {
-            if let Err(()) = self.resolve_type(&mut type_assertion.r#type, &mut vec![], 0) {
+            if let Err(()) = self.resolve_type(&mut type_assertion.r#type, &mut vec![]) {
+                has_error = true;
+            }
+
+            else if let Err(()) = self.check_type_annotation(&type_assertion.r#type) {
                 has_error = true;
             }
         }
@@ -598,12 +617,20 @@ impl Session {
         let mut has_error = false;
 
         if let Some(type_annot) = &mut r#let.type_annot {
-            if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
+            if let Err(()) = self.resolve_type(type_annot, &mut vec![]) {
+                has_error = true;
+            }
+
+            else if let Err(()) = self.check_type_annotation(&type_annot) {
                 has_error = true;
             }
         }
 
         if let Err(()) = self.resolve_expr(&mut r#let.value) {
+            has_error = true;
+        }
+
+        else if let Err(()) = self.check_expr(&r#let.value) {
             has_error = true;
         }
 
@@ -621,19 +648,31 @@ impl Session {
 
         for param in func.params.iter_mut() {
             if let Some(type_annot) = &mut param.type_annot {
-                if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
+                if let Err(()) = self.resolve_type(type_annot, &mut vec![]) {
+                    has_error = true;
+                }
+
+                else if let Err(()) = self.check_type_annotation(type_annot) {
                     has_error = true;
                 }
             }
         }
 
         if let Some(type_annot) = &mut func.type_annot {
-            if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
+            if let Err(()) = self.resolve_type(type_annot, &mut vec![]) {
+                has_error = true;
+            }
+
+            else if let Err(()) = self.check_type_annotation(type_annot) {
                 has_error = true;
             }
         }
 
         if let Err(()) = self.resolve_expr(&mut func.value) {
+            has_error = true;
+        }
+
+        else if let Err(()) = self.check_expr(&func.value) {
             has_error = true;
         }
 
@@ -651,7 +690,11 @@ impl Session {
 
         for field in r#struct.fields.iter_mut() {
             if let Some(type_annot) = &mut field.type_annot {
-                if let Err(()) = self.resolve_type(type_annot, &mut vec![], 0) {
+                if let Err(()) = self.resolve_type(type_annot, &mut vec![]) {
+                    has_error = true;
+                }
+
+                else if let Err(()) = self.check_type_annotation(type_annot) {
                     has_error = true;
                 }
             }
@@ -673,9 +716,17 @@ impl Session {
             if let Err(()) = self.resolve_expr(note) {
                 has_error = true;
             }
+
+            else if let Err(()) = self.check_expr(note) {
+                has_error = true;
+            }
         }
 
         if let Err(()) = self.resolve_expr(&mut assert.value) {
+            has_error = true;
+        }
+
+        else if let Err(()) = self.check_expr(&assert.value) {
             has_error = true;
         }
 
@@ -705,259 +756,126 @@ impl Session {
         name_aliases_to_type_aliases: &mut Vec<(Span, Alias)>,
         log: &mut Vec<Span>,
     ) -> Result<(), ()> {
-        match self.name_aliases.get(&r#use.root.def_span) {
-            // r#use: `use x.y.z as w;`
-            // alias: `use a.b.c as x;`
-            // ->
-            // `use a.b.c.y.z as w;`
-            // `a`, `b` and `c` in the new `use` statement inherit spans
-            // from `x`, for better error messages.
+        // TODO: If there are `use x as w;` and `type x<T> = Option<T>;`,
+        //       we want to convert the use statement to a type alias:
+        //       `type w<T> = Option<T>;`.
+        //       Also, if there are `use x.y.z as w;` and `type x<T> = ...;`,
+        //       it's an error because `x.y.z` doesn't make sense.
+        //       But the problem is that `resolve_path` can't do anything with
+        //       generic parameters in type aliases.
+        self.resolve_path(&mut r#use.path, log)?;
+        todo!()
+    }
+
+    // If there are complex aliases (alias of alias of alias of ...), this function
+    // doesn't fully solve the path.
+    // `resolve_alias` solves this issue by calling `resolve_use` and `resolve_type` over and
+    // over until there's no more paths to solve. `resolve_alias` tracks whether it founds new
+    // aliases or not with `log` parameter.
+    //
+    // The other resolvers (`resolve_expr`, `resolve_pattern`, ...) don't have such problem because
+    // `resolve_alias` removes all the complex aliases.
+    pub fn resolve_path(
+        &mut self,
+        path: &mut Path,
+        log: &mut Vec<Span>,
+    ) -> Result<(), ()> {
+        // We have path `a.b.c`, and there's an alias `use x.y.z as a;`.
+        // The path has to be resolved to `x.y.z.b.c`.
+        // The resolved path keeps span and id of `a`, for better error messages.
+        match self.name_aliases.get(&path.id.def_span) {
             Some(alias) => {
-                let alias_fields = alias.fields.iter().map(
+                log.push(path.id.span);
+                log.push(path.id.def_span);
+                path.id = IdentWithOrigin {
+                    def_span: alias.path.id.def_span,
+                    origin: alias.path.id.origin,
+                    ..path.id
+                };
+                let alias_fields = alias.path.fields.iter().map(
                     |field| match field {
                         Field::Name { name, .. } => Field::Name {
                             name: *name,
-                            name_span: r#use.root.span,
-                            dot_span: r#use.root.span,
+                            name_span: path.id.span,
+                            dot_span: path.id.span,
                             is_from_alias: true,
                         },
                         _ => unreachable!(),
                     }
-                ).collect();
-                *r#use = Use {
-                    fields: vec![
-                        alias_fields,
-                        r#use.fields.clone(),
-                    ].concat(),
-                    root: IdentWithOrigin {
-                        def_span: alias.root.def_span,
-                        origin: alias.root.origin,
-                        ..r#use.root
-                    },
-                    ..r#use.clone()
-                };
-                log.push(r#use.name_span);
-                log.push(r#use.root.def_span);
+                ).collect::<Vec<_>>();
+                path.fields = vec![
+                    alias_fields,
+                    path.fields.to_vec(),
+                ].concat();
                 return Ok(());
             },
             None => {},
         }
 
-        match self.type_aliases.get(&r#use.root.def_span) {
-            Some(alias) => {
-                if alias.generics.is_empty() {
-                    match &alias.r#type {
-                        // r#use: `use x.y.z as w;`
-                        // alias: `type x = a;`
-                        // ->
-                        // `use a.y.z as w;`
-                        Type::Ident(alias_id) => {
-                            *r#use = Use {
-                                root: IdentWithOrigin {
-                                    def_span: alias_id.def_span,
-                                    origin: alias_id.origin,
-                                    ..r#use.root
-                                },
-                                ..r#use.clone()
-                            };
-                            log.push(r#use.name_span);
-                            log.push(alias_id.span);
-                            return Ok(());
-                        },
-                        // r#use: `use x.y.z as w;`
-                        // alias: `type x = a.b.c;`
-                        // ->
-                        // `use a.b.c.y.z as w;`
-                        // `a`, `b` and `c` in the new `use` statement inherit spans
-                        // from `x`, for better error messages.
-                        Type::Path { id: alias_id, fields: alias_fields } => {
-                            let alias_fields = alias_fields.iter().map(
-                                |field| match field {
-                                    Field::Name { name, .. } => Field::Name {
-                                        name: *name,
-                                        name_span: r#use.root.span,
-                                        dot_span: r#use.root.span,
-                                        is_from_alias: true,
-                                    },
-                                    _ => unreachable!(),
-                                }
-                            ).collect();
-                            *r#use = Use {
-                                fields: vec![
-                                    alias_fields,
-                                    r#use.fields.clone(),
-                                ].concat(),
-                                root: IdentWithOrigin {
-                                    def_span: alias_id.def_span,
-                                    origin: alias_id.origin,
-                                    ..r#use.root
-                                },
-                                ..r#use.clone()
-                            };
-                            log.push(r#use.name_span);
-                            log.push(alias_id.span);
-                            return Ok(());
-                        },
-
-                        // We have to convert a name alias into a type alias.
-                        // `type Tuple2 = (Int, Int);`
-                        // `use Tuple2 as MyTuple;`
-                        // ->
-                        // `type MyTuple = (Int, Int);`
-                        Type::Param { .. } |
-                        Type::Tuple { .. } |
-                        Type::Func { .. } |
-                        Type::Wildcard(_) |
-                        Type::Never(_) => {
-                            log.push(r#use.name_span);
-                            log.push(r#use.root.span);
-                            name_aliases_to_type_aliases.push((
-                                r#use.name_span,
-                                Alias {
-                                    visibility: r#use.visibility.clone(),
-                                    keyword_span: r#use.keyword_span,
-                                    name: r#use.name,
-                                    name_span: r#use.name_span,
-                                    generics: vec![],
-                                    generic_group_span: None,
-                                    r#type: alias.r#type.clone(),
-                                    foreign_names: alias.foreign_names.clone(),
-                                },
-                            ));
-                        },
-                    }
-                }
-
-                else {
-                    // We have to convert a name alias into a type alias.
-                    // r#use: `use x as w;`
-                    // alias: `type x<T> = Option<T>;`
-                    // ->
-                    // `type w<T> = Option<T>;`
-                    if r#use.fields.is_empty() {
-                        log.push(r#use.name_span);
-                        log.push(r#use.root.span);
-                        name_aliases_to_type_aliases.push((
-                            r#use.name_span,
-                            Alias {
-                                visibility: r#use.visibility.clone(),
-                                keyword_span: r#use.keyword_span,
-                                name: r#use.name,
-                                name_span: r#use.name_span,
-                                generics: alias.generics.iter().map(
-                                    |generic| Generic {
-                                        name: generic.name,
-                                        name_span: r#use.root.span,
-                                        // TODO: we need an extra field that it's from an alias
-                                    }
-                                ).collect(),
-                                generic_group_span: Some(r#use.root.span),
-                                r#type: alias.r#type.clone(),
-                                foreign_names: alias.foreign_names.clone(),
-                            },
-                        ));
-                    }
-
-                    // r#use: `use x.y.z as w;`
-                    // alias: `type x<T> = _;`
-                    // -> error
-                    else {
-                        let (field_name, field_span) = match r#use.fields.get(0) {
-                            Some(Field::Name { name, name_span, .. }) => (*name, *name_span),
-                            _ => unreachable!(),
-                        };
-
-                        self.errors.push(Error {
-                            kind: ErrorKind::UndefinedName(field_name),
-                            spans: vec![
-                                RenderableSpan {
-                                    span: field_span,
-                                    auxiliary: false,
-                                    note: None,
-                                },
-                                RenderableSpan {
-                                    span: r#use.root.span,
-                                    auxiliary: true,
-                                    note: Some(format!(
-                                        "`{}` is just a type alias. It doesn't have any fields.",
-                                        r#use.root.id.unintern_or_default(&self.intermediate_dir),
-                                    )),
-                                },
-                            ],
-                            note: None,
-                        });
-                        return Err(());
-                    }
-                }
-            },
+        // What if it's a type alias with generic parameters?
+        match self.type_aliases.get(&path.id.def_span) {
+            Some(alias) => todo!(),
             None => {},
         }
 
-        if let Some(field) = r#use.fields.get(0) {
-            let (field_name, field_span, is_from_alias) = match field {
-                Field::Name { name, name_span, is_from_alias, .. } => (*name, *name_span, *is_from_alias),
-                _ => unreachable!(),
-            };
+        if let Some(field) = path.fields.get(0) {
+            match self.item_name_map.get(&path.id.def_span) {
+                Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
+                    let (field_name, field_span) = (field.unwrap_name(), field.unwrap_name_span());
 
-            match self.item_name_map.get(&r#use.root.def_span) {
-                Some((kind @ (NameKind::Module | NameKind::Enum), items)) => match items.get(&field_name) {
-                    // r#use: `use x.y.z as w;`
-                    // `x` is a module, and `y`'s def_span is `item_span`.
-                    // or,
-                    // `x` is an enum and `y` is a variant. again, `y`'s def_span is `item_span`.
-                    Some((item_span, item_kind)) => {
-                        *r#use = Use {
-                            fields: r#use.fields[1..].to_vec(),
-                            root: IdentWithOrigin {
+                    match items.get(&field_name) {
+                        Some((item, item_kind)) => {
+                            log.push(path.id.span);
+                            log.push(path.id.def_span);
+                            let new_id = IdentWithOrigin {
                                 id: field_name,
                                 span: field_span,
                                 origin: NameOrigin::Foreign { kind: *item_kind },
-                                def_span: *item_span,
-                            },
-                            ..r#use.clone()
-                        };
-                        log.push(r#use.root.span);
-                        return Ok(());
-                    },
+                                def_span: *item,
+                            };
+                            path.id = new_id;
 
-                    // r#use: `use x.y.z as w;`
-                    // `x` is a module, but `x` doesn't have an item named `y`.
-                    None => {
-                        // al1: `use x.y.z as w;`
-                        // al2: `use w as k;`
-                        // Let's say `x` doesn't have an item named `y`.
-                        // We have to throw UndefinedName error only once: only at al1, not at al2.
-                        if !is_from_alias {
+                            if path.fields.len() == 1 {
+                                path.fields = vec![];
+                                Ok(())
+                            }
+
+                            else {
+                                path.fields = path.fields[1..].to_vec();
+                                self.resolve_path(path, log)
+                            }
+                        },
+                        None => {
                             let error_message = match kind {
                                 NameKind::Module => format!(
                                     "Module `{}` doesn't have an item named `{}`.",
-                                    r#use.root.id.unintern_or_default(&self.intermediate_dir),
+                                    path.id.id.unintern_or_default(&self.intermediate_dir),
                                     field_name.unintern_or_default(&self.intermediate_dir),
                                 ),
                                 NameKind::Enum => format!(
                                     "Enum `{}` doesn't have a variant named `{}`.",
-                                    r#use.root.id.unintern_or_default(&self.intermediate_dir),
+                                    path.id.id.unintern_or_default(&self.intermediate_dir),
                                     field_name.unintern_or_default(&self.intermediate_dir),
                                 ),
                                 _ => unreachable!(),
                             };
-
                             self.errors.push(Error {
                                 kind: ErrorKind::UndefinedName(field_name),
                                 spans: field_span.simple_error(),
                                 note: Some(error_message),
                             });
-                        }
-
-                        return Err(());
-                    },
+                            Err(())
+                        },
+                    }
                 },
-                Some((_, _)) => todo!(),
-                None => {},
+                Some((_, _)) => unreachable!(),
+                None => Ok(()),
             }
         }
 
-        Ok(())
+        else {
+            Ok(())
+        }
     }
 
     // It resolves names in type annotations and type aliases.
@@ -966,451 +884,26 @@ impl Session {
         &mut self,
         r#type: &mut Type,
         log: &mut Vec<Span>,
-        recursion_depth: usize,
     ) -> Result<(), ()> {
-        if recursion_depth == ALIAS_RESOLVE_RECURSION_LIMIT {
-            self.errors.push(Error {
-                kind: ErrorKind::AliasResolveRecursionLimitReached,
-                spans: r#type.error_span_wide().simple_error(),
-                note: Some(String::from("Recursion limit reached while trying to resolve this type annotation. It's likely that there's a recursive alias.")),
-            });
-            return Err(());
-        }
-
         match r#type {
-            Type::Ident(id) => {
-                match self.name_aliases.get(&id.def_span) {
-                    Some(alias) => {
-                        // r#type: `type x = y;`
-                        // alias: `use a as y;`
-                        // ->
-                        // `type x = a;`
-                        if alias.fields.is_empty() {
-                            log.push(id.span);
-                            log.push(id.def_span);
-                            *r#type = Type::Ident(IdentWithOrigin {
-                                def_span: alias.root.def_span,
-                                origin: alias.root.origin,
-                                ..*id
-                            });
-                        }
-
-                        // r#type: `type x = y;`
-                        // alias: `use a.b as y;`
-                        // ->
-                        // `type x = a.b;`
-                        else {
-                            log.push(id.span);
-                            log.push(id.def_span);
-                            *r#type = Type::Path {
-                                id: IdentWithOrigin {
-                                    def_span: alias.root.def_span,
-                                    origin: alias.root.origin,
-                                    ..*id
-                                },
-                                fields: alias.fields.iter().map(
-                                    |field| match field {
-                                        Field::Name { name, .. } => Field::Name {
-                                            name: *name,
-                                            name_span: id.span,
-                                            dot_span: id.span,
-                                            is_from_alias: true,
-                                        },
-                                        _ => unreachable!(),
-                                    }
-                                ).collect(),
-                            };
-                        }
-
-                        return Ok(());
-                    },
-                    None => {},
-                }
-
-                match self.type_aliases.get(&id.def_span) {
-                    Some(alias) => match &alias.r#type {
-                        Type::Ident(alias_id) => {
-                            // r#type: `type x = y;`
-                            // alias: `type y = a;`
-                            // ->
-                            // `type x = a;`
-                            if alias.generics.is_empty() {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                let mut alias = alias.r#type.clone();
-                                alias.replace_name_and_span(id.id, id.span);
-                                *r#type = alias;
-                            }
-
-                            // r#type: `type x = y;`
-                            // alias: `type y<T> = a;`
-                            // error!
-                            // TODO: It's not an error, it's just an alias!!
-                            //       But this function cannot make this alias...
-                            else {
-                                self.errors.push(Error {
-                                    kind: ErrorKind::MissingTypeParameter {
-                                        expected: alias.generics.len(),
-                                        got: 0,
-                                    },
-                                    spans: vec![
-                                        RenderableSpan {
-                                            span: id.def_span,
-                                            auxiliary: true,
-                                            note: Some(format!(
-                                                "It has {} parameter{}.",
-                                                alias.generics.len(),
-                                                if alias.generics.len() == 1 { "" } else { "s" },
-                                            )),
-                                        },
-                                        RenderableSpan {
-                                            span: id.span,
-                                            auxiliary: false,
-                                            note: Some(String::from("There are 0 arguments.")),
-                                        },
-                                    ],
-                                    note: None,
-                                });
-                                return Err(());
-                            }
-                        },
-                        Type::Path { id: alias_id, fields: alias_fields } => todo!(),
-                        Type::Param { .. } => {
-                            // r#type: `type x = y;`
-                            // alias: `type y = Option<Int>;`
-                            if alias.generics.is_empty() {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                let mut alias = alias.r#type.clone();
-                                alias.replace_name_and_span(id.id, id.span);
-                                *r#type = alias;
-                            }
-
-                            // r#type: `type x = y;`
-                            // alias: `type y<T> = Option<T>;`
-                            // TODO: This is not an error, it's just an alias.
-                            //       But this function cannot make this kinda alias.
-                            else {
-                                todo!()
-                            }
-                        },
-                        Type::Tuple { types, .. } => {
-                            // r#type: `type x = y;`
-                            // alias: `type y = (Int, Int);`
-                            if alias.generics.is_empty() {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                // TODO: do we have to replace all the spans inside `types`?
-                                let alias = Type::Tuple {
-                                    types: types.clone(),
-                                    group_span: id.span.derive(SpanDeriveKind::Trivial),
-                                };
-                                *r#type = alias;
-                            }
-
-                            else {
-                                todo!()
-                            }
-                        },
-                        Type::Func { params, r#return, purity, .. } => {
-                            // r#type: `type x = y;`
-                            // alias: `type y = Fn(Int) -> Int;`
-                            if alias.generics.is_empty() {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                // TODO: do we have to replace all the spans inside `params` and `r#return`?
-                                let alias = Type::Func {
-                                    fn_span: id.span.derive(SpanDeriveKind::Trivial),
-                                    group_span: id.span.derive(SpanDeriveKind::Trivial),
-                                    params: params.clone(),
-                                    r#return: r#return.clone(),
-                                    purity: *purity,
-                                };
-                                *r#type = alias;
-                            }
-
-                            else {
-                                todo!()
-                            }
-                        },
-                        _ => todo!(),
-                    },
-                    None => {},
-                }
-
-                Ok(())
+            Type::Path(path) => {
+                self.resolve_path(path, log)?;
+                todo!()
             },
-            Type::Path { id, fields } => {
-                match self.name_aliases.get(&id.def_span) {
-                    Some(alias) => {
-                        // r#type: `type x = y.z;`
-                        // alias: `use a as y;`
-                        if alias.fields.is_empty() {
-                            todo!()
-                        }
-
-                        // r#type: `type x = y.z;`
-                        // alias: `use a.b as y;`
-                        else {
-                            todo!()
-                        }
-                    },
-                    None => {},
-                }
-
-                match self.type_aliases.get(&id.def_span) {
-                    Some(alias) => todo!(),
-                    None => {},
-                }
-
-                match self.item_name_map.get(&id.def_span) {
-                    Some((NameKind::Module, items)) => {
-                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
-
-                        match items.get(&field_name) {
-                            Some((item, item_kind)) => {
-                                log.push(id.span);
-                                log.push(id.def_span);
-                                let new_id = IdentWithOrigin {
-                                    id: field_name,
-                                    span: field_span,
-                                    origin: NameOrigin::Foreign { kind: *item_kind },
-                                    def_span: *item,
-                                };
-
-                                if fields.len() == 1 {
-                                    *r#type = Type::Ident(new_id);
-                                    Ok(())
-                                }
-
-                                else {
-                                    *r#type = Type::Path {
-                                        id: new_id,
-                                        fields: fields[1..].to_vec(),
-                                    };
-                                    self.resolve_type(r#type, log, recursion_depth + 1)
-                                }
-                            },
-                            None => {
-                                self.errors.push(Error {
-                                    kind: ErrorKind::UndefinedName(field_name),
-                                    spans: field_span.simple_error(),
-                                    note: Some(format!(
-                                        "Module `{}` doesn't have an item named `{}`.",
-                                        id.id.unintern_or_default(&self.intermediate_dir),
-                                        field_name.unintern_or_default(&self.intermediate_dir),
-                                    )),
-                                });
-                                Err(())
-                            },
-                        }
-                    },
-                    // r#type: `type x = Option.Some;`
-                    Some((NameKind::Enum, items)) => {
-                        let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
-
-                        match items.get(&field_name) {
-                            Some(_) => {
-                                self.errors.push(Error {
-                                    kind: ErrorKind::EnumVariantInTypeAnnotation,
-                                    spans: field_span.simple_error(),
-                                    note: None,
-                                });
-                                Err(())
-                            },
-                            None => {
-                                self.errors.push(Error {
-                                    kind: ErrorKind::UndefinedName(field_name),
-                                    spans: field_span.simple_error(),
-                                    note: Some(format!(
-                                        "Enum `{}` doesn't have a variant named `{}`.",
-                                        id.id.unintern_or_default(&self.intermediate_dir),
-                                        field_name.unintern_or_default(&self.intermediate_dir),
-                                    )),
-                                });
-                                Err(())
-                            },
-                        }
-                    },
-                    Some((_, _)) => unreachable!(),
-                    None => Ok(()),
-                }
-            },
-            Type::Param { constructor, args, group_span } => {
-                for arg in args.iter_mut() {
-                    self.resolve_type(arg, log, recursion_depth + 1)?;
-                }
-
-                match &**constructor {
-                    Type::Ident(id) => {
-                        let id = *id;
-
-                        match self.name_aliases.get(&id.def_span) {
-                            Some(alias) => {
-                                // r#type: `type x = y<Int>;`
-                                // alias: `use a as y;`
-                                // ->
-                                // `type x = a<Int>;`
-                                if alias.fields.is_empty() {
-                                    log.push(id.span);
-                                    log.push(id.def_span);
-                                    *r#type = Type::Param {
-                                        constructor: Box::new(Type::Ident(IdentWithOrigin {
-                                            def_span: alias.root.def_span,
-                                            origin: alias.root.origin,
-                                            ..id
-                                        })),
-                                        args: args.clone(),
-                                        group_span: *group_span,
-                                    };
-                                }
-
-                                // r#type: `type x = y<Int>;`
-                                // alias: `use a.b.c as y;`
-                                // ->
-                                // `type x = a.b.c<Int>;`
-                                else {
-                                    log.push(id.span);
-                                    log.push(id.def_span);
-                                    *r#type = Type::Param {
-                                        constructor: Box::new(Type::Path {
-                                            id: IdentWithOrigin {
-                                                def_span: alias.root.def_span,
-                                                origin: alias.root.origin,
-                                                ..id
-                                            },
-                                            fields: alias.fields.iter().map(
-                                                |field| match field {
-                                                    Field::Name { name, .. } => Field::Name {
-                                                        name: *name,
-                                                        name_span: id.span,
-                                                        dot_span: id.span,
-                                                        is_from_alias: true,
-                                                    },
-                                                    _ => unreachable!(),
-                                                }
-                                            ).collect(),
-                                        }),
-                                        args: args.clone(),
-                                        group_span: *group_span,
-                                    };
-                                }
-                            },
-                            None => {},
-                        }
-
-                        match self.type_aliases.get(&id.def_span) {
-                            Some(alias) => todo!(),
-                            None => {},
-                        }
-                    },
-                    // r#type: `type x = std.prelude.Option<Int>`
-                    Type::Path { id, fields } => {
-                        match self.name_aliases.get(&id.def_span) {
-                            Some(alias) => todo!(),
-                            None => {},
-                        }
-
-                        match self.type_aliases.get(&id.def_span) {
-                            Some(alias) => todo!(),
-                            None => {},
-                        }
-
-                        match self.item_name_map.get(&id.def_span) {
-                            Some((NameKind::Module, items)) => {
-                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
-
-                                match items.get(&field_name) {
-                                    Some((item, item_kind)) => {
-                                        log.push(id.span);
-                                        log.push(id.def_span);
-                                        let new_id = IdentWithOrigin {
-                                            id: field_name,
-                                            span: field_span,
-                                            origin: NameOrigin::Foreign { kind: *item_kind },
-                                            def_span: *item,
-                                        };
-
-                                        if fields.len() == 1 {
-                                            *r#type = Type::Param {
-                                                constructor: Box::new(Type::Ident(new_id)),
-                                                args: args.clone(),
-                                                group_span: *group_span,
-                                            };
-                                        }
-
-                                        else {
-                                            *r#type = Type::Param {
-                                                constructor: Box::new(Type::Path {
-                                                    id: new_id,
-                                                    fields: fields[1..].to_vec(),
-                                                }),
-                                                args: args.clone(),
-                                                group_span: *group_span,
-                                            };
-                                        }
-
-                                        return self.resolve_type(r#type, log, recursion_depth + 1);
-                                    },
-                                    None => {
-                                        self.errors.push(Error {
-                                            kind: ErrorKind::UndefinedName(field_name),
-                                            spans: field_span.simple_error(),
-                                            note: Some(format!(
-                                                "Module `{}` doesn't have an item named `{}`.",
-                                                id.id.unintern_or_default(&self.intermediate_dir),
-                                                field_name.unintern_or_default(&self.intermediate_dir),
-                                            )),
-                                        });
-                                        return Err(());
-                                    },
-                                }
-                            },
-                            // r#type: `type x = Option.Some<Int>;`
-                            Some((NameKind::Enum, items)) => {
-                                let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
-
-                                match items.get(&field_name) {
-                                    Some(_) => {
-                                        self.errors.push(Error {
-                                            kind: ErrorKind::EnumVariantInTypeAnnotation,
-                                            spans: field_span.simple_error(),
-                                            note: None,
-                                        });
-                                        return Err(());
-                                    },
-                                    None => {
-                                        self.errors.push(Error {
-                                            kind: ErrorKind::UndefinedName(field_name),
-                                            spans: field_span.simple_error(),
-                                            note: Some(format!(
-                                                "Enum `{}` doesn't have a variant named `{}`.",
-                                                id.id.unintern_or_default(&self.intermediate_dir),
-                                                field_name.unintern_or_default(&self.intermediate_dir),
-                                            )),
-                                        });
-                                        return Err(());
-                                    },
-                                }
-                            },
-                            Some((_, _)) => unreachable!(),
-                            None => {},
-                        }
-                    },
-                    _ => unreachable!(),
-                }
-
-                Ok(())
-            },
-            Type::Func { r#return, params, .. } => {
+            Type::Param { constructor, args, group_span } => todo!(),
+            Type::Func { fn_constructor, params, r#return, .. } => {
                 let mut has_error = false;
 
-                if let Err(()) = self.resolve_type(r#return, log, recursion_depth + 1) {
+                if let Err(()) = self.resolve_path(fn_constructor, log) {
+                    has_error = true;
+                }
+
+                if let Err(()) = self.resolve_type(r#return, log) {
                     has_error = true;
                 }
 
                 for param in params.iter_mut() {
-                    if let Err(()) = self.resolve_type(param, log, recursion_depth + 1) {
+                    if let Err(()) = self.resolve_type(param, log) {
                         has_error = true;
                     }
                 }
@@ -1427,7 +920,7 @@ impl Session {
                 let mut has_error = false;
 
                 for r#type in types.iter_mut() {
-                    if let Err(()) = self.resolve_type(r#type, log, recursion_depth + 1) {
+                    if let Err(()) = self.resolve_type(r#type, log) {
                         has_error = true;
                     }
                 }
@@ -1446,39 +939,28 @@ impl Session {
 
     pub fn resolve_expr(&mut self, expr: &mut Expr) -> Result<(), ()> {
         match expr {
+            Expr::Path(p) => {
+                self.resolve_path(p, &mut vec![])?;
+
+                if p.fields.is_empty() {
+                    Ok(())
+                }
+
+                else {
+                    *expr = Expr::Field {
+                        lhs: Box::new(Expr::Path(Path {
+                            id: p.id,
+                            fields: vec![],
+                        })),
+                        fields: p.fields.to_vec(),
+                    };
+                    Ok(())
+                }
+            },
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |
             Expr::Byte { .. } => Ok(()),
-            Expr::Ident(id) => {
-                match self.name_aliases.get(&id.def_span) {
-                    Some(alias) => {
-                        // expr: `Bool`
-                        // alias: `use x as Bool;`
-                        if alias.fields.is_empty() {
-                            *id = IdentWithOrigin {
-                                def_span: alias.root.def_span,
-                                origin: alias.root.origin,
-                                ..*id
-                            };
-                        }
-
-                        // expr: `Bool`
-                        // alias: `use std.Bool as Bool;`
-                        else {
-                            todo!()
-                        }
-                    },
-                    None => {},
-                }
-
-                match self.type_aliases.get(&id.def_span) {
-                    Some(alias) => panic!("id: {id:?}, alias: {alias:?}"),
-                    None => {},
-                }
-
-                Ok(())
-            },
             Expr::If(r#if) => match (
                 self.resolve_expr(&mut r#if.cond),
                 self.resolve_expr(&mut r#if.true_value),
@@ -1628,69 +1110,7 @@ impl Session {
                     Ok(())
                 }
             },
-            Expr::Path { lhs, fields } => {
-                self.resolve_expr(lhs)?;
-
-                match &**lhs {
-                    Expr::Ident(id) => match self.item_name_map.get(&id.def_span) {
-                        Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
-                            let (field_name, field_span) = (fields[0].unwrap_name(), fields[0].unwrap_name_span());
-
-                            match items.get(&field_name) {
-                                Some((item, item_kind)) => {
-                                    let new_root = Expr::Ident(IdentWithOrigin {
-                                        id: field_name,
-                                        span: field_span,
-                                        origin: NameOrigin::Foreign { kind: *item_kind },
-                                        def_span: *item,
-                                    });
-
-                                    if fields.len() == 1 {
-                                        *expr = new_root;
-                                        Ok(())
-                                    }
-
-                                    else {
-                                        *expr = Expr::Path {
-                                            lhs: Box::new(new_root),
-                                            fields: fields[1..].to_vec(),
-                                        };
-                                        self.resolve_expr(expr)
-                                    }
-                                },
-                                None => {
-                                    let error_message = match kind {
-                                        NameKind::Module => format!(
-                                            "Module `{}` doesn't have an item named `{}`.",
-                                            id.id.unintern_or_default(&self.intermediate_dir),
-                                            field_name.unintern_or_default(&self.intermediate_dir),
-                                        ),
-                                        NameKind::Enum => format!(
-                                            "Enum `{}` doesn't have a variant named `{}`.",
-                                            id.id.unintern_or_default(&self.intermediate_dir),
-                                            field_name.unintern_or_default(&self.intermediate_dir),
-                                        ),
-                                        _ => unreachable!(),
-                                    };
-
-                                    self.errors.push(Error {
-                                        kind: ErrorKind::UndefinedName(field_name),
-                                        spans: field_span.simple_error(),
-                                        note: Some(error_message),
-                                    });
-                                    Err(())
-                                },
-                            }
-                        },
-                        Some((_, _)) => todo!(),
-                        None => Ok(()),
-                    },
-                    Expr::Path { .. } => todo!(),
-
-                    // `(1 + 2).a.b` -> `a` and `b` are fields
-                    _ => Ok(()),
-                }
-            },
+            Expr::Field { lhs, .. } => self.resolve_expr(lhs),
             Expr::PrefixOp { rhs: hs, .. } |
             Expr::PostfixOp { lhs: hs, .. } => self.resolve_expr(hs),
             Expr::FieldUpdate { lhs, rhs, .. } |
@@ -1722,14 +1142,48 @@ impl Session {
 
     pub fn resolve_pattern_kind(&mut self, kind: &mut PatternKind) -> Result<(), ()> {
         match kind {
-            PatternKind::Ident { .. } |
+            PatternKind::Path(path) => todo!(),
+            PatternKind::NameBinding { .. } |
             PatternKind::Number { .. } |
             PatternKind::String { .. } |
             PatternKind::Regex { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } |
             PatternKind::Wildcard(_) => Ok(()),
-            PatternKind::Path(_) => todo!(),
+            PatternKind::Struct { r#struct, fields, .. } => {
+                let mut has_error = self.resolve_path(r#struct, &mut vec![]).is_err();
+
+                for field in fields.iter_mut() {
+                    if let Err(()) = self.resolve_pattern(&mut field.pattern) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
+            PatternKind::TupleStruct { r#struct, elements, .. } => {
+                let mut has_error = self.resolve_path(r#struct, &mut vec![]).is_err();
+
+                for element in elements.iter_mut() {
+                    if let Err(()) = self.resolve_pattern(element) {
+                        has_error = true;
+                    }
+                }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(())
+                }
+            },
             PatternKind::Tuple { elements, .. } |
             PatternKind::List { elements, .. } => {
                 let mut has_error = false;
@@ -1778,7 +1232,16 @@ impl Session {
                 (Ok(()), Ok(())) => Ok(()),
                 _ => Err(()),
             },
-            _ => panic!("TODO: {kind:?}"),
         }
+    }
+
+    // Some names (e.g. `NameKind::Let`) are not a valid type annotation.
+    pub fn check_type_annotation(&mut self, r#type: &Type) -> Result<(), ()> {
+        todo!()
+    }
+
+    // Some names (e.g. `NameKind::Enum`) are not a valid expr.
+    pub fn check_expr(&mut self, expr: &Expr) -> Result<(), ()> {
+        todo!()
     }
 }

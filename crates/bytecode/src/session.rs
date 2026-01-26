@@ -170,7 +170,7 @@ impl Session {
 
                 self.collect_local_names(&block.value, offset + block.lets.len());
             },
-            Expr::Path { lhs, .. } => {
+            Expr::Field { lhs, .. } => {
                 self.collect_local_names(lhs, offset);
             },
             Expr::FieldUpdate { lhs, rhs, .. } => {

@@ -63,7 +63,7 @@ pub enum NameOrigin {
     },
 
     // `use` statements may introduce external names.
-    // It must be removed (or a compile error) in hir-name-analysis pass
+    // It must be resolved (or a compile error) in hir-name-analysis pass
     External,
 }
 

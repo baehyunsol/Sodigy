@@ -69,10 +69,10 @@ impl Pattern {
             PatternKind::Byte { .. } => Ok(()),
             PatternKind::InfixOp { kind, .. } => match kind {
                 PatternValueKind::Constant => Ok(()),
-                PatternValueKind::DollarIdent | PatternValueKind::Ident => {
+                PatternValueKind::NameBinding | PatternValueKind::Value => {
                     let note = match kind {
-                        PatternValueKind::DollarIdent => "Dollar-identifiers cannot be an end of a range.",
-                        PatternValueKind::Ident => "You cannot bind a name to an end of a range.",
+                        PatternValueKind::NameBinding => "You cannot bind a name to an end of a range.",
+                        PatternValueKind::Value => "You cannot reference a value here.",
                         _ => unreachable!(),
                     };
 
@@ -103,15 +103,14 @@ impl Pattern {
 impl PatternKind {
     pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
+            PatternKind::Path(_) |
+            PatternKind::NameBinding { .. } |
             PatternKind::Number { .. } |
             PatternKind::String { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } |
-            PatternKind::Ident { .. } |
-            PatternKind::Path(_) |
             PatternKind::Wildcard(_) |
-            PatternKind::PipelineData(_) |
-            PatternKind::DollarIdent { .. } => Ok(()),
+            PatternKind::PipelineData(_) => Ok(()),
             PatternKind::Regex { .. } => todo!(),
             PatternKind::Struct { fields, .. } => {
                 // There maybe name collisions in the fields, but AST doesn't care about that.

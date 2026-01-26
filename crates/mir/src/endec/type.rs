@@ -16,17 +16,19 @@ impl Endec for Type {
                 def_span.encode_impl(buffer);
                 span.encode_impl(buffer);
             },
-            Type::Unit(group_span) => {
-                buffer.push(2);
-                group_span.encode_impl(buffer);
-            },
             Type::Never(span) => {
-                buffer.push(3);
+                buffer.push(2);
                 span.encode_impl(buffer);
             },
-            Type::Param { constructor, args, group_span } => {
+            Type::Tuple { args, group_span } => {
+                buffer.push(3);
+                args.encode_impl(buffer);
+                group_span.encode_impl(buffer);
+            },
+            Type::Param { constructor_def_span, constructor_span, args, group_span } => {
                 buffer.push(4);
-                constructor.encode_impl(buffer);
+                constructor_def_span.encode_impl(buffer);
+                constructor_span.encode_impl(buffer);
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
@@ -68,18 +70,20 @@ impl Endec for Type {
                 Ok((Type::GenericParam { def_span, span }, cursor))
             },
             Some(2) => {
-                let (group_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Type::Unit(group_span), cursor))
-            },
-            Some(3) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Type::Never(span), cursor))
             },
+            Some(3) => {
+                let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor + 1)?;
+                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Type::Tuple { args, group_span }, cursor))
+            },
             Some(4) => {
-                let (constructor, cursor) = Box::<Type>::decode_impl(buffer, cursor + 1)?;
+                let (constructor_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (constructor_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::Param { constructor, args, group_span }, cursor))
+                Ok((Type::Param { constructor_def_span, constructor_span, args, group_span }, cursor))
             },
             Some(5) => {
                 let (fn_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;

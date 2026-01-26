@@ -1,11 +1,11 @@
 fn map<T, U>(ls: [T], f: Fn(T) -> U) -> [U] = match ls {
     [] => [],
-    [x] ++ rem => [f(x)] ++ map(rem, f),
+    [$x] ++ $rem => [f(x)] ++ map(rem, f),
 };
 
 fn filter<T>(ls: [T], f: Fn(T) -> Bool) -> [T] = match ls {
     [] => [],
-    [x] ++ rem => if f(x) { [x] ++ filter(rem, f) } else { filter(rem, f) },
+    [$x] ++ $rem => if f(x) { [x] ++ filter(rem, f) } else { filter(rem, f) },
 };
 
 fn sort<T>(ls: [T]) -> [T] = match ls {
@@ -15,10 +15,10 @@ fn sort<T>(ls: [T]) -> [T] = match ls {
 
 fn reverse<T>(ls: [T]) -> [T] = match ls {
     [] | [_] => ls,
-    [x] ++ rem => reverse(rem) ++ [x],
+    [$x] ++ $rem => reverse(rem) ++ [x],
 };
 
 fn length<T>(ls: [T]) -> Int = match ls {
     [] => 0,
-    [_] ++ rem => 1 + length(rem),
+    [_] ++ $rem => 1 + length(rem),
 };

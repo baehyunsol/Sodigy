@@ -1,6 +1,7 @@
 use crate::{
     Attribute,
     AttributeRule,
+    Path,
     Requirement,
     Session,
     Visibility,
@@ -14,17 +15,14 @@ use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 // If it's `use a.b.c as x;`,
-//    root: a
-//    fields: [b, c]
 //    name: `x`
+//    path: Path { id: a, fields: [b, c] }
 // If it's `use a;`
-//    root: a
-//    fields: []
 //    name: a
+//    path: Path { id: a, fields: [] }
 // If it's `use a as x'`
-//    root: a
-//    fields: []
 //    name: x
+//    path: Path { id: a, fields: [] }
 //
 // We can track the origin of `a`, but cannot track `b` and `c` (we don't have type info).
 // `a` might be defined in the same module, or from an external module.
@@ -36,8 +34,7 @@ pub struct Use {
     pub keyword_span: Span,
     pub name: InternedString,
     pub name_span: Span,
-    pub fields: Vec<Field>,
-    pub root: IdentWithOrigin,
+    pub path: Path,
 }
 
 impl Use {
@@ -112,17 +109,18 @@ impl Use {
         }
 
         else {
+            let fields = if ast_use.full_path.len() > 1 {
+                ast_use.full_path[1..].to_vec()
+            } else {
+                vec![]
+            };
+
             Ok(Use {
                 visibility,
                 keyword_span: ast_use.keyword_span,
                 name: ast_use.name,
                 name_span: ast_use.name_span,
-                fields: if ast_use.full_path.len() > 1 {
-                    ast_use.full_path[1..].to_vec()
-                } else {
-                    vec![]
-                },
-                root,
+                path: Path { id: root, fields },
             })
         }
     }

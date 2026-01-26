@@ -9,7 +9,7 @@ pub fn replace_dollar(
     has_nested_pipeline: &mut bool,
 ) {
     match value {
-        ast::Expr::Ident { .. } |
+        ast::Expr::Path(_) |
         ast::Expr::Number { .. } |
         ast::Expr::String { .. } |
         ast::Expr::Char { .. } |
@@ -134,7 +134,7 @@ pub fn replace_dollar(
                 );
             }
         },
-        ast::Expr::Path { .. } => todo!(),
+        ast::Expr::Field { .. } => todo!(),
         ast::Expr::FieldUpdate { .. } => todo!(),
         ast::Expr::Lambda { .. } => todo!(),
         ast::Expr::PrefixOp { rhs: expr, .. } | ast::Expr::PostfixOp { lhs: expr, .. } => {
@@ -170,9 +170,9 @@ pub fn replace_dollar(
             *has_nested_pipeline = true;
         },
         ast::Expr::PipelineData(span) => {
-            let span = *span;
-            *value = ast::Expr::Ident { id: ident, span };
-            replaced_spans.push(span);
+            let id_span = *span;
+            *value = ast::Expr::Path(ast::Path { id: ident, id_span, fields: vec![] });
+            replaced_spans.push(id_span);
         },
     }
 }
@@ -184,15 +184,14 @@ fn replace_dollar_in_pattern(
     has_nested_pipeline: &mut bool,
 ) {
     match &mut pattern.kind {
-        ast::PatternKind::Ident { .. } |
-        ast::PatternKind::DollarIdent { .. } |
+        ast::PatternKind::Path(_) |
+        ast::PatternKind::NameBinding { .. } |
         ast::PatternKind::Number { .. } |
         ast::PatternKind::String { .. } |
         ast::PatternKind::Regex { .. } |
         ast::PatternKind::Char { .. } |
         ast::PatternKind::Byte { .. } |
         ast::PatternKind::Wildcard(_) => {},
-        ast::PatternKind::Path(_) => todo!(),
         ast::PatternKind::Struct { .. } => todo!(),
         ast::PatternKind::TupleStruct { elements, .. } |
         ast::PatternKind::Tuple { elements, .. } |
@@ -234,9 +233,9 @@ fn replace_dollar_in_pattern(
             );
         },
         ast::PatternKind::PipelineData(span) => {
-            let span = *span;
-            pattern.kind = ast::PatternKind::Ident { id: ident, span };
-            replaced_spans.push(span);
+            let id_span = *span;
+            pattern.kind = ast::PatternKind::Path(ast::Path { id: ident, id_span, fields: vec![] });
+            replaced_spans.push(id_span);
         },
     }
 }

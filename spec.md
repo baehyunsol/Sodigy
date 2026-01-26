@@ -302,7 +302,7 @@ You can even use piped values in patterns (TODO: document).
 
 ## Pattern Matchings
 
-Sodigy has a very flexible and expressive pattern matching system. The syntax resembles that of Rust.
+Sodigy has a very flexible and expressive pattern matching system. The syntax resembles that of Rust. The biggest difference is that you have to put a dollar sign (`$`) in front of a name to bind a name.
 
 Use `match` keyword to match a pattern. The keyword is followed by a value, and curly braces. The curly braces contain match arms.
 
@@ -320,6 +320,20 @@ assert to_string(0) == "zero";
 assert to_string(1) == "one";
 assert to_string(2) == "two";
 assert to_string(100) == "very large number";
+```
+
+```sodigy
+fn greet(name: String) -> String = match name {
+    "Bae" => "Hi, Bae",
+
+    // There's a dollar-sign (`$`) for a name binding.
+    $name @ "John" => f"Good to see you, {name}",
+    $other => f"Hello, {other}",
+};
+
+assert greet("Bae") == "Hi, Bae";
+assert greet("John") == "Good to see you, John";
+assert greet("Park") == "Hello, Park";
 ```
 
 ## Type Annotations

@@ -1,4 +1,4 @@
-use crate::{Use, Visibility};
+use crate::{Path, Use, Visibility};
 use sodigy_name_analysis::{
     IdentWithOrigin,
     NameKind,
@@ -59,25 +59,27 @@ pub fn use_prelude(name: InternedString) -> Use {
         keyword_span: Span::None,
         name,
         name_span: Span::Prelude(name),
-        fields: vec![
-            Field::Name {
-                name: prelude,
-                name_span: Span::None,
-                dot_span: Span::None,
-                is_from_alias: false,
+        path: Path {
+            id: IdentWithOrigin {
+                id: std,
+                span: Span::None,
+                origin: NameOrigin::External,
+                def_span: Span::Std,
             },
-            Field::Name {
-                name,
-                name_span: Span::None,
-                dot_span: Span::None,
-                is_from_alias: false,
-            },
-        ],
-        root: IdentWithOrigin {
-            id: std,
-            span: Span::None,
-            origin: NameOrigin::External,
-            def_span: Span::Std,
+            fields: vec![
+                Field::Name {
+                    name: prelude,
+                    name_span: Span::None,
+                    dot_span: Span::None,
+                    is_from_alias: false,
+                },
+                Field::Name {
+                    name,
+                    name_span: Span::None,
+                    dot_span: Span::None,
+                    is_from_alias: false,
+                },
+            ],
         },
     }
 }

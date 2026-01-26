@@ -57,7 +57,7 @@ impl Endec for Expr {
                 buffer.push(7);
                 block.encode_impl(buffer);
             },
-            Expr::Path { lhs, fields } => {
+            Expr::Field { lhs, fields } => {
                 buffer.push(8);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
@@ -121,7 +121,7 @@ impl Endec for Expr {
             Some(8) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Path { lhs, fields }, cursor))
+                Ok((Expr::Field { lhs, fields }, cursor))
             },
             Some(9) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;

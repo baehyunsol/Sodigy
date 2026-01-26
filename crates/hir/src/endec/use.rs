@@ -1,4 +1,4 @@
-use crate::{Use, Visibility};
+use crate::{Path, Use, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_parse::Field;
@@ -11,8 +11,7 @@ impl Endec for Use {
         self.keyword_span.encode_impl(buffer);
         self.name.encode_impl(buffer);
         self.name_span.encode_impl(buffer);
-        self.fields.encode_impl(buffer);
-        self.root.encode_impl(buffer);
+        self.path.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
@@ -20,8 +19,7 @@ impl Endec for Use {
         let (keyword_span, cursor) = Span::decode_impl(buffer, cursor)?;
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (name_span, cursor) = Span::decode_impl(buffer, cursor)?;
-        let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-        let (root, cursor) = IdentWithOrigin::decode_impl(buffer, cursor)?;
+        let (path, cursor) = Path::decode_impl(buffer, cursor)?;
 
         Ok((
             Use {
@@ -29,8 +27,7 @@ impl Endec for Use {
                 keyword_span,
                 name,
                 name_span,
-                fields,
-                root,
+                path,
             },
             cursor,
         ))

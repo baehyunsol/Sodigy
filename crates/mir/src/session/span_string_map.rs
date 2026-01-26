@@ -123,9 +123,14 @@ impl Session {
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |
-            Expr::Byte { .. } |
-            Expr::Path { .. } |
-            Expr::FieldUpdate { .. } => {},
+            Expr::Byte { .. } => {},
+            Expr::Field { lhs, .. } => {
+                self.init_span_string_map_expr(lhs, result);
+            },
+            Expr::FieldUpdate { lhs, rhs, .. } => {
+                self.init_span_string_map_expr(lhs, result);
+                self.init_span_string_map_expr(rhs, result);
+            },
             Expr::If(r#if) => {
                 self.init_span_string_map_expr(&r#if.cond, result);
                 self.init_span_string_map_expr(&r#if.true_value, result);

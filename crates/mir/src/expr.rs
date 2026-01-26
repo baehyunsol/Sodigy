@@ -38,7 +38,7 @@ pub enum Expr {
     // `Match` is later lowered to a `Block`.
     Match(Match),
     Block(Block),
-    Path {
+    Field {
         lhs: Box<Expr>,
         fields: Vec<Field>,
     },
@@ -54,6 +54,7 @@ pub enum Expr {
 
         // If it's a generic function, def_spans of its generics (T, U, ...)
         // are stored here so that `inter_mir::TypeSolver::solve_expr` can use.
+        // TODO: It has to be `generic_params`
         generic_defs: Vec<Span>,
 
         // It helps generating error messages.
@@ -93,7 +94,12 @@ pub enum ShortCircuitKind {
 impl Expr {
     pub fn from_hir(hir_expr: &hir::Expr, session: &mut Session) -> Result<Expr, ()> {
         match hir_expr {
-            hir::Expr::Ident(id) => Ok(Expr::Ident(*id)),
+            hir::Expr::Path(path) => {
+                // inter-hir's `check_expr` should guarantee this
+                assert!(path.fields.is_empty());
+
+                Ok(Expr::Ident(path.id))
+            },
             hir::Expr::Number { n, span } => Ok(Expr::Number {
                 n: n.clone(),
                 span: *span,
@@ -155,14 +161,20 @@ impl Expr {
                         NameOrigin::External => unreachable!(),
                     },
                     // call_span has to be the name_span of the last field, because `get_type_of_field` works this way
-                    Ok(Expr::Path { lhs, fields }) => (
+                    Ok(Expr::Field { lhs, fields }) => (
                         fields.last().unwrap().unwrap_name_span(),
-                        Callable::Dynamic(Box::new(Expr::Path { lhs, fields })),
+                        Callable::Dynamic(Box::new(Expr::Field { lhs, fields })),
                     ),
                     Ok(func) => (func.error_span_wide(), Callable::Dynamic(Box::new(func))),
                     Err(()) => {
                         has_error = true;
-                        todo!()
+
+                        // It's already an error, but we want to find as many errors as possible.
+                        for hir::CallArg { arg, .. } in hir_args.iter() {
+                            let _ = Expr::from_hir(arg, session);
+                        }
+
+                        return Err(());
                     },
                 };
 
@@ -801,8 +813,8 @@ impl Expr {
                     None => unreachable!(),
                 }
             },
-            hir::Expr::Path { lhs, fields } => match Expr::from_hir(lhs, session) {
-                Ok(lhs) => Ok(Expr::Path {
+            hir::Expr::Field { lhs, fields } => match Expr::from_hir(lhs, session) {
+                Ok(lhs) => Ok(Expr::Field {
                     lhs: Box::new(lhs),
                     fields: fields.clone(),
                 }),
@@ -942,7 +954,7 @@ impl Expr {
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
             Expr::Block(block) => block.group_span,
-            Expr::Path { fields, .. } |
+            Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Call { func, .. } => func.error_span_narrow(),
         }
@@ -958,7 +970,7 @@ impl Expr {
             Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
             Expr::Block(block) => block.group_span,
-            Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),

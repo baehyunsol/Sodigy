@@ -175,7 +175,7 @@ pub fn lower_expr(
                 session.drop_block(&local_names);
             }
         },
-        Expr::Path { lhs, fields } => {
+        Expr::Field { lhs, fields } => {
             lower_expr(
                 lhs,
                 session,

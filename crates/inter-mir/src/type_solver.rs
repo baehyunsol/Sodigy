@@ -387,13 +387,106 @@ impl TypeSolver {
                     Err(())
                 }
             },
-            (Type::Unit(_), Type::Unit(_)) => Ok(lhs.clone()),
             (Type::Never(_), Type::Never(_)) => Ok(lhs.clone()),
-            (Type::Param { constructor: t1, args: args1, .. }, Type::Param { constructor: t2, args: args2, .. }) |
-            (Type::Func { r#return: t1, params: args1, .. }, Type::Func { r#return: t2, params: args2, .. }) => {
-                let t = match self.solve_supertype(
-                    t1,
-                    t2,
+            (t1 @ Type::Tuple { args: args1, .. }, t2 @ Type::Tuple { args: args2, .. }) |
+            (t1 @ Type::Param { args: args1, .. }, t2 @ Type::Param { args: args2, .. }) => {
+                let (constructor, is_tuple) = match (t1, t2) {
+                    (Type::Tuple { .. }, _) => (None, true),
+                    (Type::Param { constructor_def_span: s1, .. }, Type::Param { constructor_def_span: s2, .. }) => {
+                        if *s1 != *s2 {
+                            if !is_checking_argument {
+                                self.errors.push(TypeError::UnexpectedType {
+                                    expected: lhs.clone(),
+                                    expected_span: lhs_span,
+                                    got: rhs.clone(),
+                                    got_span: rhs_span,
+                                    context: context.clone(),
+                                });
+                            }
+
+                            return Err(());
+                        }
+
+                        (Some(*s1), false)
+                    },
+                    _ => unreachable!(),
+                };
+
+                if args1.len() != args2.len() {
+                    if !is_checking_argument {
+                        self.errors.push(TypeError::UnexpectedType {
+                            expected: lhs.clone(),
+                            expected_span: lhs_span,
+                            got: rhs.clone(),
+                            got_span: rhs_span,
+                            context: context.clone(),
+                        });
+                    }
+
+                    Err(())
+                }
+
+                else {
+                    let mut has_error = false;
+                    let mut args = Vec::with_capacity(args1.len());
+
+                    for i in 0..args1.len() {
+                        match self.solve_supertype(
+                            &args1[i],
+                            &args2[i],
+                            types,
+                            generic_args,
+                            true,  // is_checking_argument
+                            None,
+                            None,
+                            ErrorContext::None,
+                            bidirectional,
+                        ) {
+                            Ok(arg) => {
+                                args.push(arg);
+                            },
+                            Err(()) => {
+                                if !is_checking_argument {
+                                    self.errors.push(TypeError::UnexpectedType {
+                                        expected: lhs.clone(),
+                                        expected_span: lhs_span,
+                                        got: rhs.clone(),
+                                        got_span: rhs_span,
+                                        context: context.clone(),
+                                    });
+                                }
+                                has_error = true;
+                            },
+                        }
+                    }
+
+                    if has_error {
+                        Err(())
+                    }
+
+                    else {
+                        if is_tuple {
+                            Ok(Type::Tuple {
+                                args,
+                                group_span: Span::None,
+                            })
+                        }
+
+                        else {
+                            Ok(Type::Param {
+                                constructor_def_span: constructor.unwrap(),
+                                constructor_span: Span::None,
+                                args,
+                                group_span: Span::None,
+                            })
+                        }
+                    }
+                }
+            },
+            (Type::Func { r#return: return1, params: args1, purity: p1, .. }, Type::Func { r#return: return2, params: args2, purity: p2, .. }) => {
+                let r#return = match self.solve_supertype(
+                    return1,
+                    return2,
                     types,
                     generic_args,
                     true,  // is_checking_argument
@@ -440,15 +533,9 @@ impl TypeSolver {
                         // TOOD: For function parameters, we need `solve_subtype`, but we don't have such.
                         //       So, 1) we swap `args1[i]` and `args2[i]` and 2) discard the result (which is the supertype)
                         //       and push `args1[i]` (which is the subtype) to `args`.
-                        let (lhs_, rhs_, is_func) = if let Type::Func { .. } = lhs {
-                            (&args2[i], &args1[i], true)
-                        } else {
-                            (&args1[i], &args2[i], false)
-                        };
-
                         match self.solve_supertype(
-                            lhs_,
-                            rhs_,
+                            &args2[i],
+                            &args1[i],
                             types,
                             generic_args,
                             true,  // is_checking_argument
@@ -458,13 +545,7 @@ impl TypeSolver {
                             bidirectional,
                         ) {
                             Ok(arg) => {
-                                if is_func {
-                                    args.push(arg);
-                                }
-
-                                else {
-                                    args.push(rhs_.clone());
-                                }
+                                args.push(args1[i].clone());
                             },
                             Err(()) => {
                                 if !is_checking_argument {
@@ -486,49 +567,39 @@ impl TypeSolver {
                     }
 
                     else {
-                        match (lhs, rhs) {
-                            (Type::Param { group_span, .. }, _) => Ok(Type::Param {
-                                constructor: Box::new(t),
-                                args,
-                                group_span: *group_span,
-                            }),
-                            (Type::Func { fn_span, group_span, purity: p1, .. }, Type::Func { purity: p2, .. }) => {
-                                let purity = match (p1, p2) {
-                                    (FuncPurity::Both, _) => FuncPurity::Both,
-                                    (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
-                                    (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
-                                    _ => {
-                                        if bidirectional {
-                                            FuncPurity::Both
-                                        }
+                        let purity = match (p1, p2) {
+                            (FuncPurity::Both, _) => FuncPurity::Both,
+                            (FuncPurity::Pure, FuncPurity::Pure) => FuncPurity::Pure,
+                            (FuncPurity::Impure, FuncPurity::Impure) => FuncPurity::Impure,
+                            _ => {
+                                if bidirectional {
+                                    FuncPurity::Both
+                                }
 
-                                        else {
-                                            if !is_checking_argument {
-                                                self.errors.push(TypeError::UnexpectedPurity {
-                                                    expected_type: lhs.clone(),
-                                                    expected_purity: *p1,
-                                                    expected_span: lhs_span,
-                                                    got_type: rhs.clone(),
-                                                    got_purity: *p2,
-                                                    got_span: rhs_span,
-                                                });
-                                            }
+                                else {
+                                    if !is_checking_argument {
+                                        self.errors.push(TypeError::UnexpectedPurity {
+                                            expected_type: lhs.clone(),
+                                            expected_purity: *p1,
+                                            expected_span: lhs_span,
+                                            got_type: rhs.clone(),
+                                            got_purity: *p2,
+                                            got_span: rhs_span,
+                                        });
+                                    }
 
-                                            return Err(());
-                                        }
-                                    },
-                                };
-
-                                Ok(Type::Func {
-                                    fn_span: *fn_span,
-                                    group_span: *group_span,
-                                    params: args,
-                                    r#return: Box::new(t),
-                                    purity,
-                                })
+                                    return Err(());
+                                }
                             },
-                            _ => unreachable!(),
-                        }
+                        };
+
+                        Ok(Type::Func {
+                            fn_span: Span::None,
+                            group_span: Span::None,
+                            params: args,
+                            r#return: Box::new(r#return),
+                            purity,
+                        })
                     }
                 }
             },
@@ -693,9 +764,9 @@ impl TypeSolver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ (Type::Static { .. } | Type::Unit(_)),
+                concrete @ Type::Static { .. },
             ) | (
-                concrete @ (Type::Static { .. } | Type::Unit(_)),
+                concrete @ Type::Static { .. },
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let concrete_span = if let Type::Var { .. } = lhs {
@@ -771,9 +842,9 @@ impl TypeSolver {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
             ) | (
-                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
@@ -860,9 +931,9 @@ impl TypeSolver {
             },
             (
                 type_var @ Type::GenericArg { call, generic },
-                concrete @ (Type::Static { .. } | Type::Unit(_)),
+                concrete @ Type::Static { .. },
             ) | (
-                concrete @ (Type::Static { .. } | Type::Unit(_)),
+                concrete @ Type::Static { .. },
                 type_var @ Type::GenericArg { call, generic },
             ) => {
                 let concrete_span = if let Type::Var { .. } = lhs {
@@ -899,9 +970,9 @@ impl TypeSolver {
             },
             (
                 type_var @ Type::GenericArg { call, generic },
-                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
             ) | (
-                maybe_concrete @ (Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
                 type_var @ Type::GenericArg { call, generic },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
@@ -948,8 +1019,8 @@ impl TypeSolver {
                 Ok(maybe_concrete.clone())
             },
             (
-                Type::Static { .. } | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
-                Type::Static { .. } | Type::Unit(_) | Type::Param { .. } | Type::Func { .. },
+                Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. },
+                Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. },
             ) => {
                 if !is_checking_argument {
                     self.errors.push(TypeError::UnexpectedType {

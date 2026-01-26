@@ -2,6 +2,6 @@
 //# assert errors[0].index == 220, f"the error is supposed to be error-220, but we got error-{errors[0].index}"
 
 fn first() = match (0, 1) {
-    (x @ 0, k @ 1) | (y @ 0, k@2) => x,
-    (x, _) => x,
+    ($x @ 0, $k @ 1) | ($y @ 0, $k@2) => x,
+    ($x, _) => x,
 };

@@ -35,9 +35,9 @@ impl DecisionTree {
     /// ```ignore
     /// match (x, y) {
     ///     (0, 0) => 0,
-    ///     (0, a) => a,
+    ///     (0, $a) => a,
     ///     (1, 1) => 2,
-    ///     (a, _) => a,
+    ///     ($a, _) => a,
     /// }
     /// ```
     /// ->
@@ -95,7 +95,7 @@ impl DecisionTree {
                 name: curr_field_name,
                 name_span: curr_field_span,
                 type_annot_span: None,
-                value: Expr::Path {
+                value: Expr::Field {
                     lhs: Box::new(scrutinee.clone()),
                     fields: field.clone(),
                 },

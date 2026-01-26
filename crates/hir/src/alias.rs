@@ -2,9 +2,10 @@ use crate::{
     Attribute,
     AttributeRule,
     Generic,
-    Type,
+    Path,
     Requirement,
     Session,
+    Type,
     Visibility,
     get_decorator_error_notes,
 };
@@ -161,14 +162,15 @@ impl Alias {
 
 fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentWithOrigin>) {
     match r#type {
-        Type::Ident(id) |
-        Type::Path { id, .. } => {
+        Type::Path(Path { id, .. }) => {
             if id.def_span == def_span {
                 result.push(*id);
             }
         },
-        Type::Param { constructor, args, .. } => {
-            find_ids_with_def_span(constructor, def_span, result);
+        Type::Param { constructor: Path { id, .. }, args, .. } => {
+            if id.def_span == def_span {
+                result.push(*id);
+            }
 
             for arg in args.iter() {
                 find_ids_with_def_span(arg, def_span, result);
@@ -179,12 +181,16 @@ fn find_ids_with_def_span(r#type: &Type, def_span: Span, result: &mut Vec<IdentW
                 find_ids_with_def_span(r#type, def_span, result);
             }
         },
-        Type::Func { params, r#return, .. } => {
-            find_ids_with_def_span(r#return, def_span, result);
+        Type::Func { fn_constructor: Path { id, .. }, params, r#return, .. } => {
+            if id.def_span == def_span {
+                result.push(*id);
+            }
 
             for param in params.iter() {
                 find_ids_with_def_span(param, def_span, result);
             }
+
+            find_ids_with_def_span(r#return, def_span, result);
         },
         Type::Wildcard(_) | Type::Never(_) => {},
     }

@@ -10,6 +10,7 @@ mod r#if;
 mod r#let;
 mod r#match;
 mod module;
+mod path;
 mod pattern;
 mod poly;
 mod session;

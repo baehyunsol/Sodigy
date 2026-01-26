@@ -15,7 +15,7 @@ fn unused_if_let_bind() = {
 
 assert unused_match_bind() == 2;
 fn unused_match_bind() = match foo() {
-    Some(yy) => { 1 },
+    Some($yy) => { 1 },
     None => { 2 },
 };
 

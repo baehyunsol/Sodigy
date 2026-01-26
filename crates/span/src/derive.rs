@@ -12,8 +12,9 @@ pub enum SpanDeriveKind {
     // A result of a compile-time-constant-evaluation.
     ConstEval,
 
-    // `match foo { $x => 0 }` -> `match foo { tmp if tmp == x => 0 }`
-    DollarIdent,
+    // `match foo { x => 0 }` -> `match foo { $tmp if tmp == x => 0 }`
+    // `match foo { x + 1 => 0 }` -> `match foo { $tmp if tmp == x + 1 => 0 }`
+    ExprInPattern,
 
     // `let f = \() => 0;` -> `fn lambda() = 0; let f = lambda;`
     Lambda,
@@ -42,7 +43,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::Trivial => None,
             SpanDeriveKind::Pipeline => Some("It is desugared to an inline `let` statement."),
             SpanDeriveKind::ConstEval => Some("It is evaluated at compile-time."),
-            SpanDeriveKind::DollarIdent => Some("It is desugared to a guard expression."),
+            SpanDeriveKind::ExprInPattern => Some("It is desugared to a guard expression."),
 
             // too obvious
             // SpanDeriveKind::Lambda => Some("It is desugared to a function definition."),

@@ -1,0 +1,6 @@
+type MyResult<T> = Result<T, ()>;
+
+let results: [Result<Int, ()>] = [];
+
+#[assert_type(MyResult<Int>)]
+let my_result = results[0];

@@ -131,7 +131,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
             lines.break_line();
             lines.push("}");
         },
-        Expr::Path { lhs, fields } => {
+        Expr::Field { lhs, fields } => {
             dump_expr(lhs, lines, session);
 
             for field in fields.iter() {

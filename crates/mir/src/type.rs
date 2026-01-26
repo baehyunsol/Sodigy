@@ -2,7 +2,7 @@ use crate::{Callable, Expr, Session};
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity, StructShape};
 use sodigy_name_analysis::{NameKind, NameOrigin};
-use sodigy_span::{RenderableSpan, Span};
+use sodigy_span::Span;
 use std::collections::HashMap;
 
 // This enum is originally meant for type annotations, but
@@ -24,16 +24,20 @@ pub enum Type {
         span: Span,
     },
 
-    // ()
-    Unit(Span /* group_span */),
-
     // !
     Never(Span),
 
-    // Result<Int, String>, Result<T, U>, Option<Result<Int, String>>, ...
-    // Tuple also has this type: `Param { type: Unit, args: [..] }`
+    Tuple {
+        args: Vec<Type>,
+
+        // of type annotation
+        group_span: Span,
+    },
+
+    // Result<Int, String>
     Param {
-        constructor: Box<Type>,  // `Result`
+        constructor_def_span: Span,  // of `Result`
+        constructor_span: Span,  // of `Result` in the type annotation
         args: Vec<Type>,    // `<Int, String>`
         group_span: Span,
     },
@@ -104,58 +108,32 @@ pub struct TypeAssertion {
 impl Type {
     pub fn from_hir(hir_type: &hir::Type, session: &mut Session) -> Result<Type, ()> {
         match hir_type {
-            hir::Type::Ident(id) => match id.origin {
-                NameOrigin::FuncParam { .. } => {
-                    let param_name = id.id.unintern_or_default(&session.intermediate_dir);
-                    session.errors.push(Error {
-                        kind: ErrorKind::DependentTypeNotAllowed,
-                        spans: vec![
-                            RenderableSpan {
-                                span: id.span,
-                                auxiliary: false,
-                                note: Some(format!("The type annotation is using the name `{param_name}`, which is a function parameter.")),
-                            },
-                            RenderableSpan {
-                                span: id.def_span,
-                                auxiliary: true,
-                                note: Some(format!("The parameter `{param_name}` is defined here.")),
-                            },
-                        ],
-                        note: None,
-                    });
-                    Err(())
-                },
-                NameOrigin::GenericParam { .. } => Ok(Type::GenericParam {
-                    def_span: id.def_span,
-                    span: id.span,
-                }),
-                NameOrigin::Local { kind } |
-                NameOrigin::Foreign { kind } => match kind {
-                    NameKind::Struct |
-                    NameKind::Enum => Ok(Type::Static {
-                        def_span: id.def_span,
-                        span: id.span,
+            hir::Type::Path(path) => {
+                // `inter-hir`'s `check_type_annotation` should guarantee this
+                assert!(path.fields.is_empty());
+
+                match path.id.origin {
+                    NameOrigin::GenericParam { .. } => Ok(Type::GenericParam {
+                        def_span: path.id.def_span,
+                        span: path.id.span,
                     }),
-                    _ => {
-                        session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
-                        Err(())
+                    NameOrigin::Local { kind } |
+                    NameOrigin::Foreign { kind } => match kind {
+                        NameKind::Struct |
+                        NameKind::Enum => Ok(Type::Static {
+                            def_span: path.id.def_span,
+                            span: path.id.span,
+                        }),
+                        _ => {
+                            session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
+                            Err(())
+                        },
                     },
-                },
-                NameOrigin::External => unreachable!(),
-            },
-            hir::Type::Path { .. } => {
-                session.errors.push(Error::todo(33045, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
-                Err(())
+                    _ => unreachable!(),
+                }
             },
             hir::Type::Param { constructor, args: hir_args, group_span } => {
                 let mut has_error = false;
-                let constructor = match Type::from_hir(constructor, session) {
-                    Ok(constructor) => Some(constructor),
-                    Err(()) => {
-                        has_error = true;
-                        None
-                    },
-                };
                 let mut args = Vec::with_capacity(hir_args.len());
 
                 for hir_arg in hir_args.iter() {
@@ -175,45 +153,56 @@ impl Type {
 
                 else {
                     Ok(Type::Param {
-                        constructor: Box::new(constructor.unwrap()),
+                        constructor_def_span: constructor.id.def_span,
+                        constructor_span: constructor.id.span,
                         args,
                         group_span: *group_span,
                     })
                 }
             },
             hir::Type::Tuple { types: hir_types, group_span } => {
-                if hir_types.is_empty() {
-                    Ok(Type::Unit(*group_span))
-                } else {
-                    let mut has_error = false;
-                    let mut types = Vec::with_capacity(hir_types.len());
+                let mut has_error = false;
+                let mut types = Vec::with_capacity(hir_types.len());
 
-                    for hir_type in hir_types.iter() {
-                        match Type::from_hir(hir_type, session) {
-                            Ok(r#type) => {
-                                types.push(r#type);
-                            },
-                            Err(()) => {
-                                has_error = true;
-                            },
-                        }
-                    }
-
-                    if has_error {
-                        Err(())
-                    }
-
-                    else {
-                        Ok(Type::Param {
-                            constructor: Box::new(Type::Unit(*group_span)),
-                            args: types,
-                            group_span: *group_span,
-                        })
+                for hir_type in hir_types.iter() {
+                    match Type::from_hir(hir_type, session) {
+                        Ok(r#type) => {
+                            types.push(r#type);
+                        },
+                        Err(()) => {
+                            has_error = true;
+                        },
                     }
                 }
+
+                if has_error {
+                    Err(())
+                }
+
+                else {
+                    Ok(Type::Tuple {
+                        args: types,
+                        group_span: *group_span,
+                    })
+                }
             },
-            hir::Type::Func { fn_span, group_span, params: hir_params, r#return, purity } => {
+            hir::Type::Func { fn_constructor, group_span, params: hir_params, r#return } => {
                 let mut has_error = false;
+                let fn_span = fn_constructor.id.span;
+                let purity = match fn_constructor.id.def_span {
+                    f if f == session.get_lang_item_span("type.Fn") => FuncPurity::Both,
+                    f if f == session.get_lang_item_span("type.PureFn") => FuncPurity::Pure,
+                    f if f == session.get_lang_item_span("type.ImpureFn") => FuncPurity::Impure,
+                    _ => {
+                        session.errors.push(Error {
+                            kind: ErrorKind::InvalidFnType,
+                            spans: fn_span.simple_error(),
+                            note: None,
+                        });
+                        return Err(());
+                    },
+                };
+
                 let r#return = match Type::from_hir(r#return, session) {
                     Ok(r#type) => Some(r#type),
                     Err(()) => {
@@ -240,11 +229,11 @@ impl Type {
 
                 else {
                     Ok(Type::Func {
-                        fn_span: *fn_span,
+                        fn_span,
                         group_span: *group_span,
                         params,
                         r#return: Box::new(r#return.unwrap()),
-                        purity: *purity,
+                        purity,
                     })
                 }
             },
@@ -262,15 +251,22 @@ impl Type {
         match self {
             Type::Static { .. } |
             Type::GenericParam { .. } |
-            Type::Unit(_) |
             Type::Never(_) |
             Type::Blocked { .. } => vec![],
-            Type::Param { constructor: t, args, .. } |
-            Type::Func { r#return: t, params: args, .. } => {
-                let mut result = t.get_type_vars();
+            Type::Tuple { args, .. } | Type::Param { args, .. } => {
+                let mut result = vec![];
 
                 for arg in args.iter() {
                     result.extend(arg.get_type_vars());
+                }
+
+                result
+            },
+            Type::Func { r#return, params, .. } => {
+                let mut result = r#return.get_type_vars();
+
+                for param in params.iter() {
+                    result.extend(param.get_type_vars());
                 }
 
                 result
@@ -283,23 +279,19 @@ impl Type {
         match self {
             Type::Static { .. } |
             Type::GenericParam { .. } |
-            Type::Unit(_) |
             Type::Never(_) |
             Type::Blocked { .. } => {},
-            Type::Param {
-                constructor: t,
-                args,
-                ..
-            } | Type::Func {
-                r#return: t,
-                params: args,
-                ..
-            } => {
+            Type::Tuple { args,  .. } | Type::Param { args, .. } => {
                 for arg in args.iter_mut() {
                     arg.substitute(type_var, r#type);
                 }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.substitute(type_var, r#type);
+                }
 
-                t.substitute(type_var, r#type);
+                r#return.substitute(type_var, r#type);
             },
             Type::Var { .. } | Type::GenericArg { .. } => {
                 if self == type_var {
@@ -317,25 +309,21 @@ impl Type {
                 }
             },
             Type::Static { .. } |
-            Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
-            Type::Param {
-                constructor: t,
-                args,
-                ..
-            } | Type::Func {
-                r#return: t,
-                params: args,
-                ..
-            } => {
+            Type::Tuple { args, .. } | Type::Param { args, .. } => {
                 for arg in args.iter_mut() {
                     arg.substitute_generic_def(call, generics);
                 }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.substitute_generic_def(call, generics);
+                }
 
-                t.substitute_generic_def(call, generics);
+                r#return.substitute_generic_def(call, generics);
             },
         }
     }
@@ -346,25 +334,22 @@ impl Type {
                 *self = Type::Var { def_span: *def_span, is_return: false };
             },
             Type::Static { .. } |
-            Type::Unit(_) |
             Type::Never(_) |
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
-            Type::Param {
-                constructor: t,
-                args,
-                ..
-            } | Type::Func {
-                r#return: t,
-                params: args,
-                ..
-            } => {
+            // `T<Int>` doesn't make sense...
+            Type::Tuple { args, .. } | Type::Param { args, .. } => {
                 for arg in args.iter_mut() {
                     arg.generic_to_type_var();
                 }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.generic_to_type_var();
+                }
 
-                t.generic_to_type_var();
+                r#return.generic_to_type_var();
             },
         }
     }
@@ -393,10 +378,8 @@ pub fn type_of(
         },
         Expr::String { binary, .. } => match *binary {
             true => Some(Type::Param {
-                constructor: Box::new(Type::Static {
-                    def_span: *lang_items.get("type.List").unwrap(),
-                    span: Span::None,
-                }),
+                constructor_def_span: *lang_items.get("type.List").unwrap(),
+                constructor_span: Span::None,
                 args: vec![Type::Static {
                     def_span: *lang_items.get("type.Byte").unwrap(),
                     span: Span::None,
@@ -404,10 +387,8 @@ pub fn type_of(
                 group_span: Span::None,
             }),
             false => Some(Type::Param {
-                constructor: Box::new(Type::Static {
-                    def_span: *lang_items.get("type.List").unwrap(),
-                    span: Span::None,
-                }),
+                constructor_def_span: *lang_items.get("type.List").unwrap(),
+                constructor_span: Span::None,
                 args: vec![Type::Static {
                     def_span: *lang_items.get("type.Char").unwrap(),
                     span: Span::None,
@@ -445,10 +426,7 @@ pub fn type_of(
                     }
                 }
 
-                Some(Type::Param {
-                    // `Type::Unit`'s `group_span` is of type annotation,
-                    // and `Callable::TupleInit`'s `group_span` is of the expression.
-                    constructor: Box::new(Type::Unit(Span::None)),
+                Some(Type::Tuple {
                     args: arg_types,
 
                     // this is for the type annotation, hence None
@@ -467,27 +445,24 @@ impl Session {
     pub fn render_type(&self, r#type: &Type) -> String {
         match r#type {
             Type::Static { def_span, .. } | Type::GenericParam { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
-            Type::Unit(_) => String::from("()"),
-            Type::Param {
-                constructor,
-                args,
-                ..
-            } if matches!(constructor.as_ref(), Type::Unit(_)) => format!(
+            Type::Tuple { args, .. } => format!(
                 "({}{})",
                 args.iter().map(
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", "),
                 if args.len() == 1 { "," } else { "" },
             ),
-            // TODO: alias `List<T>` to `[T]`?
-            Type::Param { constructor, args, .. } => {
+            Type::Param { constructor_def_span, args, .. } => {
                 let args = args.iter().map(
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", ");
 
-                match &**constructor {
-                    Type::Static { def_span, .. } if def_span == self.lang_items.get("type.List").unwrap() => format!("[{args}]"),
-                    _ => format!("{}<{args}>", self.render_type(constructor)),
+                if constructor_def_span == self.lang_items.get("type.List").unwrap() {
+                    format!("[{args}]")
+                }
+
+                else {
+                    format!("{}<{args}>", self.span_to_string(*constructor_def_span).unwrap_or_else(|| String::from("????")))
                 }
             },
             Type::Func { params, r#return, purity, .. } => format!(

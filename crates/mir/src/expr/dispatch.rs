@@ -52,7 +52,7 @@ impl Expr {
 
                 block.value.dispatch(map, func_shapes, generic_args);
             },
-            Expr::Path { lhs, .. } => {
+            Expr::Field { lhs, .. } => {
                 lhs.dispatch(map, func_shapes, generic_args);
             },
             Expr::FieldUpdate { lhs, rhs, .. } => {

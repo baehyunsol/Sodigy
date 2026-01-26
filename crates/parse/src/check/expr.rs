@@ -8,7 +8,7 @@ use std::collections::hash_map::{Entry, HashMap};
 impl Expr {
     pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
-            Expr::Ident { .. } |
+            Expr::Path(_) |
             Expr::Number { .. } |
             Expr::String { .. } |
             Expr::Char { .. } |
@@ -97,7 +97,7 @@ impl Expr {
                     Err(errors)
                 }
             },
-            Expr::Path { lhs, .. } => {
+            Expr::Field { lhs, .. } => {
                 let mut errors = vec![];
 
                 if let Err(e) = lhs.check(intermediate_dir) {

@@ -1,4 +1,4 @@
-use crate::{Field, Tokens};
+use crate::{Field, Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -66,20 +66,12 @@ impl<'t, 's> Tokens<'t, 's> {
 
 #[derive(Clone, Debug)]
 pub enum Type {
-    // `Int`, `String`, `Bool`, `T` in `fn foo<T>()`
-    Ident {
-        id: InternedString,
-        span: Span,
-    },
-    // `module_name.StructName`
-    Path {
-        id: InternedString,
-        id_span: Span,
-        fields: Vec<Field>,
-    },
+    // `module_name.StructName` is a path.
+    // `Int` or `T` are also paths without any fields!
+    Path(Path),
     // `Message<T>`, `Result<[Int], Error>`
     Param {
-        constructor: Box<Type>,  // either `Type::Ident` or `Type::Path`
+        constructor: Path,
         args: Vec<Type>,
         group_span: Span,
     },
@@ -94,9 +86,7 @@ pub enum Type {
         group_span: Span,
     },
     Func {  // `Fn(Int, Int) -> Int`
-        // It's either `Type::Ident` or `Type::Path`.
-        // It's very likely to be `Type::Ident("Fn" | "ImpureFn" | "PureFn")`.
-        r#type: Box<Type>,
+        fn_constructor: Path,  // "Fn", "ImpureFn" or "PureFn".
 
         // of `(Int, Int)`
         group_span: Span,
@@ -116,17 +106,13 @@ pub enum Type {
 impl Type {
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Type::Ident { span, .. } |
             Type::Wildcard(span) |
             Type::Never(span) => *span,
-            Type::Path { fields, .. } => match fields.get(0) {
-                Some(Field::Name { dot_span, .. }) => *dot_span,
-                _ => unreachable!(),
-            },
-            Type::Param { constructor, .. } => constructor.error_span_narrow(),
+            Type::Path(path) |
+            Type::Param { constructor: path, .. } |
+            Type::Func { fn_constructor: path, .. } => path.error_span_narrow(),
             Type::Tuple { group_span, .. } => *group_span,
             Type::List { group_span, .. } => *group_span,
-            Type::Func { r#type, .. } => r#type.error_span_narrow(),
         }
     }
 
@@ -168,7 +154,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                             return Ok(Type::Param {
-                                constructor: Box::new(Type::Path {
+                                constructor: Path {
                                     id: path[0].0,
                                     id_span: path[0].1,
                                     fields: path[1..].iter().zip(dot_spans.iter()).map(
@@ -179,7 +165,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                             is_from_alias: false,
                                         },
                                     ).collect(),
-                                }),
+                                },
                                 args,
                                 group_span: group_span_start.merge(group_span_end),
                             });
@@ -191,7 +177,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                             path.push((*id, *span));
                             self.cursor += 1;
-                            return Ok(Type::Path {
+                            return Ok(Type::Path(Path {
                                 id: path[0].0,
                                 id_span: path[0].1,
                                 fields: path[1..].iter().zip(dot_spans.iter()).map(
@@ -202,7 +188,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         is_from_alias: false,
                                     },
                                 ).collect(),
-                            });
+                            }));
                         },
                         (Some(t), _) => {
                             return Err(vec![Error {
@@ -225,14 +211,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Punct(Punct::Lt), span: span2 }),
             ) => {
                 let group_span_start = *span2;
-                let (id, span) = (*id, *span1);
+                let (id, id_span) = (*id, *span1);
                 self.cursor += 2;
 
                 let args = self.parse_types(StopAt::AngleBracket)?;
                 let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                 Ok(Type::Param {
-                    constructor: Box::new(Type::Ident { id, span }),
+                    constructor: Path { id, id_span, fields: vec![] },
                     args,
                     group_span: group_span_start.merge(group_span_end),
                 })
@@ -242,7 +228,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Some(Token { kind: TokenKind::Ident(id), span: span1 }),
                 Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span: span2 }),
             ) => {
-                let (name, name_span) = (*id, *span1);
+                let (id, id_span) = (*id, *span1);
                 let group_span = *span2;
                 let mut param_tokens = Tokens::new(tokens, span2.end(), &self.intermediate_dir);
 
@@ -260,25 +246,26 @@ impl<'t, 's> Tokens<'t, 's> {
                 let r#return = self.parse_type()?;
 
                 Ok(Type::Func {
-                    r#type: Box::new(Type::Ident {
-                        id: name,
-                        span: name_span,
-                    }),
+                    fn_constructor: Path {
+                        id,
+                        id_span,
+                        fields: vec![],
+                    },
                     group_span,
                     params,
                     r#return: Box::new(r#return),
                 })
             },
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
-                let (id, span) = (*id, *span);
+                let (id, id_span) = (*id, *span);
                 self.cursor += 1;
 
                 if id.eq(b"_") {
-                    Ok(Type::Wildcard(span))
+                    Ok(Type::Wildcard(id_span))
                 }
 
                 else {
-                    Ok(Type::Ident { id, span })
+                    Ok(Type::Path(Path { id, id_span, fields: vec![] }))
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {

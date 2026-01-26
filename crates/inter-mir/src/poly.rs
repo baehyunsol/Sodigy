@@ -155,14 +155,14 @@ impl Constraint {
                             CheckResult::Fail
                         }
                     },
-                    (Type::Unit(_), Type::Unit(_)) => CheckResult::Pass,
                     (Type::Never(_), Type::Never(_)) => CheckResult::Pass,
+                    (Type::Tuple { .. }, Type::Tuple { .. }) => todo!(),
                     (Type::Param { .. }, Type::Param { .. }) => todo!(),
                     (Type::Func { .. }, Type::Func { .. }) => todo!(),
                     (Type::Var { .. } | Type::GenericArg { .. }, _) => CheckResult::Maybe,
                     (
-                        Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
-                        Type::Static { .. } | Type::Unit(_) | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
+                        Type::Static { .. } | Type::Tuple { .. } | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
+                        Type::Static { .. } | Type::Tuple { .. } | Type::Never(_) | Type::Param { .. } | Type::Func { .. },
                     ) => CheckResult::Fail,
                     _ => panic!("TODO: {:?}", (call, constraint)),
                 },

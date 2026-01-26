@@ -3,8 +3,8 @@ fn pi_naive(x, y, r) = {
     let min = -r;
 
     match (x, y) {
-        ($min, $min) => d,
-        (_, $min) => d + pi_naive(x - 1, r, r),
+        (min, min) => d,
+        (_, min) => d + pi_naive(x - 1, r, r),
         _ => d + pi_naive(x, y - 1, r),
     }
 };
@@ -36,7 +36,7 @@ fn spigot(n, p, max_n) = {
     let (numer, denom) = spigot_iter(n);
 
     match n {
-        $max_n => (numer, denom * p),
+        max_n => (numer, denom * p),
         _ => {
             let (numer2, denom2) = spigot(n + 1, p * 16, max_n);
             let added_numer = numer * denom2 + numer2 * denom * p;

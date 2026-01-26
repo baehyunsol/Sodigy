@@ -6,8 +6,8 @@ use sodigy_token::InfixOp;
 
 pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
     match expr {
-        Expr::Ident(id) => {
-            lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
+        Expr::Path(path) => {
+            lines.push(&path.unintern_or_default(&session.intermediate_dir));
         },
         Expr::Number { n, .. } => {
             lines.push(&n.dump());
@@ -137,8 +137,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         },
         Expr::Call { func, args, .. } => {
             match &**func {
-                Expr::Ident(_) | Expr::Path { .. } => {
-                    dump_expr(func, lines, session);
+                Expr::Path(p) => {
+                    lines.push(&p.unintern_or_default(&session.intermediate_dir));
                 },
                 _ => {
                     lines.push("(");
@@ -235,7 +235,7 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::StructInit { .. } => {
             lines.push(&format!("/* TODO: dump struct init {expr:?} */"));
         },
-        Expr::Path { lhs, fields } => {
+        Expr::Field { lhs, fields } => {
             dump_expr(lhs, lines, session);
 
             for field in fields.iter() {

@@ -39,12 +39,12 @@ fn index_list_wrapper<T>(ls: [T], i: Int) -> T = {
 fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
     ([], []) => Bool.True,
     ([], _) | (_, []) => Bool.False,
-    ([l] ++ lhs, [r] ++ rhs_r) => l == r && lhs == rhs,
+    ([$l] ++ $lhs, [$r] ++ $rhs_r) => l == r && lhs == rhs,
 };
 
 #[impl(std.op.concat)]
 fn concat_list<T>(lhs: [T], rhs: [T]) -> [T] = match rhs {
     [] => lhs,
-    [r] ++ rhs => (lhs <+ [r]) ++ rhs,
+    [$r] ++ $rhs => (lhs <+ [r]) ++ rhs,
 };
 */

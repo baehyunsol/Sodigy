@@ -2,13 +2,13 @@
 //# assert all([error.index == 295 for error in errors]), "expected all errors to be error-295, but some are not"
 
 let redundant_name_binding1 = match 1 {
-    a @ b => 2,
+    $a @ $b => 2,
 };
 
 let redundant_name_binding2 = match (3, 4) {
-    (a@b, c) => 5,
+    ($a@$b, $c) => 5,
 };
 
 let redundant_name_binding3 = match (6, 7) {
-    (a, b @ c) => 5,
+    ($a, $b @ $c) => 5,
 };

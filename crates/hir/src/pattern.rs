@@ -1,5 +1,5 @@
-use crate::{Expr, Session, eval_const};
-use sodigy_error::{Error, ErrorKind};
+use crate::{Expr, Path, Session, eval_const};
+use sodigy_error::Error;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, RestPattern};
@@ -18,7 +18,8 @@ pub struct Pattern {
 
 #[derive(Clone, Debug)]
 pub enum PatternKind {
-    Ident {
+    Path(Path),
+    NameBinding {
         id: InternedString,
         span: Span,
     },
@@ -43,15 +44,14 @@ pub enum PatternKind {
         b: u8,
         span: Span,
     },
-    Path(Vec<(InternedString, Span)>),
     Struct {
-        r#struct: Vec<(InternedString, Span)>,
+        r#struct: Path,
         fields: Vec<StructFieldPattern>,
         rest: Option<RestPattern>,
         group_span: Span,
     },
     TupleStruct {
-        r#struct: Vec<(InternedString, Span)>,
+        r#struct: Path,
         elements: Vec<Pattern>,
         rest: Option<RestPattern>,
         group_span: Span,
@@ -149,41 +149,12 @@ impl PatternKind {
         extra_guards: &mut Vec<(InternedString, Span, Expr)>,
     ) -> Result<PatternKind, ()> {
         match ast_pattern {
-            ast::PatternKind::Ident { id, span } => Ok(PatternKind::Ident { id: *id, span: *span }),
-            // `Some($x)` is lowered to `Some(tmp) if tmp == x`
-            ast::PatternKind::DollarIdent { id, span } => {
-                let ref_id = match session.find_origin_and_count_usage(*id) {
-                    Some((origin, def_span)) => IdentWithOrigin {
-                        id: *id,
-                        span: *span,
-                        origin,
-                        def_span,
-                    },
-                    None => {
-                        session.errors.push(Error {
-                            kind: ErrorKind::UndefinedName(*id),
-                            spans: span.simple_error(),
-                            note: None,
-                        });
-                        return Err(());
-                    },
-                };
-                let tmp_value_name = intern_string(b"$tmp", &session.intermediate_dir).unwrap();
-                let derived_span = span.derive(SpanDeriveKind::DollarIdent);
-                let extra_guard = Expr::InfixOp {
-                    op: InfixOp::Eq,
-                    lhs: Box::new(Expr::Ident(IdentWithOrigin {
-                        id: tmp_value_name,
-                        span: derived_span,
-                        origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
-                        def_span: derived_span,
-                    })),
-                    rhs: Box::new(Expr::Ident(ref_id)),
-                    op_span: derived_span,
-                };
-                extra_guards.push((tmp_value_name, derived_span, extra_guard));
-                Ok(PatternKind::Ident { id: tmp_value_name, span: derived_span })
-            },
+            // If `x` is an expression, `Some(x)` is lowered to `Some($tmp) if tmp == x`.
+            // If `x` is an enum variant, `Some(x)` is lowered to `Some(x)`.
+            // But the problem is that we don't know whether `x` is an expression or not
+            // until inter-hir is complete. So we do the lowering later.
+            ast::PatternKind::Path(p) => Ok(PatternKind::Path(Path::from_ast(p, session)?)),
+            ast::PatternKind::NameBinding { id, span } => Ok(PatternKind::NameBinding { id: *id, span: *span }),
             ast::PatternKind::Number { n, span } => Ok(PatternKind::Number { n: n.clone(), span: *span }),
             ast::PatternKind::String { binary, s, span } => Ok(PatternKind::String { binary: *binary, s: *s, span: *span }),
             ast::PatternKind::Regex { s, span } => {
@@ -199,6 +170,13 @@ impl PatternKind {
             ast::PatternKind::TupleStruct { r#struct, elements: ast_elements, rest, group_span } => {
                 let mut has_error = false;
                 let mut elements = Vec::with_capacity(ast_elements.len());
+                let r#struct = match Path::from_ast(r#struct, session) {
+                    Ok(path) => Some(path),
+                    Err(()) => {
+                        has_error = true;
+                        None
+                    },
+                };
 
                 for ast_element in ast_elements.iter() {
                     match Pattern::from_ast(ast_element, session, extra_guards) {
@@ -217,7 +195,7 @@ impl PatternKind {
 
                 else {
                     Ok(PatternKind::TupleStruct {
-                        r#struct: r#struct.clone(),
+                        r#struct: r#struct.unwrap(),
                         elements,
                         rest: *rest,
                         group_span: *group_span,
@@ -269,7 +247,7 @@ impl PatternKind {
                 let result_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide());
 
                 match kind {
-                    ast::PatternValueKind::Constant | ast::PatternValueKind::DollarIdent => {
+                    ast::PatternValueKind::Constant | ast::PatternValueKind::Value => {
                         let ast_expr = match ast::Expr::from_pattern_kind(ast_pattern) {
                             Ok(expr) => expr,
                             Err(e) => {
@@ -284,27 +262,31 @@ impl PatternKind {
                                 let e = eval_const(&expr, session)?;
                                 Ok(PatternKind::from_expr(&e, session)?)
                             },
-                            ast::PatternValueKind::DollarIdent => {
+                            // `Some(x + 1)` is lowered to `Some($tmp) if tmp == x + 1`
+                            ast::PatternValueKind::Value => {
                                 let tmp_value_name = intern_string(b"$tmp", &session.intermediate_dir).unwrap();
-                                let derived_span = result_span.derive(SpanDeriveKind::DollarIdent);
+                                let derived_span = result_span.derive(SpanDeriveKind::ExprInPattern);
                                 let extra_guard = Expr::InfixOp {
                                     op: InfixOp::Eq,
-                                    lhs: Box::new(Expr::Ident(IdentWithOrigin {
-                                        id: tmp_value_name,
-                                        span: derived_span,
-                                        origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
-                                        def_span: derived_span,
+                                    lhs: Box::new(Expr::Path(Path {
+                                        id: IdentWithOrigin {
+                                            id: tmp_value_name,
+                                            span: derived_span,
+                                            origin: NameOrigin::Local { kind: NameKind::PatternNameBind },
+                                            def_span: derived_span,
+                                        },
+                                        fields: vec![],
                                     })),
                                     rhs: Box::new(expr),
                                     op_span: derived_span,
                                 };
                                 extra_guards.push((tmp_value_name, derived_span, extra_guard));
-                                Ok(PatternKind::Ident { id: tmp_value_name, span: derived_span })
+                                Ok(PatternKind::NameBinding { id: tmp_value_name, span: derived_span })
                             },
                             _ => unreachable!(),
                         }
                     },
-                    ast::PatternValueKind::Ident => todo!(),  // turn this into an Ident, and encode the offset somewhere
+                    ast::PatternValueKind::NameBinding => todo!(),  // turn this into an NameBinding, and encode the offset somewhere
                 }
             },
             ast::PatternKind::Or { lhs, rhs, op_span } => match (
@@ -325,14 +307,14 @@ impl PatternKind {
 
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
+            PatternKind::Path(_) |
             PatternKind::Number { .. } |
             PatternKind::String { .. } |
             PatternKind::Regex { .. } |
             PatternKind::Char { .. } |
             PatternKind::Byte { .. } |
-            PatternKind::Path(_) |
             PatternKind::Wildcard(_) => vec![],
-            PatternKind::Ident { id, span } => vec![(*id, *span)],
+            PatternKind::NameBinding { id, span } => vec![(*id, *span)],
             PatternKind::TupleStruct { elements, rest, .. } |
             PatternKind::Tuple { elements, rest, .. } |
             PatternKind::List { elements, rest, .. } => {
@@ -352,7 +334,8 @@ impl PatternKind {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            PatternKind::Ident { span, .. } |
+            PatternKind::Path(p) => p.error_span_narrow(),
+            PatternKind::NameBinding { span, .. } |
             PatternKind::Number { span, .. } |
             PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
@@ -368,7 +351,8 @@ impl PatternKind {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            PatternKind::Ident { span, .. } |
+            PatternKind::Path(p) => p.error_span_wide(),
+            PatternKind::NameBinding { span, .. } |
             PatternKind::Number { span, .. } |
             PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |

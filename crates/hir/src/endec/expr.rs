@@ -5,10 +5,10 @@ use crate::{
     ExprOrString,
     If,
     Match,
+    Path,
     StructInitField,
 };
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::Span;
@@ -18,9 +18,9 @@ use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
 impl Endec for Expr {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Expr::Ident(id) => {
+            Expr::Path(path) => {
                 buffer.push(0);
-                id.encode_impl(buffer);
+                path.encode_impl(buffer);
             },
             Expr::Number { n, span } => {
                 buffer.push(1);
@@ -83,7 +83,7 @@ impl Endec for Expr {
                 fields.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::Path { lhs, fields } => {
+            Expr::Field { lhs, fields } => {
                 buffer.push(13);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
@@ -119,8 +119,8 @@ impl Endec for Expr {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (id, cursor) = IdentWithOrigin::decode_impl(buffer, cursor + 1)?;
-                Ok((Expr::Ident(id), cursor))
+                let (path, cursor) = Path::decode_impl(buffer, cursor + 1)?;
+                Ok((Expr::Path(path), cursor))
             },
             Some(1) => {
                 let (n, cursor) = InternedNumber::decode_impl(buffer, cursor + 1)?;
@@ -186,7 +186,7 @@ impl Endec for Expr {
             Some(13) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Path { lhs, fields }, cursor))
+                Ok((Expr::Field { lhs, fields }, cursor))
             },
             Some(14) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;

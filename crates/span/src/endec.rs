@@ -124,7 +124,7 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::ConstEval => {
                 buffer.push(2);
             },
-            SpanDeriveKind::DollarIdent => {
+            SpanDeriveKind::ExprInPattern => {
                 buffer.push(3);
             },
             SpanDeriveKind::Lambda => {
@@ -160,7 +160,7 @@ impl Endec for SpanDeriveKind {
             Some(0) => Ok((SpanDeriveKind::Trivial, cursor + 1)),
             Some(1) => Ok((SpanDeriveKind::Pipeline, cursor + 1)),
             Some(2) => Ok((SpanDeriveKind::ConstEval, cursor + 1)),
-            Some(3) => Ok((SpanDeriveKind::DollarIdent, cursor + 1)),
+            Some(3) => Ok((SpanDeriveKind::ExprInPattern, cursor + 1)),
             Some(4) => Ok((SpanDeriveKind::Lambda, cursor + 1)),
             Some(5) => Ok((SpanDeriveKind::IfLet, cursor + 1)),
             Some(6) => Ok((SpanDeriveKind::FuncDefaultValue, cursor + 1)),

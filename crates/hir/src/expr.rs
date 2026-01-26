@@ -3,8 +3,9 @@ use crate::{
     CallArg,
     Func,
     FuncOrigin,
-    Match,
     If,
+    Match,
+    Path,
     Session,
     StructInitField,
 };
@@ -21,7 +22,10 @@ use pipeline::replace_dollar;
 
 #[derive(Clone, Debug)]
 pub enum Expr {
-    Ident(IdentWithOrigin),
+    // We are not sure whether `a.b.c` is `Expr::Path` or `Expr::Field`.
+    // We don't know that until inter-hir. So we just lower `a.b.c` to
+    // `Expr::Path`, and inter-hir will resolve it later.
+    Path(Path),
     Number {
         n: InternedNumber,
         span: Span,
@@ -65,8 +69,12 @@ pub enum Expr {
         fields: Vec<StructInitField>,
         group_span: Span,
     },
-    // `a.b.c.d` is lowered to `Path { lhs: a, fields: [b, c, d] }`
-    Path {
+    // `a.b.c.d` is lowered to `Path(Path { id: a, fields: [b, c, d] })`.
+    // `(1 + 1).a.b.c` is lowered to `Field { lhs: 1 + 1, fields: [b, c, d] }`.
+    //
+    // `a.b.c.d` can be a field or a path, but hir cannot know that. Inter-hir will
+    // figure that out and resolve it.
+    Field {
         lhs: Box<Expr>,
         fields: Vec<Field>,
     },
@@ -102,24 +110,7 @@ impl Expr {
 
     pub fn from_ast(ast_expr: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
         match ast_expr {
-            ast::Expr::Ident { id, span } => match session.find_origin_and_count_usage(*id) {
-                Some((origin, def_span)) => {
-                    Ok(Expr::Ident(IdentWithOrigin {
-                        id: *id,
-                        span: *span,
-                        origin,
-                        def_span,
-                    }))
-                },
-                None => {
-                    session.errors.push(Error {
-                        kind: ErrorKind::UndefinedName(*id),
-                        spans: span.simple_error(),
-                        note: None,
-                    });
-                    Err(())
-                },
-            },
+            ast::Expr::Path(p) => Ok(Expr::Path(Path::from_ast(p, session)?)),
             ast::Expr::Number { n, span } => Ok(Expr::Number { n: n.clone(), span: *span }),
             ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
             ast::Expr::Char { ch, span } => Ok(Expr::Char { ch: *ch, span: *span }),
@@ -252,15 +243,15 @@ impl Expr {
                     _ => Err(()),
                 }
             },
-            ast::Expr::Path { lhs, field } => match Expr::from_ast(lhs, session) {
-                Ok(Expr::Path { lhs, mut fields }) => {
+            ast::Expr::Field { lhs, field } => match Expr::from_ast(lhs, session) {
+                Ok(Expr::Field { lhs, mut fields }) => {
                     fields.push(*field);
-                    Ok(Expr::Path {
+                    Ok(Expr::Field {
                         lhs,
                         fields,
                     })
                 },
-                Ok(lhs) => Ok(Expr::Path {
+                Ok(lhs) => Ok(Expr::Field {
                     lhs: Box::new(lhs),
                     fields: vec![*field],
                 }),
@@ -309,13 +300,16 @@ impl Expr {
                 match Func::from_ast(&func, session, FuncOrigin::Lambda, false /* is_top_level */) {
                     Ok(func) => {
                         session.funcs.push(func);
-                        Ok(Expr::Ident(IdentWithOrigin {
-                            id: name,
-                            span,
-                            def_span: span,
-                            origin: NameOrigin::Foreign {
-                                kind: NameKind::Func,
+                        Ok(Expr::Path(Path {
+                            id: IdentWithOrigin {
+                                id: name,
+                                span,
+                                def_span: span,
+                                origin: NameOrigin::Foreign {
+                                    kind: NameKind::Func,
+                                },
                             },
+                            fields: vec![],
                         }))
                     },
                     Err(()) => Err(()),
@@ -367,15 +361,11 @@ impl Expr {
 
                     if replaced_spans.is_empty() {
                         let value_note = match value {
-                            ast::Expr::Ident { id, .. } => format!(
+                            ast::Expr::Path(p) => format!(
                                 "Unlike gleam or bash, you have to explicitly pipe the value. Try `{}($)` instead of `{}`",
-                                id.unintern_or_default(&session.intermediate_dir),
-                                id.unintern_or_default(&session.intermediate_dir),
+                                p.unintern_or_default(&session.intermediate_dir),
+                                p.unintern_or_default(&session.intermediate_dir),
                             ),
-                            ast::Expr::Path { lhs, field } => match try_render_dotted_name(lhs, field, &session.intermediate_dir) {
-                                Some(name) => format!("Unlike gleam or bash, you have to explicitly use the value. Try `{name}($)` instead of `{name}`"),
-                                None => String::from("There's no `$` here."),
-                            },
                             _ if has_nested_pipeline => String::from("I see a nested pipeline in this expression. `$` always captures the value of the closest (inner-most) pipeline. Perhaps you have to use a block expression to explicitly give names to values."),
                             _ => String::from("There's no `$` here."),
                         };
@@ -452,7 +442,7 @@ impl Expr {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Expr::Ident(IdentWithOrigin { span, .. }) |
+            Expr::Path(p) => p.error_span_narrow(),
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } |
@@ -465,7 +455,7 @@ impl Expr {
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
-            Expr::Path { fields, .. } |
+            Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
             Expr::InfixOp { op_span, .. } |
@@ -475,7 +465,7 @@ impl Expr {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            Expr::Ident(IdentWithOrigin { span, .. }) |
+            Expr::Path(p) => p.error_span_wide(),
             Expr::Number { span, .. } |
             Expr::String { span, .. } |
             Expr::Char { span, .. } |
@@ -492,7 +482,7 @@ impl Expr {
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
             Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
-            Expr::Path { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),
@@ -507,26 +497,6 @@ fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     // TODO: But I want some kinda unique identifier for debugging.
     intern_string(b"lambda_func", map_dir).unwrap()
-}
-
-fn try_render_dotted_name(
-    lhs: &ast::Expr,
-    field: &ast::Field,
-    intermediate_dir: &str,
-) -> Option<String> {
-    let lhs = match lhs {
-        ast::Expr::Ident { id, .. } => id.unintern_or_default(intermediate_dir),
-        ast::Expr::Path { lhs, field } => match try_render_dotted_name(&lhs, &field, intermediate_dir) {
-            Some(name) => name,
-            None => { return None; },
-        },
-        _ => { return None; },
-    };
-
-    match field {
-        ast::Field::Name { name, .. } => Some(format!("{lhs}.{}", name.unintern_or_default(intermediate_dir))),
-        _ => None,
-    }
 }
 
 #[derive(Clone, Debug)]

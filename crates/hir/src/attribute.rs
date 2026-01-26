@@ -8,6 +8,7 @@ use crate::{
     Generic,
     Let,
     Module,
+    Path,
     Session,
     Struct,
     Type,
@@ -881,8 +882,7 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
             });
             Err(())
         },
-        (ArgType::Path, DecoratorArg::Expr(Expr::Ident(_))) => Ok(()),
-        (ArgType::Path, DecoratorArg::Expr(Expr::Path { lhs, .. })) if matches!(&**lhs, Expr::Ident(_)) => Ok(()),
+        (ArgType::Path, DecoratorArg::Expr(Expr::Path(_))) => Ok(()),
         (ArgType::Path, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
@@ -896,7 +896,10 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
         },
         (ArgType::Type, DecoratorArg::Type(_)) => Ok(()),
         (ArgType::Type, DecoratorArg::Expr(_)) => unreachable!(),
-        (ArgType::Generic, DecoratorArg::Type(Type::Ident(IdentWithOrigin { origin: NameOrigin::GenericParam { .. }, .. }))) => Ok(()),
+        (ArgType::Generic, DecoratorArg::Type(Type::Path(Path {
+            id: IdentWithOrigin { origin: NameOrigin::GenericParam { .. }, .. },
+            fields,
+        }))) if fields.is_empty() => Ok(()),
         (ArgType::Generic, _) => {
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {

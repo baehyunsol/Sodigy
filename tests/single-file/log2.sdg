@@ -6,9 +6,9 @@ fn log2_helper(n: Int) -> Int = match n {
     2 => 1 << 64,
     3.. => {
         let (mantissa, exp) = match n.ilog2() {
-            e @ ..96 => (n << (96 - e), e - 96),
+            $e @ ..96 => (n << (96 - e), e - 96),
             96 => (n, 0),
-            e @ 97.. => (n >> (e - 96), e - 96),
+            $e @ 97.. => (n >> (e - 96), e - 96),
         };
 
         log2_helper_iter(mantissa, exp, 96) >> 32

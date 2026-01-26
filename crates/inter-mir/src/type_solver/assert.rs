@@ -53,10 +53,8 @@ impl TypeSolver {
                     // We shouldn't use `Type::Static { def_span: lang_item("type.String") }` here!!
                     // `String` is just an alias to `[Char]` and it's already resolved.
                     &Type::Param {
-                        constructor: Box::new(Type::Static {
-                            def_span: self.get_lang_item_span("type.List"),
-                            span: Span::None,
-                        }),
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
                         args: vec![Type::Static {
                             def_span: self.get_lang_item_span("type.Char"),
                             span: Span::None,

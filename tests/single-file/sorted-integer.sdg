@@ -8,13 +8,13 @@
 // it's always equal to the initial_offset.
 fn encode(ns: [Int]) -> (Option<Int>, Bytes) = match ns {
     [] => (None, []),
-    [n] ++ ns => (Some(n), encode_worker(offset=n, ns=ns)),
+    [$n] ++ $ns => (Some(n), encode_worker(offset=n, ns=ns)),
 };
 
 fn encode_worker(offset: Int, ns: [Int]) -> Bytes = match ns {
     [] => [],
-    [n] ++ ns if n - offset < 224 => [(n - offset).into()] ++ encode_worker(offset, ns),
-    [n] ++ _ => {
+    [$n] ++ $ns if n - offset < 224 => [(n - offset).into()] ++ encode_worker(offset, ns),
+    [$n] ++ _ => {
         let d = (n - offset) / 256 * 256;
         let new_offset = offset + d;
 
@@ -25,7 +25,7 @@ fn encode_worker(offset: Int, ns: [Int]) -> Bytes = match ns {
 
 fn decode(offset: Option<Int>, bytes: Bytes) -> Result<[Int], DecodeError> = match (offset, bytes) {
     (None, _) | (_, []) => Ok([]),
-    (Some(n), bytes) => decode_worker(n, bytes),
+    (Some($n), $bytes) => decode_worker(n, bytes),
 };
 
 fn decode_worker(offset: Int, bytes: Bytes) -> Result<[Int], DecodeError> = match bytes {
@@ -33,9 +33,9 @@ fn decode_worker(offset: Int, bytes: Bytes) -> Result<[Int], DecodeError> = matc
 
     // TODO: We cannot apply the optimization at issue29. We have to consider this case when
     //       implementing the optimization.
-    [b @ #0..=#223] ++ bytes => match decode_worker(offset, bytes) {
-        Ok(ns) => Ok([offset + b] ++ ns),
-        Err(e) => Err(e),
+    [$b @ #0..=#223] ++ bytes => match decode_worker(offset, bytes) {
+        Ok($ns) => Ok([offset + b] ++ ns),
+        Err($e) => Err(e),
     },
 
     [b @ #224..=#255, bn] ++ bytes => decode_worker(offset + (b.into() * 65536 + bn.into() * 256), bytes),

@@ -1,0 +1,31 @@
+let a = 0;
+let b = 1;
+let c = 2;
+
+fn matcher(x) = match x {
+    a => 100,
+    b => 200,
+    c => 300,
+    _ => 400,
+};
+
+assert matcher(0) == 100;
+assert matcher(1) == 200;
+assert matcher(2) == 300;
+assert matcher(3) == 400;
+
+fn matcher_2(x) = match x {
+    a * 2 => 100,
+    b * 2 => 200,
+    c * 2 => 300,
+    _ => 400,
+};
+
+assert matcher_2(0) == 100;
+assert matcher_2(1) == 400;
+assert matcher_2(2) == 200;
+assert matcher_2(3) == 400;
+assert matcher_2(4) == 300;
+assert matcher_2(5) == 400;
+assert matcher_2(6) == 400;
+assert matcher_2(7) == 400;

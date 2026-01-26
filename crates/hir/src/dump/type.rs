@@ -1,28 +1,13 @@
-use crate::{FuncPurity, Session, Type};
+use crate::{Session, Type};
 use sodigy_endec::IndentedLines;
-use sodigy_parse::Field;
 
 pub fn dump_type(r#type: &Type, lines: &mut IndentedLines, session: &Session) {
     match r#type {
-        Type::Ident(id) => {
-            lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
-        },
-        Type::Path { id, fields } => {
-            lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
-
-            for field in fields.iter() {
-                lines.push(".");
-
-                match field {
-                    Field::Name { name, .. } => {
-                        lines.push(&name.unintern_or_default(&session.intermediate_dir));
-                    },
-                    _ => todo!(),
-                }
-            }
+        Type::Path(path) => {
+            lines.push(&path.unintern_or_default(&session.intermediate_dir));
         },
         Type::Param { constructor, args, .. } => {
-            dump_type(constructor, lines, session);
+            lines.push(&constructor.unintern_or_default(&session.intermediate_dir));
             lines.push("<");
 
             for arg in args.iter() {
@@ -61,13 +46,8 @@ pub fn dump_type(r#type: &Type, lines: &mut IndentedLines, session: &Session) {
 
             lines.push(")");
         },
-        Type::Func { params, r#return, purity, .. } => {
-            let f = match purity {
-                FuncPurity::Both => "Fn",
-                FuncPurity::Pure => "PureFn",
-                FuncPurity::Impure => "ImpureFn",
-            };
-            lines.push(f);
+        Type::Func { fn_constructor, params, r#return, .. } => {
+            lines.push(&fn_constructor.unintern_or_default(&session.intermediate_dir));
             lines.push("(");
 
             for param in params.iter() {

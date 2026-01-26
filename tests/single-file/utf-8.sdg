@@ -1,8 +1,8 @@
 fn decode(bs: Bytes, buffer="") -> Result<String, ()> = match b {
     [] => Ok(buffer),
-    [x @ #0..=#127] ++ bs => decode(bs, buffer + x.into()),
-    [x @ #192..=#223, y @ #128..=#191] ++ bs => decode(bs, buffer + ((x.into() & 31) << 6 | y.into() & 63).into()),
-    [x @ #224..=#239, y @ #128..=#191, z @ #128..=#191] ++ bs => decode(bs, buffer + ((x.into() & 15) << 12 | (y.into() & 63) << 6 | z.into() & 63).into()),
+    [$x @ #0..=#127] ++ $bs => decode(bs, buffer + x.into()),
+    [$x @ #192..=#223, $y @ #128..=#191] ++ $bs => decode(bs, buffer + ((x.into() & 31) << 6 | y.into() & 63).into()),
+    [$x @ #224..=#239, $y @ #128..=#191, $z @ #128..=#191] ++ $bs => decode(bs, buffer + ((x.into() & 15) << 12 | (y.into() & 63) << 6 | z.into() & 63).into()),
     [x @ #240..=#247, y @ #128..=#191, z @ #128..=#191, w @ #128..=#191]
         => decode(bs, buffer + ((x.into() & 7) << 18 | (y.into() & 63) << 12 | (z.into() & 63) << 6 | w.into() & 63).into()),
     _ => Err(()),
@@ -18,10 +18,10 @@ assert decode([#200, #200]).is_error();
 // `String` is just `[Char]`.
 fn encode(s: String) -> Bytes = match s {
     "" => b"",
-    [x @ '\x00'..='\x7f'] ++ s => x.into() + encode(s),
-    [x @ '\x80'..='\u{7ff}'] ++ s => [(x.into() >> 6).into() | #192, (x.into() & 63).into() | #128] ++ encode(s),
-    [x @ '\u{800}'..='\u{ffff}'] ++ s => [(x.into() >> 12).into() | #224, ((x.into() >> 6) & 63).into() | #128, (x.into() & 63).into() | #128] ++ encode(s),
-    [x] ++ s => [
+    [$x @ '\x00'..='\x7f'] ++ $s => x.into() + encode(s),
+    [$x @ '\x80'..='\u{7ff}'] ++ $s => [(x.into() >> 6).into() | #192, (x.into() & 63).into() | #128] ++ encode(s),
+    [$x @ '\u{800}'..='\u{ffff}'] ++ $s => [(x.into() >> 12).into() | #224, ((x.into() >> 6) & 63).into() | #128, (x.into() & 63).into() | #128] ++ encode(s),
+    [$x] ++ $s => [
         (x.into() >> 18).into() | #240,
         ((x.into() >> 12) & 63).into() | #128,
         ((x.into() >> 6) & 63).into() | #128,
