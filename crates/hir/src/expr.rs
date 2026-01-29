@@ -8,6 +8,7 @@ use crate::{
     Path,
     Session,
     StructInitField,
+    Type,
 };
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -65,7 +66,7 @@ pub enum Expr {
         group_span: Span,
     },
     StructInit {
-        r#struct: Box<Expr>,
+        constructor: Path,
         fields: Vec<StructInitField>,
         group_span: Span,
     },
@@ -77,6 +78,9 @@ pub enum Expr {
     Field {
         lhs: Box<Expr>,
         fields: Vec<Field>,
+
+        // dotfish operators
+        types: Vec<Option<Vec<Type>>>,
     },
     FieldUpdate {
         fields: Vec<Field>,
@@ -214,8 +218,8 @@ impl Expr {
                     })
                 }
             },
-            ast::Expr::StructInit { r#struct, fields, group_span } => {
-                let r#struct = Expr::from_ast(r#struct, session);
+            ast::Expr::StructInit { constructor, fields, group_span } => {
+                let constructor = Path::from_ast(constructor, session);
                 let mut hir_fields = Vec::with_capacity(fields.len());
                 let mut has_error = false;
 
@@ -234,28 +238,55 @@ impl Expr {
                     }
                 }
 
-                match (r#struct, has_error) {
-                    (Ok(r#struct), false) => Ok(Expr::StructInit {
-                        r#struct: Box::new(r#struct),
+                match (constructor, has_error) {
+                    (Ok(constructor), false) => Ok(Expr::StructInit {
+                        constructor,
                         fields: hir_fields,
                         group_span: *group_span,
                     }),
                     _ => Err(()),
                 }
             },
-            ast::Expr::Field { lhs, field } => match Expr::from_ast(lhs, session) {
-                Ok(Expr::Field { lhs, mut fields }) => {
-                    fields.push(*field);
-                    Ok(Expr::Field {
-                        lhs,
-                        fields,
-                    })
-                },
-                Ok(lhs) => Ok(Expr::Field {
-                    lhs: Box::new(lhs),
-                    fields: vec![*field],
-                }),
-                Err(()) => Err(()),
+            ast::Expr::Field { lhs, field, r#type: ast_type } => {
+                let mut has_error = false;
+                let dotfish = match ast_type {
+                    Some(ast_types) => {
+                        let mut types = vec![];
+
+                        for ast_type in ast_types.iter() {
+                            match Type::from_ast(ast_type, session) {
+                                Ok(r#type) => {
+                                    types.push(r#type);
+                                },
+                                Err(()) => {
+                                    has_error = true;
+                                },
+                            }
+                        }
+
+                        Some(types)
+                    },
+                    None => None,
+                };
+
+                match Expr::from_ast(lhs, session) {
+                    _ if has_error => Err(()),
+                    Ok(Expr::Field { lhs, mut fields, mut types }) => {
+                        fields.push(*field);
+                        types.push(dotfish);
+                        Ok(Expr::Field {
+                            lhs,
+                            fields,
+                            types,
+                        })
+                    },
+                    Ok(lhs) => Ok(Expr::Field {
+                        lhs: Box::new(lhs),
+                        fields: vec![*field],
+                        types: vec![None, dotfish],
+                    }),
+                    Err(()) => Err(()),
+                }
             },
             ast::Expr::FieldUpdate { fields, lhs, rhs } => match (
                 Expr::from_ast(lhs, session),
@@ -310,6 +341,7 @@ impl Expr {
                                 },
                             },
                             fields: vec![],
+                            types: vec![None],
                         }))
                     },
                     Err(()) => Err(()),
@@ -454,7 +486,7 @@ impl Expr {
             Expr::Call { func, .. } => func.error_span_narrow(),
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
-            Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
+            Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
             Expr::Field { fields, .. } |
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::PrefixOp { op_span, .. } |
@@ -481,8 +513,10 @@ impl Expr {
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
             Expr::Tuple { group_span, .. } |
             Expr::List { group_span, .. } => *group_span,
-            Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_wide().merge(*group_span),
-            Expr::Field { lhs, fields } => lhs.error_span_wide().merge(merge_field_spans(fields)),
+            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
+
+            // TODO: dump dotfish
+            Expr::Field { lhs, fields, types } => lhs.error_span_wide().merge(merge_field_spans(fields)),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),

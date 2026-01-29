@@ -117,14 +117,7 @@ pub fn replace_dollar(
                 );
             }
         },
-        ast::Expr::StructInit { r#struct, fields, .. } => {
-            replace_dollar(
-                r#struct,
-                ident,
-                replaced_spans,
-                has_nested_pipeline,
-            );
-
+        ast::Expr::StructInit { fields, .. } => {
             for field in fields.iter_mut() {
                 replace_dollar(
                     &mut field.value,
@@ -171,7 +164,7 @@ pub fn replace_dollar(
         },
         ast::Expr::PipelineData(span) => {
             let id_span = *span;
-            *value = ast::Expr::Path(ast::Path { id: ident, id_span, fields: vec![] });
+            *value = ast::Expr::Path(ast::Path { id: ident, id_span, fields: vec![], types: vec![None] });
             replaced_spans.push(id_span);
         },
     }
@@ -234,7 +227,7 @@ fn replace_dollar_in_pattern(
         },
         ast::PatternKind::PipelineData(span) => {
             let id_span = *span;
-            pattern.kind = ast::PatternKind::Path(ast::Path { id: ident, id_span, fields: vec![] });
+            pattern.kind = ast::PatternKind::Path(ast::Path { id: ident, id_span, fields: vec![], types: vec![None] });
             replaced_spans.push(id_span);
         },
     }

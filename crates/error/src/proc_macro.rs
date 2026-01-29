@@ -16,7 +16,7 @@
     UnexpectedDecorator(InternedString), ModuleDecoratorNotAtTop,
     MissingVisibility, CannotBePublic, DanglingVisibility,
     FunctionWithoutBody, BlockWithoutValue, StructWithoutField,
-    EmptyCurlyBraceBlock, PositionalArgAfterKeywordArg,
+    EmptyCurlyBraceBlock, AmbiguousCurlyBraces, PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue, CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd, MultipleRestPatterns,
     DifferentNameBindingsInOrPattern, InvalidFnType, EmptyMatchStatement,
@@ -45,9 +45,10 @@
     { struct_name: InternedString, missing_fields: Vec<InternedString> },
     InvalidStructFields
     { struct_name: InternedString, invalid_fields: Vec<InternedString> },
-    CannotAssociateItem, TooGeneralToAssociateItem, DependentTypeNotAllowed,
-    NotCallable { r#type: String }, NotStruct { id: Option<IdentWithOrigin> },
-    NotExpr { id: InternedString, kind: NotExprBut }, NotPolyGeneric
+    CannotAssociateItem, TooGeneralToAssociateItem, NotType
+    { id: InternedString, but: NotTypeBut }, NotCallable { r#type: String },
+    NotStruct { id: InternedString, but: NotStructBut }, NotExpr
+    { id: InternedString, but: NotExprBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, UnexpectedType
     { expected: String, got: String }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
@@ -101,9 +102,10 @@
             DanglingVisibility => 171u16, ErrorKind :: FunctionWithoutBody =>
             175u16, ErrorKind :: BlockWithoutValue => 180u16, ErrorKind ::
             StructWithoutField => 185u16, ErrorKind :: EmptyCurlyBraceBlock =>
-            190u16, ErrorKind :: PositionalArgAfterKeywordArg => 195u16,
-            ErrorKind :: NonDefaultValueAfterDefaultValue => 200u16, ErrorKind
-            :: CannotDeclareInlineModule => 205u16, ErrorKind ::
+            190u16, ErrorKind :: AmbiguousCurlyBraces => 191u16, ErrorKind ::
+            PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
+            NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
+            CannotDeclareInlineModule => 205u16, ErrorKind ::
             InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
             MultipleRestPatterns => 215u16, ErrorKind ::
             DifferentNameBindingsInOrPattern => 220u16, ErrorKind ::
@@ -139,16 +141,15 @@
             MissingStructFields { .. } => 390u16, ErrorKind ::
             InvalidStructFields { .. } => 395u16, ErrorKind ::
             CannotAssociateItem => 398u16, ErrorKind ::
-            TooGeneralToAssociateItem => 399u16, ErrorKind ::
-            DependentTypeNotAllowed => 400u16, ErrorKind :: NotCallable { .. }
-            => 404u16, ErrorKind :: NotStruct { .. } => 405u16, ErrorKind ::
-            NotExpr { .. } => 406u16, ErrorKind :: NotPolyGeneric { .. } =>
-            410u16, ErrorKind :: UnexpectedType { .. } => 415u16, ErrorKind ::
-            CannotInferType { .. } => 420u16, ErrorKind ::
-            PartiallyInferedType { .. } => 425u16, ErrorKind ::
-            CannotInferGenericType { .. } => 430u16, ErrorKind ::
-            PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
-            CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
+            TooGeneralToAssociateItem => 399u16, ErrorKind :: NotType { .. }
+            => 400u16, ErrorKind :: NotCallable { .. } => 404u16, ErrorKind ::
+            NotStruct { .. } => 405u16, ErrorKind :: NotExpr { .. } => 406u16,
+            ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind ::
+            UnexpectedType { .. } => 415u16, ErrorKind :: CannotInferType
+            { .. } => 420u16, ErrorKind :: PartiallyInferedType { .. } =>
+            425u16, ErrorKind :: CannotInferGenericType { .. } => 430u16,
+            ErrorKind :: PartiallyInferedGenericType { .. } => 435u16,
+            ErrorKind :: CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
             => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
@@ -212,6 +213,7 @@
             BlockWithoutValue => ErrorLevel :: Error, ErrorKind ::
             StructWithoutField => ErrorLevel :: Error, ErrorKind ::
             EmptyCurlyBraceBlock => ErrorLevel :: Error, ErrorKind ::
+            AmbiguousCurlyBraces => ErrorLevel :: Error, ErrorKind ::
             PositionalArgAfterKeywordArg => ErrorLevel :: Error, ErrorKind ::
             NonDefaultValueAfterDefaultValue => ErrorLevel :: Error, ErrorKind
             :: CannotDeclareInlineModule => ErrorLevel :: Error, ErrorKind ::
@@ -255,23 +257,23 @@
             ErrorLevel :: Error, ErrorKind :: InvalidStructFields { .. } =>
             ErrorLevel :: Error, ErrorKind :: CannotAssociateItem =>
             ErrorLevel :: Error, ErrorKind :: TooGeneralToAssociateItem =>
-            ErrorLevel :: Error, ErrorKind :: DependentTypeNotAllowed =>
-            ErrorLevel :: Error, ErrorKind :: NotCallable { .. } => ErrorLevel
-            :: Error, ErrorKind :: NotStruct { .. } => ErrorLevel :: Error,
-            ErrorKind :: NotExpr { .. } => ErrorLevel :: Error, ErrorKind ::
-            NotPolyGeneric { .. } => ErrorLevel :: Error, ErrorKind ::
-            UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
-            CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
-            PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
-            CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
-            PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
-            ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
-            Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
-            Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
-            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
-            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
-            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
+            ErrorLevel :: Error, ErrorKind :: NotType { .. } => ErrorLevel ::
+            Error, ErrorKind :: NotCallable { .. } => ErrorLevel :: Error,
+            ErrorKind :: NotStruct { .. } => ErrorLevel :: Error, ErrorKind ::
+            NotExpr { .. } => ErrorLevel :: Error, ErrorKind :: NotPolyGeneric
+            { .. } => ErrorLevel :: Error, ErrorKind :: UnexpectedType { .. }
+            => ErrorLevel :: Error, ErrorKind :: CannotInferType { .. } =>
+            ErrorLevel :: Error, ErrorKind :: PartiallyInferedType { .. } =>
+            ErrorLevel :: Error, ErrorKind :: CannotInferGenericType { .. } =>
+            ErrorLevel :: Error, ErrorKind :: PartiallyInferedGenericType
+            { .. } => ErrorLevel :: Error, ErrorKind :: CannotApplyInfixOp
+            { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotSpecializePolyGeneric { .. } => ErrorLevel :: Error,
+            ErrorKind :: ImpureCallInPureContext => ErrorLevel :: Error,
+            ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error, ErrorKind
+            :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
+            ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
+            LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
             SelfParamWithTypeAnnotation => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
             :: UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
@@ -370,7 +372,9 @@
             ErrorKind :: StructWithoutField =>
             { buffer.push(0u8); buffer.push(185u8); }, ErrorKind ::
             EmptyCurlyBraceBlock => { buffer.push(0u8); buffer.push(190u8); },
-            ErrorKind :: PositionalArgAfterKeywordArg =>
+            ErrorKind :: AmbiguousCurlyBraces =>
+            { buffer.push(0u8); buffer.push(191u8); }, ErrorKind ::
+            PositionalArgAfterKeywordArg =>
             { buffer.push(0u8); buffer.push(195u8); }, ErrorKind ::
             NonDefaultValueAfterDefaultValue =>
             { buffer.push(0u8); buffer.push(200u8); }, ErrorKind ::
@@ -484,21 +488,23 @@
             }, ErrorKind :: CannotAssociateItem =>
             { buffer.push(1u8); buffer.push(142u8); }, ErrorKind ::
             TooGeneralToAssociateItem =>
-            { buffer.push(1u8); buffer.push(143u8); }, ErrorKind ::
-            DependentTypeNotAllowed =>
-            { buffer.push(1u8); buffer.push(144u8); }, ErrorKind ::
-            NotCallable { r#type, } =>
+            { buffer.push(1u8); buffer.push(143u8); }, ErrorKind :: NotType
+            { r#id, r#but, } =>
+            {
+                buffer.push(1u8); buffer.push(144u8);
+                r#id.encode_impl(buffer); r#but.encode_impl(buffer);
+            }, ErrorKind :: NotCallable { r#type, } =>
             {
                 buffer.push(1u8); buffer.push(148u8);
                 r#type.encode_impl(buffer);
-            }, ErrorKind :: NotStruct { r#id, } =>
+            }, ErrorKind :: NotStruct { r#id, r#but, } =>
             {
                 buffer.push(1u8); buffer.push(149u8);
-                r#id.encode_impl(buffer);
-            }, ErrorKind :: NotExpr { r#id, r#kind, } =>
+                r#id.encode_impl(buffer); r#but.encode_impl(buffer);
+            }, ErrorKind :: NotExpr { r#id, r#but, } =>
             {
                 buffer.push(1u8); buffer.push(150u8);
-                r#id.encode_impl(buffer); r#kind.encode_impl(buffer);
+                r#id.encode_impl(buffer); r#but.encode_impl(buffer);
             }, ErrorKind :: NotPolyGeneric { r#id, } =>
             {
                 buffer.push(1u8); buffer.push(154u8);
@@ -669,7 +675,8 @@
             Ok((ErrorKind :: FunctionWithoutBody, cursor)), 180u16 =>
             Ok((ErrorKind :: BlockWithoutValue, cursor)), 185u16 =>
             Ok((ErrorKind :: StructWithoutField, cursor)), 190u16 =>
-            Ok((ErrorKind :: EmptyCurlyBraceBlock, cursor)), 195u16 =>
+            Ok((ErrorKind :: EmptyCurlyBraceBlock, cursor)), 191u16 =>
+            Ok((ErrorKind :: AmbiguousCurlyBraces, cursor)), 195u16 =>
             Ok((ErrorKind :: PositionalArgAfterKeywordArg, cursor)), 200u16 =>
             Ok((ErrorKind :: NonDefaultValueAfterDefaultValue, cursor)),
             205u16 => Ok((ErrorKind :: CannotDeclareInlineModule, cursor)),
@@ -819,22 +826,28 @@
                 { r#struct_name, r#invalid_fields, }, cursor))
             }, 398u16 => Ok((ErrorKind :: CannotAssociateItem, cursor)),
             399u16 => Ok((ErrorKind :: TooGeneralToAssociateItem, cursor)),
-            400u16 => Ok((ErrorKind :: DependentTypeNotAllowed, cursor)),
-            404u16 =>
+            400u16 =>
+            {
+                let (r#id, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
+                NotTypeBut :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotType { r#id, r#but, }, cursor))
+            }, 404u16 =>
             {
                 let (r#type, cursor) = String :: decode_impl(buffer, cursor) ?
                 ; Ok((ErrorKind :: NotCallable { r#type, }, cursor))
             }, 405u16 =>
             {
-                let (r#id, cursor) = Option :: < IdentWithOrigin > ::
-                decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: NotStruct { r#id, }, cursor))
+                let (r#id, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
+                NotStructBut :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: NotStruct { r#id, r#but, }, cursor))
             }, 406u16 =>
             {
                 let (r#id, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
                 NotExprBut :: decode_impl(buffer, cursor) ? ;
-                Ok((ErrorKind :: NotExpr { r#id, r#kind, }, cursor))
+                Ok((ErrorKind :: NotExpr { r#id, r#but, }, cursor))
             }, 410u16 =>
             {
                 let (r#id, cursor) = Option :: < IdentWithOrigin > ::

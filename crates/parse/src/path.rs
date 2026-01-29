@@ -1,3 +1,4 @@
+use crate::Type;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -6,6 +7,11 @@ pub struct Path {
     pub id: InternedString,
     pub id_span: Span,
     pub fields: Vec<Field>,
+
+    // `foo.bar.<T>.baz.bor.<U, V>()`
+    // ->
+    // `{ id: foo, fields: [bar, baz, bor], types: [None, Some([T]), None, Some([U, V])]}`
+    pub types: Vec<Option<Vec<Type>>>,
 }
 
 impl Path {
@@ -16,6 +22,7 @@ impl Path {
         }
     }
 
+    // TODO: dump dotfish
     pub fn error_span_wide(&self) -> Span {
         let mut span = self.id_span;
 
@@ -32,6 +39,7 @@ impl Path {
         span
     }
 
+    // TODO: dump dotfish
     pub fn unintern_or_default(&self, intermediate_dir: &str) -> String {
         let mut result = self.id.unintern_or_default(intermediate_dir);
 

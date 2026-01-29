@@ -337,7 +337,7 @@ impl<'t, 's> Tokens<'t, 's> {
             };
 
             let cursor = self.cursor;
-            let arg_expr = self.parse_expr();
+            let arg_expr = self.parse_expr(true);
             let expr_end_cursor = self.cursor;
             let is_expr_err = arg_expr.is_err();
             self.cursor = cursor;

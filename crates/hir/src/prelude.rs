@@ -80,6 +80,7 @@ pub fn use_prelude(name: InternedString) -> Use {
                     is_from_alias: false,
                 },
             ],
+            types: vec![None; 3],
         },
     }
 }

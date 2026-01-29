@@ -7,6 +7,7 @@ use crate::{
     Match,
     Path,
     StructInitField,
+    Type,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_number::InternedNumber;
@@ -77,16 +78,17 @@ impl Endec for Expr {
                 elements.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::StructInit { r#struct, fields, group_span } => {
+            Expr::StructInit { constructor, fields, group_span } => {
                 buffer.push(12);
-                r#struct.encode_impl(buffer);
+                constructor.encode_impl(buffer);
                 fields.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
-            Expr::Field { lhs, fields } => {
+            Expr::Field { lhs, fields, types } => {
                 buffer.push(13);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
+                types.encode_impl(buffer);
             },
             Expr::FieldUpdate { fields, lhs, rhs } => {
                 buffer.push(14);
@@ -178,15 +180,16 @@ impl Endec for Expr {
                 Ok((Expr::List { elements, group_span }, cursor))
             },
             Some(12) => {
-                let (r#struct, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
+                let (constructor, cursor) = Path::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<StructInitField>::decode_impl(buffer, cursor)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::StructInit { r#struct, fields, group_span }, cursor))
+                Ok((Expr::StructInit { constructor, fields, group_span }, cursor))
             },
             Some(13) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
-                Ok((Expr::Field { lhs, fields }, cursor))
+                let (types, cursor) = Vec::<Option<Vec<Type>>>::decode_impl(buffer, cursor)?;
+                Ok((Expr::Field { lhs, fields, types }, cursor))
             },
             Some(14) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;

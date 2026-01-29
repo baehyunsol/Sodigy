@@ -235,7 +235,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::StructInit { .. } => {
             lines.push(&format!("/* TODO: dump struct init {expr:?} */"));
         },
-        Expr::Field { lhs, fields } => {
+        // TODO: dump dotfish
+        Expr::Field { lhs, fields, .. } => {
             dump_expr(lhs, lines, session);
 
             for field in fields.iter() {

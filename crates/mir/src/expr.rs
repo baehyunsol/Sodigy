@@ -95,7 +95,7 @@ impl Expr {
     pub fn from_hir(hir_expr: &hir::Expr, session: &mut Session) -> Result<Expr, ()> {
         match hir_expr {
             hir::Expr::Path(path) => {
-                // inter-hir's `check_expr` should guarantee this
+                // inter-hir's `check_expr_path` should guarantee this
                 assert!(path.fields.is_empty());
 
                 Ok(Expr::Ident(path.id))
@@ -813,10 +813,11 @@ impl Expr {
                     None => unreachable!(),
                 }
             },
-            hir::Expr::Field { lhs, fields } => match Expr::from_hir(lhs, session) {
+            hir::Expr::Field { lhs, fields, types } => match Expr::from_hir(lhs, session) {
                 Ok(lhs) => Ok(Expr::Field {
                     lhs: Box::new(lhs),
                     fields: fields.clone(),
+                    // TODO: types
                 }),
                 Err(()) => Err(()),
             },

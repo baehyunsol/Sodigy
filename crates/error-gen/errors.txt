@@ -40,6 +40,7 @@ FunctionWithoutBody/175/Error
 BlockWithoutValue/180/Error
 StructWithoutField/185/Error
 EmptyCurlyBraceBlock/190/Error
+AmbiguousCurlyBraces/191/Error
 PositionalArgAfterKeywordArg/195/Error
 NonDefaultValueAfterDefaultValue/200/Error
 CannotDeclareInlineModule/205/Error
@@ -83,7 +84,7 @@ MissingStructFields/390/Error
 InvalidStructFields/395/Error
 CannotAssociateItem/398/Error
 TooGeneralToAssociateItem/399/Error
-DependentTypeNotAllowed/400/Error
+NotType/400/Error
 NotCallable/404/Error
 NotStruct/405/Error
 NotExpr/406/Error

@@ -38,7 +38,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
 
                 let arrow_span = self.match_and_pop(TokenKind::Punct(Punct::Arrow))?.span;
-                let value = self.parse_expr()?;
+                let value = self.parse_expr(true)?;
 
                 Ok(Lambda {
                     // if there's `impure` keyword, its callee will change these values.

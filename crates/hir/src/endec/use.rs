@@ -1,7 +1,5 @@
 use crate::{Path, Use, Visibility};
 use sodigy_endec::{DecodeError, Endec};
-use sodigy_name_analysis::IdentWithOrigin;
-use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 

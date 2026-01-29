@@ -41,7 +41,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 self.cursor += 2;
                 pattern = Some(self.parse_pattern(ParsePatternContext::IfLet)?);
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-                (if_span, let_span, self.parse_expr()?)
+                (if_span, let_span, self.parse_expr(false)?)
             },
             // if COND
             (
@@ -50,7 +50,7 @@ impl<'t, 's> Tokens<'t, 's> {
             ) => {
                 let span1 = *span1;
                 self.cursor += 1;
-                (span1, None, self.parse_expr()?)
+                (span1, None, self.parse_expr(false)?)
             },
             (Some(t1), _) => {
                 return Err(vec![Error {
@@ -67,6 +67,7 @@ impl<'t, 's> Tokens<'t, 's> {
             },
         };
         let cond = Box::new(cond);
+        self.check_ambiguous_struct_initialization()?;
 
         let Token {
             kind: TokenKind::Group {

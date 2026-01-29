@@ -1,0 +1,4 @@
+fn none_plus_one() = match Some(3) {
+    None + 1 => 0,
+    _ => 1,
+};

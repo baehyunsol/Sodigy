@@ -311,7 +311,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     // If it's top-level, there shouldn't be an expr here. But we still parse
                     // the expr for the sake of better error message.
                     // If it's inline, there shouldn't be remaining tokens.
-                    match self.parse_expr() {
+                    match self.parse_expr(true) {
                         Ok(expr) => {
                             if !is_top_level {
                                 if let Some(t) = self.peek() {

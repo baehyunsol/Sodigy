@@ -1,4 +1,4 @@
-use crate::{
+    use crate::{
     Attribute,
     AttributeRule,
     Path,
@@ -115,12 +115,15 @@ impl Use {
                 vec![]
             };
 
+            // no dotfish here
+            let types = vec![None; fields.len() + 1];
+
             Ok(Use {
                 visibility,
                 keyword_span: ast_use.keyword_span,
                 name: ast_use.name,
                 name_span: ast_use.name_span,
-                path: Path { id: root, fields },
+                path: Path { id: root, fields, types, },
             })
         }
     }

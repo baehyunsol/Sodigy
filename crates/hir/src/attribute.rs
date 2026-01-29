@@ -899,6 +899,7 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
         (ArgType::Generic, DecoratorArg::Type(Type::Path(Path {
             id: IdentWithOrigin { origin: NameOrigin::GenericParam { .. }, .. },
             fields,
+            ..
         }))) if fields.is_empty() => Ok(()),
         (ArgType::Generic, _) => {
             session.errors.push(Error {

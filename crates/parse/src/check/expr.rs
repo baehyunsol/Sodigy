@@ -73,15 +73,10 @@ impl Expr {
                 }
             },
             Expr::StructInit {
-                r#struct,
                 fields,
                 ..
             } => {
                 let mut errors = vec![];
-
-                if let Err(e) = r#struct.check(intermediate_dir) {
-                    errors.extend(e);
-                }
 
                 for field in fields.iter() {
                     if let Err(e) = field.value.check(intermediate_dir) {

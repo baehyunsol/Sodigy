@@ -88,7 +88,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let value = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Assign), .. }) => {
                 self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-                let value = Some(self.parse_expr()?);
+                let value = Some(self.parse_expr(true)?);
                 self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
                 value
             },
@@ -200,7 +200,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
                         self.cursor += 1;
                         prev_assignment_span = Some(span);
-                        default_value = Some(self.parse_expr()?);
+                        default_value = Some(self.parse_expr(true)?);
                         continue 'colon_or_value_or_comma;
                     },
                     Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {
@@ -260,7 +260,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
                 _ => None,
             };
-            let arg = self.parse_expr()?;
+            let arg = self.parse_expr(true)?;
             func_args.push(FuncArg { keyword, arg });
 
             match self.peek2() {

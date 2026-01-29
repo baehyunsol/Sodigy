@@ -43,7 +43,7 @@ impl<'t, 's> Tokens<'t, 's> {
             _ => None,
         };
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-        let value = self.parse_expr()?;
+        let value = self.parse_expr(true)?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Let {
@@ -71,7 +71,7 @@ impl<'t, 's> Tokens<'t, 's> {
         };
 
         self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
-        let value = self.parse_expr()?;
+        let value = self.parse_expr(true)?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         // TODO: destructure the pattern into 1 or more `let` statements

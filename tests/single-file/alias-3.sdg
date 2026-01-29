@@ -1,0 +1,7 @@
+type MyResult<T> = Result<T, String>;
+use MyResult as YourResult;
+
+let results: [Result<Int, String>] = [];
+
+#[assert_type(YourResult<Int>)]
+let your_result = results[0];

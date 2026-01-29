@@ -72,6 +72,7 @@ error_kinds!(
     (BlockWithoutValue,                                              180,    Error),
     (StructWithoutField,                                             185,    Error),
     (EmptyCurlyBraceBlock,                                           190,    Error),
+    (AmbiguousCurlyBraces,                                           191,    Error),
     (PositionalArgAfterKeywordArg,                                   195,    Error),
     (NonDefaultValueAfterDefaultValue,                               200,    Error),
     (CannotDeclareInlineModule,                                      205,    Error),
@@ -133,10 +134,10 @@ error_kinds!(
 
     (CannotAssociateItem,                                            398,    Error),
     (TooGeneralToAssociateItem,                                      399,    Error),
-    (DependentTypeNotAllowed,                                        400,    Error),
+    (NotType { id: InternedString, but: NotTypeBut },                400,    Error),
     (NotCallable { r#type: String },                                 404,    Error),
-    (NotStruct { id: Option<IdentWithOrigin> },                      405,    Error),
-    (NotExpr { id: InternedString, kind: NotExprBut },               406,    Error),
+    (NotStruct { id: InternedString, but: NotStructBut },            405,    Error),
+    (NotExpr { id: InternedString, but: NotExprBut },                406,    Error),
     (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
 
     // Type errors from here.
@@ -213,6 +214,18 @@ pub enum NameCollisionKind {
     Func { params: bool, generics: bool },     // params and/or generics
     Pattern,  // name bindings
     Struct,   // fields
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum NotTypeBut {
+    Expr,
+    Module,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum NotStructBut {
+    Expr,
+    Module,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

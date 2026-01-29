@@ -9,7 +9,7 @@ mod token;
 mod warning;
 
 pub use dump::{DumpErrorOption, dump_errors};
-pub use kind::{ErrorKind, NameCollisionKind, NotExprBut};
+pub use kind::{ErrorKind, NameCollisionKind, NotExprBut, NotStructBut, NotTypeBut};
 pub use lint::{Lint, LintKind};
 pub use token::ErrorToken;
 pub use warning::{Warning, WarningKind};

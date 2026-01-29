@@ -1,4 +1,12 @@
-use crate::{Error, ErrorKind, ErrorToken, NameCollisionKind, NotExprBut};
+use crate::{
+    Error,
+    ErrorKind,
+    ErrorToken,
+    NameCollisionKind,
+    NotExprBut,
+    NotStructBut,
+    NotTypeBut,
+};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
 use sodigy_token::{Delim, Keyword, Punct};
@@ -199,6 +207,50 @@ impl Endec for NameCollisionKind {
             Some(3) => Ok((NameCollisionKind::Pattern, cursor + 1)),
             Some(4) => Ok((NameCollisionKind::Struct, cursor + 1)),
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for NotTypeBut {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            NotTypeBut::Expr => {
+                buffer.push(0);
+            },
+            NotTypeBut::Module => {
+                buffer.push(1);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((NotTypeBut::Expr, cursor + 1)),
+            Some(1) => Ok((NotTypeBut::Module, cursor + 1)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for NotStructBut {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            NotStructBut::Expr => {
+                buffer.push(0);
+            },
+            NotStructBut::Module => {
+                buffer.push(1);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => Ok((NotStructBut::Expr, cursor + 1)),
+            Some(1) => Ok((NotStructBut::Module, cursor + 1)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -276,6 +276,7 @@ impl PatternKind {
                                             def_span: derived_span,
                                         },
                                         fields: vec![],
+                                        types: vec![None],
                                     })),
                                     rhs: Box::new(expr),
                                     op_span: derived_span,

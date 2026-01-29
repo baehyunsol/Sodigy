@@ -73,43 +73,6 @@ impl<'t, 's> Tokens<'t, 's> {
         self.parse_func_params()
     }
 
-    // In Sodigy, curly braces following an identifier can be either
-    // 1. a struct initialization, like `foo { x: 3, y: 4 }`
-    // 2. an if branch, like `if foo { 4 } else { 5 }`
-    //
-    // It's impossible to perfectly distinguish the two. So it uses some kinda heuristic.
-    // If the inner tokens start with an identifier and followed by a colon, it treats it
-    // as a struct initialization.
-    //
-    // `foo { x: 3, y: 4 }` -> `Some(Ok([("x", 3), ("y", 4)]))`
-    // `foo { x: 3, y }` -> `Some(Err("expected colon, got nothing"))`
-    // `foo { x }` -> `None`
-    // `foo {}` -> `Some(Err("an empty curly brace block"))`
-    //    -> well... this is ambiguous. we're not sure whether the programmer intended a struct initialization or an if branch
-    //    -> in Sodigy, an empty curly brace block is not allowed in any context due to this reason
-    //       -> so that we can throw a less ambiguous error messsage "an empty curly brace group!"
-    //    -> also, this is the reason why Sodigy doesn't allow a struct without any fields
-    pub fn try_parse_struct_initialization(&mut self) -> Option<Result<Vec<StructInitField>, Vec<Error>>> {
-        match self.peek2() {
-            (
-                Some(Token { kind: TokenKind::Ident(_), .. }),
-                Some(Token { kind: TokenKind::Punct(Punct::Colon), .. }),
-            ) => {},
-            (None, None) => {
-                return Some(Err(vec![Error {
-                    kind: ErrorKind::EmptyCurlyBraceBlock,
-                    spans: self.span_end.simple_error(),
-                    note: None,
-                }]));
-            },
-            _ => {
-                return None;
-            },
-        }
-
-        Some(self.parse_struct_initialization())
-    }
-
     // NOTE: There must be at least 1 field!
     pub fn parse_struct_initialization(&mut self) -> Result<Vec<StructInitField>, Vec<Error>> {
         let mut fields = vec![];
@@ -117,7 +80,7 @@ impl<'t, 's> Tokens<'t, 's> {
         loop {
             let (name, name_span) = self.pop_name_and_span()?;
             self.match_and_pop(TokenKind::Punct(Punct::Colon))?;
-            let value = self.parse_expr()?;
+            let value = self.parse_expr(true)?;
             fields.push(StructInitField {
                 name,
                 name_span,
@@ -145,6 +108,26 @@ impl<'t, 's> Tokens<'t, 's> {
                     return Ok(fields);
                 },
             }
+        }
+    }
+
+    /// `if p == Person { age: 30, name: "Bae" } { foo() }` is valid, but the parser cannot
+    /// parse this. So the parser rejects this syntax instead of throwing very unreadable
+    /// error message.
+    pub fn check_ambiguous_struct_initialization(&mut self) -> Result<(), Vec<Error>> {
+        match (self.peek_prev(), self.peek2()) {
+            (
+                Some(Token { kind: TokenKind::Ident(_), .. }),
+                (
+                    Some(Token { kind: TokenKind::Group { delim: Delim::Brace, .. }, span }),
+                    Some(Token { kind: TokenKind::Group { delim: Delim::Brace, .. }, .. }),
+                ),
+            ) => Err(vec![Error {
+                kind: ErrorKind::AmbiguousCurlyBraces,
+                spans: span.simple_error(),
+                note: None,
+            }]),
+            _ => Ok(()),
         }
     }
 }

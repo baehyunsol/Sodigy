@@ -8,6 +8,7 @@ use crate::{
     Path,
     StructInitField,
     Tokens,
+    Type,
     merge_field_spans,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
@@ -74,13 +75,16 @@ pub enum Expr {
         group_span: Span,
     },
     StructInit {
-        r#struct: Box<Expr>,
+        constructor: Path,
         fields: Vec<StructInitField>,
         group_span: Span,
     },
     Field {
         lhs: Box<Expr>,
         field: Field,
+
+        // dotfish operator
+        r#type: Option<Vec<Type>>,
     },
     FieldUpdate {
         fields: Vec<Field>,
@@ -135,7 +139,7 @@ impl Expr {
             Expr::Match(r#match) => r#match.keyword_span,
             Expr::Block(block) => block.group_span,
             Expr::Call { func, .. } => func.error_span_narrow(),
-            Expr::StructInit { r#struct, .. } => r#struct.error_span_narrow(),
+            Expr::StructInit { constructor, .. } => constructor.error_span_narrow(),
             Expr::Field { field, .. } => merge_field_spans(&[*field]),
             Expr::FieldUpdate { fields, .. } => merge_field_spans(fields),
             Expr::Lambda(Lambda { arrow_span, .. }) => *arrow_span,
@@ -158,8 +162,10 @@ impl Expr {
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.group_span),
             Expr::Block(block) => block.group_span,
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
-            Expr::StructInit { r#struct, group_span, .. } => r#struct.error_span_narrow().merge(*group_span),
-            Expr::Field { lhs, field } => lhs.error_span_wide().merge(merge_field_spans(&[*field])),
+            Expr::StructInit { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
+
+            // TODO: render dotfish operator
+            Expr::Field { lhs, field, .. } => lhs.error_span_wide().merge(merge_field_spans(&[*field])),
             Expr::FieldUpdate { lhs, fields, rhs } => lhs.error_span_wide()
                 .merge(merge_field_spans(fields))
                 .merge(rhs.error_span_wide()),
@@ -199,11 +205,18 @@ impl Expr {
 }
 
 impl<'t, 's> Tokens<'t, 's> {
-    pub fn parse_expr(&mut self) -> Result<Expr, Vec<Error>> {
-        self.pratt_parse(0)
+    pub fn parse_expr(
+        &mut self,
+        try_struct_init: bool,
+    ) -> Result<Expr, Vec<Error>> {
+        self.pratt_parse(0, try_struct_init)
     }
 
-    fn pratt_parse(&mut self, min_bp: u32) -> Result<Expr, Vec<Error>> {
+    fn pratt_parse(
+        &mut self,
+        min_bp: u32,
+        try_struct_init: bool,
+    ) -> Result<Expr, Vec<Error>> {
         let mut lhs = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Dollar), span }) => {
                 let span = *span;
@@ -218,7 +231,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Ok(op) => {
                         let bp = prefix_binding_power(op);
                         self.cursor += 1;
-                        let rhs = self.pratt_parse(bp)?;
+                        let rhs = self.pratt_parse(bp, try_struct_init)?;
                         Expr::PrefixOp {
                             op,
                             op_span: punct_span,
@@ -240,7 +253,7 @@ impl<'t, 's> Tokens<'t, 's> {
             Some(Token { kind: TokenKind::Ident(id), span }) => {
                 let (id, id_span) = (*id, *span);
                 self.cursor += 1;
-                Expr::Path(Path { id, id_span, fields: vec![] })
+                Expr::Path(Path { id, id_span, fields: vec![], types: vec![None] })
             },
             Some(Token { kind: TokenKind::Number(n), span }) => {
                 let (n, span) = (n.clone(), *span);
@@ -274,7 +287,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         },
                         TokensOrString::Tokens { tokens, span } => {
                             let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                            let expr = tokens.parse_expr()?;
+                            let expr = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
                             elements.push(ExprOrString::Expr(expr));
@@ -383,7 +396,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
                             match self.peek().map(|t| t.expr_begin()) {
                                 Some(true) => {
-                                    let rhs = self.pratt_parse(bp)?;
+                                    let rhs = self.pratt_parse(bp, try_struct_init)?;
                                     lhs = Expr::InfixOp {
                                         op: InfixOp::Range { inclusive },
                                         op_span: punct_span,
@@ -440,6 +453,10 @@ impl<'t, 's> Tokens<'t, 's> {
 
                         self.cursor += 1;
                         let (name, name_span) = self.pop_name_and_span()?;
+
+                        // TODO: dotfish operator
+                        let dotfish = None;
+
                         let field = Field::Name {
                             name,
                             name_span,
@@ -449,12 +466,14 @@ impl<'t, 's> Tokens<'t, 's> {
 
                         if let Expr::Path(p) = &mut lhs {
                             p.fields.push(field);
+                            p.types.push(dotfish);
                         }
 
                         else {
                             lhs = Expr::Field {
                                 lhs: Box::new(lhs),
                                 field,
+                                r#type: None,
                             };
                         }
 
@@ -470,7 +489,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             }
 
                             self.cursor += 1;
-                            let rhs = self.pratt_parse(r_bp)?;
+                            let rhs = self.pratt_parse(r_bp, try_struct_init)?;
 
                             if op == InfixOp::Pipeline {
                                 lhs = match (lhs, rhs) {
@@ -579,31 +598,23 @@ impl<'t, 's> Tokens<'t, 's> {
                         Delim::Brace => {
                             let (l_bp, _) = struct_init_binding_power();
 
-                            if l_bp < min_bp {
+                            if l_bp < min_bp || !try_struct_init {
                                 break;
                             }
 
-                            let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-
-                            match tokens.try_parse_struct_initialization() {
-                                Some(Ok(s)) => {
-                                    self.cursor += 1;
+                            match &lhs {
+                                Expr::Path(p) => {
+                                    let constructor = p.clone();
+                                    let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
+                                    let fields = self.parse_struct_initialization()?;
                                     lhs = Expr::StructInit {
-                                        r#struct: Box::new(lhs),
-                                        fields: s,
+                                        constructor,
+                                        fields,
                                         group_span: span,
                                     };
                                     continue;
                                 },
-
-                                // it's a struct initialization,
-                                // but there's a synax error
-                                Some(Err(e)) => {
-                                    return Err(e);
-                                },
-
-                                // not a struct initialization
-                                None => {
+                                _ => {
                                     break;
                                 },
                             }
@@ -617,7 +628,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             }
 
                             let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                            let rhs = tokens.parse_expr()?;
+                            let rhs = tokens.parse_expr(true)?;
 
                             // TODO: make sure that there's no remaining tokens
 
@@ -663,7 +674,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         self.cursor += 2;
                     }
 
-                    let rhs = self.pratt_parse(r_bp)?;
+                    let rhs = self.pratt_parse(r_bp, try_struct_init)?;
                     lhs = Expr::FieldUpdate {
                         fields,
                         lhs: Box::new(lhs),
@@ -689,7 +700,7 @@ impl<'t, 's> Tokens<'t, 's> {
         }
 
         loop {
-            exprs.push(self.parse_expr()?);
+            exprs.push(self.parse_expr(true)?);
 
             match self.peek2() {
                 (

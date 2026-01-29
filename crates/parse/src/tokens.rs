@@ -118,6 +118,13 @@ impl<'t, 's> Tokens<'t, 's> {
         )
     }
 
+    pub fn peek_prev(&self) -> Option<&Token> {
+        match self.cursor {
+            0 => None,
+            _ => self.tokens.get(self.cursor - 1),
+        }
+    }
+
     /// It doesn't care about the cursor!
     pub fn last(&self) -> Option<&Token> {
         self.tokens.last()

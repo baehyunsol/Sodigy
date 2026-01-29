@@ -165,6 +165,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                             is_from_alias: false,
                                         },
                                     ).collect(),
+                                    types: vec![None; path.len()],
                                 },
                                 args,
                                 group_span: group_span_start.merge(group_span_end),
@@ -188,6 +189,7 @@ impl<'t, 's> Tokens<'t, 's> {
                                         is_from_alias: false,
                                     },
                                 ).collect(),
+                                types: vec![None; path.len()],
                             }));
                         },
                         (Some(t), _) => {
@@ -218,7 +220,12 @@ impl<'t, 's> Tokens<'t, 's> {
                 let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
 
                 Ok(Type::Param {
-                    constructor: Path { id, id_span, fields: vec![] },
+                    constructor: Path {
+                        id,
+                        id_span,
+                        fields: vec![],
+                        types: vec![None],
+                    },
                     args,
                     group_span: group_span_start.merge(group_span_end),
                 })
@@ -250,6 +257,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         id,
                         id_span,
                         fields: vec![],
+                        types: vec![None],
                     },
                     group_span,
                     params,
@@ -265,7 +273,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
 
                 else {
-                    Ok(Type::Path(Path { id, id_span, fields: vec![] }))
+                    Ok(Type::Path(Path {
+                        id,
+                        id_span,
+                        fields: vec![],
+
+                        // no dotfish operators for type annotations
+                        types: vec![None],
+                    }))
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {

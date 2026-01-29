@@ -380,7 +380,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        kind: PatternKind::Path(Path { id, id_span, fields: vec![] }),
+                        kind: PatternKind::Path(Path { id, id_span, fields: vec![], types: vec![None] }),
                     }
                 }
             },

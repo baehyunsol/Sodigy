@@ -4,8 +4,10 @@ use sodigy_hir::{
     AssociatedItem,
     Expr,
     Func,
+    FuncParam,
     FuncShape,
     Poly,
+    StructField,
     StructShape,
     Use,
 };
@@ -82,5 +84,104 @@ impl Session {
             errors: vec![],
             warnings: vec![],
         }
+    }
+
+    pub fn ingest(
+        &mut self,
+        module_span: Span,  // of this hir
+        mut hir_session: sodigy_hir::Session,
+    ) {
+        for (def_span, func_shape) in hir_session.funcs.iter().map(
+            |func| (
+                func.name_span,
+                FuncShape {
+                    params: func.params.iter().map(
+                        |param| FuncParam {
+                            name: param.name,
+                            name_span: param.name_span,
+                            type_annot: None,
+                            default_value: param.default_value,
+                        }
+                    ).collect(),
+                    generics: func.generics.clone(),
+                },
+            )
+        ) {
+            self.func_shapes.insert(def_span, func_shape);
+        }
+
+        for (def_span, struct_shape) in hir_session.structs.iter().map(
+            |r#struct| (
+                r#struct.name_span,
+                StructShape {
+                    name: r#struct.name,
+                    fields: r#struct.fields.iter().map(
+                        |field| StructField {
+                            name: field.name,
+                            name_span: field.name_span,
+                            type_annot: None,
+                            default_value: field.default_value,
+                        }
+                    ).collect(),
+                    generics: r#struct.generics.clone(),
+                    associated_funcs: HashMap::new(),
+                    associated_lets: HashMap::new(),
+                },
+            )
+        ) {
+            self.struct_shapes.insert(def_span, struct_shape);
+        }
+
+        let mut children = HashMap::new();
+
+        for (name, span, kind) in hir_session.iter_item_names() {
+            children.insert(name, (span, kind));
+        }
+
+        self.item_name_map.insert(
+            module_span,
+            (
+                NameKind::Module,
+                children,
+            ),
+        );
+
+        for r#enum in hir_session.enums.into_iter() {
+            let mut variants = HashMap::new();
+
+            for variant in r#enum.variants.iter() {
+                variants.insert(
+                    variant.name,
+                    (
+                        variant.name_span,
+                        NameKind::EnumVariant { parent: r#enum.name_span },
+                    ),
+                );
+            }
+
+            self.item_name_map.insert(
+                r#enum.name_span,
+                (
+                    NameKind::Enum,
+                    variants,
+                ),
+            );
+        }
+
+        for (name, span) in hir_session.lang_items.into_iter() {
+            self.lang_items.insert(name, span);
+        }
+
+        for r#use in hir_session.uses.drain(..) {
+            self.name_aliases.insert(r#use.name_span, r#use);
+        }
+
+        for alias in hir_session.aliases.drain(..) {
+            self.type_aliases.insert(alias.name_span, alias);
+        }
+
+        self.polys.extend(hir_session.polys.drain());
+        self.poly_impls.extend(hir_session.poly_impls.drain(..));
+        self.associated_items.extend(hir_session.associated_items.drain(..));
     }
 }

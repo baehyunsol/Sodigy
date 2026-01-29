@@ -88,6 +88,7 @@ impl Type {
                             def_span: Span::Prelude(list_id),
                         },
                         fields: vec![],
+                        types: vec![None],
                     },
                     args: vec![Type::from_ast(r#type, session)?],
                     group_span: *group_span,

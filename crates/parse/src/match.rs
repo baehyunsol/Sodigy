@@ -21,7 +21,8 @@ pub struct MatchArm {
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_match_expr(&mut self) -> Result<Match, Vec<Error>> {
         let keyword = self.match_and_pop(TokenKind::Keyword(Keyword::Match))?;
-        let scrutinee = self.parse_expr()?;
+        let scrutinee = self.parse_expr(false)?;
+        self.check_ambiguous_struct_initialization()?;
 
         let Token {
             kind: TokenKind::Group { tokens, .. },
@@ -48,7 +49,7 @@ impl<'t, 's> Tokens<'t, 's> {
             let guard = match self.peek() {
                 Some(Token { kind: TokenKind::Keyword(Keyword::If), .. }) => {
                     self.cursor += 1;
-                    let guard = self.parse_expr()?;
+                    let guard = self.parse_expr(true)?;
                     self.match_and_pop(TokenKind::Punct(Punct::Arrow))?;
                     Some(guard)
                 },
@@ -62,7 +63,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 },
             };
 
-            let value = self.parse_expr()?;
+            let value = self.parse_expr(true)?;
             arms.push(MatchArm {
                 pattern,
                 guard,
