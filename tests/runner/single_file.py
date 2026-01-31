@@ -51,7 +51,10 @@ def single_files(
             file,
             no_std,
             "target/debug/sodigy",
-            ["capture_and_parse", "capture_and_save"] if mode == "batch" else ["capture_and_parse", "dump"],
+            # It has to dump first in order to debug-with-print.
+            # Because in the second run, many stages are skipped due to incremental compilation,
+            # so do the print statements.
+            ["capture_and_parse", "capture_and_save"] if mode == "batch" else ["dump", "capture_and_parse"],
             save_with_color,
             timeout,
         )

@@ -606,7 +606,8 @@ impl<'t, 's> Tokens<'t, 's> {
                                 Expr::Path(p) => {
                                     let constructor = p.clone();
                                     let mut tokens = Tokens::new(tokens, span.end(), &self.intermediate_dir);
-                                    let fields = self.parse_struct_initialization()?;
+                                    let fields = tokens.parse_struct_initialization()?;
+                                    self.cursor += 1;
                                     lhs = Expr::StructInit {
                                         constructor,
                                         fields,

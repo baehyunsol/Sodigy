@@ -3,6 +3,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
     Generic,
+    Type,
     Use,
 };
 use sodigy_span::{RenderableSpan, Span};
@@ -167,7 +168,34 @@ impl Session {
         }
 
         else {
-            self.resolve_path(&mut r#use.path, None, log)
+            // In case of `use x as y; type x = Foo<Int>;`, we have to
+            // resolve the `use` statement to a type alias: `type y = Foo<Int>;`
+            self.resolve_path(&mut r#use.path, None, log)?;
+
+            if let Some(Some(types)) = r#use.path.types.last() {
+                let types = types.clone();
+                *r#use.path.types.last_mut().unwrap() = None;
+
+                name_aliases_to_type_aliases.push((
+                    r#use.name_span,
+                    Alias {
+                        visibility: r#use.visibility.clone(),
+                        keyword_span: r#use.keyword_span,
+                        name: r#use.name,
+                        name_span: r#use.name_span,
+                        generics: vec![],
+                        generic_group_span: None,
+                        r#type: Type::Param {
+                            constructor: r#use.path.clone(),
+                            args: types,
+                            group_span: Span::None,
+                        },
+                        foreign_names: HashMap::new(),
+                    },
+                ));
+            }
+
+            Ok(())
         }
     }
 }
