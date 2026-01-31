@@ -74,14 +74,71 @@ impl Session {
                     alias.path.types.clone(),
                     path.types[1..].to_vec(),
                 ].concat();
-                return Ok(());
             },
             None => {},
         }
 
-        // What if it's a type alias with generic parameters?
         match self.type_aliases.get(&path.id.def_span) {
-            Some(alias) => todo!(),
+            Some(alias) => {
+                log.push(path.id.span);
+                log.push(path.id.def_span);
+                let generic_args = match path.types.last() {
+                    Some(Some(types)) => types.to_vec(),
+                    _ => match type_args {
+                        Some(types) => types.to_vec(),
+                        None => vec![],
+                    },
+                };
+
+                if generic_args.len() != alias.generics.len() {
+                    // This is a compile error
+                    // path: MyResult.<X>
+                    // alias: type MyResult<T, E> = Result<T, E>;
+                    todo!()
+                }
+
+                else {
+                    let (alias_path, alias_generic_args) = match &alias.r#type {
+                        Type::Path(path) => (path, None),
+                        Type::Param { constructor, args, .. } => (constructor, Some(args.to_vec())),
+
+                        // This is tricky:
+                        // `type Tuple3<T> = (T, T, T);`
+                        // `let x: Tuple3<Int> = { ... };`
+                        // ->
+                        // We called `resolve_path(Tuple3<Int>)`.
+                        // There's no way we can represent `(Int, Int, Int)` with `Path`.
+                        _ => todo!(),
+                    };
+
+                    path.id = IdentWithOrigin {
+                        def_span: alias_path.id.def_span,
+                        origin: alias_path.id.origin,
+                        ..path.id
+                    };
+                    path.fields = alias_path.fields.iter().map(
+                        |field| match field {
+                            Field::Name { name, .. } => Field::Name {
+                                name: *name,
+                                name_span: path.id.span,
+                                dot_span: path.id.span,
+                                is_from_alias: true,
+                            },
+                            _ => unreachable!(),
+                        }
+                    ).collect();
+                    path.types = alias_path.types.clone();
+                    *path.types.last_mut().unwrap() = alias_generic_args;
+
+                    if !generic_args.is_empty() {
+                        // apply generic args
+                        // For example, if `path` is `MyResult.<Int, ()>` and
+                        // `alias` is `type MyResult<T, E> = Result<T, E>;`,
+                        // we have to replace `<T, E>` in `Result<T, E>` with `<Int, ()>`.
+                        todo!()
+                    }
+                }
+            },
             None => {},
         }
 

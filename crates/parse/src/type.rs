@@ -324,13 +324,13 @@ impl<'t, 's> Tokens<'t, 's> {
                     Delim::Bracket => {
                         let r#type = tokens.parse_types(StopAt::Eof)?;
 
-                        if let Some(unexpected_type_annotation) = r#type.get(1) {
+                        if let Some(unexpected_type_annot) = r#type.get(1) {
                             return Err(vec![Error {
                                 kind: ErrorKind::UnexpectedToken {
                                     expected: ErrorToken::Nothing,
-                                    got: ErrorToken::TypeAnnotation,
+                                    got: ErrorToken::TypeAnnot,
                                 },
-                                spans: unexpected_type_annotation.error_span_wide().simple_error(),
+                                spans: unexpected_type_annot.error_span_wide().simple_error(),
                                 note: None,
                             }]);
                         }
@@ -343,7 +343,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     },
                     d => Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {
-                            expected: ErrorToken::TypeAnnotation,
+                            expected: ErrorToken::TypeAnnot,
                             got: ErrorToken::Group(d),
                         },
                         spans: group_span.simple_error(),
@@ -361,13 +361,13 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             (Some(t), _) => Err(vec![Error {
                 kind: ErrorKind::UnexpectedToken {
-                    expected: ErrorToken::TypeAnnotation,
+                    expected: ErrorToken::TypeAnnot,
                     got: (&t.kind).into(),
                 },
                 spans: t.span.simple_error(),
                 note: None,
             }]),
-            (None, _) => Err(vec![self.unexpected_end(ErrorToken::TypeAnnotation)]),
+            (None, _) => Err(vec![self.unexpected_end(ErrorToken::TypeAnnot)]),
         }
     }
 

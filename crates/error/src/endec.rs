@@ -3,9 +3,7 @@ use crate::{
     ErrorKind,
     ErrorToken,
     NameCollisionKind,
-    NotExprBut,
-    NotStructBut,
-    NotTypeBut,
+    NotXBut,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
@@ -69,7 +67,7 @@ impl Endec for ErrorToken {
             ErrorToken::String => {
                 buffer.push(10);
             },
-            ErrorToken::TypeAnnotation => {
+            ErrorToken::TypeAnnot => {
                 buffer.push(11);
             },
             ErrorToken::Declaration => {
@@ -145,7 +143,7 @@ impl Endec for ErrorToken {
             Some(8) => Ok((ErrorToken::Generic, cursor + 1)),
             Some(9) => Ok((ErrorToken::Number, cursor + 1)),
             Some(10) => Ok((ErrorToken::String, cursor + 1)),
-            Some(11) => Ok((ErrorToken::TypeAnnotation, cursor + 1)),
+            Some(11) => Ok((ErrorToken::TypeAnnot, cursor + 1)),
             Some(12) => Ok((ErrorToken::Declaration, cursor + 1)),
             Some(13) => Ok((ErrorToken::Expr, cursor + 1)),
             Some(14) => Ok((ErrorToken::Path, cursor + 1)),
@@ -212,75 +210,35 @@ impl Endec for NameCollisionKind {
     }
 }
 
-impl Endec for NotTypeBut {
+impl Endec for NotXBut {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            NotTypeBut::Expr => {
+            NotXBut::Expr => {
                 buffer.push(0);
             },
-            NotTypeBut::Module => {
+            NotXBut::Struct => {
                 buffer.push(1);
             },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        match buffer.get(cursor) {
-            Some(0) => Ok((NotTypeBut::Expr, cursor + 1)),
-            Some(1) => Ok((NotTypeBut::Module, cursor + 1)),
-            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
-            None => Err(DecodeError::UnexpectedEof),
-        }
-    }
-}
-
-impl Endec for NotStructBut {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            NotStructBut::Expr => {
-                buffer.push(0);
-            },
-            NotStructBut::Module => {
-                buffer.push(1);
-            },
-        }
-    }
-
-    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        match buffer.get(cursor) {
-            Some(0) => Ok((NotStructBut::Expr, cursor + 1)),
-            Some(1) => Ok((NotStructBut::Module, cursor + 1)),
-            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
-            None => Err(DecodeError::UnexpectedEof),
-        }
-    }
-}
-
-impl Endec for NotExprBut {
-    fn encode_impl(&self, buffer: &mut Vec<u8>) {
-        match self {
-            NotExprBut::Struct => {
-                buffer.push(0);
-            },
-            NotExprBut::Enum => {
-                buffer.push(1);
-            },
-            NotExprBut::Module => {
+            NotXBut::Enum => {
                 buffer.push(2);
             },
-            NotExprBut::GenericParam => {
+            NotXBut::Module => {
                 buffer.push(3);
+            },
+            NotXBut::GenericParam => {
+                buffer.push(4);
             },
         }
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
-            Some(0) => Ok((NotExprBut::Struct, cursor + 1)),
-            Some(1) => Ok((NotExprBut::Enum, cursor + 1)),
-            Some(2) => Ok((NotExprBut::Module, cursor + 1)),
-            Some(3) => Ok((NotExprBut::GenericParam, cursor + 1)),
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(0) => Ok((NotXBut::Expr, cursor + 1)),
+            Some(1) => Ok((NotXBut::Struct, cursor + 1)),
+            Some(2) => Ok((NotXBut::Enum, cursor + 1)),
+            Some(3) => Ok((NotXBut::Module, cursor + 1)),
+            Some(4) => Ok((NotXBut::GenericParam, cursor + 1)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

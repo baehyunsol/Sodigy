@@ -47,7 +47,7 @@ impl Session {
                 has_error = true;
             }
 
-            else if let Err(()) = self.check_type_annotation_path(&type_assertion.r#type) {
+            else if let Err(()) = self.check_type_annot_path(&type_assertion.r#type) {
                 has_error = true;
             }
         }
@@ -69,7 +69,7 @@ impl Session {
                 has_error = true;
             }
 
-            else if let Err(()) = self.check_type_annotation_path(&type_annot) {
+            else if let Err(()) = self.check_type_annot_path(&type_annot) {
                 has_error = true;
             }
         }
@@ -100,7 +100,7 @@ impl Session {
                     has_error = true;
                 }
 
-                else if let Err(()) = self.check_type_annotation_path(type_annot) {
+                else if let Err(()) = self.check_type_annot_path(type_annot) {
                     has_error = true;
                 }
             }
@@ -111,7 +111,7 @@ impl Session {
                 has_error = true;
             }
 
-            else if let Err(()) = self.check_type_annotation_path(type_annot) {
+            else if let Err(()) = self.check_type_annot_path(type_annot) {
                 has_error = true;
             }
         }
@@ -142,7 +142,7 @@ impl Session {
                     has_error = true;
                 }
 
-                else if let Err(()) = self.check_type_annotation_path(type_annot) {
+                else if let Err(()) = self.check_type_annot_path(type_annot) {
                     has_error = true;
                 }
             }

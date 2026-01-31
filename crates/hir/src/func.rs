@@ -213,7 +213,7 @@ impl Func {
 
                     if let Some(type_annot) = &ast_param.type_annot {
                         session.errors.push(Error {
-                            kind: ErrorKind::SelfParamWithTypeAnnotation,
+                            kind: ErrorKind::SelfParamWithTypeAnnot,
                             spans: vec![
                                 RenderableSpan {
                                     span: type_annot.error_span_wide(),
@@ -258,11 +258,11 @@ impl Func {
         // 1. Sodigy doesn't allow dependent types.
         // 2. A param's default value should not reference other params.
         let mut params = Vec::with_capacity(ast_func.params.len());
-        let mut missing_type_annotations = vec![];
+        let mut missing_type_annots = vec![];
 
         for (i, ast_param) in ast_func.params.iter().enumerate() {
             if !(i == 0 && is_associated_func) && ast_param.type_annot.is_none() {
-                missing_type_annotations.push(i as i64);
+                missing_type_annots.push(i as i64);
             }
 
             match FuncParam::from_ast(ast_param, session, is_top_level) {
@@ -298,22 +298,22 @@ impl Func {
         }
 
         else {
-            missing_type_annotations.push(-1);
+            missing_type_annots.push(-1);
         }
 
-        if !missing_type_annotations.is_empty() {
-            let mut missing_params = missing_type_annotations.iter().filter(
+        if !missing_type_annots.is_empty() {
+            let mut missing_params = missing_type_annots.iter().filter(
                 |i| **i >= 0
             ).map(
                 |i| format!("{} parameter", to_ordinal((i + 1) as usize))
             ).collect::<Vec<_>>();
 
-            if missing_type_annotations.contains(&-1) {
+            if missing_type_annots.contains(&-1) {
                 missing_params.push(String::from("return type"));
             }
 
             session.warnings.push(Lint {
-                kind: LintKind::FuncWithoutTypeAnnotation,
+                kind: LintKind::FuncWithoutTypeAnnot,
                 spans: ast_func.name_span.simple_error(),
                 note: Some(format!(
                     "Type annotation{} for {} {} missing.",

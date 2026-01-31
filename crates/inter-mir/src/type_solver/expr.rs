@@ -1,10 +1,9 @@
 use super::TypeSolver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
-use sodigy_error::NotExprBut;
 use sodigy_hir::FuncPurity;
 use sodigy_mir::{Callable, ShortCircuitKind};
-use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
+use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
@@ -45,10 +44,7 @@ impl TypeSolver {
                         _ => {},
                     }
 
-                    if let Err(e) = is_expression_or_error(id) {
-                        self.errors.push(e);
-                        return (None, true);
-                    }
+                    // NOTE: inter-hir must have checked that `id` is a valid expression
 
                     self.add_type_var(Type::Var { def_span: id.def_span, is_return: false }, Some(id.id));
                     (
@@ -535,10 +531,10 @@ impl TypeSolver {
                             //       But there's no way we can check whether it's generic or not
                             (Some(Type::Static { def_span: *def_span, span: Span::None }), has_error)
                         },
-                        None => {
-                            self.errors.push(TypeError::NotStruct { span: *span });
-                            (None, true)
-                        },
+
+                        // This is kinda Internal Compiler Error.
+                        // inter-hir must check whether a struct constructor is from `NameKind::Struct`.
+                        None => unreachable!(),
                     },
                     Callable::TupleInit { .. } => (
                         Some(Type::Tuple {
@@ -847,28 +843,5 @@ impl TypeSolver {
             },
             _ => panic!("TODO: {type:?}"),
         }
-    }
-}
-
-fn is_expression_or_error(id: &IdentWithOrigin) -> Result<(), TypeError> {
-    match &id.origin {
-        NameOrigin::FuncParam { .. } => Ok(()),
-        NameOrigin::GenericParam { .. } => Err(TypeError::NotExpr {
-            id: *id,
-            kind: NotExprBut::GenericParam,
-        }),
-        NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-            NameKind::Let { .. } |
-            NameKind::Func |
-            NameKind::EnumVariant { .. } |
-            NameKind::FuncParam |
-            NameKind::PatternNameBind |
-            NameKind::Pipeline => Ok(()),
-            k => Err(TypeError::NotExpr {
-                id: *id,
-                kind: (*k).into(),
-            }),
-        },
-        NameOrigin::External => unreachable!(),
     }
 }

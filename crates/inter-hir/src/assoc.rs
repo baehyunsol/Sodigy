@@ -33,11 +33,11 @@ impl Session {
                                 note: None,
                             }),
 
-                            // already filtered out by `check_type_annotation_path`
+                            // already filtered out by `check_type_annot_path`
                             _ => unreachable!(),
                         },
 
-                        // already filtered out by `check_type_annotation_path`
+                        // already filtered out by `check_type_annot_path`
                         _ => unreachable!(),
                     }
                 },
@@ -64,7 +64,7 @@ impl Session {
                 continue;
             }
 
-            else if let Err(()) = self.check_type_annotation_path(&associated_item.r#type) {
+            else if let Err(()) = self.check_type_annot_path(&associated_item.r#type) {
                 has_error = true;
                 continue;
             }

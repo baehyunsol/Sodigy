@@ -1,0 +1,6 @@
+type Tuple3<T> = (T, T, T);
+
+let ints: Tuple3<Int> = (3, 3, 3);
+
+#[assert_type(Tuple3<Int>)]
+let ints2 = ints;

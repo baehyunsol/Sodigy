@@ -1,5 +1,5 @@
-use crate::Session;
-use sodigy_error::{Error, ErrorKind, NotTypeBut};
+use crate::{Session, TypeStructExpr, not_x_but_y};
+use sodigy_error::{Error, ErrorKind, NotXBut};
 use sodigy_hir::{Path, Type};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
@@ -105,8 +105,8 @@ impl Session {
         }
     }
 
-    pub fn check_type_annotation_path(&mut self, r#type: &Type) -> Result<(), ()> {
-        fn check_path(path: &Path) -> Result<(), Error> {
+    pub fn check_type_annot_path(&mut self, r#type: &Type) -> Result<(), ()> {
+        fn check_path(path: &Path, intermediate_dir: &str) -> Result<(), Error> {
             match path.id.origin {
                 // What kinda error is this?
                 _ if !path.fields.is_empty() => todo!(),
@@ -117,7 +117,7 @@ impl Session {
                     spans: path.error_span_wide().simple_error(),
                     note: None,
                 }),
-                NameOrigin::FuncParam { .. } => Err(not_type_error(path, NotTypeBut::Expr)),
+                NameOrigin::FuncParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Type, NotXBut::Expr, intermediate_dir)),
                 NameOrigin::GenericParam { .. } => Ok(()),
                 NameOrigin::Local { kind } |
                 NameOrigin::Foreign { kind } => match kind {
@@ -127,7 +127,7 @@ impl Session {
                     NameKind::Module |
                     NameKind::FuncParam |
                     NameKind::PatternNameBind |
-                    NameKind::Pipeline => Err(not_type_error(path, kind.into())),
+                    NameKind::Pipeline => Err(not_x_but_y(path, TypeStructExpr::Type, kind.into(), intermediate_dir)),
                     NameKind::Struct |
                     NameKind::Enum |
                     NameKind::GenericParam => Ok(()),
@@ -149,7 +149,7 @@ impl Session {
         }
 
         match r#type {
-            Type::Path(p) => match check_path(p) {
+            Type::Path(p) => match check_path(p, &self.intermediate_dir) {
                 Ok(()) => Ok(()),
                 Err(e) => {
                     self.errors.push(e);
@@ -160,12 +160,12 @@ impl Session {
                 let mut has_error = false;
 
                 for arg in args.iter() {
-                    if let Err(()) = self.check_type_annotation_path(arg) {
+                    if let Err(()) = self.check_type_annot_path(arg) {
                         has_error = true;
                     }
                 }
 
-                if let Err(e) = check_path(constructor) {
+                if let Err(e) = check_path(constructor, &self.intermediate_dir) {
                     self.errors.push(e);
                     has_error = true;
                 }
@@ -182,7 +182,7 @@ impl Session {
                 let mut has_error = false;
 
                 for r#type in types.iter() {
-                    if let Err(()) = self.check_type_annotation_path(r#type) {
+                    if let Err(()) = self.check_type_annot_path(r#type) {
                         has_error = true;
                     }
                 }
@@ -198,18 +198,18 @@ impl Session {
             Type::Func { fn_constructor, params, r#return, .. } => {
                 let mut has_error = false;
 
-                if let Err(e) = check_path(fn_constructor) {
+                if let Err(e) = check_path(fn_constructor, &self.intermediate_dir) {
                     self.errors.push(e);
                     has_error = true;
                 }
 
                 for param in params.iter() {
-                    if let Err(()) = self.check_type_annotation_path(param) {
+                    if let Err(()) = self.check_type_annot_path(param) {
                         has_error = true;
                     }
                 }
 
-                if let Err(()) = self.check_type_annotation_path(r#return) {
+                if let Err(()) = self.check_type_annot_path(r#return) {
                     has_error = true;
                 }
 
@@ -223,16 +223,5 @@ impl Session {
             },
             Type::Wildcard(_) | Type::Never(_) => Ok(()),
         }
-    }
-}
-
-fn not_type_error(path: &Path, but: NotTypeBut) -> Error {
-    Error {
-        kind: ErrorKind::NotType {
-            id: path.id.id,
-            kind: but,
-        },
-        spans: todo!(),
-        note: None,
     }
 }

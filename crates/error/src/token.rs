@@ -14,7 +14,7 @@ pub enum ErrorToken {
     Generic,
     Number,
     String,
-    TypeAnnotation,
+    TypeAnnot,
     Declaration,
     Expr,
     Path,  // and identifier or a path

@@ -33,7 +33,7 @@
     { names: Vec<InternedString> }, CyclicAlias
     { names: Vec<InternedString> }, DollarOutsidePipeline,
     DisconnectedPipeline, UndefinedName(InternedString),
-    EnumVariantInTypeAnnotation, KeywordArgumentRepeated(InternedString),
+    EnumVariantInTypeAnnot, KeywordArgumentRepeated(InternedString),
     KeywordArgumentNotAllowed, AliasResolveRecursionLimitReached,
     MissingTypeParameter { expected: usize, got: usize },
     UnexpectedTypeParameter { expected: usize, got: usize },
@@ -46,9 +46,9 @@
     InvalidStructFields
     { struct_name: InternedString, invalid_fields: Vec<InternedString> },
     CannotAssociateItem, TooGeneralToAssociateItem, NotType
-    { id: InternedString, but: NotTypeBut }, NotCallable { r#type: String },
-    NotStruct { id: InternedString, but: NotStructBut }, NotExpr
-    { id: InternedString, but: NotExprBut }, NotPolyGeneric
+    { id: InternedString, but: NotXBut }, NotCallable { r#type: String },
+    NotStruct { id: InternedString, but: NotXBut }, NotExpr
+    { id: InternedString, but: NotXBut }, NotPolyGeneric
     { id: Option<IdentWithOrigin> }, UnexpectedType
     { expected: String, got: String }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
@@ -59,13 +59,11 @@
     { num_candidates: usize }, ImpureCallInPureContext, NonExhaustiveArms,
     MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
     ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },
-    LibFileNotFound, SelfParamWithTypeAnnotation,
-    AssociatedFuncWithoutSelfParam, UnusedNames
-    { names: Vec<InternedString>, kind: NameKind }, UnreachableMatchArm,
-    NoImpureCallInImpureContext, FuncWithoutTypeAnnotation,
-    LetWithoutTypeAnnotation, FieldWithoutTypeAnnotation,
-    SelfParamNotNamedSelf, Todo { id: u32, message: String },
-    InternalCompilerError { id: u32 },
+    LibFileNotFound, SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
+    UnusedNames { names: Vec<InternedString>, kind: NameKind },
+    UnreachableMatchArm, NoImpureCallInImpureContext, FuncWithoutTypeAnnot,
+    LetWithoutTypeAnnot, FieldWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
+    { id: u32, message: String }, InternalCompilerError { id: u32 },
 } impl ErrorKind {
     pub fn index(& self) -> u16
     {
@@ -127,7 +125,7 @@
             310u16, ErrorKind :: CyclicAlias { .. } => 315u16, ErrorKind ::
             DollarOutsidePipeline => 320u16, ErrorKind :: DisconnectedPipeline
             => 325u16, ErrorKind :: UndefinedName(_,) => 330u16, ErrorKind ::
-            EnumVariantInTypeAnnotation => 335u16, ErrorKind ::
+            EnumVariantInTypeAnnot => 335u16, ErrorKind ::
             KeywordArgumentRepeated(_,) => 340u16, ErrorKind ::
             KeywordArgumentNotAllowed => 345u16, ErrorKind ::
             AliasResolveRecursionLimitReached => 350u16, ErrorKind ::
@@ -154,16 +152,16 @@
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
             => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
             ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
-            LibFileNotFound => 470u16, ErrorKind ::
-            SelfParamWithTypeAnnotation => 475u16, ErrorKind ::
-            AssociatedFuncWithoutSelfParam => 480u16, ErrorKind :: UnusedNames
-            { .. } => 5000u16, ErrorKind :: UnreachableMatchArm => 5005u16,
-            ErrorKind :: NoImpureCallInImpureContext => 5010u16, ErrorKind ::
-            FuncWithoutTypeAnnotation => 8000u16, ErrorKind ::
-            LetWithoutTypeAnnotation => 8005u16, ErrorKind ::
-            FieldWithoutTypeAnnotation => 8010u16, ErrorKind ::
-            SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo { .. } =>
-            9998u16, ErrorKind :: InternalCompilerError { .. } => 9999u16,
+            LibFileNotFound => 470u16, ErrorKind :: SelfParamWithTypeAnnot =>
+            475u16, ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16,
+            ErrorKind :: UnusedNames { .. } => 5000u16, ErrorKind ::
+            UnreachableMatchArm => 5005u16, ErrorKind ::
+            NoImpureCallInImpureContext => 5010u16, ErrorKind ::
+            FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
+            => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
+            ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
+            { .. } => 9998u16, ErrorKind :: InternalCompilerError { .. } =>
+            9999u16,
         }
     }
 } impl ErrorLevel {
@@ -242,7 +240,7 @@
             DollarOutsidePipeline => ErrorLevel :: Error, ErrorKind ::
             DisconnectedPipeline => ErrorLevel :: Error, ErrorKind ::
             UndefinedName(_,) => ErrorLevel :: Error, ErrorKind ::
-            EnumVariantInTypeAnnotation => ErrorLevel :: Error, ErrorKind ::
+            EnumVariantInTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             KeywordArgumentRepeated(_,) => ErrorLevel :: Error, ErrorKind ::
             KeywordArgumentNotAllowed => ErrorLevel :: Error, ErrorKind ::
             AliasResolveRecursionLimitReached => ErrorLevel :: Error,
@@ -274,14 +272,14 @@
             :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
             ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
             LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
-            SelfParamWithTypeAnnotation => ErrorLevel :: Error, ErrorKind ::
+            SelfParamWithTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
             :: UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
             UnreachableMatchArm => ErrorLevel :: Warning, ErrorKind ::
             NoImpureCallInImpureContext => ErrorLevel :: Warning, ErrorKind ::
-            FuncWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
-            LetWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
-            FieldWithoutTypeAnnotation => ErrorLevel :: Lint, ErrorKind ::
+            FuncWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
             SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
             { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
             { .. } => ErrorLevel :: Error,
@@ -442,7 +440,7 @@
             DisconnectedPipeline => { buffer.push(1u8); buffer.push(69u8); },
             ErrorKind :: UndefinedName(t0,) =>
             { buffer.push(1u8); buffer.push(74u8); t0.encode_impl(buffer); },
-            ErrorKind :: EnumVariantInTypeAnnotation =>
+            ErrorKind :: EnumVariantInTypeAnnot =>
             { buffer.push(1u8); buffer.push(79u8); }, ErrorKind ::
             KeywordArgumentRepeated(t0,) =>
             { buffer.push(1u8); buffer.push(84u8); t0.encode_impl(buffer); },
@@ -555,7 +553,7 @@
                 r#candidates.encode_impl(buffer);
             }, ErrorKind :: LibFileNotFound =>
             { buffer.push(1u8); buffer.push(214u8); }, ErrorKind ::
-            SelfParamWithTypeAnnotation =>
+            SelfParamWithTypeAnnot =>
             { buffer.push(1u8); buffer.push(219u8); }, ErrorKind ::
             AssociatedFuncWithoutSelfParam =>
             { buffer.push(1u8); buffer.push(224u8); }, ErrorKind ::
@@ -567,11 +565,10 @@
             { buffer.push(19u8); buffer.push(141u8); }, ErrorKind ::
             NoImpureCallInImpureContext =>
             { buffer.push(19u8); buffer.push(146u8); }, ErrorKind ::
-            FuncWithoutTypeAnnotation =>
-            { buffer.push(31u8); buffer.push(64u8); }, ErrorKind ::
-            LetWithoutTypeAnnotation =>
+            FuncWithoutTypeAnnot => { buffer.push(31u8); buffer.push(64u8); },
+            ErrorKind :: LetWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(69u8); }, ErrorKind ::
-            FieldWithoutTypeAnnotation =>
+            FieldWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(74u8); }, ErrorKind ::
             SelfParamNotNamedSelf =>
             { buffer.push(31u8); buffer.push(79u8); }, ErrorKind :: Todo
@@ -758,8 +755,8 @@
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UndefinedName(t0,), cursor))
-            }, 335u16 =>
-            Ok((ErrorKind :: EnumVariantInTypeAnnotation, cursor)), 340u16 =>
+            }, 335u16 => Ok((ErrorKind :: EnumVariantInTypeAnnot, cursor)),
+            340u16 =>
             {
                 let (t0, cursor) = InternedString ::
                 decode_impl(buffer, cursor) ? ;
@@ -829,8 +826,8 @@
             400u16 =>
             {
                 let (r#id, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
-                NotTypeBut :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) = NotXBut
+                :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: NotType { r#id, r#but, }, cursor))
             }, 404u16 =>
             {
@@ -839,14 +836,14 @@
             }, 405u16 =>
             {
                 let (r#id, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
-                NotStructBut :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) = NotXBut
+                :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: NotStruct { r#id, r#but, }, cursor))
             }, 406u16 =>
             {
                 let (r#id, cursor) = InternedString ::
-                decode_impl(buffer, cursor) ? ; let (r#but, cursor) =
-                NotExprBut :: decode_impl(buffer, cursor) ? ;
+                decode_impl(buffer, cursor) ? ; let (r#but, cursor) = NotXBut
+                :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: NotExpr { r#id, r#but, }, cursor))
             }, 410u16 =>
             {
@@ -916,7 +913,7 @@
                 Ok((ErrorKind :: ModuleFileNotFound
                 { r#module, r#candidates, }, cursor))
             }, 470u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 475u16 =>
-            Ok((ErrorKind :: SelfParamWithTypeAnnotation, cursor)), 480u16 =>
+            Ok((ErrorKind :: SelfParamWithTypeAnnot, cursor)), 480u16 =>
             Ok((ErrorKind :: AssociatedFuncWithoutSelfParam, cursor)), 5000u16
             =>
             {
@@ -926,11 +923,10 @@
                 Ok((ErrorKind :: UnusedNames { r#names, r#kind, }, cursor))
             }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
             5010u16 => Ok((ErrorKind :: NoImpureCallInImpureContext, cursor)),
-            8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnotation, cursor)),
-            8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnotation, cursor)),
-            8010u16 => Ok((ErrorKind :: FieldWithoutTypeAnnotation, cursor)),
-            8015u16 => Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)),
-            9998u16 =>
+            8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)),
+            8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnot, cursor)), 8010u16
+            => Ok((ErrorKind :: FieldWithoutTypeAnnot, cursor)), 8015u16 =>
+            Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)), 9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;
                 let (r#message, cursor) = String ::

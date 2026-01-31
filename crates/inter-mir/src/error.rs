@@ -2,14 +2,12 @@ use crate::Type;
 use sodigy_error::{
     Error,
     ErrorKind,
-    NotExprBut,
     Warning,
     WarningKind,
     comma_list_strs,
 };
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
 use sodigy_mir::Session as MirSession;
-use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -67,14 +65,6 @@ pub enum TypeError {
     NotCallable {
         r#type: Type,
         func_span: Span,
-    },
-    NotStruct {
-        // TODO: more information
-        span: Span,
-    },
-    NotExpr {
-        id: IdentWithOrigin,
-        kind: NotExprBut,
     },
     CannotSpecializePolyGeneric {
         call: Span,
@@ -152,8 +142,8 @@ pub enum ErrorContext {
     MatchScrutinee,
     MatchGuardBool,
     MatchArmEqual,
-    InferTypeAnnotation,
-    VerifyTypeAnnotation,
+    InferTypeAnnot,
+    VerifyTypeAnnot,
     ListElementEqual,
     FuncArgs,
     StructFields,
@@ -187,8 +177,8 @@ impl ErrorContext {
             ErrorContext::MatchScrutinee => Some(String::from("A pattern of a match arm and the match's scrutinee must have the same type.")),
             ErrorContext::MatchGuardBool => Some(String::from("A guard of a match arm must be a boolean.")),
             ErrorContext::MatchArmEqual => Some(String::from("All arms of a `match` expression must have the same type.")),
-            ErrorContext::InferTypeAnnotation => Some(String::from("There's an error while doing type-inference.")),
-            ErrorContext::VerifyTypeAnnotation => Some(String::from("A value's type annotation and its actual type do not match.")),
+            ErrorContext::InferTypeAnnot => Some(String::from("There's an error while doing type-inference.")),
+            ErrorContext::VerifyTypeAnnot => Some(String::from("A value's type annotation and its actual type do not match.")),
             ErrorContext::ListElementEqual => Some(String::from("All elements of a list must have the same type.")),
             ErrorContext::FuncArgs => Some(String::from("Arguments of this function are incorrect.")),
             ErrorContext::StructFields => Some(String::from("Fields of this struct are incorrect.")),
@@ -284,7 +274,7 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                     } else {
                         format!(
                             "The value should have type `{expected_type}`{}.",
-                            if let ErrorContext::VerifyTypeAnnotation = context {
+                            if let ErrorContext::VerifyTypeAnnot = context {
                                 ", according to this type annotation"
                             } else {
                                 ""
@@ -409,49 +399,6 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                 note: None,
             }],
             note: None,
-        },
-        TypeError::NotStruct { span } => Error {
-            kind: ErrorKind::NotStruct { id: None },
-            spans: span.simple_error(),
-            note: None,
-        },
-        TypeError::NotExpr { id, kind } => {
-            let name = id.id.unintern_or_default(&session.intermediate_dir);
-            let (note, short_note) = match kind {
-                NotExprBut::Struct => (
-                    Some(format!("`{name}` is a name of a struct. Use curly braces to initialize the struct.")),
-                    "a struct",
-                ),
-                NotExprBut::Enum => (
-                    Some(format!("`{name}` is a name of an enum. You have to use one of its variants.")),
-                    "an enum",
-                ),
-                NotExprBut::Module => (
-                    Some(format!("`{name}` is a module, not a value.")),
-                    "a module",
-                ),
-                NotExprBut::GenericParam => (
-                    Some(format!("`{name}` is a generic parameter, which is not a value.")),
-                    "a generic parameter",
-                ),
-            };
-
-            Error {
-                kind: ErrorKind::NotExpr { id: id.id, kind: *kind },
-                spans: vec![
-                    RenderableSpan {
-                        span: id.span,
-                        auxiliary: false,
-                        note: Some(format!("This is not an expression, but {short_note}.")),
-                    },
-                    RenderableSpan {
-                        span: id.def_span,
-                        auxiliary: true,
-                        note: Some(format!("`{name}` is defined here.")),
-                    },
-                ],
-                note,
-            }
         },
         // TODO: based on the poly's def_span, I want it to throw
         //       `CannotApplyInfixOp` or so.

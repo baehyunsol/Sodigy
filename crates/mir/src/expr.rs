@@ -520,55 +520,12 @@ impl Expr {
             },
             // Unlike hir::Expr::Call, we'll raise an error here if the number of
             // fields is wrong.
-            hir::Expr::StructInit { r#struct, fields: hir_fields, group_span } => {
+            hir::Expr::StructInit { constructor, fields: hir_fields, group_span } => {
                 let group_span = *group_span;
                 let mut has_error = false;
-                let (def_span, span) = match Expr::from_hir(r#struct, session)? {
-                    expr @ Expr::Ident(id) => {
-                        let (is_struct, explain) = match id.origin {
-                            NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                                NameKind::Struct => (true, None),
-                                NameKind::Let { .. } => (false, Some("a value")),
-                                NameKind::Func => (false, Some("a function")),
-                                NameKind::Enum => (false, Some("an enum")),
-
-                                // It may or may not be a struct, but we don't know that...
-                                NameKind::EnumVariant { .. } => todo!(),
-
-                                NameKind::Alias => (false, Some("a type alias")),
-                                NameKind::Module => (false, Some("a module")),
-                                NameKind::Use => unreachable!(),
-                                NameKind::FuncParam => (false, Some("a function parameter")),
-                                NameKind::GenericParam => (false, Some("a generic parameter")),
-                                NameKind::PatternNameBind => (false, Some("a pattern name bind")),
-                                NameKind::Pipeline => (false, Some("a piped value")),
-                            },
-                            NameOrigin::FuncParam { .. } => (false, Some("a function parameter")),
-                            NameOrigin::GenericParam { .. } => (false, Some("a generic parameter")),
-                            NameOrigin::External => unreachable!(),
-                        };
-
-                        if !is_struct {
-                            session.errors.push(Error {
-                                kind: ErrorKind::NotStruct { id: Some(id) },
-                                spans: expr.error_span_wide().simple_error(),
-                                note: Some(format!("This is {}, not a struct.", explain.unwrap())),
-                            });
-                            return Err(());
-                        }
-
-                        (id.def_span, id.span)
-                    },
-                    expr => {
-                        session.errors.push(Error {
-                            kind: ErrorKind::NotStruct { id: None },
-                            spans: expr.error_span_wide().simple_error(),
-                            note: None,
-                        });
-                        return Err(());
-                    },
-                };
                 let mut generic_defs = vec![];
+                let (def_span, call_span) = (constructor.id.def_span, constructor.id.span);
+
                 // for better error messages
                 let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
@@ -582,9 +539,9 @@ impl Expr {
                         if !struct_shape.generics.is_empty() {
                             for generic_def in struct_shape.generics.iter() {
                                 session.generic_args.insert(
-                                    (r#struct.error_span_wide(), generic_def.name_span),
+                                    (call_span, generic_def.name_span),
                                     Type::GenericArg {
-                                        call: r#struct.error_span_wide(),
+                                        call: call_span,
                                         generic: generic_def.name_span,
                                     },
                                 );
@@ -800,7 +757,7 @@ impl Expr {
                             Ok(Expr::Call {
                                 func: Callable::StructInit {
                                     def_span,
-                                    span,
+                                    span: call_span,
                                 },
                                 args: mir_fields_final,
                                 arg_group_span: group_span,

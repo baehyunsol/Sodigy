@@ -20,7 +20,7 @@ impl Session {
             }
 
             match path {
-                Expr::Path(Path { id, fields, types }) if fields.is_empty() && types.is_empty() => match self.polys.get_mut(&id.def_span) {
+                Expr::Path(Path { id, fields, types }) if fields.is_empty() && types[0].is_none() => match self.polys.get_mut(&id.def_span) {
                     Some(poly) => {
                         poly.impls.push(impl_span);
                     },

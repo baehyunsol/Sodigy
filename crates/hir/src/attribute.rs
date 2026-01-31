@@ -905,7 +905,7 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
             session.errors.push(Error {
                 kind: ErrorKind::UnexpectedToken {
                     expected: ErrorToken::Generic,
-                    got: ErrorToken::TypeAnnotation,
+                    got: ErrorToken::TypeAnnot,
                 },
                 spans: arg.error_span_wide().simple_error(),
                 note: error_note.clone(),

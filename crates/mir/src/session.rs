@@ -29,7 +29,7 @@ pub struct Session {
 
     pub type_assertions: Vec<TypeAssertion>,
 
-    // It's `def_span -> type_annotation` map.
+    // It's `def_span -> type_annot` map.
     // It has type information of *every* name in the code.
     // If you query a def_span of a function, it'll give you something like `Fn(Int, Int) -> Int`.
     //
@@ -40,7 +40,7 @@ pub struct Session {
 
     // If the programmer calls a generic function, either the programmer has to
     // annotate type, or the compiler has to infer it.
-    // It's also a `type_var -> type_annotation` map. It works like `Session.types`, but for generic instances.
+    // It's also a `type_var -> type_annot` map. It works like `Session.types`, but for generic instances.
     pub generic_args: HashMap<(Span, Span), Type>,
 
     // We need this when we create error messages.

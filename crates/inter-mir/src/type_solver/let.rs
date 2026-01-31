@@ -30,14 +30,14 @@ impl TypeSolver {
                     },
                     r#let.value.error_span_wide(),
                     None,
-                    ErrorContext::InferTypeAnnotation,
+                    ErrorContext::InferTypeAnnot,
                 )
             },
             Some(annotated_type) => (
                 annotated_type.clone(),
                 r#let.value.error_span_wide(),
                 r#let.type_annot_span,
-                ErrorContext::VerifyTypeAnnotation,
+                ErrorContext::VerifyTypeAnnot,
             ),
         };
 

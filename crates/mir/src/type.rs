@@ -109,7 +109,7 @@ impl Type {
     pub fn from_hir(hir_type: &hir::Type, session: &mut Session) -> Result<Type, ()> {
         match hir_type {
             hir::Type::Path(path) => {
-                // `inter-hir`'s `check_type_annotation_path` should guarantee this
+                // `inter-hir`'s `check_type_annot_path` should guarantee this
                 assert!(path.fields.is_empty());
 
                 match path.id.origin {

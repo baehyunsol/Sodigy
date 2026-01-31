@@ -114,7 +114,7 @@ error_kinds!(
     // TODO: suggest similar names
     (UndefinedName(InternedString),                                  330,    Error),
 
-    (EnumVariantInTypeAnnotation,                                    335,    Error),
+    (EnumVariantInTypeAnnot,                                         335,    Error),
     (KeywordArgumentRepeated(InternedString),                        340,    Error),
     (KeywordArgumentNotAllowed,                                      345,    Error),
     (AliasResolveRecursionLimitReached,                              350,    Error),
@@ -134,10 +134,10 @@ error_kinds!(
 
     (CannotAssociateItem,                                            398,    Error),
     (TooGeneralToAssociateItem,                                      399,    Error),
-    (NotType { id: InternedString, but: NotTypeBut },                400,    Error),
+    (NotType { id: InternedString, but: NotXBut },                   400,    Error),
     (NotCallable { r#type: String },                                 404,    Error),
-    (NotStruct { id: InternedString, but: NotStructBut },            405,    Error),
-    (NotExpr { id: InternedString, but: NotExprBut },                406,    Error),
+    (NotStruct { id: InternedString, but: NotXBut },                 405,    Error),
+    (NotExpr { id: InternedString, but: NotXBut },                   406,    Error),
     (NotPolyGeneric { id: Option<IdentWithOrigin> },                 410,    Error),
 
     // Type errors from here.
@@ -160,7 +160,7 @@ error_kinds!(
     (ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },      465,    Error),
     (LibFileNotFound,                                                470,    Error),
 
-    (SelfParamWithTypeAnnotation,                                    475,    Error),
+    (SelfParamWithTypeAnnot,                                         475,    Error),
     (AssociatedFuncWithoutSelfParam,                                 480,    Error),
 
     // Warnings from here
@@ -169,9 +169,9 @@ error_kinds!(
     (NoImpureCallInImpureContext,                                   5010,  Warning),
 
     // Lints from here
-    (FuncWithoutTypeAnnotation,                                     8000,  Lint),
-    (LetWithoutTypeAnnotation,                                      8005,  Lint),
-    (FieldWithoutTypeAnnotation,                                    8010,  Lint),
+    (FuncWithoutTypeAnnot,                                          8000,  Lint),
+    (LetWithoutTypeAnnot,                                           8005,  Lint),
+    (FieldWithoutTypeAnnot,                                         8010,  Lint),
     (SelfParamNotNamedSelf,                                         8015,  Lint),
 
     // These are very special kinds of errors.
@@ -217,27 +217,28 @@ pub enum NameCollisionKind {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NotTypeBut {
+pub enum NotXBut {
     Expr,
-    Module,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NotStructBut {
-    Expr,
-    Module,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NotExprBut {
     Struct,
     Enum,
     Module,
     GenericParam,
 }
 
-impl From<NameKind> for NotExprBut {
-    fn from(k: NameKind) -> NotExprBut {
+impl NotXBut {
+    pub fn with_article(&self) -> &'static str {
+        match self {
+            NotXBut::Expr => "an expression",
+            NotXBut::Struct => "a struct",
+            NotXBut::Enum => "an enum",
+            NotXBut::Module => "a module",
+            NotXBut::GenericParam => "a generic parameter",
+        }
+    }
+}
+
+impl From<NameKind> for NotXBut {
+    fn from(k: NameKind) -> NotXBut {
         match k {
             NameKind::Let { .. } |
             NameKind::Func |
@@ -246,11 +247,11 @@ impl From<NameKind> for NotExprBut {
             NameKind::Use |
             NameKind::FuncParam |
             NameKind::PatternNameBind |
-            NameKind::Pipeline => unreachable!(),
-            NameKind::Struct => NotExprBut::Struct,
-            NameKind::Enum => NotExprBut::Enum,
-            NameKind::Module => NotExprBut::Module,
-            NameKind::GenericParam => NotExprBut::GenericParam,
+            NameKind::Pipeline => NotXBut::Expr,
+            NameKind::Struct => NotXBut::Struct,
+            NameKind::Enum => NotXBut::Enum,
+            NameKind::Module => NotXBut::Module,
+            NameKind::GenericParam => NotXBut::GenericParam,
         }
     }
 }

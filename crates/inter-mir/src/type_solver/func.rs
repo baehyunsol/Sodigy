@@ -38,7 +38,7 @@ impl TypeSolver {
                     r#return.clone(),
                     func.value.error_span_wide(),
                     func.type_annot_span,
-                    ErrorContext::VerifyTypeAnnotation,
+                    ErrorContext::VerifyTypeAnnot,
                 )
             },
 
