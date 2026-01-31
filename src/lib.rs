@@ -5,33 +5,18 @@ mod cli;
 mod command;
 mod compile_stage;
 mod error;
+mod ir_store;
 
 pub use cli::{CliCommand, ColorWhen, parse_args};
 pub use command::Command;
 pub use compile_stage::{CompileStage, COMPILE_STAGES};
 pub use error::Error;
+pub use ir_store::{EmitIrOption, StoreIrAt, emit_irs_if_has_to, get_cached_ir};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Profile {
     Script,
     Test,
-}
-
-/// The compiler stores irs (or result) in various places.
-/// 1. It can store the output to user-given path.
-/// 2. If it has to interpret the bytecodes, it just stores them in memory and directly executes them.
-/// 3. In a complicated compilation process, it stores irs in the intermediate_dir.
-#[derive(Clone, Debug)]
-pub enum StoreIrAt {
-    File(String),
-    IntermediateDir,
-}
-
-#[derive(Clone, Debug)]
-pub struct EmitIrOption {
-    pub stage: CompileStage,
-    pub store: StoreIrAt,
-    pub human_readable: bool,
 }
 
 // The compiler compiles a project module-by-module. This is the status
