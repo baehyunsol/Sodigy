@@ -1,0 +1,9 @@
+let x = 10;
+
+fn mm(y) = match y {
+    x + 1 => 100,
+    $x + 1 => x + 100,
+};
+
+assert mm(11) == 100;
+assert mm(12) == 111;

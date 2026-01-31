@@ -42,7 +42,10 @@ pub enum MessageToMain {
         errors: Vec<SodigyError>,
         warnings: Vec<SodigyWarning>,
     },
-    Log(Vec<LogEntry>),
+    Log {
+        worker_id: WorkerId,
+        entries: Vec<LogEntry>,
+    },
     Error(Error),
 }
 
@@ -73,8 +76,8 @@ impl Channel {
         let started_at = Instant::now();
         let log = loop {
             match self.try_recv() {
-                Ok(MessageToMain::Log(log)) => {
-                    break Some(log);
+                Ok(MessageToMain::Log { entries, .. }) => {
+                    break Some(entries);
                 },
                 Ok(_) | Err(mpsc::TryRecvError::Empty) => {},
                 _ => {
@@ -155,12 +158,18 @@ fn worker_loop(
                         worker.log_command_end();
                     }
 
-                    tx_to_main.send(MessageToMain::Log(worker.log.drain(..).collect()))?;
+                    tx_to_main.send(MessageToMain::Log {
+                        worker_id,
+                        entries: worker.log.drain(..).collect(),
+                    })?;
                     return Err(e);
                 }
             },
             MessageToWorker::Kill => {
-                tx_to_main.send(MessageToMain::Log(worker.log.drain(..).collect()))?;
+                tx_to_main.send(MessageToMain::Log {
+                    worker_id,
+                    entries: worker.log.drain(..).collect(),
+                })?;
                 break;
             },
         }

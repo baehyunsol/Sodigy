@@ -140,6 +140,7 @@ fn run() -> Result<(), Error> {
                 &channels,
                 &mut errors,
                 &mut warnings,
+                &mut worker_logs,
             );
 
             let elapsed_ms = Instant::now().duration_since(started_at).as_millis();
@@ -177,6 +178,8 @@ fn run() -> Result<(), Error> {
             for channel in channels.into_iter() {
                 let worker_id = channel.worker_id;
 
+                // Erroneous workers are already dead and their logs are already collected.
+                // The other workers' logs are collected here.
                 if let Some(worker_log) = channel.join() {
                     worker_logs.insert(worker_id, worker_log);
                 }
@@ -218,6 +221,7 @@ fn compile(
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,
+    worker_logs: &mut HashMap<WorkerId, Vec<LogEntry>>,
 ) -> Result<(), Error> {
     goto_root_dir()?;
     let mut shutdown_countdown: Option<Instant> = None;
@@ -516,8 +520,9 @@ fn compile(
                             _ => unreachable!(),
                         }
                     },
-                    // `channel.join()` will collect these
-                    MessageToMain::Log { .. } => unreachable!(),
+                    MessageToMain::Log { worker_id, entries } => {
+                        worker_logs.insert(worker_id, entries);
+                    },
                     MessageToMain::Error(e) => {
                         return Err(e);
                     },
