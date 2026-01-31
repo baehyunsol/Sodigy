@@ -178,10 +178,15 @@ This section shows how much time compiler spends at each stage.
     }
 
     result.push(String::from("
-## Timings per file
+## Timings per module
 
-It shows what file each worker is working on at each timing. If there're no space, I wrote a number in a parenthesis and
-wrote the file name in footnotes.
+It shows what module each worker is working on at each timing. If there're no space, I wrote a number in a parenthesis and
+wrote the module name in footnotes.
+
+If the module name is prefixed with `@`, the module belongs to std. If the module name is followed by `!`, there's a compile error
+in the module.
+
+`???` means the worker has panicked.
 "));
 
     let width = 192;

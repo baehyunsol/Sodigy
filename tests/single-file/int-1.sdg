@@ -1,0 +1,44 @@
+fn assert_euclid(a, b) = {
+    let q = a / b;
+    let r = a % b;
+
+    #[always]
+    assert q * b + r == a;
+
+    True
+};
+
+assert assert_euclid(17, 5);
+assert assert_euclid(-17, 5);
+assert assert_euclid(17, -5);
+assert assert_euclid(-17, -5);
+
+assert assert_euclid(5, 3);
+assert assert_euclid(-5, 3);
+assert assert_euclid(5, -3);
+assert assert_euclid(-5, -3);
+
+assert assert_euclid(10, 3);
+assert assert_euclid(-10, 3);
+assert assert_euclid(10, -3);
+assert assert_euclid(-10, -3);
+
+assert assert_euclid(10, 2);
+assert assert_euclid(-10, 2);
+assert assert_euclid(10, -2);
+assert assert_euclid(-10, -2);
+
+assert assert_euclid(10, 1);
+assert assert_euclid(-10, 1);
+assert assert_euclid(10, -1);
+assert assert_euclid(-10, -1);
+
+assert assert_euclid(0, 2);
+assert assert_euclid(-0, 2);
+assert assert_euclid(0, -2);
+assert assert_euclid(-0, -2);
+
+assert assert_euclid(0, 1);
+assert assert_euclid(-0, 1);
+assert assert_euclid(0, -1);
+assert assert_euclid(-0, -1);

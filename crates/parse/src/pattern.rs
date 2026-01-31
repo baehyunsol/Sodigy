@@ -1,4 +1,4 @@
-use crate::{Path, Tokens};
+use crate::{Field, Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
@@ -79,6 +79,8 @@ pub enum PatternKind {
         op_span: Span,
         is_inclusive: bool,
     },
+    // TODO: prefix/postfix op
+
     // It only cares about numeric operators.
     // `if let Some(x + 1) = foo() { x }`
     // `if let Some($x + $y) = foo() { 0 }`
@@ -360,10 +362,6 @@ impl<'t, 's> Tokens<'t, 's> {
     // All the other checks are done by `Pattern::check()`.
     fn pratt_parse_pattern(&mut self, context: ParsePatternContext, min_bp: u32) -> Result<Pattern, Vec<Error>> {
         let mut lhs = match self.peek2() {
-            (
-                Some(Token { kind: TokenKind::Ident(id), span }),
-                Some(Token { kind: TokenKind::Punct(Punct::Dot), .. }),
-            ) => todo!(),
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                 let (id, id_span) = (*id, *span);
                 self.cursor += 1;
@@ -377,10 +375,33 @@ impl<'t, 's> Tokens<'t, 's> {
                 }
 
                 else {
+                    // no dotfish operators in patterns
+                    let mut fields = vec![];
+                    let mut types = vec![None];
+
+                    loop {
+                        match self.peek2() {
+                            (
+                                Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
+                                Some(Token { kind: TokenKind::Ident(id), span }),
+                            ) => {
+                                fields.push(Field::Name {
+                                    name: *id,
+                                    name_span: *span,
+                                    dot_span: *dot_span,
+                                    is_from_alias: false,
+                                });
+                                types.push(None);
+                                self.cursor += 2;
+                            },
+                            _ => break,
+                        }
+                    }
+
                     Pattern {
                         name: None,
                         name_span: None,
-                        kind: PatternKind::Path(Path { id, id_span, fields: vec![], types: vec![None] }),
+                        kind: PatternKind::Path(Path { id, id_span, fields, types }),
                     }
                 }
             },

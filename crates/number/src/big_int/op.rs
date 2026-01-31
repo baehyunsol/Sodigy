@@ -177,6 +177,7 @@ pub fn mul_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     result
 }
 
+// Sodigy uses truncated division.
 pub fn div_bi(
     lhs_neg: bool,
     lhs: &[u32],
@@ -260,13 +261,16 @@ pub fn div_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {
     }
 }
 
+// Sodigy uses truncated division.
 pub fn rem_bi(
     lhs_neg: bool,
     lhs: &[u32],
     rhs_neg: bool,
     rhs: &[u32],
 ) -> (bool, Vec<u32>) {
-    todo!()
+    let (qn, q) = div_bi(lhs_neg, lhs, rhs_neg, rhs);
+    let (ntn, nt) = mul_bi(qn, &q, rhs_neg, rhs);
+    sub_bi(lhs_neg, lhs, ntn, &nt)
 }
 
 pub fn rem_ubi(lhs: &[u32], rhs: &[u32]) -> Vec<u32> {

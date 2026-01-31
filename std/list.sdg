@@ -15,18 +15,18 @@ fn init_list<T>(/* varargs */) -> [T];
 #[built_in]
 #[lang_item("built_in.index_list")]
 #[lang_item_generics("built_in.init_list.generic.0")]
-fn index_list<T>(ls: [T], i: Int) -> T;
+fn index_list_built_in<T>(ls: [T], i: Int) -> T;
 
 // TODO: The compiler isn't strong enough to compile these functions.
 /*
-#[impl(op.index)]
-fn index_list_wrapper<T>(ls: [T], i: Int) -> T = {
+#[impl(std.op.index)]
+fn index_list<T>(ls: [T], i: Int) -> T = {
     if 0 <= i && i < ls.len() {
-        index_list(ls, i)
+        index_list_built_in(ls, i)
     }
 
     else if -ls.len() <= i {
-        index_list(ls, i + ls.len())
+        index_list_built_in(ls, i + ls.len())
     }
 
     else {

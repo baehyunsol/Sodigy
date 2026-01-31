@@ -1,0 +1,10 @@
+// TODO: assert (not in sodigy, but in `tests/runner/` that it fails
+
+fn always_fails() = {
+    #[always]
+    assert False;
+
+    True
+};
+
+assert always_fails();

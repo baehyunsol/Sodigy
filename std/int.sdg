@@ -30,12 +30,27 @@ fn mul_int(a: Int, b: Int) -> Int;
 /// If `b` is 0, something bad (can be worse than `panic`) will happen.
 #[built_in]
 #[lang_item("built_in.div_int")]
-fn div_int(a: Int, b: Int) -> Int;
+fn div_int_built_in(a: Int, b: Int) -> Int;
+
+#[impl(std.op.div)]
+fn div_int(a: Int, b: Int) -> Int = {
+    #[always]
+    assert b != 0;
+
+    div_int_built_in(a, b)
+};
 
 #[built_in]
-#[impl(std.op.rem)]
 #[lang_item("built_in.rem_int")]
-fn rem_int(a: Int, b: Int) -> Int;
+fn rem_int_built_in(a: Int, b: Int) -> Int;
+
+#[impl(std.op.rem)]
+fn rem_int(a: Int, b: Int) -> Int = {
+    #[always]
+    assert b != 0;
+
+    rem_int_built_in(a, b)
+};
 
 #[built_in]
 #[impl(std.op.lt)]
@@ -69,18 +84,6 @@ fn neq_int(a: Int, b: Int) -> Bool = !eq_int(a, b);
 #[impl(std.op.geq)]
 #[lang_item("fn.geq_int")]
 fn geq_int(a: Int, b: Int) -> Bool = !lt_int(a, b);
-
-#[impl(std.op.div)]
-fn div_int_wrapper(a: Int, b: Int) -> Int = {
-    if b == 0 {
-        // TODO: error message
-        std.panic()
-    }
-
-    else {
-        div_int(a, b)
-    }
-};
 
 // TODO: match is not implemented yet...
 /*
