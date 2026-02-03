@@ -67,4 +67,4 @@ def get_file_name(r: dict) -> str:
 # and I want a universal hash function, not Python-specific one.
 def get_file_hash(file: str) -> str:
     import subprocess
-    return subprocess.run(["git", "hash-object", file], check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", "hash-object", file], check=True, capture_output=True, text=True).stdout.strip()
