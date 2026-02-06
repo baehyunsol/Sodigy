@@ -108,7 +108,6 @@ impl Func {
         ast_func: &ast::Func,
         session: &mut Session,
         origin: FuncOrigin,
-        is_top_level: bool,
     ) -> Result<Func, ()> {
         let mut has_error = false;
         let mut func_param_names = HashMap::new();
@@ -139,7 +138,6 @@ impl Func {
             &ast_func.attribute,
             ItemKind::Func,
             ast_func.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -265,7 +263,7 @@ impl Func {
                 missing_type_annots.push(i as i64);
             }
 
-            match FuncParam::from_ast(ast_param, session, is_top_level) {
+            match FuncParam::from_ast(ast_param, session) {
                 Ok(mut param) => {
                     if i == 0 && is_associated_func {
                         param.type_annot = associated_type.clone();
@@ -457,13 +455,7 @@ impl Func {
 }
 
 impl FuncParam {
-    pub fn from_ast(
-        ast_param: &ast::FuncParam,
-        session: &mut Session,
-
-        // whether the function or the function-like object is defined in the top-level block
-        is_top_level: bool,
-    ) -> Result<FuncParam, ()> {
+    pub fn from_ast(ast_param: &ast::FuncParam, session: &mut Session) -> Result<FuncParam, ()> {
         let mut type_annot = None;
         let mut default_value = None;
         let mut has_error = false;
@@ -503,7 +495,7 @@ impl FuncParam {
                         id: ast_param.name,
                         span: ast_param.name_span,
                         origin: NameOrigin::Local {
-                            kind: NameKind::Let { is_top_level },
+                            kind: NameKind::Let { is_top_level: session.is_at_top_level_block() },
                         },
                         def_span: ast_param.name_span,
                     });

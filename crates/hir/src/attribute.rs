@@ -31,8 +31,8 @@ impl Session {
         ast_attribute: &ast::Attribute,
         item: ItemKind,
         keyword_span: Span,
-        is_top_level: bool,
     ) -> Result<Attribute, ()> {
+        let is_top_level = self.is_at_top_level_block();
         let attribute_rule_key = AttributeRuleKey {
             item,
             is_top_level,

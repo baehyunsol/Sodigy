@@ -52,6 +52,7 @@ pub use attribute::{
 };
 pub(crate) use attribute::get_decorator_error_notes;
 pub use block::Block;
+pub(crate) use block::BlockSession;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
@@ -73,11 +74,7 @@ pub use sodigy_parse::Generic;
 
 pub fn lower(parse_session: ParseSession) -> Session {
     let mut session = Session::from_parse_session(&parse_session);
-    let mut top_level_block = match Block::from_ast(
-        &parse_session.ast,
-        &mut session,
-        true, // is_top_level
-    ) {
+    let mut top_level_block = match Block::from_ast(&parse_session.ast, &mut session) {
         Ok(block) => block,
         Err(()) => {
             return session;

@@ -28,7 +28,6 @@ impl Module {
             &ast_module.attribute,
             ItemKind::Module,
             ast_module.keyword_span,
-            true,  // a module is always at top level
         ) {
             Ok(attribute) => attribute,
             Err(()) => {

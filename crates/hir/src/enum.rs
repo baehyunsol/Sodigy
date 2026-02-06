@@ -43,11 +43,7 @@ pub enum EnumVariantFields {
 }
 
 impl Enum {
-    pub fn from_ast(
-        ast_enum: &ast::Enum,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Enum, ()> {
+    pub fn from_ast(ast_enum: &ast::Enum, session: &mut Session) -> Result<Enum, ()> {
         let mut has_error = false;
         let mut variants = Vec::with_capacity(ast_enum.variants.len());
 
@@ -68,7 +64,6 @@ impl Enum {
             &ast_enum.attribute,
             ItemKind::Enum,
             ast_enum.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -88,7 +83,7 @@ impl Enum {
         }
 
         for ast_variant in ast_enum.variants.iter() {
-            match EnumVariant::from_ast(ast_variant, session, is_top_level) {
+            match EnumVariant::from_ast(ast_variant, session) {
                 Ok(variant) => {
                     variants.push(variant);
                 },
@@ -136,11 +131,7 @@ impl Enum {
 }
 
 impl EnumVariant {
-    pub fn from_ast(
-        ast_variant: &ast::EnumVariant,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<EnumVariant, ()> {
+    pub fn from_ast(ast_variant: &ast::EnumVariant, session: &mut Session) -> Result<EnumVariant, ()> {
         let mut has_error = false;
 
         let attribute = match session.lower_attribute(
@@ -149,7 +140,6 @@ impl EnumVariant {
 
             // TODO: it has to be keyword_span, but a variant doesn't have a keyword_span!!
             ast_variant.name_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -191,7 +181,7 @@ impl EnumVariant {
 
                 // TODO: attribute
                 for ast_field in ast_fields.iter() {
-                    match StructField::from_ast(ast_field, session, is_top_level) {
+                    match StructField::from_ast(ast_field, session) {
                         Ok(field) => {
                             fields.push(field);
                         },

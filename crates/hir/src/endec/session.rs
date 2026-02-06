@@ -26,7 +26,7 @@ impl Endec for Session {
 
         // must be empty when encoding
         // self.name_stack.encode_impl(buffer);
-        // self.func_default_values.encode_impl(buffer);
+        // self.block_stack.encode_impl(buffer);
         // self.is_in_debug_context.encode_impl(buffer);
 
         // doesn't have to be stored on disk
@@ -73,7 +73,7 @@ impl Endec for Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
                 name_stack: vec![],
-                func_default_values: vec![],
+                block_stack: vec![],
                 attribute_rule_cache: HashMap::new(),
                 is_in_debug_context: false,
                 nested_pipeline_depth: 0,

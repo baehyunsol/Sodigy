@@ -272,8 +272,8 @@ fn into_hir_session(session: &Session) -> sodigy_hir::Session {
     sodigy_hir::Session {
         intermediate_dir: session.intermediate_dir.to_string(),
         name_stack: vec![],
+        block_stack: vec![],
         attribute_rule_cache: HashMap::new(),
-        func_default_values: vec![],
         is_in_debug_context: false,
         is_std: false,
         nested_pipeline_depth: 0,

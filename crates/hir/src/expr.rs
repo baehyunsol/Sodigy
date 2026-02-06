@@ -121,7 +121,7 @@ impl Expr {
             ast::Expr::Byte { b, span } => Ok(Expr::Byte { b: *b, span: *span }),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
             ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
-            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session, false /* is_top_level */)?)),
+            ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session)?)),
             ast::Expr::Call { func, args, arg_group_span } => {
                 let func = Expr::from_ast(func, session);
                 let mut hir_args = Vec::with_capacity(args.len());
@@ -328,9 +328,9 @@ impl Expr {
                 // TODO: the compiler never treats a lambda function as a top-level function...
                 //       I made this choice because it's difficult to track whether it's top-level or not.
                 //       I'm not sure whether it's the correct way to do this.
-                match Func::from_ast(&func, session, FuncOrigin::Lambda, false /* is_top_level */) {
+                match Func::from_ast(&func, session, FuncOrigin::Lambda) {
                     Ok(func) => {
-                        session.funcs.push(func);
+                        session.push_lambda(func);
                         Ok(Expr::Path(Path {
                             id: IdentWithOrigin {
                                 id: name,
@@ -447,7 +447,7 @@ impl Expr {
                     from_pipeline: true,
                 };
 
-                let lowered_block = Block::from_ast(&ast_block, session, false /* is_top_level */);
+                let lowered_block = Block::from_ast(&ast_block, session);
                 session.nested_pipeline_depth -= 1;
                 let lowered_block = lowered_block?;
 

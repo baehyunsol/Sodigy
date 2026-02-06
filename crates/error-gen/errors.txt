@@ -89,6 +89,7 @@ NotCallable/404/Error
 NotStruct/405/Error
 NotExpr/406/Error
 NotPolyGeneric/410/Error
+CannotAliasLocalValue/411/Error
 UnexpectedType/415/Error
 CannotInferType/420/Error
 PartiallyInferedType/425/Error

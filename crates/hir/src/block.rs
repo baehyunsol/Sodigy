@@ -37,14 +37,14 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn from_ast(
-        ast_block: &ast::Block,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Block, ()> {
+    pub fn from_ast(ast_block: &ast::Block, session: &mut Session) -> Result<Block, ()> {
         let mut has_error = false;
         let mut lets = vec![];
         let mut asserts = vec![];
+
+        // NOTE: You must do this before calling `.is_at_top_level_block()` because
+        // the method counts the number of `BlockSession`s!
+        session.block_stack.push(BlockSession::new());
 
         let mut let_cycle_check_vertices: HashSet<Span> = ast_block.lets.iter().map(
             |r#let| r#let.name_span
@@ -55,15 +55,14 @@ impl Block {
         ).collect();
         let mut alias_cycle_check_edges: HashMap<Span, Vec<Span>> = HashMap::new();
 
-        session.func_default_values.push(vec![]);
         session.name_stack.push(Namespace::Block {
-            names: ast_block.iter_names(is_top_level).map(
+            names: ast_block.iter_names(session.is_at_top_level_block()).map(
                 |(k, v1, v2)| (k, (v1, v2, UseCount::new()))
             ).collect(),
         });
 
         for assert in ast_block.asserts.iter() {
-            match Assert::from_ast(assert, session, is_top_level) {
+            match Assert::from_ast(assert, session) {
                 Ok(assert) => {
                     asserts.push(assert);
                 },
@@ -74,7 +73,7 @@ impl Block {
         }
 
         for r#let in ast_block.lets.iter() {
-            match Let::from_ast(r#let, session, is_top_level) {
+            match Let::from_ast(r#let, session) {
                 Ok(r#let) => {
                     let_cycle_check_edges.insert(
                         r#let.name_span,
@@ -92,7 +91,7 @@ impl Block {
             }
         }
 
-        let func_origin = if is_top_level {
+        let func_origin = if session.is_at_top_level_block() {
             FuncOrigin::TopLevel
         } else {
             FuncOrigin::Inline
@@ -100,7 +99,7 @@ impl Block {
 
         // All the function declarations are stored in the top-level block.
         for func in ast_block.funcs.iter() {
-            match Func::from_ast(func, session, func_origin, is_top_level) {
+            match Func::from_ast(func, session, func_origin) {
                 Ok(func) => {
                     session.funcs.push(func);
                 },
@@ -112,7 +111,7 @@ impl Block {
 
         // All the struct declarations are stored in the top-level block.
         for r#struct in ast_block.structs.iter() {
-            match Struct::from_ast(r#struct, session, is_top_level) {
+            match Struct::from_ast(r#struct, session) {
                 Ok(r#struct) => {
                     session.structs.push(r#struct);
                 },
@@ -123,7 +122,7 @@ impl Block {
         }
 
         for r#enum in ast_block.enums.iter() {
-            match Enum::from_ast(r#enum, session, is_top_level) {
+            match Enum::from_ast(r#enum, session) {
                 Ok(r#enum) => {
                     session.enums.push(r#enum);
                 },
@@ -135,7 +134,7 @@ impl Block {
 
         // All the aliases are stored in the top-level block.
         for alias in ast_block.aliases.iter() {
-            match Alias::from_ast(alias, session, is_top_level) {
+            match Alias::from_ast(alias, session) {
                 Ok(alias) => {
                     alias_cycle_check_edges.insert(
                         alias.name_span,
@@ -155,7 +154,7 @@ impl Block {
 
         // All the uses are stored in the top-level block.
         for r#use in ast_block.uses.iter() {
-            match Use::from_ast(r#use, session, is_top_level) {
+            match Use::from_ast(r#use, session) {
                 Ok(r#use) => {
                     session.uses.push(r#use);
                 },
@@ -207,11 +206,13 @@ impl Block {
 
         // If it's top-level, mir will check unused names.
         // If it's from a pipeline, `Expr::from_ast` will throw an error if there's an unused name.
-        if !is_top_level && !ast_block.from_pipeline {
+        if !session.is_at_top_level_block() && !ast_block.from_pipeline {
             session.warn_unused_names(&names);
         }
 
-        for func_default_value in session.func_default_values.pop().unwrap() {
+        let mut block_session = session.block_stack.pop().unwrap();
+
+        for func_default_value in block_session.func_default_values.drain(..) {
             let_cycle_check_vertices.insert(func_default_value.name_span);
             let_cycle_check_edges.insert(
                 func_default_value.name_span,
@@ -222,6 +223,13 @@ impl Block {
                 ).collect(),
             );
             lets.push(func_default_value);
+        }
+
+        let lambdas: Vec<Func> = block_session.lambdas.drain(..).collect();
+
+        for (func, closure_info) in session.check_captured_names(&mut lambdas, &lets) {
+            session.funcs.push(func);
+            // TODO: what do we do if it's a closure?
         }
 
         // TOOD: It only underlines the definitions of the names.
@@ -287,6 +295,52 @@ impl Block {
                 use_counts,
             })
         }
+    }
+}
+
+pub struct BlockSession {
+    // Lambda (maybe closure) defined in this block
+    pub lambdas: Vec<Func>,
+
+    // Default values of functions in the current block. A default value is
+    // lowered to a `let` statement.
+    // When it leaves a block, it pops `let` statements and pushes them
+    // to the current block.
+    pub func_default_values: Vec<Let>,
+}
+
+impl BlockSession {
+    pub fn new() -> Self {
+        BlockSession {
+            lambdas: vec![],
+            func_default_values: vec![],
+        }
+    }
+}
+
+impl Session {
+    pub fn check_captured_names(&self, lambdas: &mut Vec<Func>, lets: &[Let]) -> Vec<(Func, _)> {
+        for lambda in lambdas.iter() {
+            // In `fn(x) = \(y) => x + y;`, there's nothing we can do with `x`.
+            // We have to capture `x` and make a closure.
+            let mut names_to_capture = vec![];
+
+            // `Int` in `\(x: Int) => x + 1` is a foreign name, but we don't have to capture it!
+            let mut names_not_to_capture = vec![];
+
+            // In `{ let x = 3; \(y) => x + y }`, if the compiler is smart enough,
+            // we can rewrite the lambda to `\(y) => 3 + y`. We'll keep such cases
+            // in this vector, and post-mir will do the optimization. We can't do
+            // the optimization until inter-mir, because doing the substitution
+            // will make type-errors (if exists) less readable.
+            let mut names_maybe_not_to_capture = vec![];
+
+            for (foreign_name, (origin, def_span)) in lambda.foreign_names.iter() {
+                // NOTE: inter-hir guarantees that NameKind::Use are never local values
+            }
+        }
+
+        todo!()
     }
 }
 

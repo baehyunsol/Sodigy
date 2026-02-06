@@ -37,11 +37,7 @@ pub struct Alias {
 }
 
 impl Alias {
-    pub fn from_ast(
-        ast_alias: &ast::Alias,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Alias, ()> {
+    pub fn from_ast(ast_alias: &ast::Alias, session: &mut Session) -> Result<Alias, ()> {
         let mut has_error = false;
         let mut generic_params = HashMap::new();
         let mut generic_index = HashMap::new();
@@ -64,7 +60,6 @@ impl Alias {
             &ast_alias.attribute,
             ItemKind::Alias,
             ast_alias.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {

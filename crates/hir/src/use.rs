@@ -38,11 +38,7 @@ pub struct Use {
 }
 
 impl Use {
-    pub fn from_ast(
-        ast_use: &ast::Use,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Use, ()> {
+    pub fn from_ast(ast_use: &ast::Use, session: &mut Session) -> Result<Use, ()> {
         let mut has_error = false;
         let (name, span) = match ast_use.full_path[0] {
             Field::Name { name, name_span, .. } => (name, name_span),
@@ -53,7 +49,6 @@ impl Use {
             &ast_use.attribute,
             ItemKind::Use,
             ast_use.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {

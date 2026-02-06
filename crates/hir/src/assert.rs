@@ -47,18 +47,13 @@ pub struct Assert {
 }
 
 impl Assert {
-    pub fn from_ast(
-        ast_assert: &ast::Assert,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Assert, ()> {
+    pub fn from_ast(ast_assert: &ast::Assert, session: &mut Session) -> Result<Assert, ()> {
         let mut has_error = false;
 
         let attribute = match session.lower_attribute(
             &ast_assert.attribute,
             ItemKind::Assert,
             ast_assert.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => AssertAttribute::from_attribute(&attribute, session),
             Err(()) => {

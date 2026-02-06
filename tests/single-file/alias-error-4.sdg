@@ -1,0 +1,16 @@
+//# assert [error.index for error in errors] == [411, 411]
+
+fn foo(x) = {
+    use x as y;
+    y + 1
+};
+
+assert foo(3) == 4;
+
+fn bar(x) = {
+    let y = 10;
+    use y as z;
+    x + z
+};
+
+assert bar(20) == 30;

@@ -52,11 +52,7 @@ pub struct StructShape {
 }
 
 impl Struct {
-    pub fn from_ast(
-        ast_struct: &ast::Struct,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Struct, ()> {
+    pub fn from_ast(ast_struct: &ast::Struct, session: &mut Session) -> Result<Struct, ()> {
         let mut has_error = false;
         let mut fields = Vec::with_capacity(ast_struct.fields.len());
 
@@ -77,7 +73,6 @@ impl Struct {
             &ast_struct.attribute,
             ItemKind::Struct,
             ast_struct.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -97,7 +92,7 @@ impl Struct {
         }
 
         for field in ast_struct.fields.iter() {
-            match StructField::from_ast(field, session, is_top_level) {
+            match StructField::from_ast(field, session) {
                 Ok(field) => {
                     fields.push(field);
                 },

@@ -3,9 +3,11 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{
     Alias,
     Generic,
+    Path,
     Type,
     Use,
 };
+use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::{RenderableSpan, Span};
 use std::collections::{HashMap, HashSet};
 
@@ -168,10 +170,10 @@ impl Session {
         }
 
         else {
-            // In case of `use x as y; type x = Foo<Int>;`, we have to
-            // resolve the `use` statement to a type alias: `type y = Foo<Int>;`
             self.resolve_path(&mut r#use.path, None, log)?;
 
+            // In case of `use x as y; type x = Foo<Int>;`, we have to
+            // resolve the `use` statement to a type alias: `type y = Foo<Int>;`
             if let Some(Some(types)) = r#use.path.types.last() {
                 let types = types.clone();
                 *r#use.path.types.last_mut().unwrap() = None;
@@ -195,7 +197,82 @@ impl Session {
                 ));
             }
 
+            self.cannot_alias_local_names(&r#use.path)?;
             Ok(())
+        }
+    }
+
+    // `fn foo(x) = { use x as y; y + 1 };` is illegal. `use` cannot alias
+    // local values (inline let, func param, pattern name binding, ...).
+    // It's necessary because
+    //    1. When hir checks whether a lambda is a closure or not, it has to
+    //       check whether there are captured local values or not.
+    //    2. Hir checks `NameKind` to check whether a name is local or not.
+    //       It assumes that `NameKind::Use` is not a local value.
+    //    3. So, inter-hir has to guarantee that...
+    //
+    // It's not just about local vs global.
+    // Locally defined enum and structs are okay to be used with `use`, because
+    // they're not values!
+    // For example, `fn foo(x) = { enum Foo = { ... }; use Foo as y; ... }` is okay!
+    //
+    // Generic params are not local values. If they're used in an expression, that's an
+    // error and `check_type_annot_path` is responsible for catching that. If they're used
+    // in a type annotation, that's not an error!
+    fn cannot_alias_local_names(&mut self, path: &Path) -> Result<(), ()> {
+        // If the alias is not fully resolved yet, this function does nothing and returns.
+        // It'll be called again when the resolution is complete!
+        let is_local_value = match path.id.origin {
+            NameOrigin::FuncParam { .. } => Some(true),
+            NameOrigin::GenericParam { .. } => Some(false),
+            NameOrigin::Local { kind } |
+            NameOrigin::Foreign { kind } => match kind {
+                NameKind::Let { is_top_level } => Some(!is_top_level),
+
+                // struct/enum/module are not values.
+                // func/enum_variant are values, but they're global (Sodigy lifts inline funcs)
+                NameKind::Func |
+                NameKind::Struct |
+                NameKind::Enum |
+                NameKind::EnumVariant { .. } |
+                NameKind::Module |
+                NameKind::GenericParam => Some(false),
+
+                // not resolved yet
+                NameKind::Alias |
+                NameKind::Use => None,
+
+                NameKind::FuncParam |
+                NameKind::PatternNameBind |
+                NameKind::Pipeline => Some(true),
+            },
+            NameOrigin::External => None,
+        };
+
+        match is_local_value {
+            Some(false) | None => Ok(()),
+            Some(true) => {
+                self.errors.push(Error {
+                    kind: ErrorKind::CannotAliasLocalValue(path.id.id),
+                    spans: vec![
+                        RenderableSpan {
+                            span: path.id.span,
+                            auxiliary: false,
+                            note: Some(String::from("This is a local value.")),
+                        },
+                        RenderableSpan {
+                            span: path.id.def_span,
+                            auxiliary: true,
+                            note: Some(format!(
+                                "`{}` is defined here.",
+                                path.id.id.unintern_or_default(&self.intermediate_dir),
+                            )),
+                        },
+                    ],
+                    note: None,
+                });
+                Err(())
+            },
         }
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     AssociatedItem,
     AttributeRule,
     AttributeRuleKey,
+    BlockSession,
     Enum,
     Expr,
     Func,
@@ -26,16 +27,10 @@ use std::collections::hash_map::{Entry, HashMap};
 pub struct Session {
     pub intermediate_dir: String,
     pub name_stack: Vec<Namespace>,
+    pub block_stack: Vec<BlockSession>,
 
     // It'd be too expensive to instantiate a rule each time...
     pub attribute_rule_cache: HashMap<AttributeRuleKey, AttributeRule>,
-
-    // `func_default_values.last()` has the default values of functions
-    // in the current block.
-    // If it enters a new block, it pushes `vec![]` to `func_default_values`.
-    // When it leaves a block, it pops `let` statements from `func_default_values`
-    // and pushes them to the current block.
-    pub func_default_values: Vec<Vec<Let>>,
 
     // `is_in_debug_context` might change in a file, but `is_std` doesn't change inside a file.
     pub is_in_debug_context: bool,
@@ -101,8 +96,8 @@ impl Session {
         Session {
             intermediate_dir: parse_session.intermediate_dir.to_string(),
             name_stack,
+            block_stack: vec![],
             attribute_rule_cache: HashMap::new(),
-            func_default_values: vec![],
             is_in_debug_context: false,
             is_std: parse_session.is_std,
             nested_pipeline_depth: 0,
@@ -157,8 +152,16 @@ impl Session {
         )
     }
 
+    pub fn is_at_top_level_block(&self) -> bool {
+        self.block_stack.len() == 1  // 1 is the top-level block's session
+    }
+
     pub fn push_func_default_value(&mut self, default_value: Let) {
-        self.func_default_values.last_mut().unwrap().push(default_value);
+        self.block_stack.last_mut().unwrap().func_default_values.push(default_value);
+    }
+
+    pub fn push_lambda(&mut self, lambda: Func) {
+        self.block_stack.last_mut().unwrap().lambdas.push(lambda);
     }
 
     // If a function has 5 params and 3 are unused, it throws 1 warning instead of 3.

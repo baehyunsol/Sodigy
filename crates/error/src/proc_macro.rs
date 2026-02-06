@@ -49,8 +49,8 @@
     { id: InternedString, but: NotXBut }, NotCallable { r#type: String },
     NotStruct { id: InternedString, but: NotXBut }, NotExpr
     { id: InternedString, but: NotXBut }, NotPolyGeneric
-    { id: Option<IdentWithOrigin> }, UnexpectedType
-    { expected: String, got: String }, CannotInferType
+    { id: Option<IdentWithOrigin> }, CannotAliasLocalValue(InternedString),
+    UnexpectedType { expected: String, got: String }, CannotInferType
     { id: Option<InternedString>, is_return: bool }, PartiallyInferedType
     { id: Option<InternedString>, r#type: String, is_return: bool },
     CannotInferGenericType { id: Option<String> }, PartiallyInferedGenericType
@@ -143,11 +143,12 @@
             => 400u16, ErrorKind :: NotCallable { .. } => 404u16, ErrorKind ::
             NotStruct { .. } => 405u16, ErrorKind :: NotExpr { .. } => 406u16,
             ErrorKind :: NotPolyGeneric { .. } => 410u16, ErrorKind ::
-            UnexpectedType { .. } => 415u16, ErrorKind :: CannotInferType
-            { .. } => 420u16, ErrorKind :: PartiallyInferedType { .. } =>
-            425u16, ErrorKind :: CannotInferGenericType { .. } => 430u16,
-            ErrorKind :: PartiallyInferedGenericType { .. } => 435u16,
-            ErrorKind :: CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
+            CannotAliasLocalValue(_,) => 411u16, ErrorKind :: UnexpectedType
+            { .. } => 415u16, ErrorKind :: CannotInferType { .. } => 420u16,
+            ErrorKind :: PartiallyInferedType { .. } => 425u16, ErrorKind ::
+            CannotInferGenericType { .. } => 430u16, ErrorKind ::
+            PartiallyInferedGenericType { .. } => 435u16, ErrorKind ::
+            CannotApplyInfixOp { .. } => 440u16, ErrorKind ::
             CannotSpecializePolyGeneric { .. } => 445u16, ErrorKind ::
             ImpureCallInPureContext => 450u16, ErrorKind :: NonExhaustiveArms
             => 455u16, ErrorKind :: MultipleModuleFiles { .. } => 460u16,
@@ -259,19 +260,20 @@
             Error, ErrorKind :: NotCallable { .. } => ErrorLevel :: Error,
             ErrorKind :: NotStruct { .. } => ErrorLevel :: Error, ErrorKind ::
             NotExpr { .. } => ErrorLevel :: Error, ErrorKind :: NotPolyGeneric
-            { .. } => ErrorLevel :: Error, ErrorKind :: UnexpectedType { .. }
-            => ErrorLevel :: Error, ErrorKind :: CannotInferType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: PartiallyInferedType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: CannotInferGenericType { .. } =>
-            ErrorLevel :: Error, ErrorKind :: PartiallyInferedGenericType
-            { .. } => ErrorLevel :: Error, ErrorKind :: CannotApplyInfixOp
             { .. } => ErrorLevel :: Error, ErrorKind ::
-            CannotSpecializePolyGeneric { .. } => ErrorLevel :: Error,
-            ErrorKind :: ImpureCallInPureContext => ErrorLevel :: Error,
-            ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error, ErrorKind
-            :: MultipleModuleFiles { .. } => ErrorLevel :: Error, ErrorKind ::
-            ModuleFileNotFound { .. } => ErrorLevel :: Error, ErrorKind ::
-            LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
+            CannotAliasLocalValue(_,) => ErrorLevel :: Error, ErrorKind ::
+            UnexpectedType { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotInferType { .. } => ErrorLevel :: Error, ErrorKind ::
+            PartiallyInferedType { .. } => ErrorLevel :: Error, ErrorKind ::
+            CannotInferGenericType { .. } => ErrorLevel :: Error, ErrorKind ::
+            PartiallyInferedGenericType { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotApplyInfixOp { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotSpecializePolyGeneric { .. } => ErrorLevel ::
+            Error, ErrorKind :: ImpureCallInPureContext => ErrorLevel ::
+            Error, ErrorKind :: NonExhaustiveArms => ErrorLevel :: Error,
+            ErrorKind :: MultipleModuleFiles { .. } => ErrorLevel :: Error,
+            ErrorKind :: ModuleFileNotFound { .. } => ErrorLevel :: Error,
+            ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
             SelfParamWithTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
             :: UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
@@ -507,7 +509,9 @@
             {
                 buffer.push(1u8); buffer.push(154u8);
                 r#id.encode_impl(buffer);
-            }, ErrorKind :: UnexpectedType { r#expected, r#got, } =>
+            }, ErrorKind :: CannotAliasLocalValue(t0,) =>
+            { buffer.push(1u8); buffer.push(155u8); t0.encode_impl(buffer); },
+            ErrorKind :: UnexpectedType { r#expected, r#got, } =>
             {
                 buffer.push(1u8); buffer.push(159u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
@@ -850,6 +854,11 @@
                 let (r#id, cursor) = Option :: < IdentWithOrigin > ::
                 decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: NotPolyGeneric { r#id, }, cursor))
+            }, 411u16 =>
+            {
+                let (t0, cursor) = InternedString ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: CannotAliasLocalValue(t0,), cursor))
             }, 415u16 =>
             {
                 let (r#expected, cursor) = String ::

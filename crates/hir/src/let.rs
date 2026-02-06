@@ -48,11 +48,7 @@ pub enum LetOrigin {
 }
 
 impl Let {
-    pub fn from_ast(
-        ast_let: &ast::Let,
-        session: &mut Session,
-        is_top_level: bool,
-    ) -> Result<Let, ()> {
+    pub fn from_ast(ast_let: &ast::Let, session: &mut Session) -> Result<Let, ()> {
         let mut has_error = false;
         let mut type_annot = None;
 
@@ -60,7 +56,6 @@ impl Let {
             &ast_let.attribute,
             ItemKind::Let,
             ast_let.keyword_span,
-            is_top_level,
         ) {
             Ok(attribute) => attribute,
             Err(()) => {
@@ -128,7 +123,7 @@ impl Let {
                 name_span: ast_let.name_span,
                 type_annot,
                 value: value.unwrap(),
-                origin: if is_top_level {
+                origin: if session.is_at_top_level_block() {
                     LetOrigin::TopLevel
                 } else {
                     LetOrigin::Inline
