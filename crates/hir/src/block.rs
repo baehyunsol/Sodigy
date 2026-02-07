@@ -229,7 +229,8 @@ impl Block {
 
         for (func, closure_info) in session.check_captured_names(&mut lambdas, &lets) {
             session.funcs.push(func);
-            // TODO: what do we do if it's a closure?
+            // what do we do if it's a closure?
+            tood!()
         }
 
         // TOOD: It only underlines the definitions of the names.
@@ -336,7 +337,24 @@ impl Session {
             let mut names_maybe_not_to_capture = vec![];
 
             for (foreign_name, (origin, def_span)) in lambda.foreign_names.iter() {
-                // NOTE: inter-hir guarantees that NameKind::Use are never local values
+                let name_tuple @ (foreign_name, (origin, def_span)) = (*foreign_name, (*origin, *def_span));
+
+                match origin {
+                    NameOrigin::FuncParam { .. } => {
+                        names_to_capture.push(name_tuple);
+                    },
+                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
+                        NameKind::Let { is_top_level: true } => {
+                            names_maybe_not_to_capture.push(name_tuple);
+                        },
+                        // we need further check
+                        NameKind::Let { is_top_level: false } => todo!(),
+                    },
+                    // inter-hir guarantees that `use` cannot alias a local value
+                    NameOrigin::External => {
+                        names_not_to_capture.push(name_tuple);
+                    },
+                }
             }
         }
 
