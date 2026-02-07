@@ -119,11 +119,7 @@ impl Session {
 
     pub fn init_span_string_map_expr(&self, expr: &Expr, result: &mut HashMap<Span, InternedString>) {
         match expr {
-            Expr::Ident(_) |
-            Expr::Number { .. } |
-            Expr::String { .. } |
-            Expr::Char { .. } |
-            Expr::Byte { .. } => {},
+            Expr::Ident(_) | Expr::Constant(_) => {},
             Expr::Field { lhs, .. } => {
                 self.init_span_string_map_expr(lhs, result);
             },

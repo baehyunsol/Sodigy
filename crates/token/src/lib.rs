@@ -2,12 +2,14 @@ use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
+mod constant;
 mod delim;
 mod endec;
 mod keyword;
 mod op;
 mod punct;
 
+pub use constant::Constant;
 pub use delim::Delim;
 pub use keyword::Keyword;
 pub use op::{InfixOp, PostfixOp, PrefixOp};

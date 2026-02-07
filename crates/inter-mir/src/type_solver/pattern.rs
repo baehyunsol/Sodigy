@@ -3,6 +3,7 @@ use crate::{ErrorContext, Type};
 use sodigy_hir::{Path, Pattern, PatternKind};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::Span;
+use sodigy_token::Constant;
 use std::collections::HashMap;
 
 impl TypeSolver {
@@ -76,7 +77,7 @@ impl TypeSolver {
                     )
                 },
             },
-            PatternKind::Number { n, .. } => match n.is_integer {
+            PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer {
                 true => (
                     Some(Type::Static {
                         def_span: self.get_lang_item_span("type.Int"),
@@ -92,7 +93,7 @@ impl TypeSolver {
                     false,
                 ),
             },
-            PatternKind::String { binary, .. } => match *binary {
+            PatternKind::Constant(Constant::String { binary, .. }) => match *binary {
                 true => (
                     Some(Type::Param {
                         constructor_def_span: self.get_lang_item_span("type.List"),
@@ -118,14 +119,14 @@ impl TypeSolver {
                     false,
                 ),
             },
-            PatternKind::Char { .. } => (
+            PatternKind::Constant(Constant::Char { .. }) => (
                 Some(Type::Static {
                     def_span: self.get_lang_item_span("type.Char"),
                     span: Span::None,
                 }),
                 false,
             ),
-            PatternKind::Byte { .. } => (
+            PatternKind::Constant(Constant::Byte { .. }) => (
                 Some(Type::Static {
                     def_span: self.get_lang_item_span("type.Byte"),
                     span: Span::None,

@@ -170,6 +170,7 @@ use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
+use sodigy_token::Constant;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -253,11 +254,7 @@ fn lower_matches_expr_recursive(
     intermediate_dir: &str,
 ) -> Result<(), ()> {
     match expr {
-        Expr::Ident(_) |
-        Expr::Number { .. } |
-        Expr::String { .. } |
-        Expr::Char { .. } |
-        Expr::Byte { .. } => Ok(()),
+        Expr::Ident(_) | Expr::Constant(_) => Ok(()),
         Expr::If(r#if) => match (
             lower_matches_expr_recursive(r#if.cond.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
             lower_matches_expr_recursive(r#if.true_value.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
@@ -690,7 +687,7 @@ fn read_field_of_pattern<'p>(
                 name_binding: Some((*id, *span)),
                 name_binding_offset: None,
             }),
-            PatternKind::Number { n, .. } => Ok(DestructuredPattern {
+            PatternKind::Constant(Constant::Number { n, .. }) => Ok(DestructuredPattern {
                 pattern,
                 constructor: Constructor::Range(Range {
                     r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
@@ -702,9 +699,7 @@ fn read_field_of_pattern<'p>(
                 name_binding,
                 name_binding_offset: None,
             }),
-            PatternKind::String { binary, s, .. } => todo!(),
-            PatternKind::Char { ch, .. } => todo!(),
-            PatternKind::Byte { b, .. } => todo!(),
+            PatternKind::Constant(_) => todo!(),
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
@@ -724,17 +719,17 @@ fn read_field_of_pattern<'p>(
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let lhs = lhs.as_ref().map(
                     |lhs| match &lhs.kind {
-                        PatternKind::Number { n, .. } => n.clone(),
-                        PatternKind::Char { ch, .. } => InternedNumber::from_u32(*ch, true),
-                        PatternKind::Byte { b, .. } => InternedNumber::from_u32(*b as u32, true),
+                        PatternKind::Constant(Constant::Number { n, .. }) => n.clone(),
+                        PatternKind::Constant(Constant::Char { ch, .. }) => InternedNumber::from_u32(*ch, true),
+                        PatternKind::Constant(Constant::Byte { b, .. }) => InternedNumber::from_u32(*b as u32, true),
                         _ => unreachable!(),
                     }
                 );
                 let rhs = rhs.as_ref().map(
                     |rhs| match &rhs.kind {
-                        PatternKind::Number { n, .. } => n.clone(),
-                        PatternKind::Char { ch, .. } => InternedNumber::from_u32(*ch, true),
-                        PatternKind::Byte { b, .. } => InternedNumber::from_u32(*b as u32, true),
+                        PatternKind::Constant(Constant::Number { n, .. }) => n.clone(),
+                        PatternKind::Constant(Constant::Char { ch, .. }) => InternedNumber::from_u32(*ch, true),
+                        PatternKind::Constant(Constant::Byte { b, .. }) => InternedNumber::from_u32(*b as u32, true),
                         _ => unreachable!(),
                     }
                 );

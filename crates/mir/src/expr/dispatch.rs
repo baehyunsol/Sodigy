@@ -17,10 +17,7 @@ impl Expr {
             //       `let x: [Fn(Int, Int) -> Int] = [add, sub, mul, div];`
             //       Then we have to dispatch the identifiers in the list.
             Expr::Ident(_) => {},
-            Expr::Number { .. } |
-            Expr::String { .. } |
-            Expr::Char { .. } |
-            Expr::Byte { .. } => {},
+            Expr::Constant(_) => {},
             Expr::If(r#if) => {
                 r#if.cond.dispatch(map, func_shapes, generic_args);
                 r#if.true_value.dispatch(map, func_shapes, generic_args);

@@ -14,6 +14,7 @@ mod assert;
 mod assoc;
 mod attribute;
 mod block;
+mod closure;
 pub mod dump;
 mod endec;
 mod eval;
@@ -53,12 +54,13 @@ pub use attribute::{
 pub(crate) use attribute::get_decorator_error_notes;
 pub use block::Block;
 pub(crate) use block::BlockSession;
+pub use closure::CapturedNames;
 pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
 pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncPurity, FuncShape};
 pub use r#if::If;
-pub use r#let::{Let, LetOrigin};
+pub use r#let::{Let, LetOrigin, TrivialLet};
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
 pub use path::Path;
@@ -89,5 +91,6 @@ pub fn lower(parse_session: ParseSession) -> Session {
         session.asserts.push(assert);
     }
 
+    session.substitute_closures();
     session
 }

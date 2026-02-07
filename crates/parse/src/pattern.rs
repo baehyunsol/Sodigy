@@ -1,9 +1,8 @@
 use crate::{Field, Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_number::InternedNumber;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::InternedString;
-use sodigy_token::{Delim, InfixOp, Punct, Token, TokenKind};
+use sodigy_token::{Constant, Delim, InfixOp, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -18,31 +17,15 @@ pub struct Pattern {
 pub enum PatternKind {
     // An identifier without fields is also a path.
     Path(Path),
+    Constant(Constant),
 
     // `if let Some($x) = foo() { .. }`
     NameBinding {
         id: InternedString,
         span: Span,
     },
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    String {
-        binary: bool,
-        s: InternedString,
-        span: Span,
-    },
     Regex {
         s: InternedString,
-        span: Span,
-    },
-    Char {
-        ch: u32,
-        span: Span,
-    },
-    Byte {
-        b: u8,
         span: Span,
     },
     Struct {
@@ -192,7 +175,7 @@ impl Pattern {
                 group_span: span.derive(SpanDeriveKind::ConcatPatternList),
                 is_lowered_from_concat: true,
             },
-            PatternKind::String { binary, s, span } => todo!(),
+            PatternKind::Constant(Constant::String { binary, s, span }) => todo!(),
             l @ PatternKind::List { .. } => l,
             p => {
                 errors.push(Error {
@@ -219,12 +202,9 @@ impl Pattern {
 impl PatternKind {
     pub fn error_span_narrow(&self) -> Span {
         match self {
+            PatternKind::Constant(c) => c.span(),
             PatternKind::NameBinding { span, .. } |
-            PatternKind::Number { span, .. } |
-            PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
-            PatternKind::Char { span, .. } |
-            PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::PipelineData(span) |
             PatternKind::Tuple { group_span: span, .. } |
@@ -241,12 +221,9 @@ impl PatternKind {
     pub fn error_span_wide(&self) -> Span {
         match self {
             PatternKind::Path(p) => p.error_span_wide(),
+            PatternKind::Constant(c) => c.span(),
             PatternKind::NameBinding { span, .. } |
-            PatternKind::Number { span, .. } |
-            PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
-            PatternKind::Char { span, .. } |
-            PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::PipelineData(span) |
             PatternKind::Tuple { group_span: span, .. } |
@@ -274,12 +251,9 @@ impl PatternKind {
 
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
-            PatternKind::Number { .. } |
-            PatternKind::String { .. } |
-            PatternKind::Regex { .. } |
-            PatternKind::Char { .. } |
-            PatternKind::Byte { .. } |
             PatternKind::Path(_) |
+            PatternKind::Constant(_) |
+            PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) |
             PatternKind::PipelineData(_) => vec![],
             PatternKind::NameBinding { id, span } => vec![(*id, *span)],
@@ -438,7 +412,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::Number { n, span },
+                    kind: PatternKind::Constant(Constant::Number { n, span }),
                 }
             },
             (Some(Token { kind: TokenKind::Number(n), span }), _) => {
@@ -447,7 +421,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::Number { n, span },
+                    kind: PatternKind::Constant(Constant::Number { n, span }),
                 }
             },
             (Some(Token { kind: TokenKind::String { binary, raw: _, regex, s }, span }), _) => {
@@ -466,7 +440,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     Pattern {
                         name: None,
                         name_span: None,
-                        kind: PatternKind::String { binary, s, span },
+                        kind: PatternKind::Constant(Constant::String { binary, s, span }),
                     }
                 }
             },
@@ -476,7 +450,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::Char { ch, span },
+                    kind: PatternKind::Constant(Constant::Char { ch, span }),
                 }
             },
             (Some(Token { kind: TokenKind::Byte(b), span }), _) => {
@@ -485,7 +459,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 Pattern {
                     name: None,
                     name_span: None,
-                    kind: PatternKind::Byte { b, span },
+                    kind: PatternKind::Constant(Constant::Byte { b, span }),
                 }
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
@@ -863,18 +837,18 @@ impl<'t, 's> Tokens<'t, 's> {
                                 let rhs = self.pratt_parse_pattern(context, r_bp)?;
                                 let op_kind = match (&lhs.kind, &rhs.kind) {
                                     (
-                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
-                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
                                     ) => PatternValueKind::Constant,
                                     (
-                                        PatternKind::Path { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
-                                        PatternKind::Path { .. } | PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
+                                        PatternKind::Path { .. } | PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
+                                        PatternKind::Path { .. } | PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant | PatternValueKind::Value, .. },
                                     ) => PatternValueKind::Value,
                                     (
                                         PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
-                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
                                     ) | (
-                                        PatternKind::Number { .. } | PatternKind::Char { .. } | PatternKind::Byte { .. } | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
+                                        PatternKind::Constant(Constant::Number { .. }) | PatternKind::Constant(Constant::Char { .. }) | PatternKind::Constant(Constant::Byte { .. }) | PatternKind::InfixOp { kind: PatternValueKind::Constant, .. },
                                         PatternKind::NameBinding { .. } | PatternKind::InfixOp { kind: PatternValueKind::NameBinding, .. },
                                     ) => {
                                         let (aux_span, aux_name) = match (&lhs.kind, &rhs.kind) {

@@ -1,5 +1,6 @@
 use crate::{
     CallArg,
+    CapturedNames,
     Expr,
     Func,
     FuncOrigin,
@@ -31,6 +32,7 @@ impl Endec for Func {
         self.origin.encode_impl(buffer);
         self.built_in.encode_impl(buffer);
         self.foreign_names.encode_impl(buffer);
+        self.captured_names.encode_impl(buffer);
         self.use_counts.encode_impl(buffer);
     }
 
@@ -48,6 +50,7 @@ impl Endec for Func {
         let (origin, cursor) = FuncOrigin::decode_impl(buffer, cursor)?;
         let (built_in, cursor) = bool::decode_impl(buffer, cursor)?;
         let (foreign_names, cursor) = HashMap::<InternedString, (NameOrigin, Span)>::decode_impl(buffer, cursor)?;
+        let (captured_names, cursor) = Option::<CapturedNames>::decode_impl(buffer, cursor)?;
         let (use_counts, cursor) = HashMap::<InternedString, UseCount>::decode_impl(buffer, cursor)?;
 
         Ok((
@@ -65,6 +68,7 @@ impl Endec for Func {
                 origin,
                 built_in,
                 foreign_names,
+                captured_names,
                 use_counts,
             },
             cursor,

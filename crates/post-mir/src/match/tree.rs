@@ -14,6 +14,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
+use sodigy_token::Constant;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
@@ -279,15 +280,15 @@ fn constructor_to_expr(
             let (lang_item, operand) = match (&range.lhs, &range.rhs) {
                 (Some(lhs), Some(rhs)) => match lhs.cmp(rhs) {
                     Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
-                        LiteralType::Int => ("built_in.eq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                        LiteralType::Int => ("built_in.eq_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
                         _ => todo!(),
                     },
                     Ordering::Less => {
                         if range.r#type.is_int_like() && &lhs.add_one() == rhs {
                             // `3 < x && x <= 4` is just `x == 4`
                             match (range.r#type, range.lhs_inclusive, range.rhs_inclusive) {
-                                (LiteralType::Int, false, true) => ("built_in.eq_int", Expr::Number { n: rhs.clone(), span: Span::None }),
-                                (LiteralType::Int, true, false) => ("built_in.eq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                                (LiteralType::Int, false, true) => ("built_in.eq_int", Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None })),
+                                (LiteralType::Int, true, false) => ("built_in.eq_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
                                 (LiteralType::Int, _, _) => {
                                     return true_value(lang_items, intermediate_dir);
                                 },
@@ -301,8 +302,8 @@ fn constructor_to_expr(
                         else {
                             let (lhs, rhs) = match range.r#type {
                                 LiteralType::Int => (
-                                    Expr::Number { n: lhs.clone(), span: Span::None },
-                                    Expr::Number { n: rhs.clone(), span: Span::None },
+                                    Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None }),
+                                    Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None }),
                                 ),
                                 _ => todo!(),
                             };
@@ -372,13 +373,13 @@ fn constructor_to_expr(
                     },
                 },
                 (Some(lhs), None) => match (range.r#type, range.lhs_inclusive) {
-                    (LiteralType::Int, true) => ("built_in.geq_int", Expr::Number { n: lhs.clone(), span: Span::None }),
-                    (LiteralType::Int, false) => ("built_in.gt_int", Expr::Number { n: lhs.clone(), span: Span::None }),
+                    (LiteralType::Int, true) => ("built_in.geq_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
+                    (LiteralType::Int, false) => ("built_in.gt_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
                     _ => todo!(),
                 },
                 (None, Some(rhs)) => match (range.r#type, range.rhs_inclusive) {
-                    (LiteralType::Int, true) => ("built_in.leq_int", Expr::Number { n: rhs.clone(), span: Span::None }),
-                    (LiteralType::Int, false) => ("built_in.lt_int", Expr::Number { n: rhs.clone(), span: Span::None }),
+                    (LiteralType::Int, true) => ("built_in.leq_int", Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None })),
+                    (LiteralType::Int, false) => ("built_in.lt_int", Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None })),
                     _ => todo!(),
                 },
                 (None, None) => {

@@ -7,7 +7,7 @@ use sodigy_span::RenderableSpan;
 impl Session {
     pub fn resolve_expr(&mut self, expr: &mut Expr) -> Result<(), ()> {
         match expr {
-            Expr::Path(p) => {
+            Expr::Path(p) | Expr::Closure { fp: p, .. } => {
                 self.resolve_path(p, None, &mut vec![])?;
 
                 if p.fields.is_empty() {
@@ -27,10 +27,7 @@ impl Session {
                     Ok(())
                 }
             },
-            Expr::Number { .. } |
-            Expr::String { .. } |
-            Expr::Char { .. } |
-            Expr::Byte { .. } => Ok(()),
+            Expr::Constant(_) => Ok(()),
             Expr::If(r#if) => match (
                 self.resolve_expr(&mut r#if.cond),
                 self.resolve_expr(&mut r#if.true_value),
@@ -231,17 +228,14 @@ impl Session {
         }
 
         match expr {
-            Expr::Path(p) => match check_path(p, &self.intermediate_dir) {
+            Expr::Path(p) | Expr::Closure { fp: p, .. } => match check_path(p, &self.intermediate_dir) {
                 Ok(()) => Ok(()),
                 Err(e) => {
                     self.errors.push(e);
                     Err(())
                 },
             },
-            Expr::Number { .. } |
-            Expr::String { .. } |
-            Expr::Char { .. } |
-            Expr::Byte { .. } => Ok(()),
+            Expr::Constant(_) => Ok(()),
             Expr::If(r#if) => match (
                 self.check_expr_path(&r#if.cond),
                 self.check_expr_path(&r#if.true_value),

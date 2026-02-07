@@ -7,6 +7,7 @@ use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::intern_string;
+use sodigy_token::Constant;
 use std::collections::HashMap;
 
 impl TypeSolver {
@@ -56,7 +57,7 @@ impl TypeSolver {
                     )
                 },
             },
-            Expr::Number { n, .. } => match n.is_integer {
+            Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
                 true => (
                     Some(Type::Static {
                         def_span: self.get_lang_item_span("type.Int"),
@@ -72,7 +73,7 @@ impl TypeSolver {
                     false,
                 ),
             },
-            Expr::String { binary, .. } => match *binary {
+            Expr::Constant(Constant::String { binary, .. }) => match *binary {
                 true => (
                     Some(Type::Param {
                         constructor_def_span: self.get_lang_item_span("type.List"),
@@ -98,14 +99,14 @@ impl TypeSolver {
                     false,
                 ),
             },
-            Expr::Char { .. } => (
+            Expr::Constant(Constant::Char { .. }) => (
                 Some(Type::Static {
                     def_span: self.get_lang_item_span("type.Char"),
                     span: Span::None,
                 }),
                 false,
             ),
-            Expr::Byte { .. } => (
+            Expr::Constant(Constant::Byte { .. }) => (
                 Some(Type::Static {
                     def_span: self.get_lang_item_span("type.Byte"),
                     span: Span::None,

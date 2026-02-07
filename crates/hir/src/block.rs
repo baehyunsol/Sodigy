@@ -17,7 +17,6 @@ use sodigy_name_analysis::{
     Namespace,
     UseCount,
 };
-use sodigy_number::InternedNumber;
 use sodigy_parse as ast;
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
@@ -187,10 +186,7 @@ impl Block {
             // If `ast_block.value` is None, it's a top-level block.
             // AST creates a `Block` instance for the top-level block, but HIR doesn't.
             // So we first use a dummy value. The HIR session will do the cleanup.
-            None => Some(Expr::Number {
-                n: InternedNumber::from_u32(0, true),
-                span: Span::None,
-            }),
+            None => Some(Expr::dummy()),
         };
 
         let mut use_counts = HashMap::new();
@@ -225,13 +221,24 @@ impl Block {
             lets.push(func_default_value);
         }
 
-        let lambdas: Vec<Func> = block_session.lambdas.drain(..).collect();
+        let mut lambdas: Vec<Func> = block_session.lambdas.drain(..).collect();
 
-        for (func, closure_info) in session.check_captured_names(&mut lambdas, &lets) {
+        for (mut func, captured_names) in session.check_captured_names(&mut lambdas) {
+            if let Some(captured_names) = &captured_names {
+                session.closures.insert(func.name_span, captured_names.clone());
+            }
+
+            else {
+                // TODO: find this lambda in `session.trivial_lets` and turn `TrivialLet::MaybeLambda` to `TrivialLet::DefinitelyLambda`
+                todo!()
+            }
+
+            func.captured_names = captured_names;
             session.funcs.push(func);
-            // what do we do if it's a closure?
-            tood!()
         }
+
+        // TODO: remove `TrivialLet::DefinitelyLambda` and `TrivialLet::Constant` from `let_cycle_check_xxxx`.
+        todo!();
 
         // TOOD: It only underlines the definitions of the names.
         //       I want it to underline the actual uses of the names.
@@ -316,49 +323,6 @@ impl BlockSession {
             lambdas: vec![],
             func_default_values: vec![],
         }
-    }
-}
-
-impl Session {
-    pub fn check_captured_names(&self, lambdas: &mut Vec<Func>, lets: &[Let]) -> Vec<(Func, _)> {
-        for lambda in lambdas.iter() {
-            // In `fn(x) = \(y) => x + y;`, there's nothing we can do with `x`.
-            // We have to capture `x` and make a closure.
-            let mut names_to_capture = vec![];
-
-            // `Int` in `\(x: Int) => x + 1` is a foreign name, but we don't have to capture it!
-            let mut names_not_to_capture = vec![];
-
-            // In `{ let x = 3; \(y) => x + y }`, if the compiler is smart enough,
-            // we can rewrite the lambda to `\(y) => 3 + y`. We'll keep such cases
-            // in this vector, and post-mir will do the optimization. We can't do
-            // the optimization until inter-mir, because doing the substitution
-            // will make type-errors (if exists) less readable.
-            let mut names_maybe_not_to_capture = vec![];
-
-            for (foreign_name, (origin, def_span)) in lambda.foreign_names.iter() {
-                let name_tuple @ (foreign_name, (origin, def_span)) = (*foreign_name, (*origin, *def_span));
-
-                match origin {
-                    NameOrigin::FuncParam { .. } => {
-                        names_to_capture.push(name_tuple);
-                    },
-                    NameOrigin::Local { kind } | NameOrigin::Foreign { kind } => match kind {
-                        NameKind::Let { is_top_level: true } => {
-                            names_maybe_not_to_capture.push(name_tuple);
-                        },
-                        // we need further check
-                        NameKind::Let { is_top_level: false } => todo!(),
-                    },
-                    // inter-hir guarantees that `use` cannot alias a local value
-                    NameOrigin::External => {
-                        names_not_to_capture.push(name_tuple);
-                    },
-                }
-            }
-        }
-
-        todo!()
     }
 }
 

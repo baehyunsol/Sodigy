@@ -24,12 +24,9 @@ impl Session {
     pub fn resolve_pattern_kind(&mut self, kind: &mut PatternKind) -> Result<(), ()> {
         match kind {
             PatternKind::Path(path) => self.resolve_path(path, None, &mut vec![]),
+            PatternKind::Constant(_) |
             PatternKind::NameBinding { .. } |
-            PatternKind::Number { .. } |
-            PatternKind::String { .. } |
             PatternKind::Regex { .. } |
-            PatternKind::Char { .. } |
-            PatternKind::Byte { .. } |
             PatternKind::Wildcard(_) => Ok(()),
             PatternKind::Struct { r#struct, fields, .. } => {
                 let mut has_error = self.resolve_path(r#struct, None, &mut vec![]).is_err();

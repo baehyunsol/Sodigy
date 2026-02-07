@@ -1,11 +1,10 @@
 use crate::{Expr, Path, Session, eval_const};
 use sodigy_error::Error;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, RestPattern};
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::InfixOp;
+use sodigy_token::{Constant, InfixOp};
 
 mod from_expr;
 
@@ -19,29 +18,13 @@ pub struct Pattern {
 #[derive(Clone, Debug)]
 pub enum PatternKind {
     Path(Path),
+    Constant(Constant),
     NameBinding {
         id: InternedString,
         span: Span,
     },
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    String {
-        binary: bool,
-        s: InternedString,
-        span: Span,
-    },
     Regex {
         s: InternedString,
-        span: Span,
-    },
-    Char {
-        ch: u32,
-        span: Span,
-    },
-    Byte {
-        b: u8,
         span: Span,
     },
     Struct {
@@ -154,9 +137,8 @@ impl PatternKind {
             // But the problem is that we don't know whether `x` is an expression or not
             // until inter-hir is complete. So we do the lowering later.
             ast::PatternKind::Path(p) => Ok(PatternKind::Path(Path::from_ast(p, session)?)),
+            ast::PatternKind::Constant(c) => Ok(PatternKind::Constant(c.clone())),
             ast::PatternKind::NameBinding { id, span } => Ok(PatternKind::NameBinding { id: *id, span: *span }),
-            ast::PatternKind::Number { n, span } => Ok(PatternKind::Number { n: n.clone(), span: *span }),
-            ast::PatternKind::String { binary, s, span } => Ok(PatternKind::String { binary: *binary, s: *s, span: *span }),
             ast::PatternKind::Regex { s, span } => {
                 session.errors.push(Error::todo(
                     18211,
@@ -165,8 +147,6 @@ impl PatternKind {
                 ));
                 Err(())
             },
-            ast::PatternKind::Char { ch, span } => Ok(PatternKind::Char { ch: *ch, span: *span }),
-            ast::PatternKind::Byte { b, span } => Ok(PatternKind::Byte { b: *b, span: *span }),
             ast::PatternKind::TupleStruct { r#struct, elements: ast_elements, rest, group_span } => {
                 let mut has_error = false;
                 let mut elements = Vec::with_capacity(ast_elements.len());
@@ -309,11 +289,8 @@ impl PatternKind {
     pub fn bound_names(&self) -> Vec<(InternedString, Span)> {
         match self {
             PatternKind::Path(_) |
-            PatternKind::Number { .. } |
-            PatternKind::String { .. } |
+            PatternKind::Constant(_) |
             PatternKind::Regex { .. } |
-            PatternKind::Char { .. } |
-            PatternKind::Byte { .. } |
             PatternKind::Wildcard(_) => vec![],
             PatternKind::NameBinding { id, span } => vec![(*id, *span)],
             PatternKind::TupleStruct { elements, rest, .. } |
@@ -336,12 +313,9 @@ impl PatternKind {
     pub fn error_span_narrow(&self) -> Span {
         match self {
             PatternKind::Path(p) => p.error_span_narrow(),
+            PatternKind::Constant(c) => c.span(),
             PatternKind::NameBinding { span, .. } |
-            PatternKind::Number { span, .. } |
-            PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
-            PatternKind::Char { span, .. } |
-            PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::Tuple { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
@@ -353,12 +327,9 @@ impl PatternKind {
     pub fn error_span_wide(&self) -> Span {
         match self {
             PatternKind::Path(p) => p.error_span_wide(),
+            PatternKind::Constant(c) => c.span(),
             PatternKind::NameBinding { span, .. } |
-            PatternKind::Number { span, .. } |
-            PatternKind::String { span, .. } |
             PatternKind::Regex { span, .. } |
-            PatternKind::Char { span, .. } |
-            PatternKind::Byte { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::Tuple { group_span: span, .. } => *span,
             PatternKind::Range { lhs, op_span, rhs, .. } => {

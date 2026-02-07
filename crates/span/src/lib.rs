@@ -1,5 +1,5 @@
 use sodigy_file::File;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, hash};
 
 mod cmp;
 mod derive;
@@ -183,6 +183,11 @@ impl Span {
             auxiliary: false,
             note: Some(note.to_string()),
         }]
+    }
+
+    pub fn s_hash(&self) -> u128 {
+        use sodigy_endec::Endec;
+        hash(&self.encode())
     }
 }
 

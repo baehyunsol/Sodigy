@@ -219,6 +219,7 @@ impl Session {
                                         origin: FuncOrigin::AssociatedFunc,
                                         built_in: false,
                                         foreign_names: HashMap::new(),
+                                        captured_names: None,
                                         use_counts: HashMap::new(),
                                     });
                                 },

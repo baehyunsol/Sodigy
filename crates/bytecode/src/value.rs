@@ -2,6 +2,7 @@ use crate::Session;
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_span::Span;
 use sodigy_string::{InternedString, unintern_string};
+use sodigy_token::Constant;
 
 // This is how values are represented in Sodigy runtime.
 // TODO: intern compound values
@@ -29,6 +30,15 @@ impl Value {
 }
 
 impl Session {
+    pub fn lower_constant(&self, constant: &Constant) -> Value {
+        match constant {
+            Constant::Number { n, .. } => n.into(),
+            Constant::String { s, binary, .. } => self.string_to_value(*s, *binary),
+            Constant::Char { ch, .. } => Value::Scalar(*ch as u32),
+            Constant::Byte { b, .. } => Value::Scalar(*b as u32),
+        }
+    }
+
     // TODO: we need some kinda intern mechanism here... again!
     // FIXME: so many unwraps!
     pub fn string_to_value(&self, s: InternedString, binary: bool) -> Value {

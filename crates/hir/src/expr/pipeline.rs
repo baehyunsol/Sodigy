@@ -10,10 +10,7 @@ pub fn replace_dollar(
 ) {
     match value {
         ast::Expr::Path(_) |
-        ast::Expr::Number { .. } |
-        ast::Expr::String { .. } |
-        ast::Expr::Char { .. } |
-        ast::Expr::Byte { .. } => {},
+        ast::Expr::Constant(_) => {},
         ast::Expr::If(r#if) => {
             replace_dollar(
                 &mut r#if.cond,
@@ -178,12 +175,9 @@ fn replace_dollar_in_pattern(
 ) {
     match &mut pattern.kind {
         ast::PatternKind::Path(_) |
+        ast::PatternKind::Constant(_) |
         ast::PatternKind::NameBinding { .. } |
-        ast::PatternKind::Number { .. } |
-        ast::PatternKind::String { .. } |
         ast::PatternKind::Regex { .. } |
-        ast::PatternKind::Char { .. } |
-        ast::PatternKind::Byte { .. } |
         ast::PatternKind::Wildcard(_) => {},
         ast::PatternKind::Struct { .. } => todo!(),
         ast::PatternKind::TupleStruct { elements, .. } |

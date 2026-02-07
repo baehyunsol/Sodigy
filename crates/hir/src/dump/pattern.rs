@@ -19,25 +19,11 @@ pub fn dump_pattern_kind(pattern_kind: &PatternKind, lines: &mut IndentedLines, 
             lines.push("$");
             lines.push(&id.unintern_or_default(&session.intermediate_dir));
         },
-        PatternKind::Number { n, .. } => {
-            lines.push(&n.dump());
-        },
-        PatternKind::String { binary, s, .. } => {
-            let s = format!(
-                "{}{:?}",
-                if *binary { "b" } else { "" },
-                s.unintern_or_default(&session.intermediate_dir),
-            );
-            lines.push(&s);
+        PatternKind::Constant(c) => {
+            lines.push(&c.dump(&session.intermediate_dir));
         },
         PatternKind::Regex { .. } => {
             lines.push(&format!("/* TODO: dump regex pattern {pattern_kind:?} */"));
-        },
-        PatternKind::Char { ch, .. } => {
-            lines.push(&format!("{:?}", char::from_u32(*ch).unwrap()));
-        },
-        PatternKind::Byte { b, .. } => {
-            lines.push(&format!("#{b}"));
         },
         PatternKind::Struct { r#struct, fields, rest, .. } => {
             lines.push(&r#struct.unintern_or_default(&session.intermediate_dir));

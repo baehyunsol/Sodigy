@@ -12,11 +12,10 @@ use crate::{
 };
 use sodigy_error::{Error, ErrorKind};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::InternedNumber;
 use sodigy_parse::{self as ast, Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::{InfixOp, PostfixOp, PrefixOp};
+use sodigy_token::{Constant, InfixOp, PostfixOp, PrefixOp};
 
 mod pipeline;
 use pipeline::replace_dollar;
@@ -27,23 +26,7 @@ pub enum Expr {
     // We don't know that until inter-hir. So we just lower `a.b.c` to
     // `Expr::Path`, and inter-hir will resolve it later.
     Path(Path),
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    String {
-        binary: bool,
-        s: InternedString,
-        span: Span,
-    },
-    Char {
-        ch: u32,
-        span: Span,
-    },
-    Byte {
-        b: u8,
-        span: Span,
-    },
+    Constant(Constant),
     If(If),
     Match(Match),
     Block(Block),
@@ -103,22 +86,22 @@ pub enum Expr {
         op_span: Span,
         lhs: Box<Expr>,
     },
+    Closure {
+        fp: Path,
+        captures: Vec<Span /* def_span */>,
+    },
 }
 
 impl Expr {
+    /// If you see this value in bytecode, it's 99% likely that there's a bug in the compiler.
     pub fn dummy() -> Self {
-        // You shouldn't see this value in bytecodes.
-        // I put a random-looking number for easier debugging.
-        Expr::Char { ch: 49773, span: Span::None }
+        Expr::Constant(Constant::dummy())
     }
 
     pub fn from_ast(ast_expr: &ast::Expr, session: &mut Session) -> Result<Expr, ()> {
         match ast_expr {
             ast::Expr::Path(p) => Ok(Expr::Path(Path::from_ast(p, session)?)),
-            ast::Expr::Number { n, span } => Ok(Expr::Number { n: n.clone(), span: *span }),
-            ast::Expr::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
-            ast::Expr::Char { ch, span } => Ok(Expr::Char { ch: *ch, span: *span }),
-            ast::Expr::Byte { b, span } => Ok(Expr::Byte { b: *b, span: *span }),
+            ast::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
             ast::Expr::If(r#if) => Ok(Expr::If(If::from_ast(r#if, session)?)),
             ast::Expr::Match(r#match) => Ok(Expr::Match(Match::from_ast(r#match, session)?)),
             ast::Expr::Block(block) => Ok(Expr::Block(Block::from_ast(block, session)?)),
@@ -474,11 +457,8 @@ impl Expr {
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
-            Expr::Path(p) => p.error_span_narrow(),
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } |
+            Expr::Path(p) | Expr::Closure { fp: p, .. } => p.error_span_narrow(),
+            Expr::Constant(c) => c.span(),
             Expr::FormattedString { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
@@ -497,11 +477,8 @@ impl Expr {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            Expr::Path(p) => p.error_span_wide(),
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } |
+            Expr::Path(p) | Expr::Closure { fp: p, .. } => p.error_span_wide(),
+            Expr::Constant(c) => c.span(),
             Expr::FormattedString { span, .. } => *span,
             Expr::If(r#if) => r#if.if_span
                 .merge(r#if.cond.error_span_wide())
@@ -527,10 +504,11 @@ impl Expr {
     }
 }
 
-fn name_lambda_function(_span: Span, map_dir: &str) -> InternedString {
+fn name_lambda_function(span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
-    // TODO: But I want some kinda unique identifier for debugging.
-    intern_string(b"lambda_func", map_dir).unwrap()
+    //       But I'm adding `span.hash()` for better debuggability. I'm making the name it 15 bytes
+    //       long because that's the maximum length `intern_string` can run without doing file IO.
+    intern_string(format!("lambda_{:08x}", span.s_hash() % 0xffff_ffff).as_bytes(), map_dir).unwrap()
 }
 
 #[derive(Clone, Debug)]

@@ -12,10 +12,10 @@ use crate::{
     merge_field_spans,
 };
 use sodigy_error::{Error, ErrorKind, ErrorToken};
-use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use sodigy_token::{
+    Constant,
     Delim,
     InfixOp,
     Keyword,
@@ -32,27 +32,7 @@ mod from_pattern;
 #[derive(Clone, Debug)]
 pub enum Expr {
     Path(Path),
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    String {
-        binary: bool,
-        s: InternedString,
-
-        // it includes quotes
-        span: Span,
-    },
-    Char {
-        ch: u32,
-
-        // it includes quotes
-        span: Span,
-    },
-    Byte {
-        b: u8,
-        span: Span,
-    },
+    Constant(Constant),
     If(If),
     Match(Match),
     Block(Block),
@@ -124,10 +104,7 @@ impl Expr {
     pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Path(p) => p.error_span_narrow(),
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } |
+            Expr::Constant(c) => c.span(),
             Expr::FormattedString { span, .. } |
             Expr::Tuple { group_span: span, .. } |
             Expr::List { group_span: span, .. } |
@@ -150,10 +127,7 @@ impl Expr {
     pub fn error_span_wide(&self) -> Span {
         match self {
             Expr::Path(p) => p.error_span_wide(),
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } |
+            Expr::Constant(c) => c.span(),
             Expr::FormattedString { span, .. } |
             Expr::Tuple { group_span: span, .. } |
             Expr::List { group_span: span, .. } |
@@ -258,23 +232,23 @@ impl<'t, 's> Tokens<'t, 's> {
             Some(Token { kind: TokenKind::Number(n), span }) => {
                 let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
-                Expr::Number { n, span }
+                Expr::Constant(Constant::Number { n, span })
             },
             Some(Token { kind: TokenKind::String { binary, regex: false, s, .. }, span }) => {
                 let (binary, s, span) = (*binary, *s, *span);
                 self.cursor += 1;
-                Expr::String { binary, s, span }
+                Expr::Constant(Constant::String { binary, s, span })
             },
             Some(Token { kind: TokenKind::String { regex: true, s, .. }, span }) => todo!(),
             Some(Token { kind: TokenKind::Char(ch), span }) => {
                 let (ch, span) = (*ch, *span);
                 self.cursor += 1;
-                Expr::Char { ch, span }
+                Expr::Constant(Constant::Char { ch, span })
             },
             Some(Token { kind: TokenKind::Byte(b), span }) => {
                 let (b, span) = (*b, *span);
                 self.cursor += 1;
-                Expr::Byte { b, span }
+                Expr::Constant(Constant::Byte { b, span })
             },
             Some(Token { kind: TokenKind::FormattedString { raw, elements: token_elements }, span }) => {
                 let (raw, span) = (*raw, *span);

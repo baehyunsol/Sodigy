@@ -5,6 +5,7 @@ use crate::{
     AttributeRule,
     AttributeRuleKey,
     BlockSession,
+    CapturedNames,
     Enum,
     Expr,
     Func,
@@ -13,6 +14,7 @@ use crate::{
     Module,
     Poly,
     Struct,
+    TrivialLet,
     TypeAssertion,
     Use,
     prelude::prelude_namespace,
@@ -58,6 +60,13 @@ pub struct Session {
     pub type_assertions: Vec<TypeAssertion>,
 
     pub associated_items: Vec<AssociatedItem>,
+
+    // key: name_span of `let`
+    pub trivial_lets: HashMap<Span, TrivialLet>,
+
+    // after ast is lowered to hir, the session will walk the tree and
+    // replace `Expr::Ident(x)` with `Expr::Closure { fp: x, captures: captured_names.locals }`
+    pub closures: HashMap<Span /* def_span of lambda */, CapturedNames>,
 
     // inter-hir will collect these
     pub lang_items: HashMap<String, Span>,
@@ -111,6 +120,8 @@ impl Session {
             modules: vec![],
             type_assertions: vec![],
             associated_items: vec![],
+            trivial_lets: HashMap::new(),
+            closures: HashMap::new(),
             lang_items: HashMap::new(),
             polys: HashMap::new(),
             poly_impls: vec![],

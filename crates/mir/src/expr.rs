@@ -2,11 +2,10 @@ use crate::{Block, If, Match, Session, Type, lower_hir_if};
 use sodigy_error::{Error, ErrorKind, comma_list_strs, to_ordinal};
 use sodigy_hir as hir;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_number::InternedNumber;
 use sodigy_parse::{Field, merge_field_spans};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
-use sodigy_token::InfixOp;
+use sodigy_token::{Constant, InfixOp};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -15,24 +14,7 @@ mod dispatch;
 #[derive(Clone, Debug)]
 pub enum Expr {
     Ident(IdentWithOrigin),
-    Number {
-        n: InternedNumber,
-        span: Span,
-    },
-    // Ideally, we can create `Callable::StringInit`, but that wouldn't work well with long strings.
-    String {
-        binary: bool,
-        s: InternedString,
-        span: Span,
-    },
-    Char {
-        ch: u32,
-        span: Span,
-    },
-    Byte {
-        b: u8,
-        span: Span,
-    },
+    Constant(Constant),
     If(If),
 
     // `Match` is later lowered to a `Block`.
@@ -100,23 +82,7 @@ impl Expr {
 
                 Ok(Expr::Ident(path.id))
             },
-            hir::Expr::Number { n, span } => Ok(Expr::Number {
-                n: n.clone(),
-                span: *span,
-            }),
-            hir::Expr::String { binary, s, span } => Ok(Expr::String {
-                binary: *binary,
-                s: *s,
-                span: *span,
-            }),
-            hir::Expr::Char { ch, span } => Ok(Expr::Char {
-                ch: *ch,
-                span: *span,
-            }),
-            hir::Expr::Byte { b, span } => Ok(Expr::Byte {
-                b: *b,
-                span: *span,
-            }),
+            hir::Expr::Constant(c) => Ok(Expr::Constant(c.clone())),
 
             // `if let` is `hir::If`, but is lowered to `mir::Match`.
             hir::Expr::If(r#if) => Ok(lower_hir_if(r#if, session)?),
@@ -429,12 +395,12 @@ impl Expr {
                 for hir_element in hir_elements.iter() {
                     match hir_element {
                         hir::ExprOrString::String { s, span: curr_span } => {
-                            let e = Expr::String {
+                            let e = Expr::Constant(Constant::String {
                                 binary: false,
                                 s: *s,
                                 // `total_span` includes quotes, but `curr_span` doesn't.
                                 span: if hir_elements.len() == 1 { *total_span } else { *curr_span },
-                            };
+                            });
 
                             elements.push(e);
                         },
@@ -470,11 +436,11 @@ impl Expr {
                 else {
                     match elements.len() {
                         // is this possible?
-                        0 => Ok(Expr::String {
+                        0 => Ok(Expr::Constant(Constant::String {
                             binary: false,
                             s: InternedString::empty(),
                             span: *total_span,
-                        }),
+                        })),
                         1 => Ok(elements.remove(0)),
                         _ => Ok(concat_strings(elements, session)),
                     }
@@ -895,20 +861,19 @@ impl Expr {
                     given_keyword_arguments: vec![],
                 })
             },
+            hir::Expr::Closure { fp, captures } => todo!(),
         }
     }
 
+    /// If you see this value in bytecode, it's 99% likely that there's a bug in the compiler.
     pub fn dummy() -> Expr {
-        Expr::Char { ch: 0, span: Span::None }
+        Expr::Constant(Constant::dummy())
     }
 
     pub fn error_span_narrow(&self) -> Span {
         match self {
             Expr::Ident(id) => id.span,
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } => *span,
+            Expr::Constant(c) => c.span(),
             Expr::If(r#if) => r#if.if_span,
             Expr::Match(r#match) => r#match.keyword_span,
             Expr::Block(block) => block.group_span,
@@ -921,10 +886,7 @@ impl Expr {
     pub fn error_span_wide(&self) -> Span {
         match self {
             Expr::Ident(id) => id.span,
-            Expr::Number { span, .. } |
-            Expr::String { span, .. } |
-            Expr::Char { span, .. } |
-            Expr::Byte { span, .. } => *span,
+            Expr::Constant(c) => c.span(),
             Expr::If(r#if) => r#if.if_span.merge(r#if.true_group_span).merge(r#if.false_group_span),
             Expr::Match(r#match) => r#match.keyword_span.merge(r#match.scrutinee.error_span_wide()).merge(r#match.group_span),
             Expr::Block(block) => block.group_span,

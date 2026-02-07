@@ -1,8 +1,9 @@
-use crate::{Expr, Let, LetOrigin, Type, Visibility};
+use crate::{Expr, Let, LetOrigin, TrivialLet, Type, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_name_analysis::NameOrigin;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use sodigy_token::Constant;
 use std::collections::HashMap;
 
 impl Endec for Let {
@@ -68,6 +69,44 @@ impl Endec for LetOrigin {
             Some(2) => Ok((LetOrigin::FuncDefaultValue, cursor + 1)),
             Some(3) => Ok((LetOrigin::Match, cursor + 1)),
             Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for TrivialLet {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            TrivialLet::Constant(constant) => {
+                buffer.push(0);
+                constant.encode_impl(buffer);
+            },
+            TrivialLet::Reference(def_span) => {
+                buffer.push(1);
+                def_span.encode_impl(buffer);
+            },
+            TrivialLet::MaybeLambda(captured_names) => {
+                buffer.push(2);
+                captured_names.encode_impl(buffer);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (constant, cursor) = Constant::decode_impl(buffer, cursor + 1)?;
+                Ok((TrivialLet::Constant(constant), cursor))
+            },
+            Some(1) => {
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((TrivialLet::Reference(def_span), cursor))
+            },
+            Some(2) => {
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((TrivialLet::MaybeLambda(def_span), cursor))
+            },
+            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

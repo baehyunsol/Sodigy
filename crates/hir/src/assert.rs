@@ -14,6 +14,7 @@ use sodigy_error::ItemKind;
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
+use sodigy_token::Constant;
 use std::collections::hash_map::HashMap;
 
 #[derive(Clone, Debug)]
@@ -182,7 +183,7 @@ impl AssertAttribute {
 
         if let Some(name_) = attribute.decorators.get(&intern_string(b"name", &session.intermediate_dir).unwrap()) {
             match name_.args.get(0) {
-                Some(DecoratorArg::Expr(Expr::String { s, .. })) => {
+                Some(DecoratorArg::Expr(Expr::Constant(Constant::String { s, .. }))) => {
                     name = Some(*s);
                 },
                 _ => unreachable!(),

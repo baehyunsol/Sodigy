@@ -12,10 +12,10 @@ use crate::{
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_hir as hir;
 use sodigy_name_analysis::IdentWithOrigin;
-use sodigy_number::InternedNumber;
 use sodigy_parse::Field;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use sodigy_token::Constant;
 
 impl Endec for Expr {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -24,52 +24,35 @@ impl Endec for Expr {
                 buffer.push(0);
                 id.encode_impl(buffer);
             },
-            Expr::Number { n, span } => {
+            Expr::Constant(c) => {
                 buffer.push(1);
-                n.encode_impl(buffer);
-                span.encode_impl(buffer);
-            },
-            Expr::String { binary, s, span } => {
-                buffer.push(2);
-                binary.encode_impl(buffer);
-                s.encode_impl(buffer);
-                span.encode_impl(buffer);
-            },
-            Expr::Char { ch, span } => {
-                buffer.push(3);
-                ch.encode_impl(buffer);
-                span.encode_impl(buffer);
-            },
-            Expr::Byte { b, span } => {
-                buffer.push(4);
-                b.encode_impl(buffer);
-                span.encode_impl(buffer);
+                c.encode_impl(buffer);
             },
             Expr::If(r#if) => {
-                buffer.push(5);
+                buffer.push(2);
                 r#if.encode_impl(buffer);
             },
             Expr::Match(r#match) => {
-                buffer.push(6);
+                buffer.push(3);
                 r#match.encode_impl(buffer);
             },
             Expr::Block(block) => {
-                buffer.push(7);
+                buffer.push(4);
                 block.encode_impl(buffer);
             },
             Expr::Field { lhs, fields } => {
-                buffer.push(8);
+                buffer.push(5);
                 lhs.encode_impl(buffer);
                 fields.encode_impl(buffer);
             },
             Expr::FieldUpdate { fields, lhs, rhs } => {
-                buffer.push(9);
+                buffer.push(6);
                 fields.encode_impl(buffer);
                 lhs.encode_impl(buffer);
                 rhs.encode_impl(buffer);
             },
             Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments } => {
-                buffer.push(10);
+                buffer.push(7);
                 func.encode_impl(buffer);
                 args.encode_impl(buffer);
                 arg_group_span.encode_impl(buffer);
@@ -86,50 +69,33 @@ impl Endec for Expr {
                 Ok((Expr::Ident(id), cursor))
             },
             Some(1) => {
-                let (n, cursor) = InternedNumber::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::Number { n, span }, cursor))
+                let (c, cursor) = Constant::decode_impl(buffer, cursor + 1)?;
+                Ok((Expr::Constant(c), cursor))
             },
             Some(2) => {
-                let (binary, cursor) = bool::decode_impl(buffer, cursor + 1)?;
-                let (s, cursor) = InternedString::decode_impl(buffer, cursor)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::String { binary, s, span }, cursor))
-            },
-            Some(3) => {
-                let (ch, cursor) = u32::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::Char { ch, span }, cursor))
-            },
-            Some(4) => {
-                let (b, cursor) = u8::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Expr::Byte { b, span }, cursor))
-            },
-            Some(5) => {
                 let (r#if, cursor) = If::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::If(r#if), cursor))
             },
-            Some(6) => {
+            Some(3) => {
                 let (r#match, cursor) = Match::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Match(r#match), cursor))
             },
-            Some(7) => {
+            Some(4) => {
                 let (block, cursor) = Block::decode_impl(buffer, cursor + 1)?;
                 Ok((Expr::Block(block), cursor))
             },
-            Some(8) => {
+            Some(5) => {
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor + 1)?;
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Field { lhs, fields }, cursor))
             },
-            Some(9) => {
+            Some(6) => {
                 let (fields, cursor) = Vec::<Field>::decode_impl(buffer, cursor + 1)?;
                 let (lhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 let (rhs, cursor) = Box::<Expr>::decode_impl(buffer, cursor)?;
                 Ok((Expr::FieldUpdate { fields, lhs, rhs }, cursor))
             },
-            Some(10) => {
+            Some(7) => {
                 let (func, cursor) = Callable::decode_impl(buffer, cursor + 1)?;
                 let (args, cursor) = Vec::<Expr>::decode_impl(buffer, cursor)?;
                 let (arg_group_span, cursor) = Span::decode_impl(buffer, cursor)?;
@@ -137,7 +103,7 @@ impl Endec for Expr {
                 let (given_keyword_arguments, cursor) = Vec::<(InternedString, usize)>::decode_impl(buffer, cursor)?;
                 Ok((Expr::Call { func, args, arg_group_span, generic_defs, given_keyword_arguments }, cursor))
             },
-            Some(n @ 11..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 8..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

@@ -6,25 +6,11 @@ use sodigy_token::InfixOp;
 
 pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
     match expr {
-        Expr::Path(path) => {
+        Expr::Path(path) | Expr::Closure { fp: path, .. } => {
             lines.push(&path.unintern_or_default(&session.intermediate_dir));
         },
-        Expr::Number { n, .. } => {
-            lines.push(&n.dump());
-        },
-        Expr::String { binary, s, .. } => {
-            let s = format!(
-                "{}{:?}",
-                if *binary { "b" } else { "" },
-                s.unintern_or_default(&session.intermediate_dir),
-            );
-            lines.push(&s);
-        },
-        Expr::Char { ch, .. } => {
-            lines.push(&format!("{:?}", char::from_u32(*ch).unwrap()));
-        },
-        Expr::Byte { b, .. } => {
-            lines.push(&format!("#{b}"));
+        Expr::Constant(c) => {
+            lines.push(&c.dump(&session.intermediate_dir));
         },
         Expr::If(r#if) => {
             lines.push("if ");

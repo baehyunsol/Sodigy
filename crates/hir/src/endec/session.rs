@@ -10,6 +10,7 @@ use crate::{
     Poly,
     Session,
     Struct,
+    TrivialLet,
     TypeAssertion,
     Use,
     dump::{dump_assert, dump_func, dump_let},
@@ -29,8 +30,9 @@ impl Endec for Session {
         // self.block_stack.encode_impl(buffer);
         // self.is_in_debug_context.encode_impl(buffer);
 
-        // doesn't have to be stored on disk
+        // don't need to be stored on disk
         // self.attribute_rule_cache.encode_impl(buffer);
+        // self.closures.encode_impl(buffer);
 
         self.is_std.encode_impl(buffer);
         self.lets.encode_impl(buffer);
@@ -43,6 +45,7 @@ impl Endec for Session {
         self.modules.encode_impl(buffer);
         self.type_assertions.encode_impl(buffer);
         self.associated_items.encode_impl(buffer);
+        self.trivial_lets.encode_impl(buffer);
         self.lang_items.encode_impl(buffer);
         self.polys.encode_impl(buffer);
         self.poly_impls.encode_impl(buffer);
@@ -62,6 +65,7 @@ impl Endec for Session {
         let (modules, cursor) = Vec::<Module>::decode_impl(buffer, cursor)?;
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (associated_items, cursor) = Vec::<AssociatedItem>::decode_impl(buffer, cursor)?;
+        let (trivial_lets, cursor) = HashMap::<Span, TrivialLet>::decode_impl(buffer, cursor)?;
         let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (poly_impls, cursor) = Vec::<(Expr, Span)>::decode_impl(buffer, cursor)?;
@@ -72,11 +76,15 @@ impl Endec for Session {
             Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
+
+                // these are tmp values and not needed to be encoded/decoded
                 name_stack: vec![],
                 block_stack: vec![],
                 attribute_rule_cache: HashMap::new(),
                 is_in_debug_context: false,
                 nested_pipeline_depth: 0,
+                closures: HashMap::new(),
+
                 is_std,
                 lets,
                 funcs,
@@ -88,6 +96,7 @@ impl Endec for Session {
                 modules,
                 type_assertions,
                 associated_items,
+                trivial_lets,
                 lang_items,
                 polys,
                 poly_impls,

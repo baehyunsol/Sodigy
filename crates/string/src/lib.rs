@@ -187,7 +187,7 @@ fn intern_short_string(s: &[u8]) -> InternedString {
     ]))
 }
 
-fn hash(s: &[u8]) -> u128 {
+pub fn hash(s: &[u8]) -> u128 {
     let mut r = 0;
 
     for (i, b) in s.iter().enumerate() {

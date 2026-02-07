@@ -34,13 +34,12 @@ impl Expr {
     pub fn from_pattern_kind(pattern_kind: &PatternKind) -> Result<Expr, Vec<Error>> {
         match pattern_kind {
             PatternKind::Path(p) => Ok(Expr::Path(p.clone())),
+            PatternKind::Constant(c) => Ok(Expr::Constant(c.clone())),
             PatternKind::NameBinding { .. } => Err(vec![Error {
                 kind: ErrorKind::CannotEvaluateConst,
                 spans: pattern_kind.error_span_narrow().simple_error(),
                 note: None,
             }]),
-            PatternKind::Number { n, span } => Ok(Expr::Number { n: n.clone(), span: *span }),
-            PatternKind::String { binary, s, span } => Ok(Expr::String { binary: *binary, s: *s, span: *span }),
             PatternKind::InfixOp { op, lhs, rhs, op_span, .. } => match (
                 Expr::from_pattern(lhs),
                 Expr::from_pattern(rhs),

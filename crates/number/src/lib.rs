@@ -33,7 +33,7 @@ pub struct InternedNumber {
 impl InternedNumber {
     /// This is for debugging.
     pub fn dump(&self) -> String {
-        let mut n = unintern_number(self.value.clone());
+        let n = unintern_number(self.value.clone());
 
         if self.is_integer {
             let (is_neg, nums) = div_bi(n.numer.is_neg, &n.numer.nums, n.denom.is_neg, &n.denom.nums);

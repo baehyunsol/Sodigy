@@ -8,11 +8,7 @@ use std::collections::hash_map::{Entry, HashMap};
 impl Expr {
     pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
-            Expr::Path(_) |
-            Expr::Number { .. } |
-            Expr::String { .. } |
-            Expr::Char { .. } |
-            Expr::Byte { .. } => Ok(()),
+            Expr::Path(_) | Expr::Constant(_) => Ok(()),
             Expr::If(r#if) => r#if.check(intermediate_dir),
             Expr::Match(r#match) => r#match.check(intermediate_dir),
             Expr::Block(block) => block.check(false /* top_level */, intermediate_dir),

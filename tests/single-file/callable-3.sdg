@@ -1,0 +1,9 @@
+fn add3() = {
+    let x = 3;
+
+    // This is a closure, but the compiler-optimize can turn it into a normal function (no captured values).
+    \(y) => x + y
+};
+
+assert add3()(10) == 13;
+assert add3()(11) == 14;

@@ -9,22 +9,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::Ident(id) => {
             lines.push(&id.id.unintern_or_default(&session.intermediate_dir));
         },
-        Expr::Number { n, .. } => {
-            lines.push(&n.dump());
-        },
-        Expr::String { binary, s, .. } => {
-            let s = format!(
-                "{}{:?}",
-                if *binary { "b" } else { "" },
-                s.unintern_or_default(&session.intermediate_dir),
-            );
-            lines.push(&s);
-        },
-        Expr::Char { ch, .. } => {
-            lines.push(&format!("{:?}", char::from_u32(*ch).unwrap()));
-        },
-        Expr::Byte { b, .. } => {
-            lines.push(&format!("#{b}"));
+        Expr::Constant(c) => {
+            lines.push(&c.dump(&session.intermediate_dir));
         },
         Expr::If(r#if) => {
             lines.push("if ");
@@ -287,6 +273,8 @@ fn into_hir_session(session: &Session) -> sodigy_hir::Session {
         modules: vec![],
         type_assertions: vec![],
         associated_items: vec![],
+        trivial_lets: HashMap::new(),
+        closures: HashMap::new(),
         lang_items: HashMap::new(),
         polys: HashMap::new(),
         poly_impls: vec![],

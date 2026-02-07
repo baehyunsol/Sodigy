@@ -5,6 +5,7 @@ use crate::{
     AssociatedItemKind,
     Attribute,
     AttributeRule,
+    CapturedNames,
     DecoratorRule,
     Expr,
     Let,
@@ -53,8 +54,12 @@ pub struct Func {
     pub origin: FuncOrigin,
     pub built_in: bool,
 
-    // We have to distinguish closures and lambda functions
+    // `Func::from_ast` first collects `.foreign_names`.
+    // `.foreign_names` are consumed by `Block::from_ast` to check whether this function
+    // is a closure or not. After that, this field is empty and related information is
+    // stored at `.captured_names`.
     pub foreign_names: HashMap<InternedString, (NameOrigin, Span /* def_span */)>,
+    pub captured_names: Option<CapturedNames>,
 
     // It only counts `params`.
     // It's later used for optimization.
@@ -73,7 +78,7 @@ pub struct FuncParam {
     pub default_value: Option<IdentWithOrigin>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FuncOrigin {
     TopLevel,
     Inline,  // `fn` keyword in an inline block
@@ -386,6 +391,10 @@ impl Func {
                 origin,
                 built_in,
                 foreign_names,
+
+                // `Block::from_ast` will fill this field.
+                captured_names: None,
+
                 use_counts,
             })
         }

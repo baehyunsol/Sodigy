@@ -3,6 +3,7 @@ use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity, StructShape};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
+use sodigy_token::Constant;
 use std::collections::HashMap;
 
 // This enum is originally meant for type annotations, but
@@ -366,7 +367,7 @@ pub fn type_of(
 ) -> Option<Type> {
     match expr {
         Expr::Ident(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
-        Expr::Number { n, .. } => match n.is_integer {
+        Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
             true => Some(Type::Static {
                 def_span: *lang_items.get("type.Int").unwrap(),
                 span: Span::None,
@@ -376,7 +377,7 @@ pub fn type_of(
                 span: Span::None,
             }),
         },
-        Expr::String { binary, .. } => match *binary {
+        Expr::Constant(Constant::String { binary, .. }) => match *binary {
             true => Some(Type::Param {
                 constructor_def_span: *lang_items.get("type.List").unwrap(),
                 constructor_span: Span::None,
@@ -396,11 +397,11 @@ pub fn type_of(
                 group_span: Span::None,
             }),
         },
-        Expr::Char { .. } => Some(Type::Static {
+        Expr::Constant(Constant::Char { .. }) => Some(Type::Static {
             def_span: *lang_items.get("type.Char").unwrap(),
             span: Span::None,
         }),
-        Expr::Byte { .. } => Some(Type::Static {
+        Expr::Constant(Constant::Byte { .. }) => Some(Type::Static {
             def_span: *lang_items.get("type.Byte").unwrap(),
             span: Span::None,
         }),

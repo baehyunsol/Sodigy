@@ -7,6 +7,7 @@ use crate::{
     AttributeRule,
     DecoratorRule,
     Expr,
+    FuncOrigin,
     Requirement,
     Session,
     Type,
@@ -15,10 +16,11 @@ use crate::{
     get_decorator_error_notes,
 };
 use sodigy_error::ItemKind;
-use sodigy_name_analysis::{NameOrigin, Namespace};
+use sodigy_name_analysis::{NameKind, NameOrigin, Namespace};
 use sodigy_parse as ast;
 use sodigy_span::Span;
 use sodigy_string::{InternedString, intern_string};
+use sodigy_token::Constant;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
@@ -45,6 +47,24 @@ pub enum LetOrigin {
 
     // `match` expressions are lowered to blocks
     Match,
+}
+
+#[derive(Clone, Debug)]
+/// Sessions keep track of simple `let` statements.
+/// This information is later used for various optimizations.
+pub enum TrivialLet {
+    /// `let x = 3;`
+    Constant(Constant),
+
+    /// `let x = y;`
+    Reference(Span /* def_span of rhs */),
+
+    /// `let x = \() => ...;`
+    ///
+    /// If the lambda does not capture any name, we can
+    /// treat it like `TrivialLet::Reference`. It's used by
+    /// `check_captured_names`.
+    MaybeLambda(Span /* def_span of the lambda */),
 }
 
 impl Let {
@@ -102,7 +122,13 @@ impl Let {
         });
 
         let value = match Expr::from_ast(&ast_let.value, session) {
-            Ok(value) => Some(value),
+            Ok(value) => {
+                if let Some(t) = session.check_trivial_value(&value) {
+                    session.trivial_lets.insert(ast_let.name_span, t);
+                }
+
+                Some(value)
+            },
             Err(()) => {
                 has_error = true;
                 None
@@ -173,5 +199,43 @@ impl Let {
         }
 
         attribute_rule
+    }
+}
+
+impl Session {
+    pub fn check_trivial_value(&self, value: &Expr) -> Option<TrivialLet> {
+        match value {
+            Expr::Path(p) if p.fields.is_empty() && p.types[0].is_none() => match p.id.origin {
+                NameOrigin::Foreign { kind: NameKind::Func } => {
+                    // FIXME: linear search
+                    for func in self.funcs.iter() {
+                        if func.name_span == p.id.def_span && func.origin == FuncOrigin::Lambda {
+                            return Some(TrivialLet::MaybeLambda(p.id.def_span));
+                        }
+                    }
+
+                    for block in self.block_stack.iter() {
+                        for lambda in block.lambdas.iter() {
+                            if lambda.name_span == p.id.def_span {
+                                return Some(TrivialLet::MaybeLambda(p.id.def_span));
+                            }
+                        }
+                    }
+
+                    Some(TrivialLet::Reference(p.id.def_span))
+                },
+                _ => Some(TrivialLet::Reference(p.id.def_span)),
+            },
+            Expr::Constant(c) => Some(TrivialLet::Constant(c.clone())),
+            Expr::Block(b) if b.asserts.is_empty() => match self.check_trivial_value(&b.value) {
+                // There are too many edge cases...
+                // Also, the optimizer can easily optimize this case even if `check_trivial_value` doesn't give a hint.
+                Some(TrivialLet::Reference(_)) => None,
+
+                r @ (Some(TrivialLet::Constant(_)) | Some(TrivialLet::MaybeLambda(_))) => r,
+                None => None,
+            },
+            _ => None,
+        }
     }
 }

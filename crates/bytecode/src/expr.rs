@@ -97,18 +97,8 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Return);
             }
         },
-        Expr::Number { .. } |
-        Expr::String { .. } |
-        Expr::Char { .. } |
-        Expr::Byte { .. } => {
-            let value = match expr {
-                Expr::Number { n, .. } => n.into(),
-                Expr::String { s, binary, .. } => session.string_to_value(*s, *binary),
-                Expr::Char { ch, .. } => Value::Scalar(*ch as u32),
-                Expr::Byte { b, .. } => Value::Scalar(*b as u32),
-                _ => unreachable!(),
-            };
-
+        Expr::Constant(c) => {
+            let value = session.lower_constant(c);
             bytecodes.push(Bytecode::Const { value, dst });
 
             if is_tail_call {

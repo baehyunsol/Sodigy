@@ -2,6 +2,7 @@ use crate::{Pattern, PatternKind, PatternValueKind};
 use sodigy_error::{Error, ErrorKind, NameCollisionKind, comma_list_strs};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
+use sodigy_token::Constant;
 use std::collections::hash_map::{Entry, HashMap};
 
 impl Pattern {
@@ -64,9 +65,9 @@ impl Pattern {
 
     pub fn check_range_argument(&self, is_lhs: bool) -> Result<(), Vec<Error>> {
         match &self.kind {
-            PatternKind::Number { .. } |
-            PatternKind::Char { .. } |
-            PatternKind::Byte { .. } => Ok(()),
+            PatternKind::Constant(Constant::Number { .. }) |
+            PatternKind::Constant(Constant::Char { .. }) |
+            PatternKind::Constant(Constant::Byte { .. }) => Ok(()),
             PatternKind::InfixOp { kind, .. } => match kind {
                 PatternValueKind::Constant => Ok(()),
                 PatternValueKind::NameBinding | PatternValueKind::Value => {
@@ -104,11 +105,8 @@ impl PatternKind {
     pub fn check(&self, intermediate_dir: &str) -> Result<(), Vec<Error>> {
         match self {
             PatternKind::Path(_) |
+            PatternKind::Constant(_) |
             PatternKind::NameBinding { .. } |
-            PatternKind::Number { .. } |
-            PatternKind::String { .. } |
-            PatternKind::Char { .. } |
-            PatternKind::Byte { .. } |
             PatternKind::Wildcard(_) |
             PatternKind::PipelineData(_) => Ok(()),
             PatternKind::Regex { .. } => todo!(),

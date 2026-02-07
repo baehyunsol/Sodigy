@@ -13,3 +13,4 @@ sodigy-parse = { version = "0.1.0", path = "../parse" }
 sodigy-prettify = { version = "0.1.0", path = "../prettify" }
 sodigy-span = { version = "0.1.0", path = "../span" }
 sodigy-string = { version = "0.1.0", path = "../string" }
+sodigy-token = { version = "0.1.0", path = "../token" }

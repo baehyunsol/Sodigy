@@ -19,6 +19,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameOrigin};
 use sodigy_parse::{self as ast, DocComment};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
+use sodigy_token::Constant;
 use std::collections::hash_map::{Entry, HashMap};
 
 mod decorator_docs;
@@ -558,7 +559,7 @@ impl Attribute {
     pub fn lang_item(&self, intermediate_dir: &str) -> Option<String> {
         match self.decorators.get(&intern_string(b"lang_item", intermediate_dir).unwrap()) {
             Some(d) => match d.args.get(0) {
-                Some(DecoratorArg::Expr(Expr::String { s, .. })) => Some(s.unintern_or_default(intermediate_dir)),
+                Some(DecoratorArg::Expr(Expr::Constant(Constant::String { s, .. }))) => Some(s.unintern_or_default(intermediate_dir)),
                 _ => unreachable!(),
             },
             None => None,
@@ -571,7 +572,7 @@ impl Attribute {
                 d.name_span,
                 d.args.iter().map(
                     |arg| match arg {
-                        DecoratorArg::Expr(Expr::String { s, .. }) => s.unintern_or_default(intermediate_dir),
+                        DecoratorArg::Expr(Expr::Constant(Constant::String { s, .. })) => s.unintern_or_default(intermediate_dir),
                         _ => unreachable!(),
                     }
                 ).collect(),
@@ -869,7 +870,7 @@ fn check_arg_type(arg: &DecoratorArg, arg_type: ArgType, error_note: &Option<Str
     match (arg_type, arg) {
         (ArgType::Expr, DecoratorArg::Expr(_)) => Ok(()),
         (ArgType::Expr, DecoratorArg::Type(_)) => unreachable!(),
-        (ArgType::StringLiteral, DecoratorArg::Expr(Expr::String { .. })) => Ok(()),
+        (ArgType::StringLiteral, DecoratorArg::Expr(Expr::Constant(Constant::String { .. }))) => Ok(()),
         (ArgType::StringLiteral, _) => {
             session.errors.push(Error {
                 // It's not a type error. An f-string token has type `String`, but it's still an error.
