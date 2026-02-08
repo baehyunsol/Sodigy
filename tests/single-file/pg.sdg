@@ -1,0 +1,9 @@
+/*
+let callable = \(a: Int, b: Int) => a + b;
+
+assert foo == 7;
+let foo = callable(3, 4);
+*/
+
+let f = \(a: Int, b: Int) => a + b;
+let x = f(3, 4);

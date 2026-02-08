@@ -1,0 +1,6 @@
+let f = {
+    let x = 1;
+    let z = f(3);
+
+    \(y) => x + y + z
+};

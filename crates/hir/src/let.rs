@@ -61,10 +61,13 @@ pub enum TrivialLet {
 
     /// `let x = \() => ...;`
     ///
-    /// If the lambda does not capture any name, we can
-    /// treat it like `TrivialLet::Reference`. It's used by
-    /// `check_captured_names`.
+    /// If the lambda does not capture any name, we can later turn
+    /// it into `IsLambda`.
     MaybeLambda(Span /* def_span of the lambda */),
+
+    /// We don't want to evaluate it at runtime.
+    /// We don't want the cycle-checker to reject a recursive lambda.
+    IsLambda(Span /* def_span of the lambda */),
 }
 
 impl Let {
@@ -214,6 +217,10 @@ impl Session {
                         }
                     }
 
+                    // `let f = \(x) if x == 0 { 0 } else { 1 + f(x - 1) };`
+                    // ->
+                    // In this case, 1) `f` doesn't have to be evaluated at runtime and
+                    // 2) the cycle-checker should not reject `f`.
                     for block in self.block_stack.iter() {
                         for lambda in block.lambdas.iter() {
                             if lambda.name_span == p.id.def_span {
@@ -232,7 +239,7 @@ impl Session {
                 // Also, the optimizer can easily optimize this case even if `check_trivial_value` doesn't give a hint.
                 Some(TrivialLet::Reference(_)) => None,
 
-                r @ (Some(TrivialLet::Constant(_)) | Some(TrivialLet::MaybeLambda(_))) => r,
+                r @ (Some(TrivialLet::Constant(_)) | Some(TrivialLet::MaybeLambda(_)) | Some(TrivialLet::IsLambda(_))) => r,
                 None => None,
             },
             _ => None,

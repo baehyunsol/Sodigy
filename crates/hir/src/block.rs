@@ -9,6 +9,7 @@ use crate::{
     Module,
     Session,
     Struct,
+    TrivialLet,
     Use,
 };
 use sodigy_error::{Error, ErrorKind};
@@ -229,22 +230,31 @@ impl Block {
             }
 
             else {
-                // TODO: find this lambda in `session.trivial_lets` and turn `TrivialLet::MaybeLambda` to `TrivialLet::DefinitelyLambda`
-                todo!()
+                // FIXME: linear search
+                for tl in session.trivial_lets.values_mut() {
+                    if let TrivialLet::MaybeLambda(s) = tl && *s == func.name_span {
+                        *tl = TrivialLet::IsLambda(*s);
+                        break;
+                    }
+                }
             }
 
             func.captured_names = captured_names;
             session.funcs.push(func);
         }
 
-        // TODO: remove `TrivialLet::DefinitelyLambda` and `TrivialLet::Constant` from `let_cycle_check_xxxx`.
-        todo!();
+        let skip_list = session.trivial_lets.iter().filter(
+            |(_, tl)| matches!(tl, TrivialLet::Constant(_) | TrivialLet::IsLambda(_))
+        ).map(
+            |(span, _)| *span
+        ).collect::<HashSet<_>>();
 
         // TOOD: It only underlines the definitions of the names.
         //       I want it to underline the actual uses of the names.
         if let Some(cycle) = find_cycle(
             let_cycle_check_vertices.into_iter().collect(),
             let_cycle_check_edges,
+            skip_list,
         ) {
             let span_to_name: HashMap<Span, InternedString> = lets.iter().map(
                 |r#let| (r#let.name_span, r#let.name)
@@ -270,6 +280,7 @@ impl Block {
         if let Some(cycle) = find_cycle(
             alias_cycle_check_vertices.into_iter().collect(),
             alias_cycle_check_edges,
+            HashSet::new(),
         ) {
             let span_to_name: HashMap<Span, InternedString> = ast_block.aliases.iter().map(
                 |alias| (alias.name_span, alias.name)
@@ -332,15 +343,24 @@ impl BlockSession {
 fn find_cycle(
     vertices: Vec<Span>,
     edges: HashMap<Span, Vec<Span>>,
+
+    // `let`s that cannot be a cycle
+    skip_list: HashSet<Span>,
 ) -> Option<Vec<Span>> {
     fn dfs(
         node: Span,
         edges: &HashMap<Span, Vec<Span>>,
+        skip_list: &HashSet<Span>,
         visited: &mut HashSet<Span>,
         stack: &mut Vec<Span>,
         on_stack: &mut HashSet<Span>,
     ) -> Option<Vec<Span>> {
         visited.insert(node);
+
+        if skip_list.contains(&node) {
+            return None;
+        }
+
         stack.push(node);
         on_stack.insert(node);
 
@@ -354,6 +374,7 @@ fn find_cycle(
                     if let Some(cycle) = dfs(
                         *neighbor,
                         edges,
+                        skip_list,
                         visited,
                         stack,
                         on_stack,
@@ -380,7 +401,7 @@ fn find_cycle(
 
     for vertex in vertices.iter() {
         if !visited.contains(vertex) {
-            if let Some(cycle) = dfs(*vertex, &edges, &mut visited, &mut stack, &mut on_stack) {
+            if let Some(cycle) = dfs(*vertex, &edges, &skip_list, &mut visited, &mut stack, &mut on_stack) {
                 return Some(cycle);
             }
         }

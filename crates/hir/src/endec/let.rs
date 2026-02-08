@@ -85,9 +85,13 @@ impl Endec for TrivialLet {
                 buffer.push(1);
                 def_span.encode_impl(buffer);
             },
-            TrivialLet::MaybeLambda(captured_names) => {
+            TrivialLet::MaybeLambda(def_span) => {
                 buffer.push(2);
-                captured_names.encode_impl(buffer);
+                def_span.encode_impl(buffer);
+            },
+            TrivialLet::IsLambda(def_span) => {
+                buffer.push(3);
+                def_span.encode_impl(buffer);
             },
         }
     }
@@ -106,7 +110,11 @@ impl Endec for TrivialLet {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((TrivialLet::MaybeLambda(def_span), cursor))
             },
-            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(3) => {
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((TrivialLet::IsLambda(def_span), cursor))
+            },
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

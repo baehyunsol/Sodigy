@@ -37,7 +37,11 @@ impl TypeSolver {
                 annotated_type.clone(),
                 r#let.value.error_span_wide(),
                 r#let.type_annot_span,
-                ErrorContext::VerifyTypeAnnot,
+                if r#let.type_annot_span.is_some() {
+                    ErrorContext::VerifyTypeAnnot
+                } else {
+                    ErrorContext::InferedAgain { type_var: Type::Var { def_span: r#let.name_span, is_return: false } }
+                },
             ),
         };
 

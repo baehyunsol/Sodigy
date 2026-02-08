@@ -53,7 +53,7 @@ impl Session {
                         },
                         // we need further check
                         NameKind::Let { is_top_level: false } => match self.trivial_lets.get(&def_span) {
-                            Some(TrivialLet::Constant(_)) => {
+                            Some(TrivialLet::Constant(_)) | Some(TrivialLet::IsLambda(_)) => {
                                 constants.push(def_span);
                             },
                             // It'd be nice to check `self.trivial_lets` recursively, but I'm just too lazy to

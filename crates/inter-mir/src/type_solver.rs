@@ -1135,9 +1135,34 @@ impl TypeSolver {
 
         for ref_type_var in ref_types.iter() {
             match ref_type_var {
-                Type::Var { def_span, .. } => match types.get_mut(def_span) {
+                Type::Var { def_span, is_return } => match types.get_mut(def_span) {
                     Some(ref_type) => {
-                        ref_type.substitute(type_var, r#type);
+                        if *is_return {
+                            match ref_type {
+                                Type::Func { r#return, .. } => {
+                                    r#return.substitute(type_var, r#type);
+                                },
+                                _ => unreachable!(),
+                            }
+                        }
+
+                        else {
+                            // 지금 무지무지하게 헷갈림...
+                            // 1. `let f = \(a: Int, b: Int) => ...`에서 `f`의 type을 infer하는 데서 문제
+                            //   - `fn lambda_5bc(a: Int, b: Int) = ...`도 만들어진 상황
+                            // 2. `substitute(Type::Var { def_span: lambda_5bc, is_return: true }, Type::Func { args: [Int, Int], return: Int })`를 호출한 상황
+                            //   - `type_var`에는 `lambda_5bc`의 def_span이 들어있고, `r#type`에는 `Type::Func { args: [Int, Int], return: Int }`가 들어있거든
+                            //   - 이게 너무 헷갈림 ㅠㅠ substitute에서 type_var에 `is_return: true`로 들어오면 쟤를 return type만 봐야해 아니면 func 전체를 봐야해 ㅠㅠ
+                            // 3. `def_span`에는 `f`의 def_span이 들어가 있음
+                            // 4. `ref_type`에는 `Type::Func { args: [Int, Int], return: Var { def_span: lambda_5bc, is_return: true } }`가 들어가 있음
+                            // 5. `self.type_var_refs`에는 `{ Var { def_span: lambda_5bc, is_return: true }: [Var{ def_span: f, is_return: false }, ...] }`가 들어가 있음...
+                            println!("------------");
+                            println!("{def_span:?}");
+                            println!("{ref_type:?}");
+                            println!("{type_var:?}");
+                            println!("{type:?}");
+                            ref_type.substitute(type_var, r#type);
+                        }
 
                         if ref_type.get_type_vars().is_empty() {
                             newly_completed_type_vars.push(ref_type_var);
