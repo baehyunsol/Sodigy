@@ -144,6 +144,15 @@ fn execute(
                 },
                 _ => unreachable!(),
             },
+            Bytecode::JumpDynamic(dst) => {
+                let dst = match dst {
+                    Memory::Return => stack.r#return,
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                };
+                cursor = dst as usize;
+                continue;
+            },
             Bytecode::JumpIf { value, label } => {
                 let value = match value {
                     Memory::Return => stack.r#return,

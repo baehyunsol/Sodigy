@@ -61,6 +61,10 @@ pub enum Bytecode {
     Drop(Memory),
 
     Jump(Label),
+
+    // There's a function pointer in `Memory`. It'll jump to the function.
+    JumpDynamic(Memory),
+
     JumpIf {
         value: Memory,
         label: Label,

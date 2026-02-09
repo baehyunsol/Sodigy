@@ -1,0 +1,8 @@
+let f1 = \() => 3;
+let f2 = \() => 4;
+
+let x = f1();
+let y = f2;
+
+#[assert_type([Int])]
+let ns = [x, y()];

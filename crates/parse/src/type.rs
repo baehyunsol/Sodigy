@@ -118,7 +118,14 @@ impl Type {
 
     pub fn error_span_wide(&self) -> Span {
         match self {
-            _ => todo!(),
+            Type::Path(path) => path.error_span_wide(),
+            Type::Param { constructor, group_span, .. } => constructor.error_span_wide().merge(*group_span),
+            Type::Tuple { group_span, .. } => *group_span,
+            Type::List { group_span, .. } => *group_span,
+            Type::Func { fn_constructor, group_span, r#return, .. } => fn_constructor.error_span_wide()
+                .merge(*group_span)
+                .merge(r#return.error_span_wide()),
+            Type::Wildcard(span) | Type::Never(span) => *span,
         }
     }
 }

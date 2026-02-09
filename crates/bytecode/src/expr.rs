@@ -76,6 +76,24 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::PopCallStack);
                             Memory::Global(id.def_span)
                         },
+                        NameKind::Func => {
+                            bytecodes.push(Bytecode::Const {
+                                value: Value::FuncPointer {
+                                    def_span: id.def_span,
+
+                                    // `Session::into_executable()` will fill this
+                                    program_counter: None,
+                                },
+                                dst,
+                            });
+
+                            if is_tail_call {
+                                session.drop_all_locals(bytecodes);
+                                bytecodes.push(Bytecode::Return);
+                            }
+
+                            return;
+                        },
                         _ => panic!("TODO: {id:?}"),
                     },
                     _ => unreachable!(),
@@ -312,7 +330,53 @@ pub fn lower_expr(
                         bytecodes.push(Bytecode::Return);
                     }
                 },
-                _ => todo!(),
+                Callable::Dynamic(f) => {
+                    lower_expr(
+                        f,
+                        session,
+                        bytecodes,
+                        Memory::Return,
+                        /* is_tail_call: */ false,
+                    );
+
+                    if is_tail_call {
+                        session.drop_all_locals(bytecodes);
+
+                        for i in 0..args.len() {
+                            bytecodes.push(Bytecode::Move {
+                                src: Memory::Stack(i + stack_offset),
+                                dst: Memory::Stack(i),
+
+                                // TODO: we have to check the type of arg and inc_rc if necessary
+                                inc_rc: false,
+                            });
+                        }
+
+                        // `.drop_all_locals` doesn't drop the function pointer because a
+                        // function pointer is scalar.
+                        bytecodes.push(Bytecode::JumpDynamic(Memory::Return));
+                    }
+
+                    else {
+                        let return_label = session.get_local_label();
+                        bytecodes.push(Bytecode::PushCallStack(return_label));
+                        bytecodes.push(Bytecode::IncStackPointer(stack_offset));
+                        bytecodes.push(Bytecode::JumpDynamic(Memory::Return));
+                        bytecodes.push(Bytecode::Label(return_label));
+                        bytecodes.push(Bytecode::DecStackPointer(stack_offset));
+                        bytecodes.push(Bytecode::PopCallStack);
+
+                        if dst != Memory::Return {
+                            bytecodes.push(Bytecode::Move {
+                                src: Memory::Return,
+                                dst,
+
+                                // TODO: we have to check the type of value and inc_rc if necessary
+                                inc_rc: false,
+                            });
+                        }
+                    }
+                },
             }
         },
         _ => panic!("TODO: {expr:?}"),

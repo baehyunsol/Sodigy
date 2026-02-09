@@ -6,6 +6,7 @@ use crate::{
     Func,
     Label,
     Let,
+    Value,
 };
 use sodigy_error::{Error, Warning};
 use sodigy_mir::{Callable, Expr, Intrinsic, Session as MirSession};
@@ -187,8 +188,9 @@ impl Session {
     }
 
     pub fn into_executable(&self) -> Executable {
-        let mut result = vec![];
-        let mut label_map = HashMap::new();
+        let mut concated_bytecodes = vec![];
+        let mut label_map: HashMap<(Span, Label), usize> = HashMap::new();
+        let mut func_pointer_map: HashMap<Span, usize> = HashMap::new();
 
         for (def_span, bytecodes) in self.asserts.iter().map(
             |assert| (assert.keyword_span, &assert.bytecodes)
@@ -204,14 +206,16 @@ impl Session {
             let mut curr_label = (def_span, Label::Global(def_span));
             let mut last_index = 0;
 
-            // It does nothing in runtime, but we need this in order to flatten the labels.
-            result.push(Bytecode::Label(Label::Global(def_span)));
+            // `Bytecode::Label` does nothing in runtime, but we need this in order to
+            // flatten the labels.
+            concated_bytecodes.push(Bytecode::Label(Label::Global(def_span)));
+            func_pointer_map.insert(def_span, concated_bytecodes.len());
 
             for (i, bytecode) in bytecodes.iter().enumerate() {
                 match bytecode {
                     Bytecode::Label(label) => {
-                        label_map.insert(curr_label, result.len());
-                        result.extend(bytecodes[last_index..i].to_vec());
+                        label_map.insert(curr_label, concated_bytecodes.len());
+                        concated_bytecodes.extend(bytecodes[last_index..i].to_vec());
                         last_index = i + 1;
                         curr_label = (def_span, *label);
                     },
@@ -219,13 +223,13 @@ impl Session {
                 }
             }
 
-            label_map.insert(curr_label, result.len());
-            result.extend(bytecodes[last_index..].to_vec());
+            label_map.insert(curr_label, concated_bytecodes.len());
+            concated_bytecodes.extend(bytecodes[last_index..].to_vec());
         }
 
         let mut curr_item_span = Span::None;
 
-        for bytecode in result.iter_mut() {
+        for bytecode in concated_bytecodes.iter_mut() {
             match bytecode {
                 Bytecode::Jump(label) |
                 Bytecode::JumpIf { label, .. } |
@@ -245,6 +249,9 @@ impl Session {
                 Bytecode::Label(Label::Global(def_span)) => {
                     curr_item_span = *def_span;
                 },
+                Bytecode::Const { value: Value::FuncPointer { def_span, program_counter }, .. } => {
+                    *program_counter = Some(*func_pointer_map.get(def_span).unwrap());
+                },
                 _ => {},
             }
         }
@@ -256,7 +263,7 @@ impl Session {
                     *label_map.get(&(assert.keyword_span, Label::Global(assert.keyword_span))).unwrap(),
                 )
             ).collect(),
-            bytecodes: result,
+            bytecodes: concated_bytecodes,
         }
     }
 }

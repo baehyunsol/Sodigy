@@ -2,7 +2,6 @@ assert adder(3)(4) == 7;
 assert adder(5)(5) == 7;
 fn adder(x) = \(y) => x + y;
 
-// TODO: `adder()` is not just a functor, it's a closure. do we need to annotate it in the signature?
 let type_signature_test: (Fn(Int) -> Int) = adder(4);
 
 assert baz == 20;

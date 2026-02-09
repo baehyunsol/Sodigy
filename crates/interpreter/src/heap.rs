@@ -95,6 +95,7 @@ impl Heap {
 
                 ptr
             },
+            Value::FuncPointer { program_counter, .. } => program_counter.unwrap() as u32,
             Value::Span(span) => match span {
                 Span::Range { file: File::File { project, file }, start, end } |
                 Span::Derived { file: File::File { project, file }, start, end, .. } => {

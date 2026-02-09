@@ -10,6 +10,10 @@ use sodigy_token::Constant;
 pub enum Value {
     Scalar(u32),
     Compound(Vec<Value>),
+    FuncPointer {
+        def_span: Span,
+        program_counter: Option<usize>,
+    },
 
     // It's only used for some debug information.
     // The runtime may implement a span-renderer, or completely ignore this.

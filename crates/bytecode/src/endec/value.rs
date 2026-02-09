@@ -13,8 +13,13 @@ impl Endec for Value {
                 buffer.push(1);
                 vs.encode_impl(buffer);
             },
-            Value::Span(span) => {
+            Value::FuncPointer { def_span, program_counter } => {
                 buffer.push(2);
+                def_span.encode_impl(buffer);
+                program_counter.encode_impl(buffer);
+            },
+            Value::Span(span) => {
+                buffer.push(3);
                 span.encode_impl(buffer);
             },
         }
@@ -31,10 +36,15 @@ impl Endec for Value {
                 Ok((Value::Compound(vs), cursor))
             },
             Some(2) => {
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (program_counter, cursor) = Option::<usize>::decode_impl(buffer, cursor)?;
+                Ok((Value::FuncPointer { def_span, program_counter }, cursor))
+            },
+            Some(3) => {
                 let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Value::Span(span), cursor))
             },
-            Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }
