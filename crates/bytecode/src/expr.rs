@@ -174,7 +174,7 @@ pub fn lower_expr(
             }
 
             for assert in asserts.iter() {
-                Assert::from_mir(assert, session, /* is_top_level: */ false);
+                bytecodes.extend(Assert::from_mir(assert, session, /* is_top_level: */ false).bytecodes);
             }
 
             lower_expr(value, session, bytecodes, dst, is_tail_call);

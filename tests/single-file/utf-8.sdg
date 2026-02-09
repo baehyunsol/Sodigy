@@ -1,9 +1,9 @@
-fn decode(bs: Bytes, buffer="") -> Result<String, ()> = match b {
+fn decode(bs: Bytes, buffer="") -> Result<String, ()> = match bs {
     [] => Ok(buffer),
     [$x @ #0..=#127] ++ $bs => decode(bs, buffer + x.into()),
     [$x @ #192..=#223, $y @ #128..=#191] ++ $bs => decode(bs, buffer + ((x.into() & 31) << 6 | y.into() & 63).into()),
     [$x @ #224..=#239, $y @ #128..=#191, $z @ #128..=#191] ++ $bs => decode(bs, buffer + ((x.into() & 15) << 12 | (y.into() & 63) << 6 | z.into() & 63).into()),
-    [x @ #240..=#247, y @ #128..=#191, z @ #128..=#191, w @ #128..=#191]
+    [$x @ #240..=#247, $y @ #128..=#191, $z @ #128..=#191, $w @ #128..=#191]
         => decode(bs, buffer + ((x.into() & 7) << 18 | (y.into() & 63) << 12 | (z.into() & 63) << 6 | w.into() & 63).into()),
     _ => Err(()),
 };

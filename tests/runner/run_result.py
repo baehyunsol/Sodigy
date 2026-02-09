@@ -22,6 +22,7 @@ class RunResult:
         except Exception as e:
             raise Exception(f"error in the expectation: {e}")
 
+        # TODO: collect (Sodigy-runtime) test errors
         expect(
             status=self.status,
             errors=self.errors,

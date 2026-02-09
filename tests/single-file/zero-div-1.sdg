@@ -1,4 +1,4 @@
-// TODO: assert (not in sodigy but in `tests/runner/` that there are 2 test failures
+//# assert test_error
 
 assert 3 / 0 == 0;
 assert 3 % 0 == 0;

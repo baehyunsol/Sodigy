@@ -108,7 +108,18 @@ impl Heap {
                     self.data[ptr + 5] = *end as u32;
                     ptr as u32
                 },
-                _ => todo!(),
+                Span::Range { file: File::Std(id), start, end } |
+                Span::Derived { file: File::Std(id), start, end, .. } => {
+                    let ptr = self.alloc(4);
+
+                    // TODO: any better representation?
+                    self.data[ptr + 2] = u32::MAX;
+                    self.data[ptr + 3] = *id as u32;
+                    self.data[ptr + 4] = *start as u32;
+                    self.data[ptr + 5] = *end as u32;
+                    ptr as u32
+                },
+                _ => panic!("TODO: {span:?}"),
             },
         }
     }

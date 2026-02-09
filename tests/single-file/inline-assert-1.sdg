@@ -1,4 +1,4 @@
-// TODO: assert (not in sodigy, but in `tests/runner/` that it fails
+//# assert test_error
 
 fn always_fails() = {
     #[always]
