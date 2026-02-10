@@ -1,0 +1,13 @@
+[package]
+name = "sodigy-compiler-test"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.43"
+ragit-cli = "0.4.5"
+regex = "1.12.3"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+sodigy-fs-api = { path = "../../crates/fs-api" }
+sodigy-string = { path = "../../crates/string" }

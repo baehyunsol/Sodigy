@@ -651,7 +651,7 @@ impl Worker {
 
                         match output_path {
                             StoreIrAt::File(f) => {
-                                write_bytes(&f, &result, WriteMode::CreateOrTruncate)?;
+                                write_bytes(&f, &result.encode(), WriteMode::CreateOrTruncate)?;
                             },
                             StoreIrAt::IntermediateDir => {
                                 emit_irs_if_has_to(

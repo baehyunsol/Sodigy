@@ -1,33 +1,76 @@
-# Sodigy Testbench
+# Sodigy Test Harness
 
-You can find script files in `tests/runner/`. You can run the tests with the scripts. The scripts are currently written in Python, but I'll rewrite them in Sodigy someday.
+TODO: rewrite the test runner in Sodigy
 
-Go to `tests/runner/` and run `python3 main.py all`. It'll run the tests and write the result json file to `tests/results/`.
+You can find the test runner in `tests/runner/`. The runner is written in Rust, and you need cargo to build the test runner.
 
-The test cases are in `tests/single-file/` and `tests/multi-files/` (WIP).
+In order to run the full harness, you also need git installed because it runs `std::process::Command::new("git")`.
 
-## Single-file
+```sh
+# Runs "compile-and-run" test suite (full suite).
+cargo run -- cnr;
 
-In this directory, you'll see bunch of `.sdg` files. Each file is a test case.
+# Runs "compile-and-run" test suite, but only cases that have "foo" in their names.
+cargo run -- cnr foo;
 
-The test runner will run `sodigy new sodigy-test`, copy a test file to `sodigy-test/src/lib.sdg`, and run `sodigy test`. The test runner will make sure that 1) the code compiles and 2) all the assertions succeed.
+# Runs "crates" test suite.
+cargo run -- crates;
 
-Sometimes you want to assert that a file does not compile. Or sometimes you want to assert that a file emits specific kind of errors. The test runner recognizes special kind of macro. Lines that start with `//#` (so it's a line comment in Sodigy) are macros.
-
-In each macro, you assert something using python syntax.
-
-```sodigy
-//# assert len(errors) == 1, "there should be exactly 1 error"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert errors[0].index == 350, f"expected error-350, got error-{errors[0].index}"
-
-type T = [T];
+# Runs all test suites.
+# It'll create a json file with the tests' result.
+# Make sure that your repository is clean before running the tests
+# because the json file uses commit hash to identify itself.
+cargo run -- all;
 ```
 
-Then, the test runner will define a python function `def expect(status: str, errors: [Error], warnings: [Error], success: bool, test_error: bool, compile_error: bool, misc_error: bool, timeout: bool)` and copy-paste the assertions to the body of the function. The test runner will call `expect` with the result of `sodigy test`. If `expect` throws an error, the test fails.
+## Test Suites
 
-`errors: [Error]` is a list of compile-errors, not runtime assertions (of Sodigy). You can find its definition at `tests/runner/error.py`.
+### compile-and-run
 
-## Multi-files
+As of now, this is the main test suite. It is very similar to rust's [compiletest](https://rustc-dev-guide.rust-lang.org/tests/compiletest.html).
 
-TODO
+#### Add cases (single-file)
+
+If your test case consists of a single file, add the file to `tests/compile-and-run/`. The file name must start with the name of the test-case, and its extension must be `.sdg`. There should be no dot (`.`) character in the test-case name.
+
+For example, if you want to add a test named "foo-1", create a file `tests/compile-and-run/foo-1.sdg`. The test runner will iterate the files in `tests/compile-and-run/` and collect files whose extension is `.sdg`.
+
+You can add expected-output files. For example, if you want to check the compiler-stderr of "foo-1", you can add `tests/compile-and-run/foo-1.compile.stderr`. The file must start with the test-case name. You can read more about expected-output files later.
+
+#### Add cases (multi-file)
+
+Let's say you want to add a test case "foo-2", and you want it to have multiple files (multiple modules). You have to run `sodigy new foo-2` inside `tests/compile-and-run/`. The command will create a directory `tests/compile-and-run/foo-2/`. The test-runner treats each directory inside `tests/compile-and-run` as a test case with the same name.
+
+You can also add expected-output files. Create `tests/compile-and-run/foo-2.compile.stderr` to check the compiler output.
+
+#### Expected Output
+
+TODO: DOC
+
+#### Directives
+
+You can add directives to the test file. If the case is multi-file, you have to add directives to `src/lib.sdg` of the project. A directive is a line that starts with `//%`, and followed by commands.
+
+- `//% compile-pass`
+  - This test case must be successfully compiled.
+- `//% compile-fail`
+  - This test case must not be successfully compiled.
+- `//% run-pass`
+  - This test case must be successfully compiled, and assertions in the test case must all succeed.
+- `//% run-fail`
+  - This test case must be successfully compiled, and there must be a failing assertion in the test case.
+- `//% compile-error > 3`
+  - There must be more than 3 compile errors.
+  - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
+- `//% compile-warning > 3`
+  - There must be more than 3 compiler warnings.
+  - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
+- `//% run-error > 3`
+  - There must be more than 3 failing assertions.
+  - You can use 6 operators: `>`, `>=`, `<`, `<=`, `==`, `!=`
+
+TODO: If an assertion's name starts with "must-fail", it must fail.
+
+### crates
+
+It runs `cargo test`, `cargo test --release` and `cargo doc` in every crates in `crates/`.

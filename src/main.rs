@@ -196,6 +196,15 @@ fn run() -> Result<(), Error> {
                 _ => Ok(()),
             }
         },
+        CliCommand::Interpret { bytecodes_path } => interpret(
+            StoreIrAt::File(bytecodes_path.to_string()),
+
+            // TODO: make it configurable
+            Profile::Test,
+
+            // intermediate_dir not needed
+            "",
+        ),
         _ => todo!(),
     }
 }
@@ -551,8 +560,6 @@ fn interpret(exe: StoreIrAt, profile: Profile, intermediate_dir: &str) -> Result
     let exe = sodigy_bytecode::Executable::decode(&exe_bytes)?;
 
     match profile {
-        // TODO: I want to spawn a separate process for assertions and capture stderr/stdout
-        //       of the process, but that's extremely difficult.
         Profile::Test => {
             let mut ever_failed = false;
 
