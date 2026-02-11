@@ -33,17 +33,17 @@ fn decode_worker(offset: Int, bytes: Bytes) -> Result<[Int], DecodeError> = matc
 
     // TODO: We cannot apply the optimization at issue29. We have to consider this case when
     //       implementing the optimization.
-    [$b @ #0..=#223] ++ bytes => match decode_worker(offset, bytes) {
+    [$b @ #0..=#223] ++ $bytes => match decode_worker(offset, bytes) {
         Ok($ns) => Ok([offset + b] ++ ns),
         Err($e) => Err(e),
     },
 
-    [b @ #224..=#255, bn] ++ bytes => decode_worker(offset + (b.into() * 65536 + bn.into() * 256), bytes),
+    [$b @ #224..=#255, $bn] ++ $bytes => decode_worker(offset + (b.into() * 65536 + bn.into() * 256), bytes),
     _ => Err(DecodeError),
 };
 
 fn endec_test(ns: [Int]) -> Bool = {
-    let (offset, bytes) = encode(ns);
+    let ($offset, $bytes) = encode(ns);
     let ns_ = decode(offset, bytes).unwrap();
     ns == ns_
 };

@@ -33,12 +33,12 @@ assert 31400 < pi_approx_less_naive && pi_approx_less_naive < 31500;
 // https://en.wikipedia.org/wiki/Bailey%E2%80%93Borwein%E2%80%93Plouffe_formula
 // sum((4 / (8n + 1) - 2 / (8n + 4) - 1 / (8n + 5) - 1 / (8n + 6)) / 16^n)
 fn spigot(n, p, max_n) = {
-    let (numer, denom) = spigot_iter(n);
+    let ($numer, $denom) = spigot_iter(n);
 
     match n {
         max_n => (numer, denom * p),
         _ => {
-            let (numer2, denom2) = spigot(n + 1, p * 16, max_n);
+            let ($numer2, $denom2) = spigot(n + 1, p * 16, max_n);
             let added_numer = numer * denom2 + numer2 * denom * p;
             let added_denom = denom * denom2 * p;
             let r = gcd(added_numer, added_denom);
@@ -66,7 +66,7 @@ fn gcd(a, b) = match b {
 };
 
 let pi_approx_spigot = {
-    let (numer, denom) = spigot(0, 1, 7);
+    let ($numer, $denom) = spigot(0, 1, 7);
     numer * 1_000_000_000_000 / denom
 };
 assert 3_1415_9265_358 < pi_approx_spigot && pi_approx_spigot < 3_1415_9265_359;

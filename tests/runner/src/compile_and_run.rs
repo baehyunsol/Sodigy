@@ -1,3 +1,5 @@
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sodigy_fs_api::{
     FileError,
@@ -17,6 +19,10 @@ use sodigy_fs_api::{
 use sodigy_string::hash;
 use std::process::{Command, Output};
 use std::time::Instant;
+
+mod line_matcher;
+
+pub use line_matcher::{LineMatcher, match_lines};
 
 #[derive(Deserialize, Serialize)]
 pub struct CompileAndRun {
@@ -49,16 +55,10 @@ pub struct CompileAndRun {
 }
 
 pub struct ExpectedOutput {
-    pub compile_stdout: Option<Vec<LineMatch>>,
-    pub compile_stderr: Option<Vec<LineMatch>>,
-    pub run_stdout: Option<Vec<LineMatch>>,
-    pub run_stderr: Option<Vec<LineMatch>>,
-}
-
-enum LineMatch {
-    AnyLines,
-    Exact(String),
-    // TODO: matches with `...`
+    pub compile_stdout: Option<Vec<LineMatcher>>,
+    pub compile_stderr: Option<Vec<LineMatcher>>,
+    pub run_stdout: Option<Vec<LineMatcher>>,
+    pub run_stderr: Option<Vec<LineMatcher>>,
 }
 
 #[derive(Clone, Debug)]
@@ -81,16 +81,6 @@ pub enum Status {
     // It implies `CompilePass`.
     RunFail,
     RunPass,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Comparison {
-    Gt,
-    Geq,
-    Lt,
-    Leq,
-    Eq,
-    Neq,
 }
 
 pub fn run_with_condition(
@@ -118,6 +108,8 @@ pub fn run_with_condition(
                     file_name(case_name).unwrap(),
                 );
             }
+
+            continue;
         }
 
         else if file.ends_with(".sdg") || is_dir(&file) {}
@@ -129,7 +121,14 @@ pub fn run_with_condition(
         let case_name = file_name(&file).unwrap();
 
         if let Some(filter) = &filter {
-            if !case_name.contains(filter) {
+            let condition = match filter {
+                _ if filter.starts_with("^") && filter.ends_with("$") => case_name == filter.get(1..(filter.len() - 1)).unwrap(),
+                _ if filter.starts_with("^") => case_name.starts_with(filter.get(1..).unwrap()),
+                _ if filter.ends_with("$") => case_name.ends_with(filter.get(..(filter.len() - 1)).unwrap()),
+                _ => case_name.contains(filter),
+            };
+
+            if !condition {
                 continue;
             }
         }
@@ -166,10 +165,10 @@ fn run_case(
     let base_path = join(&test_dir, name).unwrap();
     let test_file = set_extension(&base_path, "sdg").unwrap();
     let expected_output = ExpectedOutput {
-        compile_stdout: parse_expected_output(&join(&base_path, ".compile.stdout").unwrap()),
-        compile_stderr: parse_expected_output(&join(&base_path, ".compile.stderr").unwrap()),
-        run_stdout: parse_expected_output(&join(&base_path, ".run.stdout").unwrap()),
-        run_stderr: parse_expected_output(&join(&base_path, ".run.stderr").unwrap()),
+        compile_stdout: parse_expected_output(&set_extension(&base_path, "compile.stdout").unwrap()),
+        compile_stderr: parse_expected_output(&set_extension(&base_path, "compile.stderr").unwrap()),
+        run_stdout: parse_expected_output(&set_extension(&base_path, "run.stdout").unwrap()),
+        run_stderr: parse_expected_output(&set_extension(&base_path, "run.stderr").unwrap()),
     };
 
     let project_dir = if exists(&test_file) {
@@ -179,7 +178,9 @@ fn run_case(
     }
 
     else if exists(&base_path) && is_dir(&base_path) {
-        println!("running `tests/compile-and-run/{name}/`");
+        // QoL: If it's a file and not a directory, text editor (ZED in my case) will
+        //      open the file when I alt+click the path.
+        println!("running `tests/compile-and-run/{name}/src/lib.sdg`");
         base_path.clone()
     }
 
@@ -202,6 +203,10 @@ fn run_case_inner(
     let mut stdout_colored = vec![];
     let mut stderr_colored = vec![];
 
+    if directive.expected_status == Status::CompileFail && expected_output.compile_stderr.is_none() {
+        panic!("If you want to assert that `{name}` fails to compile, please add `{name}.compile.stderr` file.");
+    }
+
     // TODO: do we have to hash expected_output?
     let hash = format!("{:024x}", hash_dir(&join(project_dir, "src").unwrap()));
     let compile_started_at = Instant::now();
@@ -209,7 +214,7 @@ fn run_case_inner(
     let output = Command::new(sodigy_path)
         .arg("build")
         .arg("--test")
-        .arg("-o=main")
+        .arg("-o=target/run")
         .current_dir(project_dir)
         .output()
         .unwrap();
@@ -234,7 +239,7 @@ fn run_case_inner(
 
         let output = Command::new(sodigy_path)
             .arg("interpret")
-            .arg("main")
+            .arg("target/run")
             .current_dir(project_dir)
             .output()
             .unwrap();
@@ -378,6 +383,31 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
         }
     }
 
+    // If the user expects compile errors, that implies compile-fail!
+    if let Some((cmp, n)) = compile_error && expected_status.is_none() {
+        match (cmp, n) {
+            (Comparison::Gt | Comparison::Geq, _) => {
+                expected_status = Some(Status::CompileFail);
+            },
+            (Comparison::Eq, n) if n != 0 => {
+                expected_status = Some(Status::CompileFail);
+            },
+            _ => {},
+        }
+    }
+
+    if let Some((cmp, n)) = run_error && expected_status.is_none() {
+        match (cmp, n) {
+            (Comparison::Gt | Comparison::Geq, _) => {
+                expected_status = Some(Status::RunFail);
+            },
+            (Comparison::Eq, n) if n != 0 => {
+                expected_status = Some(Status::RunFail);
+            },
+            _ => {},
+        }
+    }
+
     Ok(Directive {
         expected_status: expected_status.unwrap_or(Status::RunPass),
         compile_error,
@@ -386,9 +416,10 @@ fn parse_directive(file_path: &str) -> Result<Directive, FileError> {
     })
 }
 
-fn parse_expected_output(path: &str) -> Option<Vec<LineMatch>> {
+fn parse_expected_output(path: &str) -> Option<Vec<LineMatcher>> {
     if exists(path) {
-        todo!()
+        let s = read_string(path).unwrap();
+        Some(s.lines().map(|line| LineMatcher::from_line(line)).collect())
     }
 
     else {
@@ -397,6 +428,13 @@ fn parse_expected_output(path: &str) -> Option<Vec<LineMatch>> {
 }
 
 fn check_compile_output(output: &Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
+    let (compile_errors, compile_warnings) = match count_compile_errors_and_warnings(&String::from_utf8_lossy(&output.stderr)) {
+        Some((e, w)) => (e, w),
+        None => {
+            return Err(String::from("failed to parse the compiler output"));
+        },
+    };
+
     match (output.status.success(), directive.expected_status) {
         (true, Status::CompileFail) => { return Err(String::from("expected compile-fail, but it passed")); },
         (false, Status::CompilePass | Status::RunFail | Status::RunPass) => { return Err(String::from("expected compile-pass, but it failed")); },
@@ -404,15 +442,15 @@ fn check_compile_output(output: &Output, directive: &Directive, expected_output:
     }
 
     if let Some((cmp, n)) = directive.compile_error {
-        todo!();
+        cmp.check(compile_errors, n, "the number of compile errors")?;
     }
 
     if let Some((cmp, n)) = directive.compile_warning {
-        todo!();
+        cmp.check(compile_warnings, n, "the number of compile warnings")?;
     }
 
-    match_lines(&output.stdout, &expected_output.compile_stdout)?;
-    match_lines(&output.stderr, &expected_output.compile_stderr)?;
+    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.compile_stdout).map_err(|e| format!("expected compile_stdout and actual stdout do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.compile_stderr).map_err(|e| format!("expected compile_stderr and actual stderr do not match\n{e}"))?;
     Ok(())
 }
 
@@ -427,8 +465,8 @@ fn check_run_output(output: &Output, directive: &Directive, expected_output: &Ex
         todo!();
     }
 
-    match_lines(&output.stdout, &expected_output.run_stdout)?;
-    match_lines(&output.stderr, &expected_output.run_stderr)?;
+    match_lines(&String::from_utf8_lossy(&output.stdout), &expected_output.run_stdout).map_err(|e| format!("expected run_stdout and actual stdout do not match\n{e}"))?;
+    match_lines(&String::from_utf8_lossy(&output.stderr), &expected_output.run_stderr).map_err(|e| format!("expected run_stderr and actual stderr do not match\n{e}"))?;
     Ok(())
 }
 
@@ -438,7 +476,24 @@ enum AnsiParseState {
     Escape,
 }
 
-fn remove_ansi_characters(s: &str) -> String {
+lazy_static! {
+    static ref COMPILER_RESULT_RE: Regex = Regex::new(r"^Finished\:\s(\d+)\serror(?:s)?\sand\s(\d+)\swarning(?:s)?.+").unwrap();
+}
+
+fn count_compile_errors_and_warnings(output: &str) -> Option<(usize, usize)> {
+    for line in output.lines().rev() {
+        if let Some(c) = COMPILER_RESULT_RE.captures(line) {
+            return Some((
+                c.get(1).unwrap().as_str().parse::<usize>().unwrap(),
+                c.get(2).unwrap().as_str().parse::<usize>().unwrap(),
+            ));
+        }
+    }
+
+    None
+}
+
+pub fn remove_ansi_characters(s: &str) -> String {
     let mut state = AnsiParseState::Text;
     let mut result = vec![];
 
@@ -481,12 +536,31 @@ fn hash_dir(dir: &str) -> u128 {
     sum & 0xffff_ffff_ffff_ffff_ffff_ffff
 }
 
-fn match_lines(s: &[u8], lines: &Option<Vec<LineMatch>>) -> Result<(), String> {
-    if let Some(lines) = lines {
-        todo!()
-    }
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum Comparison {
+    Gt,
+    Geq,
+    Lt,
+    Leq,
+    Eq,
+    Neq,
+}
 
-    else {
-        Ok(())
+impl Comparison {
+    pub fn check(&self, lhs: usize, rhs: usize, key: &str) -> Result<(), String> {
+        match self {
+            Comparison::Gt if lhs > rhs => Ok(()),
+            Comparison::Gt => Err(format!("expected {key} to be greater than {lhs}, but got {rhs}")),
+            Comparison::Geq if lhs >= rhs => Ok(()),
+            Comparison::Geq => Err(format!("expected {key} to be greater than or equal to {lhs}, but got {rhs}")),
+            Comparison::Lt if lhs < rhs => Ok(()),
+            Comparison::Lt => Err(format!("expected {key} to be less than {lhs}, but got {rhs}")),
+            Comparison::Leq if lhs <= rhs => Ok(()),
+            Comparison::Leq => Err(format!("expected {key} to be less than or equal to {lhs}, but got {rhs}")),
+            Comparison::Eq if lhs == rhs => Ok(()),
+            Comparison::Eq => Err(format!("expected {key} to be {lhs}, but got {rhs}")),
+            Comparison::Neq if lhs != rhs => Ok(()),
+            Comparison::Neq => Err(format!("expected {key} not to be {lhs}, but is {rhs}")),
+        }
     }
 }

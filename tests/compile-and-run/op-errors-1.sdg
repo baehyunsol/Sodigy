@@ -1,2 +1,4 @@
+//% compile-error == 2
+
 assert True == 30;
 assert 30 + True;

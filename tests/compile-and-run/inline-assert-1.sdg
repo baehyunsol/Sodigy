@@ -1,4 +1,4 @@
-//# assert test_error
+//% run-fail
 
 fn always_fails() = {
     #[always]

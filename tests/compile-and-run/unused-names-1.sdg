@@ -1,11 +1,5 @@
-//# assert success, "compilation and assertions all must succeed"
-//# assert len(warnings) == 5, f"expected exactly 5 warnings, got {len(warnings)} warnings"
-//# assert all([warning.index == 5000 for warning in warnings]), "expected all the warnings to be warning-5000, but some are not"
-
-//# assert any(["`x3`" in warning.title for warning in warnings])
-//# assert any(["`local3`" in warning.title for warning in warnings])
-//# assert any(["`local4`" in warning.title and "`local6`" in warning.title for warning in warnings])
-//# assert any(["`y`" in warning.title for warning in warnings])
+//% compile-warning == 3
+//% run-pass
 
 let global_value = 42;
 

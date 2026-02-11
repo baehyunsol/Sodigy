@@ -1,4 +1,4 @@
-let (x, y) = (300, 400);
+let ($x, $y) = (300, 400);
 
 assert z == 301;
 let z = x + 1;
@@ -8,7 +8,7 @@ struct Person = {
     age: Int,
 };
 
-let Person { name: my_name, .. } = Person { name: "Bae", age: 26 };
+let Person { name: $my_name, .. } = Person { name: "Bae", age: 26 };
 
 assert z == "Bae";
 let z = my_name;

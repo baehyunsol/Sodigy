@@ -15,9 +15,8 @@ fn mul(n: Nat, m: Nat) -> Nat = match n {
 
 fn eq(n: Nat, m: Nat) -> Nat = match (n, m) {
     (Nat.Zero, Nat.Zero) => True,
-    (Nat.Zero, _) => False,
-    (_, Nat.Zero) => False,
     (Nat.Succ($np), Nat.Succ($mp)) => eq(np, mp),
+    _ => False,
 };
 
 fn to_int(n: Nat) -> Int = match n {

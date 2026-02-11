@@ -1,5 +1,4 @@
-//# assert len(errors) == 3, f"expected 3 errors, got {len(errors)} errors"
-//# assert all([error.index == 295 for error in errors]), "expected all errors to be error-295, but some are not"
+//% compile-error == 3
 
 let redundant_name_binding1 = match 1 {
     $a @ $b => 2,

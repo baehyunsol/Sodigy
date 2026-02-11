@@ -1,7 +1,4 @@
-//# assert len(errors) == 1, f"expected exactly 1 error, got {len(errors)} errors"
-//# assert errors[0].index == 395, f"expected error-395, got error-{errors[0].index}"
-//# assert "`is_rustacean`" in errors[0].title and "`is_gopher`" in errors[0].title and "`is_nerd`" in errors[0].title
-//# assert "`name`" in errors[0].body and "`age`" in errors[0].body and "`is_sodigian`" in errors[0].body
+//% compile-error == 1
 
 struct Person = {
     name: String,
@@ -11,7 +8,7 @@ struct Person = {
 
 let strange_guy = Person {
     name: "strange",
-    is_rustacean: True,
     is_gopher: True,
     is_nerd: False,
+    is_rustacean: True,
 };

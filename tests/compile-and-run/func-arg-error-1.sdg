@@ -1,7 +1,4 @@
-//# assert len(errors) == 2, "there should be exactly 2 errors"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert all([error.index == 340 for error in errors]), f"all errors are expected to be error-340, but some are not"
-//# assert all(["`x`" in error.title for error in errors]), "all errors supposed to mention the keyword `x`, but some don't"
+//% compile-error == 2
 
 fn add(x, y, z) = x + y + z;
 

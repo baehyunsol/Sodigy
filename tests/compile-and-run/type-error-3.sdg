@@ -1,5 +1,4 @@
-//# assert len(errors) > 0, "expected errors, got no errors"
-//# assert all([error.index == 420 for error in errors]), "expected all the errors to be type-infer-error, but some are not"
+//% compile-error > 0
 
 fn id(x: Int) -> Int = id(x);
 fn id_generic<T>(x: T) -> T = id_generic(x);

@@ -1,3 +1,5 @@
+//% compile-error == 3
+
 let collision1 = 3;
 let collision1 = "x";
 

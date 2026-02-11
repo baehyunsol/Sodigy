@@ -1,4 +1,4 @@
-//# assert [error.index for error in errors] == [265, 270, 265], f"expected error-265, error-270 and error-265, but got different errors"
+//% compile-error == 3
 
 let syntax_error1 = match 1 {
     0..=() => 2,

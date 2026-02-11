@@ -1,4 +1,5 @@
-//# assert test_error
-
+#[name("must-fail-1")]
 assert 3 / 0 == 0;
+
+#[name("must-fail-2")]
 assert 3 % 0 == 0;

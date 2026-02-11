@@ -1,6 +1,4 @@
-//# assert len(errors) > 0, "It's supposed emit errors!"
-//# assert len(warnings) == 0, "There's supposed to be no warnings"
-//# assert all([error.index == 325 for error in errors]), "All the errors are supposed to be error-325, but some are not"
+//% compile-error == 5
 
 // it's supposed to be the first error because the errors are sorted by spans
 //# assert "explicitly pipe" in errors[0].body, "I want it to kindly tell the user that pipelines have to be explicit"

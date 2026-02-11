@@ -2,11 +2,13 @@ use sodigy_fs_api::{
     FileError,
     WriteMode,
     basename,
+    create_dir,
     exists,
     into_abs_path,
     join,
     join3,
     join4,
+    parent,
     read_dir,
     write_string,
 };
@@ -57,18 +59,27 @@ fn main() {
                 &sodigy_path,
             ));
             let file_name = metadata.get_result_file_name();
+            let log_path = join4(
+                &root,
+                "tests",
+                "log",
+                &file_name,
+            ).unwrap();
+
+            if !exists(&parent(&log_path).unwrap()) {
+                create_dir(&parent(&log_path).unwrap()).unwrap();
+            }
+
             let result = TestHarness {
                 meta: metadata,
                 suites: vec![TestSuite::Crates, TestSuite::CompileAndRun],
                 crates,
                 compile_and_run: compile_and_run_result,
             };
+            let result = serde_json::to_string_pretty(&result).unwrap();
 
-            write_string(
-                &file_name,
-                &serde_json::to_string_pretty(&result).unwrap(),
-                WriteMode::CreateOrTruncate,
-            ).unwrap();
+            write_string(&file_name, &result, WriteMode::CreateOrTruncate).unwrap();
+            write_string(&log_path, &result, WriteMode::CreateOrTruncate).unwrap();
         },
         Some(_) => {},
         None => {},

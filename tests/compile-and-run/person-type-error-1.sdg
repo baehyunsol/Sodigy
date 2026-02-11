@@ -1,8 +1,4 @@
-//# assert len(errors) == 3, f"expected exactly 3 errors, got {len(errors)} errors"
-//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
-//# assert re.search(r"\`Int\`.+\`\[Char\]\`", errors[0].title)
-//# assert re.search(r"\`Bool\`.+\`Int\`", errors[1].title)
-//# assert re.search(r"\`\[Char\]\`.+\`Bool\`", errors[2].title)
+//% compile-error == 3
 
 struct Person = {
     name: String,

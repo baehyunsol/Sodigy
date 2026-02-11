@@ -1,0 +1,4 @@
+mod three;
+mod four;
+
+assert three.value + four.value == 7;

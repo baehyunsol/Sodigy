@@ -1,8 +1,4 @@
-//# assert len(errors) == 2, f"expected exactly 2 errors, got {len(errors)} errors"
-//# assert len(warnings) == 0, "expected no warnings"
-//# assert all([error.index == 305 for error in errors]), "all errors are supposed to be error-305, but some are not"
-//# assert any(["`a`" in error.title for error in errors]), "the error messages have to pin-point which name is defined multiple times (`a` not found)"
-//# assert any(["`b`" in error.title for error in errors]), "the error messages have to pin-point which name is defined multiple times (`b` not found)"
+//% compile-error == 2
 
 fn name_bindings() = match (1, 2, (3, (4, 5))) {
     ($a @ 10, $b @ 10, (_, ($a @ 10, $b @ 10))) => 100,

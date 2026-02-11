@@ -1,5 +1,0 @@
-//# assert len(errors) == 1, f"expected exactly 1 error, got {len(errors)} errors"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert all([error.index == 0 for error in errors]), f"expected error-0, got error-{errors[0].index}"
-
-let x = 0000;

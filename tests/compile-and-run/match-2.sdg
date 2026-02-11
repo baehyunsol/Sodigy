@@ -1,6 +1,5 @@
-//# assert success
-//# assert len(warnings) == 1
-//# assert warnings[0].index == 5005
+//% run-pass
+//% compile-warning == 1
 
 fn test_wildcard(n: Int) = match n {
     0..50 => 1,

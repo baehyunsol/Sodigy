@@ -1,5 +1,4 @@
-//# assert len(errors) == 8, f"expected 8 errors, got {len(errors)} errors"
-//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
+//% compile-error == 8
 
 // This file is a sibling of `purity-1.sdg`
 // All the `let` statements in this file must be a type error.

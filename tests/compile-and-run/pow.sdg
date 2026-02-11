@@ -16,7 +16,7 @@ fn pow(n: Int, p: Int) -> Int = match p {
 };
 
 fn load_powers(p: Int, powers: [Int], cursor: Int) -> ([Int], Int) = {
-    let (new_powers, new_cursor) = (powers ++ [powers[-1] * powers[-1]], cursor * 2);
+    let ($new_powers, $new_cursor) = (powers ++ [powers[-1] * powers[-1]], cursor * 2);
 
     if new_cursor > p {
         (new_powers, new_cursor)

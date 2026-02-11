@@ -48,7 +48,6 @@ pub fn get() -> Meta {
     }
 }
 
-// You're not gonna cross-compile test-runner... right?
 fn get_os() -> Os {
     if cfg!(target_os = "linux") {
         Os::Linux

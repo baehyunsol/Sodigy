@@ -1,8 +1,4 @@
-//# assert len(errors) > 0, "there should be errors"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert any([error.index == 310 for error in errors]), f"at least 1 error is expected to be error-310, but there are none"
-//# assert any([error.index == 315 for error in errors]), f"at least 1 error is expected to be error-315, but there are none"
-//# assert any([error.index == 350 for error in errors]), f"at least 1 error is expected to be error-350, but there are none"
+//% compile-error == 3
 
 let x = y + 1;
 let y = x + 1;

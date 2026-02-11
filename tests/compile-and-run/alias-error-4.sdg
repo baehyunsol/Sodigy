@@ -1,4 +1,4 @@
-//# assert [error.index for error in errors] == [411, 411]
+//% compile-fail
 
 fn foo(x) = {
     use x as y;

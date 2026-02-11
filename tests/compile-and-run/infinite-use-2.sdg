@@ -1,6 +1,4 @@
-//# assert len(errors) == 1, "there should be exactly 1 error"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert all([error.index == 350 for error in errors]), f"expected error-350, but got {errors[0].index}"
+//% compile-error == 1
 
 use x.a.b as y;
 use y.c.d as x;

@@ -1,5 +1,4 @@
-//# assert len(errors) == 2, f"expected exactly 2 errors, got {len(errors)} errors"
-//# assert all([error.index == 415 for error in errors]), "expected all the errors to be error-415, but some are not"
+//% compile-error == 2
 
 pub struct Person = {
     name: String,

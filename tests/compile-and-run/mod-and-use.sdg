@@ -1,3 +1,5 @@
+//% compile-error == 2
+
 mod x;
 use x;
 

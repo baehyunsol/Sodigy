@@ -1,0 +1,5 @@
+//% compile-fail
+
+mod foo;
+
+assert foo.x == 0;

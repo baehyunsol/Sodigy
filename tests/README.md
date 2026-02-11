@@ -1,7 +1,5 @@
 # Sodigy Test Harness
 
-TODO: rewrite the test runner in Sodigy
-
 You can find the test runner in `tests/runner/`. The runner is written in Rust, and you need cargo to build the test runner.
 
 In order to run the full harness, you also need git installed because it runs `std::process::Command::new("git")`.
@@ -16,10 +14,7 @@ cargo run -- cnr foo;
 # Runs "crates" test suite.
 cargo run -- crates;
 
-# Runs all test suites.
-# It'll create a json file with the tests' result.
-# Make sure that your repository is clean before running the tests
-# because the json file uses commit hash to identify itself.
+# Runs all the test suites.
 cargo run -- all;
 ```
 
@@ -45,7 +40,21 @@ You can also add expected-output files. Create `tests/compile-and-run/foo-2.comp
 
 #### Expected Output
 
-TODO: DOC
+There are 4 possible extensions: `.compile.stdout`, `.compile.stderr`, `.run.stdout` and `.run.stderr`. For example, `tests/compile-and-run/foo.compile.stderr` is an expected-output of the stderr of the compilation of `tests/compile-and-run/foo.sdg` or `tests/compile-and-run/foo/`. Each test case consists of 2 stages: it first compiles the sodigy code, then it checks the assertions in the sodigy code. The output of the first stage is matched against `.compile.xxxxxx` and the second stage is matched against `.run.xxxxxx`.
+
+It normalizes the output before comparison. ANSI terminal colors are removed, and it trims each line.
+
+The most naive way to create an expected-output file is to copy-paste output of the compiler. Then the test runner will check if the compiler emits exactly the same output. But in most cases, there are details that you want to ignore. For example, error messages might change slightly when the compiler is updated. You only want the error index, which doesn't change.
+
+An expected-output file accepts special syntaxes. If a line is 6 dots (`......`), it matches arbitrary number of lines (can be 0). So, the below expected-output file checks 1) if the first line of the output is "Hello, World" and 2) the last line of the output is "Goodbye, World". It ignores the lines in between.
+
+```
+Hello, World
+......
+Goodbye, World
+```
+
+3 dots (`...`) matches arbitrary number of characters. For example, `error (e-0350)...` matches a line that starts with "error (e-0350)". Any characters can follow. You can use this syntax multiple times in a line. For example, `...foo...bar...` matches a line that contains "foo" and "bar", and "bar" must follow "foo".
 
 #### Directives
 
@@ -74,3 +83,9 @@ TODO: If an assertion's name starts with "must-fail", it must fail.
 ### crates
 
 It runs `cargo test`, `cargo test --release` and `cargo doc` in every crates in `crates/`.
+
+### Full test suite
+
+By running `cargo run -- all`, it runs all the test suites. It'll dump the result in a json format. It'll create a json file in the current working directory (where you run `cargo`). It'll create a copy in the `tests/log/`.
+
+The result file name looks like `sodigy-test-1f97fd703-linux.json`. It uses git commit hash and os name (linux | mac | windows) to identify itself. So, running the test suite in a dirty repositroy doesn't make much sense. Please make sure to commit changes before running the test.

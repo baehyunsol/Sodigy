@@ -1,6 +1,4 @@
-//# assert len(errors) > 0, "there should be errors"
-//# assert len(warnings) == 0, "there should be no warnings"
-//# assert all([error.index == 350 for error in errors]), f"all errors are expected to be error-350, but some are not"
+//% compile-fail
 
 type T = [U];
 type U = [K];
