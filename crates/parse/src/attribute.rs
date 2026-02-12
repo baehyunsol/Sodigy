@@ -263,7 +263,7 @@ impl<'t, 's> Tokens<'t, 's> {
     }
 
     pub fn parse_decorator(&mut self) -> Result<Decorator, Vec<Error>> {
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
 
         match self.peek() {
             Some(Token { kind: TokenKind::Group { delim: Delim::Parenthesis, tokens }, span }) => {

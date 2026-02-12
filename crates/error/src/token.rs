@@ -10,6 +10,7 @@ pub enum ErrorToken {
     Keyword(Keyword),
     Punct(Punct),
     Group(Delim),
+    Wildcard,
     Ident,
     Generic,
     Number,
@@ -50,6 +51,7 @@ impl From<&TokenKind> for ErrorToken {
             TokenKind::String { .. } => ErrorToken::String,
             TokenKind::Punct(p) => ErrorToken::Punct(*p),
             TokenKind::Group { delim, .. } => ErrorToken::Group(*delim),
+            TokenKind::Wildcard => ErrorToken::Wildcard,
             _ => panic!("TODO: {t:?}"),
         }
     }

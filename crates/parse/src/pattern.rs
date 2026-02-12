@@ -336,47 +336,46 @@ impl<'t, 's> Tokens<'t, 's> {
     // All the other checks are done by `Pattern::check()`.
     fn pratt_parse_pattern(&mut self, context: ParsePatternContext, min_bp: u32) -> Result<Pattern, Vec<Error>> {
         let mut lhs = match self.peek2() {
+            (Some(Token { kind: TokenKind::Wildcard, span }), _) => {
+                let span = *span;
+                self.cursor += 1;
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    kind: PatternKind::Wildcard(span),
+                }
+            },
             (Some(Token { kind: TokenKind::Ident(id), span }), _) => {
                 let (id, id_span) = (*id, *span);
                 self.cursor += 1;
 
-                if id.eq(b"_") {
-                    Pattern {
-                        name: None,
-                        name_span: None,
-                        kind: PatternKind::Wildcard(id_span),
+                // no dotfish operators in patterns
+                let mut fields = vec![];
+                let mut types = vec![None];
+
+                loop {
+                    match self.peek2() {
+                        (
+                            Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
+                            Some(Token { kind: TokenKind::Ident(id), span }),
+                        ) => {
+                            fields.push(Field::Name {
+                                name: *id,
+                                name_span: *span,
+                                dot_span: *dot_span,
+                                is_from_alias: false,
+                            });
+                            types.push(None);
+                            self.cursor += 2;
+                        },
+                        _ => break,
                     }
                 }
 
-                else {
-                    // no dotfish operators in patterns
-                    let mut fields = vec![];
-                    let mut types = vec![None];
-
-                    loop {
-                        match self.peek2() {
-                            (
-                                Some(Token { kind: TokenKind::Punct(Punct::Dot), span: dot_span }),
-                                Some(Token { kind: TokenKind::Ident(id), span }),
-                            ) => {
-                                fields.push(Field::Name {
-                                    name: *id,
-                                    name_span: *span,
-                                    dot_span: *dot_span,
-                                    is_from_alias: false,
-                                });
-                                types.push(None);
-                                self.cursor += 2;
-                            },
-                            _ => break,
-                        }
-                    }
-
-                    Pattern {
-                        name: None,
-                        name_span: None,
-                        kind: PatternKind::Path(Path { id, id_span, fields, types }),
-                    }
+                Pattern {
+                    name: None,
+                    name_span: None,
+                    kind: PatternKind::Path(Path { id, id_span, fields, types }),
                 }
             },
             (

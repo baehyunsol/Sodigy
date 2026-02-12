@@ -1561,6 +1561,7 @@ impl Session {
                 },
                 _ => {
                     let token_kind = match (self.buffer1.as_slice(), raw) {
+                        (b"_", false) => TokenKind::Wildcard,
                         (b"as", false) => TokenKind::Keyword(Keyword::As),
                         (b"assert", false) => TokenKind::Keyword(Keyword::Assert),
                         (b"else", false) => TokenKind::Keyword(Keyword::Else),

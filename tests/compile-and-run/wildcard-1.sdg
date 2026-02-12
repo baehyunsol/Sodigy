@@ -1,0 +1,8 @@
+//% compile-error == 0
+//% compile-warning == 0
+
+let _ = {
+    let _ = 3;
+    let _ = 4;
+    100
+};

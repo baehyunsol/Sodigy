@@ -229,6 +229,13 @@ impl<'t, 's> Tokens<'t, 's> {
                 self.cursor += 1;
                 Expr::Path(Path { id, id_span, fields: vec![], types: vec![None] })
             },
+            Some(Token { kind: TokenKind::Wildcard, span }) => {
+                return Err(vec![Error {
+                    kind: ErrorKind::WildcardNotAllowed,
+                    spans: span.simple_error(),
+                    note: None,
+                }]);
+            },
             Some(Token { kind: TokenKind::Number(n), span }) => {
                 let (n, span) = (n.clone(), *span);
                 self.cursor += 1;
@@ -426,7 +433,7 @@ impl<'t, 's> Tokens<'t, 's> {
                         }
 
                         self.cursor += 1;
-                        let (name, name_span) = self.pop_name_and_span()?;
+                        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
 
                         // TODO: dotfish operator
                         let dotfish = None;

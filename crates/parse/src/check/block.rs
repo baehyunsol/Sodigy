@@ -27,13 +27,15 @@ impl Block {
                 errors.extend(e);
             }
 
-            match spans_by_name.entry(r#let.name) {
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push((r#let.name_span, NameKind::Let { is_top_level }));
-                },
-                Entry::Vacant(e) => {
-                    e.insert(vec![(r#let.name_span, NameKind::Let { is_top_level })]);
-                },
+            if !r#let.name.eq(b"_") {
+                match spans_by_name.entry(r#let.name) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push((r#let.name_span, NameKind::Let { is_top_level }));
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![(r#let.name_span, NameKind::Let { is_top_level })]);
+                    },
+                }
             }
         }
 

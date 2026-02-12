@@ -12,7 +12,7 @@ pub struct Generic {
 
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_generic_def(&mut self) -> Result<Generic, Vec<Error>> {
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         Ok(Generic {
             name,
             name_span,
@@ -275,20 +275,14 @@ impl<'t, 's> Tokens<'t, 's> {
                 let (id, id_span) = (*id, *span);
                 self.cursor += 1;
 
-                if id.eq(b"_") {
-                    Ok(Type::Wildcard(id_span))
-                }
+                Ok(Type::Path(Path {
+                    id,
+                    id_span,
+                    fields: vec![],
 
-                else {
-                    Ok(Type::Path(Path {
-                        id,
-                        id_span,
-                        fields: vec![],
-
-                        // no dotfish operators for type annotations
-                        types: vec![None],
-                    }))
-                }
+                    // no dotfish operators for type annotations
+                    types: vec![None],
+                }))
             },
             (Some(Token { kind: TokenKind::Group { delim, tokens }, span }), _) => {
                 let group_span = *span;
@@ -363,6 +357,11 @@ impl<'t, 's> Tokens<'t, 's> {
             },
             (Some(Token { kind: TokenKind::Punct(Punct::Factorial), span }), _) => {
                 let result = Ok(Type::Never(*span));
+                self.cursor += 1;
+                result
+            },
+            (Some(Token { kind: TokenKind::Wildcard, span }), _) => {
+                let result = Ok(Type::Wildcard(*span));
                 self.cursor += 1;
                 result
             },

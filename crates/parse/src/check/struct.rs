@@ -15,7 +15,10 @@ impl Struct {
             errors.extend(e);
         }
 
-        if self.fields.is_empty() {
+        // Some([]) = self.fields -> Error::StructWithoutField
+        // None = self.fields && built_in -> Ok
+        // None = self.fields && !built_in -> Error, but hir will report this
+        if let Some(fields) = &self.fields && fields.is_empty() {
             errors.push(Error {
                 kind: ErrorKind::StructWithoutField,
                 spans: self.name_span.simple_error(),
@@ -23,18 +26,20 @@ impl Struct {
             });
         }
 
-        for field in self.fields.iter() {
-            if let Err(e) = field.check(intermediate_dir) {
-                errors.extend(e);
-            }
+        if let Some(fields) = &self.fields {
+            for field in fields.iter() {
+                if let Err(e) = field.check(intermediate_dir) {
+                    errors.extend(e);
+                }
 
-            match spans_by_name.entry(field.name) {
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push(field.name_span);
-                },
-                Entry::Vacant(e) => {
-                    e.insert(vec![field.name_span]);
-                },
+                match spans_by_name.entry(field.name) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push(field.name_span);
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![field.name_span]);
+                    },
+                }
             }
         }
 

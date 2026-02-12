@@ -18,7 +18,7 @@ pub struct Alias {
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_alias(&mut self) -> Result<Alias, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Type))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 

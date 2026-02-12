@@ -57,7 +57,7 @@ impl<'t, 's> Tokens<'t, 's> {
         };
 
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Fn))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
@@ -75,7 +75,7 @@ impl<'t, 's> Tokens<'t, 's> {
             _ => unreachable!(),
         };
         let mut param_tokens = Tokens::new(param_tokens_inner, param_tokens.span.end(), &self.intermediate_dir);
-        let params = param_tokens.parse_func_params()?;
+        let params = param_tokens.parse_func_params(true /* allow wildcard */)?;
 
         let type_annot = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::ReturnType), ..}) => {
@@ -126,7 +126,7 @@ impl<'t, 's> Tokens<'t, 's> {
         })
     }
 
-    pub fn parse_func_params(&mut self) -> Result<Vec<FuncParam>, Vec<Error>> {
+    pub fn parse_func_params(&mut self, allow_wildcard: bool) -> Result<Vec<FuncParam>, Vec<Error>> {
         let mut params = vec![];
 
         if self.peek().is_none() {
@@ -135,7 +135,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
         'params: loop {
             let attribute = self.collect_attribute(false /* top_level */)?;
-            let (name, name_span) = self.pop_name_and_span()?;
+            let (name, name_span) = self.pop_name_and_span(allow_wildcard)?;
             let mut type_annot = None;
             let mut default_value = None;
             let mut prev_colon_span = None;

@@ -1,11 +1,11 @@
 #[built_in]
 #[lang_item("type.Fn")]
-pub enum Fn = { _ };
+pub enum Fn;
 
 #[built_in]
 #[lang_item("type.PureFn")]
-pub enum PureFn = { _ };
+pub enum PureFn;
 
 #[built_in]
 #[lang_item("type.ImpureFn")]
-pub enum ImpureFn = { _ };
+pub enum ImpureFn;

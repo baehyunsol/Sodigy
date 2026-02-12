@@ -181,7 +181,7 @@ impl Session {
         let mut names_by_kind: HashMap<(NameKind, bool), Vec<(InternedString, Span)>> = HashMap::new();
 
         for (name, (span, kind, count)) in names.iter() {
-            if (!self.is_in_debug_context && count.always == Counter::Never) || (self.is_in_debug_context && count.debug_only == Counter::Never) {
+            if ((!self.is_in_debug_context && count.always == Counter::Never) || (self.is_in_debug_context && count.debug_only == Counter::Never)) && !name.eq(b"_") {
                 let debug_only = count.debug_only != Counter::Never;
                 match names_by_kind.entry((*kind, debug_only)) {
                     Entry::Occupied(mut e) => {

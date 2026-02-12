@@ -3,7 +3,7 @@ use std.int.Int;
 
 #[built_in]
 #[lang_item("type.List")]
-pub struct List = { _ };
+pub struct List;
 
 #[built_in]
 #[lang_item("built_in.init_list")]

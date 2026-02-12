@@ -110,6 +110,9 @@ pub enum TokenKind {
         delim: Delim,
         tokens: Vec<Token>,
     },
+
+    // '_' character
+    Wildcard,
 }
 
 impl TokenKind {
@@ -140,6 +143,8 @@ impl TokenKind {
             (TokenKind::GroupDelim { .. }, _) | (_, TokenKind::GroupDelim { .. }) => unreachable!(),
             (TokenKind::Group { delim: a, .. }, TokenKind::Group { delim: b, .. }) => a == b,
             (TokenKind::Group { .. }, _) => false,
+            (TokenKind::Wildcard, TokenKind::Wildcard) => true,
+            (TokenKind::Wildcard, _) => false,
         }
     }
 
@@ -165,7 +170,8 @@ impl TokenKind {
             TokenKind::Number(_) |
             TokenKind::String { .. } |
             TokenKind::Char(_) |
-            TokenKind::Byte(_) => true,
+            TokenKind::Byte(_) |
+            TokenKind::Wildcard => true,
             TokenKind::FormattedString { .. } |
             TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
@@ -184,7 +190,8 @@ impl TokenKind {
 
             TokenKind::FieldUpdate { .. } |
             TokenKind::DocComment { .. } |
-            TokenKind::GroupDelim { delim: None, .. } => false,
+            TokenKind::GroupDelim { delim: None, .. } |
+            TokenKind::Wildcard => false,
 
             TokenKind::Punct(p) => PrefixOp::try_from(*p).is_ok(),
             TokenKind::Keyword(k) => match k {

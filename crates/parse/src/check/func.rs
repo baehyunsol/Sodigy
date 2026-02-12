@@ -57,13 +57,15 @@ impl Func {
                 span_of_param_with_default_value = Some(param.name_span);
             }
 
-            match spans_by_name.entry(param.name) {
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push((param.name_span, false));
-                },
-                Entry::Vacant(e) => {
-                    e.insert(vec![(param.name_span, false)]);
-                },
+            if !param.name.eq(b"_") {
+                match spans_by_name.entry(param.name) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push((param.name_span, false));
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![(param.name_span, false)]);
+                    },
+                }
             }
         }
 

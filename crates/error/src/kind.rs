@@ -51,6 +51,7 @@ error_kinds!(
 
     (UnclosedDelimiter(u8),                                          110,    Error),
     (UnexpectedToken { expected: ErrorToken, got: ErrorToken },      115,    Error),
+    (WildcardNotAllowed,                                             116,    Error),
     (UnexpectedEof { expected: ErrorToken },                         120,    Error),
 
     // It's like UnexpectedEof, but an end of a group (parenthesis, braces or brackets).
@@ -69,6 +70,8 @@ error_kinds!(
     (CannotBePublic,                                                 170,    Error),
     (DanglingVisibility,                                             171,    Error),
     (FunctionWithoutBody,                                            175,    Error),
+    (StructWithoutBody,                                              176,    Error),
+    (EnumWithoutBody,                                                177,    Error),
     (BlockWithoutValue,                                              180,    Error),
     (StructWithoutField,                                             185,    Error),
     (EmptyCurlyBraceBlock,                                           190,    Error),

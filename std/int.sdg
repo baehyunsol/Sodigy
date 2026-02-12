@@ -3,7 +3,7 @@ use std.string.String;
 
 #[built_in]
 #[lang_item("type.Int")]
-pub enum Int = { _ };
+pub enum Int;
 
 // I wanted `fn neg_int(x) = x * -1;`... but that's an infinite recursion!
 #[built_in]

@@ -33,7 +33,7 @@ impl<'t, 's> Tokens<'t, 's> {
     // Most `let` statements are in this form, so let's do some optimization.
     fn parse_let_simple(&mut self) -> Result<Let, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Let))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(true /* allow_wildcard */)?;
 
         let type_annot = match self.peek() {
             Some(Token { kind: TokenKind::Punct(Punct::Colon), ..}) => {

@@ -15,7 +15,7 @@ pub struct Module {
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_module(&mut self) -> Result<Module, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Mod))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Module {

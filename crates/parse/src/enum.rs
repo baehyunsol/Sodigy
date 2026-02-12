@@ -23,7 +23,8 @@ pub struct Enum {
     pub name_span: Span,
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
-    pub variants: Vec<EnumVariant>,
+    // built-in enums don't have variants
+    pub variants: Option<Vec<EnumVariant>>,
     pub attribute: Attribute,
 }
 
@@ -45,7 +46,7 @@ pub enum EnumVariantFields {
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_enum(&mut self) -> Result<Enum, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Enum))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
@@ -57,17 +58,23 @@ impl<'t, 's> Tokens<'t, 's> {
             generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
         }
 
-        self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
+        // built-in enums don't have body
+        let variants = if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), .. }) = self.peek() {
+            None
+        } else {
+            self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
 
-        let Token {
-            kind: TokenKind::Group {
-                tokens: enum_body_tokens,
-                ..
-            },
-            span: enum_body_span,
-        } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end(), &self.intermediate_dir);
-        let variants = enum_body_tokens.parse_enum_variants()?;
+            let Token {
+                kind: TokenKind::Group {
+                    tokens: enum_body_tokens,
+                    ..
+                },
+                span: enum_body_span,
+            } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
+            let mut enum_body_tokens = Tokens::new(enum_body_tokens, enum_body_span.end(), &self.intermediate_dir);
+            Some(enum_body_tokens.parse_enum_variants()?)
+        };
+
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Enum {
@@ -90,7 +97,7 @@ impl<'t, 's> Tokens<'t, 's> {
 
         loop {
             let attribute = self.collect_attribute(false /* top_level */)?;
-            let (name, name_span) = self.pop_name_and_span()?;
+            let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
 
             match self.peek() {
                 Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }) | None => {

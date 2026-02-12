@@ -9,7 +9,7 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::ItemKind;
+use sodigy_error::{Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse as ast;
 use sodigy_span::Span;
@@ -54,7 +54,7 @@ pub struct StructShape {
 impl Struct {
     pub fn from_ast(ast_struct: &ast::Struct, session: &mut Session) -> Result<Struct, ()> {
         let mut has_error = false;
-        let mut fields = Vec::with_capacity(ast_struct.fields.len());
+        let mut fields = Vec::with_capacity(ast_struct.fields.as_ref().map(|fields| fields.len()).unwrap_or(0));
 
         let mut generic_params = HashMap::new();
         let mut generic_index = HashMap::new();
@@ -81,6 +81,7 @@ impl Struct {
             },
         };
         let visibility = attribute.visibility.clone();
+        let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
@@ -91,15 +92,26 @@ impl Struct {
             has_error = true;
         }
 
-        for field in ast_struct.fields.iter() {
-            match StructField::from_ast(field, session) {
-                Ok(field) => {
-                    fields.push(field);
-                },
-                Err(()) => {
-                    has_error = true;
-                },
+        if let Some(ast_fields) = &ast_struct.fields {
+            for field in ast_fields.iter() {
+                match StructField::from_ast(field, session) {
+                    Ok(field) => {
+                        fields.push(field);
+                    },
+                    Err(()) => {
+                        has_error = true;
+                    },
+                }
             }
+        }
+
+        else if !built_in {
+            session.errors.push(Error {
+                kind: ErrorKind::StructWithoutBody,
+                spans: ast_struct.name_span.simple_error(),
+                note: None,
+            });
+            has_error = true;
         }
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };

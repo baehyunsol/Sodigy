@@ -1,6 +1,6 @@
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::Span;
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Token, TokenKind};
 
 pub struct Tokens<'t, 's> {
@@ -51,8 +51,21 @@ impl<'t, 's> Tokens<'t, 's> {
         }
     }
 
-    pub fn pop_name_and_span(&mut self) -> Result<(InternedString, Span), Vec<Error>> {
+    pub fn pop_name_and_span(&mut self, allow_wildcard: bool) -> Result<(InternedString, Span), Vec<Error>> {
         match self.peek() {
+            Some(Token { kind: TokenKind::Wildcard, span }) => {
+                if allow_wildcard {
+                    let span = *span;
+                    self.cursor += 1;
+                    Ok((intern_string(b"_", "").unwrap(), span))
+                } else {
+                    Err(vec![Error {
+                        kind: ErrorKind::WildcardNotAllowed,
+                        spans: span.simple_error(),
+                        note: None,
+                    }])
+                }
+            },
             Some(Token { kind: TokenKind::Ident(id), span }) => {
                 let (id, span) = (*id, *span);  // bypass the borrow-checker
                 self.cursor += 1;

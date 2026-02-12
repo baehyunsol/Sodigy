@@ -8,7 +8,7 @@ use crate::{
     Visibility,
     get_decorator_error_notes,
 };
-use sodigy_error::ItemKind;
+use sodigy_error::{Error, ErrorKind, ItemKind};
 use sodigy_name_analysis::{Namespace, NameKind, UseCount};
 use sodigy_parse::{self as ast, Generic};
 use sodigy_span::Span;
@@ -45,7 +45,7 @@ pub enum EnumVariantFields {
 impl Enum {
     pub fn from_ast(ast_enum: &ast::Enum, session: &mut Session) -> Result<Enum, ()> {
         let mut has_error = false;
-        let mut variants = Vec::with_capacity(ast_enum.variants.len());
+        let mut variants = Vec::with_capacity(ast_enum.variants.as_ref().map(|variants| variants.len()).unwrap_or(0));
 
         let mut generic_params = HashMap::new();
         let mut generic_index = HashMap::new();
@@ -72,6 +72,7 @@ impl Enum {
             },
         };
         let visibility = attribute.visibility.clone();
+        let built_in = attribute.get_decorator(b"built_in", &session.intermediate_dir).is_some();
 
         if let Err(()) = session.collect_lang_items(
             &attribute,
@@ -82,15 +83,26 @@ impl Enum {
             has_error = true;
         }
 
-        for ast_variant in ast_enum.variants.iter() {
-            match EnumVariant::from_ast(ast_variant, session) {
-                Ok(variant) => {
-                    variants.push(variant);
-                },
-                Err(()) => {
-                    has_error = true;
-                },
+        if let Some(ast_variants) = &ast_enum.variants {
+            for ast_variant in ast_variants.iter() {
+                match EnumVariant::from_ast(ast_variant, session) {
+                    Ok(variant) => {
+                        variants.push(variant);
+                    },
+                    Err(()) => {
+                        has_error = true;
+                    },
+                }
             }
+        }
+
+        else if !built_in {
+            session.errors.push(Error {
+                kind: ErrorKind::EnumWithoutBody,
+                spans: ast_enum.name_span.simple_error(),
+                note: None,
+            });
+            has_error = true;
         }
 
         let Some(Namespace::GenericParam { names, .. }) = session.name_stack.pop() else { unreachable!() };

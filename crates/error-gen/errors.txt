@@ -22,6 +22,7 @@ UnmatchedGroup/100/Error
 TooManyQuotes/105/Error
 UnclosedDelimiter/110/Error
 UnexpectedToken/115/Error
+WildcardNotAllowed/116/Error
 UnexpectedEof/120/Error
 UnexpectedEog/125/Error
 MissingDocComment/130/Error
@@ -37,6 +38,8 @@ MissingVisibility/165/Error
 CannotBePublic/170/Error
 DanglingVisibility/171/Error
 FunctionWithoutBody/175/Error
+StructWithoutBody/176/Error
+EnumWithoutBody/177/Error
 BlockWithoutValue/180/Error
 StructWithoutField/185/Error
 EmptyCurlyBraceBlock/190/Error

@@ -44,7 +44,7 @@ impl<'t, 's> Tokens<'t, 's> {
         loop {
             // `use a.{b`
             // `use a`
-            let (name, name_span) = self.pop_name_and_span()?;
+            let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
             prefix.push(Field::Name {
                 name,
                 name_span,
@@ -237,7 +237,7 @@ impl<'t, 's> Tokens<'t, 's> {
                     self.cursor += 1;
 
                     // `use a as b`
-                    let alias = self.pop_name_and_span()?;
+                    let alias = self.pop_name_and_span(false /* allow_wildcard */)?;
                     result.push(Use {
                         full_path: prefix.clone(),
                         name: alias.0,

@@ -26,18 +26,20 @@ impl Enum {
             }
         }
 
-        for variant in self.variants.iter() {
-            if let Err(e) = variant.check(intermediate_dir) {
-                errors.extend(e);
-            }
+        if let Some(variants) = &self.variants {
+            for variant in variants.iter() {
+                if let Err(e) = variant.check(intermediate_dir) {
+                    errors.extend(e);
+                }
 
-            match spans_by_name.entry(variant.name) {
-                Entry::Occupied(mut e) => {
-                    e.get_mut().push(variant.name_span);
-                },
-                Entry::Vacant(e) => {
-                    e.insert(vec![variant.name_span]);
-                },
+                match spans_by_name.entry(variant.name) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().push(variant.name_span);
+                    },
+                    Entry::Vacant(e) => {
+                        e.insert(vec![variant.name_span]);
+                    },
+                }
             }
         }
 

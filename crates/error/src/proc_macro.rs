@@ -8,15 +8,16 @@
     EmptyCharLiteral, UnterminatedBlockComment, InvalidUtf8,
     InvalidUnicodeCharacter, InvalidUnicodeEscape, UnmatchedGroup
     { expected: u8, got: u8 }, TooManyQuotes, UnclosedDelimiter(u8),
-    UnexpectedToken { expected: ErrorToken, got: ErrorToken }, UnexpectedEof
-    { expected: ErrorToken }, UnexpectedEog { expected: ErrorToken },
-    MissingDocComment, DocCommentNotAllowed, DanglingDocComment,
-    ModuleDocCommentNotAtTop, MissingDecorator(InternedString),
-    DecoratorNotAllowed, DanglingDecorator,
+    UnexpectedToken { expected: ErrorToken, got: ErrorToken },
+    WildcardNotAllowed, UnexpectedEof { expected: ErrorToken }, UnexpectedEog
+    { expected: ErrorToken }, MissingDocComment, DocCommentNotAllowed,
+    DanglingDocComment, ModuleDocCommentNotAtTop,
+    MissingDecorator(InternedString), DecoratorNotAllowed, DanglingDecorator,
     UnexpectedDecorator(InternedString), ModuleDecoratorNotAtTop,
     MissingVisibility, CannotBePublic, DanglingVisibility,
-    FunctionWithoutBody, BlockWithoutValue, StructWithoutField,
-    EmptyCurlyBraceBlock, AmbiguousCurlyBraces, PositionalArgAfterKeywordArg,
+    FunctionWithoutBody, StructWithoutBody, EnumWithoutBody,
+    BlockWithoutValue, StructWithoutField, EmptyCurlyBraceBlock,
+    AmbiguousCurlyBraces, PositionalArgAfterKeywordArg,
     NonDefaultValueAfterDefaultValue, CannotDeclareInlineModule,
     InclusiveRangeWithNoEnd, MultipleRestPatterns,
     DifferentNameBindingsInOrPattern, InvalidFnType, EmptyMatchStatement,
@@ -87,10 +88,11 @@
             InvalidUnicodeEscape => 95u16, ErrorKind :: UnmatchedGroup { .. }
             => 100u16, ErrorKind :: TooManyQuotes => 105u16, ErrorKind ::
             UnclosedDelimiter(_,) => 110u16, ErrorKind :: UnexpectedToken
-            { .. } => 115u16, ErrorKind :: UnexpectedEof { .. } => 120u16,
-            ErrorKind :: UnexpectedEog { .. } => 125u16, ErrorKind ::
-            MissingDocComment => 130u16, ErrorKind :: DocCommentNotAllowed =>
-            135u16, ErrorKind :: DanglingDocComment => 136u16, ErrorKind ::
+            { .. } => 115u16, ErrorKind :: WildcardNotAllowed => 116u16,
+            ErrorKind :: UnexpectedEof { .. } => 120u16, ErrorKind ::
+            UnexpectedEog { .. } => 125u16, ErrorKind :: MissingDocComment =>
+            130u16, ErrorKind :: DocCommentNotAllowed => 135u16, ErrorKind ::
+            DanglingDocComment => 136u16, ErrorKind ::
             ModuleDocCommentNotAtTop => 140u16, ErrorKind ::
             MissingDecorator(_,) => 145u16, ErrorKind :: DecoratorNotAllowed
             => 150u16, ErrorKind :: DanglingDecorator => 151u16, ErrorKind ::
@@ -98,12 +100,13 @@
             ModuleDecoratorNotAtTop => 160u16, ErrorKind :: MissingVisibility
             => 165u16, ErrorKind :: CannotBePublic => 170u16, ErrorKind ::
             DanglingVisibility => 171u16, ErrorKind :: FunctionWithoutBody =>
-            175u16, ErrorKind :: BlockWithoutValue => 180u16, ErrorKind ::
-            StructWithoutField => 185u16, ErrorKind :: EmptyCurlyBraceBlock =>
-            190u16, ErrorKind :: AmbiguousCurlyBraces => 191u16, ErrorKind ::
-            PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
-            NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
-            CannotDeclareInlineModule => 205u16, ErrorKind ::
+            175u16, ErrorKind :: StructWithoutBody => 176u16, ErrorKind ::
+            EnumWithoutBody => 177u16, ErrorKind :: BlockWithoutValue =>
+            180u16, ErrorKind :: StructWithoutField => 185u16, ErrorKind ::
+            EmptyCurlyBraceBlock => 190u16, ErrorKind :: AmbiguousCurlyBraces
+            => 191u16, ErrorKind :: PositionalArgAfterKeywordArg => 195u16,
+            ErrorKind :: NonDefaultValueAfterDefaultValue => 200u16, ErrorKind
+            :: CannotDeclareInlineModule => 205u16, ErrorKind ::
             InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
             MultipleRestPatterns => 215u16, ErrorKind ::
             DifferentNameBindingsInOrPattern => 220u16, ErrorKind ::
@@ -194,6 +197,7 @@
             TooManyQuotes => ErrorLevel :: Error, ErrorKind ::
             UnclosedDelimiter(_,) => ErrorLevel :: Error, ErrorKind ::
             UnexpectedToken { .. } => ErrorLevel :: Error, ErrorKind ::
+            WildcardNotAllowed => ErrorLevel :: Error, ErrorKind ::
             UnexpectedEof { .. } => ErrorLevel :: Error, ErrorKind ::
             UnexpectedEog { .. } => ErrorLevel :: Error, ErrorKind ::
             MissingDocComment => ErrorLevel :: Error, ErrorKind ::
@@ -209,6 +213,8 @@
             CannotBePublic => ErrorLevel :: Error, ErrorKind ::
             DanglingVisibility => ErrorLevel :: Error, ErrorKind ::
             FunctionWithoutBody => ErrorLevel :: Error, ErrorKind ::
+            StructWithoutBody => ErrorLevel :: Error, ErrorKind ::
+            EnumWithoutBody => ErrorLevel :: Error, ErrorKind ::
             BlockWithoutValue => ErrorLevel :: Error, ErrorKind ::
             StructWithoutField => ErrorLevel :: Error, ErrorKind ::
             EmptyCurlyBraceBlock => ErrorLevel :: Error, ErrorKind ::
@@ -338,7 +344,9 @@
             {
                 buffer.push(0u8); buffer.push(115u8);
                 r#expected.encode_impl(buffer); r#got.encode_impl(buffer);
-            }, ErrorKind :: UnexpectedEof { r#expected, } =>
+            }, ErrorKind :: WildcardNotAllowed =>
+            { buffer.push(0u8); buffer.push(116u8); }, ErrorKind ::
+            UnexpectedEof { r#expected, } =>
             {
                 buffer.push(0u8); buffer.push(120u8);
                 r#expected.encode_impl(buffer);
@@ -368,6 +376,9 @@
             DanglingVisibility => { buffer.push(0u8); buffer.push(171u8); },
             ErrorKind :: FunctionWithoutBody =>
             { buffer.push(0u8); buffer.push(175u8); }, ErrorKind ::
+            StructWithoutBody => { buffer.push(0u8); buffer.push(176u8); },
+            ErrorKind :: EnumWithoutBody =>
+            { buffer.push(0u8); buffer.push(177u8); }, ErrorKind ::
             BlockWithoutValue => { buffer.push(0u8); buffer.push(180u8); },
             ErrorKind :: StructWithoutField =>
             { buffer.push(0u8); buffer.push(185u8); }, ErrorKind ::
@@ -645,7 +656,8 @@
                 ErrorToken :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnexpectedToken { r#expected, r#got, },
                 cursor))
-            }, 120u16 =>
+            }, 116u16 => Ok((ErrorKind :: WildcardNotAllowed, cursor)), 120u16
+            =>
             {
                 let (r#expected, cursor) = ErrorToken ::
                 decode_impl(buffer, cursor) ? ;
@@ -673,7 +685,9 @@
             165u16 => Ok((ErrorKind :: MissingVisibility, cursor)), 170u16 =>
             Ok((ErrorKind :: CannotBePublic, cursor)), 171u16 =>
             Ok((ErrorKind :: DanglingVisibility, cursor)), 175u16 =>
-            Ok((ErrorKind :: FunctionWithoutBody, cursor)), 180u16 =>
+            Ok((ErrorKind :: FunctionWithoutBody, cursor)), 176u16 =>
+            Ok((ErrorKind :: StructWithoutBody, cursor)), 177u16 =>
+            Ok((ErrorKind :: EnumWithoutBody, cursor)), 180u16 =>
             Ok((ErrorKind :: BlockWithoutValue, cursor)), 185u16 =>
             Ok((ErrorKind :: StructWithoutField, cursor)), 190u16 =>
             Ok((ErrorKind :: EmptyCurlyBraceBlock, cursor)), 191u16 =>

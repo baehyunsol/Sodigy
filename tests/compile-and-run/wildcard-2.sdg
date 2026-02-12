@@ -1,0 +1,6 @@
+//% compile-error == 1
+
+let _ = 3;
+let four = _ + 1;
+
+assert four == 4;

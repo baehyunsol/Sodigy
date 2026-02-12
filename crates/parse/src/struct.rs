@@ -17,7 +17,8 @@ pub struct Struct {
     pub name_span: Span,
     pub generics: Vec<Generic>,
     pub generic_group_span: Option<Span>,
-    pub fields: Vec<StructField>,
+    // built-in structs don't have fields
+    pub fields: Option<Vec<StructField>>,
     pub attribute: Attribute,
 }
 
@@ -33,7 +34,7 @@ pub struct StructInitField {
 impl<'t, 's> Tokens<'t, 's> {
     pub fn parse_struct(&mut self) -> Result<Struct, Vec<Error>> {
         let keyword_span = self.match_and_pop(TokenKind::Keyword(Keyword::Struct))?.span;
-        let (name, name_span) = self.pop_name_and_span()?;
+        let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
         let mut generics = vec![];
         let mut generic_group_span = None;
 
@@ -45,17 +46,22 @@ impl<'t, 's> Tokens<'t, 's> {
             generic_group_span = generic_group_span.map(|span| span.merge(generic_span_end));
         }
 
-        self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
+        let fields = if let Some(Token { kind: TokenKind::Punct(Punct::Semicolon), .. }) = self.peek() {
+            None
+        } else {
+            self.match_and_pop(TokenKind::Punct(Punct::Assign))?;
 
-        let Token {
-            kind: TokenKind::Group {
-                tokens: struct_body_tokens,
-                ..
-            },
-            span: struct_body_span,
-        } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
-        let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), &self.intermediate_dir);
-        let fields = struct_body_tokens.parse_struct_fields()?;
+            let Token {
+                kind: TokenKind::Group {
+                    tokens: struct_body_tokens,
+                    ..
+                },
+                span: struct_body_span,
+            } = self.match_and_pop(TokenKind::Group { delim: Delim::Brace, tokens: vec![] })? else { unreachable!() };
+            let mut struct_body_tokens = Tokens::new(struct_body_tokens, struct_body_span.end(), &self.intermediate_dir);
+            Some(struct_body_tokens.parse_struct_fields()?)
+        };
+
         self.match_and_pop(TokenKind::Punct(Punct::Semicolon))?;
 
         Ok(Struct {
@@ -70,7 +76,7 @@ impl<'t, 's> Tokens<'t, 's> {
     }
 
     pub fn parse_struct_fields(&mut self) -> Result<Vec<StructField>, Vec<Error>> {
-        self.parse_func_params()
+        self.parse_func_params(false /* allow_wildcard */)
     }
 
     // NOTE: There must be at least 1 field!
@@ -78,7 +84,7 @@ impl<'t, 's> Tokens<'t, 's> {
         let mut fields = vec![];
 
         loop {
-            let (name, name_span) = self.pop_name_and_span()?;
+            let (name, name_span) = self.pop_name_and_span(false /* allow_wildcard */)?;
             self.match_and_pop(TokenKind::Punct(Punct::Colon))?;
             let value = self.parse_expr(true)?;
             fields.push(StructInitField {

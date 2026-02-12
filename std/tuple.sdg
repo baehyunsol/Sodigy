@@ -1,8 +1,7 @@
 use std.bool.{Bool, Bool.True};
 
-// TODO: I don't want to see warnings in std. The parameters have to be wildcard (WIP).
 #[impl(std.op.eq)]
-fn eq_tuple0(_a: (), _b: ()) -> Bool = True;
+fn eq_tuple0(_: (), _: ()) -> Bool = True;
 
 #[impl(std.op.eq)]
 fn eq_tuple1<T0>(a: (T0,), b: (T0,)) -> Bool = a._0 == b._0;
