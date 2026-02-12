@@ -42,10 +42,7 @@ pub struct CompileAndRun {
     pub stdout_colored: String,
     pub stderr_colored: String,
 
-    // Hash of the test file.
-    // It uses `git hash-object` to hash the file.
-    // TODO: what if there are multiple files?
-    // TODO: let's just use my own hash function...
+    // Hash of the test file(s).
     pub hash: String,
 
     pub compile_elapsed_ms: u64,
@@ -537,7 +534,7 @@ fn hash_dir(dir: &str) -> u128 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-enum Comparison {
+pub enum Comparison {
     Gt,
     Geq,
     Lt,

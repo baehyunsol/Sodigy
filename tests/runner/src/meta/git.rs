@@ -89,7 +89,7 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
         }
 
         else if let Some(parent) = parent_re.captures(line) {
-            parent_hash = Some(Some(parent.get(1).unwrap().as_str().get(0..9).unwrap().to_string()));
+            parent_hash = Some(parent.get(1).unwrap().as_str().get(0..9).unwrap().to_string());
         }
 
         else if let Some(committer) = committer_re.captures(line) {
@@ -123,6 +123,6 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
         timezone: timezone.unwrap(),
         tree_hash: tree_hash.unwrap(),
         commit_hash: commit_hash.to_string(),
-        parent_hash: parent_hash.unwrap(),
+        parent_hash: parent_hash,
     }
 }

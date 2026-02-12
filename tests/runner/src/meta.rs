@@ -2,7 +2,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-mod git;
+pub mod git;
 
 pub use git::CommitInfo;
 
