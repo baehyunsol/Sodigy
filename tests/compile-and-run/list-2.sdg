@@ -1,0 +1,9 @@
+fn first_or<T>(ls: [T], or: T) -> T = match ls.get(0) {
+    Some(v) => v,
+    None => or,
+};
+
+assert first_or([0], 1) == 0;
+assert first_or([], 1) == 1;
+assert first_or(["zero"], "one") == "zero";
+assert first_or([], "one") == "one";

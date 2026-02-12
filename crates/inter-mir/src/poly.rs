@@ -240,6 +240,7 @@ impl From<SolvePolyError> for TypeError {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct FuncType {
     pub params: Vec<Type>,
     pub r#return: Type,
@@ -362,6 +363,17 @@ fn solve_fn_types(
                 },
                 _ => {
                     if !r#type.get_type_vars().is_empty() {
+                        // TODO
+                        // There's sodigy code like this:
+                        // #[poly] fn eq<T>(lhs: T, rhs: T) -> Bool;
+                        // #[impl(eq)] fn eq_tuple<T0>(lhs: (T0,), rhs: (T0,)) -> Bool;
+                        //
+                        // And I have to solve this:
+                        // def: Fn<T>(T, T) -> Bool
+                        // r#impl: Fn<T0>((T0,), (T0,)) -> Bool
+                        // types: { T: (T0,) }
+                        // type_var: T
+                        // r#type: (T0,)
                         todo!()  // what should I do here?
                     }
 

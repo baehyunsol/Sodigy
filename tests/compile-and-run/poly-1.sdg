@@ -1,0 +1,20 @@
+#[poly]
+fn foo<T, U>(_: T, _: U) -> Int = 0;
+
+#[impl(foo)]
+fn foo1(_: Int, _: Int) -> Int = 1;
+
+#[impl(foo)]
+fn foo2<T0>(_: (T0,), _: (T0,)) -> Int = 2;
+
+#[impl(foo)]
+fn foo3<T1, T2>(_: (T1,), _: (T1, T2)) -> Int = 3;
+
+assert foo("", "") == 0;
+assert foo(1, 2) == 1;
+assert foo(1, "") == 0;
+assert foo((1,), (1,)) == 2;
+assert foo(("",), ("",)) == 0;
+assert foo((1,), (2, "")) == 3;
+assert foo((1,), (2, 3)) == 3;
+assert foo((1,), ("", 1)) == 0;
