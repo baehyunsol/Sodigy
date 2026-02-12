@@ -10,6 +10,7 @@ mod op;
 mod prelude;
 mod random;
 mod string;
+mod tuple;
 
 use std.int.Int;
 use std.string.String;

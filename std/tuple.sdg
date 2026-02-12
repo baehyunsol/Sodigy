@@ -1,0 +1,16 @@
+use std.bool.{Bool, Bool.True};
+
+// TODO: I don't want to see warnings in std. The parameters have to be wildcard (WIP).
+#[impl(std.op.eq)]
+fn eq_tuple0(_a: (), _b: ()) -> Bool = True;
+
+#[impl(std.op.eq)]
+fn eq_tuple1<T0>(a: (T0,), b: (T0,)) -> Bool = a._0 == b._0;
+
+#[impl(std.op.eq)]
+fn eq_tuple2<T0, T1>(a: (T0, T1), b: (T0, T1)) -> Bool = a._0 == b._0 && a._1 && b._1;
+
+#[impl(std.op.eq)]
+fn eq_tuple3<T0, T1, T2>(a: (T0, T1, T2), b: (T0, T1, T2)) -> Bool = a._0 == b._0 && a._1 && b._1 && a._2 == b._2;
+
+// TODO: more arities... maybe macro?
