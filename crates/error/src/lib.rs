@@ -118,3 +118,11 @@ impl ItemKind {
 pub fn deduplicate(errors: &mut Vec<Error>) -> Vec<Error> {
     errors.drain(..).collect::<HashSet<_>>().into_iter().collect()
 }
+
+/// Sometimes there's an error with a type of a function.
+/// The error might have to do with a parameter, or with the return type.
+#[derive(Clone, Copy, Debug)]
+pub enum ParamIndex {
+    Param(usize),
+    Return,
+}

@@ -15,6 +15,7 @@ assert foo(1, 2) == 1;
 assert foo(1, "") == 0;
 assert foo((1,), (1,)) == 2;
 assert foo(("",), ("",)) == 0;
+assert foo((1,), ("",)) == 0;
 assert foo((1,), (2, "")) == 3;
 assert foo((1,), (2, 3)) == 3;
 assert foo((1,), ("", 1)) == 0;

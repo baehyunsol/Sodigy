@@ -2,6 +2,7 @@ use crate::Type;
 use sodigy_error::{
     Error,
     ErrorKind,
+    ParamIndex,
     Warning,
     WarningKind,
     comma_list_strs,
@@ -84,9 +85,32 @@ pub enum TypeError {
         got_span: Option<Span>,
     },
 
-    // TODO: more fields
-    CannotInferPolyGenericParam,
-    CannotInferPolyGenericImpl,
+    CannotInferPolyGenericParam {
+        poly_span: Span,
+        param_index: ParamIndex,
+    },
+    CannotInferPolyGenericImpl {
+        poly_span: Span,
+        impl_span: Span,
+        param_index: ParamIndex,
+    },
+    PolyImplDifferentNumberOfParams {
+        poly_params: usize,
+        poly_span: Span,
+        impl_params: usize,
+        impl_span: Span,
+    },
+
+    // If it's `#[poly] fn foo<T>(_: Int) -> T;` and
+    // `#[impl] fn foo_impl<T>(_: String) -> T;`, the error would be
+    // `CannotImplPoly { poly_type: Int, poly_span: foo_span, impl_type: String, impl_span: foo_impl_span, param_index: ParamIndex::Param(0) }`
+    CannotImplPoly {
+        poly_type: Type,
+        poly_span: Span,
+        impl_type: Type,
+        impl_span: Span,
+        param_index: ParamIndex,
+    },
 
     ImpureCallInPureContext {
         call_spans: Vec<Span>,

@@ -1,0 +1,41 @@
+#[poly] fn foo<T, U, V>(_: T, _: U, _: V) -> Int = 0;
+#[impl(foo)] fn foo1<T, U>(_: T, _: T, _: U) -> Int = 1;
+#[impl(foo)] fn foo2<T, U>(_: T, _: U, _: U) -> Int = 2;
+#[impl(foo)] fn foo3<T, U>(_: T, _: U, _: T) -> Int = 3;
+#[impl(foo)] fn foo4(_: Int, _: String, _: Byte) -> Int = 4;
+
+// assert foo(1, 1, 1) == _;
+assert foo(1, 1, "") == 1;
+assert foo(1, 1, #1) == 1;
+
+assert foo(1, "", 1) == 3;
+assert foo(1, "", "") == 2;
+assert foo(1, "", #1) == 4;
+
+assert foo(1, #1, 1) == 3;
+assert foo(1, #1, "") == 0;
+assert foo(1, #1, #1) == 2;
+
+assert foo("", 1, 1) == 2;
+assert foo("", 1, "") == 3;
+assert foo("", 1, #1) == 0;
+
+assert foo("", "", 1) == 1;
+// assert foo("", "", "") == _;
+assert foo("", "", #1) == 1;
+
+assert foo("", #1, 1) == 0;
+assert foo("", #1, "") == 3;
+assert foo("", #1, #1) == 2;
+
+assert foo(#1, 1, 1) == 2;
+assert foo(#1, 1, "") == 0;
+assert foo(#1, 1, #1) == 3;
+
+assert foo(#1, "", 1) == 0;
+assert foo(#1, "", "") == 2;
+assert foo(#1, "", #1) == 3;
+
+assert foo(#1, #1, 1) == 1;
+assert foo(#1, #1, "") == 1;
+// assert foo(#1, #1, #1) == _;

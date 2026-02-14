@@ -1,0 +1,5 @@
+#[poly]
+fn foo<T>(_: T) -> Int;
+
+#[impl(foo)]
+fn bar(_: String) -> String = "";

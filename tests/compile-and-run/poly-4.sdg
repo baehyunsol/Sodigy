@@ -1,0 +1,10 @@
+#[poly] fn foo<T, U>(_: T, _: U) -> Int;
+#[impl(foo)] fn foo1(_: Int, _: Int) = 0;
+#[impl(foo)] fn foo2(_: Int, _: Byte) = 1;
+#[impl(foo)] fn foo3(_: Byte, _: Int) = 2;
+#[impl(foo)] fn foo4(_: Byte, _: Byte) = 3;
+
+assert foo(0, 0) == 0;
+assert foo(0, #0) == 1;
+assert foo(#0, 0) == 2;
+assert foo(#0, #0) == 3;

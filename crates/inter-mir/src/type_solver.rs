@@ -91,6 +91,12 @@ impl TypeSolver {
         }
     }
 
+    /// Sometimes you need a tmp type-solver for a few `.solve_supertype` calls, usually
+    /// for poly solvers.
+    pub fn tmp(lang_items: HashMap<String, Span>, intermediate_dir: String) -> Self {
+        TypeSolver::new(HashMap::new(), HashMap::new(), lang_items, intermediate_dir)
+    }
+
     pub fn apply_never_types(
         &mut self,
         types: &mut HashMap<Span, Type>,
