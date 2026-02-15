@@ -61,6 +61,11 @@
     MultipleModuleFiles { module: ModulePath, found_files: Vec<String> },
     ModuleFileNotFound { module: ModulePath, candidates: Vec<String> },
     LibFileNotFound, SelfParamWithTypeAnnot, AssociatedFuncWithoutSelfParam,
+    CannotInferPolyGenericParam { param_index: ParamIndex },
+    CannotInferPolyGenericImpl { param_index: ParamIndex },
+    PolyImplDifferentNumberOfParams
+    { poly_params: usize, impl_params: usize }, CannotImplPoly
+    { poly_type: String, impl_type: String, param_index: ParamIndex },
     UnusedNames { names: Vec<InternedString>, kind: NameKind },
     UnreachableMatchArm, NoImpureCallInImpureContext, FuncWithoutTypeAnnot,
     LetWithoutTypeAnnot, FieldWithoutTypeAnnot, SelfParamNotNamedSelf, Todo
@@ -158,14 +163,17 @@
             ErrorKind :: ModuleFileNotFound { .. } => 465u16, ErrorKind ::
             LibFileNotFound => 470u16, ErrorKind :: SelfParamWithTypeAnnot =>
             475u16, ErrorKind :: AssociatedFuncWithoutSelfParam => 480u16,
-            ErrorKind :: UnusedNames { .. } => 5000u16, ErrorKind ::
-            UnreachableMatchArm => 5005u16, ErrorKind ::
-            NoImpureCallInImpureContext => 5010u16, ErrorKind ::
-            FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
-            => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
-            ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
-            { .. } => 9998u16, ErrorKind :: InternalCompilerError { .. } =>
-            9999u16,
+            ErrorKind :: CannotInferPolyGenericParam { .. } => 485u16,
+            ErrorKind :: CannotInferPolyGenericImpl { .. } => 490u16,
+            ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
+            ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
+            UnusedNames { .. } => 5000u16, ErrorKind :: UnreachableMatchArm =>
+            5005u16, ErrorKind :: NoImpureCallInImpureContext => 5010u16,
+            ErrorKind :: FuncWithoutTypeAnnot => 8000u16, ErrorKind ::
+            LetWithoutTypeAnnot => 8005u16, ErrorKind :: FieldWithoutTypeAnnot
+            => 8010u16, ErrorKind :: SelfParamNotNamedSelf => 8015u16,
+            ErrorKind :: Todo { .. } => 9998u16, ErrorKind ::
+            InternalCompilerError { .. } => 9999u16,
         }
     }
 } impl ErrorLevel {
@@ -282,12 +290,16 @@
             ErrorKind :: LibFileNotFound => ErrorLevel :: Error, ErrorKind ::
             SelfParamWithTypeAnnot => ErrorLevel :: Error, ErrorKind ::
             AssociatedFuncWithoutSelfParam => ErrorLevel :: Error, ErrorKind
-            :: UnusedNames { .. } => ErrorLevel :: Warning, ErrorKind ::
-            UnreachableMatchArm => ErrorLevel :: Warning, ErrorKind ::
-            NoImpureCallInImpureContext => ErrorLevel :: Warning, ErrorKind ::
-            FuncWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            :: CannotInferPolyGenericParam { .. } => ErrorLevel :: Error,
+            ErrorKind :: CannotInferPolyGenericImpl { .. } => ErrorLevel ::
+            Error, ErrorKind :: PolyImplDifferentNumberOfParams { .. } =>
+            ErrorLevel :: Error, ErrorKind :: CannotImplPoly { .. } =>
+            ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
+            :: Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
+            Warning, ErrorKind :: NoImpureCallInImpureContext => ErrorLevel ::
+            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
+            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
+            :: FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
             SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
             { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
             { .. } => ErrorLevel :: Error,
@@ -572,7 +584,28 @@
             { buffer.push(1u8); buffer.push(219u8); }, ErrorKind ::
             AssociatedFuncWithoutSelfParam =>
             { buffer.push(1u8); buffer.push(224u8); }, ErrorKind ::
-            UnusedNames { r#names, r#kind, } =>
+            CannotInferPolyGenericParam { r#param_index, } =>
+            {
+                buffer.push(1u8); buffer.push(229u8);
+                r#param_index.encode_impl(buffer);
+            }, ErrorKind :: CannotInferPolyGenericImpl { r#param_index, } =>
+            {
+                buffer.push(1u8); buffer.push(234u8);
+                r#param_index.encode_impl(buffer);
+            }, ErrorKind :: PolyImplDifferentNumberOfParams
+            { r#poly_params, r#impl_params, } =>
+            {
+                buffer.push(1u8); buffer.push(239u8);
+                r#poly_params.encode_impl(buffer);
+                r#impl_params.encode_impl(buffer);
+            }, ErrorKind :: CannotImplPoly
+            { r#poly_type, r#impl_type, r#param_index, } =>
+            {
+                buffer.push(1u8); buffer.push(244u8);
+                r#poly_type.encode_impl(buffer);
+                r#impl_type.encode_impl(buffer);
+                r#param_index.encode_impl(buffer);
+            }, ErrorKind :: UnusedNames { r#names, r#kind, } =>
             {
                 buffer.push(19u8); buffer.push(136u8);
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
@@ -937,8 +970,36 @@
                 { r#module, r#candidates, }, cursor))
             }, 470u16 => Ok((ErrorKind :: LibFileNotFound, cursor)), 475u16 =>
             Ok((ErrorKind :: SelfParamWithTypeAnnot, cursor)), 480u16 =>
-            Ok((ErrorKind :: AssociatedFuncWithoutSelfParam, cursor)), 5000u16
+            Ok((ErrorKind :: AssociatedFuncWithoutSelfParam, cursor)), 485u16
             =>
+            {
+                let (r#param_index, cursor) = ParamIndex ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: CannotInferPolyGenericParam
+                { r#param_index, }, cursor))
+            }, 490u16 =>
+            {
+                let (r#param_index, cursor) = ParamIndex ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: CannotInferPolyGenericImpl
+                { r#param_index, }, cursor))
+            }, 495u16 =>
+            {
+                let (r#poly_params, cursor) = usize ::
+                decode_impl(buffer, cursor) ? ; let (r#impl_params, cursor) =
+                usize :: decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: PolyImplDifferentNumberOfParams
+                { r#poly_params, r#impl_params, }, cursor))
+            }, 500u16 =>
+            {
+                let (r#poly_type, cursor) = String ::
+                decode_impl(buffer, cursor) ? ; let (r#impl_type, cursor) =
+                String :: decode_impl(buffer, cursor) ? ; let
+                (r#param_index, cursor) = ParamIndex ::
+                decode_impl(buffer, cursor) ? ;
+                Ok((ErrorKind :: CannotImplPoly
+                { r#poly_type, r#impl_type, r#param_index, }, cursor))
+            }, 5000u16 =>
             {
                 let (r#names, cursor) = Vec :: < InternedString >::
                 decode_impl(buffer, cursor) ? ; let (r#kind, cursor) =

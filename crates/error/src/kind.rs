@@ -1,4 +1,4 @@
-use crate::{ErrorLevel, ErrorToken};
+use crate::{ErrorLevel, ErrorToken, ParamIndex};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_error_gen::error_kinds;
 use sodigy_file::{GetFilePathError, ModulePath};
@@ -166,6 +166,11 @@ error_kinds!(
 
     (SelfParamWithTypeAnnot,                                         475,    Error),
     (AssociatedFuncWithoutSelfParam,                                 480,    Error),
+
+    (CannotInferPolyGenericParam { param_index: ParamIndex },        485,    Error),
+    (CannotInferPolyGenericImpl { param_index: ParamIndex },         490,    Error),
+    (PolyImplDifferentNumberOfParams { poly_params: usize, impl_params: usize },       495, Error),
+    (CannotImplPoly { poly_type: String, impl_type: String, param_index: ParamIndex }, 500, Error),
 
     // Warnings from here
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),

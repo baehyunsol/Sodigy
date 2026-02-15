@@ -107,6 +107,10 @@ ModuleFileNotFound/465/Error
 LibFileNotFound/470/Error
 SelfParamWithTypeAnnot/475/Error
 AssociatedFuncWithoutSelfParam/480/Error
+CannotInferPolyGenericParam/485/Error
+CannotInferPolyGenericImpl/490/Error
+PolyImplDifferentNumberOfParams/495/Error
+CannotImplPoly/500/Error
 UnusedNames/5000/Warning
 UnreachableMatchArm/5005/Warning
 NoImpureCallInImpureContext/5010/Warning

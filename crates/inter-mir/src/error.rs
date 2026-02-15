@@ -515,6 +515,73 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                 note,
             }
         },
+        TypeError::CannotInferPolyGenericParam { poly_span, param_index } => Error {
+            kind: ErrorKind::CannotInferPolyGenericParam { param_index: *param_index },
+            spans: vec![RenderableSpan {
+                span: *poly_span,
+                auxiliary: false,
+                note: Some(String::from("This function needs a type annotation.")),
+            }],
+            note: None,
+        },
+        TypeError::CannotInferPolyGenericImpl { poly_span, impl_span, param_index } => Error {
+            kind: ErrorKind::CannotInferPolyGenericImpl { param_index: *param_index },
+            spans: vec![
+                RenderableSpan {
+                    span: *impl_span,
+                    auxiliary: false,
+                    note: Some(String::from("This function needs a type annotation.")),
+                },
+                RenderableSpan {
+                    span: *poly_span,
+                    auxiliary: true,
+                    note: Some(String::from("`#[poly]` is defined here.")),
+                },
+            ],
+            note: None,
+        },
+        TypeError::PolyImplDifferentNumberOfParams { poly_params, poly_span, impl_params, impl_span } => Error {
+            kind: ErrorKind::PolyImplDifferentNumberOfParams { poly_params: *poly_params, impl_params: *impl_params },
+            spans: vec![
+                RenderableSpan {
+                    span: *impl_span,
+                    auxiliary: false,
+                    note: Some(format!("It has {impl_params} parameter{}.", if *impl_params == 1 { "" } else { "s" })),
+                },
+                RenderableSpan {
+                    span: *poly_span,
+                    auxiliary: true,
+                    note: Some(format!("It has {poly_params} parameter{}.", if *poly_params == 1 { "" } else { "s" })),
+                },
+            ],
+            note: None,
+        },
+        TypeError::CannotImplPoly {
+            poly_type,
+            poly_span,
+            impl_type,
+            impl_span,
+            param_index,
+        } => Error {
+            kind: ErrorKind::CannotImplPoly {
+                poly_type: session.render_type(poly_type),
+                impl_type: session.render_type(impl_type),
+                param_index: *param_index,
+            },
+            spans: vec![
+                RenderableSpan {
+                    span: *impl_span,
+                    auxiliary: false,
+                    note: None,
+                },
+                RenderableSpan {
+                    span: *poly_span,
+                    auxiliary: true,
+                    note: Some(String::from("`#[poly]` is defined here.")),
+                },
+            ],
+            note: None,
+        },
         TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
             let mut spans = vec![];
             let (keyword_note, error_note) = match context {
@@ -561,6 +628,5 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
             }],
             note: None,
         },
-        _ => panic!("TODO: {error:?}"),
     }
 }

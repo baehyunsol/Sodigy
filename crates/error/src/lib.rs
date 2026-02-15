@@ -121,7 +121,7 @@ pub fn deduplicate(errors: &mut Vec<Error>) -> Vec<Error> {
 
 /// Sometimes there's an error with a type of a function.
 /// The error might have to do with a parameter, or with the return type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ParamIndex {
     Param(usize),
     Return,

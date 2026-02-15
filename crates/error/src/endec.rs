@@ -4,6 +4,7 @@ use crate::{
     ErrorToken,
     NameCollisionKind,
     NotXBut,
+    ParamIndex,
 };
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::RenderableSpan;
@@ -243,6 +244,32 @@ impl Endec for NotXBut {
             Some(3) => Ok((NotXBut::Module, cursor + 1)),
             Some(4) => Ok((NotXBut::GenericParam, cursor + 1)),
             Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            None => Err(DecodeError::UnexpectedEof),
+        }
+    }
+}
+
+impl Endec for ParamIndex {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        match self {
+            ParamIndex::Param(n) => {
+                buffer.push(0);
+                n.encode_impl(buffer);
+            },
+            ParamIndex::Return => {
+                buffer.push(1);
+            },
+        }
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        match buffer.get(cursor) {
+            Some(0) => {
+                let (n, cursor) = usize::decode_impl(buffer, cursor + 1)?;
+                Ok((ParamIndex::Param(n), cursor))
+            },
+            Some(1) => Ok((ParamIndex::Return, cursor + 1)),
+            Some(n @ 2..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

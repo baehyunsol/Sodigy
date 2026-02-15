@@ -1,3 +1,5 @@
+//% compile-error == 1
+
 #[poly]
 fn foo<T>(_: T) -> Int;
 
