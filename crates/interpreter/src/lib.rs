@@ -74,16 +74,12 @@ fn execute(
                     },
                 }
             },
-            Bytecode::Move { src, dst, inc_rc } => {
+            Bytecode::Move { src, dst } => {
                 let src = match src {
                     Memory::Return => stack.r#return,
                     Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
                     Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
                 };
-
-                if *inc_rc {
-                    heap.inc_rc(src as usize);
-                }
 
                 match dst {
                     Memory::Return => {

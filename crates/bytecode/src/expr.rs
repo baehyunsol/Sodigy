@@ -74,6 +74,7 @@ pub fn lower_expr(
                             });
                             bytecodes.push(Bytecode::Label(value_inited));
                             bytecodes.push(Bytecode::PopCallStack);
+                            // TODO: inc_ref_count if it has to
                             Memory::Global(id.def_span)
                         },
                         NameKind::Func => {
@@ -104,10 +105,9 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Move {
                     src,
                     dst,
-
-                    // TODO: we have to check the type of `src` and inc_rc if necessary
-                    inc_rc: false,
                 })
+
+                // TODO: inc_ref_count if it has to
             }
 
             if is_tail_call {
@@ -118,6 +118,8 @@ pub fn lower_expr(
         Expr::Constant(c) => {
             let value = session.lower_constant(c);
             bytecodes.push(Bytecode::Const { value, dst });
+
+            // TODO: inc_ref_count if it has to
 
             if is_tail_call {
                 session.drop_all_locals(bytecodes);
@@ -199,10 +201,12 @@ pub fn lower_expr(
 
                         bytecodes.push(Bytecode::Read {
                             src: Memory::Return,
-                            // TODO: negative indexes
+                            // NOTE: There are no negative index because post-mir already lowered them
                             offset: Offset::Static(*i as u32),
                             dst: Memory::Return,
                         });
+
+                        // TODO: inc_ref_count if it has to
                     },
                     Field::Constructor => {
                         // nop
@@ -215,8 +219,6 @@ pub fn lower_expr(
                 bytecodes.push(Bytecode::Move {
                     src: Memory::Return,
                     dst,
-                    // TODO: inc_rc if it has to
-                    inc_rc: false,
                 });
             }
 
@@ -250,6 +252,8 @@ pub fn lower_expr(
                             dst,
                         });
 
+                        // TODO: inc_ref_count(dst) if it has to
+
                         // TODO: how do we know whether we should drop the args?
                         for (i, arg) in args.iter().enumerate() {
                             // if has_to_drop(arg) {
@@ -272,9 +276,6 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Move {
                                     src: Memory::Stack(i + stack_offset),
                                     dst: Memory::Stack(i),
-
-                                    // TODO: we have to check the type of arg and inc_rc if necessary
-                                    inc_rc: false,
                                 });
                             }
 
@@ -294,9 +295,6 @@ pub fn lower_expr(
                                 bytecodes.push(Bytecode::Move {
                                     src: Memory::Return,
                                     dst,
-
-                                    // TODO: we have to check the type of value and inc_rc if necessary
-                                    inc_rc: false,
                                 });
                             }
                         }
@@ -317,6 +315,7 @@ pub fn lower_expr(
                         _ => unreachable!(),
                     };
                     bytecodes.push(bytecode);
+                    bytecodes.push(Bytecode::IncRefCount(dst));
 
                     // TODO: how do we know whether we should drop the args?
                     for (i, arg) in args.iter().enumerate() {
@@ -346,9 +345,6 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::Move {
                                 src: Memory::Stack(i + stack_offset),
                                 dst: Memory::Stack(i),
-
-                                // TODO: we have to check the type of arg and inc_rc if necessary
-                                inc_rc: false,
                             });
                         }
 
@@ -370,9 +366,6 @@ pub fn lower_expr(
                             bytecodes.push(Bytecode::Move {
                                 src: Memory::Return,
                                 dst,
-
-                                // TODO: we have to check the type of value and inc_rc if necessary
-                                inc_rc: false,
                             });
                         }
                     }
