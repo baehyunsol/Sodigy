@@ -7,7 +7,8 @@ use super::{
     read_field_of_pattern,
     remove_overlaps,
 };
-use sodigy_error::{Error, Warning};
+use crate::Session;
+use sodigy_error::Error;
 use sodigy_hir::LetOrigin;
 use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -16,7 +17,7 @@ use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
 // `.condition` of each branch must be non-overlapping.
@@ -74,8 +75,7 @@ impl DecisionTree {
         &self,
         scrutinee: &Expr,
         arms: &[(usize, &MatchArm)],
-        lang_items: &HashMap<String, Span>,
-        intermediate_dir: &str,
+        session: &Session,
     ) -> Expr {
         // TODO: We need some kinda cache for the scrutinee.
         //       For example, if there's `let curr = scrutinee._0._0` and `let curr = scrutinee._0._0._1`,
@@ -139,8 +139,7 @@ impl DecisionTree {
             scrutinee,
             &curr_field,
             arms,
-            lang_items,
-            intermediate_dir,
+            session,
         );
 
         Expr::Block(Block {
@@ -231,21 +230,20 @@ fn branches_to_expr(
     scrutinee: &Expr,
     curr_field: &Expr,
     arms: &[(usize, &MatchArm)],
-    lang_items: &HashMap<String, Span>,
-    intermediate_dir: &str,
+    session: &Session,
 ) -> Expr {
     match branches {
         [branch] => match &branch.node {
-            DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms, lang_items, intermediate_dir),
+            DecisionTreeNode::Tree(tree) => tree.into_expr(scrutinee, arms, session),
             DecisionTreeNode::Leaf { matched, .. } => arms[*matched].1.value.clone(),
         },
         branches => Expr::If(If {
             if_span: Span::None,
-            cond: Box::new(branch_condition_to_expr(&branches[0], curr_field, lang_items, intermediate_dir)),
+            cond: Box::new(branch_condition_to_expr(&branches[0], curr_field, session)),
             else_span: Span::None,
-            true_value: Box::new(branches_to_expr(&branches[0..1], scrutinee, curr_field, arms, lang_items, intermediate_dir)),
+            true_value: Box::new(branches_to_expr(&branches[0..1], scrutinee, curr_field, arms, session)),
             true_group_span: Span::None,
-            false_value: Box::new(branches_to_expr(&branches[1..], scrutinee, curr_field, arms, lang_items, intermediate_dir)),
+            false_value: Box::new(branches_to_expr(&branches[1..], scrutinee, curr_field, arms, session)),
             false_group_span: Span::None,
             from_short_circuit: None,
         }),
@@ -255,26 +253,24 @@ fn branches_to_expr(
 fn branch_condition_to_expr(
     branch: &DecisionTreeBranch,
     curr_field: &Expr,
-    lang_items: &HashMap<String, Span>,
-    intermediate_dir: &str,
+    session: &Session,
 ) -> Expr {
     match &branch.condition {
         Constructor::Wildcard => match &branch.guard {
             Some(guard) => guard.clone(),
-            None => true_value(lang_items, intermediate_dir),
+            None => true_value(session),
         },
-        c => constructor_to_expr(c, curr_field, lang_items, intermediate_dir),
+        c => constructor_to_expr(c, curr_field, session),
     }
 }
 
 fn constructor_to_expr(
     constructor: &Constructor,
     curr_field: &Expr,
-    lang_items: &HashMap<String, Span>,
-    intermediate_dir: &str,
+    session: &Session,
 ) -> Expr {
     match constructor {
-        Constructor::Tuple(_) => true_value(lang_items, intermediate_dir),
+        Constructor::Tuple(_) => true_value(session),
         Constructor::DefSpan(_) => todo!(),
         Constructor::Range(range) => {
             let (lang_item, operand) = match (&range.lhs, &range.rhs) {
@@ -290,7 +286,7 @@ fn constructor_to_expr(
                                 (LiteralType::Int, false, true) => ("built_in.eq_int", Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None })),
                                 (LiteralType::Int, true, false) => ("built_in.eq_int", Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None })),
                                 (LiteralType::Int, _, _) => {
-                                    return true_value(lang_items, intermediate_dir);
+                                    return true_value(session);
                                 },
                                 // we need `built_in.eq_scalar`
                                 _ => todo!(),
@@ -322,7 +318,7 @@ fn constructor_to_expr(
                                 if_span: Span::None,
                                 cond: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *lang_items.get(f1).unwrap(),
+                                        def_span: *session.lang_items.get(f1).unwrap(),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -337,7 +333,7 @@ fn constructor_to_expr(
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *lang_items.get(f2).unwrap(),
+                                        def_span: *session.lang_items.get(f2).unwrap(),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -351,14 +347,14 @@ fn constructor_to_expr(
                                 }),
                                 true_group_span: Span::None,
                                 false_value: Box::new(Expr::Ident(IdentWithOrigin {
-                                    id: intern_string(b"False", intermediate_dir).unwrap(),
+                                    id: intern_string(b"False", &session.intermediate_dir).unwrap(),
                                     span: Span::None,
                                     origin: NameOrigin::Foreign {
                                         kind: NameKind::EnumVariant {
-                                            parent: *lang_items.get("type.Bool").unwrap(),
+                                            parent: *session.lang_items.get("type.Bool").unwrap(),
                                         },
                                     },
-                                    def_span: *lang_items.get("variant.Bool.False").unwrap(),
+                                    def_span: *session.lang_items.get("variant.Bool.False").unwrap(),
                                 })),
                                 false_group_span: Span::None,
                                 from_short_circuit: None,
@@ -369,7 +365,7 @@ fn constructor_to_expr(
                     // `3 < x && x <= 3` is just impossible
                     // TODO: It's likely to be a compiler bug. Maybe we should write some log here?
                     Ordering::Greater | Ordering::Equal => {
-                        return false_value(lang_items, intermediate_dir);
+                        return false_value(session);
                     },
                 },
                 (Some(lhs), None) => match (range.r#type, range.lhs_inclusive) {
@@ -383,13 +379,13 @@ fn constructor_to_expr(
                     _ => todo!(),
                 },
                 (None, None) => {
-                    return true_value(lang_items, intermediate_dir);
+                    return true_value(session);
                 },
             };
 
             Expr::Call {
                 func: Callable::Static {
-                    def_span: *lang_items.get(lang_item).unwrap(),
+                    def_span: *session.lang_items.get(lang_item).unwrap(),
                     span: Span::None,
                 },
                 args: vec![
@@ -402,35 +398,34 @@ fn constructor_to_expr(
                 given_keyword_arguments: vec![],
             }
         },
-        Constructor::Or(cs) => constructors_to_expr(cs, curr_field, lang_items, intermediate_dir),
-        Constructor::Wildcard => true_value(lang_items, intermediate_dir),
+        Constructor::Or(cs) => constructors_to_expr(cs, curr_field, session),
+        Constructor::Wildcard => true_value(session),
     }
 }
 
 fn constructors_to_expr(
     constructors: &[Constructor],
     curr_field: &Expr,
-    lang_items: &HashMap<String, Span>,
-    intermediate_dir: &str,
+    session: &Session,
 ) -> Expr {
     match constructors.len() {
-        1 => constructor_to_expr(&constructors[0], curr_field, lang_items, intermediate_dir),
+        1 => constructor_to_expr(&constructors[0], curr_field, session),
         _ => Expr::If(If {
             if_span: Span::None,
-            cond: Box::new(constructor_to_expr(&constructors[0], curr_field, lang_items, intermediate_dir,)),
+            cond: Box::new(constructor_to_expr(&constructors[0], curr_field, session)),
             else_span: Span::None,
             true_value: Box::new(Expr::Ident(IdentWithOrigin {
-                id: intern_string(b"True", intermediate_dir).unwrap(),
+                id: intern_string(b"True", &session.intermediate_dir).unwrap(),
                 span: Span::None,
                 origin: NameOrigin::Foreign {
                     kind: NameKind::EnumVariant {
-                        parent: *lang_items.get("type.Bool").unwrap(),
+                        parent: *session.lang_items.get("type.Bool").unwrap(),
                     },
                 },
-                def_span: *lang_items.get("variant.Bool.True").unwrap(),
+                def_span: *session.lang_items.get("variant.Bool.True").unwrap(),
             })),
             true_group_span: Span::None,
-            false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, lang_items, intermediate_dir)),
+            false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, session)),
             false_group_span: Span::None,
             from_short_circuit: None,
         }),
@@ -454,8 +449,7 @@ pub(crate) fn build_tree(
     tree_id: &mut u32,
     matrix: &[(Vec<Field>, Constructor)],
     arms: &[(usize, &MatchArm)],
-    errors: &mut Vec<Error>,
-    warnings: &mut Vec<Warning>,
+    session: &mut Session,
 ) -> Result<DecisionTreeNode, ()> {
     if matrix.is_empty() {
         let mut branches = vec![];
@@ -540,7 +534,7 @@ pub(crate) fn build_tree(
                         }
 
                         else {
-                            errors.push(Error::todo(19198, "type errors in patterns", pattern.pattern.error_span_wide()));
+                            session.errors.push(Error::todo(19198, "type errors in patterns", pattern.pattern.error_span_wide()));
                         }
                     },
                     Constructor::Wildcard => {
@@ -551,7 +545,7 @@ pub(crate) fn build_tree(
                         }
                     },
                     _ => {
-                        errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
+                        session.errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
                     },
                 }
             }
@@ -569,8 +563,7 @@ pub(crate) fn build_tree(
                         tree_id,
                         &matrix[1..],
                         &okay_patterns,
-                        errors,
-                        warnings,
+                        session,
                     )?,
                     name_bindings,
                 }],
@@ -595,7 +588,7 @@ pub(crate) fn build_tree(
                 match &pattern.constructor {
                     Constructor::Range(r) => {
                         if r.r#type != *r#type {
-                            errors.push(Error::todo(19200, "type errors in patterns", pattern.pattern.error_span_wide()));
+                            session.errors.push(Error::todo(19200, "type errors in patterns", pattern.pattern.error_span_wide()));
                         }
 
                         else {
@@ -635,7 +628,7 @@ pub(crate) fn build_tree(
                         }
                     },
                     _ => {
-                        errors.push(Error::todo(19201, "type errors in patterns", pattern.pattern.error_span_wide()));
+                        session.errors.push(Error::todo(19201, "type errors in patterns", pattern.pattern.error_span_wide()));
                     },
                 }
             }
@@ -650,8 +643,7 @@ pub(crate) fn build_tree(
                     tree_id,
                     &matrix[1..],
                     &arms,
-                    errors,
-                    warnings,
+                    session,
                 ) {
                     Ok(node) => {
                         branches.push(DecisionTreeBranch {
@@ -684,28 +676,28 @@ pub(crate) fn build_tree(
     }
 }
 
-fn true_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Expr {
+fn true_value(session: &Session) -> Expr {
     Expr::Ident(IdentWithOrigin {
-        id: intern_string(b"True", intermediate_dir).unwrap(),
+        id: intern_string(b"True", &session.intermediate_dir).unwrap(),
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *lang_items.get("type.Bool").unwrap(),
+                parent: *session.lang_items.get("type.Bool").unwrap(),
             },
         },
-        def_span: *lang_items.get("variant.Bool.True").unwrap(),
+        def_span: *session.lang_items.get("variant.Bool.True").unwrap(),
     })
 }
 
-fn false_value(lang_items: &HashMap<String, Span>, intermediate_dir: &str) -> Expr {
+fn false_value(session: &Session) -> Expr {
     Expr::Ident(IdentWithOrigin {
-        id: intern_string(b"False", intermediate_dir).unwrap(),
+        id: intern_string(b"False", &session.intermediate_dir).unwrap(),
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *lang_items.get("type.Bool").unwrap(),
+                parent: *session.lang_items.get("type.Bool").unwrap(),
             },
         },
-        def_span: *lang_items.get("variant.Bool.False").unwrap(),
+        def_span: *session.lang_items.get("variant.Bool.False").unwrap(),
     })
 }

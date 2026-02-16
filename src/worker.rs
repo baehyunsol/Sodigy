@@ -393,7 +393,7 @@ impl Worker {
                         mir_session.types = inter_mir_session.types.drain().collect();
                         mir_session.generic_args = inter_mir_session.generic_args.drain().collect();
 
-                        let _ = sodigy_post_mir::lower_matches(&mut mir_session);
+                        let _ = sodigy_post_mir::lower(&mut mir_session);
 
                         init_span_string_map_if_necessary(
                             &mut mir_session,

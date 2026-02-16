@@ -13,7 +13,7 @@ pub use error::{ErrorContext, ExprContext, TypeError, type_error_to_general_erro
 pub(crate) use mono::GenericCall;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
-use type_solver::TypeSolver;
+pub use type_solver::TypeSolver;
 
 pub fn solve_type(mut mir_session: MirSession) -> (Session, MirSession) {
     let mut has_error = false;

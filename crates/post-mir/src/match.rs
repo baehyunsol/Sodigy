@@ -151,17 +151,15 @@
 //!
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
-use crate::PatternAnalysisError;
+use crate::{PatternAnalysisError, Session};
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
-use sodigy_hir::{LetOrigin, Pattern, PatternKind, StructShape};
+use sodigy_hir::{LetOrigin, Pattern, PatternKind};
 use sodigy_mir::{
     Block,
-    Callable,
     Expr,
     Let,
     Match,
     MatchArm,
-    Session as MirSession,
     Type,
     type_of,
 };
@@ -184,300 +182,12 @@ use tree::{
     build_tree,
 };
 
-pub fn lower_matches(mir_session: &mut MirSession) -> Result<(), ()> {
-    let mut has_error = false;
-
-    for r#let in mir_session.lets.iter_mut() {
-        has_error |= lower_matches_expr_recursive(
-            &mut r#let.value,
-            &mir_session.types,
-            &mir_session.struct_shapes,
-            &mir_session.lang_items,
-            &mut mir_session.errors,
-            &mut mir_session.warnings,
-            &mir_session.intermediate_dir,
-        ).is_err();
-    }
-
-    for func in mir_session.funcs.iter_mut() {
-        has_error |= lower_matches_expr_recursive(
-            &mut func.value,
-            &mir_session.types,
-            &mir_session.struct_shapes,
-            &mir_session.lang_items,
-            &mut mir_session.errors,
-            &mut mir_session.warnings,
-            &mir_session.intermediate_dir,
-        ).is_err();
-    }
-
-    for assert in mir_session.asserts.iter_mut() {
-        if let Some(note) = &mut assert.note {
-            has_error |= lower_matches_expr_recursive(
-                note,
-                &mir_session.types,
-                &mir_session.struct_shapes,
-                &mir_session.lang_items,
-                &mut mir_session.errors,
-                &mut mir_session.warnings,
-                &mir_session.intermediate_dir,
-            ).is_err();
-        }
-
-        has_error |= lower_matches_expr_recursive(
-            &mut assert.value,
-            &mir_session.types,
-            &mir_session.struct_shapes,
-            &mir_session.lang_items,
-            &mut mir_session.errors,
-            &mut mir_session.warnings,
-            &mir_session.intermediate_dir,
-        ).is_err();
-    }
-
-    if has_error {
-        Err(())
-    }
-
-    else {
-        Ok(())
-    }
-}
-
-fn lower_matches_expr_recursive(
-    expr: &mut Expr,
-    types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, StructShape>,
-    lang_items: &HashMap<String, Span>,
-    errors: &mut Vec<Error>,
-    warnings: &mut Vec<Warning>,
-    intermediate_dir: &str,
-) -> Result<(), ()> {
-    match expr {
-        Expr::Ident(_) | Expr::Constant(_) => Ok(()),
-        Expr::If(r#if) => match (
-            lower_matches_expr_recursive(r#if.cond.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
-            lower_matches_expr_recursive(r#if.true_value.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
-            lower_matches_expr_recursive(r#if.false_value.as_mut(), types, struct_shapes, lang_items, errors, warnings, intermediate_dir),
-        ) {
-            (Ok(()), Ok(()), Ok(())) => Ok(()),
-            _ => Err(()),
-        },
-        Expr::Block(block) => {
-            let mut has_error = false;
-
-            for r#let in block.lets.iter_mut() {
-                has_error |= lower_matches_expr_recursive(
-                    &mut r#let.value,
-                    types,
-                    struct_shapes,
-                    lang_items,
-                    errors,
-                    warnings,
-                    intermediate_dir,
-                ).is_err();
-            }
-
-            for assert in block.asserts.iter_mut() {
-                if let Some(note) = &mut assert.note {
-                    has_error |= lower_matches_expr_recursive(
-                        note,
-                        types,
-                        struct_shapes,
-                        lang_items,
-                        errors,
-                        warnings,
-                        intermediate_dir,
-                    ).is_err();
-                }
-
-                has_error |= lower_matches_expr_recursive(
-                    &mut assert.value,
-                    types,
-                    struct_shapes,
-                    lang_items,
-                    errors,
-                    warnings,
-                    intermediate_dir,
-                ).is_err();
-            }
-
-            has_error |= lower_matches_expr_recursive(
-                &mut block.value,
-                types,
-                struct_shapes,
-                lang_items,
-                errors,
-                warnings,
-                intermediate_dir,
-            ).is_err();
-
-            if has_error {
-                Err(())
-            }
-
-            else {
-                Ok(())
-            }
-        },
-        Expr::Field { lhs, .. } => lower_matches_expr_recursive(
-            lhs,
-            types,
-            struct_shapes,
-            lang_items,
-            errors,
-            warnings,
-            intermediate_dir,
-        ),
-        Expr::FieldUpdate { lhs, rhs, .. } => {
-            let lhs_err = lower_matches_expr_recursive(
-                lhs,
-                types,
-                struct_shapes,
-                lang_items,
-                errors,
-                warnings,
-                intermediate_dir,
-            ).is_err();
-            let rhs_err = lower_matches_expr_recursive(
-                rhs,
-                types,
-                struct_shapes,
-                lang_items,
-                errors,
-                warnings,
-                intermediate_dir,
-            ).is_err();
-
-            if lhs_err || rhs_err {
-                Err(())
-            }
-
-            else {
-                Ok(())
-            }
-        },
-        Expr::Match(r#match) => {
-            let mut has_error = false;
-
-            has_error |= lower_matches_expr_recursive(
-                &mut r#match.scrutinee,
-                types,
-                struct_shapes,
-                lang_items,
-                errors,
-                warnings,
-                intermediate_dir,
-            ).is_err();
-
-            for arm in r#match.arms.iter_mut() {
-                if let Some(guard) = &mut arm.guard {
-                    has_error |= lower_matches_expr_recursive(
-                        guard,
-                        types,
-                        struct_shapes,
-                        lang_items,
-                        errors,
-                        warnings,
-                        intermediate_dir,
-                    ).is_err();
-                }
-
-                has_error |= lower_matches_expr_recursive(
-                    &mut arm.value,
-                    types,
-                    struct_shapes,
-                    lang_items,
-                    errors,
-                    warnings,
-                    intermediate_dir,
-                ).is_err();
-            }
-
-            match lower_match(
-                r#match,
-                types,
-                struct_shapes,
-                lang_items,
-                errors,
-                warnings,
-                intermediate_dir,
-            ) {
-                Ok(lowered) => {
-                    *expr = lowered;
-                },
-                Err(()) => {
-                    has_error = true;
-                },
-            }
-
-            if has_error {
-                Err(())
-            }
-
-            else {
-                Ok(())
-            }
-        },
-        Expr::Call { func, args, .. } => {
-            let mut has_error = false;
-
-            match func {
-                Callable::Dynamic(f) => {
-                    if let Err(()) = lower_matches_expr_recursive(
-                        f,
-                        types,
-                        struct_shapes,
-                        lang_items,
-                        errors,
-                        warnings,
-                        intermediate_dir,
-                    ) {
-                        has_error = true;
-                    }
-                },
-                _ => {},
-            }
-
-            for arg in args.iter_mut() {
-                if let Err(()) = lower_matches_expr_recursive(
-                    arg,
-                    types,
-                    struct_shapes,
-                    lang_items,
-                    errors,
-                    warnings,
-                    intermediate_dir,
-                ) {
-                    has_error = true;
-                }
-            }
-
-            if has_error {
-                Err(())
-            }
-
-            else {
-                Ok(())
-            }
-        },
-    }
-}
-
-fn lower_match(
-    match_expr: &mut Match,
-    types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, StructShape>,
-    lang_items: &HashMap<String, Span>,
-    errors: &mut Vec<Error>,
-    warnings: &mut Vec<Warning>,
-    intermediate_dir: &str,
-) -> Result<Expr, ()> {
+pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Result<Expr, ()> {
     let scrutinee_type = type_of(
         &match_expr.scrutinee,
-        types,
-        struct_shapes,
-        lang_items,
+        &session.types,
+        &session.struct_shapes,
+        &session.lang_items,
     ).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
     // We use `index: usize` of each arm as an id of the arm.
@@ -495,14 +205,13 @@ fn lower_match(
     });
     arms.push((extra_arm_id, extra_arm));
 
-    let matrix = get_matrix(&scrutinee_type, lang_items);
+    let matrix = get_matrix(&scrutinee_type, &session.lang_items);
 
     let mut tree = match build_tree(
         &mut 1,
         &matrix,
         &arms,
-        errors,
-        warnings,
+        session,
     )? {
         DecisionTreeNode::Tree(tree) => tree,
         DecisionTreeNode::Leaf { .. } => unreachable!(),
@@ -513,8 +222,7 @@ fn lower_match(
         &arms,
         match_expr.keyword_span,
         extra_arm_id,
-        errors,
-        warnings,
+        session,
     )?;
 
     tree.optimize();
@@ -535,7 +243,7 @@ fn lower_match(
         _ => (Expr::Ident(another_name_binding), true),
     };
 
-    let tree_expr = tree.into_expr(&scrutinee, &arms, lang_items, intermediate_dir);
+    let tree_expr = tree.into_expr(&scrutinee, &arms, session);
     let tree_expr = if needs_another_name_binding {
         // We have to bind the name!!
         Expr::Block(Block {
@@ -804,8 +512,7 @@ fn check_unreachable_and_exhaustiveness(
     arms: &[(usize, &MatchArm)],
     keyword_span: Span,
     extra_arm_id: usize,
-    errors: &mut Vec<Error>,
-    warnings: &mut Vec<Warning>,
+    session: &mut Session,
 ) -> Result<(), ()> {
     let mut hidden_by = HashMap::new();
     let mut reachable_arms = HashSet::new();
@@ -828,7 +535,7 @@ fn check_unreachable_and_exhaustiveness(
                 note: Some(String::from("This arm is unreachable.")),
             });
 
-            warnings.push(Warning {
+            session.warnings.push(Warning {
                 kind: WarningKind::UnreachableMatchArm,
                 spans: error_spans,
                 note: None,
@@ -838,7 +545,7 @@ fn check_unreachable_and_exhaustiveness(
 
     // TODO: we can calculate the set of unreachable values
     if reachable_arms.contains(&extra_arm_id) {
-        errors.push(Error {
+        session.errors.push(Error {
             kind: ErrorKind::NonExhaustiveArms,
             spans: keyword_span.simple_error(),
             note: None,

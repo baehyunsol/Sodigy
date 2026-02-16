@@ -39,10 +39,9 @@ pub enum CompileStage {
     /// parallelized.
     InterMir,
 
-    /// This stage handles lowering that requires type information. Its primary
-    /// purpose is to lower match expressions into decision trees, which cannot be
-    /// done without knowing the types involved. The decision trees are still valid
-    /// MIR constructs.
+    /// This stage handles lowering that requires type information. 
+    /// It lowers match expressions to decision trees. It also lowers `Field::Name`s
+    /// to `Field::Index`.
     PostMir,
 
     /// This stage requires all files' PostMir to be available.
