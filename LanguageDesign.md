@@ -1,12 +1,14 @@
 # Some Design Decisions
 
-Decisions with smaller numbers are more important.
+Lowered numbered decisions have higher priority.
 
 ## 1. Everything has to be purely functional.
 
-There are 2 languages: the core language, which is pure, and a script language, which is impure.
+Sodigy strictly distinguishes between pure functions and impure functions via `pure` keyword.
 
-You write the pure logic (which must be 99% of your project) in the core language, and to the impure IO (the remaining 1%) with the script language.
+Sodigy has no notion of "execution" or "evaluation". There are only values. An expression like `square(5)` doesn't "evaluate to" `25`. It simply "is" `25`.
+
+Panicking is not considered a "behavior" in Sodigy. It only cares about what value a function returns, or whether it terminates. The optimizer may transform a panicking program into a non-panicking one.
 
 ## 2. Compile-time Checks
 
@@ -25,16 +27,8 @@ When I design a new feature, the first question I ask is "How does Rust solve th
 
 ## 4. Runtime performance
 
-Sodigy is not a system programming language. Making Sodigy as bare metal as C is a non-goal.
+Sodigy is not a system programming language. Making Sodigy as bare metal as C is a non-goal. I want Sodigy to be 2~3 times faster than Python.
 
 ## 5. Number system
 
-Sodigy uses arbitrary-width integers instead of fixed width integers and rational numbers instead of floating point numbers.
-
-I chose arbitrary-width integers because... (TODO)
-
-I chose rational numbers because...
-
-1. We cannot implement floating point numbers in Sodigy. We have to add a lot of built-ins to the language if we want floating points. That'll make Sodigy less portable.
-2. `0.1 + 0.2 == 0.3`
-3. If fp performance matters (e.g. you want to multiply numbers 1 billion times), Sodigy is not for you. See #4. Sodigy is not CUDA/C/Rust.
+Sodigy uses arbitrary width integers. I want to avoid all the uglinesses from fixed size integers. You know, Python uses arbitrary width integers but people still use it!
