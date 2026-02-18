@@ -133,6 +133,22 @@ fn execute(
             Bytecode::DecStackPointer(n) => {
                 stack.stack_pointer -= n;
             },
+            Bytecode::IncRefCount(dst) => {
+                let dst = match dst {
+                    Memory::Return => stack.r#return,
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                };
+                heap.inc_rc(dst as usize);
+            },
+            Bytecode::DecRefCount { dst, drop } => {
+                let dst = match dst {
+                    Memory::Return => stack.r#return,
+                    Memory::Stack(i) => *stack.stack.get(stack.stack_pointer + i).expect("stack overflow"),
+                    Memory::Global(s) => *heap.global_values.get(s).expect("global should be initialized before used"),
+                };
+                heap.dec_rc(dst as usize, drop);
+            },
             Bytecode::Jump(label) => match label {
                 Label::Flatten(i) => {
                     cursor = *i;

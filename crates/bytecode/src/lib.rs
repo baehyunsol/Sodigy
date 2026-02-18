@@ -152,6 +152,7 @@ pub enum Bytecode {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Memory {
     // A register that can hold single value.
+    // But some instructions use this register for tmp values.
     Return,
 
     // The runtime has a stack pointer.

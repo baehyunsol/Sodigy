@@ -1,4 +1,4 @@
-use sodigy_bytecode::{DebugInfoKind, Value};
+use sodigy_bytecode::{DebugInfoKind, DropType, Value};
 use sodigy_file::File;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -185,8 +185,7 @@ impl Heap {
         result
     }
 
-    // It does not `dec_rc` after freeing memory.
-    pub fn free(&mut self, ptr: usize) {
+    fn free(&mut self, ptr: usize) {
         let size = self.data[ptr] & 0x7fff_ffff;
         self.data[ptr] = size;
 
@@ -211,6 +210,16 @@ impl Heap {
 
     pub fn inc_rc(&mut self, ptr: usize) {
         self.data[ptr + 1] += 1;
+    }
+
+    pub fn dec_rc(&mut self, ptr: usize, drop: &DropType) {
+        self.data[ptr + 1] -= 1;
+
+        if self.data[ptr + 1] == 0 {
+            // TODO: drop
+
+            self.free(ptr);
+        }
     }
 
     // `ptr` must be a header of an unused block.
