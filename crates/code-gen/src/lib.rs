@@ -13,7 +13,7 @@ pub enum Backend {
 pub fn lower(mut bytecode_session: Session, backend: Backend) -> (Vec<u8>, Vec<Error>, Vec<Warning>) {
     match backend {
         Backend::Bytecode => {
-            let executable = bytecode_session.into_executable();
+            let executable = bytecode_session.link();
 
             // It doesn't generate extra errors/warnings!
             (

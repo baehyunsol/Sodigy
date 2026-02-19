@@ -47,7 +47,7 @@ mod log;
 mod worker;
 
 use log::{LogEntry, SimpleCommand, dump_log};
-use worker::{Channel, MessageToMain, MessageToWorker, WorkerId, init_workers_and_channels};
+use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
 fn main() {
     let result = run();
@@ -245,7 +245,9 @@ fn compile(
             CompileStage::Mir,
             CompileStage::InterMir,
             CompileStage::PostMir,
+            CompileStage::MirOptimize,
             CompileStage::Bytecode,
+            CompileStage::BytecodeOptimize,
         ].into_iter().map(
             |stage| EmitIrOption {
                 stage,
@@ -305,7 +307,7 @@ fn compile(
 
         let mut every_hir_complete = true;
         let mut every_mir_complete = true;
-        let mut every_post_mir_complete = true;
+        let mut every_bytecode_complete = true;
 
         for module in modules.values_mut() {
             if let (CompileStage::Load, false) = (module.compile_stage, module.running) {
@@ -313,6 +315,7 @@ fn compile(
                     Command::PerFileIr {
                         input_file_path: module.file_path.clone(),
                         input_module_path: module.module_path.clone(),
+                        optimize_level,
                         intermediate_dir: ir_dir.clone(),
                         find_modules: true,
                         emit_ir_options: emit_irs.clone_and_push(
@@ -338,8 +341,8 @@ fn compile(
                 every_mir_complete = false;
             }
 
-            if (module.compile_stage, module.running) != (CompileStage::PostMir, false) {
-                every_post_mir_complete = false;
+            if (module.compile_stage, module.running) != (CompileStage::BytecodeOptimize, false) {
+                every_bytecode_complete = false;
             }
         }
 
@@ -391,17 +394,15 @@ fn compile(
             }
         }
 
-        if every_post_mir_complete {
+        if every_bytecode_complete {
             workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
-                Command::Bytecode {
+                Command::CodeGen {
                     modules: modules.values().map(
                         |module| (module.module_path.clone(), module.span)
                     ).collect(),
                     intermediate_dir: ir_dir.clone(),
-                    optimize_level,
                     backend,
                     output_path: output_path.clone(),
-                    stop_after: CompileStage::CodeGen,
                 }],
             ))?;
             round_robin += 1;
@@ -474,6 +475,7 @@ fn compile(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
+                                            optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
                                             emit_ir_options: emit_irs.clone_and_push(
@@ -498,16 +500,17 @@ fn compile(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
+                                            optimize_level,
                                             intermediate_dir: ir_dir.clone(),
                                             find_modules: false,
                                             emit_ir_options: emit_irs.clone_and_push(
                                                 EmitIrOption {
-                                                    stage: CompileStage::PostMir,
+                                                    stage: CompileStage::BytecodeOptimize,
                                                     store: StoreIrAt::IntermediateDir,
                                                     human_readable: false,
                                                 },
                                             ),
-                                            stop_after: CompileStage::PostMir,
+                                            stop_after: CompileStage::BytecodeOptimize,
                                         }],
                                     ))?;
                                     round_robin += 1;

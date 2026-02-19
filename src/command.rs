@@ -17,6 +17,7 @@ pub enum Command {
         // A module `foo/bar` can be found in either `src/foo/bar.sdg` or `src/foo/bar/mod.sdg`.
         input_file_path: FileOrStd,
         input_module_path: ModulePath,
+        optimize_level: OptimizeLevel,
 
         intermediate_dir: String,
 
@@ -40,15 +41,12 @@ pub enum Command {
         intermediate_dir: String,
         emit_ir_options: Vec<EmitIrOption>,
     },
-    // Collects post-MIRs and runs Optimize/Bytecode stage.
-    // This command is also responsible for code-gen, but code-gen is WIP.
+    // Collects per-module bytecodes and runs Link/CodeGen stage.
     // The result (bytecode or generated executable) is saved at `output_path`.
-    Bytecode {
+    CodeGen {
         modules: HashMap<ModulePath, Span>,
         intermediate_dir: String,
-        optimize_level: OptimizeLevel,
         backend: Backend,
         output_path: StoreIrAt,
-        stop_after: CompileStage,
     },
 }

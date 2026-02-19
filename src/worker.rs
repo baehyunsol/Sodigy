@@ -106,16 +106,12 @@ fn init_worker_and_channel(id: usize) -> Channel {
 
     let join_handle = thread::Builder::new()
         .name(format!("worker-{id}"))
-        .spawn(move || match worker_loop(
-        tx_to_main.clone(),
-        rx_from_main,
-        worker_id,
-    ) {
-        Ok(()) => {},
-        Err(e) => {
-            tx_to_main.send(MessageToMain::Error(e)).unwrap();
-        },
-    }).unwrap();
+        .spawn(move || match worker_loop(tx_to_main.clone(), rx_from_main, worker_id) {
+            Ok(()) => {},
+            Err(e) => {
+                tx_to_main.send(MessageToMain::Error(e)).unwrap();
+            },
+        }).unwrap();
 
     Channel {
         worker_id,
@@ -131,7 +127,8 @@ fn init_worker_and_channel(id: usize) -> Channel {
 pub struct Worker {
     pub id: WorkerId,
     pub born_at: Instant,
-    pub log: Vec<LogEntry>,
+    pub command_history: Vec<LogEntry>,
+    pub log_file: Option<String>,
     pub curr_command: Option<(SimpleCommand, u64)>,
     pub curr_command_error: bool,
 }
@@ -144,7 +141,12 @@ fn worker_loop(
     let mut worker = Worker {
         id: worker_id,
         born_at: Instant::now(),
-        log: vec![],
+        command_history: vec![],
+
+        // NOTE: Currently, there's no API that sets this value.
+        //       You have to hard-code the log file and re-compile it...
+        log_file: None,
+
         curr_command: None,
         curr_command_error: false,
     };
@@ -154,13 +156,13 @@ fn worker_loop(
             MessageToWorker::Run(commands) => {
                 if let Err(e) = worker.run_commands(commands, tx_to_main.clone()) {
                     if worker.curr_command.is_some() {
-                        worker.mark_error_log();
+                        worker.curr_command_error = true;
                         worker.log_command_end();
                     }
 
                     tx_to_main.send(MessageToMain::Log {
                         worker_id,
-                        entries: worker.log.drain(..).collect(),
+                        entries: worker.command_history.drain(..).collect(),
                     })?;
                     return Err(e);
                 }
@@ -168,7 +170,7 @@ fn worker_loop(
             MessageToWorker::Kill => {
                 tx_to_main.send(MessageToMain::Log {
                     worker_id,
-                    entries: worker.log.drain(..).collect(),
+                    entries: worker.command_history.drain(..).collect(),
                 })?;
                 break;
             },
@@ -192,6 +194,7 @@ impl Worker {
                     Command::PerFileIr {
                         input_file_path,
                         input_module_path,
+                        optimize_level,
                         intermediate_dir,
                         find_modules,
                         emit_ir_options,
@@ -427,7 +430,75 @@ impl Worker {
                             }
                         }
 
-                        unreachable!()
+                        let optimized_mir_session = sodigy_optimize::optimize_mir(mir_session, optimize_level);
+                        emit_irs_if_has_to(
+                            &optimized_mir_session,
+                            &emit_ir_options,
+                            CompileStage::MirOptimize,
+                            Some(content_hash),
+                            &intermediate_dir,
+                        )?;
+
+                        if !optimized_mir_session.errors.is_empty() || stop_after <= CompileStage::MirOptimize {
+                            tx_to_main.send(MessageToMain::IrComplete {
+                                module_path: Some(input_module_path),
+                                compile_stage: CompileStage::MirOptimize,
+                                errors: optimized_mir_session.errors.clone(),
+                                warnings: optimized_mir_session.warnings.clone(),
+                            })?;
+
+                            if !optimized_mir_session.errors.is_empty() {
+                                return Err(Error::CompileError);
+                            }
+
+                            else {
+                                break 'command;
+                            }
+                        }
+
+                        let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
+                        emit_irs_if_has_to(
+                            &bytecode_session,
+                            &emit_ir_options,
+                            CompileStage::Bytecode,
+                            Some(content_hash),
+                            &intermediate_dir,
+                        )?;
+
+                        if !bytecode_session.errors.is_empty() || stop_after <= CompileStage::Bytecode {
+                            tx_to_main.send(MessageToMain::IrComplete {
+                                module_path: Some(input_module_path),
+                                compile_stage: CompileStage::Bytecode,
+                                errors: bytecode_session.errors.clone(),
+                                warnings: bytecode_session.warnings.clone(),
+                            })?;
+
+                            if !bytecode_session.errors.is_empty() {
+                                return Err(Error::CompileError);
+                            }
+
+                            else {
+                                break 'command;
+                            }
+                        }
+
+                        let optimized_bytecode_session = sodigy_optimize::optimize_bytecode(bytecode_session, optimize_level);
+                        emit_irs_if_has_to(
+                            &optimized_bytecode_session,
+                            &emit_ir_options,
+                            CompileStage::BytecodeOptimize,
+                            Some(content_hash),
+                            &intermediate_dir,
+                        )?;
+
+                        // bytecode optimizer doesn't emit any warning/error, and this must be the last stage!
+                        tx_to_main.send(MessageToMain::IrComplete {
+                            module_path: Some(input_module_path),
+                            compile_stage: CompileStage::BytecodeOptimize,
+                            errors: optimized_bytecode_session.errors.clone(),
+                            warnings: optimized_bytecode_session.warnings.clone(),
+                        })?;
+                        break 'command;
                     },
                     Command::InterHir {
                         modules,
@@ -573,15 +644,13 @@ impl Worker {
                             warnings: inter_mir_session.warnings,
                         })?;
                     },
-                    Command::Bytecode {
+                    Command::CodeGen {
                         modules,
                         intermediate_dir,
-                        optimize_level,
                         backend,
                         output_path,
-                        stop_after,
                     } => {
-                        let mut merged_mir_session: Option<mir::Session> = None;
+                        let mut merged_bytecode_session: Option<sodigy_bytecode::Session> = None;
 
                         for path in modules.keys() {
                             let file = File::from_module_path(
@@ -590,72 +659,34 @@ impl Worker {
                                 &intermediate_dir,
                             )?.ok_or(Error::MiscError)?;
                             let content_hash = file.get_content_hash(&intermediate_dir)?;
-                            let mir_session_bytes = get_cached_ir(
+                            let bytecode_session_bytes = get_cached_ir(
                                 &intermediate_dir,
-                                CompileStage::PostMir,
+                                CompileStage::BytecodeOptimize,
                                 Some(content_hash),
-                            )?.ok_or(Error::IrCacheNotFound(CompileStage::PostMir))?;
-                            let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
-                            mir_session.intermediate_dir = intermediate_dir.clone();
+                            )?.ok_or(Error::IrCacheNotFound(CompileStage::BytecodeOptimize))?;
+                            let mut bytecode_session = sodigy_bytecode::Session::decode(&bytecode_session_bytes)?;
+                            bytecode_session.intermediate_dir = intermediate_dir.clone();
 
-                            match &mut merged_mir_session {
+                            match &mut merged_bytecode_session {
                                 Some(s) => {
-                                    s.merge(mir_session);
+                                    s.merge(bytecode_session);
                                 },
                                 None => {
-                                    merged_mir_session = Some(mir_session);
+                                    merged_bytecode_session = Some(bytecode_session);
                                 },
                             }
                         }
 
-                        let mir_session = merged_mir_session.unwrap();
-                        let optimized_mir_session = sodigy_optimize::optimize(mir_session, optimize_level);
-
-                        if !optimized_mir_session.errors.is_empty() || stop_after <= CompileStage::Optimize {
-                            tx_to_main.send(MessageToMain::IrComplete {
-                                module_path: None,
-                                compile_stage: CompileStage::Optimize,
-                                errors: optimized_mir_session.errors.clone(),
-                                warnings: optimized_mir_session.warnings.clone(),
-                            })?;
-
-                            if !optimized_mir_session.errors.is_empty() {
-                                return Err(Error::CompileError);
-                            }
-
-                            else {
-                                break 'command;
-                            }
-                        }
-
-                        let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
-
-                        if !bytecode_session.errors.is_empty() || stop_after <= CompileStage::Bytecode {
-                            tx_to_main.send(MessageToMain::IrComplete {
-                                module_path: None,
-                                compile_stage: CompileStage::Bytecode,
-                                errors: bytecode_session.errors.clone(),
-                                warnings: bytecode_session.warnings.clone(),
-                            })?;
-
-                            if !bytecode_session.errors.is_empty() {
-                                return Err(Error::CompileError);
-                            }
-
-                            else {
-                                break 'command;
-                            }
-                        }
-
-                        let (result, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);
+                        let bytecode_session = merged_bytecode_session.unwrap();
+                        let (code, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);
 
                         match output_path {
                             StoreIrAt::File(f) => {
-                                write_bytes(&f, &result.encode(), WriteMode::CreateOrTruncate)?;
+                                write_bytes(&f, &code.encode(), WriteMode::CreateOrTruncate)?;
                             },
                             StoreIrAt::IntermediateDir => {
                                 emit_irs_if_has_to(
-                                    &result,
+                                    &code,
                                     &[EmitIrOption {
                                         stage: CompileStage::CodeGen,
                                         store: StoreIrAt::IntermediateDir,
@@ -682,29 +713,6 @@ impl Worker {
         }
 
         Ok(())
-    }
-
-    fn log_command_start(&mut self, command: &Command) {
-        assert!(self.curr_command.is_none());
-        self.curr_command = Some((
-            command.into(),
-            Instant::now().duration_since(self.born_at.clone()).as_micros() as u64,
-        ));
-        self.curr_command_error = false;
-    }
-
-    fn log_command_end(&mut self) {
-        let (command, start) = self.curr_command.take().unwrap();
-        self.log.push(LogEntry {
-            command,
-            start,
-            end: Instant::now().duration_since(self.born_at.clone()).as_micros() as u64,
-            has_error: self.curr_command_error,
-        });
-    }
-
-    fn mark_error_log(&mut self) {
-        self.curr_command_error = true;
     }
 }
 

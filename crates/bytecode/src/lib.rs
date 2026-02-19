@@ -7,6 +7,7 @@ mod executable;
 mod expr;
 mod func;
 mod r#let;
+mod link;
 mod session;
 mod value;
 

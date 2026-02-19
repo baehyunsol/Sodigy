@@ -1,7 +1,8 @@
-use crate::{CompileStage, Error, WorkerId};
+use crate::{CompileStage, Error, Worker, WorkerId};
 use sodigy::Command;
 use sodigy_fs_api::{WriteMode, join, write_string};
 use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct LogEntry {
@@ -15,15 +16,17 @@ pub struct LogEntry {
     pub end: u64,
 }
 
-// TODO: split InterHir, InterMir and Bytecode into finer stages
+// TODO: split into finer stages
+//       e.g. `Hir` and `Bytecode` consist of 4 different compile stages
+//       e.g. InterHir does 3 things: `resolve_alias` + `resolve_associated_items` + `resolve_poly`
 #[derive(Clone, Debug)]
 pub enum SimpleCommand {
-    Hir(String),
+    Hir(String),  // Load + Lex + Parse + Hir
     InterHir,
     Mir(String),
     InterMir,
-    PostMir(String),
-    Bytecode,
+    Bytecode(String),  // PostMir + MirOptimize + Bytecode + BytecodeOptimize
+    CodeGen,
 }
 
 impl From<&Command> for SimpleCommand {
@@ -32,13 +35,56 @@ impl From<&Command> for SimpleCommand {
             Command::PerFileIr { input_module_path, stop_after, .. } => match stop_after {
                 CompileStage::Hir => SimpleCommand::Hir(input_module_path.to_string()),
                 CompileStage::Mir => SimpleCommand::Mir(input_module_path.to_string()),
-                CompileStage::PostMir => SimpleCommand::PostMir(input_module_path.to_string()),
+                CompileStage::BytecodeOptimize => SimpleCommand::Bytecode(input_module_path.to_string()),
                 _ => unreachable!(),
             },
             Command::InterHir { .. } => SimpleCommand::InterHir,
             Command::InterMir { .. } => SimpleCommand::InterMir,
-            Command::Bytecode { .. } => SimpleCommand::Bytecode,
+            Command::CodeGen { .. } => SimpleCommand::CodeGen,
         }
+    }
+}
+
+impl Worker {
+    pub fn log_command_start(&mut self, command: &Command) {
+        assert!(self.curr_command.is_none());
+        let command: SimpleCommand = command.into();
+        let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
+
+        if let Some(file) = &self.log_file {
+            if let Err(e) = write_string(
+                file,
+                &format!("[Worker-{}][timestamp: {} ms] start {command:?}\n", self.id.0, timestamp / 1000),
+                WriteMode::AppendOrCreate,
+            ) {
+                eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
+            }
+        }
+
+        self.curr_command = Some((command, timestamp));
+        self.curr_command_error = false;
+    }
+
+    pub fn log_command_end(&mut self) {
+        let (command, start) = self.curr_command.take().unwrap();
+        let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
+
+        if let Some(file) = &self.log_file {
+            if let Err(e) = write_string(
+                file,
+                &format!("[Worker-{}][timestamp: {} ms] end {command:?}\n", self.id.0, timestamp / 1000),
+                WriteMode::AppendOrCreate,
+            ) {
+                eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
+            }
+        }
+
+        self.command_history.push(LogEntry {
+            command,
+            start,
+            end: timestamp,
+            has_error: self.curr_command_error,
+        });
     }
 }
 
@@ -47,10 +93,11 @@ struct Whole {
     pub inter_hir: Option<(u64, u64)>,
     pub mir: Option<(u64, u64)>,
     pub inter_mir: Option<(u64, u64)>,
-    pub post_mir: Option<(u64, u64)>,
     pub bytecode: Option<(u64, u64)>,
+    pub code_gen: Option<(u64, u64)>,
 }
 
+// TODO: dump in json format
 pub fn dump_log(
     mut worker_ids: Vec<WorkerId>,
     logs: &HashMap<WorkerId, Vec<LogEntry>>,
@@ -65,8 +112,8 @@ pub fn dump_log(
         inter_hir: None,
         mir: None,
         inter_mir: None,
-        post_mir: None,
         bytecode: None,
+        code_gen: None,
     };
 
     let logs: Vec<(WorkerId, Option<Vec<LogEntry>>)> = worker_ids.iter().map(
@@ -116,22 +163,22 @@ pub fn dump_log(
                                     whole_timestamps.inter_mir = Some((*start, *end));
                                 },
                             },
-                            SimpleCommand::PostMir(_) => match &mut whole_timestamps.post_mir {
+                            SimpleCommand::Bytecode(_) => match &mut whole_timestamps.bytecode {
                                 Some((m_start, m_end)) => {
                                     *m_start = (*m_start).min(*start);
                                     *m_end = (*m_end).max(*end);
                                 },
                                 None => {
-                                    whole_timestamps.post_mir = Some((*start, *end));
+                                    whole_timestamps.bytecode = Some((*start, *end));
                                 },
                             },
-                            SimpleCommand::Bytecode => match &mut whole_timestamps.bytecode {
+                            SimpleCommand::CodeGen => match &mut whole_timestamps.code_gen {
                                 Some((b_start, b_end)) => {
                                     *b_start = (*b_start).min(*start);
                                     *b_end = (*b_end).max(*end);
                                 },
                                 None => {
-                                    whole_timestamps.bytecode = Some((*start, *end));
+                                    whole_timestamps.code_gen = Some((*start, *end));
                                 },
                             },
                         }
@@ -169,12 +216,12 @@ This section shows how much time compiler spends at each stage.
         result.push(format!("- inter_mir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
     }
 
-    if let Some((start, end)) = whole_timestamps.post_mir {
-        result.push(format!("- post_mir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
     if let Some((start, end)) = whole_timestamps.bytecode {
         result.push(format!("- bytecode: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
+    }
+
+    if let Some((start, end)) = whole_timestamps.code_gen {
+        result.push(format!("- code_gen: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
     }
 
     result.push(String::from("
@@ -242,13 +289,13 @@ in the module.
         result.push(format!("### mir\n\n```\n{}\n```\n\n", draw_per_worker_graph(mir_entries, width)));
     }
 
-    let post_mir_entries = logs.iter().map(
+    let bytecode_entries = logs.iter().map(
         |(worker_id, entries)| (
             *worker_id,
             entries.as_ref().map(|entries| entries.iter().filter_map(
                 |entry| match entry {
                     LogEntry {
-                        command: SimpleCommand::PostMir(f),
+                        command: SimpleCommand::Bytecode(f),
                         has_error,
                         start,
                         end,
@@ -259,13 +306,13 @@ in the module.
         )
     ).collect::<Vec<_>>();
 
-    if post_mir_entries.iter().any(
+    if bytecode_entries.iter().any(
         |(_, entries)| match entries {
             Some(v) if !v.is_empty() => true,
             _ => false,
         }
     ) {
-        result.push(format!("### post_mir\n\n```\n{}\n```\n\n", draw_per_worker_graph(post_mir_entries, width)));
+        result.push(format!("### bytecode\n\n```\n{}\n```\n\n", draw_per_worker_graph(bytecode_entries, width)));
     }
 
     write_string(

@@ -1,7 +1,7 @@
 use crate::Bytecode;
 
 pub struct Executable {
-    pub asserts: Vec<(/* name: */ String, /* label: */ usize)>,
+    pub asserts: Vec<(/* name: */ String, /* bytecode offset: */ usize)>,
     pub bytecodes: Vec<Bytecode>,
 }
 

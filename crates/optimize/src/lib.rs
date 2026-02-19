@@ -1,4 +1,5 @@
-use sodigy_mir::Session;
+use sodigy_bytecode::Session as BytecodeSession;
+use sodigy_mir::Session as MirSession;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OptimizeLevel {
@@ -7,7 +8,12 @@ pub enum OptimizeLevel {
     Extreme,
 }
 
-pub fn optimize(mir_session: Session, level: OptimizeLevel) -> Session {
+pub fn optimize_mir(mir_session: MirSession, level: OptimizeLevel) -> MirSession {
     // TODO: optimize
     mir_session
+}
+
+pub fn optimize_bytecode(bytecode_session: BytecodeSession, level: OptimizeLevel) -> BytecodeSession {
+    // TODO: optimize
+    bytecode_session
 }
