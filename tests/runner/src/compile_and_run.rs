@@ -1,3 +1,4 @@
+use crate::subprocess::{self, SubprocessError};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,7 @@ use sodigy_fs_api::{
     write_string,
 };
 use sodigy_string::hash;
-use std::process::{Command, Output};
+use std::process::Command;
 use std::time::Instant;
 
 mod line_matcher;
@@ -68,6 +69,7 @@ pub struct Directive {
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Status {
+    CompileTimeout,
     CompileFail,
 
     // This has 2 use cases.
@@ -76,6 +78,7 @@ pub enum Status {
     CompilePass,
 
     // It implies `CompilePass`.
+    RunTimeout,
     RunFail,
     RunPass,
 }
@@ -207,22 +210,34 @@ fn run_case_inner(
     // TODO: do we have to hash expected_output?
     let hash = format!("{:024x}", hash_dir(&join(project_dir, "src").unwrap()));
     let compile_started_at = Instant::now();
+    let output = match subprocess::run(
+        sodigy_path,
+        &["build", "--test", "-o=target/run"],
+        project_dir,
+        30.0,
+        dump_output,
+    ) {
+        Ok(output) => output,
+        Err(SubprocessError::Timeout) => {
+            return CompileAndRun {
+                name: name.to_string(),
+                error: Some(String::from("compile-timeout")),
+                stdout: String::new(),
+                stderr: String::new(),
+                status: Status::CompileTimeout,
+                stdout_colored: String::new(),
+                stderr_colored: String::new(),
+                hash,
+                compile_elapsed_ms: Instant::now().duration_since(compile_started_at).as_millis() as u64,
+                run_elapsed_ms: None,
+            };
+        },
+        Err(e) => panic!("{e:?}"),
+    };
 
-    let output = Command::new(sodigy_path)
-        .arg("build")
-        .arg("--test")
-        .arg("-o=target/run")
-        .current_dir(project_dir)
-        .output()
-        .unwrap();
     let compile_elapsed_ms = Instant::now().duration_since(compile_started_at).as_millis() as u64;
     stdout_colored.extend(&output.stdout);
     stderr_colored.extend(&output.stderr);
-
-    if dump_output {
-        print!("{}", String::from_utf8_lossy(&output.stdout));
-        eprint!("{}", String::from_utf8_lossy(&output.stderr));
-    }
 
     let mut error = match check_compile_output(&output, &directive, expected_output) {
         Ok(()) => None,
@@ -233,28 +248,32 @@ fn run_case_inner(
 
     if status != Status::CompileFail {
         let run_started_at = Instant::now();
+        match subprocess::run(
+            sodigy_path,
+            &["interpret", "target/run"],
+            project_dir,
+            30.0,
+            dump_output,
+        ) {
+            Ok(output) => {
+                run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
+                stdout_colored.extend(&output.stdout);
+                stderr_colored.extend(&output.stderr);
 
-        let output = Command::new(sodigy_path)
-            .arg("interpret")
-            .arg("target/run")
-            .current_dir(project_dir)
-            .output()
-            .unwrap();
-        run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
-        stdout_colored.extend(&output.stdout);
-        stderr_colored.extend(&output.stderr);
+                error = match (error, check_run_output(&output, &directive, expected_output)) {
+                    (None, Err(e)) => Some(e),
+                    (e, _) => e,
+                };
 
-        if dump_output {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+                status = if output.status.success() { Status::RunPass } else { Status::RunFail };
+            },
+            Err(SubprocessError::Timeout) => {
+                run_elapsed_ms = Some(Instant::now().duration_since(run_started_at).as_millis() as u64);
+                error = Some(String::from("run-timeout"));
+                status = Status::RunTimeout;
+            },
+            Err(e) => panic!("{e:?}"),
         }
-
-        error = match (error, check_run_output(&output, &directive, expected_output)) {
-            (None, Err(e)) => Some(e),
-            (e, _) => e,
-        };
-
-        status = if output.status.success() { Status::RunPass } else { Status::RunFail };
     }
 
     let stdout_colored = String::from_utf8_lossy(&stdout_colored).to_string();
@@ -424,7 +443,7 @@ fn parse_expected_output(path: &str) -> Option<Vec<LineMatcher>> {
     }
 }
 
-fn check_compile_output(output: &Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
+fn check_compile_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
     let (compile_errors, compile_warnings) = match count_compile_errors_and_warnings(&String::from_utf8_lossy(&output.stderr)) {
         Some((e, w)) => (e, w),
         None => {
@@ -451,7 +470,7 @@ fn check_compile_output(output: &Output, directive: &Directive, expected_output:
     Ok(())
 }
 
-fn check_run_output(output: &Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
+fn check_run_output(output: &subprocess::Output, directive: &Directive, expected_output: &ExpectedOutput) -> Result<(), String> {
     match (output.status.success(), directive.expected_status) {
         (true, Status::RunFail) => { return Err(String::from("expected run-fail, but it passed")); },
         (false, Status::RunPass) => { return Err(String::from("expected run-pass, but if failed")); },

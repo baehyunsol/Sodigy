@@ -145,6 +145,7 @@ fn worker_loop(
 
         // NOTE: Currently, there's no API that sets this value.
         //       You have to hard-code the log file and re-compile it...
+        // log_file: Some(String::from("log")),
         log_file: None,
 
         curr_command: None,

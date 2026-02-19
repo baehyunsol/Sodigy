@@ -13,6 +13,7 @@ pub mod compile_and_run;
 pub mod crate_test;
 pub mod harness;
 pub mod meta;
+pub mod subprocess;
 
 pub use compile_and_run::CompileAndRun;
 pub use crate_test::CrateTest;

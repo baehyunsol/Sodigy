@@ -24,6 +24,8 @@ cargo run -- all;
 
 As of now, this is the main test suite. It is very similar to rust's [compiletest](https://rustc-dev-guide.rust-lang.org/tests/compiletest.html).
 
+Every case has a timeout: 30 seconds for compile and 30 seconds for run. You can't change the timeout.
+
 #### Add cases (single-file)
 
 If your test case consists of a single file, add the file to `tests/compile-and-run/`. The file name must start with the name of the test-case, and its extension must be `.sdg`. There should be no dot (`.`) character in the test-case name.
