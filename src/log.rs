@@ -1,488 +1,425 @@
 use crate::{CompileStage, Error, Worker, WorkerId};
-use sodigy::Command;
 use sodigy_fs_api::{WriteMode, join, write_string};
 use std::collections::HashMap;
 use std::time::Instant;
 
 #[derive(Clone, Debug)]
 pub struct LogEntry {
-    pub command: SimpleCommand,
+    pub stage: CompileStage,
+    pub module: Option<String>,
     pub has_error: bool,
 
-    // It's a timestamp (microseconds) since the worker's born.
+    // It's a timestamp (microseconds) since the worker's birth.
     // Clocks between workers are not synchronized, but I don't think
     // that'd be a big deal.
     pub start: u64,
     pub end: u64,
 }
 
-// TODO: split into finer stages
-//       e.g. `Hir` and `Bytecode` consist of 4 different compile stages
-//       e.g. InterHir does 3 things: `resolve_alias` + `resolve_associated_items` + `resolve_poly`
-#[derive(Clone, Debug)]
-pub enum SimpleCommand {
-    Hir(String),  // Load + Lex + Parse + Hir
-    InterHir,
-    Mir(String),
-    InterMir,
-    Bytecode(String),  // PostMir + MirOptimize + Bytecode + BytecodeOptimize
-    CodeGen,
-}
-
-impl From<&Command> for SimpleCommand {
-    fn from(c: &Command) -> SimpleCommand {
-        match c {
-            Command::PerFileIr { input_module_path, stop_after, .. } => match stop_after {
-                CompileStage::Hir => SimpleCommand::Hir(input_module_path.to_string()),
-                CompileStage::Mir => SimpleCommand::Mir(input_module_path.to_string()),
-                CompileStage::BytecodeOptimize => SimpleCommand::Bytecode(input_module_path.to_string()),
-                _ => unreachable!(),
-            },
-            Command::InterHir { .. } => SimpleCommand::InterHir,
-            Command::InterMir { .. } => SimpleCommand::InterMir,
-            Command::CodeGen { .. } => SimpleCommand::CodeGen,
-        }
-    }
-}
-
 impl Worker {
-    pub fn log_command_start(&mut self, command: &Command) {
-        assert!(self.curr_command.is_none());
-        let command: SimpleCommand = command.into();
+    pub fn log_start(&mut self, stage: CompileStage, module: Option<String>) {
+        assert!(self.curr_stage.is_none());
         let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
 
         if let Some(file) = &self.log_file {
             if let Err(e) = write_string(
                 file,
-                &format!("[Worker-{}][timestamp: {} ms] start {command:?}\n", self.id.0, timestamp / 1000),
+                &format!("[Worker-{}][timestamp: {} ms] start {:?}\n", self.id.0, timestamp / 1000, (stage, &module)),
                 WriteMode::AppendOrCreate,
             ) {
                 eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
             }
         }
 
-        self.curr_command = Some((command, timestamp));
-        self.curr_command_error = false;
+        self.curr_stage = Some((stage, module, timestamp));
+        self.curr_stage_error = false;
     }
 
-    pub fn log_command_end(&mut self) {
-        let (command, start) = self.curr_command.take().unwrap();
-        let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
+    pub fn log_end(&mut self) {
+        if let Some((stage, module, start)) = self.curr_stage.take() {
+            let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
 
-        if let Some(file) = &self.log_file {
-            if let Err(e) = write_string(
-                file,
-                &format!("[Worker-{}][timestamp: {} ms] end {command:?}\n", self.id.0, timestamp / 1000),
-                WriteMode::AppendOrCreate,
-            ) {
-                eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
+            if let Some(file) = &self.log_file {
+                if let Err(e) = write_string(
+                    file,
+                    &format!("[Worker-{}][timestamp: {} ms] end {:?}\n", self.id.0, timestamp / 1000, (stage, &module)),
+                    WriteMode::AppendOrCreate,
+                ) {
+                    eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
+                }
             }
-        }
 
-        self.command_history.push(LogEntry {
-            command,
-            start,
-            end: timestamp,
-            has_error: self.curr_command_error,
-        });
+            self.history.push(LogEntry {
+                stage,
+                module,
+                start,
+                end: timestamp,
+                has_error: self.curr_stage_error,
+            });
+        }
     }
 }
 
-struct Whole {
-    pub hir: Option<(u64, u64)>,
-    pub inter_hir: Option<(u64, u64)>,
-    pub mir: Option<(u64, u64)>,
-    pub inter_mir: Option<(u64, u64)>,
-    pub bytecode: Option<(u64, u64)>,
-    pub code_gen: Option<(u64, u64)>,
-}
-
-// TODO: dump in json format
-pub fn dump_log(
+pub fn dump_timings(
     mut worker_ids: Vec<WorkerId>,
-    logs: &HashMap<WorkerId, Vec<LogEntry>>,
+    timings: &HashMap<WorkerId, Vec<LogEntry>>,
     ir_dir: &str,
 ) -> Result<(), Error> {
-    let mut result = vec![];
     worker_ids.sort();
-    let mut first_timestamp = u64::MAX;
-    let mut last_timestamp = 0;
-    let mut whole_timestamps = Whole {
-        hir: None,
-        inter_hir: None,
-        mir: None,
-        inter_mir: None,
-        bytecode: None,
-        code_gen: None,
-    };
 
-    let logs: Vec<(WorkerId, Option<Vec<LogEntry>>)> = worker_ids.iter().map(
-        |id| (
-            *id,
-            logs.get(id).map(
-                |log| log.iter().map(
-                    |log| {
-                        let LogEntry { command, start, end, .. } = log;
-                        first_timestamp = first_timestamp.min(*start);
-                        last_timestamp = last_timestamp.max(*end);
-
-                        match &command {
-                            SimpleCommand::Hir(_) => match &mut whole_timestamps.hir {
-                                Some((h_start, h_end)) => {
-                                    *h_start = (*h_start).min(*start);
-                                    *h_end = (*h_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.hir = Some((*start, *end));
-                                },
-                            },
-                            SimpleCommand::InterHir => match &mut whole_timestamps.inter_hir {
-                                Some((h_start, h_end)) => {
-                                    *h_start = (*h_start).min(*start);
-                                    *h_end = (*h_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.inter_hir = Some((*start, *end));
-                                },
-                            },
-                            SimpleCommand::Mir(_) => match &mut whole_timestamps.mir {
-                                Some((m_start, m_end)) => {
-                                    *m_start = (*m_start).min(*start);
-                                    *m_end = (*m_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.mir = Some((*start, *end));
-                                },
-                            },
-                            SimpleCommand::InterMir => match &mut whole_timestamps.inter_mir {
-                                Some((m_start, m_end)) => {
-                                    *m_start = (*m_start).min(*start);
-                                    *m_end = (*m_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.inter_mir = Some((*start, *end));
-                                },
-                            },
-                            SimpleCommand::Bytecode(_) => match &mut whole_timestamps.bytecode {
-                                Some((m_start, m_end)) => {
-                                    *m_start = (*m_start).min(*start);
-                                    *m_end = (*m_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.bytecode = Some((*start, *end));
-                                },
-                            },
-                            SimpleCommand::CodeGen => match &mut whole_timestamps.code_gen {
-                                Some((b_start, b_end)) => {
-                                    *b_start = (*b_start).min(*start);
-                                    *b_end = (*b_end).max(*end);
-                                },
-                                None => {
-                                    whole_timestamps.code_gen = Some((*start, *end));
-                                },
-                            },
-                        }
-
-                        log.clone()
-                    }
-                ).collect::<Vec<_>>()
-            ),
-        )
-    ).collect();
-
-    result.push(String::from("# Timings
-
-*Warning*: Turn off incremental compilation to get accurate result.
-Hir stages are likely to run much faster if incremental compilation is enabled.
-
-## Timings per stage
-
-This section shows how much time compiler spends at each stage.
-"));
-
-    if let Some((start, end)) = whole_timestamps.hir {
-        result.push(format!("- hir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    if let Some((start, end)) = whole_timestamps.inter_hir {
-        result.push(format!("- inter_hir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    if let Some((start, end)) = whole_timestamps.mir {
-        result.push(format!("- mir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    if let Some((start, end)) = whole_timestamps.inter_mir {
-        result.push(format!("- inter_mir: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    if let Some((start, end)) = whole_timestamps.bytecode {
-        result.push(format!("- bytecode: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    if let Some((start, end)) = whole_timestamps.code_gen {
-        result.push(format!("- code_gen: {} ({})", prettify_micros(end - start), percentage(end - start, last_timestamp - first_timestamp)));
-    }
-
-    result.push(String::from("
-## Timings per module
-
-It shows what module each worker is working on at each timing. If there're no space, I wrote a number in a parenthesis and
-wrote the module name in footnotes.
-
-If the module name is prefixed with `@`, the module belongs to std. If the module name is followed by `!`, there's a compile error
-in the module.
-
-`???` means the worker has panicked.
-"));
-
-    let width = 192;
-    let hir_entries = logs.iter().map(
-        |(worker_id, entries)| (
-            *worker_id,
-            entries.as_ref().map(|entries| entries.iter().filter_map(
-                |entry| match entry {
-                    LogEntry {
-                        command: SimpleCommand::Hir(f),
-                        has_error,
-                        start,
-                        end,
-                    } => Some((format!("{f}{}", if *has_error { "!" } else { "" }), *start, *end)),
-                    _ => None,
-                }
-            ).collect::<Vec<(String, u64, u64)>>()),
-        )
-    ).collect::<Vec<_>>();
-
-    if hir_entries.iter().any(
-        |(_, entries)| match entries {
-            Some(v) if !v.is_empty() => true,
-            _ => false,
-        }
-    ) {
-        result.push(format!("### hir\n\n```\n{}\n```\n\n", draw_per_worker_graph(hir_entries, width)));
-    }
-
-    let mir_entries = logs.iter().map(
-        |(worker_id, entries)| (
-            *worker_id,
-            entries.as_ref().map(|entries| entries.iter().filter_map(
-                |entry| match entry {
-                    LogEntry {
-                        command: SimpleCommand::Mir(f),
-                        has_error,
-                        start,
-                        end,
-                    } => Some((format!("{f}{}", if *has_error { "!" } else { "" }), *start, *end)),
-                    _ => None,
-                }
-            ).collect::<Vec<(String, u64, u64)>>()),
-        )
-    ).collect::<Vec<_>>();
-
-    if mir_entries.iter().any(
-        |(_, entries)| match entries {
-            Some(v) if !v.is_empty() => true,
-            _ => false,
-        }
-    ) {
-        result.push(format!("### mir\n\n```\n{}\n```\n\n", draw_per_worker_graph(mir_entries, width)));
-    }
-
-    let bytecode_entries = logs.iter().map(
-        |(worker_id, entries)| (
-            *worker_id,
-            entries.as_ref().map(|entries| entries.iter().filter_map(
-                |entry| match entry {
-                    LogEntry {
-                        command: SimpleCommand::Bytecode(f),
-                        has_error,
-                        start,
-                        end,
-                    } => Some((format!("{f}{}", if *has_error { "!" } else { "" }), *start, *end)),
-                    _ => None,
-                }
-            ).collect::<Vec<(String, u64, u64)>>()),
-        )
-    ).collect::<Vec<_>>();
-
-    if bytecode_entries.iter().any(
-        |(_, entries)| match entries {
-            Some(v) if !v.is_empty() => true,
-            _ => false,
-        }
-    ) {
-        result.push(format!("### bytecode\n\n```\n{}\n```\n\n", draw_per_worker_graph(bytecode_entries, width)));
-    }
-
+    let json = dump_timings_json(&worker_ids, timings);
     write_string(
-        &join(ir_dir, "timings")?,
-        &result.join("\n"),
+        &join(ir_dir, "timings.json")?,
+        &json,
+        WriteMode::CreateOrTruncate,
+    )?;
+
+    let html = dump_timings_html(&worker_ids, timings);
+    write_string(
+        &join(ir_dir, "timings.html")?,
+        &html,
         WriteMode::CreateOrTruncate,
     )?;
     Ok(())
 }
 
-fn prettify_micros(us: u64) -> String {
-    match us {
-        ..100_000 => format!("{}.{:03} ms", us / 1000, us % 1000),
-        ..60_000_000 => format!("{}.{:03} sec", us / 1_000_000, us / 1000 % 1000),
-        _ => format!("{} min {} sec", us / 60_000_000, us / 1_000_000 % 60),
+fn dump_timings_json(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<LogEntry>>) -> String {
+    // I know that you want to depend on serde_json... but please don't!
+    // I want sodigy to strictly follow No-Dependency-Rule (every code has to be within this repository),
+    // and I don't want to break the rule for just this function.
+    let mut lines = vec![];
+    lines.push(format!("{{"));
+    lines.push(format!("    \"worker_ids\": {:?},", worker_ids.iter().map(|id| id.0).collect::<Vec<_>>()));
+    lines.push(format!("    \"timings\": {{"));
+
+    for (i, (worker_id, entries)) in timings.iter().enumerate() {
+        lines.push(format!("        \"{}\": [", worker_id.0));
+
+        for (j, entry) in entries.iter().enumerate() {
+            lines.push(format!("            {{"));
+            lines.push(format!("                \"stage\": {:?},", format!("{:?}", entry.stage)));
+            lines.push(format!("                \"module\": {},", if let Some(module) = &entry.module { format!("{module:?}") } else { String::from("null") }));
+            lines.push(format!("                \"has_error\": {},", entry.has_error));
+            lines.push(format!("                \"start\": {},", entry.start));
+            lines.push(format!("                \"end\": {}", entry.end));
+            lines.push(format!("            }}{}", if j + 1 == entries.len() { "" } else { "," }));
+        }
+
+        lines.push(format!("        ]{}", if i + 1 == timings.len() { "" } else { "," }));
     }
+
+    lines.push(format!("    }}"));
+    lines.push(format!("}}"));
+    lines.join("\n")
 }
 
-fn percentage(numer: u64, denom: u64) -> String {
-    let permil = numer as u128 * 1000 / denom as u128;
-    format!("{}.{}%", permil / 10, permil % 10)
+// We'll use `Vec<Frame>` data structure, which is easier to render.
+// It's like Adobe Flash animations!
+#[derive(Clone)]
+pub enum Frame {
+    Empty,
+    New(LogEntry),
+    Same,  // as previous frame
 }
 
-fn draw_per_worker_graph(
-    graph: Vec<(WorkerId, Option<Vec<(String, u64, u64)>>)>,
-    total_width: usize,
-) -> String {
-    let graph_width = total_width - 12;  // 12 characters for y_labels
-    let mut min_time = u64::MAX;
-    let mut max_time = 0;
-    let mut has_entry = false;
+const FRAME_COUNT: usize = 4096;
 
-    for (_, entries) in graph.iter() {
-        if let Some(entries) = entries {
-            for (_, start, end) in entries.iter() {
-                has_entry = true;
-                min_time = min_time.min(*start);
-                max_time = max_time.max(*end);
-            }
+// TODO: a lot more styling
+// TODO: hover effects
+// TODO: test with empty timings
+
+// VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
+//            They only did the html/css part.
+fn dump_timings_html(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<LogEntry>>) -> String {
+    let mut frames = vec![vec![Frame::Empty; FRAME_COUNT]; worker_ids.len()];
+    let mut start_min = u64::MAX;
+    let mut end_max = 0;
+
+    for entries in timings.values() {
+        for entry in entries.iter() {
+            start_min = start_min.min(entry.start);
+            end_max = end_max.max(entry.end);
         }
     }
 
-    let mut axis = vec![vec![' '; total_width + 9]; 2];  // 9 characters for the last x_label (just in case)
+    let total_elapsed_us = end_max - start_min;
 
-    if has_entry {
-        for x in 12..total_width {
-            axis[1][x] = '-';
-        }
+    // If a worker crashes (likely due to an internal compiler error), there's no
+    // entry in `timings`.
+    let mut erroneous_workers = vec![];
 
-        for i in 0..9u64 {
-            if total_width < 160 && i % 2 == 1 {
-                continue;
-            }
+    for worker_id in worker_ids.iter() {
+        match timings.get(worker_id) {
+            Some(entries) => {
+                for entry in entries.iter() {
+                    let frame_start = (entry.start - start_min) as usize * FRAME_COUNT / (end_max - start_min) as usize;
+                    let frame_end = (entry.end - start_min) as usize * FRAME_COUNT / (end_max - start_min) as usize;
+                    frames[worker_id.0][frame_start] = Frame::New(entry.clone());
 
-            let x = 12 + (graph_width as u64 * i / 8).min(graph_width as u64 - 1);
-            let label = (min_time * (8 - i) + max_time * i) / 8;
-            let label: Vec<char> = prettify_micros(label).chars().collect();
-            axis[1][x as usize] = '*';
-
-            for (i, c) in label.iter().enumerate() {
-                axis[0][x as usize - label.len() / 2 + i as usize] = *c;
-            }
+                    for i in (frame_start + 1)..frame_end {
+                        frames[worker_id.0][i] = Frame::Same;
+                    }
+                }
+            },
+            None => {
+                erroneous_workers.push(worker_id.0);
+            },
         }
     }
 
-    let axis = axis.iter().map(|line| line.iter().collect::<String>()).collect::<Vec<_>>().join("\n");
-    let mut shorten_label_index = 0;
-    let mut shorten_labels: Vec<(u32, String)> = vec![];
-    let mut omitted_labels = vec![];
+    // TODO: we have to count in different way
+    //       just count the number of frames per stage, then divide the parallel stages by the number of workers
+    let mut curr_stage = vec![None; worker_ids.len()];
+    let mut frame_per_stage: HashMap<CompileStage, usize> = HashMap::new();
 
-    let graph = graph.iter().map(
-        |(id, entries)| {
-            let worker = format!("worker {:>3}", id.0);
-
-            match entries {
-                Some(entries) => {
-                    let mut occupied = vec![None; graph_width];
-                    let mut rendered = vec![' '; graph_width];
-
-                    for (file, start, end) in entries.iter() {
-                        let start = (start - min_time) * graph_width as u64 / (max_time - min_time);
-                        let end = (end - min_time) * graph_width as u64 / (max_time - min_time);
-
-                        for i in start..end {
-                            occupied[i as usize] = Some(file.to_string());
-                        }
-                    }
-
-                    let mut cursor = 0;
-                    let mut curr_file_start;
-                    let mut curr_file;
-
-                    'entries: loop {
-                        'entry: loop {
-                            match occupied.get(cursor) {
-                                Some(None) => {
-                                    cursor += 1;
-                                },
-                                Some(Some(file)) => {
-                                    curr_file_start = cursor;
-                                    curr_file = file.to_string();
-                                    break 'entry;
-                                },
-                                None => {
-                                    break 'entries;
-                                },
-                            }
-                        }
-
-                        'entry: loop {
-                            match occupied.get(cursor) {
-                                Some(Some(file)) if file == &curr_file => {
-                                    cursor += 1;
-                                },
-                                _ => {
-                                    break 'entry;
-                                },
-                            }
-                        }
-
-                        let shorten_label = format!("({shorten_label_index})");
-
-                        if cursor - curr_file_start > shorten_label.len() + 2 {
-                            let label = if cursor - curr_file_start > curr_file.chars().count() + 2 {
-                                curr_file.to_string()
-                            } else {
-                                shorten_labels.push((shorten_label_index, curr_file.to_string()));
-                                shorten_label_index += 1;
-                                shorten_label.to_string()
-                            };
-
-                            rendered[curr_file_start] = '<';
-                            rendered[cursor - 1] = '>';
-
-                            for i in (curr_file_start + 1)..(cursor - 1) {
-                                rendered[i] = '-';
-                            }
-
-                            for (i, c) in label.chars().enumerate() {
-                                rendered[curr_file_start + (cursor - curr_file_start) / 2 - label.len() / 2 + i] = c;
-                            }
-                        }
-
-                        else {
-                            for i in curr_file_start..cursor {
-                                rendered[i] = '.';
-                            }
-
-                            omitted_labels.push(curr_file.to_string());
-                        }
-                    }
-
-                    format!("{worker}: {}", rendered.iter().collect::<String>())
+    for frame in 0..FRAME_COUNT {
+        for worker_id in worker_ids.iter() {
+            match &frames[worker_id.0][frame] {
+                Frame::Empty => {
+                    curr_stage[worker_id.0] = None;
                 },
-                None => format!("{worker}: ???"),
+                Frame::New(e) => {
+                    curr_stage[worker_id.0] = Some(e.stage);
+                },
+                Frame::Same => {},
             }
         }
-    ).collect::<Vec<_>>().join("\n");
-    let shorten_labels = if shorten_labels.is_empty() {
-        String::new()
-    } else {
-        format!("\n{}", shorten_labels.iter().map(
-            |(index, label)| format!("({index}): {label}")
-        ).collect::<Vec<_>>().join("\n"))
-    };
-    let omitted_labels = if omitted_labels.is_empty() {
-        String::new()
-    } else {
-        format!("\nomitted files: {}", omitted_labels.join(", "))
+
+        for stage in curr_stage.iter() {
+            if let Some(stage) = stage {
+                frame_per_stage.insert(*stage, *frame_per_stage.get(stage).unwrap_or(&0) + 1);
+                break;
+            }
+        }
+    }
+
+    let legend = {
+        let mut elements = vec![];
+        let mut compile_stages = frame_per_stage.keys().collect::<Vec<_>>();
+        compile_stages.sort();
+
+        for compile_stage in compile_stages.iter() {
+            let frames = *frame_per_stage.get(compile_stage).unwrap();
+            let ms = (frames * total_elapsed_us as usize / FRAME_COUNT) as f64 / 1000.0;
+            let percentage = (frames * 100_000 / FRAME_COUNT) as f64 / 1000.0;
+            elements.push(format!(
+                r#"<li><span class="legend {}">{}</span>: {ms:.2}ms ({percentage:.2}%)</li>"#,
+                format!("{compile_stage:?}"),
+                format!("{compile_stage:?}"),
+            ));
+        }
+
+        let elements = elements.concat();
+        format!("<ul>{elements}</ul>")
     };
 
-    format!("{axis}\n\n{graph}{shorten_labels}{omitted_labels}")
+    let labels = {
+        let mut rows = vec![];
+
+        for (worker_id, _) in frames.iter().enumerate() {
+            rows.push(format!(r#"<div class="graph-row graph-row-label">Worker-{worker_id}</div>"#));
+        }
+
+        rows.concat()
+    };
+
+    let rows = {
+        let mut rows = vec![];
+
+        for frames in frames.iter() {
+            let mut curr_block = None;
+            let mut blocks = vec![];
+
+            for (i, frame) in frames.iter().enumerate() {
+                match frame {
+                    Frame::New(_) | Frame::Empty => {
+                        if let Some(block) = curr_block {
+                            blocks.push(generate_block(&block, i));
+                        }
+
+                        curr_block = None;
+
+                        if let Frame::New(e) = frame {
+                            curr_block = Some((e, i));
+                        }
+                    },
+                    Frame::Same => {},
+                }
+            }
+
+            if let Some(block) = curr_block {
+                blocks.push(generate_block(&block, FRAME_COUNT));
+            }
+
+            let blocks = blocks.concat();
+            rows.push(format!(r#"<div class="graph-row graph-row-blocks">{blocks}</div>"#));
+        }
+
+        rows.concat()
+    };
+
+    let style = r#"
+html {
+    background-color: rgb(32, 32, 32);
+    color: rgb(255, 255, 255);
+}
+
+#graph-canvas {
+    display: flex;
+}
+
+#graph-labels-column {
+    flex-shrink: 0;
+    width: 100px;
+}
+
+#graph-rows-column {
+    flex-grow: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#graph-rows-wrapper {
+    position: relative;
+}
+
+.graph-column .graph-row:nth-child(odd) {
+    background-color: rgb(72, 72, 72);
+}
+
+.legend {
+    padding: 4px;
+    border-radius: 12px;
+}
+
+#legend li {
+    padding-top: 10px;
+}
+
+.graph-row-label {
+    display: inline-block;
+    width: 100px;
+    height: 30px;
+    text-align: right;
+    padding-right: 10px;
+}
+
+.graph-row-blocks {
+    position: relative;
+    height: 30px;
+}
+
+.graph-block {
+    display: inline-block;
+    position: absolute;
+    text-align: center;
+    border-radius: 12px;
+    height: 24px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.Lex {
+    background-color: rgba(192, 192, 64, 0.5);
+}
+
+.Lex:hover {
+    background-color: rgba(192, 192, 64, 1.0);
+}
+
+.Parse {
+    background-color: rgba(64, 64, 192, 0.5);
+}
+
+.Parse:hover {
+    background-color: rgba(64, 64, 192, 1.0);
+}
+
+.Hir {
+    background-color: rgba(64, 192, 64, 0.5);
+}
+
+.Hir:hover {
+    background-color: rgba(64, 192, 64, 1.0);
+}
+
+.InterHir {
+    background-color: rgba(192, 64, 192, 0.5);
+}
+
+.InterHir:hover {
+    background-color: rgba(192, 64, 192, 1.0);
+}
+
+.Mir {
+    background-color: rgba(128, 128, 128, 0.5);
+}
+
+.Mir:hover {
+    background-color: rgba(128, 128, 128, 1.0);
+}
+
+.InterMir {
+    background-color: rgba(192, 64, 64, 0.5);
+}
+
+.InterMir:hover {
+    background-color: rgba(192, 64, 64, 1.0);
+}
+
+.PostMir {
+    background-color: rgba(64, 192, 192, 0.5);
+}
+
+.PostMir:hover {
+    background-color: rgba(64, 192, 192, 1.0);
+}
+"#;
+    format!(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sodigy Compiler Timeline</title>
+<style>{style}</style>
+</head>
+<body>
+<div id="legend">
+    {legend}
+</div>
+<div id="graph">
+    <div id="graph-title" style="text-align: center; font-size: 24px;">Timings</div>
+    <div id="graph-canvas">
+        <div id="graph-labels-column" class="graph-column">{labels}</div>
+        <div id="graph-rows-column" class="graph-column">
+            <div id="graph-rows-wrapper">{rows}</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>"#)
+}
+
+const CANVAS_SIZE: usize = 4096;  // pixels
+
+fn generate_block((entry, start): &(&LogEntry, usize), end: usize) -> String {
+    let hover = format!(
+        "{}{}<br/>({:.2}ms)",
+        format!("{:?}", entry.stage),
+        if let Some(module) = &entry.module { format!(" {module}") } else { String::new() },
+        (entry.end - entry.start) as f64 / 1000.0,
+    );
+
+    let title = if end > start + FRAME_COUNT / 64 {
+        format!("{:?}", entry.stage)
+    } else {
+        String::new()
+    };
+
+    let width = (end - start) * CANVAS_SIZE / FRAME_COUNT;
+    let left = start * CANVAS_SIZE / FRAME_COUNT;
+    format!(
+        r#"<span class="graph-block {:?}" style="width: {width}px; left: {left}px;">{title}</span>"#,
+        entry.stage,
+    )
 }

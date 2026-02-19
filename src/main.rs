@@ -46,7 +46,7 @@ use std::time::Instant;
 mod log;
 mod worker;
 
-use log::{LogEntry, SimpleCommand, dump_log};
+use log::{LogEntry, dump_timings};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
 fn main() {
@@ -186,8 +186,7 @@ fn run() -> Result<(), Error> {
             }
 
             // TODO: make it configurable
-            dump_log(all_worker_ids, &worker_logs, &ir_dir)?;
-
+            dump_timings(all_worker_ids, &worker_logs, &ir_dir)?;
             result?;
 
             match cli_command {

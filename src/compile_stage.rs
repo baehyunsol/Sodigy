@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CompileStage {
     /// When the compiler encounters a module definition (e.g. `mod foo;`), it checks
     /// whether the corresponding file (e.g. `src/foo.sdg`) exists. If the file is
@@ -63,7 +63,7 @@ pub enum CompileStage {
     /// This stage does per-module bytecode optimization in parallel.
     BytecodeOptimize,
 
-    /// Currently, there's only 1 
+    /// Currently, only 1 backend is available: Backend::Bytecode.
     CodeGen,
 }
 
