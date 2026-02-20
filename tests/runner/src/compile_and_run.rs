@@ -207,6 +207,7 @@ fn run_case_inner(
         panic!("If you want to assert that `{name}` fails to compile, please add `{name}.compile.stderr` file.");
     }
 
+    // TODO: there may be ir_dir from previous test run -> remove it
     // TODO: do we have to hash expected_output?
     let hash = format!("{:024x}", hash_dir(&join(project_dir, "src").unwrap()));
     let compile_started_at = Instant::now();
