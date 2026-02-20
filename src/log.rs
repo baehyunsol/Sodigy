@@ -123,14 +123,19 @@ pub enum Frame {
 }
 
 const FRAME_COUNT: usize = 4096;
-const CANVAS_SIZE: usize = 4096;  // pixels
 const ERROR_MARK: &'static str = r#"<span class="color-red error-mark">!</span>"#;
 
 // TODO: test with empty timings
 
 // VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
 //            They only did the html/css part.
-fn dump_timings_html(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<LogEntry>>) -> String {
+fn dump_timings_html(
+    worker_ids: &[WorkerId],
+    timings: &HashMap<WorkerId, Vec<LogEntry>>,
+) -> String {
+    // TODO: adjust canvas_size when the canvas is too big/small
+    let canvas_size = 4096;  // in pixels
+
     let mut frames = vec![vec![Frame::Empty; FRAME_COUNT]; worker_ids.len()];
     let mut start_min = u64::MAX;
     let mut end_max = 0;
@@ -257,12 +262,12 @@ fn dump_timings_html(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<Lo
 
     let x_labels = {
         let mut labels = vec![];
-        let label_count = (CANVAS_SIZE / 256).max(4);
+        let label_count = (canvas_size / 256).max(4);
 
         for i in 1..label_count {
             let label = i * total_elapsed_us as usize / label_count + start_min as usize;
             let label = format!("{:.2}ms", label as f64 / 1000.0);
-            let left = i * CANVAS_SIZE / label_count;
+            let left = i * canvas_size / label_count;
             labels.push(format!(r#"<span class="x-label" style="left: {}px;">{label}</span>"#, left - 30));
             labels.push(format!(r#"<span class="x-label-marker" style="left: {left}px;"></span>"#));
         }
@@ -298,7 +303,7 @@ fn dump_timings_html(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<Lo
                 match frame {
                     Frame::New(_) | Frame::Empty => {
                         if let Some(block) = curr_block {
-                            blocks.push(generate_block(&block, i));
+                            blocks.push(generate_block(&block, i, canvas_size));
                         }
 
                         curr_block = None;
@@ -312,11 +317,11 @@ fn dump_timings_html(worker_ids: &[WorkerId], timings: &HashMap<WorkerId, Vec<Lo
             }
 
             if let Some(block) = curr_block {
-                blocks.push(generate_block(&block, FRAME_COUNT));
+                blocks.push(generate_block(&block, FRAME_COUNT, canvas_size));
             }
 
             let blocks = blocks.concat();
-            rows.push(format!(r#"<div class="graph-row graph-row-blocks" style="width: {CANVAS_SIZE}px;">{blocks}</div>"#));
+            rows.push(format!(r#"<div class="graph-row graph-row-blocks" style="width: {canvas_size}px;">{blocks}</div>"#));
         }
 
         rows.concat()
@@ -568,7 +573,7 @@ If you don't see lex, parse and hir stages, it's likely because incremental comp
 </html>"#)
 }
 
-fn generate_block((entry, start): &(&LogEntry, usize), end: usize) -> String {
+fn generate_block((entry, start): &(&LogEntry, usize), end: usize, canvas_size: usize) -> String {
     let tooltip_message = format!(
         "{:?}{}<br/>({:.2}ms){}",
         entry.stage,
@@ -586,8 +591,8 @@ fn generate_block((entry, start): &(&LogEntry, usize), end: usize) -> String {
 
     let tooltip_container = format!(r#"<span class="tooltip" style="{tooltip_style}">{tooltip_message}</span>"#);
 
-    let width = (end - start) * CANVAS_SIZE / FRAME_COUNT;
-    let left = start * CANVAS_SIZE / FRAME_COUNT;
+    let width = (end - start) * canvas_size / FRAME_COUNT;
+    let left = start * canvas_size / FRAME_COUNT;
     let long_title = format!(
         "{:?}{}{}",
         entry.stage,
