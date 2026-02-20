@@ -81,3 +81,22 @@ pub const COMPILE_STAGES: [CompileStage; 12] = [
     CompileStage::BytecodeOptimize,
     CompileStage::CodeGen,
 ];
+
+impl CompileStage {
+    pub fn is_parallel(&self) -> bool {
+        match self {
+            CompileStage::Load => true,
+            CompileStage::Lex => true,
+            CompileStage::Parse => true,
+            CompileStage::Hir => true,
+            CompileStage::InterHir => false,
+            CompileStage::Mir => true,
+            CompileStage::InterMir => false,
+            CompileStage::PostMir => true,
+            CompileStage::MirOptimize => true,
+            CompileStage::Bytecode => true,
+            CompileStage::BytecodeOptimize => true,
+            CompileStage::CodeGen => false,
+        }
+    }
+}

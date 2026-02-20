@@ -157,8 +157,7 @@ fn worker_loop(
             MessageToWorker::Run(commands) => {
                 if let Err(e) = worker.run_commands(commands, tx_to_main.clone()) {
                     if worker.curr_stage.is_some() {
-                        worker.curr_stage_error = true;
-                        worker.log_end();
+                        worker.log_end(true);
                     }
 
                     tx_to_main.send(MessageToMain::Log {
@@ -230,7 +229,9 @@ impl Worker {
                             s.intermediate_dir = intermediate_dir.clone();
                             s
                         } else {
+                            self.log_start(CompileStage::Load, Some(input_module_path.to_string()));
                             let bytes = file.read_bytes(&intermediate_dir)?.ok_or(Error::MiscError)?;
+                            self.log_end(false);
 
                             self.log_start(CompileStage::Lex, Some(input_module_path.to_string()));
                             let lex_session = sodigy_lex::lex(
@@ -239,7 +240,7 @@ impl Worker {
                                 intermediate_dir.clone(),
                                 is_std,
                             );
-                            self.log_end();
+                            self.log_end(!lex_session.errors.is_empty());
 
                             emit_irs_if_has_to(
                                 &lex_session,
@@ -266,7 +267,7 @@ impl Worker {
 
                             self.log_start(CompileStage::Parse, Some(input_module_path.to_string()));
                             let parse_session = sodigy_parse::parse(lex_session);
-                            self.log_end();
+                            self.log_end(!parse_session.errors.is_empty());
 
                             emit_irs_if_has_to(
                                 &parse_session,
@@ -293,7 +294,7 @@ impl Worker {
 
                             self.log_start(CompileStage::Hir, Some(input_module_path.to_string()));
                             let hir_session = sodigy_hir::lower(parse_session);
-                            self.log_end();
+                            self.log_end(!hir_session.errors.is_empty());
 
                             emit_irs_if_has_to(
                                 &hir_session,
@@ -355,7 +356,7 @@ impl Worker {
 
                         self.log_start(CompileStage::Mir, Some(input_module_path.to_string()));
                         let mut mir_session = sodigy_mir::lower(hir_session, &inter_hir_session);
-                        self.log_end();
+                        self.log_end(!mir_session.errors.is_empty());
 
                         init_span_string_map_if_necessary(
                             &mut mir_session,
@@ -404,7 +405,7 @@ impl Worker {
 
                     self.log_start(CompileStage::PostMir, Some(input_module_path.to_string()));
                     let _ = sodigy_post_mir::lower(&mut mir_session);
-                    self.log_end();
+                    self.log_end(!mir_session.errors.is_empty());
 
                     init_span_string_map_if_necessary(
                         &mut mir_session,
@@ -438,7 +439,7 @@ impl Worker {
 
                     self.log_start(CompileStage::MirOptimize, Some(input_module_path.to_string()));
                     let optimized_mir_session = sodigy_optimize::optimize_mir(mir_session, optimize_level);
-                    self.log_end();
+                    self.log_end(!optimized_mir_session.errors.is_empty());
 
                     emit_irs_if_has_to(
                         &optimized_mir_session,
@@ -465,7 +466,7 @@ impl Worker {
 
                     self.log_start(CompileStage::Bytecode, Some(input_module_path.to_string()));
                     let bytecode_session = sodigy_bytecode::lower(optimized_mir_session);
-                    self.log_end();
+                    self.log_end(!bytecode_session.errors.is_empty());
 
                     emit_irs_if_has_to(
                         &bytecode_session,
@@ -492,7 +493,7 @@ impl Worker {
 
                     self.log_start(CompileStage::BytecodeOptimize, Some(input_module_path.to_string()));
                     let optimized_bytecode_session = sodigy_optimize::optimize_bytecode(bytecode_session, optimize_level);
-                    self.log_end();
+                    self.log_end(!optimized_bytecode_session.errors.is_empty());
 
                     emit_irs_if_has_to(
                         &optimized_bytecode_session,
@@ -543,7 +544,8 @@ impl Worker {
                         }
                     }
 
-                    self.log_end();
+                    let has_error = !inter_hir_session.errors.is_empty();
+                    self.log_end(has_error);
                     emit_irs_if_has_to(
                         &inter_hir_session,
                         &emit_ir_options,
@@ -552,7 +554,6 @@ impl Worker {
                         &intermediate_dir,
                     )?;
 
-                    let has_error = !inter_hir_session.errors.is_empty();
                     tx_to_main.send(MessageToMain::IrComplete {
                         module_path: None,
                         compile_stage: CompileStage::InterHir,
@@ -606,7 +607,7 @@ impl Worker {
                     // monomorphization. It's very heavy, and we're not gonna store this.
                     self.log_start(CompileStage::InterMir, None);
                     let (inter_mir_session, mut mir_session) = sodigy_inter_mir::solve_type(mir_session);
-                    self.log_end();
+                    self.log_end(!inter_mir_session.errors.is_empty() || !mir_session.errors.is_empty());
 
                     init_span_string_map_if_necessary(
                         &mut mir_session,
@@ -707,7 +708,7 @@ impl Worker {
                     let bytecode_session = merged_bytecode_session.unwrap();
                     self.log_start(CompileStage::CodeGen, None);
                     let (code, errors, warnings) = sodigy_code_gen::lower(bytecode_session, backend);
-                    self.log_end();
+                    self.log_end(!errors.is_empty());
 
                     match output_path {
                         StoreIrAt::File(f) => {
