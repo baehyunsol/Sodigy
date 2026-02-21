@@ -9,7 +9,7 @@ use sodigy_optimize::OptimizeLevel;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-// Read `src/compile_stage.rs` for more information.
+// Read `crates/driver/src/compile_stage.rs` for more information.
 #[derive(Clone, Debug)]
 pub enum Command {
     PerFileIr {

@@ -1,13 +1,13 @@
 use crate::LogEntry;
 use sodigy::{
     Command,
-    CompileStage,
     EmitIrOption,
     Error,
     StoreIrAt,
     emit_irs_if_has_to,
     get_cached_ir,
 };
+use sodigy_driver::CompileStage;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
@@ -42,7 +42,7 @@ pub enum MessageToMain {
         errors: Vec<SodigyError>,
         warnings: Vec<SodigyWarning>,
     },
-    Log {
+    TimingsLog {
         worker_id: WorkerId,
         entries: Vec<LogEntry>,
     },
@@ -76,7 +76,7 @@ impl Channel {
         let started_at = Instant::now();
         let log = loop {
             match self.try_recv() {
-                Ok(MessageToMain::Log { entries, .. }) => {
+                Ok(MessageToMain::TimingsLog { entries, .. }) => {
                     break Some(entries);
                 },
                 Ok(_) | Err(mpsc::TryRecvError::Empty) => {},
@@ -127,7 +127,7 @@ fn init_worker_and_channel(id: usize) -> Channel {
 pub struct Worker {
     pub id: WorkerId,
     pub born_at: Instant,
-    pub history: Vec<LogEntry>,
+    pub timings_log: Vec<LogEntry>,
     pub log_file: Option<String>,
     pub curr_stage: Option<(CompileStage, Option<String>, u64)>,
     pub curr_stage_error: bool,
@@ -141,7 +141,7 @@ fn worker_loop(
     let mut worker = Worker {
         id: worker_id,
         born_at: Instant::now(),
-        history: vec![],
+        timings_log: vec![],
 
         // NOTE: Currently, there's no API that sets this value.
         //       You have to hard-code the log file and re-compile it...
@@ -160,17 +160,17 @@ fn worker_loop(
                         worker.log_end(true);
                     }
 
-                    tx_to_main.send(MessageToMain::Log {
+                    tx_to_main.send(MessageToMain::TimingsLog {
                         worker_id,
-                        entries: worker.history.drain(..).collect(),
+                        entries: worker.timings_log.drain(..).collect(),
                     })?;
                     return Err(e);
                 }
             },
             MessageToWorker::Kill => {
-                tx_to_main.send(MessageToMain::Log {
+                tx_to_main.send(MessageToMain::TimingsLog {
                     worker_id,
-                    entries: worker.history.drain(..).collect(),
+                    entries: worker.timings_log.drain(..).collect(),
                 })?;
                 break;
             },

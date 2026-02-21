@@ -1,4 +1,5 @@
-use crate::{CompileStage, Error, Worker, WorkerId};
+use crate::{Error, Worker, WorkerId};
+use sodigy_driver::CompileStage;
 use sodigy_fs_api::{WriteMode, join, write_string};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
@@ -49,7 +50,7 @@ impl Worker {
                 }
             }
 
-            self.history.push(LogEntry {
+            self.timings_log.push(LogEntry {
                 stage,
                 module,
                 start,

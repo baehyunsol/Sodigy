@@ -1,23 +1,14 @@
+use sodigy_driver::CompileStage;
 use sodigy_file::{FileOrStd, ModulePath};
 use sodigy_span::Span;
 
-mod cli;
 mod command;
-mod compile_stage;
 mod error;
 mod ir_store;
 
-pub use cli::{CliCommand, ColorWhen, parse_args};
 pub use command::Command;
-pub use compile_stage::{CompileStage, COMPILE_STAGES};
 pub use error::Error;
 pub use ir_store::{EmitIrOption, StoreIrAt, emit_irs_if_has_to, get_cached_ir};
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Profile {
-    Script,
-    Test,
-}
 
 // The compiler compiles a project module-by-module. This is the status
 // of each module's compilation.

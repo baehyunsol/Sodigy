@@ -14,7 +14,7 @@ pub enum Error {
 
     FileError(FileError),
     DecodeError(DecodeError),
-    CliError(ragit_cli::Error),
+    CliError(sodigy_cli::Error),
     MpscError,
     IrCacheNotFound(CompileStage),
 
@@ -50,8 +50,8 @@ impl From<DecodeError> for Error {
     }
 }
 
-impl From<ragit_cli::Error> for Error {
-    fn from(e: ragit_cli::Error) -> Error {
+impl From<sodigy_cli::Error> for Error {
+    fn from(e: sodigy_cli::Error) -> Error {
         Error::CliError(e)
     }
 }

@@ -1,18 +1,20 @@
 use sodigy::{
-    CliCommand,
-    ColorWhen,
     Command,
-    CompileStage,
-    COMPILE_STAGES,
     EmitIrOption,
     Error,
     ModuleCompileState,
-    Profile,
     StoreIrAt,
     get_cached_ir,
-    parse_args,
 };
 use sodigy_code_gen::Backend;
+use sodigy_driver::{
+    CliCommand,
+    ColorWhen,
+    CompileStage,
+    COMPILE_STAGES,
+    Profile,
+    parse_args,
+};
 use sodigy_endec::Endec;
 use sodigy_error::{
     CustomErrorLevel,
@@ -73,7 +75,7 @@ fn main() {
                     eprintln!(
                         "cli error: {message}{}",
                         if let Some(span) = &e.span {
-                            format!("\n\n{}", ragit_cli::underline_span(span))
+                            format!("\n\n{}", sodigy_cli::underline_span(span))
                         } else {
                             String::new()
                         },
@@ -531,7 +533,7 @@ fn compile(
                             _ => unreachable!(),
                         }
                     },
-                    MessageToMain::Log { worker_id, entries } => {
+                    MessageToMain::TimingsLog { worker_id, entries } => {
                         worker_logs.insert(worker_id, entries);
                     },
                     MessageToMain::Error(e) => {

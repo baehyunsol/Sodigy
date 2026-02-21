@@ -1,5 +1,5 @@
 use crate::Profile;
-use ragit_cli::{
+use sodigy_cli::{
     ArgCount,
     ArgParser,
     ArgType,

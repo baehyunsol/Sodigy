@@ -6,7 +6,6 @@ edition = "2024"
 [dependencies]
 chrono = "0.4.43"
 lazy_static = "1.5.0"
-ragit-cli = "0.4.5"
 regex = "1.12.3"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
