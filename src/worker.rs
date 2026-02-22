@@ -1,4 +1,4 @@
-use crate::LogEntry;
+use crate::TimingsEntry;
 use sodigy::{
     Command,
     EmitIrOption,
@@ -44,7 +44,7 @@ pub enum MessageToMain {
     },
     TimingsLog {
         worker_id: WorkerId,
-        entries: Vec<LogEntry>,
+        entries: Vec<TimingsEntry>,
     },
     Error(Error),
 }
@@ -72,7 +72,7 @@ impl Channel {
     /// It tries to collect logs from the worker, then joins the thread.
     /// If it cannot collect the logs (timeout = 500ms), it returns `None`.
     /// The result of `join_handle.join()` is always ignored.
-    pub fn join(self) -> Option<Vec<LogEntry>> {
+    pub fn join(self) -> Option<Vec<TimingsEntry>> {
         let started_at = Instant::now();
         let log = loop {
             match self.try_recv() {
@@ -127,7 +127,7 @@ fn init_worker_and_channel(id: usize) -> Channel {
 pub struct Worker {
     pub id: WorkerId,
     pub born_at: Instant,
-    pub timings_log: Vec<LogEntry>,
+    pub timings_log: Vec<TimingsEntry>,
     pub log_file: Option<String>,
     pub curr_stage: Option<(CompileStage, Option<String>, u64)>,
     pub curr_stage_error: bool,

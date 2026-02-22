@@ -45,10 +45,10 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::Instant;
 
-mod log;
+mod timings;
 mod worker;
 
-use log::{LogEntry, dump_timings};
+use timings::{TimingsEntry, dump_timings};
 use worker::{Channel, MessageToMain, MessageToWorker, Worker, WorkerId, init_workers_and_channels};
 
 fn main() {
@@ -231,7 +231,7 @@ fn compile(
     workers: &[Channel],
     errors: &mut Vec<SodigyError>,
     warnings: &mut Vec<SodigyWarning>,
-    worker_logs: &mut HashMap<WorkerId, Vec<LogEntry>>,
+    worker_logs: &mut HashMap<WorkerId, Vec<TimingsEntry>>,
 ) -> Result<(), Error> {
     goto_root_dir()?;
     let mut shutdown_countdown: Option<Instant> = None;

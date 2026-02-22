@@ -1,0 +1,219 @@
+html {
+    background-color: rgb(32, 32, 32);
+    color: rgb(255, 255, 255);
+    scrollbar-color: rgb(255, 255, 255) rgb(32, 32, 32);
+}
+
+.graph-canvas {
+    display: flex;
+}
+
+.graph {
+    display: none;
+}
+
+.graph.active {
+    display: block;
+}
+
+.graph-labels-column {
+    flex-shrink: 0;
+    width: 160px;
+}
+
+.graph-rows-column {
+    flex-grow: 1;
+    overflow-x: auto;
+}
+
+.graph-rows-wrapper {
+    position: relative;
+}
+
+.graph-row {
+    box-sizing: border-box;
+    height: 30px;
+}
+
+.graph-column .graph-row:nth-child(1) {
+    height: 120px;
+    border: none;
+}
+
+.graph-column .graph-row:nth-child(even) {
+    background-color: rgb(72, 72, 72);
+}
+
+.legend {
+    padding: 4px;
+    border-radius: 12px;
+}
+
+#legend li {
+    padding-top: 10px;
+}
+
+.graph-row-label {
+    width: 160px;
+    text-align: right;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-right: 10px;
+    border-right: 4px solid rgb(255, 255, 255);
+}
+
+.graph-row-blocks {
+    position: relative;
+}
+
+.graph-block {
+    display: inline-block;
+    position: absolute;
+    text-align: center;
+    border-radius: 12px;
+    height: 24px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.x-label {
+    display: inline-block;
+    position: absolute;
+    text-align: center;
+    width: 60px;
+    bottom: 40px;
+}
+
+.x-label-marker {
+    display: inline-block;
+    position: absolute;
+    width: 4px;
+    height: 20px;
+    background-color: rgb(255, 255, 255);
+    bottom: 5px;
+}
+
+.tooltip {
+    display: block;
+    visibility: hidden;
+    background: rgb(255, 255, 255);
+    color: rgb(0, 0, 0);
+    padding: 6px;
+    bottom: 125%;
+    left: 50%;
+    border-radius: 6px;
+    position: absolute;
+    z-index: 100;
+}
+
+.graph-block:hover .tooltip {
+    visibility: visible;
+}
+
+.error-mark {
+    padding-left: 8px;
+    padding-right: 8px;
+    margin-left: 4px;
+    border-radius: 50px;
+    background: rgb(255, 255, 255);
+}
+
+.Load {
+    background-color: rgba(160, 160, 160, 0.5);
+}
+
+.Load:hover {
+    background-color: rgba(160, 160, 160, 1.0);
+}
+
+.Lex {
+    background-color: rgba(192, 192, 64, 0.5);
+}
+
+.Lex:hover {
+    background-color: rgba(192, 192, 64, 1.0);
+}
+
+.Parse {
+    background-color: rgba(64, 64, 192, 0.5);
+}
+
+.Parse:hover {
+    background-color: rgba(64, 64, 192, 1.0);
+}
+
+.Hir {
+    background-color: rgba(64, 192, 64, 0.5);
+}
+
+.Hir:hover {
+    background-color: rgba(64, 192, 64, 1.0);
+}
+
+.InterHir {
+    background-color: rgba(192, 64, 192, 0.5);
+}
+
+.InterHir:hover {
+    background-color: rgba(192, 64, 192, 1.0);
+}
+
+.Mir {
+    background-color: rgba(224, 128, 32, 0.5);
+}
+
+.Mir:hover {
+    background-color: rgba(224, 128, 32, 1.0);
+}
+
+.InterMir {
+    background-color: rgba(192, 64, 64, 0.5);
+}
+
+.InterMir:hover {
+    background-color: rgba(192, 64, 64, 1.0);
+}
+
+.PostMir {
+    background-color: rgba(64, 192, 192, 0.5);
+}
+
+.PostMir:hover {
+    background-color: rgba(64, 192, 192, 1.0);
+}
+
+.MirOptimize {
+    background-color: rgba(128, 208, 32, 0.5);
+}
+
+.MirOptimize:hover {
+    background-color: rgba(128, 208, 32, 1.0);
+}
+
+.Bytecode {
+    background-color: rgba(128, 96, 208, 0.5);
+}
+
+.Bytecode:hover {
+    background-color: rgba(128, 96, 208, 1.0);
+}
+
+.BytecodeOptimize {
+    background-color: rgba(32, 208, 128, 0.5);
+}
+
+.BytecodeOptimize:hover {
+    background-color: rgba(32, 208, 128, 1.0);
+}
+
+.CodeGen {
+    background-color: rgba(208, 192, 64, 0.5);
+}
+
+.CodeGen:hover {
+    background-color: rgba(208, 192, 64, 1.0);
+}
+
+.color-red {
+    color: rgb(192, 32, 32);
+}
