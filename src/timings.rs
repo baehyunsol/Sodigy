@@ -47,7 +47,7 @@ impl Worker {
             if let Some(file) = &self.log_file {
                 if let Err(e) = write_string(
                     file,
-                    &format!("[Worker-{}][timestamp: {} ms] end {:?}\n", self.id.0, timestamp / 1000, (stage, &module)),
+                    &format!("[Worker-{}][timestamp: {} ms] end {:?}{}\n", self.id.0, timestamp / 1000, (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }),
                     WriteMode::AppendOrCreate,
                 ) {
                     eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
@@ -248,30 +248,41 @@ fn dump_timings_html(
         render_graph("graph-all-long", &rows, stats.start, stats.end, 4096),
         render_graph("graph-all-short", &rows, stats.start, stats.end, 1024),
     ];
+    let mut radio_buttons = vec![];
 
     for (stages, id) in [
-        (vec![CompileStage::Load, CompileStage::Lex, CompileStage::Parse, CompileStage::Hir], "graph-hir"),
-        (vec![CompileStage::Mir], "graph-mir"),
-        (vec![CompileStage::PostMir, CompileStage::MirOptimize, CompileStage::Bytecode, CompileStage::BytecodeOptimize], "graph-bytecode"),
+        (vec![CompileStage::Load, CompileStage::Lex, CompileStage::Parse, CompileStage::Hir], "hir"),
+        (vec![CompileStage::Mir], "mir"),
+        (vec![CompileStage::PostMir, CompileStage::MirOptimize, CompileStage::Bytecode, CompileStage::BytecodeOptimize], "bytecode"),
     ] {
         let (rows, stats) = into_rows(Some(stages), worker_ids, timings);
+
+        if stats.total_modules == 0 {
+            continue;
+        }
+
         graphs.push(render_graph(
-            &format!("{id}-long"),
+            &format!("graph-{id}-long"),
             &rows,
             stats.start,
             stats.end,
             4096,
         ));
         graphs.push(render_graph(
-            &format!("{id}-short"),
+            &format!("graph-{id}-short"),
             &rows,
             stats.start,
             stats.end,
             1024,
         ));
+        radio_buttons.push(format!(r#"
+<input type="radio" id="select-graph-{id}" name="stages" value="{id}">
+<label for="select-graph-{id}">{id}</label>
+        "#));
     }
 
-    let radios = r#"
+    let radio_buttons = radio_buttons.join("\n");
+    let radios = format!(r#"
 <input type="radio" id="select-graph-long" name="length" value="long" checked>
 <label for="select-graph-long">long</label>
 <input type="radio" id="select-graph-short" name="length" value="short">
@@ -281,13 +292,8 @@ fn dump_timings_html(
 
 <input type="radio" id="select-graph-all" name="stages" value="all" checked>
 <label for="select-graph-all">all</label>
-<input type="radio" id="select-graph-hir" name="stages" value="hir">
-<label for="select-graph-hir">load/lex/parse/hir</label>
-<input type="radio" id="select-graph-mir" name="stages" value="mir">
-<label for="select-graph-mir">mir</label>
-<input type="radio" id="select-graph-bytecode" name="stages" value="bytecode">
-<label for="select-graph-bytecode">post-mir/mir-optimize/bytecode/bytecode-optimize</label>
-"#;
+{radio_buttons}
+"#);
     let radios_script = r#"<script>
 function updateGraph() {
     // Get selected values
