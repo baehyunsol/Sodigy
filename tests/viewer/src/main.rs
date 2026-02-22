@@ -11,10 +11,35 @@ use shev::{
     Transition,
 };
 use sodigy_compiler_test::{CompileAndRun, TestHarness, find_root, git};
-use sodigy_fs_api::{basename, join, join3, read_dir, read_string};
+use sodigy_fs_api::{basename, exists, join, join3, join4, read_dir, read_string};
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 
+fn help_message(bin: &str) -> String {
+    format!(r#"
+{bin} load-test-files
+    Loads the test files and quit
+
+{bin}
+    Launch the viewer
+"#)
+}
+
 fn main() {
+    let args = std::env::args().collect::<Vec<_>>();
+
+    match args.get(1).map(|arg| arg.as_str()) {
+        Some("load-test-files") => {
+            load_test_files().unwrap();
+            return;
+        },
+        Some(_) => {
+            println!("{}", help_message(&args[0]));
+            return;
+        },
+        None => {},
+    }
+
     let root = find_root().unwrap();
     let test_results_at = join3(&root, "tests", "log").unwrap();
     let (test_results, total_count) = collect_test_result_names(&test_results_at);
@@ -99,26 +124,50 @@ fn main() {
                         cond: |entry| entry.flag == EntryFlag::Red
                     },
                 ],
-                render_canvas: |entry, entry_state| match entry_state {
-                    EntryState(0) => {
-                        let cnr: CompileAndRun = serde_json::from_str(entry.content.as_ref().unwrap()).unwrap();
-                        let s = format!(
-                            "# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```{}",
-                            cnr.stdout_colored,
-                            cnr.stderr_colored,
-                            if let Some(error) = &cnr.error { format!("\n\n# test error\n\n```\n{error}\n```") } else { String::new() },
-                        );
-                        let (s, colors) = apply_ansi_term_color(&s);
-                        Ok(TextBox::new(
-                            &s,
-                            16.0,
-                            Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-                            [20.0, 20.0, 1080.0, 2000.0],
-                        ).with_color_map(colors).render())
-                    },
-                    // TODO: dump content of the test file
-                    EntryState(1) => Ok(vec![]),
-                    _ => unreachable!(),
+                render_canvas: |entry, entry_state| {
+                    let cnr: CompileAndRun = serde_json::from_str(entry.content.as_ref().unwrap()).unwrap();
+
+                    match entry_state {
+                        EntryState(0) => {
+                            let s = format!(
+                                "# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```{}",
+                                cnr.stdout_colored,
+                                cnr.stderr_colored,
+                                if let Some(error) = &cnr.error { format!("\n\n# test error\n\n```\n{error}\n```") } else { String::new() },
+                            );
+                            let (s, colors) = apply_ansi_term_color(&s);
+                            Ok(TextBox::new(
+                                &s,
+                                16.0,
+                                Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+                                [20.0, 20.0, 1080.0, 2000.0],
+                            ).with_color_map(colors).render())
+                        },
+                        EntryState(1) => {
+                            let root = find_root().map_err(|e| format!("{e:?}"))?;
+                            let test_files_at = join4(&root, "tests", "log", "test_files").map_err(|e| format!("{e:?}"))?;
+                            let hash = &cnr.hash;
+                            let test_file_at = join3(
+                                &test_files_at,
+                                hash.get(0..2).ok_or(format!("Corrupted hash: {hash:?}"))?,
+                                hash.get(2..).ok_or(format!("Corrupted hash: {hash:?}"))?,
+                            ).map_err(|e| format!("{e:?}"))?;
+
+                            if exists(&test_file_at) {
+                                Ok(TextBox::new(
+                                    &read_string(&test_file_at).map_err(|e| format!("{e:?}"))?,
+                                    16.0,
+                                    Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+                                    [20.0, 20.0, 1080.0, 2000.0],
+                                ).render())
+                            }
+
+                            else {
+                                Err(format!("File not found: {test_file_at}\nTry running `load-test-files` command!"))
+                            }
+                        },
+                        _ => unreachable!(),
+                    }
                 },
                 ..Entries::default()
             },
@@ -270,4 +319,63 @@ fn apply_ansi_term_color(s: &str) -> (String, Vec<Color>) {
     }
 
     (chars.iter().collect(), colors)
+}
+
+fn load_test_files() -> Result<(), String> {
+    let curr_commit = git::get_curr_commit();
+    let mut curr_commit = git::get_commit_info(&curr_commit);
+    let mut cnr_trees = HashSet::new();
+
+    loop {
+        let curr_tree = &curr_commit.tree_hash;
+        let curr_tree_info = git::get_tree_info(&curr_tree);
+        let mut tests_tree_hash = None;
+
+        for entry in curr_tree_info.iter() {
+            if entry.name == "tests" {
+                tests_tree_hash = Some(entry.hash.clone());
+                break;
+            }
+        }
+
+        match tests_tree_hash {
+            Some(hash) => {
+                let tests_tree_info = git::get_tree_info(&hash);
+                let mut cnr_tree_hash = None;
+
+                for entry in tests_tree_info.iter() {
+                    if entry.name == "compile-and-run" {
+                        cnr_tree_hash = Some(entry.hash.clone());
+                        break;
+                    }
+                }
+
+                match cnr_tree_hash {
+                    Some(hash) => {
+                        cnr_trees.insert(hash);
+
+                        match curr_commit.parent_hash {
+                            Some(parent) => {
+                                curr_commit = git::get_commit_info(&parent);
+                            },
+                            None => {
+                                break;
+                            },
+                        }
+                    },
+                    None => {
+                        break;
+                    },
+                }
+            },
+            None => {
+                break;
+            },
+        }
+    }
+
+    // 1. iterate all the tree hashes,
+    // 2. run hash_dir (which is defined in runner/src/compile_and_run.rs) for each test files,
+    // 3. and save them in `tests/log/test_files/`
+    todo!()
 }

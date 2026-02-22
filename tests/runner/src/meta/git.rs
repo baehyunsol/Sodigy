@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -55,6 +56,12 @@ pub fn get_curr_commit() -> String {
     String::from_utf8_lossy(&output.stdout).trim().get(0..9).unwrap().to_string()
 }
 
+lazy_static! {
+    static ref TREE_RE: Regex = Regex::new(r"^tree\s([0-9a-f]+)").unwrap();
+    static ref PARENT_RE: Regex = Regex::new(r"^parent\s([0-9a-f]+)").unwrap();
+    static ref COMMITTER_RE: Regex = Regex::new(r"^committer\s([a-zA-Z0-9_@.-]+)\s<([a-zA-Z0-9_@.-]+)>\s(\d+)\s([+-]?\d+)").unwrap();
+}
+
 pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
     let output = Command::new("git")
         .arg("cat-file")
@@ -62,11 +69,6 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
         .arg(commit_hash)
         .output()
         .unwrap();
-
-    // TODO: lazy-static?
-    let tree_re = Regex::new(r"^tree\s([0-9a-f]+)").unwrap();
-    let parent_re = Regex::new(r"^parent\s([0-9a-f]+)").unwrap();
-    let committer_re = Regex::new(r"^committer\s([a-zA-Z0-9_@.-]+)\s<([a-zA-Z0-9_@.-]+)>\s(\d+)\s([+-]?\d+)").unwrap();
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -84,15 +86,15 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
             commit_message_lines.push(line);
         }
 
-        else if let Some(tree) = tree_re.captures(line) {
+        else if let Some(tree) = TREE_RE.captures(line) {
             tree_hash = Some(tree.get(1).unwrap().as_str().get(0..9).unwrap().to_string());
         }
 
-        else if let Some(parent) = parent_re.captures(line) {
+        else if let Some(parent) = PARENT_RE.captures(line) {
             parent_hash = Some(parent.get(1).unwrap().as_str().get(0..9).unwrap().to_string());
         }
 
-        else if let Some(committer) = committer_re.captures(line) {
+        else if let Some(committer) = COMMITTER_RE.captures(line) {
             author = Some(committer.get(1).unwrap().as_str().to_string());
             author_email = Some(committer.get(2).unwrap().as_str().to_string());
             timestamp = Some(committer.get(3).unwrap().as_str().parse::<i64>().unwrap());
@@ -125,4 +127,52 @@ pub fn get_commit_info(commit_hash: &str) -> CommitInfo {
         commit_hash: commit_hash.to_string(),
         parent_hash: parent_hash,
     }
+}
+
+lazy_static! {
+    static ref TREE_INFO_RE: Regex = Regex::new(r"(\d{6})\s([a-z]+)\s([0-9a-f]+)\s(.+)").unwrap();
+}
+
+#[derive(Clone, Debug)]
+pub struct TreeEntry {
+    pub mode: u32,  // TODO: parse this
+    pub object_type: ObjectType,
+    pub hash: String,
+    pub name: String,
+}
+
+pub fn get_tree_info(tree_hash: &str) -> Vec<TreeEntry> {
+    let output = Command::new("git")
+        .arg("cat-file")
+        .arg("-p")
+        .arg(tree_hash)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut result = vec![];
+
+    for line in stdout.lines() {
+        let c = TREE_INFO_RE.captures(line).unwrap();
+        let mode = u32::from_str_radix(c.get(1).unwrap().as_str(), 8).unwrap();
+        let object_type = match c.get(2).unwrap().as_str() {
+            "blob" => ObjectType::Blob,
+            "tree" => ObjectType::Tree,
+            _ => unreachable!(),
+        };
+        let hash = c.get(3).unwrap().as_str().get(0..9).unwrap().to_string();
+        let name = c.get(4).unwrap().as_str().to_string();
+
+        result.push(TreeEntry { mode, object_type, hash, name });
+    }
+
+    result
+}
+
+// TODO: there must be more types
+#[derive(Clone, Debug)]
+pub enum ObjectType {
+    Blob,
+    Tree,
 }

@@ -536,7 +536,7 @@ pub fn remove_ansi_characters(s: &str) -> String {
     result.iter().collect()
 }
 
-fn hash_dir(dir: &str) -> u128 {
+pub fn hash_dir(dir: &str) -> u128 {
     let mut sum = 0;
 
     for f in read_dir(dir, true).unwrap() {

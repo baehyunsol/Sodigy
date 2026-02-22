@@ -256,7 +256,7 @@ fn highlight_lines_inner(lines: Vec<String>, cursor: usize) -> String {
         result.push(format!(
             "{} {:>4} | {}",
             if i == cursor { ">>>" } else { "   " },
-            i,
+            i + 1,
             lines[i],
         ));
     }
