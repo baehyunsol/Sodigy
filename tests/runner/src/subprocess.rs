@@ -33,6 +33,23 @@ pub fn run(
         .stderr(Stdio::piped())
         .spawn()?;
 
+    let mut child_stdout = child_process.stdout.take().unwrap();
+    let mut child_stderr = child_process.stderr.take().unwrap();
+
+    // VIBE NOTE: I found the test runner deadlocks when the error message is very long.
+    //            Gemini 3.1 (via perplexity) told me I should spawn threads that empties
+    //            the buffers while the program is running.
+    let stdout_thread = thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = child_stdout.read_to_end(&mut buf);
+        buf
+    });
+    let stderr_thread = thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = child_stderr.read_to_end(&mut buf);
+        buf
+    });
+
     let started_at = Instant::now();
     let mut sleep_for = 1;
 
@@ -54,11 +71,8 @@ pub fn run(
         }
     };
 
-    let mut stdout = vec![];
-    child_process.stdout.take().unwrap().read_to_end(&mut stdout)?;
-
-    let mut stderr = vec![];
-    child_process.stderr.take().unwrap().read_to_end(&mut stderr)?;
+    let stdout = stdout_thread.join().unwrap_or_default();
+    let stderr = stderr_thread.join().unwrap_or_default();
 
     if dump_output {
         std::io::stdout().write_all(&stdout)?;
