@@ -1,24 +1,26 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use shev::{
-    Color,
     Entries,
     Entry,
     EntryFlag,
-    EntryState,
     Filter,
-    TextBox,
     Transition,
 };
-use sodigy_compiler_test::{CompileAndRun, TestHarness, find_root, git};
-use sodigy_fs_api::{basename, exists, join, join3, join4, read_dir, read_string};
-use std::collections::HashSet;
+use sodigy_compiler_test::{TestHarness, find_root, git};
+use sodigy_fs_api::{basename, join, join3, read_dir, read_string};
 use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
+
+mod index;
+mod render;
+
+use index::load_test_files;
+use render::{render_cnr, render_harness};
 
 fn help_message(bin: &str) -> String {
     format!(r#"
-{bin} load-test-files
-    Loads the test files and quit
+{bin} create-index
+    Creates index and quit
 
 {bin}
     Launch the viewer
@@ -29,7 +31,7 @@ fn main() {
     let args = std::env::args().collect::<Vec<_>>();
 
     match args.get(1).map(|arg| arg.as_str()) {
-        Some("load-test-files") => {
+        Some("create-index") => {
             load_test_files().unwrap();
             return;
         },
@@ -124,51 +126,7 @@ fn main() {
                         cond: |entry| entry.flag == EntryFlag::Red
                     },
                 ],
-                render_canvas: |entry, entry_state| {
-                    let cnr: CompileAndRun = serde_json::from_str(entry.content.as_ref().unwrap()).unwrap();
-
-                    match entry_state {
-                        EntryState(0) => {
-                            let s = format!(
-                                "# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```{}",
-                                cnr.stdout_colored,
-                                cnr.stderr_colored,
-                                if let Some(error) = &cnr.error { format!("\n\n# test error\n\n```\n{error}\n```") } else { String::new() },
-                            );
-                            let (s, colors) = apply_ansi_term_color(&s);
-                            Ok(TextBox::new(
-                                &s,
-                                16.0,
-                                Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-                                [20.0, 20.0, 1080.0, 2000.0],
-                            ).with_color_map(colors).render())
-                        },
-                        EntryState(1) => {
-                            let root = find_root().map_err(|e| format!("{e:?}"))?;
-                            let test_files_at = join4(&root, "tests", "log", "test_files").map_err(|e| format!("{e:?}"))?;
-                            let hash = &cnr.hash;
-                            let test_file_at = join3(
-                                &test_files_at,
-                                hash.get(0..2).ok_or(format!("Corrupted hash: {hash:?}"))?,
-                                hash.get(2..).ok_or(format!("Corrupted hash: {hash:?}"))?,
-                            ).map_err(|e| format!("{e:?}"))?;
-
-                            if exists(&test_file_at) {
-                                Ok(TextBox::new(
-                                    &read_string(&test_file_at).map_err(|e| format!("{e:?}"))?,
-                                    16.0,
-                                    Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-                                    [20.0, 20.0, 1080.0, 2000.0],
-                                ).render())
-                            }
-
-                            else {
-                                Err(format!("File not found: {test_file_at}\nTry running `load-test-files` command!"))
-                            }
-                        },
-                        _ => unreachable!(),
-                    }
-                },
+                render_canvas: render_cnr,
                 ..Entries::default()
             },
         );
@@ -180,22 +138,7 @@ fn main() {
             id: String::from("index"),
             title: Some(String::from("Sodigy-compiler-test")),
             entries: harnesses,
-            render_canvas: |entry, _| {
-                let entry: TestHarnessSummary = serde_json::from_str(entry.content.as_ref().unwrap()).unwrap();
-                Ok(TextBox::new(
-                    &format!(
-                        "crates: {}/{}\ncompile-and-run: {}/{}\ntested at: {}",
-                        entry.crates_pass,
-                        entry.crates_pass + entry.crates_fail,
-                        entry.cnr_pass,
-                        entry.cnr_pass + entry.cnr_fail,
-                        entry.started_at,
-                    ),
-                    16.0,
-                    Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-                    [30.0, 30.0, 840.0, 540.0],
-                ).render())
-            },
+            render_canvas: render_harness,
             ..Entries::default()
         },
     );
@@ -260,122 +203,4 @@ struct TestHarnessSummary {
     crates_fail: usize,
     cnr_pass: usize,
     cnr_fail: usize,
-}
-
-#[derive(Clone, Copy)]
-enum TermColorParseState {
-    Text,
-    Control,
-}
-
-fn apply_ansi_term_color(s: &str) -> (String, Vec<Color>) {
-    let mut chars: Vec<char> = vec![];
-    let mut colors = vec![];
-    let mut curr_color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-    let mut state = TermColorParseState::Text;
-    let mut digits_buffer = vec![];
-
-    for ch in s.chars() {
-        match state {
-            TermColorParseState::Text => match ch {
-                '\u{1b}' => {
-                    digits_buffer = vec![];
-                    state = TermColorParseState::Control;
-                },
-                _ => {
-                    chars.push(ch);
-                    colors.push(curr_color);
-                },
-            },
-            TermColorParseState::Control => match ch {
-                '0'..='9' => {
-                    digits_buffer.push(ch);
-                },
-                'm' => {
-                    match digits_buffer.iter().collect::<String>().parse::<u32>() {
-                        Ok(0) => {
-                            curr_color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
-                        },
-                        Ok(31) => {
-                            curr_color = Color { r: 0.9, g: 0.3, b: 0.3, a: 1.0 };
-                        },
-                        Ok(32) => {
-                            curr_color = Color { r: 0.3, g: 0.9, b: 0.3, a: 1.0 };
-                        },
-                        Ok(33) => {
-                            curr_color = Color { r: 0.9, g: 0.9, b: 0.3, a: 1.0 };
-                        },
-                        Ok(34) => {
-                            curr_color = Color { r: 0.3, g: 0.3, b: 0.9, a: 1.0 };
-                        },
-                        _ => {},
-                    };
-
-                    state = TermColorParseState::Text;
-                },
-                _ => {},
-            },
-        }
-    }
-
-    (chars.iter().collect(), colors)
-}
-
-fn load_test_files() -> Result<(), String> {
-    let curr_commit = git::get_curr_commit();
-    let mut curr_commit = git::get_commit_info(&curr_commit);
-    let mut cnr_trees = HashSet::new();
-
-    loop {
-        let curr_tree = &curr_commit.tree_hash;
-        let curr_tree_info = git::get_tree_info(&curr_tree);
-        let mut tests_tree_hash = None;
-
-        for entry in curr_tree_info.iter() {
-            if entry.name == "tests" {
-                tests_tree_hash = Some(entry.hash.clone());
-                break;
-            }
-        }
-
-        match tests_tree_hash {
-            Some(hash) => {
-                let tests_tree_info = git::get_tree_info(&hash);
-                let mut cnr_tree_hash = None;
-
-                for entry in tests_tree_info.iter() {
-                    if entry.name == "compile-and-run" {
-                        cnr_tree_hash = Some(entry.hash.clone());
-                        break;
-                    }
-                }
-
-                match cnr_tree_hash {
-                    Some(hash) => {
-                        cnr_trees.insert(hash);
-
-                        match curr_commit.parent_hash {
-                            Some(parent) => {
-                                curr_commit = git::get_commit_info(&parent);
-                            },
-                            None => {
-                                break;
-                            },
-                        }
-                    },
-                    None => {
-                        break;
-                    },
-                }
-            },
-            None => {
-                break;
-            },
-        }
-    }
-
-    // 1. iterate all the tree hashes,
-    // 2. run hash_dir (which is defined in runner/src/compile_and_run.rs) for each test files,
-    // 3. and save them in `tests/log/test_files/`
-    todo!()
 }

@@ -176,3 +176,15 @@ pub enum ObjectType {
     Blob,
     Tree,
 }
+
+pub fn read_blob(blob_hash: &str) -> Vec<u8> {
+    let output = Command::new("git")
+        .arg("cat-file")
+        .arg("blob")
+        .arg(blob_hash)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    output.stdout
+}
