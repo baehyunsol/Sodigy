@@ -1,0 +1,23 @@
+pub enum Animal = {
+    Armadillo,
+    Beaver,
+    Chicken,
+    Dolphin,
+    Elephant,
+    Ferret,
+    Goose,
+};
+
+#[associate(Animal)]
+let list = [
+    Animal.Armadillo,
+    Animal.Beaver,
+    Animal.Chicken,
+    Animal.Dolphin,
+    Animal.Elephant,
+    Animal.Ferret,
+    Animal.Goose,
+];
+
+assert Animal.list[0] != Animal.Beaver;
+assert Animal.list[1] == Animal.Beaver;
