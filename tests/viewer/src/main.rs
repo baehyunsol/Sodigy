@@ -14,7 +14,7 @@ use std::collections::hash_map::{Entry as HashMapEntry, HashMap};
 mod index;
 mod render;
 
-use index::load_test_files;
+use index::{CnrDiff, calc_cnr_diffs, load_test_files};
 use render::{render_cnr, render_harness};
 
 fn help_message(bin: &str) -> String {
@@ -32,6 +32,7 @@ fn main() {
 
     match args.get(1).map(|arg| arg.as_str()) {
         Some("create-index") => {
+            calc_cnr_diffs().unwrap();
             load_test_files().unwrap();
             return;
         },
@@ -45,6 +46,8 @@ fn main() {
     let root = find_root().unwrap();
     let test_results_at = join3(&root, "tests", "log").unwrap();
     let (test_results, total_count) = collect_test_result_names(&test_results_at);
+    let diff_files_at = join(&test_results_at, "diffs").unwrap();
+    let diff_files = collect_diff_files(&diff_files_at);
 
     // recent_test_results[0] is the most recent one, and the results are sorted by commit order
     // it collects the most recent 100 results
@@ -78,6 +81,13 @@ fn main() {
         let s = read_string(&path).unwrap();
         let j: TestHarness = serde_json::from_str(&s).unwrap();
         let summ = summary(&j);
+        let transition2 = diff_files.get(recent_test_result).map(
+            |diff_file| Transition {
+                id: diff_file.to_string(),
+                description: Some(String::from("See changes")),
+            }
+        );
+
         harnesses.push(Entry {
             name: recent_test_result.to_string(),
             content: Some(serde_json::to_string(&summ).unwrap()),
@@ -87,7 +97,7 @@ fn main() {
                 id: recent_test_result.to_string(),
                 description: Some(String::from("See details")),
             }),
-            transition2: None,
+            transition2,
             flag: EntryFlag::None,
         });
 
@@ -127,6 +137,46 @@ fn main() {
                     },
                 ],
                 render_canvas: render_cnr,
+                ..Entries::default()
+            },
+        );
+    }
+
+    for diff_file in diff_files.values() {
+        let diff = read_string(&join(&diff_files_at, diff_file).unwrap()).unwrap();
+        let diff: CnrDiff = serde_json::from_str(&diff).unwrap();
+        let mut cnrs = vec![];
+
+        for (_, next_cnr) in diff.new_fails.iter() {
+            // TODO: show more contents!
+            cnrs.push(Entry {
+                name: next_cnr.name.to_string(),
+                flag: EntryFlag::Red,
+                ..Entry::default()
+            });
+        }
+
+        for (_, next_cnr) in diff.new_passes.iter() {
+            // TODO: show more contents!
+            cnrs.push(Entry {
+                name: next_cnr.name.to_string(),
+                flag: EntryFlag::Green,
+                ..Entry::default()
+            });
+        }
+
+        cnrs.sort_by_key(|entry| entry.name.to_string());
+        entries_map.insert(
+            diff_file.to_string(),
+            Entries {
+                id: diff_file.to_string(),
+                title: Some(diff_file.replace(".json-sodigy", ".json vs sodigy")),
+                entries: cnrs,
+                entry_state_count: 1,
+                transition: Some(Transition {
+                    id: String::from("index"),
+                    description: Some(String::from("Back to harnesses")),
+                }),
                 ..Entries::default()
             },
         );
@@ -176,6 +226,21 @@ fn collect_test_result_names(dir: &str) -> (HashMap<String, Vec<String>>, usize)
     }
 
     (result, total_count)
+}
+
+fn collect_diff_files(dir: &str) -> HashMap<String, String> {
+    let diff_file_re = Regex::new(r"json-(.+)").unwrap();
+    let mut result = HashMap::new();
+
+    for file in read_dir(dir, false).unwrap() {
+        let name = basename(&file).unwrap();
+
+        if let Some(c) = diff_file_re.captures(&name) {
+            result.insert(c.get(1).unwrap().as_str().to_string(), name.to_string());
+        }
+    }
+
+    result
 }
 
 fn summary(test_harness: &TestHarness) -> TestHarnessSummary {

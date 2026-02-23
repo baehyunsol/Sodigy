@@ -25,7 +25,7 @@ mod line_matcher;
 
 pub use line_matcher::{LineMatcher, match_lines};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CompileAndRun {
     pub name: String,
 
