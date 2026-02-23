@@ -16,14 +16,14 @@ impl MonomorphizePlan {
     }
 }
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     pub fn get_mono_plan(
         &mut self,
         poly_solver: &HashMap<Span, PolySolver>,
         already_dispatched: &mut HashSet<(Span /* call */, Span /* generic */)>,
         session: &Session,
     ) -> Result<MonomorphizePlan, ()> {
-        let poly_solver = self.init_poly_solvers(session)?;
+        let poly_solver = self.init_poly_solvers(session, self.global_context.polys.unwrap())?;
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
@@ -61,7 +61,7 @@ impl TypeSolver {
                         Entry::Vacant(e) => {
                             e.insert(GenericCall {
                                 call: *call,
-                                def: *session.generic_def_span_rev.get(generic).unwrap(),
+                                def: *self.global_context.generic_def_span_rev.unwrap().get(generic).unwrap(),
                                 generics: [(*generic, r#type)].into_iter().collect(),
                             });
                         },
@@ -76,7 +76,7 @@ impl TypeSolver {
         let mut dispatch_map: HashMap<Span, Span> = HashMap::new();
 
         for (_, generic_call) in generic_calls.iter() {
-            match self.try_solve_poly(&session.polys, &poly_solver, generic_call) {
+            match self.try_solve_poly(self.global_context.polys.unwrap(), &poly_solver, generic_call) {
                 SolvePolyResult::NotPoly => {
                     if incomplete_generics.contains(&generic_call.call) {
                         continue;

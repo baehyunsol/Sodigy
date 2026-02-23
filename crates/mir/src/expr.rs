@@ -147,7 +147,7 @@ impl Expr {
                 // If we know `def_span` and the `def_span` is in `func_shapes`,
                 // we know the exact definition of the function, and can process keyword arguments and default values.
                 let mut mir_args = match def_span {
-                    Some(def_span) => match session.func_shapes.get(&def_span) {
+                    Some(def_span) => match session.global_context.func_shapes.unwrap().get(&def_span) {
                         Some(func_shape) => {
                             for generic_def in func_shape.generics.iter() {
                                 session.generic_args.insert(
@@ -495,7 +495,7 @@ impl Expr {
                 // for better error messages
                 let mut repeated_fields: HashMap<InternedString, Vec<RenderableSpan>> = HashMap::new();
 
-                match session.struct_shapes.get(&def_span) {
+                match session.global_context.struct_shapes.unwrap().get(&def_span) {
                     Some(struct_shape) => {
                         let struct_shape = struct_shape.clone();
                         let field_defs = struct_shape.fields.clone();
@@ -691,7 +691,7 @@ impl Expr {
 
                             if !invalid_fields.is_empty() {
                                 let names = invalid_fields.iter().map(|(name, _)| *name).collect();
-                                let mut spans = invalid_fields.iter().map(
+                                let spans = invalid_fields.iter().map(
                                     |(_, name_span)| RenderableSpan {
                                         span: *name_span,
                                         auxiliary: false,

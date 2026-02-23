@@ -4,10 +4,12 @@ use sodigy_span::Span;
 
 mod command;
 mod error;
+mod global_context;
 mod ir_store;
 
 pub use command::Command;
 pub use error::Error;
+pub use global_context::GlobalContext;
 pub use ir_store::{EmitIrOption, StoreIrAt, emit_irs_if_has_to, get_cached_ir};
 
 // The compiler compiles a project module-by-module. This is the status

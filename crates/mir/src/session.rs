@@ -1,6 +1,6 @@
-use crate::{Assert, Enum, Func, Let, Struct, Type, TypeAssertion};
+use crate::{Assert, Enum, Func, GlobalContext, Let, Struct, Type, TypeAssertion};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, FuncShape, Poly, StructShape};
+use sodigy_hir::{self as hir, FuncShape, Poly};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -10,13 +10,8 @@ mod item_map;
 mod span_string_map;
 
 #[derive(Clone, Debug)]
-pub struct Session {
+pub struct Session<'hir, 'mir> {
     pub intermediate_dir: String,
-    pub func_shapes: HashMap<Span, FuncShape>,
-    pub struct_shapes: HashMap<Span, StructShape>,
-
-    // generic def span to func def span (or struct def span) map
-    pub generic_def_span_rev: HashMap<Span, Span>,
 
     pub lets: Vec<Let>,
     pub funcs: Vec<Func>,
@@ -30,7 +25,8 @@ pub struct Session {
     pub type_assertions: Vec<TypeAssertion>,
 
     // It's `def_span -> type_annot` map.
-    // It has type information of *every* name in the code.
+    // It has type information of *every* name in the module.
+    // Type information of other modules are in `.global_context.types`.
     // If you query a def_span of a function, it'll give you something like `Fn(Int, Int) -> Int`.
     //
     // If first collects the type annotations, then the type-infer engine will infer the
@@ -41,28 +37,30 @@ pub struct Session {
     // If the programmer calls a generic function, either the programmer has to
     // annotate type, or the compiler has to infer it.
     // It's also a `type_var -> type_annot` map. It works like `Session.types`, but for generic instances.
+    //
+    // Like `types`, it only has information of generic args in the module.
+    // For generic args in other modules, use `.global_context.generic_args`.
     pub generic_args: HashMap<(Span, Span), Type>,
 
     // We need this when we create error messages.
     // This is really expensive to initialize, so think twice before you init this.
     pub span_string_map: Option<HashMap<Span, InternedString>>,
-
-    pub lang_items: HashMap<String, Span>,
-    pub polys: HashMap<Span, Poly>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
+
+    // Before inter-mir, this field is empty and `types` has type information of this module.
+    // While inter-mir, this field is empty and `types` has type information of every module.
+    // After inter-mir, this field has type information of every module and `types` is empty.
+    pub global_context: GlobalContext<'hir, 'mir>,
 }
 
-impl Session {
+impl<'hir, 'mir> Session<'hir, 'mir> {
     pub fn from_hir(
         hir_session: &hir::Session,
-        inter_hir_session: &inter_hir::Session,
-    ) -> Session {
+        inter_hir_session: &'hir inter_hir::Session,
+    ) -> Session<'hir, 'static> {
         Session {
             intermediate_dir: hir_session.intermediate_dir.clone(),
-            func_shapes: inter_hir_session.func_shapes.clone(),
-            struct_shapes: inter_hir_session.struct_shapes.clone(),
-            generic_def_span_rev: HashMap::new(),
 
             // will be lowered soon
             lets: vec![],
@@ -80,22 +78,20 @@ impl Session {
             types: HashMap::new(),
             generic_args: HashMap::new(),
             span_string_map: Some(HashMap::new()),
-            lang_items: inter_hir_session.lang_items.clone(),
-            polys: inter_hir_session.polys.clone(),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
+            global_context: GlobalContext::from_inter_hir_session(inter_hir_session),
         }
     }
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
-        match self.lang_items.get(lang_item) {
+        match self.global_context.lang_items.as_ref().unwrap().get(lang_item) {
             Some(s) => *s,
             None => panic!("TODO: lang_item `{lang_item}`"),
         }
     }
 
     pub fn merge(&mut self, mut s: Session) {
-        self.generic_def_span_rev.extend(s.generic_def_span_rev.drain());
         self.lets.extend(s.lets.drain(..));
         self.funcs.extend(s.funcs.drain(..));
         self.enums.extend(s.enums.drain(..));
@@ -110,20 +106,26 @@ impl Session {
     }
 
     // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
-    pub fn dispatch(&mut self, map: &HashMap<Span, Span>) {
+    pub fn dispatch(
+        &mut self,
+        map: &HashMap<Span, Span>,
+
+        // There's no global_context in `self` due to lifetime issues.
+        func_shapes: &HashMap<Span, FuncShape>,
+    ) {
         for r#let in self.lets.iter_mut() {
-            r#let.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
+            r#let.value.dispatch(map, func_shapes, &mut self.generic_args);
         }
 
         for func in self.funcs.iter_mut() {
-            func.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
+            func.value.dispatch(map, func_shapes, &mut self.generic_args);
         }
 
         for assert in self.asserts.iter_mut() {
-            assert.value.dispatch(map, &self.func_shapes, &mut self.generic_args);
+            assert.value.dispatch(map, func_shapes, &mut self.generic_args);
 
             if let Some(note) = &mut assert.note {
-                note.dispatch(map, &self.func_shapes, &mut self.generic_args);
+                note.dispatch(map, func_shapes, &mut self.generic_args);
             }
         }
     }

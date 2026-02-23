@@ -6,7 +6,7 @@ use sodigy_span::Span;
 use sodigy_token::Constant;
 use std::collections::HashMap;
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     pub fn solve_pattern(
         &mut self,
         pattern: &Pattern,

@@ -5,7 +5,7 @@ use sodigy_mir::Let;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     pub fn solve_let(
         &mut self,
         r#let: &Let,

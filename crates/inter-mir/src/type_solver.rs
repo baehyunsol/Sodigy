@@ -1,7 +1,7 @@
 use crate::Type;
 use crate::error::{ErrorContext, TypeError, TypeWarning};
-use sodigy_hir::{FuncPurity, FuncShape, StructShape};
-use sodigy_mir::TypeAssertion;
+use sodigy_hir::FuncPurity;
+use sodigy_mir::{GlobalContext, TypeAssertion};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashSet;
@@ -17,10 +17,7 @@ mod pattern;
 // not in `type_vars`, because
 // 1. We'll later use `type_vars` to distinguish what're infered types and what're annotated types.
 // 2. If we don't remove entries in `type_var_refs`, cyclic type vars will cause a stack overflow.
-pub struct TypeSolver {
-    pub func_shapes: HashMap<Span, FuncShape>,
-    pub struct_shapes: HashMap<Span, StructShape>,
-
+pub struct TypeSolver<'hir, 'x> {
     // Whenever `types.get(span)` returns `None`, it creates a type variable
     // and inserts the `span` to this hash set. It's later used to check
     // if all the type variables are infered.
@@ -63,38 +60,30 @@ pub struct TypeSolver {
     // we don't solve the types of patterns (will later be done by MatchFsm).
     pub pattern_name_bindings: HashSet<Span>,
 
-    pub lang_items: HashMap<String, Span>,
     pub errors: Vec<TypeError>,
     pub warnings: Vec<TypeWarning>,
     pub intermediate_dir: String,
+
+    // mir parts are not initialized yet!
+    pub global_context: GlobalContext<'hir, 'x>,
 }
 
-impl TypeSolver {
-    pub fn new(
-        func_shapes: HashMap<Span, FuncShape>,
-        struct_shapes: HashMap<Span, StructShape>,
-        lang_items: HashMap<String, Span>,
+impl TypeSolver<'_, '_> {
+    pub fn new<'hir, 'x>(
+        global_context: GlobalContext<'hir, 'x>,
         intermediate_dir: String,
-    ) -> Self {
+    ) -> TypeSolver<'hir, 'x> {
         TypeSolver {
-            func_shapes,
-            struct_shapes,
             type_vars: HashMap::new(),
             type_var_refs: HashMap::new(),
             maybe_never_type: HashMap::new(),
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
-            lang_items,
             errors: vec![],
             warnings: vec![],
             intermediate_dir,
+            global_context,
         }
-    }
-
-    /// Sometimes you need a tmp type-solver for a few `.solve_supertype` calls, usually
-    /// for poly solvers.
-    pub fn tmp(lang_items: HashMap<String, Span>, intermediate_dir: String) -> Self {
-        TypeSolver::new(HashMap::new(), HashMap::new(), lang_items, intermediate_dir)
     }
 
     pub fn apply_never_types(
@@ -1199,7 +1188,7 @@ impl TypeSolver {
     }
 
     pub fn get_lang_item_span(&self, lang_item: &str) -> Span {
-        match self.lang_items.get(lang_item) {
+        match self.global_context.lang_items.unwrap().get(lang_item) {
             Some(s) => *s,
             None => panic!("TODO: {lang_item:?}"),
         }

@@ -468,6 +468,12 @@ fn compile(
 
                         match (compile_stage, module_path) {
                             (CompileStage::InterHir, None) => {
+                                for worker in workers.iter() {
+                                    worker.send(MessageToWorker::Run(vec![
+                                        Command::LoadInterHirSession { intermediate_dir: ir_dir.clone() },
+                                    ]))?;
+                                }
+
                                 for module in modules.values_mut() {
                                     module.compile_stage = CompileStage::InterHir;
                                     module.running = false;
@@ -493,6 +499,12 @@ fn compile(
                                 }
                             },
                             (CompileStage::InterMir, None) => {
+                                for worker in workers.iter() {
+                                    worker.send(MessageToWorker::Run(vec![
+                                        Command::LoadMirGlobalContext { intermediate_dir: ir_dir.clone() },
+                                    ]))?;
+                                }
+
                                 for module in modules.values_mut() {
                                     module.compile_stage = CompileStage::InterMir;
                                     module.running = false;

@@ -274,6 +274,7 @@ fn into_hir_session(session: &Session) -> sodigy_hir::Session {
         type_assertions: vec![],
         associated_items: vec![],
         trivial_lets: HashMap::new(),
+        generic_def_span_rev: HashMap::new(),
         closures: HashMap::new(),
         lang_items: HashMap::new(),
         polys: HashMap::new(),

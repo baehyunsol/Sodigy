@@ -128,6 +128,7 @@ impl Func {
         for (index, generic) in ast_func.generics.iter().enumerate() {
             generic_param_names.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
             generic_param_index.insert(generic.name, index);
+            session.generic_def_span_rev.insert(generic.name_span, ast_func.name_span);
         }
 
         session.name_stack.push(Namespace::ForeignNameCollector {

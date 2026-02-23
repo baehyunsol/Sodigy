@@ -49,4 +49,10 @@ pub enum Command {
         backend: Backend,
         output_path: StoreIrAt,
     },
+    LoadInterHirSession {
+        intermediate_dir: String,
+    },
+    LoadMirGlobalContext {
+        intermediate_dir: String,
+    },
 }

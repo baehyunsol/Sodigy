@@ -33,7 +33,7 @@ impl Value {
     }
 }
 
-impl Session {
+impl Session<'_, '_> {
     pub fn lower_constant(&self, constant: &Constant) -> Value {
         match constant {
             Constant::Number { n, .. } => n.into(),

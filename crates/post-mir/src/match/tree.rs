@@ -318,7 +318,7 @@ fn constructor_to_expr(
                                 if_span: Span::None,
                                 cond: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *session.lang_items.get(f1).unwrap(),
+                                        def_span: *session.global_context.lang_items.unwrap().get(f1).unwrap(),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -333,7 +333,7 @@ fn constructor_to_expr(
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *session.lang_items.get(f2).unwrap(),
+                                        def_span: *session.global_context.lang_items.unwrap().get(f2).unwrap(),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -351,10 +351,10 @@ fn constructor_to_expr(
                                     span: Span::None,
                                     origin: NameOrigin::Foreign {
                                         kind: NameKind::EnumVariant {
-                                            parent: *session.lang_items.get("type.Bool").unwrap(),
+                                            parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
                                         },
                                     },
-                                    def_span: *session.lang_items.get("variant.Bool.False").unwrap(),
+                                    def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.False").unwrap(),
                                 })),
                                 false_group_span: Span::None,
                                 from_short_circuit: None,
@@ -385,7 +385,7 @@ fn constructor_to_expr(
 
             Expr::Call {
                 func: Callable::Static {
-                    def_span: *session.lang_items.get(lang_item).unwrap(),
+                    def_span: *session.global_context.lang_items.unwrap().get(lang_item).unwrap(),
                     span: Span::None,
                 },
                 args: vec![
@@ -419,10 +419,10 @@ fn constructors_to_expr(
                 span: Span::None,
                 origin: NameOrigin::Foreign {
                     kind: NameKind::EnumVariant {
-                        parent: *session.lang_items.get("type.Bool").unwrap(),
+                        parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
                     },
                 },
-                def_span: *session.lang_items.get("variant.Bool.True").unwrap(),
+                def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.True").unwrap(),
             })),
             true_group_span: Span::None,
             false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, session)),
@@ -682,10 +682,10 @@ fn true_value(session: &Session) -> Expr {
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *session.lang_items.get("type.Bool").unwrap(),
+                parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
             },
         },
-        def_span: *session.lang_items.get("variant.Bool.True").unwrap(),
+        def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.True").unwrap(),
     })
 }
 
@@ -695,9 +695,9 @@ fn false_value(session: &Session) -> Expr {
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *session.lang_items.get("type.Bool").unwrap(),
+                parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
             },
         },
-        def_span: *session.lang_items.get("variant.Bool.False").unwrap(),
+        def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.False").unwrap(),
     })
 }

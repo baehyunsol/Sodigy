@@ -368,7 +368,7 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
         TypeError::CannotInferGenericType { call, generic, func_def } |
         TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
             let generic_id = session.span_to_string(*generic);
-            let spans = match (func_def.map(|def_span| session.func_shapes.get(&def_span)), &generic_id) {
+            let spans = match (func_def.map(|def_span| session.global_context.func_shapes.unwrap().get(&def_span)), &generic_id) {
                 (Some(Some(func_shape)), Some(generic_id)) => vec![
                     RenderableSpan {
                         span: *call,

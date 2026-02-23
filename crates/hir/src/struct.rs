@@ -62,6 +62,7 @@ impl Struct {
         for (index, generic) in ast_struct.generics.iter().enumerate() {
             generic_params.insert(generic.name, (generic.name_span, NameKind::GenericParam, UseCount::new()));
             generic_index.insert(generic.name, index);
+            session.generic_def_span_rev.insert(generic.name_span, ast_struct.name_span);
         }
 
         session.name_stack.push(Namespace::GenericParam {

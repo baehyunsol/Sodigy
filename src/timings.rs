@@ -22,38 +22,18 @@ pub struct TimingsEntry {
 }
 
 impl Worker {
-    pub fn log_start(&mut self, stage: CompileStage, module: Option<String>) {
+    pub fn stage_start(&mut self, stage: CompileStage, module: Option<String>) {
         assert!(self.curr_stage.is_none());
         let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
-
-        if let Some(file) = &self.log_file {
-            if let Err(e) = write_string(
-                file,
-                &format!("[Worker-{}][timestamp: {} ms] start {:?}\n", self.id.0, timestamp / 1000, (stage, &module)),
-                WriteMode::AppendOrCreate,
-            ) {
-                eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
-            }
-        }
-
+        self.write_log(&format!("stage start {:?}", (stage, &module)));
         self.curr_stage = Some((stage, module, timestamp));
         self.curr_stage_error = false;
     }
 
-    pub fn log_end(&mut self, has_error: bool) {
+    pub fn stage_end(&mut self, has_error: bool) {
         if let Some((stage, module, start)) = self.curr_stage.take() {
             let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as u64;
-
-            if let Some(file) = &self.log_file {
-                if let Err(e) = write_string(
-                    file,
-                    &format!("[Worker-{}][timestamp: {} ms] end {:?}{}\n", self.id.0, timestamp / 1000, (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }),
-                    WriteMode::AppendOrCreate,
-                ) {
-                    eprintln!("Error while writing log (worker-{}): {e:?}", self.id.0);
-                }
-            }
-
+            self.write_log(&format!("stage end {:?}{}", (stage, &module), if self.curr_stage_error { " (has_error)" } else { "" }));
             self.timings_log.push(TimingsEntry {
                 stage,
                 module,
@@ -61,6 +41,20 @@ impl Worker {
                 end: timestamp,
                 has_error: self.curr_stage_error | has_error,
             });
+        }
+    }
+
+    pub fn write_log(&self, msg: &str) {
+        if let Some(file) = &self.log_file {
+            let timestamp = Instant::now().duration_since(self.born_at.clone()).as_micros() as f64;
+
+            if let Err(e) = write_string(
+                file,
+                &format!("[Worker-{}][timestamp: {:.2} ms] {msg}\n", self.id.0, timestamp / 1000.0),
+                WriteMode::AppendOrCreate,
+            ) {
+                eprintln!("Error while writing log (Worker-{}): {e:?}", self.id.0);
+            }
         }
     }
 }
@@ -252,7 +246,7 @@ fn dump_timings_html(
 
     for (stages, id) in [
         (vec![CompileStage::Load, CompileStage::Lex, CompileStage::Parse, CompileStage::Hir], "hir"),
-        (vec![CompileStage::Mir], "mir"),
+        (vec![CompileStage::PostHir, CompileStage::Mir], "mir"),
         (vec![CompileStage::PostMir, CompileStage::MirOptimize, CompileStage::Bytecode, CompileStage::BytecodeOptimize], "bytecode"),
     ] {
         let (rows, stats) = into_rows(Some(stages), worker_ids, timings);

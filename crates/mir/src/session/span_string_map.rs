@@ -5,7 +5,7 @@ use sodigy_span::{PolySpanKind, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
-impl Session {
+impl Session<'_, '_> {
     /// Make sure to call `init_span_string_map` before calling this.
     pub fn span_to_string(&self, span: Span) -> Option<String> {
         match span {

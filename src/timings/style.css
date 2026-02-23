@@ -158,6 +158,14 @@ html {
     background-color: rgba(192, 64, 192, 1.0);
 }
 
+.PostHir {
+    background-color: rgba(32, 224, 96, 0.5);
+}
+
+.PostHir:hover {
+    background-color: rgba(32, 224, 96, 1.0);
+}
+
 .Mir {
     background-color: rgba(224, 128, 32, 0.5);
 }

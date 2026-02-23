@@ -24,6 +24,10 @@ pub enum CompileStage {
     /// simultaneously, so it cannot be parallelized.
     InterHir,
 
+    /// It's a part of inter-hir that can run in parallel. I splitted the stages
+    /// just to make it parallel.
+    PostHir,
+
     /// MIR is like HIR, but a few more lowerings (that requires information from
     /// InterHir) are done. MIR is generated per-file, so it can be parallelized.
     /// But because it depends on InterHir, it cannot be cached like HIRs.
@@ -67,12 +71,13 @@ pub enum CompileStage {
     CodeGen,
 }
 
-pub const COMPILE_STAGES: [CompileStage; 12] = [
+pub const COMPILE_STAGES: [CompileStage; 13] = [
     CompileStage::Load,
     CompileStage::Lex,
     CompileStage::Parse,
     CompileStage::Hir,
     CompileStage::InterHir,
+    CompileStage::PostHir,
     CompileStage::Mir,
     CompileStage::InterMir,
     CompileStage::PostMir,
@@ -90,6 +95,7 @@ impl CompileStage {
             CompileStage::Parse => true,
             CompileStage::Hir => true,
             CompileStage::InterHir => false,
+            CompileStage::PostHir => true,
             CompileStage::Mir => true,
             CompileStage::InterMir => false,
             CompileStage::PostMir => true,

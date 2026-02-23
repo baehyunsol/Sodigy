@@ -2,6 +2,7 @@ use crate::{
     Assert,
     Enum,
     Func,
+    GlobalContext,
     Let,
     Session,
     Struct,
@@ -11,20 +12,14 @@ use crate::{
 };
 use sodigy_endec::{DecodeError, DumpSession, Endec, IndentedLines};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{FuncShape, Poly, StructShape};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
-impl Endec for Session {
+impl Endec for Session<'_, '_> {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         // changes everytime
         // self.intermediate_dir.encode_impl(buffer);
-
-        // TODO: aren't these too expensive to save per-file?
-        self.func_shapes.encode_impl(buffer);
-        self.struct_shapes.encode_impl(buffer);
-        self.generic_def_span_rev.encode_impl(buffer);
 
         self.lets.encode_impl(buffer);
         self.funcs.encode_impl(buffer);
@@ -42,16 +37,11 @@ impl Endec for Session {
         // you can re-construct it from scratch
         // self.span_string_map.encode_impl(buffer);
 
-        self.lang_items.encode_impl(buffer);
-        self.polys.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
-        let (func_shapes, cursor) = HashMap::<Span, FuncShape>::decode_impl(buffer, cursor)?;
-        let (struct_shapes, cursor) = HashMap::<Span, StructShape>::decode_impl(buffer, cursor)?;
-        let (generic_def_span_rev, cursor) = HashMap::<Span, Span>::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (funcs, cursor) = Vec::<Func>::decode_impl(buffer, cursor)?;
         let (enums, cursor) = Vec::<Enum>::decode_impl(buffer, cursor)?;
@@ -61,8 +51,6 @@ impl Endec for Session {
         let (type_assertions, cursor) = Vec::<TypeAssertion>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_args, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
-        let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
-        let (polys, cursor) = HashMap::<Span, Poly>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -70,9 +58,6 @@ impl Endec for Session {
             Session {
                 // You have to set this after decoding it.
                 intermediate_dir: String::new(),
-                func_shapes,
-                struct_shapes,
-                generic_def_span_rev,
                 lets,
                 funcs,
                 enums,
@@ -83,17 +68,18 @@ impl Endec for Session {
                 types,
                 generic_args,
                 span_string_map: None,
-                lang_items,
-                polys,
                 errors,
                 warnings,
+
+                // worker will load this
+                global_context: GlobalContext::new(),
             },
             cursor,
         ))
     }
 }
 
-impl DumpSession for Session {
+impl DumpSession for Session<'_, '_> {
     fn dump_session(&self) -> Vec<u8> {
         let s = format!(
             "{{ lets: {:?}, funcs: {:?}, asserts: {:?} }}",

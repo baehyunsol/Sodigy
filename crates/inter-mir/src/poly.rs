@@ -1,7 +1,7 @@
 use crate::{ErrorContext, GenericCall, TypeError, TypeSolver};
 use sodigy_error::ParamIndex;
 use sodigy_hir::Poly;
-use sodigy_mir::{Func, Session, Type};
+use sodigy_mir::{Func, GlobalContext, Session, Type};
 use sodigy_span::Span;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -23,7 +23,7 @@ use std::collections::hash_map::{Entry, HashMap};
 //        The most naive way is to check `Fn(String, String) -> Int` against every impl
 //        of the poly, but we're doing some kinda optimization here.
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     pub fn try_solve_poly(
         &mut self,
         polys: &HashMap<Span, Poly>,
@@ -33,7 +33,7 @@ impl TypeSolver {
         match polys.get(&generic_call.def) {
             Some(poly) => {
                 let solver = solvers.get(&poly.name_span).unwrap();
-                let candidates = solver.solve(&generic_call.generics, self.lang_items.clone(), self.intermediate_dir.to_string());
+                let candidates = solver.solve(&generic_call.generics, self.global_context, self.intermediate_dir.to_string());
 
                 match candidates.len() {
                     0 => {
@@ -53,7 +53,7 @@ impl TypeSolver {
         }
     }
 
-    pub fn init_poly_solvers(&mut self, session: &Session) -> Result<HashMap<Span, PolySolver>, ()> {
+    pub fn init_poly_solvers(&mut self, session: &Session, polys: &HashMap<Span, Poly>) -> Result<HashMap<Span, PolySolver>, ()> {
         let mut has_error = false;
         let mut result = HashMap::new();
         let index_by_span = session.funcs.iter().enumerate().map(
@@ -64,7 +64,7 @@ impl TypeSolver {
         // impls:
         //     `#[impl(add)] fn add_int(a: Int, b: Int) -> Int;`
         //     `#[impl(add)] fn add_homo<T>(a: T, b: T) -> Int;`
-        for (span, poly) in session.polys.iter() {
+        for (span, poly) in polys.iter() {
             let poly_def = &session.funcs[*index_by_span.get(span).unwrap()];
 
             // poly_type: `Fn(?T, ?U) -> Int`
@@ -110,7 +110,7 @@ impl TypeSolver {
                     &poly_type_vars,
                     *span,
                     *r#impl,
-                    session.lang_items.clone(),
+                    session.global_context,
                     session.intermediate_dir.clone(),
                 ) {
                     // constraints: `?T = Int`, `?U = Int`
@@ -240,7 +240,7 @@ impl PolySolver {
         generics: &HashMap<Span, Type>,
 
         // for tmp type-solver
-        lang_items: HashMap<String, Span>,
+        global_context: GlobalContext<'_, '_>,
         intermediate_dir: String,
     ) -> Vec<Span> {
         let mut matched = vec![];
@@ -252,7 +252,7 @@ impl PolySolver {
             |state_machine| state_machine.get_candidates(generics)
         ).unwrap_or(&impls) {
             let candidate_types = self.impls.get(candidate).unwrap();
-            let mut type_solver = TypeSolver::tmp(lang_items.clone(), intermediate_dir.to_string());
+            let mut type_solver = TypeSolver::new(global_context, intermediate_dir.to_string());
             let mut types = HashMap::new();
 
             'generics: for (generic_param, r#type) in generics.iter() {
@@ -526,7 +526,7 @@ fn solve_fn_types(
     impl_span: Span,
 
     // for tmp type solver
-    lang_items: HashMap<String, Span>,
+    global_context: GlobalContext<'_, '_>,
     intermediate_dir: String,
 ) -> Result<HashMap<Span, Type>, Vec<TypeError>> {
     if poly.params.len() != r#impl.params.len() {
@@ -538,7 +538,7 @@ fn solve_fn_types(
         }]);
     }
 
-    let mut type_solver = TypeSolver::tmp(lang_items, intermediate_dir);
+    let mut type_solver = TypeSolver::new(global_context, intermediate_dir);
     let mut types = HashMap::new();
     let mut errors = vec![];
 

@@ -52,6 +52,9 @@ pub struct Session {
 
     pub associated_items: Vec<AssociatedItem>,
 
+    // generic def span to func def span (or struct def span) map
+    pub generic_def_span_rev: HashMap<Span, Span>,
+
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 }
@@ -81,6 +84,7 @@ impl Session {
             new_funcs: vec![],
             new_polys: HashMap::new(),
             associated_items: vec![],
+            generic_def_span_rev: HashMap::new(),
             errors: vec![],
             warnings: vec![],
         }
@@ -183,5 +187,6 @@ impl Session {
         self.polys.extend(hir_session.polys.drain());
         self.poly_impls.extend(hir_session.poly_impls.drain(..));
         self.associated_items.extend(hir_session.associated_items.drain(..));
+        self.generic_def_span_rev.extend(hir_session.generic_def_span_rev.drain());
     }
 }

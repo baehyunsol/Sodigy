@@ -1,10 +1,9 @@
-use crate::{Callable, Expr, Session};
+use crate::{Callable, Expr, GlobalContext, Session};
 use sodigy_error::{Error, ErrorKind};
-use sodigy_hir::{self as hir, FuncPurity, StructShape};
+use sodigy_hir::{self as hir, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
 use sodigy_token::Constant;
-use std::collections::HashMap;
 
 // This enum is originally meant for type annotations, but
 // type-checker and type-inferer are also using this enum...
@@ -361,55 +360,53 @@ impl Type {
 /// or even worse, a wrong type.
 pub fn type_of(
     expr: &Expr,
-    types: &HashMap<Span, Type>,
-    struct_shapes: &HashMap<Span, StructShape>,
-    lang_items: &HashMap<String, Span>,
+    global_context: GlobalContext,
 ) -> Option<Type> {
     match expr {
-        Expr::Ident(id) => types.get(&id.def_span).map(|r#type| r#type.clone()),
+        Expr::Ident(id) => global_context.types.unwrap().get(&id.def_span).map(|r#type| r#type.clone()),
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
             true => Some(Type::Static {
-                def_span: *lang_items.get("type.Int").unwrap(),
+                def_span: *global_context.lang_items.unwrap().get("type.Int").unwrap(),
                 span: Span::None,
             }),
             false => Some(Type::Static {
-                def_span: *lang_items.get("type.Number").unwrap(),
+                def_span: *global_context.lang_items.unwrap().get("type.Number").unwrap(),
                 span: Span::None,
             }),
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
             true => Some(Type::Param {
-                constructor_def_span: *lang_items.get("type.List").unwrap(),
+                constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
                 constructor_span: Span::None,
                 args: vec![Type::Static {
-                    def_span: *lang_items.get("type.Byte").unwrap(),
+                    def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
                     span: Span::None,
                 }],
                 group_span: Span::None,
             }),
             false => Some(Type::Param {
-                constructor_def_span: *lang_items.get("type.List").unwrap(),
+                constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
                 constructor_span: Span::None,
                 args: vec![Type::Static {
-                    def_span: *lang_items.get("type.Char").unwrap(),
+                    def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
                     span: Span::None,
                 }],
                 group_span: Span::None,
             }),
         },
         Expr::Constant(Constant::Char { .. }) => Some(Type::Static {
-            def_span: *lang_items.get("type.Char").unwrap(),
+            def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
             span: Span::None,
         }),
         Expr::Constant(Constant::Byte { .. }) => Some(Type::Static {
-            def_span: *lang_items.get("type.Byte").unwrap(),
+            def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
             span: Span::None,
         }),
-        Expr::If(r#if) => type_of(&r#if.true_value, types, struct_shapes, lang_items),
-        Expr::Match(r#match) => type_of(&r#match.arms[0].value, types, struct_shapes, lang_items),
-        Expr::Block(block) => type_of(&block.value, types, struct_shapes, lang_items),
+        Expr::If(r#if) => type_of(&r#if.true_value, global_context),
+        Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
+        Expr::Block(block) => type_of(&block.value, global_context),
         Expr::Call { func, args, .. } => match func {
-            Callable::Static { def_span, .. } => match types.get(def_span) {
+            Callable::Static { def_span, .. } => match global_context.types.unwrap().get(def_span) {
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },
@@ -421,7 +418,7 @@ pub fn type_of(
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for arg in args.iter() {
-                    match type_of(arg, types, struct_shapes, lang_items) {
+                    match type_of(arg, global_context) {
                         Some(t) => { arg_types.push(t); },
                         None => { return None; },
                     }
@@ -440,7 +437,7 @@ pub fn type_of(
     }
 }
 
-impl Session {
+impl Session<'_, '_> {
     /// It's used for error messages and `dump_type` function.
     /// Make sure to call `init_span_string_map` before calling this function.
     pub fn render_type(&self, r#type: &Type) -> String {
@@ -458,7 +455,7 @@ impl Session {
                     |arg| self.render_type(arg)
                 ).collect::<Vec<_>>().join(", ");
 
-                if constructor_def_span == self.lang_items.get("type.List").unwrap() {
+                if *constructor_def_span == self.get_lang_item_span("type.List") {
                     format!("[{args}]")
                 }
 

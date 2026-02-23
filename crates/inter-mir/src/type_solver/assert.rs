@@ -5,7 +5,7 @@ use sodigy_mir::Assert;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     pub fn solve_assert(
         &mut self,
         assert: &Assert,

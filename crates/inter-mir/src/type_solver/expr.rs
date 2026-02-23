@@ -10,7 +10,7 @@ use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::collections::HashMap;
 
-impl TypeSolver {
+impl TypeSolver<'_, '_> {
     // FIXME: there are A LOT OF heap allocations
     //
     // It can solve type of any expression, but the result maybe `Type::Var`.
@@ -501,7 +501,7 @@ impl TypeSolver {
                         },
                         None => todo!(),
                     },
-                    Callable::StructInit { def_span, span } => match self.struct_shapes.get(def_span) {
+                    Callable::StructInit { def_span, span } => match self.global_context.struct_shapes.unwrap().get(def_span) {
                         Some(s) => {
                             // The compiler checked it when lowering hir to mir.
                             assert_eq!(s.fields.len(), arg_types.len());
@@ -695,7 +695,7 @@ impl TypeSolver {
         match r#type {
             Type::Static { def_span, .. } => {
                 let mut field_type = None;
-                let struct_shape = self.struct_shapes.get(def_span).unwrap();
+                let struct_shape = self.global_context.struct_shapes.unwrap().get(def_span).unwrap();
 
                 match &field[0] {
                     Field::Name { name, name_span, .. } => {

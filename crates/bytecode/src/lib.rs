@@ -216,7 +216,7 @@ pub enum DebugInfoKind {
     AssertionNote,
 }
 
-pub fn lower(mir_session: MirSession) -> Session {
+pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, 'mir> {
     let mut session = Session::from_mir(mir_session.clone());
     let mut lets = Vec::with_capacity(mir_session.lets.len());
     let mut funcs = Vec::with_capacity(mir_session.funcs.len());

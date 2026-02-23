@@ -17,7 +17,7 @@ pub struct ItemMap {
     pub asserts: HashMap<Span, Assert>,
 }
 
-impl Session {
+impl Session<'_, '_> {
     pub fn get_item_map(&mut self) -> ItemMap {
         ItemMap {
             lets: self.lets.drain(..).map(|r#let| (r#let.name_span, r#let)).collect(),

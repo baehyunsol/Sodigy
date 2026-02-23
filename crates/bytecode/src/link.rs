@@ -2,7 +2,7 @@ use crate::{Bytecode, Executable, Label, Session, Value};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Session {
+impl Session<'_, '_> {
     pub fn link(&self) -> Executable {
         let mut concated_bytecodes = vec![];
         let mut label_map: HashMap<(Span, Label), usize> = HashMap::new();

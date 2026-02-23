@@ -8,12 +8,12 @@ pub enum OptimizeLevel {
     Extreme,
 }
 
-pub fn optimize_mir(mir_session: MirSession, level: OptimizeLevel) -> MirSession {
+pub fn optimize_mir<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>, level: OptimizeLevel) -> MirSession<'hir, 'mir> {
     // TODO: optimize
     mir_session
 }
 
-pub fn optimize_bytecode(bytecode_session: BytecodeSession, level: OptimizeLevel) -> BytecodeSession {
+pub fn optimize_bytecode<'hir, 'mir>(bytecode_session: BytecodeSession<'hir, 'mir>, level: OptimizeLevel) -> BytecodeSession<'hir, 'mir> {
     // TODO: optimize
     bytecode_session
 }

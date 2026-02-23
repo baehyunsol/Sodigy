@@ -183,12 +183,7 @@ use tree::{
 };
 
 pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Result<Expr, ()> {
-    let scrutinee_type = type_of(
-        &match_expr.scrutinee,
-        &session.types,
-        &session.struct_shapes,
-        &session.lang_items,
-    ).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
+    let scrutinee_type = type_of(&match_expr.scrutinee, session.global_context).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
     // We use `index: usize` of each arm as an id of the arm.
     let mut arms: Vec<(usize, &MatchArm)> = match_expr.arms.iter().enumerate().collect();
@@ -205,7 +200,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     });
     arms.push((extra_arm_id, extra_arm));
 
-    let matrix = get_matrix(&scrutinee_type, &session.lang_items);
+    let matrix = get_matrix(&scrutinee_type, session.global_context.lang_items.unwrap());
 
     let mut tree = match build_tree(
         &mut 1,

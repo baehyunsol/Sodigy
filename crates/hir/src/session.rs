@@ -64,6 +64,9 @@ pub struct Session {
     // key: name_span of `let`
     pub trivial_lets: HashMap<Span, TrivialLet>,
 
+    // generic def span to func def span (or struct def span) map
+    pub generic_def_span_rev: HashMap<Span, Span>,
+
     // after ast is lowered to hir, the session will walk the tree and
     // replace `Expr::Ident(x)` with `Expr::Closure { fp: x, captures: captured_names.locals }`
     pub closures: HashMap<Span /* def_span of lambda */, CapturedNames>,
@@ -121,6 +124,7 @@ impl Session {
             type_assertions: vec![],
             associated_items: vec![],
             trivial_lets: HashMap::new(),
+            generic_def_span_rev: HashMap::new(),
             closures: HashMap::new(),
             lang_items: HashMap::new(),
             polys: HashMap::new(),

@@ -18,10 +18,6 @@ impl Struct {
         let mut has_error = false;
         let mut fields = vec![];
 
-        for generic in hir_struct.generics.iter() {
-            session.generic_def_span_rev.insert(generic.name_span, hir_struct.name_span);
-        }
-
         for field in hir_struct.fields.iter() {
             match field.type_annot.as_ref().map(|type_annot| Type::from_hir(type_annot, session)) {
                 Some(Ok(type_annot)) => {

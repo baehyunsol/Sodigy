@@ -1,11 +1,11 @@
 use crate::{Assert, Func, Let, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
-use sodigy_mir::Intrinsic;
+use sodigy_mir::{GlobalContext, Intrinsic};
 use sodigy_span::Span;
 use std::collections::HashMap;
 
-impl Endec for Session {
+impl Endec for Session<'_, '_> {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         // changes everytime
         // self.intermediate_dir.encode_impl(buffer);
@@ -22,7 +22,6 @@ impl Endec for Session {
         // self.stack_offset.encode_impl(buffer);
 
         self.intrinsics.encode_impl(buffer);
-        self.lang_items.encode_impl(buffer);
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
     }
@@ -32,7 +31,6 @@ impl Endec for Session {
         let (asserts, cursor) = Vec::<Assert>::decode_impl(buffer, cursor)?;
         let (lets, cursor) = Vec::<Let>::decode_impl(buffer, cursor)?;
         let (intrinsics, cursor) = HashMap::<Span, Intrinsic>::decode_impl(buffer, cursor)?;
-        let (lang_items, cursor) = HashMap::<String, Span>::decode_impl(buffer, cursor)?;
         let (errors, cursor) = Vec::<Error>::decode_impl(buffer, cursor)?;
         let (warnings, cursor) = Vec::<Warning>::decode_impl(buffer, cursor)?;
 
@@ -53,16 +51,18 @@ impl Endec for Session {
                 stack_offset: 0,
 
                 intrinsics,
-                lang_items,
                 errors,
                 warnings,
+
+                // worker will load this
+                global_context: GlobalContext::new(),
             },
             cursor,
         ))
     }
 }
 
-impl DumpSession for Session {
+impl DumpSession for Session<'_, '_> {
     fn dump_session(&self) -> Vec<u8> {
         let s = format!(
             "{{ lets: {:?}, funcs: {:?}, asserts: {:?} }}",
