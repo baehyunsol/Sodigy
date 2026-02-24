@@ -1,4 +1,4 @@
-pub(crate) use sodigy_mir::{Expr, GlobalContext, Type};
+pub(crate) use sodigy_mir::{Expr, Type};
 use sodigy_mir::Session as MirSession;
 use std::collections::{HashMap, HashSet};
 
@@ -17,10 +17,10 @@ pub use type_solver::TypeSolver;
 
 // `mir_session`'s `global_context` is empty and cannot be initialized due to lifetime issues in workers.
 // So, the worker gives the real `global_context` as another input.
-pub fn solve_type(mut mir_session: MirSession<'static, 'static>, global_context: GlobalContext) -> (Session, MirSession<'static, 'static>) {
+pub fn solve_type<'hir, 'mir>(mut mir_session: MirSession<'hir, 'mir>) -> (Session, MirSession<'hir, 'mir>) {
     let mut has_error = false;
     let mut type_solver = TypeSolver::new(
-        global_context,
+        mir_session.global_context,
         mir_session.intermediate_dir.clone(),
     );
     let mut poly_solver = HashMap::new();
@@ -98,7 +98,7 @@ pub fn solve_type(mut mir_session: MirSession<'static, 'static>, global_context:
         // If we initialize it at every iteration, that'd be too expensive.
         // If we initialize it before the first iteration, we have too small type information to use.
         if poly_solver.is_empty() {
-            poly_solver = match type_solver.init_poly_solvers(&mir_session, global_context.polys.unwrap()) {
+            poly_solver = match type_solver.init_poly_solvers(&mir_session) {
                 Ok(s) => s,
                 Err(()) => {
                     has_error = true;
@@ -110,7 +110,7 @@ pub fn solve_type(mut mir_session: MirSession<'static, 'static>, global_context:
         match type_solver.get_mono_plan(&poly_solver, &mut dispatched_calls, &mir_session) {
             Ok(mono) => {
                 if !mono.is_empty() {
-                    mir_session.dispatch(&mono.dispatch_map, global_context.func_shapes.unwrap());
+                    mir_session.dispatch(&mono.dispatch_map);
                     // TODO: do we have to invalidate previous `generic_args` after dispatching?
                     continue;
                 }
@@ -160,7 +160,7 @@ pub fn solve_type(mut mir_session: MirSession<'static, 'static>, global_context:
         if let Err(()) = type_solver.check_all_types_infered(
             &mir_session.types,
             &mir_session.generic_args,
-            global_context.generic_def_span_rev.unwrap(),
+            mir_session.global_context.generic_def_span_rev.unwrap(),
             &dispatched_calls,
         ) {
             has_error = true;

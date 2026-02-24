@@ -23,7 +23,7 @@ impl TypeSolver<'_, '_> {
         already_dispatched: &mut HashSet<(Span /* call */, Span /* generic */)>,
         session: &Session,
     ) -> Result<MonomorphizePlan, ()> {
-        let poly_solver = self.init_poly_solvers(session, self.global_context.polys.unwrap())?;
+        let poly_solver = self.init_poly_solvers(session)?;
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 

@@ -312,7 +312,7 @@ fn compile(
 
         for module in modules.values_mut() {
             if let (CompileStage::Load, false) = (module.compile_stage, module.running) {
-                workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                workers[round_robin % workers.len()].send(MessageToWorker::Run(
                     Command::PerFileIr {
                         input_file_path: module.file_path.clone(),
                         input_module_path: module.module_path.clone(),
@@ -328,7 +328,7 @@ fn compile(
                         ),
                         stop_after: CompileStage::Hir,
                     },
-                ]))?;
+                ))?;
                 round_robin += 1;
                 module.compile_stage = CompileStage::Hir;
                 module.running = true;
@@ -348,7 +348,7 @@ fn compile(
         }
 
         if every_hir_complete {
-            workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+            workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::InterHir {
                     modules: modules.values().map(
                         |module| (module.module_path.clone(), module.span)
@@ -362,7 +362,7 @@ fn compile(
                         },
                     ),
                 },
-            ]))?;
+            ))?;
             round_robin += 1;
 
             for module in modules.values_mut() {
@@ -372,7 +372,7 @@ fn compile(
         }
 
         if every_mir_complete {
-            workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+            workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::InterMir {
                     modules: modules.values().map(
                         |module| (module.module_path.clone(), module.span)
@@ -386,7 +386,7 @@ fn compile(
                         },
                     ),
                 },
-            ]))?;
+            ))?;
             round_robin += 1;
 
             for module in modules.values_mut() {
@@ -396,7 +396,7 @@ fn compile(
         }
 
         if every_bytecode_complete {
-            workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+            workers[round_robin % workers.len()].send(MessageToWorker::Run(
                 Command::CodeGen {
                     modules: modules.values().map(
                         |module| (module.module_path.clone(), module.span)
@@ -404,7 +404,7 @@ fn compile(
                     intermediate_dir: ir_dir.clone(),
                     backend,
                     output_path: output_path.clone(),
-                }],
+                },
             ))?;
             round_robin += 1;
 
@@ -469,16 +469,16 @@ fn compile(
                         match (compile_stage, module_path) {
                             (CompileStage::InterHir, None) => {
                                 for worker in workers.iter() {
-                                    worker.send(MessageToWorker::Run(vec![
+                                    worker.send(MessageToWorker::Run(
                                         Command::LoadInterHirSession { intermediate_dir: ir_dir.clone() },
-                                    ]))?;
+                                    ))?;
                                 }
 
                                 for module in modules.values_mut() {
                                     module.compile_stage = CompileStage::InterHir;
                                     module.running = false;
 
-                                    workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                                    workers[round_robin % workers.len()].send(MessageToWorker::Run(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
@@ -494,22 +494,22 @@ fn compile(
                                             ),
                                             stop_after: CompileStage::Mir,
                                         },
-                                    ]))?;
+                                    ))?;
                                     round_robin += 1;
                                 }
                             },
                             (CompileStage::InterMir, None) => {
                                 for worker in workers.iter() {
-                                    worker.send(MessageToWorker::Run(vec![
+                                    worker.send(MessageToWorker::Run(
                                         Command::LoadMirGlobalContext { intermediate_dir: ir_dir.clone() },
-                                    ]))?;
+                                    ))?;
                                 }
 
                                 for module in modules.values_mut() {
                                     module.compile_stage = CompileStage::InterMir;
                                     module.running = false;
 
-                                    workers[round_robin % workers.len()].send(MessageToWorker::Run(vec![
+                                    workers[round_robin % workers.len()].send(MessageToWorker::Run(
                                         Command::PerFileIr {
                                             input_file_path: module.file_path.clone(),
                                             input_module_path: module.module_path.clone(),
@@ -524,7 +524,7 @@ fn compile(
                                                 },
                                             ),
                                             stop_after: CompileStage::BytecodeOptimize,
-                                        }],
+                                        },
                                     ))?;
                                     round_robin += 1;
                                 }

@@ -53,7 +53,7 @@ impl TypeSolver<'_, '_> {
         }
     }
 
-    pub fn init_poly_solvers(&mut self, session: &Session, polys: &HashMap<Span, Poly>) -> Result<HashMap<Span, PolySolver>, ()> {
+    pub fn init_poly_solvers(&mut self, session: &Session) -> Result<HashMap<Span, PolySolver>, ()> {
         let mut has_error = false;
         let mut result = HashMap::new();
         let index_by_span = session.funcs.iter().enumerate().map(
@@ -64,7 +64,7 @@ impl TypeSolver<'_, '_> {
         // impls:
         //     `#[impl(add)] fn add_int(a: Int, b: Int) -> Int;`
         //     `#[impl(add)] fn add_homo<T>(a: T, b: T) -> Int;`
-        for (span, poly) in polys.iter() {
+        for (span, poly) in session.global_context.polys.unwrap().iter() {
             let poly_def = &session.funcs[*index_by_span.get(span).unwrap()];
 
             // poly_type: `Fn(?T, ?U) -> Int`
