@@ -26,6 +26,8 @@ As of now, this is the main test suite. It is very similar to rust's [compiletes
 
 Every case has a timeout: 30 seconds for compile and 30 seconds for run. You can't change the timeout.
 
+It panics if there's an error in the test itself. For example, if there's a syntax error in an expected-output file, the entire test runner will panic. So, if the runner panics, please read the panic message, fix your test case and rerun the test runner.
+
 #### Add cases (single-file)
 
 If your test case consists of a single file, add the file to `tests/compile-and-run/`. The file name must start with the name of the test-case, and its extension must be `.sdg`. There should be no dot (`.`) character in the test-case name.

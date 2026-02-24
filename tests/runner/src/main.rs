@@ -25,7 +25,7 @@ fn main() {
 
     match args.get(1).map(|arg| arg.as_str()) {
         Some("cnr") => {
-            compile_and_run::run_with_condition(
+            compile_and_run::run_cases(
                 args.get(2).map(|arg| arg.to_string()),
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
@@ -46,7 +46,7 @@ fn main() {
             }
 
             let crates = Some(crate_test::run_all(&join(&root, "crates").unwrap()));
-            let compile_and_run_result = Some(compile_and_run::run_with_condition(
+            let compile_and_run_result = Some(compile_and_run::run_cases(
                 None,
                 &root,
                 &join3(&root, "tests", "compile-and-run").unwrap(),
