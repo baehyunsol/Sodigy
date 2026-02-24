@@ -232,7 +232,7 @@ fn collect_diff_files(dir: &str) -> HashMap<String, String> {
     let diff_file_re = Regex::new(r"json-(.+)").unwrap();
     let mut result = HashMap::new();
 
-    for file in read_dir(dir, false).unwrap() {
+    for file in read_dir(dir, false).unwrap_or(vec![]) {
         let name = basename(&file).unwrap();
 
         if let Some(c) = diff_file_re.captures(&name) {
