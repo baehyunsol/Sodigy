@@ -36,6 +36,7 @@ use sodigy_fs_api::{
     read_bytes,
     read_dir,
     remove_dir,
+    remove_dir_all,
     set_current_dir,
     write_string,
 };
@@ -206,7 +207,14 @@ fn run() -> Result<(), Error> {
             // intermediate_dir not needed
             "",
         ),
-        _ => todo!(),
+        CliCommand::Clean => {
+            if exists(&ir_dir) {
+                remove_dir_all(&ir_dir)?;
+            }
+
+            Ok(())
+        },
+        CliCommand::Help(command) => todo!(),
     }
 }
 

@@ -10,6 +10,16 @@ pub struct Output {
     pub stderr: Vec<u8>,
 }
 
+impl Output {
+    pub fn success(&self) -> bool {
+        self.status.success()
+    }
+
+    pub fn code(&self) -> Option<i32> {
+        self.status.code()
+    }
+}
+
 #[derive(Debug)]
 pub enum SubprocessError {
     Timeout,

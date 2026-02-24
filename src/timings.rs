@@ -139,6 +139,7 @@ pub enum Frame {
 
 const FRAME_COUNT: usize = 4096;
 
+#[derive(Clone, Debug)]
 struct Stats {
     start: u64,
     end: u64,
@@ -150,8 +151,6 @@ struct Stats {
     total_modules: usize,
 }
 
-// TODO: test with empty timings
-
 // VIBE NOTE: I don't know much about html/css, so GEMINI and KIMI-K2.5 (both via Perplexity) did a lot of work.
 //            They only did the html/css part.
 fn dump_timings_html(
@@ -160,6 +159,12 @@ fn dump_timings_html(
     timings: &HashMap<WorkerId, Vec<TimingsEntry>>,
 ) -> String {
     let (rows, stats) = into_rows(None, worker_ids, timings);
+
+    if stats.total_modules == 0 {
+        // TODO: nicer view for empty graphs
+        return String::from("There's no timings info.");
+    }
+
     let mut curr_stage = vec![None; worker_ids.len()];
     let mut frames_per_stage: HashMap<CompileStage, usize> = HashMap::new();
     let mut total_frames = 0;
@@ -320,7 +325,7 @@ updateGraph();
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sodigy Compiler Timeline</title>
+<title>Sodigy Compiler Timings</title>
 <style>{style}</style>
 </head>
 <body>

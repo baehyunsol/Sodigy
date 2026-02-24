@@ -52,6 +52,23 @@ pub struct CompileAndRun {
     pub run_elapsed_ms: Option<u64>,
 }
 
+impl Default for CompileAndRun {
+    fn default() -> CompileAndRun {
+        CompileAndRun {
+            name: String::new(),
+            error: None,
+            stdout: String::new(),
+            stderr: String::new(),
+            status: Status::MiscError,
+            stdout_colored: String::new(),
+            stderr_colored: String::new(),
+            hash: String::new(),
+            compile_elapsed_ms: 0,
+            run_elapsed_ms: None,
+        }
+    }
+}
+
 pub struct ExpectedOutput {
     pub compile_stdout: Option<Vec<LineMatcher>>,
     pub compile_stderr: Option<Vec<LineMatcher>>,
@@ -69,6 +86,10 @@ pub struct Directive {
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Status {
+    // Failed before `sodigy build`.
+    // It could be a file-IO error, an error at `sodigy clean`, ... etc.
+    MiscError,
+
     CompileTimeout,
     CompileFail,
 
@@ -170,10 +191,12 @@ fn run_case(
         run_stdout: parse_expected_output(&set_extension(&base_path, "run.stdout").unwrap()),
         run_stderr: parse_expected_output(&set_extension(&base_path, "run.stderr").unwrap()),
     };
+    let mut is_tmp_project = false;
 
     let project_dir = if exists(&test_file) {
         println!("running `tests/compile-and-run/{name}.sdg`");
         let tmp_dir = create_tmp_project(&test_file, root, sodigy_path).unwrap();
+        is_tmp_project = true;
         tmp_dir
     }
 
@@ -188,7 +211,7 @@ fn run_case(
         panic!("No compile-and-run test case named `{name}`.")
     };
 
-    run_case_inner(name, &project_dir, &expected_output, sodigy_path, dump_output)
+    run_case_inner(name, &project_dir, &expected_output, sodigy_path, is_tmp_project, dump_output)
 }
 
 fn run_case_inner(
@@ -196,6 +219,7 @@ fn run_case_inner(
     project_dir: &str,
     expected_output: &ExpectedOutput,
     sodigy_path: &str,
+    is_tmp_project: bool,
     dump_output: bool,
 ) -> CompileAndRun {
     let lib_src = join3(project_dir, "src", "lib.sdg").unwrap();
@@ -203,13 +227,37 @@ fn run_case_inner(
     let mut stdout_colored = vec![];
     let mut stderr_colored = vec![];
 
+    // TODO: do we have to hash expected_output?
+    let hash = format!("{:024x}", hash_dir(&join(project_dir, "src").unwrap()));
+
     if directive.expected_status == Status::CompileFail && expected_output.compile_stderr.is_none() {
         panic!("If you want to assert that `{name}` fails to compile, please add `{name}.compile.stderr` file.");
     }
 
-    // TODO: there may be ir_dir from previous test run -> remove it
-    // TODO: do we have to hash expected_output?
-    let hash = format!("{:024x}", hash_dir(&join(project_dir, "src").unwrap()));
+    if !is_tmp_project {
+        match subprocess::run(sodigy_path, &["clean"], project_dir, 5.0, false) {
+            Ok(output) if !output.success() => {
+                return CompileAndRun {
+                    name: name.to_string(),
+                    error: Some(format!("error at `sodigy clean` (exit status {:?})", output.code())),
+                    status: Status::MiscError,
+                    hash,
+                    ..CompileAndRun::default()
+                };
+            },
+            Err(e) => {
+                return CompileAndRun {
+                    name: name.to_string(),
+                    error: Some(format!("error at `sodigy clean`: {e:?}")),
+                    status: Status::MiscError,
+                    hash,
+                    ..CompileAndRun::default()
+                };
+            },
+            _ => {},
+        }
+    }
+
     let compile_started_at = Instant::now();
     let output = match subprocess::run(
         sodigy_path,
@@ -223,14 +271,10 @@ fn run_case_inner(
             return CompileAndRun {
                 name: name.to_string(),
                 error: Some(String::from("compile-timeout")),
-                stdout: String::new(),
-                stderr: String::new(),
                 status: Status::CompileTimeout,
-                stdout_colored: String::new(),
-                stderr_colored: String::new(),
-                hash,
                 compile_elapsed_ms: Instant::now().duration_since(compile_started_at).as_millis() as u64,
-                run_elapsed_ms: None,
+                hash,
+                ..CompileAndRun::default()
             };
         },
         Err(e) => panic!("{e:?}"),
