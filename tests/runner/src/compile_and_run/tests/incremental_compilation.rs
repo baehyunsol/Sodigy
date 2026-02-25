@@ -1,7 +1,9 @@
 use super::{CnrContext, CompileAndRun, Status};
 use sodigy_fs_api::{
+    FileError,
     WriteMode,
     basename,
+    exists,
     join,
     parent,
     read_dir,
@@ -61,22 +63,67 @@ impl CnrContext {
         let test_file_1_content = read_bytes(&test_file_1).map_err(|e| format!("{e:?}"))?;
         let test_file_2_content = read_bytes(&test_file_2).map_err(|e| format!("{e:?}"))?;
 
+        let r = self.incremental_compilation_test_inner(
+            &test_file_1,
+            &test_file_1_content,
+            &test_file_2,
+            &test_file_2_content,
+            &lib_file,
+            &tmp_file,
+        );
+
+        write_bytes(
+            &test_file_1,
+            &test_file_1_content,
+            WriteMode::CreateOrTruncate,
+        ).map_err(|e| format!("{e:?}"))?;
+        write_bytes(
+            &test_file_2,
+            &test_file_2_content,
+            WriteMode::CreateOrTruncate,
+        ).map_err(|e| format!("{e:?}"))?;
+        write_bytes(
+            &lib_file,
+            &lib_file_content,
+            WriteMode::CreateOrTruncate,
+        ).map_err(|e| format!("{e:?}"))?;
+
+        if exists(&tmp_file) {
+            remove_file(&tmp_file).map_err(|e| format!("{e:?}"))?;
+        }
+
+        r.map_err(|e| match e {
+            FileErrorOrString::FileError(e) => format!("{e:?}"),
+            FileErrorOrString::String(s) => s,
+        })
+    }
+
+    fn incremental_compilation_test_inner(
+        &self,
+        test_file_1: &str,
+        test_file_1_content: &[u8],
+        test_file_2: &str,
+        test_file_2_content: &[u8],
+        lib_file: &str,
+        tmp_file: &str,
+    ) -> Result<(), FileErrorOrString> {
+
         // step 1. remove `test_file_1` and run
         //
         // It should fail to compile, but should create caches for the other files.
-        remove_file(&test_file_1).map_err(|e| format!("{e:?}"))?;
-        self.run_sodigy(Status::CompileFail)?;
+        remove_file(test_file_1)?;
+        self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 1\n{e}"))?;
 
         // step 2. restore `test_file_1` and run
         //
         // It should compile, and parsing stages for files other than `test_file_1`
         // must be skipped.
         write_bytes(
-            &test_file_1,
-            &test_file_1_content,
+            test_file_1,
+            test_file_1_content,
             WriteMode::AlwaysCreate,
-        ).map_err(|e| format!("{e:?}"))?;
-        let run_result = self.run_sodigy(Status::RunPass)?;
+        )?;
+        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 2\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -85,12 +132,12 @@ impl CnrContext {
 
         // step 3. add erroneous statements to `test_file_2` and run
         write_bytes(
-            &test_file_2,
+            test_file_2,
             // name collision error in hir
             b"\n\nlet x = 100; let x = 100;",
             WriteMode::AlwaysAppend,
-        ).map_err(|e| format!("{e:?}"))?;
-        let run_result = self.run_sodigy(Status::CompileFail)?;
+        )?;
+        let run_result = self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 3\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -101,7 +148,7 @@ impl CnrContext {
         //
         // Everything has to be cached.
         // Step 3 and step 4 must emit the same error.
-        let run_result = self.run_sodigy(Status::CompileFail)?;
+        let run_result = self.run_sodigy(Status::CompileFail).map_err(|e| format!("failed at step 4\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -112,11 +159,11 @@ impl CnrContext {
 
         // step 5. make everything back to normal and run
         write_bytes(
-            &test_file_2,
-            &test_file_2_content,
+            test_file_2,
+            test_file_2_content,
             WriteMode::CreateOrTruncate,
-        ).map_err(|e| format!("{e:?}"))?;
-        let run_result = self.run_sodigy(Status::RunPass)?;
+        )?;
+        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 5\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -124,7 +171,7 @@ impl CnrContext {
         //   3. parsing `test_file_2` is not skipped
 
         // step 6. don't touch anything and run again
-        let run_result = self.run_sodigy(Status::RunPass)?;
+        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 6\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is skipped
@@ -133,16 +180,16 @@ impl CnrContext {
 
         // step 7. add a new file (with no errors) and run
         write_bytes(
-            &tmp_file,
+            tmp_file,
             b"let a_very_long_name_that_is_not_likely_to_be_used_by_the_test_case = 100;",
             WriteMode::AlwaysCreate,
-        ).map_err(|e| format!("{e:?}"))?;
+        )?;
         write_bytes(
-            &lib_file,
+            lib_file,
             b"\n\nmod a_very_long_name_that_is_not_likely_to_be_used_by_the_test_case;",
             WriteMode::AlwaysAppend,
-        ).map_err(|e| format!("{e:?}"))?;
-        let run_result = self.run_sodigy(Status::RunPass)?;
+        )?;
+        let run_result = self.run_sodigy(Status::RunPass).map_err(|e| format!("failed at step 7\n{e}"))?;
 
         // TODO: make sure that
         //   1. parsing `lib_file` is not skipped
@@ -150,12 +197,23 @@ impl CnrContext {
         //   3. parsing `test_file_2` is skipped
         //   4. parsing `tmp_file` is not skipped
 
-        write_bytes(
-            &lib_file,
-            &lib_file_content,
-            WriteMode::CreateOrTruncate,
-        ).map_err(|e| format!("{e:?}"))?;
-
         Ok(())
+    }
+}
+
+enum FileErrorOrString {
+    FileError(FileError),
+    String(String),
+}
+
+impl From<FileError> for FileErrorOrString {
+    fn from(e: FileError) -> FileErrorOrString {
+        FileErrorOrString::FileError(e)
+    }
+}
+
+impl From<String> for FileErrorOrString {
+    fn from(s: String) -> FileErrorOrString {
+        FileErrorOrString::String(s)
     }
 }

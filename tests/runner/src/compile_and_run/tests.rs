@@ -13,22 +13,19 @@ impl CnrContext {
     pub fn extra_tests(&self, result: &mut CompileAndRun) {
         if result.error.is_none() && result.status == Status::RunPass && self.sdg_files >= 3 {
             if let Err(e) = self.incremental_compilation_test(&result) {
-                result.error = Some(e);
-                result.status = Status::IncrementalCompilationTestFail;
+                result.error = Some(format!("incremental compilation test fail\n\n{e}"));
             }
         }
 
         if result.error.is_none() && result.status == Status::RunPass {
             if let Err(e) = self.optimization_test(&result) {
-                result.error = Some(e);
-                result.status = Status::OptimizationTestFail;
+                result.error = Some(format!("optimization test fail\n\n{e}"));
             }
         }
 
         if result.error.is_none() && result.status == Status::RunPass {
             if let Err(e) = self.mir_interpreter_test(&result) {
-                result.error = Some(e);
-                result.status = Status::MirInterpreterTestFail;
+                result.error = Some(format!("mir interpreter test fail\n\n{e}"));
             }
         }
 
@@ -39,8 +36,7 @@ impl CnrContext {
             result.status == Status::RunPass
         ) {
             if let Err(e) = self.type_switch_test(&result) {
-                result.error = Some(e);
-                result.status = Status::TypeSwitchTestFail;
+                result.error = Some(format!("type switch test fail\n\n{e}"));
             }
         }
     }
@@ -67,12 +63,12 @@ impl CnrContext {
             expected_result == Status::CompileFail
         );
 
-        // I use `sodigy run` command instead of `sodigy build` + `sodigy interpret` and that's intentional.
+        // I use `sodigy test` command instead of `sodigy build` + `sodigy interpret` and that's intentional.
         //
         // The main test runner uses `sodigy build` + `sodigy interpret` and I want to test another path.
         match subprocess::run(
             &self.sodigy_path,
-            &["run"],
+            &["test"],
             &self.project_dir,
             30.0,
             false,

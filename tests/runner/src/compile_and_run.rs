@@ -1,6 +1,3 @@
-use crate::subprocess::{self, SubprocessError};
-use lazy_static::lazy_static;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sodigy_fs_api::{
     FileError,
@@ -38,6 +35,8 @@ pub struct CompileAndRun {
     // This has nothing to do with test pass/fail.
     // For example, if the test expects this case to compile-fail, but this case
     // successfully compiles and runs, it's `Status::RunPass` but it's an erroneous test.
+    //
+    // In order to check test pass/fail, you have to check whether the `.error` field is None.
     pub status: Status,
 
     // Uses ANSI-terminal colors.
@@ -88,13 +87,6 @@ pub enum Status {
     RunTimeout,
     RunFail,
     RunPass,
-
-    // The runner may run extra tests if the main test succeeds.
-    // These variants are errors from the extra tests.
-    IncrementalCompilationTestFail,
-    OptimizationTestFail,
-    MirInterpreterTestFail,
-    TypeSwitchTestFail,
 }
 
 struct CnrContext {
@@ -195,9 +187,9 @@ fn run_cnr(
     sodigy_path: &str,
     dump_output: bool,
 ) -> CompileAndRun {
-    let prepared_cnr = prepare_cnr(name, root, sodigy_path, dump_output);
-    let mut result = prepared_cnr.main_test();
-    prepared_cnr.extra_tests(&mut result);
+    let cnr_context = prepare_cnr(name, root, sodigy_path, dump_output);
+    let mut result = cnr_context.main_test();
+    cnr_context.extra_tests(&mut result);
     result
 }
 
