@@ -1,8 +1,18 @@
-use crate::{Enum, EnumVariant, EnumVariantFields, StructField, Type, Visibility};
+use crate::{
+    AssociatedFunc,
+    Enum,
+    EnumShape,
+    EnumVariant,
+    EnumVariantFields,
+    StructField,
+    Type,
+    Visibility,
+};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::Generic;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 impl Endec for Enum {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
@@ -90,5 +100,30 @@ impl Endec for EnumVariantFields {
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for EnumShape {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
+        self.variants.encode_impl(buffer);
+        self.generics.encode_impl(buffer);
+        self.associated_funcs.encode_impl(buffer);
+        self.associated_lets.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
+        let (variants, cursor) = Vec::<EnumVariant>::decode_impl(buffer, cursor)?;
+        let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
+        let (associated_funcs, cursor) = HashMap::<InternedString, AssociatedFunc>::decode_impl(buffer, cursor)?;
+        let (associated_lets, cursor) = HashMap::<InternedString, Span>::decode_impl(buffer, cursor)?;
+        Ok((EnumShape {
+            name,
+            variants,
+            generics,
+            associated_funcs,
+            associated_lets,
+        }, cursor))
     }
 }

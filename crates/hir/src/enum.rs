@@ -1,4 +1,5 @@
 use crate::{
+    AssociatedFunc,
     Attribute,
     AttributeRule,
     Requirement,
@@ -40,6 +41,16 @@ pub enum EnumVariantFields {
     None,
     Tuple(Vec<Type>),
     Struct(Vec<StructField>),
+}
+
+// `crates/hir/src/lib.rs` will tell you what's the difference between Enum vs EnumShape
+#[derive(Clone, Debug)]
+pub struct EnumShape {
+    pub name: InternedString,
+    pub variants: Vec<EnumVariant>,
+    pub generics: Vec<Generic>,
+    pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
+    pub associated_lets: HashMap<InternedString, Span>,
 }
 
 impl Enum {
@@ -235,5 +246,19 @@ impl EnumVariant {
         }
 
         attribute_rule
+    }
+}
+
+impl EnumVariantFields {
+    pub fn erase_type_info(&mut self) {
+        match self {
+            EnumVariantFields::None => {},
+            EnumVariantFields::Tuple(elems) => todo!(),
+            EnumVariantFields::Struct(fields) => {
+                for field in fields.iter_mut() {
+                    field.type_annot = None;
+                }
+            },
+        }
     }
 }

@@ -1,4 +1,4 @@
-use crate::{AssociatedItem, AssociatedItemKind, Type};
+use crate::{AssociatedFunc, AssociatedItem, AssociatedItemKind, Type};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -65,5 +65,31 @@ impl Endec for AssociatedItemKind {
             Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for AssociatedFunc {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.name.encode_impl(buffer);
+        self.name_spans.encode_impl(buffer);
+        self.params.encode_impl(buffer);
+        self.is_pure.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
+        let (name_spans, cursor) = Vec::<Span>::decode_impl(buffer, cursor)?;
+        let (params, cursor) = usize::decode_impl(buffer, cursor)?;
+        let (is_pure, cursor) = bool::decode_impl(buffer, cursor)?;
+
+        Ok((
+            AssociatedFunc {
+                name,
+                name_spans,
+                params,
+                is_pure,
+            },
+            cursor,
+        ))
     }
 }

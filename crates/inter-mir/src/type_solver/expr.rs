@@ -1,7 +1,7 @@
 use super::TypeSolver;
 use crate::{Expr, Type};
 use crate::error::{ErrorContext, TypeError};
-use sodigy_hir::FuncPurity;
+use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_mir::{Callable, ShortCircuitKind};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_parse::{Field, merge_field_spans};
@@ -727,7 +727,7 @@ impl TypeSolver<'_, '_> {
                                 // `x.unwrap()` is desugared to `@associated_func_unwrap_1(x)`.
                                 // `@associated_func_unwrap_1` is a poly-generic function and we can
                                 // easily reference the function with its name.
-                                Some((params, is_pure, _)) => {
+                                Some(AssociatedFunc { params, is_pure, .. }) => {
                                     let func_name = name.unintern_or_default(&self.intermediate_dir);
                                     let purity = if *is_pure { "pure" } else { "impure" };
                                     let poly_name = intern_string(

@@ -143,10 +143,42 @@ impl Session {
         }
 
         if let Some(field) = path.fields.get(0) {
+            let (field_name, field_span) = (field.unwrap_name(), field.unwrap_name_span());
+
+            if let Some(item_shape) = self.get_item_shape(path.id.def_span) {
+                if let Some(def_span) = item_shape.associated_lets().get(&field_name) {
+                    let new_id = IdentWithOrigin {
+                        id: field_name,
+                        span: field_span,
+                        origin: NameOrigin::Foreign { kind: NameKind::Let { is_top_level: true } },
+                        def_span: *def_span,
+                    };
+
+                    if path.fields.len() == 1 {
+                        *path = Path {
+                            id: new_id,
+                            fields: vec![],
+                            types: vec![None],
+                        };
+                        return Ok(());
+                    }
+
+                    else {
+                        *path = Path {
+                            id: new_id,
+                            fields: path.fields[1..].to_vec(),
+                            types: vec![
+                                vec![None],
+                                path.types[2..].to_vec(),
+                            ].concat(),
+                        };
+                        return self.resolve_path(path, None, log);
+                    }
+                }
+            }
+
             match self.item_name_map.get(&path.id.def_span) {
                 Some((kind @ (NameKind::Module | NameKind::Enum), items)) => {
-                    let (field_name, field_span) = (field.unwrap_name(), field.unwrap_name_span());
-
                     match items.get(&field_name) {
                         Some((item, item_kind)) => {
                             log.push(path.id.span);

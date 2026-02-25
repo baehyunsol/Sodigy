@@ -1,5 +1,5 @@
 use crate::Type;
-use sodigy_hir::{FuncShape, Poly, StructShape};
+use sodigy_hir::{EnumShape, FuncShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub struct GlobalContext<'hir, 'mir> {
     pub func_shapes: Option<&'hir HashMap<Span, FuncShape>>,
     pub struct_shapes: Option<&'hir HashMap<Span, StructShape>>,
+    pub enum_shapes: Option<&'hir HashMap<Span, EnumShape>>,
     pub polys: Option<&'hir HashMap<Span, Poly>>,
 
     // generic def span to func def span (or struct def span) map
@@ -24,6 +25,7 @@ impl<'hir> GlobalContext<'hir, '_> {
         GlobalContext {
             func_shapes: None,
             struct_shapes: None,
+            enum_shapes: None,
             polys: None,
             generic_def_span_rev: None,
             lang_items: None,
@@ -36,6 +38,7 @@ impl<'hir> GlobalContext<'hir, '_> {
         GlobalContext {
             func_shapes: Some(&session.func_shapes),
             struct_shapes: Some(&session.struct_shapes),
+            enum_shapes: Some(&session.enum_shapes),
             polys: Some(&session.polys),
             generic_def_span_rev: Some(&session.generic_def_span_rev),
             lang_items: Some(&session.lang_items),

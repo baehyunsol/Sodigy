@@ -1,4 +1,7 @@
 use sodigy_parse::Session as ParseSession;
+use sodigy_span::Span;
+use sodigy_string::InternedString;
+use std::collections::HashMap;
 
 // In sodigy_lex and sodigy_parse, the functions return `Result<T, Vec<Error>>`, and errors are handled by `?` operator.
 // That means
@@ -35,9 +38,30 @@ mod r#struct;
 mod r#type;
 mod r#use;
 
+// Func vs FuncShape
+// Enum vs EnumShape
+// Struct vs StructShape
+//
+// At first, I needed `HashMap<Span, Func>` for every function in the project (not just a module).
+// I needed every mir_session to have the map, and I thought it'd be too expensive to use `Func`
+// because it contains a function body.
+// So I created `FuncShape`, which is a smaller struct that contains necessary information of a function.
+// Then, I needed the same on for structs and enums, so I created `StructShape` and `EnumShape`.
+//
+// But soon, `StructShape` became as big as `Struct`, so `StructShape` became meaningless.
+// I then implemented global-context, which efficiently manages the global maps, so
+// `StructShape` and `EnumShape` become even more meaningless.
+//
+// So I tried to replace `HashMap<Span, StructShape>` in the global map with `HashMap<Span, Struct>`,
+// but that didn't work because I added `associated_funcs` and `associated_lets` fields to `StructShape`,
+// which don't make sense to be added to `Struct`.
+//
+// So... here we are. `Struct` the result of lowering `ast::Struct`, while `StructShape` is something
+// that's used by mir/bytecode sessions globally.
+
 pub use alias::Alias;
 pub use assert::Assert;
-pub use assoc::{AssociatedItem, AssociatedItemKind};
+pub use assoc::{AssociatedFunc, AssociatedItem, AssociatedItemKind};
 pub use attribute::{
     ArgCount,
     ArgType,
@@ -55,7 +79,7 @@ pub(crate) use attribute::get_decorator_error_notes;
 pub use block::Block;
 pub(crate) use block::BlockSession;
 pub use closure::CapturedNames;
-pub use r#enum::{Enum, EnumVariant, EnumVariantFields};
+pub use r#enum::{Enum, EnumShape, EnumVariant, EnumVariantFields};
 pub use eval::eval_const;
 pub use expr::{Expr, ExprOrString};
 pub use func::{CallArg, Func, FuncOrigin, FuncParam, FuncPurity, FuncShape};
@@ -93,4 +117,102 @@ pub fn lower(parse_session: ParseSession) -> Session {
 
     session.substitute_closures();
     session
+}
+
+pub enum ItemShape<'s> {
+    Struct(&'s mut StructShape),
+    Enum(&'s mut EnumShape),
+}
+
+impl ItemShape<'_> {
+    // I tried returning `Box<dyn Iterator<Item=AssociatedItem>>`, but there was a
+    // lifetime issue. I couldn't figure out how to fix, so I just collect the iterator.
+    pub fn existing_associations(&self) -> Vec<AssociatedItem> {
+        match self {
+            ItemShape::Struct(s) => s.fields.iter().map(
+                |field| AssociatedItem {
+                    kind: AssociatedItemKind::Field,
+                    name: field.name,
+                    name_span: field.name_span,
+                    ..AssociatedItem::default()
+                }
+            ).chain(
+                s.associated_funcs.iter().map(
+                    |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
+                        kind: AssociatedItemKind::Func,
+                        name: *name,
+                        name_span: name_spans[0],
+                        is_pure: Some(*is_pure),
+                        params: Some(*params),
+                        ..AssociatedItem::default()
+                    }
+                )
+            ).chain(
+                s.associated_lets.iter().map(
+                    |(name, name_span)| AssociatedItem {
+                        kind: AssociatedItemKind::Let,
+                        name: *name,
+                        name_span: *name_span,
+                        ..AssociatedItem::default()
+                    }
+                )
+            ).collect(),
+            ItemShape::Enum(e) => e.variants.iter().map(
+                |variant| AssociatedItem {
+                    kind: AssociatedItemKind::Variant,
+                    name: variant.name,
+                    name_span: variant.name_span,
+                    ..AssociatedItem::default()
+                }
+            ).chain(
+                e.associated_funcs.iter().map(
+                    |(name, AssociatedFunc { is_pure, params, name_spans, .. })| AssociatedItem {
+                        kind: AssociatedItemKind::Func,
+                        name: *name,
+                        name_span: name_spans[0],
+                        is_pure: Some(*is_pure),
+                        params: Some(*params),
+                        ..AssociatedItem::default()
+                    }
+                )
+            ).chain(
+                e.associated_lets.iter().map(
+                    |(name, name_span)| AssociatedItem {
+                        kind: AssociatedItemKind::Let,
+                        name: *name,
+                        name_span: *name_span,
+                        ..AssociatedItem::default()
+                    }
+                )
+            ).collect(),
+        }
+    }
+
+    pub fn associated_funcs_mut(&mut self) -> &mut HashMap<InternedString, AssociatedFunc> {
+        match self {
+            ItemShape::Struct(s) => &mut s.associated_funcs,
+            ItemShape::Enum(e) => &mut e.associated_funcs,
+        }
+    }
+
+    pub fn associated_lets_mut(&mut self) -> &mut HashMap<InternedString, Span> {
+        match self {
+            ItemShape::Struct(s) => &mut s.associated_lets,
+            ItemShape::Enum(e) => &mut e.associated_lets,
+        }
+    }
+
+    pub fn associated_funcs(&self) -> &HashMap<InternedString, AssociatedFunc> {
+        match self {
+            ItemShape::Struct(s) => &s.associated_funcs,
+            ItemShape::Enum(e) => &e.associated_funcs,
+        }
+    }
+
+    pub fn associated_lets(&self) -> &HashMap<InternedString, Span> {
+        match self {
+            ItemShape::Struct(s) => &s.associated_lets,
+            ItemShape::Enum(e) => &e.associated_lets,
+        }
+    }
 }

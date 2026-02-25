@@ -22,6 +22,7 @@ impl GlobalContext {
         MirGlobalContext {
             func_shapes: Some(&self.inter_hir_session.as_ref().unwrap().func_shapes),
             struct_shapes: Some(&self.inter_hir_session.as_ref().unwrap().struct_shapes),
+            enum_shapes: Some(&self.inter_hir_session.as_ref().unwrap().enum_shapes),
             polys: Some(&self.inter_hir_session.as_ref().unwrap().polys),
             generic_def_span_rev: Some(&self.inter_hir_session.as_ref().unwrap().generic_def_span_rev),
             lang_items: Some(&self.inter_hir_session.as_ref().unwrap().lang_items),

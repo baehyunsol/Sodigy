@@ -1,4 +1,5 @@
 use crate::{
+    AssociatedFunc,
     Attribute,
     AttributeRule,
     Expr,
@@ -37,17 +38,13 @@ pub struct StructInitField {
     pub value: Expr,
 }
 
+// `crates/hir/src/lib.rs` will tell you what's the difference between Struct vs StructShape
 #[derive(Clone, Debug)]
 pub struct StructShape {
     pub name: InternedString,
     pub fields: Vec<StructField>,
     pub generics: Vec<Generic>,
-
-    // There can be multiple associated functions with the same name,
-    // hence `Vec<Span>`. But they all must have the same number of params,
-    // hence `usize`.
-    // They all must have the same `is_pure`, hence `bool`.
-    pub associated_funcs: HashMap<InternedString, (usize, bool, Vec<Span>)>,
+    pub associated_funcs: HashMap<InternedString, AssociatedFunc>,
     pub associated_lets: HashMap<InternedString, Span>,
 }
 

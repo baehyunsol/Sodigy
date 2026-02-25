@@ -3,6 +3,7 @@ use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{
     AssociatedItem,
+    EnumShape,
     Expr,
     Func,
     FuncShape,
@@ -21,6 +22,7 @@ impl Endec for Session {
 
         self.func_shapes.encode_impl(buffer);
         self.struct_shapes.encode_impl(buffer);
+        self.enum_shapes.encode_impl(buffer);
         self.name_aliases.encode_impl(buffer);
         self.type_aliases.encode_impl(buffer);
 
@@ -39,6 +41,7 @@ impl Endec for Session {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (func_shapes, cursor) = HashMap::<Span, FuncShape>::decode_impl(buffer, cursor)?;
         let (struct_shapes, cursor) = HashMap::<Span, StructShape>::decode_impl(buffer, cursor)?;
+        let (enum_shapes, cursor) = HashMap::<Span, EnumShape>::decode_impl(buffer, cursor)?;
         let (name_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (type_aliases, cursor) = HashMap::<_, _>::decode_impl(buffer, cursor)?;
         let (item_name_map, cursor) = HashMap::<Span, (NameKind, HashMap<InternedString, (Span, NameKind)>)>::decode_impl(buffer, cursor)?;
@@ -58,6 +61,7 @@ impl Endec for Session {
                 intermediate_dir: String::new(),
                 func_shapes,
                 struct_shapes,
+                enum_shapes,
                 name_aliases,
                 type_aliases,
                 item_name_map,

@@ -1,0 +1,13 @@
+enum Color = { Red, Green, Blue };
+
+use Color.{Red, Green, Blue};
+
+// TODO: assert that the compiler warns "the last arm is unreachable"
+fn colors(c1, c2) = match (c1, c2) {
+    (Red, Red) => True,
+    (Red, _) => False,
+    (Green, Green) => True,
+    (Green, _) => False,
+    (Blue, Blue) => True,
+    (Blue, _) => False,
+};

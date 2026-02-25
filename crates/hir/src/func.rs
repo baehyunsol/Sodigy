@@ -92,6 +92,7 @@ pub struct CallArg {
     pub arg: Expr,
 }
 
+// `crates/hir/src/lib.rs` will tell you what's the difference between Func vs FuncShape
 #[derive(Clone, Debug)]
 pub struct FuncShape {
     pub params: Vec<FuncParam>,

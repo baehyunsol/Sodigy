@@ -1,4 +1,4 @@
-use crate::{Expr, Struct, StructInitField, StructField, StructShape, Visibility};
+use crate::{AssociatedFunc, Expr, Struct, StructInitField, StructField, StructShape, Visibility};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_parse::Generic;
 use sodigy_span::Span;
@@ -73,7 +73,7 @@ impl Endec for StructShape {
         let (name, cursor) = InternedString::decode_impl(buffer, cursor)?;
         let (fields, cursor) = Vec::<StructField>::decode_impl(buffer, cursor)?;
         let (generics, cursor) = Vec::<Generic>::decode_impl(buffer, cursor)?;
-        let (associated_funcs, cursor) = HashMap::<InternedString, (usize, bool, Vec<Span>)>::decode_impl(buffer, cursor)?;
+        let (associated_funcs, cursor) = HashMap::<InternedString, AssociatedFunc>::decode_impl(buffer, cursor)?;
         let (associated_lets, cursor) = HashMap::<InternedString, Span>::decode_impl(buffer, cursor)?;
         Ok((StructShape {
             name,

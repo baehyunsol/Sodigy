@@ -2,10 +2,12 @@ use sodigy_error::{Error, Warning};
 use sodigy_hir::{
     Alias,
     AssociatedItem,
+    EnumShape,
     Expr,
     Func,
     FuncParam,
     FuncShape,
+    ItemShape,
     Poly,
     StructField,
     StructShape,
@@ -22,6 +24,7 @@ pub struct Session {
     // of all hir files
     pub func_shapes: HashMap<Span, FuncShape>,
     pub struct_shapes: HashMap<Span, StructShape>,
+    pub enum_shapes: HashMap<Span, EnumShape>,
     pub name_aliases: HashMap<Span, Use>,
     pub type_aliases: HashMap<Span, Alias>,
 
@@ -52,7 +55,7 @@ pub struct Session {
 
     pub associated_items: Vec<AssociatedItem>,
 
-    // generic def span to func def span (or struct def span) map
+    // generic def span to func/struct/enum def span
     pub generic_def_span_rev: HashMap<Span, Span>,
 
     pub errors: Vec<Error>,
@@ -75,6 +78,7 @@ impl Session {
             intermediate_dir: intermediate_dir.to_string(),
             func_shapes: HashMap::new(),
             struct_shapes: HashMap::new(),
+            enum_shapes: HashMap::new(),
             name_aliases,
             type_aliases: HashMap::new(),
             item_name_map: HashMap::new(),
@@ -123,8 +127,12 @@ impl Session {
                         |field| StructField {
                             name: field.name,
                             name_span: field.name_span,
-                            type_annot: None,
                             default_value: field.default_value,
+
+                            // It's not gonna use this type annotation anymore.
+                            // It'll use `types` in the mir-session or mir-global-context.
+                            // Let's save some space by removing the type info.
+                            type_annot: None,
                         }
                     ).collect(),
                     generics: r#struct.generics.clone(),
@@ -134,6 +142,26 @@ impl Session {
             )
         ) {
             self.struct_shapes.insert(def_span, struct_shape);
+        }
+
+        for (def_span, enum_shape) in hir_session.enums.iter().map(
+            |r#enum| (
+                r#enum.name_span,
+                EnumShape {
+                    name: r#enum.name,
+                    variants: r#enum.variants.clone().into_iter().map(
+                        |mut variant| {
+                            variant.fields.erase_type_info();
+                            variant
+                        }
+                    ).collect(),
+                    generics: r#enum.generics.clone(),
+                    associated_funcs: HashMap::new(),
+                    associated_lets: HashMap::new(),
+                },
+            )
+        ) {
+            self.enum_shapes.insert(def_span, enum_shape);
         }
 
         let mut children = HashMap::new();
@@ -188,5 +216,15 @@ impl Session {
         self.poly_impls.extend(hir_session.poly_impls.drain(..));
         self.associated_items.extend(hir_session.associated_items.drain(..));
         self.generic_def_span_rev.extend(hir_session.generic_def_span_rev.drain());
+    }
+
+    pub fn get_item_shape<'s>(&'s mut self, def_span: Span) -> Option<ItemShape<'s>> {
+        match self.struct_shapes.get_mut(&def_span) {
+            Some(s) => Some(ItemShape::Struct(s)),
+            None => match self.enum_shapes.get_mut(&def_span) {
+                Some(e) => Some(ItemShape::Enum(e)),
+                None => None,
+            },
+        }
     }
 }
