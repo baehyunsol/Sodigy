@@ -5,7 +5,7 @@ use std::collections::hash_map::{Entry, HashMap};
 mod color;
 mod session;
 
-pub use color::Color;
+pub use color::{Color, apply_colors};
 pub use session::Session as RenderSpanSession;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -37,7 +37,7 @@ pub struct ColorOption {
 struct Line {
     content: Vec<u8>,
     colors: Vec<Option<Color>>,  // of underline
-    notes: Vec<(usize, String)>,  // (index, note)
+    notes: Vec<(usize, String, Color)>,  // (index, note, color of index)
 }
 
 // NOTE: In rust, when an identifier is very very long,
@@ -207,15 +207,17 @@ fn render_close_spans(
         for s in spans.iter() {
             match s.span {
                 Span::Range { start, end, .. } | Span::Derived { start, end, .. } => {
+                    let curr_span_color = if s.auxiliary { auxiliary_color } else { primary_color };
+
                     if i == start {
                         if let Span::Derived { kind, .. } = s.span {
                             if let Some(note) = kind.error_note() {
-                                curr_notes.push((col, note.to_string()));
+                                curr_notes.push((col, note.to_string(), curr_span_color));
                             }
                         }
 
                         if let Some(note) = &s.note {
-                            curr_notes.push((col, note.to_string()));
+                            curr_notes.push((col, note.to_string(), curr_span_color));
                         }
                     }
 
@@ -224,7 +226,7 @@ fn render_close_spans(
                         bottom = bottom.max(row);
                         left = left.min(col);
                         right = right.max(col);
-                        curr_byte_color = Some(if s.auxiliary { auxiliary_color } else { primary_color });
+                        curr_byte_color = Some(curr_span_color);
 
                         if beginning_row_col.is_none() {
                             beginning_row_col = Some((row + 1, col + 1));
@@ -411,17 +413,18 @@ fn render_span_worker(
                 pub asterisk: bool,
                 pub index: Vec<usize>,
                 pub far_left: bool,
+                pub color: Color,
             }
 
             // notes are always sorted by x
-            for (i, (x, note)) in line.notes.iter().enumerate() {
+            for (i, (x, note, color)) in line.notes.iter().enumerate() {
                 fn make_labels_deeper(
                     labels: &mut Vec<LabelMarker>,
                     mut curr_x: usize,
                     mut curr_depth: usize,
                     new_index: usize,
                 ) -> (usize, bool) {  // (depth, has_same_index)
-                    for LabelMarker { x, depth, asterisk, index, far_left: _ } in labels.iter_mut().rev() {
+                    for LabelMarker { x, depth, asterisk, index, far_left: _, color: _ } in labels.iter_mut().rev() {
                         if *x == curr_x {
                             index.push(new_index);
                             return (curr_depth, true);
@@ -448,7 +451,7 @@ fn render_span_worker(
                 max_depth = new_depth.max(max_depth);
 
                 if !has_same_index {
-                    labels.push(LabelMarker { depth: 1, x, asterisk: x == 0, index: vec![label_index + i], far_left });
+                    labels.push(LabelMarker { depth: 1, x, asterisk: x == 0, index: vec![label_index + i], far_left, color: *color });
                 }
 
                 let note_no = format!("({}): ", label_index + i);
@@ -456,7 +459,7 @@ fn render_span_worker(
 
                 for (j, note_line) in break_lines(note, line_max_width).iter().enumerate() {
                     note_lines.push((
-                        auxiliary_color.render_fg(&format!(
+                        color.render_fg(&format!(
                             "{}{note_line}",
                             if j == 0 {
                                 note_no.clone()
@@ -470,6 +473,7 @@ fn render_span_worker(
             }
 
             let mut label_lines = vec![vec![b' '; line.content.len() + 7]; max_depth * 2];
+            let mut label_line_colors = vec![vec![Color::None; line.content.len() + 7]; max_depth * 2];
 
             for label in labels.iter() {
                 let index_rendered = format!("({})", label.index.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(",")).into_bytes();
@@ -477,9 +481,12 @@ fn render_span_worker(
                 if label.far_left {
                     label_lines[label.depth * 2 - 1][0] = b'<';
                     label_lines[label.depth * 2 - 1][1] = b'-';
+                    label_line_colors[label.depth * 2 - 1][0] = label.color;
+                    label_line_colors[label.depth * 2 - 1][1] = label.color;
 
                     for (i, c) in index_rendered.iter().enumerate() {
                         label_lines[label.depth * 2 - 1][i + 2] = *c;
+                        label_line_colors[label.depth * 2 - 1][i + 2] = label.color;
                     }
                 }
 
@@ -488,15 +495,20 @@ fn render_span_worker(
 
                     for y in 0..(label.depth * 2 - 1) {
                         label_lines[y][x] = b'|';
+                        label_line_colors[y][x] = label.color;
                     }
 
                     if label.asterisk {
                         label_lines[label.depth * 2 - 1][x] = b'*';
                         label_lines[label.depth * 2 - 1][x + 1] = b'-';
                         label_lines[label.depth * 2 - 1][x + 2] = b'-';
+                        label_line_colors[label.depth * 2 - 1][x] = label.color;
+                        label_line_colors[label.depth * 2 - 1][x + 1] = label.color;
+                        label_line_colors[label.depth * 2 - 1][x + 2] = label.color;
 
                         for (i, c) in index_rendered.iter().enumerate() {
                             label_lines[label.depth * 2 - 1][x + 3 + i] = *c;
+                            label_line_colors[label.depth * 2 - 1][x + 3 + i] = label.color;
                         }
                     }
 
@@ -505,6 +517,7 @@ fn render_span_worker(
 
                         for (i, c) in index_rendered.iter().enumerate() {
                             label_lines[label.depth * 2 - 1][x + i - offset] = *c;
+                            label_line_colors[label.depth * 2 - 1][x + i - offset] = label.color;
                         }
                     }
                 }
@@ -512,9 +525,10 @@ fn render_span_worker(
 
             label_index += labels.len();
 
-            for mut line in label_lines.into_iter() {
+            for (mut line, mut colors) in label_lines.into_iter().zip(label_line_colors.into_iter()) {
                 while let Some(b' ') = line.last() {
                     line.pop().unwrap();
+                    colors.pop().unwrap();
                 }
 
                 code_lines.push((
@@ -523,7 +537,7 @@ fn render_span_worker(
                         " ".repeat(line_no.len()),
                         info_color.render_fg(&line_bar),
                         " ".repeat(pre_dots.len()),
-                        auxiliary_color.render_fg(&String::from_utf8_lossy(&line)),
+                        apply_colors(&line, &colors),
                     ),
                     RenderedLineKind::LabelMarker,
                 ));
