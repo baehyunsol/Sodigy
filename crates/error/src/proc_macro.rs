@@ -17,9 +17,9 @@
     MissingVisibility, CannotBePublic, DanglingVisibility,
     FunctionWithoutBody, StructWithoutBody, EnumWithoutBody,
     BlockWithoutValue, StructWithoutField, EmptyCurlyBraceBlock,
-    AmbiguousCurlyBraces, PositionalArgAfterKeywordArg,
-    NonDefaultValueAfterDefaultValue, CannotDeclareInlineModule,
-    InclusiveRangeWithNoEnd, MultipleRestPatterns,
+    AmbiguousCurlyBraces, AmbiguousAngleBrackets,
+    PositionalArgAfterKeywordArg, NonDefaultValueAfterDefaultValue,
+    CannotDeclareInlineModule, InclusiveRangeWithNoEnd, MultipleRestPatterns,
     DifferentNameBindingsInOrPattern, InvalidFnType, EmptyMatchStatement,
     RedundantDecorator(InternedString), InvalidDecorator(InternedString),
     MissingDecoratorArgument { expected: usize, got: usize },
@@ -109,9 +109,10 @@
             EnumWithoutBody => 177u16, ErrorKind :: BlockWithoutValue =>
             180u16, ErrorKind :: StructWithoutField => 185u16, ErrorKind ::
             EmptyCurlyBraceBlock => 190u16, ErrorKind :: AmbiguousCurlyBraces
-            => 191u16, ErrorKind :: PositionalArgAfterKeywordArg => 195u16,
-            ErrorKind :: NonDefaultValueAfterDefaultValue => 200u16, ErrorKind
-            :: CannotDeclareInlineModule => 205u16, ErrorKind ::
+            => 191u16, ErrorKind :: AmbiguousAngleBrackets => 192u16,
+            ErrorKind :: PositionalArgAfterKeywordArg => 195u16, ErrorKind ::
+            NonDefaultValueAfterDefaultValue => 200u16, ErrorKind ::
+            CannotDeclareInlineModule => 205u16, ErrorKind ::
             InclusiveRangeWithNoEnd => 210u16, ErrorKind ::
             MultipleRestPatterns => 215u16, ErrorKind ::
             DifferentNameBindingsInOrPattern => 220u16, ErrorKind ::
@@ -227,6 +228,7 @@
             StructWithoutField => ErrorLevel :: Error, ErrorKind ::
             EmptyCurlyBraceBlock => ErrorLevel :: Error, ErrorKind ::
             AmbiguousCurlyBraces => ErrorLevel :: Error, ErrorKind ::
+            AmbiguousAngleBrackets => ErrorLevel :: Error, ErrorKind ::
             PositionalArgAfterKeywordArg => ErrorLevel :: Error, ErrorKind ::
             NonDefaultValueAfterDefaultValue => ErrorLevel :: Error, ErrorKind
             :: CannotDeclareInlineModule => ErrorLevel :: Error, ErrorKind ::
@@ -397,6 +399,8 @@
             EmptyCurlyBraceBlock => { buffer.push(0u8); buffer.push(190u8); },
             ErrorKind :: AmbiguousCurlyBraces =>
             { buffer.push(0u8); buffer.push(191u8); }, ErrorKind ::
+            AmbiguousAngleBrackets =>
+            { buffer.push(0u8); buffer.push(192u8); }, ErrorKind ::
             PositionalArgAfterKeywordArg =>
             { buffer.push(0u8); buffer.push(195u8); }, ErrorKind ::
             NonDefaultValueAfterDefaultValue =>
@@ -724,7 +728,8 @@
             Ok((ErrorKind :: BlockWithoutValue, cursor)), 185u16 =>
             Ok((ErrorKind :: StructWithoutField, cursor)), 190u16 =>
             Ok((ErrorKind :: EmptyCurlyBraceBlock, cursor)), 191u16 =>
-            Ok((ErrorKind :: AmbiguousCurlyBraces, cursor)), 195u16 =>
+            Ok((ErrorKind :: AmbiguousCurlyBraces, cursor)), 192u16 =>
+            Ok((ErrorKind :: AmbiguousAngleBrackets, cursor)), 195u16 =>
             Ok((ErrorKind :: PositionalArgAfterKeywordArg, cursor)), 200u16 =>
             Ok((ErrorKind :: NonDefaultValueAfterDefaultValue, cursor)),
             205u16 => Ok((ErrorKind :: CannotDeclareInlineModule, cursor)),

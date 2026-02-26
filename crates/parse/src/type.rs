@@ -157,8 +157,8 @@ impl<'t, 's> Tokens<'t, 's> {
                         ) => {
                             let group_span_start = *span2;
                             path.push((*id, *span1));
-                            let args = self.parse_types(StopAt::AngleBracket)?;
-                            let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
+                            self.cursor += 1;
+                            let (args, group_span_end) = self.parse_types_in_angle_brackets()?;
 
                             return Ok(Type::Param {
                                 constructor: Path {
@@ -221,10 +221,8 @@ impl<'t, 's> Tokens<'t, 's> {
             ) => {
                 let group_span_start = *span2;
                 let (id, id_span) = (*id, *span1);
-                self.cursor += 2;
-
-                let args = self.parse_types(StopAt::AngleBracket)?;
-                let group_span_end = self.match_and_pop(TokenKind::Punct(Punct::Gt))?.span;
+                self.cursor += 1;
+                let (args, group_span_end) = self.parse_types_in_angle_brackets()?;
 
                 Ok(Type::Param {
                     constructor: Path {
@@ -245,15 +243,7 @@ impl<'t, 's> Tokens<'t, 's> {
                 let (id, id_span) = (*id, *span1);
                 let group_span = *span2;
                 let mut param_tokens = Tokens::new(tokens, span2.end(), &self.intermediate_dir);
-
-                // `parse_types` expects at least 1 type, but `Fn()` allows
-                // `params` to be empty. So we have to check whether `param_tokens`' empty
-                // before calling `.parse_types()`
-                let params = if param_tokens.is_empty() {
-                    vec![]
-                } else {
-                    param_tokens.parse_types(StopAt::Eof)?
-                };
+                let params = param_tokens.parse_types()?;
 
                 self.cursor += 2;
                 self.match_and_pop(TokenKind::Punct(Punct::ReturnType))?;
@@ -291,39 +281,30 @@ impl<'t, 's> Tokens<'t, 's> {
 
                 let result = match delim {
                     Delim::Parenthesis => {
-                        if tokens.is_empty() {
+                        let types = tokens.parse_types()?;
+                        let mut is_tuple = types.len() != 1;
+
+                        // `(Int)` is just an integer type, but `(Int,)` is a tuple type
+                        if types.len() == 1 && matches!(
+                            tokens.last(),
+                            Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
+                        ) {
+                            is_tuple = true;
+                        }
+
+                        if is_tuple {
                             Ok(Type::Tuple {
-                                types: vec![],
+                                types,
                                 group_span,
                             })
                         }
 
                         else {
-                            let types = tokens.parse_types(StopAt::Eof)?;
-                            let mut is_tuple = types.len() != 1;
-
-                            // `(Int)` is just an integer type, but `(Int,)` is a tuple type
-                            if types.len() == 1 && matches!(
-                                tokens.last(),
-                                Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
-                            ) {
-                                is_tuple = true;
-                            }
-
-                            if is_tuple {
-                                Ok(Type::Tuple {
-                                    types,
-                                    group_span,
-                                })
-                            }
-
-                            else {
-                                Ok(types[0].clone())
-                            }
+                            Ok(types[0].clone())
                         }
                     },
                     Delim::Bracket => {
-                        let r#type = tokens.parse_types(StopAt::Eof)?;
+                        let r#type = tokens.parse_types()?;
 
                         if let Some(unexpected_type_annot) = r#type.get(1) {
                             return Err(vec![Error {
@@ -377,105 +358,111 @@ impl<'t, 's> Tokens<'t, 's> {
         }
     }
 
-    // If it's inside angle brackets, `self` contains the `>` token, so it must point to the `>`
-    // after parsing is complete.
-    // If it's inside parenthesis or square brackets, it must consume all the tokens.
-    pub fn parse_types(&mut self, stop_at: StopAt) -> Result<Vec<Type>, Vec<Error>> {
+    // When it's called the cursor is pointing to `<`.
+    // When it returns successfully, the cursor must be pointing to the token
+    // after the closing angle bracket. The closing angle bracket can be `>` or `>>`.
+    //
+    // This is tricky because the lexer treats `>>` as a single token. So it splits `>>`,
+    // creates new `Tokens` instance, and parses the types with the new `Tokens`.
+    //
+    // There's an edge case: `x as <Int>>10`. It's a valid code, but the parser cannot handle this.
+    // The user has to write `(x as <Int>)>10` or `x as <Int> > 10`.
+    // We have to throw `AmbiguousAngleBrackets` error.
+    pub fn parse_types_in_angle_brackets(&mut self) -> Result<(Vec<Type>, Span), Vec<Error>> {
+        let mut new_tokens = vec![];
+        self.match_and_pop(TokenKind::Punct(Punct::Lt))?;
+        let mut stack: i32 = 1;
+        let mut next_cursor = 0;
+        let mut span_end = Span::None;
+
+        for (cursor, token) in self.enumerate_forward() {
+            if stack <= 0 {
+                break;
+            }
+
+            match token {
+                Token { kind: TokenKind::Punct(Punct::Lt), .. } => {
+                    stack += 1;
+                },
+                Token { kind: TokenKind::Punct(Punct::Gt), span } => {
+                    stack -= 1;
+                    span_end = *span;
+                    next_cursor = cursor;
+                },
+                Token { kind: TokenKind::Punct(Punct::Shr), span } => {
+                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: *span });
+                    new_tokens.push(Token { kind: TokenKind::Punct(Punct::Gt), span: *span });
+                    stack -= 2;
+                    span_end = *span;
+                    next_cursor = cursor;
+                    continue;
+                },
+                _ => {},
+            }
+
+            new_tokens.push(token.clone());
+        }
+
+        match stack {
+            0 => {},  // no problem
+            1.. => {
+                return Err(vec![self.unexpected_end(ErrorToken::Punct(Punct::Gt))]);
+            },
+            _ => {
+                return Err(vec![Error {
+                    kind: ErrorKind::AmbiguousAngleBrackets,
+                    spans: span_end.simple_error(),
+                    note: None,
+                }]);
+            },
+        }
+
+        // pops the last `>` (or `>>`) token
+        new_tokens.pop().unwrap();
+
+        if new_tokens.is_empty() {
+            // `x as <>` is an error
+            todo!();
+        }
+
+        self.cursor = next_cursor + 1;
+        let mut new_tokens = Tokens::new(&new_tokens, span_end, &self.intermediate_dir);
+        Ok((new_tokens.parse_types()?, span_end))
+    }
+
+    // It must consume all the tokens.
+    pub fn parse_types(&mut self) -> Result<Vec<Type>, Vec<Error>> {
         let mut types = vec![];
-        let expected_token = match stop_at {
-            // TODO: It'd be nice to have CommaOrParenthesis and CommaOrSquareBracket
-            StopAt::Eof => ErrorToken::Punct(Punct::Comma),
-            StopAt::AngleBracket => ErrorToken::CommaOrGt,
-        };
+
+        if self.peek().is_none() {
+            return Ok(vec![]);
+        }
 
         loop {
-            // `self.parse_type` is called at least once because `types` cannot be empty.
             types.push(self.parse_type()?);
 
             match self.peek2() {
                 // trailing comma
-                (
-                    Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }),
-                    Some(Token { kind: TokenKind::Punct(Punct::Gt), span }),
-                ) => match stop_at {
-                    StopAt::Eof => {
-                        return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedToken {
-                                expected: expected_token,
-                                got: ErrorToken::Punct(Punct::Gt),
-                            },
-                            spans: span.simple_error(),
-                            note: None,
-                        }]);
-                    },
-                    StopAt::AngleBracket => {
-                        return Ok(types);
-                    },
-                },
-                // trailing comma
-                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) => match stop_at {
-                    StopAt::Eof => {
-                        return Ok(types);
-                    },
-                    StopAt::AngleBracket => {
-                        return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedEof {
-                                expected: expected_token,
-                            },
-                            spans: self.span_end.simple_error(),
-                            note: None,
-                        }]);
-                    },
+                (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), None) => {
+                    return Ok(types);
                 },
                 (Some(Token { kind: TokenKind::Punct(Punct::Comma), .. }), _) => {
                     self.cursor += 1;
                 },
-                (Some(Token { kind: TokenKind::Punct(Punct::Gt), span }), _) => match stop_at {
-                    StopAt::Eof => {
-                        return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedToken {
-                                expected: expected_token,
-                                got: ErrorToken::Punct(Punct::Gt),
-                            },
-                            spans: span.simple_error(),
-                            note: None,
-                        }]);
-                    },
-                    StopAt::AngleBracket => {
-                        return Ok(types);
-                    },
-                },
                 (Some(t), _) => {
                     return Err(vec![Error {
                         kind: ErrorKind::UnexpectedToken {
-                            expected: expected_token,
+                            expected: ErrorToken::Punct(Punct::Comma),
                             got: (&t.kind).into(),
                         },
                         spans: t.span.simple_error(),
                         note: None,
                     }]);
                 },
-                (None, _) => match stop_at {
-                    StopAt::Eof => {
-                        return Ok(types);
-                    },
-                    StopAt::AngleBracket => {
-                        return Err(vec![Error {
-                            kind: ErrorKind::UnexpectedEof {
-                                expected: expected_token,
-                            },
-                            spans: self.span_end.simple_error(),
-                            note: None,
-                        }]);
-                    },
+                (None, _) => {
+                    return Ok(types);
                 },
             }
         }
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum StopAt {
-    Eof,
-    AngleBracket,
 }

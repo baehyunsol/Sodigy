@@ -76,6 +76,7 @@ error_kinds!(
     (StructWithoutField,                                             185,    Error),
     (EmptyCurlyBraceBlock,                                           190,    Error),
     (AmbiguousCurlyBraces,                                           191,    Error),
+    (AmbiguousAngleBrackets,                                         192,    Error),
     (PositionalArgAfterKeywordArg,                                   195,    Error),
     (NonDefaultValueAfterDefaultValue,                               200,    Error),
     (CannotDeclareInlineModule,                                      205,    Error),

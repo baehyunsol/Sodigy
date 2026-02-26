@@ -1,0 +1,5 @@
+let x = 3;
+
+// This is a valid syntax, but the parser cannot handle this.
+// It has to be `(x as <Int>) > 10` or `x as <Int> > 10`.
+let y = x as <Int>>10;

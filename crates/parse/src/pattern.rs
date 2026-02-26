@@ -321,7 +321,8 @@ impl ParsePatternContext {
     pub fn expected_token(&self) -> ErrorToken {
         match self {
             ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
-            ParsePatternContext::IfLet | ParsePatternContext::Let => ErrorToken::Punct(Punct::Assign),
+            ParsePatternContext::IfLet => ErrorToken::Punct(Punct::Assign),
+            ParsePatternContext::Let => ErrorToken::AssignOrColon,
             ParsePatternContext::Group => ErrorToken::Punct(Punct::Comma),
         }
     }
@@ -970,20 +971,15 @@ impl<'t, 's> Tokens<'t, 's> {
                                             None,
                                         ),
                                     },
-                                    _ if context.expected_token().unwrap_punct() == p => {
-                                        break;
-                                    },
-                                    _ => match context {
-                                        ParsePatternContext::Let | ParsePatternContext::IfLet => (
-                                            ErrorToken::Punct(Punct::Assign),
-                                            None,
-                                        ),
-                                        ParsePatternContext::MatchArm => (
-                                            ErrorToken::Punct(Punct::Arrow),
-                                            None,
-                                        ),
-                                        ParsePatternContext::Group => (
-                                            ErrorToken::Punct(Punct::Comma),
+                                    _ => match (context, p) {
+                                        (ParsePatternContext::MatchArm, Punct::Arrow) |
+                                        (ParsePatternContext::IfLet, Punct::Assign) |
+                                        (ParsePatternContext::Let, Punct::Assign | Punct::Colon) |
+                                        (ParsePatternContext::Group, Punct::Comma) => {
+                                            break;
+                                        },
+                                        _ => (
+                                            context.expected_token(),
                                             None,
                                         ),
                                     },

@@ -23,6 +23,7 @@ pub enum ErrorToken {
     Item,  // fn / struct / enum / use / type / let
     Block,
     Operator,
+    AssignOrColon,
     AssignOrLt,
     AssignOrSemicolon,
     BraceOrCommaOrParenthesis,
@@ -31,15 +32,6 @@ pub enum ErrorToken {
     CommaOrDot,
     CommaOrGt,
     DotOrSemicolon,
-}
-
-impl ErrorToken {
-    pub fn unwrap_punct(&self) -> Punct {
-        match self {
-            ErrorToken::Punct(p) => *p,
-            _ => panic!(),
-        }
-    }
 }
 
 impl From<&TokenKind> for ErrorToken {

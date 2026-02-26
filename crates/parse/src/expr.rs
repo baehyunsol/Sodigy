@@ -664,9 +664,36 @@ impl<'t, 's> Tokens<'t, 's> {
                     };
                     continue;
                 },
-                Some(t) => panic!("TODO: {t:?}"),
-                None => {
-                    return Ok(lhs);
+                Some(Token {
+                    kind: TokenKind::Keyword(Keyword::As),
+                    span,
+                }) => {
+                    let (l_bp, r_bp) = as_binding_power();
+
+                    if l_bp < min_bp {
+                        break;
+                    }
+
+                    self.cursor += 1;
+
+                    let has_question_mark = match self.peek() {
+                        Some(Token { kind: TokenKind::Punct(Punct::QuestionMark), .. }) => {
+                            self.cursor += 1;
+                            true
+                        },
+                        _ => false,
+                    };
+                    let (types, _) = self.parse_types_in_angle_brackets()?;
+
+                    if types.len() != 1 {
+                        // `x as <Int, Int>` is an error
+                        //
+                        // `parse_types_in_angle_brackets` guarantees that `types` is not empty
+                        todo!();
+                    }
+                },
+                _ => {
+                    break;
                 },
             }
         }
@@ -736,8 +763,12 @@ fn call_binding_power() -> (u32, u32) {
     (CALL, CALL + 1)
 }
 
+fn as_binding_power() -> (u32, u32) {
+    (AS, AS + 1)
+}
+
 fn field_update_binding_power() -> (u32, u32) {
-    (MODIFY, MODIFY + 1)
+    (UPDATE, UPDATE + 1)
 }
 
 fn prefix_binding_power(op: PrefixOp) -> u32 {
@@ -775,12 +806,13 @@ fn postfix_binding_power(op: PostfixOp) -> u32 {
     }
 }
 
-const PATH: u32 = 39;  // a.b
-const STRUCT_INIT: u32 = 37;  // foo { a: 1, b: 2 }
-const CALL: u32 = 35;  // foo()
-const INDEX: u32 = 33;  // a[3]
-const QUESTION: u32 = 31;  // a?
-const NEG: u32 = 29;  // -a
+const PATH: u32 = 41;  // a.b
+const STRUCT_INIT: u32 = 39;  // foo { a: 1, b: 2 }
+const CALL: u32 = 37;  // foo()
+const INDEX: u32 = 35;  // a[3]
+const QUESTION: u32 = 33;  // a?
+const NEG: u32 = 31;  // -a, !a
+const AS: u32 = 29;
 const MUL: u32 = 27;  // a * b, a / b, a % b
 const ADD: u32 = 25;  // a + b, a - b
 const SHIFT: u32 = 23;  // a << b, a >> b
@@ -795,7 +827,7 @@ const APPEND: u32 = 15; const PREPEND: u32 = 15;
 const CONCAT: u32 = 13; const RANGE: u32 = 13;
 const COMP: u32 = 11;  // a < b, a > b, a <= b, a >= b
 const COMP_EQ: u32 = 9;  // a == b, a != b
-const MODIFY: u32 = 7;  // p `age 32
+const UPDATE: u32 = 7;  // p `age 32
 const LOGIC_AND: u32 = 5;  // a && b
 const LOGIC_OR: u32 = 3;  // a || b
 const PIPELINE: u32 = 1;  // x |> $ + 1

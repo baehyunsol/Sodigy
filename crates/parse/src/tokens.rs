@@ -147,4 +147,35 @@ impl<'t, 's> Tokens<'t, 's> {
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }
+
+    pub fn enumerate_forward(&self) -> impl Iterator<Item=(usize, &Token)> {
+        EnumerateForward::new(self)
+    }
+}
+
+struct EnumerateForward<'t> {
+    tokens: &'t [Token],
+    cursor: usize,
+}
+
+impl EnumerateForward<'_> {
+    pub fn new<'t>(tokens: &Tokens<'t, '_>) -> EnumerateForward<'t> {
+        EnumerateForward {
+            tokens: tokens.tokens,
+            cursor: tokens.cursor,
+        }
+    }
+}
+
+impl<'t> Iterator for EnumerateForward<'t> {
+    type Item = (usize, &'t Token);
+
+    fn next(&mut self) -> Option<(usize, &'t Token)> {
+        self.cursor += 1;
+
+        match self.tokens.get(self.cursor - 1) {
+            Some(token) => Some((self.cursor - 1, token)),
+            None => None,
+        }
+    }
 }

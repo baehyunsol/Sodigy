@@ -1,0 +1,18 @@
+// old compiler cannot parse `>>` in the type annotation!
+
+let very_complicated_type: Option<Result<[Int], [Int]>> = None;
+
+let even_more_complicated_type: Option<Option<Option<Int>>> = None;
+
+assert very_complicated_type == None;
+assert even_more_complicated_type == None;
+
+let ls1 = [
+    very_complicated_type,
+    Some(Ok([1, 2, 3])),
+];
+
+let ls2 = [
+    even_more_complicated_type,
+    Some(Some(Some(10))),
+];
