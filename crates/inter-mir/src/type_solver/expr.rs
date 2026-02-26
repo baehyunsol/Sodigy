@@ -506,10 +506,15 @@ impl TypeSolver<'_, '_> {
                             // The compiler checked it when lowering hir to mir.
                             assert_eq!(s.fields.len(), arg_types.len());
                             let s = s.clone();
+                            let call_span = *span;
 
                             for i in 0..arg_types.len() {
                                 let field_type = match types.get(&s.fields[i].name_span) {
-                                    Some(r#type) => r#type.clone(),
+                                    Some(r#type) => {
+                                        let mut r#type = r#type.clone();
+                                        r#type.substitute_generic_def(call_span, &generic_defs);
+                                        r#type
+                                    },
                                     None => Type::Var { def_span: s.fields[i].name_span, is_return: false },
                                 };
 
@@ -528,9 +533,31 @@ impl TypeSolver<'_, '_> {
                                 }
                             }
 
-                            // TODO: If it's generic, the type has to be `Type::Param`.
-                            //       But there's no way we can check whether it's generic or not
-                            (Some(Type::Static { def_span: *def_span, span: Span::None }), has_error)
+                            if !generic_defs.is_empty() {
+                                for generic_def in generic_defs.iter() {
+                                    self.add_type_var(Type::GenericArg { call: call_span, generic: *generic_def }, None);
+                                }
+                            }
+
+                            if s.generics.is_empty() {
+                                (Some(Type::Static { def_span: *def_span, span: Span::None }), has_error)
+                            } else {
+                                let args = s.generics.iter().map(
+                                    |generic| {
+                                        match generic_args.get(&(call_span, generic.name_span)) {
+                                            Some(r#type) => r#type.clone(),
+                                            None => Type::GenericArg { call: call_span, generic: generic.name_span },
+                                        }
+                                    }
+                                ).collect();
+
+                                (Some(Type::Param {
+                                    constructor_def_span: *def_span,
+                                    constructor_span: Span::None,
+                                    args,
+                                    group_span: Span::None,
+                                }), has_error)
+                            }
                         },
 
                         // This is kinda Internal Compiler Error.
@@ -714,6 +741,9 @@ impl TypeSolver<'_, '_> {
                             }
                         }
 
+                        // TODO: It doesn't make sense.
+                        // In `x.y`, if `y` is an associated-let, then `x` must be a struct (not an instance)
+                        // if `y` is an associated-func, then `x` must be an instance (not a struct)
                         match struct_shape.associated_lets.get(name) {
                             Some(associated_let) => match types.get(associated_let) {
                                 Some(t) => {

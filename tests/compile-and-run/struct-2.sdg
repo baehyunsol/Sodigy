@@ -1,0 +1,9 @@
+struct P<T> = {
+    n: T,
+};
+
+let x: P<Int> = P { n: 100 };
+let y: P<String> = P { n: "" };
+
+assert x.n == 100;
+assert y.n == "";
