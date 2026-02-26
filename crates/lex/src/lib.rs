@@ -4,7 +4,7 @@
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_file::File;
 use sodigy_number::{Base, InternedNumber, InternedNumberValue, intern_number_raw};
-use sodigy_span::Span;
+use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Delim, Keyword, Punct, Token, TokenKind, TokensOrString};
 use std::num::IntErrorKind;
@@ -407,17 +407,24 @@ impl Session {
                         });
                         self.cursor += 1;
                     },
-                    Some((delim, _)) => {
+                    Some((delim, span)) => {
                         return Err(Error {
                             kind: ErrorKind::UnmatchedGroup {
                                 expected: delim,
                                 got: *x,
                             },
-                            spans: Span::range(
-                                self.file,
-                                self.cursor,
-                                self.cursor + 1,
-                            ).simple_error(),
+                            spans: vec![
+                                RenderableSpan {
+                                    span,
+                                    auxiliary: false,
+                                    note: Some(format!("It expects `{}`.", delim as char)),
+                                },
+                                RenderableSpan {
+                                    span: Span::range(self.file, self.cursor, self.cursor + 1),
+                                    auxiliary: false,
+                                    note: Some(format!("But it got `{}`.", *x as char)),
+                                },
+                            ],
                             note: None,
                         });
                     },
