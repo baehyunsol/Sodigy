@@ -34,11 +34,6 @@ pub enum Expr {
         args: Vec<Expr>,
         arg_group_span: Span,
 
-        // If it's a generic function, def_spans of its generics (T, U, ...)
-        // are stored here so that `inter_mir::TypeSolver::solve_expr` can use.
-        // TODO: It has to be `generic_params`
-        generic_defs: Vec<Span>,
-
         // It helps generating error messages.
         // It has type `Vec<(keyword: InternedString, n: usize)>` where
         // nth argument in `args` has keyword `keyword`.
@@ -96,7 +91,6 @@ impl Expr {
             } => {
                 let mut has_error = false;
                 let mut def_span = None;
-                let mut generic_defs = vec![];
                 let mut given_keyword_arguments = vec![];
 
                 let (call_span, func) = match Expr::from_hir(func, session) {
@@ -149,15 +143,14 @@ impl Expr {
                 let mut mir_args = match def_span {
                     Some(def_span) => match session.global_context.func_shapes.unwrap().get(&def_span) {
                         Some(func_shape) => {
-                            for generic_def in func_shape.generics.iter() {
+                            for generic in func_shape.generics.iter() {
                                 session.generic_args.insert(
-                                    (call_span, generic_def.name_span),
+                                    (call_span, generic.name_span),
                                     Type::GenericArg {
                                         call: call_span,
-                                        generic: generic_def.name_span,
+                                        generic: generic.name_span,
                                     },
                                 );
-                                generic_defs.push(generic_def.name_span);
                             }
 
                             let params = func_shape.params.to_vec();
@@ -380,7 +373,6 @@ impl Expr {
                         func,
                         args,
                         arg_group_span: *arg_group_span,
-                        generic_defs,
                         given_keyword_arguments,
                     })
                 }
@@ -416,7 +408,6 @@ impl Expr {
                                     },
                                     args: vec![e],
                                     arg_group_span: derived_span,
-                                    generic_defs: vec![session.get_lang_item_span("fn.to_string.generic.0")],
                                     given_keyword_arguments: vec![],
                                 };
 
@@ -477,9 +468,6 @@ impl Expr {
                         func,
                         args: mir_elements,
                         arg_group_span: *group_span,
-
-                        // TODO: It needs `generic_def` if it's `Callable::ListInit`
-                        generic_defs: vec![],
                         given_keyword_arguments: vec![],
                     })
                 }
@@ -489,7 +477,6 @@ impl Expr {
             hir::Expr::StructInit { constructor, fields: hir_fields, group_span } => {
                 let group_span = *group_span;
                 let mut has_error = false;
-                let mut generic_defs = vec![];
                 let (def_span, call_span) = (constructor.id.def_span, constructor.id.span);
 
                 // for better error messages
@@ -503,15 +490,14 @@ impl Expr {
                         let mut invalid_fields = vec![];
 
                         if !struct_shape.generics.is_empty() {
-                            for generic_def in struct_shape.generics.iter() {
+                            for generic in struct_shape.generics.iter() {
                                 session.generic_args.insert(
-                                    (call_span, generic_def.name_span),
+                                    (call_span, generic.name_span),
                                     Type::GenericArg {
                                         call: call_span,
-                                        generic: generic_def.name_span,
+                                        generic: generic.name_span,
                                     },
                                 );
-                                generic_defs.push(generic_def.name_span);
                             }
                         }
 
@@ -727,7 +713,6 @@ impl Expr {
                                 },
                                 args: mir_fields_final,
                                 arg_group_span: group_span,
-                                generic_defs,
                                 given_keyword_arguments: vec![],
                             })
                         }
@@ -760,20 +745,16 @@ impl Expr {
                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
                     span: *op_span,
                 };
-                let generic_defs = op.get_generic_lang_items().iter().map(
-                    |lang_item| session.get_lang_item_span(lang_item)
-                ).collect();
 
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(rhs, session)?],
                     arg_group_span: rhs.error_span_wide().derive(SpanDeriveKind::Trivial),
-                    generic_defs,
                     given_keyword_arguments: vec![],
                 })
             },
             hir::Expr::InfixOp { op, op_span, lhs, rhs } => {
-                // `hir::Expr`'s span has more information that `mir::Expr`'s span.
+                // `hir::Expr`'s span has more information than `mir::Expr`'s span.
                 let expr_span = lhs.error_span_wide().merge(*op_span).merge(rhs.error_span_wide()).derive(SpanDeriveKind::Trivial);
 
                 match (
@@ -827,15 +808,11 @@ impl Expr {
                                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
                                     span: *op_span,
                                 };
-                                let generic_defs = op.get_generic_lang_items().iter().map(
-                                    |lang_item| session.get_lang_item_span(lang_item)
-                                ).collect();
 
                                 Ok(Expr::Call {
                                     func,
                                     args: vec![lhs, rhs],
                                     arg_group_span: expr_span,
-                                    generic_defs,
                                     given_keyword_arguments: vec![],
                                 })
                             },
@@ -849,15 +826,11 @@ impl Expr {
                     def_span: session.get_lang_item_span(op.get_def_lang_item()),
                     span: *op_span,
                 };
-                let generic_defs = op.get_generic_lang_items().iter().map(
-                    |lang_item| session.get_lang_item_span(lang_item)
-                ).collect();
 
                 Ok(Expr::Call {
                     func,
                     args: vec![Expr::from_hir(lhs, session)?],
                     arg_group_span: lhs.error_span_wide().derive(SpanDeriveKind::Trivial),
-                    generic_defs,
                     given_keyword_arguments: vec![],
                 })
             },
@@ -924,9 +897,6 @@ impl Callable {
 // TODO: can we do some optimizations here?
 fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
     let def_span = session.get_lang_item_span(InfixOp::Concat.get_def_lang_item());
-    let generic_defs = InfixOp::Concat.get_generic_lang_items().iter().map(
-        |lang_item| session.get_lang_item_span(lang_item)
-    ).collect();
 
     match strings.len() {
         0 | 1 => unreachable!(),
@@ -942,7 +912,6 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                 },
                 args: vec![lhs, rhs],
                 arg_group_span: derived_span,
-                generic_defs,
                 given_keyword_arguments: vec![],
             }
         },
@@ -958,7 +927,6 @@ fn concat_strings(mut strings: Vec<Expr>, session: &Session) -> Expr {
                 },
                 args: vec![head, tail],
                 arg_group_span: derived_span,
-                generic_defs,
                 given_keyword_arguments: vec![],
             }
         },

@@ -463,6 +463,20 @@ impl Func {
 
         attribute_rule
     }
+
+    pub fn shape(&self) -> FuncShape {
+        FuncShape {
+            params: self.params.iter().map(
+                |param| FuncParam {
+                    name: param.name,
+                    name_span: param.name_span,
+                    type_annot: None,
+                    default_value: param.default_value,
+                }
+            ).collect(),
+            generics: self.generics.clone(),
+        }
+    }
 }
 
 impl FuncParam {

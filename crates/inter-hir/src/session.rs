@@ -102,17 +102,7 @@ impl Session {
         for (def_span, func_shape) in hir_session.funcs.iter().map(
             |func| (
                 func.name_span,
-                FuncShape {
-                    params: func.params.iter().map(
-                        |param| FuncParam {
-                            name: param.name,
-                            name_span: param.name_span,
-                            type_annot: None,
-                            default_value: param.default_value,
-                        }
-                    ).collect(),
-                    generics: func.generics.clone(),
-                },
+                func.shape(),
             )
         ) {
             self.func_shapes.insert(def_span, func_shape);

@@ -56,7 +56,7 @@ impl Expr {
                 lhs.dispatch(map, func_shapes, generic_args);
                 rhs.dispatch(map, func_shapes, generic_args);
             },
-            Expr::Call { func, args, generic_defs, .. } => {
+            Expr::Call { func, args, .. } => {
                 let dispatch = match func {
                     Callable::Static { span, .. } => match map.get(span) {
                         Some(new_def_span) => Some((*new_def_span, *span)),
@@ -68,25 +68,20 @@ impl Expr {
                 if let Some((def_span, span)) = dispatch {
                     *func = Callable::Static { def_span, span };
 
-                    let mut new_generic_defs = vec![];
-
                     match func_shapes.get(&def_span) {
                         Some(func_shape) => {
-                            for generic_def in func_shape.generics.iter() {
+                            for generic in func_shape.generics.iter() {
                                 generic_args.insert(
-                                    (span, generic_def.name_span),
+                                    (span, generic.name_span),
                                     Type::GenericArg {
                                         call: span,
-                                        generic: generic_def.name_span,
+                                        generic: generic.name_span,
                                     },
                                 );
-                                new_generic_defs.push(generic_def.name_span);
                             }
                         },
                         None => unreachable!(),
                     }
-
-                    *generic_defs = new_generic_defs;
                 }
 
                 for arg in args.iter_mut() {

@@ -301,7 +301,7 @@ impl Type {
         }
     }
 
-    pub fn substitute_generic_def(&mut self, call: Span, generics: &[Span]) {
+    pub fn substitute_generic_param(&mut self, call: Span, generics: &[Span]) {
         match self {
             Type::GenericParam { def_span, .. } => {
                 if generics.contains(def_span) {
@@ -315,15 +315,15 @@ impl Type {
             Type::Blocked { .. } => {},
             Type::Tuple { args, .. } | Type::Param { args, .. } => {
                 for arg in args.iter_mut() {
-                    arg.substitute_generic_def(call, generics);
+                    arg.substitute_generic_param(call, generics);
                 }
             },
             Type::Func { r#return, params, .. } => {
                 for param in params.iter_mut() {
-                    param.substitute_generic_def(call, generics);
+                    param.substitute_generic_param(call, generics);
                 }
 
-                r#return.substitute_generic_def(call, generics);
+                r#return.substitute_generic_param(call, generics);
             },
         }
     }

@@ -326,8 +326,6 @@ fn constructor_to_expr(
                                         curr_field.clone(),
                                     ],
                                     arg_group_span: Span::None,
-                                    // Poly-solving is already done, so we don't need this.
-                                    generic_defs: vec![],
                                     given_keyword_arguments: vec![],
                                 }),
                                 else_span: Span::None,
@@ -341,8 +339,6 @@ fn constructor_to_expr(
                                         rhs,
                                     ],
                                     arg_group_span: Span::None,
-                                    // Poly-solving is already done, so we don't need this.
-                                    generic_defs: vec![],
                                     given_keyword_arguments: vec![],
                                 }),
                                 true_group_span: Span::None,
@@ -393,8 +389,6 @@ fn constructor_to_expr(
                     operand,
                 ],
                 arg_group_span: Span::None,
-                // Poly-solving is already done, so we don't need this.
-                generic_defs: vec![],
                 given_keyword_arguments: vec![],
             }
         },

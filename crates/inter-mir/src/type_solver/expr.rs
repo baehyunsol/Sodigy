@@ -378,7 +378,7 @@ impl TypeSolver<'_, '_> {
             //    - a generic function
             //      - it first converts `GenericParam` to `GenericArg` and does what
             //        a non-generic function does
-            Expr::Call { func, args, generic_defs, given_keyword_arguments, .. } => {
+            Expr::Call { func, args, given_keyword_arguments, .. } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -414,17 +414,22 @@ impl TypeSolver<'_, '_> {
 
                             let mut params = params.clone();
                             let mut return_type: Type = *r#return.clone();
+                            let generic_params = self.global_context.func_shapes.unwrap().get(def_span).map(
+                                |func_shape| func_shape.generics.iter().map(
+                                    |generic| generic.name_span
+                                ).collect()
+                            ).unwrap_or(vec![]);
                             let span = *span;
 
-                            if !generic_defs.is_empty() {
+                            if !generic_params.is_empty() {
                                 for param in params.iter_mut() {
-                                    param.substitute_generic_def(span, &generic_defs);
+                                    param.substitute_generic_param(span, &generic_params);
                                 }
 
-                                return_type.substitute_generic_def(span, &generic_defs);
+                                return_type.substitute_generic_param(span, &generic_params);
 
-                                for generic_def in generic_defs.iter() {
-                                    self.add_type_var(Type::GenericArg { call: span, generic: *generic_def }, None);
+                                for generic_param in generic_params.iter() {
+                                    self.add_type_var(Type::GenericArg { call: span, generic: *generic_param }, None);
                                 }
                             }
 
@@ -507,12 +512,15 @@ impl TypeSolver<'_, '_> {
                             assert_eq!(s.fields.len(), arg_types.len());
                             let s = s.clone();
                             let call_span = *span;
+                            let generic_params = s.generics.iter().map(
+                                |generic| generic.name_span
+                            ).collect::<Vec<_>>();
 
                             for i in 0..arg_types.len() {
                                 let field_type = match types.get(&s.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
-                                        r#type.substitute_generic_def(call_span, &generic_defs);
+                                        r#type.substitute_generic_param(call_span, &generic_params);
                                         r#type
                                     },
                                     None => Type::Var { def_span: s.fields[i].name_span, is_return: false },
@@ -533,9 +541,9 @@ impl TypeSolver<'_, '_> {
                                 }
                             }
 
-                            if !generic_defs.is_empty() {
-                                for generic_def in generic_defs.iter() {
-                                    self.add_type_var(Type::GenericArg { call: call_span, generic: *generic_def }, None);
+                            if !generic_params.is_empty() {
+                                for generic_param in generic_params.iter() {
+                                    self.add_type_var(Type::GenericArg { call: call_span, generic: *generic_param }, None);
                                 }
                             }
 
@@ -722,106 +730,114 @@ impl TypeSolver<'_, '_> {
         match r#type {
             Type::Static { def_span, .. } => {
                 let mut field_type = None;
-                let struct_shape = self.global_context.struct_shapes.unwrap().get(def_span).unwrap();
+                if let Some(struct_shape) = self.global_context.struct_shapes.unwrap().get(def_span) {
+                    match &field[0] {
+                        Field::Name { name, name_span, .. } => {
+                            for field in struct_shape.fields.iter() {
+                                if field.name == *name {
+                                    match types.get(&field.name_span) {
+                                        Some(t) => {
+                                            field_type = Some(t.clone());
+                                        },
+                                        None => {
+                                            field_type = Some(Type::Var { def_span: field.name_span, is_return: false });
+                                        },
+                                    }
 
-                match &field[0] {
-                    Field::Name { name, name_span, .. } => {
-                        for field in struct_shape.fields.iter() {
-                            if field.name == *name {
-                                match types.get(&field.name_span) {
+                                    break;
+                                }
+                            }
+
+                            // TODO: It doesn't make sense.
+                            // In `x.y`, if `y` is an associated-let, then `x` must be a struct (not an instance)
+                            // if `y` is an associated-func, then `x` must be an instance (not a struct)
+                            match struct_shape.associated_lets.get(name) {
+                                Some(associated_let) => match types.get(associated_let) {
                                     Some(t) => {
                                         field_type = Some(t.clone());
                                     },
                                     None => {
-                                        field_type = Some(Type::Var { def_span: field.name_span, is_return: false });
+                                        field_type = Some(Type::Var { def_span: *associated_let, is_return: false });
                                     },
-                                }
-
-                                break;
-                            }
-                        }
-
-                        // TODO: It doesn't make sense.
-                        // In `x.y`, if `y` is an associated-let, then `x` must be a struct (not an instance)
-                        // if `y` is an associated-func, then `x` must be an instance (not a struct)
-                        match struct_shape.associated_lets.get(name) {
-                            Some(associated_let) => match types.get(associated_let) {
-                                Some(t) => {
-                                    field_type = Some(t.clone());
                                 },
-                                None => {
-                                    field_type = Some(Type::Var { def_span: *associated_let, is_return: false });
-                                },
-                            },
-                            None => match struct_shape.associated_funcs.get(name) {
-                                // `x.unwrap()` is desugared to `@associated_func_unwrap_1(x)`.
-                                // `@associated_func_unwrap_1` is a poly-generic function and we can
-                                // easily reference the function with its name.
-                                Some(AssociatedFunc { params, is_pure, .. }) => {
-                                    let func_name = name.unintern_or_default(&self.intermediate_dir);
-                                    let purity = if *is_pure { "pure" } else { "impure" };
-                                    let poly_name = intern_string(
-                                        format!("associated_func::{func_name}::{purity}::{params}").as_bytes(),
-                                        &self.intermediate_dir,
-                                    ).unwrap();
+                                None => match struct_shape.associated_funcs.get(name) {
+                                    // `x.unwrap()` is desugared to `@associated_func_unwrap_1(x)`.
+                                    // `@associated_func_unwrap_1` is a poly-generic function and we can
+                                    // easily reference the function with its name.
+                                    Some(AssociatedFunc { params, is_pure, .. }) => {
+                                        let func_name = name.unintern_or_default(&self.intermediate_dir);
+                                        let purity = if *is_pure { "pure" } else { "impure" };
+                                        let poly_name = intern_string(
+                                            format!("associated_func::{func_name}::{purity}::{params}").as_bytes(),
+                                            &self.intermediate_dir,
+                                        ).unwrap();
 
-                                    field_type = Some(Type::Func {
-                                        fn_span: Span::None,
-                                        group_span: Span::None,
-                                        // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
-                                        params: (1..*params).map(
-                                            |i| Type::GenericArg {
+                                        field_type = Some(Type::Func {
+                                            fn_span: Span::None,
+                                            group_span: Span::None,
+                                            // Type of `x.unwrap` is `Fn() -> T`, not `Fn(Option<T>) -> T`
+                                            params: (1..*params).map(
+                                                |i| Type::GenericArg {
+                                                    call: *name_span,
+                                                    generic: Span::Poly {
+                                                        name: poly_name,
+                                                        kind: PolySpanKind::Param(i),
+                                                    },
+                                                }
+                                            ).collect(),
+                                            r#return: Box::new(Type::GenericArg {
                                                 call: *name_span,
                                                 generic: Span::Poly {
                                                     name: poly_name,
-                                                    kind: PolySpanKind::Param(i),
+                                                    kind: PolySpanKind::Return,
                                                 },
-                                            }
-                                        ).collect(),
-                                        r#return: Box::new(Type::GenericArg {
-                                            call: *name_span,
-                                            generic: Span::Poly {
-                                                name: poly_name,
-                                                kind: PolySpanKind::Return,
+                                            }),
+                                            purity: if *is_pure {
+                                                FuncPurity::Pure
+                                            } else {
+                                                FuncPurity::Impure
                                             },
-                                        }),
-                                        purity: if *is_pure {
-                                            FuncPurity::Pure
-                                        } else {
-                                            FuncPurity::Impure
-                                        },
-                                    });
+                                        });
+                                    },
+                                    None => {},
                                 },
-                                None => {},
-                            },
-                        }
-                    },
-                    Field::Index(i) => {
-                        let i = if *i < 0 { (*i + struct_shape.fields.len() as i64) as usize } else { *i as usize };
-                        field_type = types.get(&struct_shape.fields[i].name_span).cloned();
-                    },
-                    _ => todo!(),
+                            }
+                        },
+                        Field::Index(i) => {
+                            let i = if *i < 0 { (*i + struct_shape.fields.len() as i64) as usize } else { *i as usize };
+                            field_type = types.get(&struct_shape.fields[i].name_span).cloned();
+                        },
+                        _ => todo!(),
+                    }
+
+                    match field_type {
+                        Some(field_type) => {
+                            if field.len() == 1 {
+                                Ok(field_type)
+                            }
+
+                            else {
+                                self.get_type_of_field(
+                                    &field_type,
+                                    &field[1..],
+                                    types,
+                                    generic_args,
+                                )
+                            }
+                        },
+                        None => {
+                            // an error
+                            todo!()
+                        },
+                    }
                 }
 
-                match field_type {
-                    Some(field_type) => {
-                        if field.len() == 1 {
-                            Ok(field_type)
-                        }
+                else if let Some(enum_shape) = self.global_context.enum_shapes.unwrap().get(def_span) {
+                    todo!()
+                }
 
-                        else {
-                            self.get_type_of_field(
-                                &field_type,
-                                &field[1..],
-                                types,
-                                generic_args,
-                            )
-                        }
-                    },
-                    None => {
-                        // an error
-                        todo!()
-                    },
+                else {
+                    todo!()
                 }
             },
             Type::Tuple { args, .. } => {
@@ -865,7 +881,13 @@ impl TypeSolver<'_, '_> {
                     },
                 }
             },
-            Type::Param { .. } => todo!(),
+            Type::Param { .. } => {
+                // This is more complicated than I thought.
+                // 1. Let's say the type is `Result<Int, String>`.
+                // 2. Then the type would be `Type::Param { constructor: Result, args: [Int, String] }`
+                // 3. 
+                todo!()
+            },
             // `Type::Blocked` exists exactly for this reason.
             // Read the documentation at `crates/mir/src/type.rs`.
             Type::Var { def_span: span, .. } |

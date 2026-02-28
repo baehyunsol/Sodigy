@@ -177,7 +177,7 @@ impl Session {
                                 }
 
                                 // push `#[poly] fn @associated_func_unwrap_1<T1, T2>(x: T1) -> T2;` to the session.
-                                self.new_funcs.push(Func {
+                                let new_func = Func {
                                     is_pure,
                                     impure_keyword_span: None,
 
@@ -240,7 +240,9 @@ impl Session {
                                     foreign_names: HashMap::new(),
                                     captured_names: None,
                                     use_counts: HashMap::new(),
-                                });
+                                };
+                                self.func_shapes.insert(new_func.name_span, new_func.shape());
+                                self.new_funcs.push(new_func);
                             },
                         }
                     }
