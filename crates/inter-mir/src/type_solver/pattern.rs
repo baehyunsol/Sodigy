@@ -79,57 +79,69 @@ impl TypeSolver<'_, '_> {
             },
             PatternKind::Constant(Constant::Number { n, .. }) => match n.is_integer {
                 true => (
-                    Some(Type::Static {
-                        def_span: self.get_lang_item_span("type.Int"),
-                        span: Span::None,
+                    Some(Type::Data {
+                        constructor_def_span: self.get_lang_item_span("type.Int"),
+                        constructor_span: Span::None,
+                        args: None,
+                        group_span: None,
                     }),
                     false,
                 ),
                 false => (
-                    Some(Type::Static {
-                        def_span: self.get_lang_item_span("type.Number"),
-                        span: Span::None,
+                    Some(Type::Data {
+                        constructor_def_span: self.get_lang_item_span("type.Number"),
+                        constructor_span: Span::None,
+                        args: None,
+                        group_span: None,
                     }),
                     false,
                 ),
             },
             PatternKind::Constant(Constant::String { binary, .. }) => match *binary {
                 true => (
-                    Some(Type::Param {
+                    Some(Type::Data {
                         constructor_def_span: self.get_lang_item_span("type.List"),
                         constructor_span: Span::None,
-                        args: vec![Type::Static {
-                            def_span: self.get_lang_item_span("type.Byte"),
-                            span: Span::None,
-                        }],
-                        group_span: Span::None,
+                        args: Some(vec![Type::Data {
+                            constructor_def_span: self.get_lang_item_span("type.Byte"),
+                            constructor_span: Span::None,
+                            args: None,
+                            group_span: None,
+                        }]),
+                        group_span: Some(Span::None),
                     }),
                     false,
                 ),
                 false => (
-                    Some(Type::Param {
+                    Some(Type::Data {
                         constructor_def_span: self.get_lang_item_span("type.List"),
                         constructor_span: Span::None,
-                        args: vec![Type::Static {
-                            def_span: self.get_lang_item_span("type.Char"),
-                            span: Span::None,
-                        }],
-                        group_span: Span::None,
+                        args: Some(vec![Type::Data {
+                            constructor_def_span: self.get_lang_item_span("type.Char"),
+                            constructor_span: Span::None,
+                            args: None,
+                            group_span: None,
+                        }]),
+                        group_span: Some(Span::None),
                     }),
                     false,
                 ),
             },
             PatternKind::Constant(Constant::Char { .. }) => (
-                Some(Type::Static {
-                    def_span: self.get_lang_item_span("type.Char"),
-                    span: Span::None,
+                Some(Type::Data {
+                    constructor_def_span: self.get_lang_item_span("type.Char"),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
                 }),
                 false,
             ),
             PatternKind::Constant(Constant::Byte { .. }) => (
-                Some(Type::Static {
-                    def_span: self.get_lang_item_span("type.Byte"),
-                    span: Span::None,
+                Some(Type::Data {
+                    constructor_def_span: self.get_lang_item_span("type.Byte"),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
                 }),
                 false,
             ),
@@ -153,9 +165,11 @@ impl TypeSolver<'_, '_> {
                     }
 
                     (
-                        Some(Type::Tuple {
-                            args: elem_types,
-                            group_span: Span::None,
+                        Some(Type::Data {
+                            constructor_def_span: self.get_lang_item_span("type.Tuple"),
+                            constructor_span: Span::None,
+                            args: Some(elem_types),
+                            group_span: Some(Span::None),
                         }),
                         has_error,
                     )

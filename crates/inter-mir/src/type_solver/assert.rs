@@ -22,9 +22,11 @@ impl TypeSolver<'_, '_> {
 
         if let Some(assertion_type) = assertion_type {
             if let Err(()) = self.solve_supertype(
-                &Type::Static {
-                    def_span: self.get_lang_item_span("type.Bool"),
-                    span: Span::None,
+                &Type::Data {
+                    constructor_def_span: self.get_lang_item_span("type.Bool"),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
                 },
                 &assertion_type,
                 types,
@@ -50,16 +52,18 @@ impl TypeSolver<'_, '_> {
 
             if let Some(note_type) = note_type {
                 if let Err(()) = self.solve_supertype(
-                    // We shouldn't use `Type::Static { def_span: lang_item("type.String") }` here!!
+                    // We shouldn't use `Type::Data { constructor_def_span: lang_item("type.String"), .. }` here!!
                     // `String` is just an alias to `[Char]` and it's already resolved.
-                    &Type::Param {
+                    &Type::Data {
                         constructor_def_span: self.get_lang_item_span("type.List"),
                         constructor_span: Span::None,
-                        args: vec![Type::Static {
-                            def_span: self.get_lang_item_span("type.Char"),
-                            span: Span::None,
-                        }],
-                        group_span: Span::None,
+                        args: Some(vec![Type::Data {
+                            constructor_def_span: self.get_lang_item_span("type.Char"),
+                            constructor_span: Span::None,
+                            args: None,
+                            group_span: None,
+                        }]),
+                        group_span: Some(Span::None),
                     },
                     &note_type,
                     types,

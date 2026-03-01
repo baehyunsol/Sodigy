@@ -296,9 +296,9 @@ fn get_matrix(
     lang_items: &HashMap<String, Span>,
 ) -> Vec<(Vec<Field>, Constructor)> {
     match r#type {
-        Type::Static { def_span, .. } => {
+        Type::Data { constructor_def_span, args, .. } => {
             // TODO: It's toooo inefficient to call `lang_items.get()` everytime.
-            if def_span == lang_items.get("type.Int").unwrap() {
+            if constructor_def_span == lang_items.get("type.Int").unwrap() {
                 vec![(
                     vec![Field::Constructor],
                     Constructor::Range(Range {
@@ -311,27 +311,28 @@ fn get_matrix(
                 )]
             }
 
+            else if constructor_def_span == lang_items.get("type.Tuple").unwrap() {
+                let args = args.as_ref().unwrap();
+                let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
+    
+                for (i, arg) in args.iter().enumerate() {
+                    let mut arg_matrix = get_matrix(arg, lang_items);
+    
+                    for row in arg_matrix.iter_mut() {
+                        row.0.insert(0, Field::Index(i as i64));
+                    }
+    
+                    result.extend(arg_matrix);
+                }
+    
+                result
+            }
+
             else {
                 todo!()
             }
         },
-        Type::Tuple { args, .. } => {
-            let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
-
-            for (i, arg) in args.iter().enumerate() {
-                let mut arg_matrix = get_matrix(arg, lang_items);
-
-                for row in arg_matrix.iter_mut() {
-                    row.0.insert(0, Field::Index(i as i64));
-                }
-
-                result.extend(arg_matrix);
-            }
-
-            result
-        },
         Type::Never(_) => todo!(),
-        Type::Param { .. } => todo!(),
         Type::Func { .. } => todo!(),
         Type::GenericParam { .. } |
         Type::Var { .. } |

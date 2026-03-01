@@ -12,35 +12,46 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
 
     for (i, field) in fields.iter_mut().enumerate() {
         match &curr_type {
-            Type::Static { def_span, .. } => match field {
-                Field::Name { name, .. } => {
-                    let struct_shape = session.global_context.struct_shapes.unwrap().get(def_span).unwrap();
+            Type::Data { constructor_def_span, args, .. } => {
+                if constructor_def_span == session.global_context.lang_items.unwrap().get("type.Tuple").unwrap() {
+                    let args = args.as_ref().unwrap();
 
-                    for (j, field_def) in struct_shape.fields.iter().enumerate() {
-                        if *name == field_def.name {
-                            *field = Field::Index(j as i64);
-                            break;
-                        }
+                    match field {
+                        Field::Name { name, .. } => {
+                            for j in 0..args.len() {
+                                // TODO: Why isn't `name.eq(format!("_{j}").as_bytes())` working? Is it rustc bug?
+                                if InternedString::eq(name, format!("_{j}").as_bytes()) {
+                                    *field = Field::Index(j as i64);
+                                    break;
+                                }
+                            }
+                        },
+                        Field::Index(j) if *j < 0 => todo!(),
+                        _ => {
+                            // nothing to lower
+                        },
                     }
-                },
-                _ => {
-                    // nothing to lower
-                },
-            },
-            Type::Tuple { args, .. } => match field {
-                Field::Name { name, .. } => {
-                    for j in 0..args.len() {
-                        // TODO: Why isn't `name.eq(format!("_{j}").as_bytes())` working? Is it rustc bug?
-                        if InternedString::eq(name, format!("_{j}").as_bytes()) {
-                            *field = Field::Index(j as i64);
-                            break;
-                        }
+                }
+
+                else if let Some(struct_shape) = session.global_context.struct_shapes.unwrap().get(constructor_def_span) {
+                    match field {
+                        Field::Name { name, .. } => {
+                            for (j, field_def) in struct_shape.fields.iter().enumerate() {
+                                if *name == field_def.name {
+                                    *field = Field::Index(j as i64);
+                                    break;
+                                }
+                            }
+                        },
+                        _ => {
+                            // nothing to lower
+                        },
                     }
-                },
-                Field::Index(j) if *j < 0 => todo!(),
-                _ => {
-                    // nothing to lower
-                },
+                }
+
+                else {
+                    todo!()
+                }
             },
             _ => todo!(),
         }

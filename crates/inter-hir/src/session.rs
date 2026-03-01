@@ -7,7 +7,7 @@ use sodigy_hir::{
     Func,
     FuncParam,
     FuncShape,
-    ItemShape,
+    ItemShapeMut,
     Poly,
     StructField,
     StructShape,
@@ -208,11 +208,11 @@ impl Session {
         self.generic_def_span_rev.extend(hir_session.generic_def_span_rev.drain());
     }
 
-    pub fn get_item_shape<'s>(&'s mut self, def_span: Span) -> Option<ItemShape<'s>> {
+    pub fn get_item_shape<'s>(&'s mut self, def_span: Span) -> Option<ItemShapeMut<'s>> {
         match self.struct_shapes.get_mut(&def_span) {
-            Some(s) => Some(ItemShape::Struct(s)),
+            Some(s) => Some(ItemShapeMut::Struct(s)),
             None => match self.enum_shapes.get_mut(&def_span) {
-                Some(e) => Some(ItemShape::Enum(e)),
+                Some(e) => Some(ItemShapeMut::Enum(e)),
                 None => None,
             },
         }

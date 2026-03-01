@@ -12,34 +12,29 @@ use sodigy_token::Constant;
 // For comparison, use `Solver::equal()` method.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Type {
-    // Int
-    Static {
-        def_span: Span,
-        span: Span,
-    },
+    // `Int`, `Result<Int, String>`, `(Int, Int)`...
+    Data {
+        // If the type is `Result<Int, String>`, it's `Result`.
+        // If the type is `Int`, it's just def_span.
+        // If the type is `(Int, Int)`, it's the def_span of `Tuple`
+        constructor_def_span: Span,
 
-    // T in `fn first<T>(ls: [T]) -> T = ls[0];`
-    GenericParam {
-        def_span: Span,
-        span: Span,
-    },
+        // of the type annotation
+        constructor_span: Span,
 
-    // !
-    Never(Span),
+        // If the type is `Result<Int, String>`, it's `[Int, String]`.
+        // If the type is `Int`, it's None.
+        // If the type is `(Int, Int)`, it's `[Int, Int]`.
+        args: Option<Vec<Type>>,
 
-    Tuple {
-        args: Vec<Type>,
-
-        // of type annotation
-        group_span: Span,
-    },
-
-    // Result<Int, String>
-    Param {
-        constructor_def_span: Span,  // of `Result`
-        constructor_span: Span,  // of `Result` in the type annotation
-        args: Vec<Type>,    // `<Int, String>`
-        group_span: Span,
+        // If the type is `Result<Int, String>`,
+        //    - If there's a type annotation, it's the group span of the angle brackets.
+        //    - If there's no type annotation, it's `Some(Span::None)`.
+        // If the type is `Int`, it's None.
+        // If the type is `(Int, Int)`,
+        //     - If there's a type annotation, it's the group span of the parenthesis.
+        //     - If there's no type annotation, it's `Some(Span::None)`.
+        group_span: Option<Span>,
     },
 
     Func {
@@ -48,6 +43,15 @@ pub enum Type {
         params: Vec<Type>,
         r#return: Box<Type>,
         purity: FuncPurity,
+    },
+
+    // !
+    Never(Span),
+
+    // T in `fn first<T>(ls: [T]) -> T = ls[0];`
+    GenericParam {
+        def_span: Span,
+        span: Span,
     },
 
     // If a type annotation is missing, it creates a type variable.
@@ -120,9 +124,11 @@ impl Type {
                     NameOrigin::Local { kind } |
                     NameOrigin::Foreign { kind } => match kind {
                         NameKind::Struct |
-                        NameKind::Enum => Ok(Type::Static {
-                            def_span: path.id.def_span,
-                            span: path.id.span,
+                        NameKind::Enum => Ok(Type::Data {
+                            constructor_def_span: path.id.def_span,
+                            constructor_span: path.id.span,
+                            args: None,
+                            group_span: None,
                         }),
                         _ => {
                             session.errors.push(Error::todo(92226, &format!("lowering hir type: {hir_type:?}"), hir_type.error_span_wide()));
@@ -152,11 +158,11 @@ impl Type {
                 }
 
                 else {
-                    Ok(Type::Param {
+                    Ok(Type::Data {
                         constructor_def_span: constructor.id.def_span,
                         constructor_span: constructor.id.span,
-                        args,
-                        group_span: *group_span,
+                        args: Some(args),
+                        group_span: Some(*group_span),
                     })
                 }
             },
@@ -180,9 +186,11 @@ impl Type {
                 }
 
                 else {
-                    Ok(Type::Tuple {
-                        args: types,
-                        group_span: *group_span,
+                    Ok(Type::Data {
+                        constructor_def_span: session.get_lang_item_span("type.Tuple"),
+                        constructor_span: *group_span,
+                        args: Some(types),
+                        group_span: Some(*group_span),
                     })
                 }
             },
@@ -249,15 +257,16 @@ impl Type {
 
     pub fn get_type_vars(&self) -> Vec<Type> {
         match self {
-            Type::Static { .. } |
             Type::GenericParam { .. } |
             Type::Never(_) |
             Type::Blocked { .. } => vec![],
-            Type::Tuple { args, .. } | Type::Param { args, .. } => {
+            Type::Data { args, .. } => {
                 let mut result = vec![];
 
-                for arg in args.iter() {
-                    result.extend(arg.get_type_vars());
+                if let Some(args) = args {
+                    for arg in args.iter() {
+                        result.extend(arg.get_type_vars());
+                    }
                 }
 
                 result
@@ -277,13 +286,14 @@ impl Type {
 
     pub fn substitute(&mut self, type_var: &Type, r#type: &Type) {
         match self {
-            Type::Static { .. } |
             Type::GenericParam { .. } |
             Type::Never(_) |
             Type::Blocked { .. } => {},
-            Type::Tuple { args,  .. } | Type::Param { args, .. } => {
-                for arg in args.iter_mut() {
-                    arg.substitute(type_var, r#type);
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.substitute(type_var, r#type);
+                    }
                 }
             },
             Type::Func { r#return, params, .. } => {
@@ -308,14 +318,15 @@ impl Type {
                     *self = Type::GenericArg { call, generic: *def_span };
                 }
             },
-            Type::Static { .. } |
             Type::Never(_) |
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
-            Type::Tuple { args, .. } | Type::Param { args, .. } => {
-                for arg in args.iter_mut() {
-                    arg.substitute_generic_param(call, generics);
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.substitute_generic_param(call, generics);
+                    }
                 }
             },
             Type::Func { r#return, params, .. } => {
@@ -333,15 +344,16 @@ impl Type {
             Type::GenericParam { def_span, .. } => {
                 *self = Type::Var { def_span: *def_span, is_return: false };
             },
-            Type::Static { .. } |
             Type::Never(_) |
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => {},
             // `T<Int>` doesn't make sense...
-            Type::Tuple { args, .. } | Type::Param { args, .. } => {
-                for arg in args.iter_mut() {
-                    arg.generic_to_type_var();
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.generic_to_type_var();
+                    }
                 }
             },
             Type::Func { r#return, params, .. } => {
@@ -365,42 +377,54 @@ pub fn type_of(
     match expr {
         Expr::Ident(id) => global_context.types.unwrap().get(&id.def_span).map(|r#type| r#type.clone()),
         Expr::Constant(Constant::Number { n, .. }) => match n.is_integer {
-            true => Some(Type::Static {
-                def_span: *global_context.lang_items.unwrap().get("type.Int").unwrap(),
-                span: Span::None,
+            true => Some(Type::Data {
+                constructor_def_span: *global_context.lang_items.unwrap().get("type.Int").unwrap(),
+                constructor_span: Span::None,
+                args: None,
+                group_span: None,
             }),
-            false => Some(Type::Static {
-                def_span: *global_context.lang_items.unwrap().get("type.Number").unwrap(),
-                span: Span::None,
+            false => Some(Type::Data {
+                constructor_def_span: *global_context.lang_items.unwrap().get("type.Number").unwrap(),
+                constructor_span: Span::None,
+                args: None,
+                group_span: None,
             }),
         },
         Expr::Constant(Constant::String { binary, .. }) => match *binary {
-            true => Some(Type::Param {
+            true => Some(Type::Data {
                 constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
                 constructor_span: Span::None,
-                args: vec![Type::Static {
-                    def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
-                    span: Span::None,
-                }],
-                group_span: Span::None,
+                args: Some(vec![Type::Data {
+                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
+                }]),
+                group_span: Some(Span::None),
             }),
-            false => Some(Type::Param {
+            false => Some(Type::Data {
                 constructor_def_span: *global_context.lang_items.unwrap().get("type.List").unwrap(),
                 constructor_span: Span::None,
-                args: vec![Type::Static {
-                    def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
-                    span: Span::None,
-                }],
-                group_span: Span::None,
+                args: Some(vec![Type::Data {
+                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
+                    constructor_span: Span::None,
+                    args: None,
+                    group_span: None,
+                }]),
+                group_span: Some(Span::None),
             }),
         },
-        Expr::Constant(Constant::Char { .. }) => Some(Type::Static {
-            def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
-            span: Span::None,
+        Expr::Constant(Constant::Char { .. }) => Some(Type::Data {
+            constructor_def_span: *global_context.lang_items.unwrap().get("type.Char").unwrap(),
+            constructor_span: Span::None,
+            args: None,
+            group_span: None,
         }),
-        Expr::Constant(Constant::Byte { .. }) => Some(Type::Static {
-            def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
-            span: Span::None,
+        Expr::Constant(Constant::Byte { .. }) => Some(Type::Data {
+            constructor_def_span: *global_context.lang_items.unwrap().get("type.Byte").unwrap(),
+            constructor_span: Span::None,
+            args: None,
+            group_span: None,
         }),
         Expr::If(r#if) => type_of(&r#if.true_value, global_context),
         Expr::Match(r#match) => type_of(&r#match.arms[0].value, global_context),
@@ -410,10 +434,10 @@ pub fn type_of(
                 Some(Type::Func { r#return, .. }) => Some(*r#return.clone()),
                 _ => None,
             },
-            Callable::StructInit { def_span, .. } => Some(Type::Static {
-                def_span: *def_span,
-                span: Span::None,
-            }),
+
+            // If it has type args, there's no way we can figure that out...
+            Callable::StructInit { def_span, .. } => todo!(),
+
             Callable::TupleInit { .. } => {
                 let mut arg_types = Vec::with_capacity(args.len());
 
@@ -424,11 +448,11 @@ pub fn type_of(
                     }
                 }
 
-                Some(Type::Tuple {
-                    args: arg_types,
-
-                    // this is for the type annotation, hence None
-                    group_span: Span::None,
+                Some(Type::Data {
+                    constructor_def_span: *global_context.lang_items.unwrap().get("type.Tuple").unwrap(),
+                    constructor_span: Span::None,
+                    args: Some(arg_types),
+                    group_span: Some(Span::None),
                 })
             },
             _ => todo!(),
@@ -442,25 +466,27 @@ impl Session<'_, '_> {
     /// Make sure to call `init_span_string_map` before calling this function.
     pub fn render_type(&self, r#type: &Type) -> String {
         match r#type {
-            Type::Static { def_span, .. } | Type::GenericParam { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
-            Type::Tuple { args, .. } => format!(
-                "({}{})",
-                args.iter().map(
-                    |arg| self.render_type(arg)
-                ).collect::<Vec<_>>().join(", "),
-                if args.len() == 1 { "," } else { "" },
-            ),
-            Type::Param { constructor_def_span, args, .. } => {
-                let args = args.iter().map(
-                    |arg| self.render_type(arg)
-                ).collect::<Vec<_>>().join(", ");
+            Type::Data { constructor_def_span, args, .. } => {
+                if let Some(args) = args {
+                    let args = args.iter().map(
+                        |arg| self.render_type(arg)
+                    ).collect::<Vec<_>>().join(", ");
 
-                if *constructor_def_span == self.get_lang_item_span("type.List") {
-                    format!("[{args}]")
+                    if *constructor_def_span == self.get_lang_item_span("type.List") {
+                        format!("[{args}]")
+                    }
+
+                    else if *constructor_def_span == self.get_lang_item_span("type.Tuple") {
+                        format!("({args})")
+                    }
+
+                    else {
+                        format!("{}<{args}>", self.span_to_string(*constructor_def_span).unwrap_or_else(|| String::from("????")))
+                    }
                 }
 
                 else {
-                    format!("{}<{args}>", self.span_to_string(*constructor_def_span).unwrap_or_else(|| String::from("????")))
+                    self.span_to_string(*constructor_def_span).unwrap_or_else(|| String::from("????"))
                 }
             },
             Type::Func { params, r#return, purity, .. } => format!(
@@ -475,6 +501,7 @@ impl Session<'_, '_> {
                 ).collect::<Vec<_>>().join(", "),
                 self.render_type(r#return.as_ref()),
             ),
+            Type::GenericParam { def_span, .. } => self.span_to_string(*def_span).unwrap_or_else(|| String::from("????")),
             Type::Var { .. } |
             Type::GenericArg { .. } |
             Type::Blocked { .. } => String::from("_"),

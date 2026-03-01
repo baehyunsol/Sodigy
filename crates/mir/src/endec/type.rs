@@ -6,52 +6,42 @@ use sodigy_span::Span;
 impl Endec for Type {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         match self {
-            Type::Static { def_span, span } => {
+            Type::Data { constructor_def_span, constructor_span, args, group_span } => {
                 buffer.push(0);
-                def_span.encode_impl(buffer);
-                span.encode_impl(buffer);
-            },
-            Type::GenericParam { def_span, span } => {
-                buffer.push(1);
-                def_span.encode_impl(buffer);
-                span.encode_impl(buffer);
-            },
-            Type::Never(span) => {
-                buffer.push(2);
-                span.encode_impl(buffer);
-            },
-            Type::Tuple { args, group_span } => {
-                buffer.push(3);
-                args.encode_impl(buffer);
-                group_span.encode_impl(buffer);
-            },
-            Type::Param { constructor_def_span, constructor_span, args, group_span } => {
-                buffer.push(4);
                 constructor_def_span.encode_impl(buffer);
                 constructor_span.encode_impl(buffer);
                 args.encode_impl(buffer);
                 group_span.encode_impl(buffer);
             },
             Type::Func { fn_span, group_span, params, r#return, purity } => {
-                buffer.push(5);
+                buffer.push(1);
                 fn_span.encode_impl(buffer);
                 group_span.encode_impl(buffer);
                 params.encode_impl(buffer);
                 r#return.encode_impl(buffer);
                 purity.encode_impl(buffer);
             },
+            Type::Never(span) => {
+                buffer.push(2);
+                span.encode_impl(buffer);
+            },
+            Type::GenericParam { def_span, span } => {
+                buffer.push(3);
+                def_span.encode_impl(buffer);
+                span.encode_impl(buffer);
+            },
             Type::Var { def_span, is_return } => {
-                buffer.push(6);
+                buffer.push(4);
                 def_span.encode_impl(buffer);
                 is_return.encode_impl(buffer);
             },
             Type::GenericArg { call, generic } => {
-                buffer.push(7);
+                buffer.push(5);
                 call.encode_impl(buffer);
                 generic.encode_impl(buffer);
             },
             Type::Blocked { origin } => {
-                buffer.push(8);
+                buffer.push(6);
                 origin.encode_impl(buffer);
             },
         }
@@ -60,32 +50,13 @@ impl Endec for Type {
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         match buffer.get(cursor) {
             Some(0) => {
-                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::Static { def_span, span }, cursor))
-            },
-            Some(1) => {
-                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::GenericParam { def_span, span }, cursor))
-            },
-            Some(2) => {
-                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
-                Ok((Type::Never(span), cursor))
-            },
-            Some(3) => {
-                let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor + 1)?;
-                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::Tuple { args, group_span }, cursor))
-            },
-            Some(4) => {
                 let (constructor_def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (constructor_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                let (args, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
-                let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
-                Ok((Type::Param { constructor_def_span, constructor_span, args, group_span }, cursor))
+                let (args, cursor) = Option::<Vec<Type>>::decode_impl(buffer, cursor)?;
+                let (group_span, cursor) = Option::<Span>::decode_impl(buffer, cursor)?;
+                Ok((Type::Data { constructor_def_span, constructor_span, args, group_span }, cursor))
             },
-            Some(5) => {
+            Some(1) => {
                 let (fn_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (group_span, cursor) = Span::decode_impl(buffer, cursor)?;
                 let (params, cursor) = Vec::<Type>::decode_impl(buffer, cursor)?;
@@ -93,21 +64,30 @@ impl Endec for Type {
                 let (purity, cursor) = FuncPurity::decode_impl(buffer, cursor)?;
                 Ok((Type::Func { fn_span, group_span, params, r#return, purity }, cursor))
             },
-            Some(6) => {
+            Some(2) => {
+                let (span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                Ok((Type::Never(span), cursor))
+            },
+            Some(3) => {
+                let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
+                let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+                Ok((Type::GenericParam { def_span, span }, cursor))
+            },
+            Some(4) => {
                 let (def_span, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (is_return, cursor) = bool::decode_impl(buffer, cursor)?;
                 Ok((Type::Var { def_span, is_return }, cursor))
             },
-            Some(7) => {
+            Some(5) => {
                 let (call, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 let (generic, cursor) = Span::decode_impl(buffer, cursor)?;
                 Ok((Type::GenericArg { call, generic }, cursor))
             },
-            Some(8) => {
+            Some(6) => {
                 let (origin, cursor) = Span::decode_impl(buffer, cursor + 1)?;
                 Ok((Type::Blocked { origin }, cursor))
             },
-            Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 7..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

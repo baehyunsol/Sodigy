@@ -1,5 +1,9 @@
 use std.bool.{Bool, Bool.True};
 
+#[built_in]
+#[lang_item("type.Tuple")]
+pub struct Tuple;
+
 #[impl(std.op.eq)]
 fn eq_tuple0(_: (), _: ()) -> Bool = True;
 

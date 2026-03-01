@@ -327,7 +327,7 @@ impl TypeSolver<'_, '_> {
         }
     }
 
-    /// It checks whether `lhs` is supertype of `rhs`. If so, it returns the supertype (`rhs`).
+    /// It checks whether `lhs` is supertype of `rhs`. If so, it returns the supertype (`lhs`).
     /// For example, if there's Sodigy code `let x: Foo = y`, the compiler will call
     /// `solve_supertype(Foo, solve_expr(y))` because the type annotation has to be the supertype
     /// of the value.
@@ -363,12 +363,12 @@ impl TypeSolver<'_, '_> {
         bidirectional: bool,
     ) -> Result<Type, ()> {
         match (lhs, rhs) {
-            (Type::Static { def_span: exp_def, .. }, Type::Static { def_span: sub_def, .. }) => {
-                if *exp_def == *sub_def {
-                    Ok(lhs.clone())
-                }
-
-                else {
+            (Type::Never(_), Type::Never(_)) => Ok(lhs.clone()),
+            (
+                Type::Data { constructor_def_span: constructor1, args: args1, .. },
+                Type::Data { constructor_def_span: constructor2, args: args2, .. },
+            ) => {
+                if *constructor1 != *constructor2 {
                     if !is_checking_argument {
                         self.errors.push(TypeError::UnexpectedType {
                             expected: lhs.clone(),
@@ -379,16 +379,12 @@ impl TypeSolver<'_, '_> {
                         });
                     }
 
-                    Err(())
+                    return Err(());
                 }
-            },
-            (Type::Never(_), Type::Never(_)) => Ok(lhs.clone()),
-            (t1 @ Type::Tuple { args: args1, .. }, t2 @ Type::Tuple { args: args2, .. }) |
-            (t1 @ Type::Param { args: args1, .. }, t2 @ Type::Param { args: args2, .. }) => {
-                let (constructor, is_tuple) = match (t1, t2) {
-                    (Type::Tuple { .. }, _) => (None, true),
-                    (Type::Param { constructor_def_span: s1, .. }, Type::Param { constructor_def_span: s2, .. }) => {
-                        if *s1 != *s2 {
+
+                match (args1, args2) {
+                    (Some(args1), Some(args2)) => {
+                        if args1.len() != args2.len() {
                             if !is_checking_argument {
                                 self.errors.push(TypeError::UnexpectedType {
                                     expected: lhs.clone(),
@@ -399,83 +395,59 @@ impl TypeSolver<'_, '_> {
                                 });
                             }
 
-                            return Err(());
-                        }
-
-                        (Some(*s1), false)
-                    },
-                    _ => unreachable!(),
-                };
-
-                if args1.len() != args2.len() {
-                    if !is_checking_argument {
-                        self.errors.push(TypeError::UnexpectedType {
-                            expected: lhs.clone(),
-                            expected_span: lhs_span,
-                            got: rhs.clone(),
-                            got_span: rhs_span,
-                            context: context.clone(),
-                        });
-                    }
-
-                    Err(())
-                }
-
-                else {
-                    let mut has_error = false;
-                    let mut args = Vec::with_capacity(args1.len());
-
-                    for i in 0..args1.len() {
-                        match self.solve_supertype(
-                            &args1[i],
-                            &args2[i],
-                            types,
-                            generic_args,
-                            true,  // is_checking_argument
-                            None,
-                            None,
-                            ErrorContext::None,
-                            bidirectional,
-                        ) {
-                            Ok(arg) => {
-                                args.push(arg);
-                            },
-                            Err(()) => {
-                                if !is_checking_argument {
-                                    self.errors.push(TypeError::UnexpectedType {
-                                        expected: lhs.clone(),
-                                        expected_span: lhs_span,
-                                        got: rhs.clone(),
-                                        got_span: rhs_span,
-                                        context: context.clone(),
-                                    });
-                                }
-                                has_error = true;
-                            },
-                        }
-                    }
-
-                    if has_error {
-                        Err(())
-                    }
-
-                    else {
-                        if is_tuple {
-                            Ok(Type::Tuple {
-                                args,
-                                group_span: Span::None,
-                            })
+                            Err(())
                         }
 
                         else {
-                            Ok(Type::Param {
-                                constructor_def_span: constructor.unwrap(),
-                                constructor_span: Span::None,
-                                args,
-                                group_span: Span::None,
-                            })
+                            let mut has_error = false;
+                            let mut args = Vec::with_capacity(args1.len());
+
+                            for i in 0..args1.len() {
+                                match self.solve_supertype(
+                                    &args1[i],
+                                    &args2[i],
+                                    types,
+                                    generic_args,
+                                    true,  // is_checking_argument
+                                    None,
+                                    None,
+                                    ErrorContext::None,
+                                    bidirectional,
+                                ) {
+                                    Ok(arg) => {
+                                        args.push(arg);
+                                    },
+                                    Err(()) => {
+                                        if !is_checking_argument {
+                                            self.errors.push(TypeError::UnexpectedType {
+                                                expected: lhs.clone(),
+                                                expected_span: lhs_span,
+                                                got: rhs.clone(),
+                                                got_span: rhs_span,
+                                                context: context.clone(),
+                                            });
+                                        }
+                                        has_error = true;
+                                    },
+                                }
+                            }
+
+                            if has_error {
+                                Err(())
+                            }
+
+                            else {
+                                Ok(Type::Data {
+                                    constructor_def_span: *constructor1,
+                                    constructor_span: Span::None,
+                                    args: Some(args),
+                                    group_span: Some(Span::None),
+                                })
+                            }
                         }
-                    }
+                    },
+                    (None, None) => Ok(lhs.clone()),
+                    _ => Err(()),
                 }
             },
             (Type::Func { r#return: return1, params: args1, purity: p1, .. }, Type::Func { r#return: return2, params: args2, purity: p2, .. }) => {
@@ -759,87 +731,9 @@ impl TypeSolver<'_, '_> {
             },
             (
                 type_var @ Type::Var { def_span, is_return },
-                concrete @ Type::Static { .. },
+                maybe_concrete @ (Type::Data { .. } | Type::Func { .. }),
             ) | (
-                concrete @ Type::Static { .. },
-                type_var @ Type::Var { def_span, is_return },
-            ) => {
-                let concrete_span = if let Type::Var { .. } = lhs {
-                    rhs_span
-                } else {
-                    lhs_span
-                };
-
-                if *is_return {
-                    // If previously infered type and newly infered type are different,
-                    // that's an error!
-                    match types.get(def_span) {
-                        Some(Type::Func { r#return, .. }) => match &**r#return {
-                            Type::Var { .. } | Type::GenericArg { .. } => {},
-                            prev_infered => {
-                                let prev_infered = prev_infered.clone();
-
-                                if let Err(()) = self.solve_supertype(
-                                    &prev_infered,
-                                    concrete,
-                                    types,
-                                    generic_args,
-                                    false,
-                                    None,
-                                    concrete_span,
-                                    ErrorContext::InferedAgain { type_var: type_var.clone() },
-                                    bidirectional,
-                                ) {
-                                    return Err(());
-                                }
-                            },
-                        },
-                        _ => unreachable!(),
-                    }
-                    match types.get_mut(def_span) {
-                        Some(Type::Func { r#return, .. }) => {
-                            *r#return = Box::new(concrete.clone());
-                        },
-                        _ => unreachable!(),
-                    }
-                }
-
-                else {
-                    // If previously infered type and newly infered type are different,
-                    // that's an error!
-                    match types.get(def_span) {
-                        Some(Type::Var { .. } | Type::GenericArg { .. }) => {},
-                        Some(prev_infered) => {
-                            let prev_infered = prev_infered.clone();
-
-                            if let Err(()) = self.solve_supertype(
-                                &prev_infered,
-                                concrete,
-                                types,
-                                generic_args,
-                                false,
-                                None,
-                                concrete_span,
-                                ErrorContext::InferedAgain { type_var: type_var.clone() },
-                                bidirectional,
-                            ) {
-                                return Err(());
-                            }
-                        },
-                        _ => {},
-                    }
-
-                    types.insert(*def_span, concrete.clone());
-                }
-
-                self.substitute(type_var, concrete, types, generic_args);
-                Ok(concrete.clone())
-            },
-            (
-                type_var @ Type::Var { def_span, is_return },
-                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
-            ) | (
-                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Data { .. } | Type::Func { .. }),
                 type_var @ Type::Var { def_span, is_return },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
@@ -926,48 +820,9 @@ impl TypeSolver<'_, '_> {
             },
             (
                 type_var @ Type::GenericArg { call, generic },
-                concrete @ Type::Static { .. },
+                maybe_concrete @ (Type::Data { .. } | Type::Func { .. }),
             ) | (
-                concrete @ Type::Static { .. },
-                type_var @ Type::GenericArg { call, generic },
-            ) => {
-                let concrete_span = if let Type::Var { .. } = lhs {
-                    rhs_span
-                } else {
-                    lhs_span
-                };
-
-                match generic_args.get(&(*call, *generic)) {
-                    Some(Type::Var { .. } | Type::GenericArg { .. }) => {},
-                    Some(prev_infered) => {
-                        let prev_infered = prev_infered.clone();
-
-                        if let Err(()) = self.solve_supertype(
-                            &prev_infered,
-                            concrete,
-                            types,
-                            generic_args,
-                            false,
-                            None,
-                            concrete_span,
-                            ErrorContext::InferedAgain { type_var: type_var.clone() },
-                            bidirectional,
-                        ) {
-                            return Err(());
-                        }
-                    },
-                    None => {},
-                }
-
-                generic_args.insert((*call, *generic), concrete.clone());
-                self.substitute(type_var, concrete, types, generic_args);
-                Ok(concrete.clone())
-            },
-            (
-                type_var @ Type::GenericArg { call, generic },
-                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
-            ) | (
-                maybe_concrete @ (Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. }),
+                maybe_concrete @ (Type::Data { .. } | Type::Func { .. }),
                 type_var @ Type::GenericArg { call, generic },
             ) => {
                 let ref_type_vars = maybe_concrete.get_type_vars();
@@ -1013,10 +868,7 @@ impl TypeSolver<'_, '_> {
 
                 Ok(maybe_concrete.clone())
             },
-            (
-                Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. },
-                Type::Static { .. } | Type::Tuple { .. } | Type::Param { .. } | Type::Func { .. },
-            ) => {
+            (Type::Data { .. } | Type::Func { .. }, Type::Data { .. } | Type::Func { .. }) => {
                 if !is_checking_argument {
                     self.errors.push(TypeError::UnexpectedType {
                         expected: lhs.clone(),

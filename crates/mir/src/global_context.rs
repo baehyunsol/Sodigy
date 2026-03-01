@@ -1,5 +1,5 @@
 use crate::Type;
-use sodigy_hir::{EnumShape, FuncShape, Poly, StructShape};
+use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use std::collections::HashMap;
@@ -44,6 +44,16 @@ impl<'hir> GlobalContext<'hir, '_> {
             lang_items: Some(&session.lang_items),
             types: None,
             generic_args: None,
+        }
+    }
+
+    pub fn get_item_shape(&self, def_span: Span) -> Option<ItemShape<'hir>> {
+        match self.struct_shapes.map(|ss| ss.get(&def_span)) {
+            Some(Some(struct_shape)) => Some(ItemShape::Struct(struct_shape)),
+            _ => match self.enum_shapes.map(|es| es.get(&def_span)) {
+                Some(Some(enum_shape)) => Some(ItemShape::Enum(enum_shape)),
+                _ => None,
+            },
         }
     }
 }

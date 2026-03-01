@@ -340,9 +340,7 @@ pub enum StateMachineOrLeaves {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SimpleType {
-    Static { def: Span },
-    Tuple { arity: usize },
-    Param { constructor: Span },
+    Data { constructor: Span, arity: usize },
     Func { params: usize },
     Var,
 }
@@ -429,9 +427,10 @@ impl StateMachine {
 impl From<&Type> for SimpleType {
     fn from(r#type: &Type) -> SimpleType {
         match r#type {
-            Type::Static { def_span, .. } => SimpleType::Static { def: *def_span },
-            Type::Tuple { args, .. } => SimpleType::Tuple { arity: args.len() },
-            Type::Param { constructor_def_span, .. } => SimpleType::Param { constructor: *constructor_def_span },
+            Type::Data { constructor_def_span, args, .. } => SimpleType::Data {
+                constructor: *constructor_def_span,
+                arity: args.as_ref().map(|args| args.len()).unwrap_or(0),
+            },
             Type::Func { params, .. } => SimpleType::Func { params: params.len() },
 
             // It's okay to do this because `SimpleType::Var` can match any type.
