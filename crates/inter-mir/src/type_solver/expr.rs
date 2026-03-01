@@ -446,10 +446,10 @@ impl TypeSolver<'_, '_> {
 
                             if !generic_params.is_empty() {
                                 for param in params.iter_mut() {
-                                    param.substitute_generic_param(span, &generic_params);
+                                    param.substitute_generic_param_for_arg(span, &generic_params);
                                 }
 
-                                return_type.substitute_generic_param(span, &generic_params);
+                                return_type.substitute_generic_param_for_arg(span, &generic_params);
 
                                 for generic_param in generic_params.iter() {
                                     self.add_type_var(Type::GenericArg { call: span, generic: *generic_param }, None);
@@ -543,7 +543,7 @@ impl TypeSolver<'_, '_> {
                                 let field_type = match types.get(&s.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
-                                        r#type.substitute_generic_param(call_span, &generic_params);
+                                        r#type.substitute_generic_param_for_arg(call_span, &generic_params);
                                         r#type
                                     },
                                     None => Type::Var { def_span: s.fields[i].name_span, is_return: false },
@@ -757,6 +757,12 @@ impl TypeSolver<'_, '_> {
     ) -> Result<Type, ()> {
         let mut field_type = None;
 
+        // Let's say there's a struct `Game<T, U>` and `r#type` is `Game<Int, String>`.
+        // If the `field_type` is `T`, we have to replace `T` with `Int`.
+        // This map remembers the connection between generic params and generic args.
+        // It looks like `{ T: Int, U: String }`.
+        let mut generic_map: HashMap<Span, &Type> = HashMap::new();
+
         match r#type {
             Type::Data { constructor_def_span: def_span, args, .. } => {
                 if *def_span == self.get_lang_item_span("type.Tuple") {
@@ -782,6 +788,12 @@ impl TypeSolver<'_, '_> {
                 }
 
                 else if let Some(struct_shape) = self.global_context.struct_shapes.unwrap().get(def_span) {
+                    if let Some(args) = args {
+                        for (generic_param, generic_arg) in struct_shape.generics.iter().zip(args.iter()) {
+                            generic_map.insert(generic_param.name_span, generic_arg);
+                        }
+                    }
+
                     match &field[0] {
                         Field::Name { name, name_span, .. } => {
                             for field in struct_shape.fields.iter() {
@@ -871,7 +883,11 @@ impl TypeSolver<'_, '_> {
         }
 
         match field_type {
-            Some(field_type) => {
+            Some(mut field_type) => {
+                for (generic_param, generic_arg) in generic_map.iter() {
+                    field_type.substitute_generic_param(generic_param, generic_arg);
+                }
+
                 if field.len() == 1 {
                     Ok(field_type)
                 }

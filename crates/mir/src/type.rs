@@ -311,7 +311,7 @@ impl Type {
         }
     }
 
-    pub fn substitute_generic_param(&mut self, call: Span, generics: &[Span]) {
+    pub fn substitute_generic_param_for_arg(&mut self, call: Span, generics: &[Span]) {
         match self {
             Type::GenericParam { def_span, .. } => {
                 if generics.contains(def_span) {
@@ -325,16 +325,43 @@ impl Type {
             Type::Data { args, .. } => {
                 if let Some(args) = args {
                     for arg in args.iter_mut() {
-                        arg.substitute_generic_param(call, generics);
+                        arg.substitute_generic_param_for_arg(call, generics);
                     }
                 }
             },
             Type::Func { r#return, params, .. } => {
                 for param in params.iter_mut() {
-                    param.substitute_generic_param(call, generics);
+                    param.substitute_generic_param_for_arg(call, generics);
                 }
 
-                r#return.substitute_generic_param(call, generics);
+                r#return.substitute_generic_param_for_arg(call, generics);
+            },
+        }
+    }
+
+    pub fn substitute_generic_param(&mut self, generic_param: &Span, generic_arg: &Type) {
+        match self {
+            Type::GenericParam { def_span, .. } if def_span == generic_param => {
+                *self = generic_arg.clone();
+            },
+            Type::GenericParam { .. } |
+            Type::Never(_) |
+            Type::Var { .. } |
+            Type::GenericArg { .. } |
+            Type::Blocked { .. } => {},
+            Type::Data { args, .. } => {
+                if let Some(args) = args {
+                    for arg in args.iter_mut() {
+                        arg.substitute_generic_param(generic_param, generic_arg);
+                    }
+                }
+            },
+            Type::Func { r#return, params, .. } => {
+                for param in params.iter_mut() {
+                    param.substitute_generic_param(generic_param, generic_arg);
+                }
+
+                r#return.substitute_generic_param(generic_param, generic_arg);
             },
         }
     }

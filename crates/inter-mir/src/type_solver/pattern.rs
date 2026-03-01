@@ -50,7 +50,7 @@ impl TypeSolver<'_, '_> {
         generic_args: &mut HashMap<(Span, Span), Type>,
     ) -> (Option<Type>, bool /* has_error */) {
         match pattern {
-            PatternKind::Path(Path { id: IdentWithOrigin { id, span, .. }, .. }) |
+            PatternKind::Path(Path { id: IdentWithOrigin { id, span, .. }, .. }) => todo!(),
             PatternKind::NameBinding { id, span, .. } => match types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
