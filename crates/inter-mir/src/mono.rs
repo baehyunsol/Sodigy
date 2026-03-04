@@ -8,12 +8,14 @@ pub struct MonomorphizePlan {
     // key: call span
     // value: def_span of the monomorphized function
     pub dispatch_map: HashMap<Span, Span>,
+    pub monomorphizations: Vec<Monomorphization>,
 }
 
-impl MonomorphizePlan {
-    pub fn is_empty(&self) -> bool {
-        self.dispatch_map.is_empty()
-    }
+#[derive(Clone, Debug)]
+pub struct Monomorphization {
+    pub def_span: Span,
+    pub generics: HashMap<Span, Type>,
+    pub id: u128,
 }
 
 impl TypeSolver<'_, '_> {
@@ -74,6 +76,7 @@ impl TypeSolver<'_, '_> {
         // Its key is the call span,
         // and the value is the def_span of the monomorphized function.
         let mut dispatch_map: HashMap<Span, Span> = HashMap::new();
+        let mut monomorphizations = vec![];
 
         for (_, generic_call) in generic_calls.iter() {
             match self.try_solve_poly(self.global_context.polys.unwrap(), &poly_solver, generic_call) {
@@ -82,8 +85,14 @@ impl TypeSolver<'_, '_> {
                         continue;
                     }
 
-                    // a normal generic function
-                    panic!("TODO: {generic_call:?}")
+                    let monomorphization_id = get_monomorphization_id(generic_call.def, &generic_call.generics);
+                    let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
+                    monomorphizations.push(Monomorphization {
+                        def_span: generic_call.def,
+                        generics: generic_call.generics.clone(),
+                        id: monomorphization_id,
+                    });
+                    dispatch_map.insert(generic_call.call, monomorphized_span);
                 },
                 SolvePolyResult::NoCandidates => {
                     has_error = true;
@@ -113,6 +122,7 @@ impl TypeSolver<'_, '_> {
         else {
             Ok(MonomorphizePlan {
                 dispatch_map,
+                monomorphizations,
             })
         }
     }
@@ -130,4 +140,17 @@ pub struct GenericCall {
     pub call: Span,
     pub def: Span,
     pub generics: HashMap<Span, Type>,
+}
+
+fn get_monomorphization_id(def_span: Span, generics: &HashMap<Span, Type>) -> u128 {
+    let mut hash = def_span.hash() & 0xffff_ffff_ffff_ffff_ffff_ffff;
+    let mut generics: Vec<(Span, &Type)> = generics.iter().map(|(s, t)| (*s, t)).collect();
+    generics.sort_by_key(|(s, _)| *s);
+
+    for (_, r#type) in generics.iter() {
+        hash += r#type.hash() & 0xffff_ffff_ffff_ffff_ffff_ffff;
+        hash &= 0xffff_ffff_ffff_ffff_ffff_ffff;
+    }
+
+    hash
 }

@@ -134,6 +134,7 @@ impl Session {
                         let poly_span: Span = Span::Poly {
                             name: poly_name_interned,
                             kind: PolySpanKind::Name,
+                            monomorphize_id: None,
                         };
 
                         match self.new_polys.entry(poly_span) {
@@ -171,8 +172,8 @@ impl Session {
                                     };
 
                                     self.generic_def_span_rev.insert(
-                                        Span::Poly { name: poly_name_interned, kind: poly_span_kind },
-                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name },
+                                        Span::Poly { name: poly_name_interned, kind: poly_span_kind, monomorphize_id: None },
+                                        Span::Poly { name: poly_name_interned, kind: PolySpanKind::Name, monomorphize_id: None },
                                     );
                                 }
 
@@ -198,6 +199,7 @@ impl Session {
                                                 } else {
                                                     PolySpanKind::Param(i)
                                                 },
+                                                monomorphize_id: None,
                                             },
                                         },
                                     ).collect(),
@@ -212,6 +214,7 @@ impl Session {
                                                     def_span: Span::Poly {
                                                         name: poly_name_interned,
                                                         kind: PolySpanKind::Param(i),
+                                                        monomorphize_id: None,
                                                     },
                                                     origin: NameOrigin::GenericParam { index: i },
                                                 },
@@ -228,6 +231,7 @@ impl Session {
                                             def_span: Span::Poly {
                                                 name: poly_name_interned,
                                                 kind: PolySpanKind::Return,
+                                                monomorphize_id: None,
                                             },
                                             origin: NameOrigin::GenericParam { index: params },
                                         },

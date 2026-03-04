@@ -37,10 +37,11 @@ impl Endec for Span {
                 buffer.push(6);
                 s.encode_impl(buffer);
             },
-            Span::Poly { name, kind } => {
+            Span::Poly { name, kind, monomorphize_id } => {
                 buffer.push(7);
                 name.encode_impl(buffer);
                 kind.encode_impl(buffer);
+                monomorphize_id.encode_impl(buffer);
             },
             Span::None => {
                 buffer.push(8);
@@ -80,7 +81,8 @@ impl Endec for Span {
             Some(7) => {
                 let (name, cursor) = InternedString::decode_impl(buffer, cursor + 1)?;
                 let (kind, cursor) = PolySpanKind::decode_impl(buffer, cursor)?;
-                Ok((Span::Poly { name, kind }, cursor))
+                let (monomorphize_id, cursor) = Option::<u128>::decode_impl(buffer, cursor)?;
+                Ok((Span::Poly { name, kind, monomorphize_id }, cursor))
             },
             Some(8) => Ok((Span::None, cursor + 1)),
             Some(n @ 9..) => Err(DecodeError::InvalidEnumVariant(*n)),
@@ -152,6 +154,10 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::FStringConcat => {
                 buffer.push(11);
             },
+            SpanDeriveKind::Monomorphize(id) => {
+                buffer.push(12);
+                id.encode_impl(buffer);
+            },
         }
     }
 
@@ -172,7 +178,11 @@ impl Endec for SpanDeriveKind {
             Some(9) => Ok((SpanDeriveKind::ConcatPatternList, cursor + 1)),
             Some(10) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
             Some(11) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
-            Some(n @ 12..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(12) => {
+                let (id, cursor) = u128::decode_impl(buffer, cursor + 1)?;
+                Ok((SpanDeriveKind::Monomorphize(id), cursor))
+            },
+            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

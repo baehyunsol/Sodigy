@@ -25,8 +25,14 @@ impl Ord for Span {
             (_, Span::Lib) => Ordering::Greater,
 
             // `Span::Poly` is the next smallest
-            (Span::Poly { name: name1, kind: kind1 }, Span::Poly { name: name2, kind: kind2 }) => match name1.cmp(name2) {
-                Ordering::Equal => kind1.cmp(kind2),
+            (
+                Span::Poly { name: name1, kind: kind1, monomorphize_id: mono_id1 },
+                Span::Poly { name: name2, kind: kind2, monomorphize_id: mono_id2 },
+            ) => match name1.cmp(name2) {
+                Ordering::Equal => match kind1.cmp(kind2) {
+                    Ordering::Equal => mono_id1.cmp(mono_id2),
+                    c => c,
+                },
                 c => c,
             },
             (Span::Poly { .. }, _) => Ordering::Less,

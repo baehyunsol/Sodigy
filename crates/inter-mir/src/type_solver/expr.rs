@@ -851,6 +851,7 @@ impl TypeSolver<'_, '_> {
                                         generic: Span::Poly {
                                             name: poly_name,
                                             kind: PolySpanKind::Param(i),
+                                            monomorphize_id: None,
                                         },
                                     }
                                 ).collect(),
@@ -859,6 +860,7 @@ impl TypeSolver<'_, '_> {
                                     generic: Span::Poly {
                                         name: poly_name,
                                         kind: PolySpanKind::Return,
+                                        monomorphize_id: None,
                                     },
                                 }),
                                 purity: if *is_pure {

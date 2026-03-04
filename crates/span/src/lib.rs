@@ -59,6 +59,10 @@ pub enum Span {
     Poly {
         name: InternedString,
         kind: PolySpanKind,
+
+        // A compiler-generated poly generic always has generic parameters, so
+        // we have to distinguish monomorphizations.
+        monomorphize_id: Option<u128>,
     },
 
     None,
@@ -185,7 +189,7 @@ impl Span {
         }]
     }
 
-    pub fn s_hash(&self) -> u128 {
+    pub fn hash(&self) -> u128 {
         use sodigy_endec::Endec;
         hash(&self.encode())
     }

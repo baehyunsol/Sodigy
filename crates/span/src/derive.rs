@@ -35,6 +35,11 @@ pub enum SpanDeriveKind {
     // `f"{x} + {y}"` -> `to_string(x) ++ " + " ++ to_string(y)`
     FStringToString,
     FStringConcat,
+
+    // When a function is monomorphized, *every* span in the function are derived.
+    // Each monomorphization has a unique id, which helps identifying function and
+    // generating error messages. Each session manages the ids.
+    Monomorphize(u128),
 }
 
 impl SpanDeriveKind {
@@ -56,6 +61,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::ConcatPatternList => Some("It is desugared to a list pattern."),
             SpanDeriveKind::FStringToString => Some("It is desugared to `to_string(..)`."),
             SpanDeriveKind::FStringConcat => Some("It is desugared to a `++` operator."),
+            SpanDeriveKind::Monomorphize(_) => todo!(),
         }
     }
 }
@@ -74,6 +80,18 @@ impl Span {
                 end: *end,
             },
             _ => panic!("TODO: {self:?}, {kind:?}"),
+        }
+    }
+
+    #[must_use = "method returns a new span and does not mutate the original span"]
+    pub fn monomorphize(&self, id: u128) -> Span {
+        match self {
+            Span::Poly { name, kind, .. } => Span::Poly {
+                name: *name,
+                kind: *kind,
+                monomorphize_id: Some(id),
+            },
+            _ => self.derive(SpanDeriveKind::Monomorphize(id)),
         }
     }
 }

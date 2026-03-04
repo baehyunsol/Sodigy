@@ -1,8 +1,10 @@
 use crate::{Callable, Expr, GlobalContext, Session};
+use sodigy_endec::Endec;
 use sodigy_error::{Error, ErrorKind};
 use sodigy_hir::{self as hir, FuncPurity};
 use sodigy_name_analysis::{NameKind, NameOrigin};
 use sodigy_span::Span;
+use sodigy_string::hash;
 use sodigy_token::Constant;
 
 // This enum is originally meant for type annotations, but
@@ -391,6 +393,45 @@ impl Type {
                 r#return.generic_to_type_var();
             },
         }
+    }
+
+    /// It's hash of type, not of a type annotation!
+    /// It ignores type-annotation-related spans.
+    pub fn hash(&self) -> u128 {
+        let mut buffer = vec![];
+
+        match self {
+            Type::Data { constructor_def_span, args, .. } => {
+                buffer.push(0);
+                constructor_def_span.encode_impl(&mut buffer);
+
+                if let Some(args) = args {
+                    for arg in args.iter() {
+                        buffer.extend(arg.hash().to_le_bytes());
+                    }
+                }
+            },
+            Type::Func { params, r#return, purity, .. } => {
+                buffer.push(1);
+
+                for param in params.iter() {
+                    buffer.extend(param.hash().to_le_bytes());
+                }
+
+                buffer.extend(r#return.hash().to_le_bytes());
+                buffer.push(*purity as u8);
+            },
+            Type::Never(_) => {
+                buffer.push(2);
+            },
+            Type::GenericParam { def_span, .. } => {
+                buffer.push(3);
+                def_span.encode_impl(&mut buffer);
+            },
+            _ => todo!(),
+        }
+
+        hash(&buffer)
     }
 }
 

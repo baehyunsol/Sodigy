@@ -21,7 +21,7 @@ use std::collections::HashMap;
 pub struct Session {
     pub intermediate_dir: String,
 
-    // of all hir files
+    // of all hir modules
     pub func_shapes: HashMap<Span, FuncShape>,
     pub struct_shapes: HashMap<Span, StructShape>,
     pub enum_shapes: HashMap<Span, EnumShape>,

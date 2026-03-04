@@ -15,7 +15,7 @@ impl Session<'_, '_> {
                 _ => None,
             },
             Span::None => None,
-            Span::Poly { name, kind } => {
+            Span::Poly { name, kind, monomorphize_id: None } => {
                 let name = name.unintern_or_default(&self.intermediate_dir);
 
                 match kind {

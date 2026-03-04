@@ -38,7 +38,7 @@ pub fn get_sodigy_path(root: &str) -> String {
         "sodigy",
     ).unwrap();
     assert!(exists(&path));
-    assert!(output.success());
+    assert!(output.success(), "failed to build sodigy-compiler");
 
     into_abs_path(&path).unwrap()
 }

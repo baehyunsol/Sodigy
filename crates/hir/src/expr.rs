@@ -508,7 +508,7 @@ fn name_lambda_function(span: Span, map_dir: &str) -> InternedString {
     // NOTE: It doesn't have to be unique because hir uses name_span and def_span to identify funcs.
     //       But I'm adding `span.hash()` for better debuggability. I'm making the name it 15 bytes
     //       long because that's the maximum length `intern_string` can run without doing file IO.
-    intern_string(format!("lambda_{:08x}", span.s_hash() % 0xffff_ffff).as_bytes(), map_dir).unwrap()
+    intern_string(format!("lambda_{:08x}", span.hash() % 0xffff_ffff).as_bytes(), map_dir).unwrap()
 }
 
 #[derive(Clone, Debug)]
