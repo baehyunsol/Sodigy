@@ -1,4 +1,4 @@
-use crate::Type;
+use crate::{Session, Type};
 use sodigy_error::{
     Error,
     ErrorKind,
@@ -8,7 +8,7 @@ use sodigy_error::{
     comma_list_strs,
 };
 use sodigy_hir::{FuncOrigin, FuncPurity, LetOrigin};
-use sodigy_mir::Session as MirSession;
+use sodigy_mir::{render_type, span_to_string};
 use sodigy_span::{RenderableSpan, Span};
 use sodigy_string::InternedString;
 use std::collections::HashMap;
@@ -223,88 +223,260 @@ impl ErrorContext {
     }
 }
 
-pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> Error {
-    match error {
-        TypeError::UnexpectedType {
-            expected,
-            expected_span,
-            got,
-            got_span,
-            context,
-        } => {
-            let mut spans = vec![];
-            let expected_type = session.render_type(expected);
-            let got_type = session.render_type(got);
+impl Session {
+    pub fn type_error_to_general_error(&self, error: &TypeError) -> Error {
+        match error {
+            TypeError::UnexpectedType {
+                expected,
+                expected_span,
+                got,
+                got_span,
+                context,
+            } => {
+                let mut spans = vec![];
+                let expected_type = self.render_type(expected);
+                let got_type = self.render_type(got);
 
-            if let ErrorContext::InferedAgain { type_var } = context {
-                match type_var {
-                    Type::Var { def_span, is_return } => {
+                if let ErrorContext::InferedAgain { type_var } = context {
+                    match type_var {
+                        Type::Var { def_span, is_return } => {
+                            spans.push(RenderableSpan {
+                                span: *def_span,
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "You didn't annotate the {}, so I tried to infer it. Some information says the type is `{}`, while another information says it's `{}`. Perhaps add a type annotation?",
+                                    if *is_return { "return type of thie function" } else { "type of this value" },
+                                    expected_type,
+                                    got_type,
+                                )),
+                            });
+                        },
+                        Type::GenericArg { call, generic } => {
+                            spans.push(RenderableSpan {
+                                span: *call,
+                                auxiliary: false,
+                                note: Some(format!(
+                                    "This is a generic function, so I tried to infer its type arguments, but there's a problem with `{}`. Some information says `{}`'s type is `{}`, while other says it's `{}`.",
+                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                    expected_type,
+                                    got_type,
+                                )),
+                            });
+                            spans.push(RenderableSpan {
+                                span: *generic,
+                                auxiliary: true,
+                                note: Some(format!(
+                                    "Type parameter `{}` is defined here.",
+                                    self.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
+                                )),
+                            });
+                        },
+                        _ => unreachable!(),
+                    }
+
+                    if let Some(span) = *expected_span {
                         spans.push(RenderableSpan {
-                            span: *def_span,
+                            span,
                             auxiliary: false,
-                            note: Some(format!(
-                                "You didn't annotate the {}, so I tried to infer it. Some information says the type is `{}`, while another information says it's `{}`. Perhaps add a type annotation?",
-                                if *is_return { "return type of thie function" } else { "type of this value" },
-                                expected_type,
-                                got_type,
-                            )),
+                            note: Some(format!("This information says the type is `{expected_type}`.")),
                         });
-                    },
-                    Type::GenericArg { call, generic } => {
+                    }
+
+                    if let Some(span) = *got_span {
                         spans.push(RenderableSpan {
+                            span,
+                            auxiliary: false,
+                            note: Some(format!("This information says the type is `{got_type}`.")),
+                        });
+                    }
+                }
+
+                else {
+                    if let Some(span) = *expected_span {
+                        let note = if let ErrorContext::FieldUpdate = context {
+                            format!("The type of this field is `{expected_type}`.")
+                        } else {
+                            format!(
+                                "The value should have type `{expected_type}`{}.",
+                                if let ErrorContext::VerifyTypeAnnot = context {
+                                    ", according to this type annotation"
+                                } else {
+                                    ""
+                                },
+                            )
+                        };
+
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: true,
+                            note: Some(note),
+                        });
+                    }
+
+                    if let Some(span) = *got_span {
+                        spans.push(RenderableSpan {
+                            span,
+                            auxiliary: false,
+                            note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
+                        });
+                    }
+                }
+
+                Error {
+                    kind: ErrorKind::UnexpectedType {
+                        expected: expected_type,
+                        got: got_type,
+                    },
+                    spans,
+                    note: context.note(&self.intermediate_dir).map(|s| s.to_string()),
+                }
+            },
+            TypeError::WrongNumberOfArguments {
+                expected,
+                got,
+                given_keyword_arguments,
+                func_span,
+                arg_spans,
+            } => {
+                // With those information, we can guess which parameter is missing (or unnecessary)
+                //
+                // 1. If the user has used keyword arguments, that cannot be a missing or an unnecessary argument.
+                //    We have to filter them out.
+                // 2. TODO: we have to check whether an argument is provided by the user or a default value.
+                //    If it's a default value, that cannot be a missing or an unnecessary argument. We have to filter them out.
+                // 3. try to substitute type variables in `expected` and `got`.
+                //    - those fields are captured when this error's created
+                //    - there might be updates in the type variables
+                // 4. TODO: then what?
+                todo!()
+            },
+            TypeError::CannotInferType { id, span, is_return } => Error {
+                kind: ErrorKind::CannotInferType { id: *id, is_return: *is_return },
+                spans: span.simple_error(),
+                note: None,
+            },
+            TypeError::PartiallyInferedType {
+                id,
+                span,
+                r#type,
+                is_return,
+            } => Error {
+                kind: ErrorKind::PartiallyInferedType { id: *id, r#type: self.render_type(r#type), is_return: *is_return },
+                spans: span.simple_error(),
+                note: None,
+            },
+            TypeError::CannotInferGenericType { call, generic, func_def } |
+            TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
+                let generic_id = self.span_to_string(*generic);
+                let spans = match (func_def.map(|def_span| self.func_shapes.get(&def_span)), &generic_id) {
+                    (Some(Some(func_shape)), Some(generic_id)) => vec![
+                        RenderableSpan {
                             span: *call,
                             auxiliary: false,
                             note: Some(format!(
-                                "This is a generic function, so I tried to infer its type arguments, but there's a problem with `{}`. Some information says `{}`'s type is `{}`, while other says it's `{}`.",
-                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
-                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
-                                expected_type,
-                                got_type,
+                                "This function has {} type parameter{} ({}), and I cannot infer the type of `{generic_id}`.",
+                                func_shape.generics.len(),
+                                if func_shape.generics.len() == 1 { "" } else { "s" },
+                                comma_list_strs(
+                                    &func_shape.generics.iter().map(
+                                        |generic_param| generic_param.name.unintern_or_default(&self.intermediate_dir)
+                                    ).collect::<Vec<_>>(),
+                                    "`",
+                                    "`",
+                                    "and",
+                                ),
                             )),
-                        });
-                        spans.push(RenderableSpan {
+                        },
+                        RenderableSpan {
                             span: *generic,
                             auxiliary: true,
-                            note: Some(format!(
-                                "Type parameter `{}` is defined here.",
-                                session.span_to_string(*generic).unwrap_or_else(|| String::from("???")),
-                            )),
-                        });
+                            note: Some(format!("Type parameter `{generic_id}` is defined here.")),
+                        },
+                    ],
+                    _ => call.simple_error(),
+                };
+
+                match error {
+                    TypeError::CannotInferGenericType { .. } => Error {
+                        kind: ErrorKind::CannotInferGenericType { id: generic_id },
+                        spans,
+                        note: None,
+                    },
+                    TypeError::PartiallyInferedGenericType { r#type, .. } => Error {
+                        kind: ErrorKind::PartiallyInferedGenericType {
+                            id: generic_id,
+                            r#type: self.render_type(r#type),
+                        },
+                        spans,
+                        note: None,
                     },
                     _ => unreachable!(),
                 }
+            },
+            TypeError::NotCallable { r#type, func_span } => Error {
+                kind: ErrorKind::NotCallable {
+                    r#type: self.render_type(r#type),
+                },
+                spans: vec![RenderableSpan {
+                    span: *func_span,
+                    auxiliary: false,
+                    note: None,
+                }],
+                note: None,
+            },
+            // TODO: based on the poly's def_span, I want it to throw
+            //       `CannotApplyInfixOp` or so.
+            TypeError::CannotSpecializePolyGeneric {
+                call,
+                poly_def,
+                generics,
+                num_candidates,
+            } => Error {
+                kind: ErrorKind::CannotSpecializePolyGeneric {
+                    num_candidates: *num_candidates,
+                },
+                spans: vec![
+                    vec![
+                        RenderableSpan {
+                            span: *call,
+                            auxiliary: false,
+                            note: Some(format!("Cannot specialize `{}` here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                        },
+                        RenderableSpan {
+                            span: *poly_def,
+                            auxiliary: true,
+                            note: Some(format!("`{}` is defined here.", self.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
+                        },
+                    ],
+                    generics.iter().map(
+                        |(span, r#type)| RenderableSpan {
+                            span: *span,
+                            auxiliary: true,
+                            note: Some(format!("Type parameter `{}` is infered to be `{}`.", self.span_to_string(*span).unwrap_or_else(|| String::from("????")), self.render_type(r#type))),
+                        }
+                    ).collect(),
+                ].concat(),
+                note: None,
+            },
+            TypeError::UnexpectedPurity {
+                expected_type,
+                expected_purity,
+                expected_span,
+                got_type,
+                got_purity,
+                got_span,
+            } => {
+                let mut spans = vec![];
+                let expected_type = self.render_type(expected_type);
+                let got_type = self.render_type(got_type);
 
                 if let Some(span) = *expected_span {
-                    spans.push(RenderableSpan {
-                        span,
-                        auxiliary: false,
-                        note: Some(format!("This information says the type is `{expected_type}`.")),
-                    });
-                }
-
-                if let Some(span) = *got_span {
-                    spans.push(RenderableSpan {
-                        span,
-                        auxiliary: false,
-                        note: Some(format!("This information says the type is `{got_type}`.")),
-                    });
-                }
-            }
-
-            else {
-                if let Some(span) = *expected_span {
-                    let note = if let ErrorContext::FieldUpdate = context {
-                        format!("The type of this field is `{expected_type}`.")
-                    } else {
-                        format!(
-                            "The value should have type `{expected_type}`{}.",
-                            if let ErrorContext::VerifyTypeAnnot = context {
-                                ", according to this type annotation"
-                            } else {
-                                ""
-                            },
-                        )
-                    };
+                    let note = match expected_purity {
+                        FuncPurity::Pure => "It expects a pure function.",
+                        FuncPurity::Impure => "It expects an impure function.",
+                        FuncPurity::Both => unreachable!(),
+                    }.to_string();
 
                     spans.push(RenderableSpan {
                         span,
@@ -314,319 +486,167 @@ pub fn type_error_to_general_error(error: &TypeError, session: &MirSession) -> E
                 }
 
                 if let Some(span) = *got_span {
+                    let note = match got_purity {
+                        FuncPurity::Pure => "This is a pure function.",
+                        FuncPurity::Impure => "This is an impure function.",
+                        FuncPurity::Both => "I'm not sure whether it's pure or not.",
+                    }.to_string();
+
                     spans.push(RenderableSpan {
                         span,
                         auxiliary: false,
-                        note: Some(format!("This value is expected to have type `{expected_type}`, but has type `{got_type}`.")),
+                        note: Some(note),
                     });
                 }
-            }
 
-            Error {
-                kind: ErrorKind::UnexpectedType {
-                    expected: expected_type,
-                    got: got_type,
-                },
-                spans,
-                note: context.note(&session.intermediate_dir).map(|s| s.to_string()),
-            }
-        },
-        TypeError::WrongNumberOfArguments {
-            expected,
-            got,
-            given_keyword_arguments,
-            func_span,
-            arg_spans,
-        } => {
-            // With those information, we can guess which parameter is missing (or unnecessary)
-            //
-            // 1. If the user has used keyword arguments, that cannot be a missing or an unnecessary argument.
-            //    We have to filter them out.
-            // 2. TODO: we have to check whether an argument is provided by the user or a default value.
-            //    If it's a default value, that cannot be a missing or an unnecessary argument. We have to filter them out.
-            // 3. try to substitute type variables in `expected` and `got`.
-            //    - those fields are captured when this error's created
-            //    - there might be updates in the type variables
-            // 4. TODO: then what?
-            todo!()
-        },
-        TypeError::CannotInferType { id, span, is_return } => Error {
-            kind: ErrorKind::CannotInferType { id: *id, is_return: *is_return },
-            spans: span.simple_error(),
-            note: None,
-        },
-        TypeError::PartiallyInferedType {
-            id,
-            span,
-            r#type,
-            is_return,
-        } => Error {
-            kind: ErrorKind::PartiallyInferedType { id: *id, r#type: session.render_type(r#type), is_return: *is_return },
-            spans: span.simple_error(),
-            note: None,
-        },
-        TypeError::CannotInferGenericType { call, generic, func_def } |
-        TypeError::PartiallyInferedGenericType { call, generic, func_def, .. } => {
-            let generic_id = session.span_to_string(*generic);
-            let spans = match (func_def.map(|def_span| session.global_context.func_shapes.unwrap().get(&def_span)), &generic_id) {
-                (Some(Some(func_shape)), Some(generic_id)) => vec![
-                    RenderableSpan {
-                        span: *call,
-                        auxiliary: false,
-                        note: Some(format!(
-                            "This function has {} type parameter{} ({}), and I cannot infer the type of `{generic_id}`.",
-                            func_shape.generics.len(),
-                            if func_shape.generics.len() == 1 { "" } else { "s" },
-                            comma_list_strs(
-                                &func_shape.generics.iter().map(
-                                    |generic_param| generic_param.name.unintern_or_default(&session.intermediate_dir)
-                                ).collect::<Vec<_>>(),
-                                "`",
-                                "`",
-                                "and",
-                            ),
-                        )),
-                    },
-                    RenderableSpan {
-                        span: *generic,
-                        auxiliary: true,
-                        note: Some(format!("Type parameter `{generic_id}` is defined here.")),
-                    },
-                ],
-                _ => call.simple_error(),
-            };
+                let note = match (expected_purity, got_purity) {
+                    (ex, FuncPurity::Both) => Some(format!(
+                        "If you're sure that this is {}, add a type annotation. Be careful that `Fn` is for 'pure or impure' functions, you have to use `PureFn` or `ImpureFn` to be clear.",
+                        match ex { FuncPurity::Pure => "pure", FuncPurity::Impure => "impure", FuncPurity::Both => unreachable!() },
+                    )),
+                    _ => None,
+                };
 
-            match error {
-                TypeError::CannotInferGenericType { .. } => Error {
-                    kind: ErrorKind::CannotInferGenericType { id: generic_id },
-                    spans,
-                    note: None,
-                },
-                TypeError::PartiallyInferedGenericType { r#type, .. } => Error {
-                    kind: ErrorKind::PartiallyInferedGenericType {
-                        id: generic_id,
-                        r#type: session.render_type(r#type),
+                Error {
+                    kind: ErrorKind::UnexpectedType {
+                        expected: expected_type,
+                        got: got_type,
                     },
                     spans,
-                    note: None,
-                },
-                _ => unreachable!(),
-            }
-        },
-        TypeError::NotCallable { r#type, func_span } => Error {
-            kind: ErrorKind::NotCallable {
-                r#type: session.render_type(r#type),
+                    note,
+                }
             },
-            spans: vec![RenderableSpan {
-                span: *func_span,
-                auxiliary: false,
-                note: None,
-            }],
-            note: None,
-        },
-        // TODO: based on the poly's def_span, I want it to throw
-        //       `CannotApplyInfixOp` or so.
-        TypeError::CannotSpecializePolyGeneric {
-            call,
-            poly_def,
-            generics,
-            num_candidates,
-        } => Error {
-            kind: ErrorKind::CannotSpecializePolyGeneric {
-                num_candidates: *num_candidates,
-            },
-            spans: vec![
-                vec![
-                    RenderableSpan {
-                        span: *call,
-                        auxiliary: false,
-                        note: Some(format!("Cannot specialize `{}` here.", session.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
-                    },
-                    RenderableSpan {
-                        span: *poly_def,
-                        auxiliary: true,
-                        note: Some(format!("`{}` is defined here.", session.span_to_string(*poly_def).unwrap_or_else(|| String::from("????")))),
-                    },
-                ],
-                generics.iter().map(
-                    |(span, r#type)| RenderableSpan {
-                        span: *span,
-                        auxiliary: true,
-                        note: Some(format!("Type parameter `{}` is infered to be `{}`.", session.span_to_string(*span).unwrap_or_else(|| String::from("????")), session.render_type(r#type))),
-                    }
-                ).collect(),
-            ].concat(),
-            note: None,
-        },
-        TypeError::UnexpectedPurity {
-            expected_type,
-            expected_purity,
-            expected_span,
-            got_type,
-            got_purity,
-            got_span,
-        } => {
-            let mut spans = vec![];
-            let expected_type = session.render_type(expected_type);
-            let got_type = session.render_type(got_type);
-
-            if let Some(span) = *expected_span {
-                let note = match expected_purity {
-                    FuncPurity::Pure => "It expects a pure function.",
-                    FuncPurity::Impure => "It expects an impure function.",
-                    FuncPurity::Both => unreachable!(),
-                }.to_string();
-
-                spans.push(RenderableSpan {
-                    span,
-                    auxiliary: true,
-                    note: Some(note),
-                });
-            }
-
-            if let Some(span) = *got_span {
-                let note = match got_purity {
-                    FuncPurity::Pure => "This is a pure function.",
-                    FuncPurity::Impure => "This is an impure function.",
-                    FuncPurity::Both => "I'm not sure whether it's pure or not.",
-                }.to_string();
-
-                spans.push(RenderableSpan {
-                    span,
-                    auxiliary: false,
-                    note: Some(note),
-                });
-            }
-
-            let note = match (expected_purity, got_purity) {
-                (ex, FuncPurity::Both) => Some(format!(
-                    "If you're sure that this is {}, add a type annotation. Be careful that `Fn` is for 'pure or impure' functions, you have to use `PureFn` or `ImpureFn` to be clear.",
-                    match ex { FuncPurity::Pure => "pure", FuncPurity::Impure => "impure", FuncPurity::Both => unreachable!() },
-                )),
-                _ => None,
-            };
-
-            Error {
-                kind: ErrorKind::UnexpectedType {
-                    expected: expected_type,
-                    got: got_type,
-                },
-                spans,
-                note,
-            }
-        },
-        TypeError::CannotInferPolyGenericParam { poly_span, param_index } => Error {
-            kind: ErrorKind::CannotInferPolyGenericParam { param_index: *param_index },
-            spans: vec![RenderableSpan {
-                span: *poly_span,
-                auxiliary: false,
-                note: Some(String::from("This function needs a type annotation.")),
-            }],
-            note: None,
-        },
-        TypeError::CannotInferPolyGenericImpl { poly_span, impl_span, param_index } => Error {
-            kind: ErrorKind::CannotInferPolyGenericImpl { param_index: *param_index },
-            spans: vec![
-                RenderableSpan {
-                    span: *impl_span,
+            TypeError::CannotInferPolyGenericParam { poly_span, param_index } => Error {
+                kind: ErrorKind::CannotInferPolyGenericParam { param_index: *param_index },
+                spans: vec![RenderableSpan {
+                    span: *poly_span,
                     auxiliary: false,
                     note: Some(String::from("This function needs a type annotation.")),
-                },
-                RenderableSpan {
-                    span: *poly_span,
-                    auxiliary: true,
-                    note: Some(String::from("`#[poly]` is defined here.")),
-                },
-            ],
-            note: None,
-        },
-        TypeError::PolyImplDifferentNumberOfParams { poly_params, poly_span, impl_params, impl_span } => Error {
-            kind: ErrorKind::PolyImplDifferentNumberOfParams { poly_params: *poly_params, impl_params: *impl_params },
-            spans: vec![
-                RenderableSpan {
-                    span: *impl_span,
-                    auxiliary: false,
-                    note: Some(format!("It has {impl_params} parameter{}.", if *impl_params == 1 { "" } else { "s" })),
-                },
-                RenderableSpan {
-                    span: *poly_span,
-                    auxiliary: true,
-                    note: Some(format!("It has {poly_params} parameter{}.", if *poly_params == 1 { "" } else { "s" })),
-                },
-            ],
-            note: None,
-        },
-        TypeError::CannotImplPoly {
-            poly_type,
-            poly_span,
-            impl_type,
-            impl_span,
-            param_index,
-        } => Error {
-            kind: ErrorKind::CannotImplPoly {
-                poly_type: session.render_type(poly_type),
-                impl_type: session.render_type(impl_type),
-                param_index: *param_index,
+                }],
+                note: None,
             },
-            spans: vec![
-                RenderableSpan {
-                    span: *impl_span,
-                    auxiliary: false,
-                    note: None,
+            TypeError::CannotInferPolyGenericImpl { poly_span, impl_span, param_index } => Error {
+                kind: ErrorKind::CannotInferPolyGenericImpl { param_index: *param_index },
+                spans: vec![
+                    RenderableSpan {
+                        span: *impl_span,
+                        auxiliary: false,
+                        note: Some(String::from("This function needs a type annotation.")),
+                    },
+                    RenderableSpan {
+                        span: *poly_span,
+                        auxiliary: true,
+                        note: Some(String::from("`#[poly]` is defined here.")),
+                    },
+                ],
+                note: None,
+            },
+            TypeError::PolyImplDifferentNumberOfParams { poly_params, poly_span, impl_params, impl_span } => Error {
+                kind: ErrorKind::PolyImplDifferentNumberOfParams { poly_params: *poly_params, impl_params: *impl_params },
+                spans: vec![
+                    RenderableSpan {
+                        span: *impl_span,
+                        auxiliary: false,
+                        note: Some(format!("It has {impl_params} parameter{}.", if *impl_params == 1 { "" } else { "s" })),
+                    },
+                    RenderableSpan {
+                        span: *poly_span,
+                        auxiliary: true,
+                        note: Some(format!("It has {poly_params} parameter{}.", if *poly_params == 1 { "" } else { "s" })),
+                    },
+                ],
+                note: None,
+            },
+            TypeError::CannotImplPoly {
+                poly_type,
+                poly_span,
+                impl_type,
+                impl_span,
+                param_index,
+            } => Error {
+                kind: ErrorKind::CannotImplPoly {
+                    poly_type: self.render_type(poly_type),
+                    impl_type: self.render_type(impl_type),
+                    param_index: *param_index,
                 },
-                RenderableSpan {
-                    span: *poly_span,
-                    auxiliary: true,
-                    note: Some(String::from("`#[poly]` is defined here.")),
-                },
-            ],
-            note: None,
-        },
-        TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
-            let mut spans = vec![];
-            let (keyword_note, error_note) = match context {
-                ExprContext::TopLevelLet => (Some("This is a top-level `let` statement, and it has to be pure. If you want to do impure stuffs, define an impure function."), None),
-                ExprContext::InlineLet => unreachable!(),
-                ExprContext::FuncDefaultValue => (None, Some("You can't call impure functions when initializing a default value.")),
-                ExprContext::TopLevelFunc | ExprContext::InlineFunc => (
-                    Some("A function is pure by default. If you want to define an impure function, add `impure` keyword before the `fn` keyword."),
-                    None,
-                ),
-                ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `impure` keyword before the backslash."), None),
-                ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
-            };
-            let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
+                spans: vec![
+                    RenderableSpan {
+                        span: *impl_span,
+                        auxiliary: false,
+                        note: None,
+                    },
+                    RenderableSpan {
+                        span: *poly_span,
+                        auxiliary: true,
+                        note: Some(String::from("`#[poly]` is defined here.")),
+                    },
+                ],
+                note: None,
+            },
+            TypeError::ImpureCallInPureContext { call_spans, keyword_span, context } => {
+                let mut spans = vec![];
+                let (keyword_note, error_note) = match context {
+                    ExprContext::TopLevelLet => (Some("This is a top-level `let` statement, and it has to be pure. If you want to do impure stuffs, define an impure function."), None),
+                    ExprContext::InlineLet => unreachable!(),
+                    ExprContext::FuncDefaultValue => (None, Some("You can't call impure functions when initializing a default value.")),
+                    ExprContext::TopLevelFunc | ExprContext::InlineFunc => (
+                        Some("A function is pure by default. If you want to define an impure function, add `impure` keyword before the `fn` keyword."),
+                        None,
+                    ),
+                    ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `impure` keyword before the backslash."), None),
+                    ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
+                };
+                let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
 
-            spans.push(RenderableSpan {
-                span: *keyword_span,
-                auxiliary: true,
-                note: keyword_note,
-            });
-
-            for call_span in call_spans.iter() {
                 spans.push(RenderableSpan {
-                    span: *call_span,
-                    auxiliary: false,
-                    note: Some(String::from("You're calling an impure function here.")),
+                    span: *keyword_span,
+                    auxiliary: true,
+                    note: keyword_note,
                 });
-            }
 
-            Error {
-                kind: ErrorKind::ImpureCallInPureContext,
-                spans,
-                note: error_note,
-            }
-        },
+                for call_span in call_spans.iter() {
+                    spans.push(RenderableSpan {
+                        span: *call_span,
+                        auxiliary: false,
+                        note: Some(String::from("You're calling an impure function here.")),
+                    });
+                }
 
-        // This is a warning, so don't expect `init_span_string_map()`!
-        TypeWarning::NoImpureCallInImpureContext { impure_keyword_span } => Warning {
-            kind: WarningKind::NoImpureCallInImpureContext,
-            spans: vec![RenderableSpan {
-                span: *impure_keyword_span,
-                auxiliary: false,
-                note: Some(String::from("This `impure` keyword makes this function impure.")),
-            }],
-            note: None,
-        },
+                Error {
+                    kind: ErrorKind::ImpureCallInPureContext,
+                    spans,
+                    note: error_note,
+                }
+            },
+
+            // This is a warning, so don't expect `init_span_string_map()`!
+            TypeWarning::NoImpureCallInImpureContext { impure_keyword_span } => Warning {
+                kind: WarningKind::NoImpureCallInImpureContext,
+                spans: vec![RenderableSpan {
+                    span: *impure_keyword_span,
+                    auxiliary: false,
+                    note: Some(String::from("This `impure` keyword makes this function impure.")),
+                }],
+                note: None,
+            },
+        }
+    }
+
+    pub fn render_type(&self, r#type: &Type) -> String {
+        render_type(
+            r#type,
+            false,  // verbose
+            &self.lang_items,
+            &self.intermediate_dir,
+            &self.span_string_map,
+        )
+    }
+
+    pub fn span_to_string(&self, span: Span) -> Option<String> {
+        span_to_string(
+            span,
+            &self.intermediate_dir,
+            &self.span_string_map,
+        )
     }
 }

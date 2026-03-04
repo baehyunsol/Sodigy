@@ -1,23 +1,13 @@
-use super::TypeSolver;
-use crate::{ErrorContext, Type};
+use crate::{ErrorContext, Session, Type};
 use sodigy_hir::{Path, Pattern, PatternKind};
 use sodigy_name_analysis::IdentWithOrigin;
 use sodigy_span::Span;
 use sodigy_token::Constant;
 use std::collections::HashMap;
 
-impl TypeSolver<'_, '_> {
-    pub fn solve_pattern(
-        &mut self,
-        pattern: &Pattern,
-        types: &mut HashMap<Span, Type>,
-        generic_args: &mut HashMap<(Span, Span), Type>,
-    ) -> (Option<Type>, bool /* has_error */) {
-        let (pattern_type, mut has_error) = self.solve_pattern_kind(
-            &pattern.kind,
-            types,
-            generic_args,
-        );
+impl Session {
+    pub fn solve_pattern(&mut self, pattern: &Pattern) -> (Option<Type>, bool /* has_error */) {
+        let (pattern_type, mut has_error) = self.solve_pattern_kind(&pattern.kind);
 
         match (&pattern_type, &pattern.name, &pattern.name_span) {
             // we can solve a type var!
@@ -26,8 +16,6 @@ impl TypeSolver<'_, '_> {
                 if let Err(()) = self.solve_supertype(
                     &pattern_type,
                     &Type::Var { def_span: *name_span, is_return: false },
-                    types,
-                    generic_args,
                     /* is_checking_argument: */ false,
                     Some(pattern.error_span_wide()),
                     Some(*name_span),
@@ -43,15 +31,10 @@ impl TypeSolver<'_, '_> {
         (pattern_type, has_error)
     }
 
-    pub fn solve_pattern_kind(
-        &mut self,
-        pattern: &PatternKind,
-        types: &mut HashMap<Span, Type>,
-        generic_args: &mut HashMap<(Span, Span), Type>,
-    ) -> (Option<Type>, bool /* has_error */) {
+    pub fn solve_pattern_kind(&mut self, pattern: &PatternKind) -> (Option<Type>, bool /* has_error */) {
         match pattern {
             PatternKind::Path(Path { id: IdentWithOrigin { id, span, .. }, .. }) => todo!(),
-            PatternKind::NameBinding { id, span, .. } => match types.get(span) {
+            PatternKind::NameBinding { id, span, .. } => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     self.add_type_var(Type::Var { def_span: *span, is_return: false }, Some(*id));
@@ -64,7 +47,7 @@ impl TypeSolver<'_, '_> {
                     )
                 },
             },
-            PatternKind::Wildcard(span) => match types.get(span) {
+            PatternKind::Wildcard(span) => match self.types.get(span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     self.add_type_var(Type::Var { def_span: *span, is_return: false }, None);
@@ -156,7 +139,7 @@ impl TypeSolver<'_, '_> {
                     let mut has_error = false;
 
                     for element in elements.iter() {
-                        let (elem_type, e) = self.solve_pattern(element, types, generic_args);
+                        let (elem_type, e) = self.solve_pattern(element);
                         has_error |= e;
 
                         if let Some(elem_type) = elem_type {
@@ -177,16 +160,14 @@ impl TypeSolver<'_, '_> {
             },
             PatternKind::Range { lhs, rhs, .. } => {
                 match (
-                    lhs.as_ref().map(|lhs| self.solve_pattern(lhs, types, generic_args)),
-                    rhs.as_ref().map(|rhs| self.solve_pattern(rhs, types, generic_args)),
+                    lhs.as_ref().map(|lhs| self.solve_pattern(lhs)),
+                    rhs.as_ref().map(|rhs| self.solve_pattern(rhs)),
                 ) {
                     (Some(result), None) | (None, Some(result)) => result,
                     (Some((Some(lhs_type), e1)), Some((Some(rhs_type), e2))) => {
                         match self.solve_supertype(
                             &lhs_type,
                             &rhs_type,
-                            types,
-                            generic_args,
                             /* is_checking_argument: */ false,
                             Some(lhs.as_ref().unwrap().error_span_wide()),
                             Some(rhs.as_ref().unwrap().error_span_wide()),
@@ -208,14 +189,12 @@ impl TypeSolver<'_, '_> {
             PatternKind::Or { lhs, rhs, .. } => {
                 // 1. lhs and rhs must have the same type.
                 let (pattern_type, mut has_error) = match (
-                    self.solve_pattern(lhs, types, generic_args),
-                    self.solve_pattern(rhs, types, generic_args),
+                    self.solve_pattern(lhs),
+                    self.solve_pattern(rhs),
                 ) {
                     ((Some(lhs_type), e1), (Some(rhs_type), e2)) => match self.solve_supertype(
                         &lhs_type,
                         &rhs_type,
-                        types,
-                        generic_args,
                         /* is_checking_argument: */ false,
                         Some(lhs.error_span_wide()),
                         Some(rhs.error_span_wide()),
@@ -248,8 +227,6 @@ impl TypeSolver<'_, '_> {
                     if let Err(()) = self.solve_supertype(
                         &lhs_type_var,
                         &rhs_type_var,
-                        types,
-                        generic_args,
                         /* is_checking_argument: */ false,
                         Some(*lhs_span),
                         Some(*rhs_span),

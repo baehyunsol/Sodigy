@@ -1,4 +1,4 @@
-use super::{dump_assert, dump_let};
+use super::{dump_assert, dump_let, span_to_string_or_verbose};
 use crate::{Callable, Expr, Session};
 use sodigy_endec::IndentedLines;
 use sodigy_hir::dump::dump_pattern;
@@ -158,11 +158,19 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
         Expr::Call { func, args, .. } => {
             let (open_delim, close_delim) = match func {
                 Callable::Static { def_span, .. } => {
-                    lines.push(&session.span_to_string(*def_span).unwrap_or_else(|| format!("({def_span:?})")));
+                    lines.push(&span_to_string_or_verbose(
+                        *def_span,
+                        &session.intermediate_dir,
+                        &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                    ));
                     ("(", ")")
                 },
                 Callable::StructInit { def_span, .. } => {
-                    lines.push(&session.span_to_string(*def_span).unwrap_or_else(|| format!("({def_span:?})")));
+                    lines.push(&span_to_string_or_verbose(
+                        *def_span,
+                        &session.intermediate_dir,
+                        &session.global_context.span_string_map.unwrap_or(&HashMap::new()),
+                    ));
                     ("{", "}")
                 },
                 Callable::TupleInit { .. } => ("(", ")"),

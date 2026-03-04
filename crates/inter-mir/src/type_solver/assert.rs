@@ -1,24 +1,11 @@
-use super::TypeSolver;
-use crate::Type;
+use crate::{Session, Type};
 use crate::error::ErrorContext;
 use sodigy_mir::Assert;
 use sodigy_span::Span;
-use std::collections::HashMap;
 
-impl TypeSolver<'_, '_> {
-    pub fn solve_assert(
-        &mut self,
-        assert: &Assert,
-        impure_calls: &mut Vec<Span>,
-        types: &mut HashMap<Span, Type>,
-        generic_args: &mut HashMap<(Span, Span), Type>,
-    ) -> Result<(), ()> {
-        let (assertion_type, mut has_error) = self.solve_expr(
-            &assert.value,
-            impure_calls,
-            types,
-            generic_args,
-        );
+impl Session {
+    pub fn solve_assert(&mut self, assert: &Assert, impure_calls: &mut Vec<Span>) -> Result<(), ()> {
+        let (assertion_type, mut has_error) = self.solve_expr(&assert.value, impure_calls);
 
         if let Some(assertion_type) = assertion_type {
             if let Err(()) = self.solve_supertype(
@@ -29,8 +16,6 @@ impl TypeSolver<'_, '_> {
                     group_span: None,
                 },
                 &assertion_type,
-                types,
-                generic_args,
                 false,
                 None,
                 Some(assert.value.error_span_wide()),
@@ -42,12 +27,7 @@ impl TypeSolver<'_, '_> {
         }
 
         if let Some(note) = &assert.note {
-            let (note_type, e) = self.solve_expr(
-                note,
-                impure_calls,
-                types,
-                generic_args,
-            );
+            let (note_type, e) = self.solve_expr(note, impure_calls);
             has_error |= e;
 
             if let Some(note_type) = note_type {
@@ -66,8 +46,6 @@ impl TypeSolver<'_, '_> {
                         group_span: Some(Span::None),
                     },
                     &note_type,
-                    types,
-                    generic_args,
                     false,
                     None,
                     Some(note.error_span_wide()),

@@ -1,5 +1,5 @@
-use crate::{PolySolver, SolvePolyResult, TypeError, TypeSolver};
-use sodigy_mir::{Session, Type};
+use crate::{PolySolver, Session, SolvePolyResult, TypeError};
+use sodigy_mir::{Session as MirSession, Type};
 use sodigy_span::Span;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -18,14 +18,9 @@ pub struct Monomorphization {
     pub id: u128,
 }
 
-impl TypeSolver<'_, '_> {
-    pub fn get_mono_plan(
-        &mut self,
-        poly_solver: &HashMap<Span, PolySolver>,
-        already_dispatched: &mut HashSet<(Span /* call */, Span /* generic */)>,
-        session: &Session,
-    ) -> Result<MonomorphizePlan, ()> {
-        let poly_solver = self.init_poly_solvers(session)?;
+impl Session {
+    pub fn get_mono_plan(&mut self, poly_solver: &HashMap<Span, PolySolver>, mir_session: &MirSession) -> Result<MonomorphizePlan, ()> {
+        let poly_solver = self.init_poly_solvers(mir_session)?;
         let mut generic_calls: HashMap<Span, GenericCall> = HashMap::new();
         let mut has_error = false;
 
@@ -38,11 +33,11 @@ impl TypeSolver<'_, '_> {
         for type_var in self.type_vars.keys() {
             match type_var {
                 Type::GenericArg { call, generic } => {
-                    if already_dispatched.contains(&(*call, *generic)) {
+                    if self.solved_generic_args.contains(&(*call, *generic)) {
                         continue;
                     }
 
-                    let r#type = match session.generic_args.get(&(*call, *generic)) {
+                    let r#type = match self.generic_args.get(&(*call, *generic)) {
                         Some(r#type) => {
                             if !r#type.get_type_vars().is_empty() {
                                 incomplete_generics.insert(*call);
@@ -63,7 +58,7 @@ impl TypeSolver<'_, '_> {
                         Entry::Vacant(e) => {
                             e.insert(GenericCall {
                                 call: *call,
-                                def: *self.global_context.generic_def_span_rev.unwrap().get(generic).unwrap(),
+                                def: *self.generic_def_span_rev.get(generic).unwrap(),
                                 generics: [(*generic, r#type)].into_iter().collect(),
                             });
                         },
@@ -79,7 +74,7 @@ impl TypeSolver<'_, '_> {
         let mut monomorphizations = vec![];
 
         for (_, generic_call) in generic_calls.iter() {
-            match self.try_solve_poly(self.global_context.polys.unwrap(), &poly_solver, generic_call) {
+            match self.try_solve_poly(&poly_solver, generic_call) {
                 SolvePolyResult::NotPoly => {
                     if incomplete_generics.contains(&generic_call.call) {
                         continue;
@@ -96,7 +91,7 @@ impl TypeSolver<'_, '_> {
                 },
                 SolvePolyResult::NoCandidates => {
                     has_error = true;
-                    self.errors.push(TypeError::CannotSpecializePolyGeneric {
+                    self.type_errors.push(TypeError::CannotSpecializePolyGeneric {
                         call: generic_call.call,
                         poly_def: generic_call.def,
                         generics: generic_call.generics.clone(),
@@ -106,7 +101,7 @@ impl TypeSolver<'_, '_> {
                 SolvePolyResult::DefaultImpl(p) |
                 SolvePolyResult::OneCandidate(p) => {
                     for generic in generic_call.generics.keys() {
-                        already_dispatched.insert((generic_call.call, *generic));
+                        self.solved_generic_args.insert((generic_call.call, *generic));
                     }
 
                     dispatch_map.insert(generic_call.call, p);

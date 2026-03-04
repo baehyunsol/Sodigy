@@ -1,18 +1,10 @@
-use super::TypeSolver;
-use crate::Type;
+use crate::{Session, Type};
 use crate::error::ErrorContext;
 use sodigy_mir::Let;
 use sodigy_span::Span;
-use std::collections::HashMap;
 
-impl TypeSolver<'_, '_> {
-    pub fn solve_let(
-        &mut self,
-        r#let: &Let,
-        impure_calls: &mut Vec<Span>,
-        types: &mut HashMap<Span, Type>,
-        generic_args: &mut HashMap<(Span, Span), Type>,
-    ) -> (Option<Type>, bool /* has_error */) {
+impl Session {
+    pub fn solve_let(&mut self, r#let: &Let, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
         let mut has_error = false;
 
         let (
@@ -20,7 +12,7 @@ impl TypeSolver<'_, '_> {
             value_span,
             type_annot_span,
             context,
-        ) = match types.get(&r#let.name_span) {
+        ) = match self.types.get(&r#let.name_span) {
             None | Some(Type::Var { .. }) => {
                 self.add_type_var(Type::Var { def_span: r#let.name_span, is_return: false }, Some(r#let.name));
                 (
@@ -45,12 +37,7 @@ impl TypeSolver<'_, '_> {
             ),
         };
 
-        let (infered_type, e) = self.solve_expr(
-            &r#let.value,
-            impure_calls,
-            types,
-            generic_args,
-        );
+        let (infered_type, e) = self.solve_expr(&r#let.value, impure_calls);
         has_error |= e;
 
         match infered_type {
@@ -58,8 +45,6 @@ impl TypeSolver<'_, '_> {
                 if let Err(()) = self.solve_supertype(
                     &annotated_type,
                     &infered_type,
-                    types,
-                    generic_args,
                     false,
                     type_annot_span,
                     Some(value_span),

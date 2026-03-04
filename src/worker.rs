@@ -12,11 +12,10 @@ use sodigy_driver::CompileStage;
 use sodigy_endec::Endec;
 use sodigy_error::{Error as SodigyError, Warning as SodigyWarning};
 use sodigy_file::{File, FileOrStd, ModulePath};
-use sodigy_fs_api::{WriteMode, join3, read_bytes, write_bytes};
+use sodigy_fs_api::{WriteMode, write_bytes};
 use sodigy_hir as hir;
 use sodigy_mir::{self as mir, GlobalContext as MirGlobalContext};
 use sodigy_span::Span;
-use std::collections::HashMap;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
@@ -354,13 +353,6 @@ impl Worker {
                     let mut mir_session = sodigy_mir::lower(hir_session, global_context.inter_hir_session.as_ref().unwrap());
                     self.stage_end(!mir_session.errors.is_empty());
 
-                    init_span_string_map_if_necessary(
-                        &mut mir_session,
-                        &emit_ir_options,
-                        &intermediate_dir,
-                        /* read_from_file: */ false,
-                        /* write_to_file: */ false,
-                    )?;
                     emit_irs_if_has_to(
                         &mir_session,
                         &emit_ir_options,
@@ -390,13 +382,6 @@ impl Worker {
                 let _ = sodigy_post_mir::lower(&mut mir_session);
                 self.stage_end(!mir_session.errors.is_empty());
 
-                init_span_string_map_if_necessary(
-                    &mut mir_session,
-                    &emit_ir_options,
-                    &intermediate_dir,
-                    /* read_from_file: */ true,
-                    /* write_to_file: */ false,
-                )?;
                 emit_irs_if_has_to(
                     &mir_session,
                     &emit_ir_options,
@@ -578,20 +563,12 @@ impl Worker {
                 // `mir_session` has definition of every items, after poly-solving and
                 // monomorphization. It's very heavy, and we're not gonna store this.
                 self.stage_start(CompileStage::InterMir, None);
-                let (inter_mir_session, mut mir_session) = sodigy_inter_mir::solve_type(mir_session);
-                self.stage_end(!inter_mir_session.errors.is_empty() || !mir_session.errors.is_empty());
-
-                init_span_string_map_if_necessary(
-                    &mut mir_session,
-                    &emit_ir_options,
-                    &intermediate_dir,
-                    /* read_from_file: */ false,
-                    /* write_to_file: */ true,
-                )?;
+                let inter_mir_session = sodigy_inter_mir::solve_type(&mut mir_session);
+                self.stage_end(!inter_mir_session.errors.is_empty());
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.
                 // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
-                // TODO: This is (potentially) one of the biggest bottleneck in the compiler.
+                // TODO: This is (potentially) one of the biggest bottlenecks in the compiler.
                 let items = mir_session.get_item_map();
 
                 for path in modules.keys() {
@@ -729,57 +706,12 @@ impl Worker {
                     None,
                 )?.ok_or(Error::IrCacheNotFound(CompileStage::InterMir))?;
                 let inter_mir_session = sodigy_inter_mir::Session::decode(&inter_mir_session_bytes)?;
-                global_context.types = Some(inter_mir_session.types.clone());
-                global_context.generic_args = Some(inter_mir_session.generic_args.clone());
+                global_context.inter_mir_session = Some(inter_mir_session);
             },
         }
 
         Ok(())
     }
-}
-
-fn init_span_string_map_if_necessary(
-    session: &mut mir::Session,
-    emit_ir_options: &[EmitIrOption],
-    intermediate_dir: &str,
-    read_from_file: bool,
-    write_to_file: bool,
-) -> Result<(), Error> {
-    for option in emit_ir_options.iter() {
-        match option {
-            EmitIrOption {
-                stage: CompileStage::Mir | CompileStage::InterMir | CompileStage::PostMir,
-                human_readable: true,
-                ..
-            } => {
-                let path = join3(
-                    intermediate_dir,
-                    "irs",
-                    "span_string_map",
-                )?;
-
-                if read_from_file {
-                    let bytes = read_bytes(&path)?;
-                    session.span_string_map = Some(HashMap::<_, _>::decode(&bytes)?);
-                }
-
-                else {
-                    session.init_span_string_map();
-                }
-
-                if write_to_file {
-                    let Some(span_string_map) = &session.span_string_map else { unreachable!() };
-                    let bytes = span_string_map.encode();
-                    write_bytes(&path, &bytes, WriteMode::CreateOrTruncate)?;
-                }
-
-                break;
-            },
-            _ => {},
-        }
-    }
-
-    Ok(())
 }
 
 fn compile_error_if_non_empty<E>(errors: &[E]) -> Result<(), Error> {

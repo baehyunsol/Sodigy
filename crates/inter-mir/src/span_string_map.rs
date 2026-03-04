@@ -1,67 +1,47 @@
-use super::Session;
-use crate::{Assert, Callable, Enum, Expr, Func, Let, Struct};
+use crate::Session;
 use sodigy_hir::EnumVariantFields;
-use sodigy_span::{PolySpanKind, Span};
+use sodigy_mir::{Assert, Callable, Enum, Expr, Func, Let, Struct};
+use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
-impl Session<'_, '_> {
-    /// Make sure to call `init_span_string_map` before calling this.
-    pub fn span_to_string(&self, span: Span) -> Option<String> {
-        match span {
-            Span::Prelude(p) => Some(p.unintern_or_default(&self.intermediate_dir)),
-            Span::Range { .. } | Span::Derived { .. } => match self.span_string_map.as_ref().map(|map| map.get(&span)) {
-                Some(Some(s)) => Some(s.unintern_or_default(&self.intermediate_dir)),
-                _ => None,
-            },
-            Span::None => None,
-            Span::Poly { name, kind, monomorphize_id: None } => {
-                let name = name.unintern_or_default(&self.intermediate_dir);
-
-                match kind {
-                    PolySpanKind::Name => Some(name),
-                    PolySpanKind::Param(i) => Some(format!("T{i}")),
-                    PolySpanKind::Return => Some(String::from("V")),
-                }
-            },
-            _ => todo!(),
-        }
-    }
-
-    /// Be careful, this is extremely expensive!!
-    /// Call this only when necessary.
-    pub fn init_span_string_map(&mut self) {
-        if self.span_string_map.is_some() {
-            return;
-        }
-
+impl Session {
+    pub fn init_span_string_map(
+        &mut self,
+        lets: &[Let],
+        funcs: &[Func],
+        structs: &[Struct],
+        enums: &[Enum],
+        asserts: &[Assert],
+        aliases: &[(InternedString, Span)],
+    ) {
         let mut result = HashMap::new();
 
-        for r#let in self.lets.iter() {
+        for r#let in lets.iter() {
             self.init_span_string_map_let(r#let, &mut result);
         }
 
-        for func in self.funcs.iter() {
+        for func in funcs.iter() {
             self.init_span_string_map_func(func, &mut result);
         }
 
-        for r#struct in self.structs.iter() {
+        for r#struct in structs.iter() {
             self.init_span_string_map_struct(r#struct, &mut result);
         }
 
-        for r#enum in self.enums.iter() {
+        for r#enum in enums.iter() {
             self.init_span_string_map_enum(r#enum, &mut result);
         }
 
-        for assert in self.asserts.iter() {
+        for assert in asserts.iter() {
             self.init_span_string_map_assert(assert, &mut result);
         }
 
-        for (name, span) in self.aliases.iter() {
+        for (name, span) in aliases.iter() {
             result.insert(*span, *name);
         }
 
-        self.span_string_map = Some(result);
+        self.span_string_map = result;
     }
 
     pub fn init_span_string_map_let(&self, r#let: &Let, result: &mut HashMap<Span, InternedString>) {

@@ -28,14 +28,8 @@ impl Endec for Session<'_, '_> {
         self.asserts.encode_impl(buffer);
         self.aliases.encode_impl(buffer);
         self.type_assertions.encode_impl(buffer);
-
-        // These 2 are likely to be empty... but encoding/decoding an empty
-        // map is very cheap, so who cares!
         self.types.encode_impl(buffer);
         self.generic_args.encode_impl(buffer);
-
-        // you can re-construct it from scratch
-        // self.span_string_map.encode_impl(buffer);
 
         self.errors.encode_impl(buffer);
         self.warnings.encode_impl(buffer);
@@ -67,7 +61,6 @@ impl Endec for Session<'_, '_> {
                 type_assertions,
                 types,
                 generic_args,
-                span_string_map: None,
                 errors,
                 warnings,
 

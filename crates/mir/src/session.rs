@@ -1,13 +1,12 @@
 use crate::{Assert, Enum, Func, GlobalContext, Let, Struct, Type, TypeAssertion};
 use sodigy_error::{Error, Warning};
-use sodigy_hir as hir;
+use sodigy_hir::{self as hir, FuncShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 mod item_map;
-mod span_string_map;
 
 #[derive(Clone, Debug)]
 pub struct Session<'hir, 'mir> {
@@ -41,15 +40,11 @@ pub struct Session<'hir, 'mir> {
     // Like `types`, it only has information of generic args in the module.
     // For generic args in other modules, use `.global_context.generic_args`.
     pub generic_args: HashMap<(Span, Span), Type>,
-
-    // We need this when we create error messages.
-    // This is really expensive to initialize, so think twice before you init this.
-    pub span_string_map: Option<HashMap<Span, InternedString>>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
 
     // Before inter-mir, this field is empty and `types` has type information of this module.
-    // While inter-mir, this field is empty and `types` has type information of every module.
+    // While inter-mir, this field is still empty and shouldn't be used.
     // After inter-mir, this field has type information of every module and `types` is empty.
     pub global_context: GlobalContext<'hir, 'mir>,
 }
@@ -77,7 +72,6 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
             aliases: hir_session.aliases.iter().map(|alias| (alias.name, alias.name_span)).collect(),
             types: HashMap::new(),
             generic_args: HashMap::new(),
-            span_string_map: Some(HashMap::new()),
             errors: hir_session.errors.clone(),
             warnings: hir_session.warnings.clone(),
             global_context: GlobalContext::from_inter_hir_session(inter_hir_session),
@@ -106,20 +100,20 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
     }
 
     // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.
-    pub fn dispatch(&mut self, map: &HashMap<Span, Span>) {
+    pub fn dispatch(&mut self, map: &HashMap<Span, Span>, func_shapes: &HashMap<Span, FuncShape>) {
         for r#let in self.lets.iter_mut() {
-            r#let.value.dispatch(map, self.global_context.func_shapes.unwrap(), &mut self.generic_args);
+            r#let.value.dispatch(map, func_shapes, &mut self.generic_args);
         }
 
         for func in self.funcs.iter_mut() {
-            func.value.dispatch(map, self.global_context.func_shapes.unwrap(), &mut self.generic_args);
+            func.value.dispatch(map, func_shapes, &mut self.generic_args);
         }
 
         for assert in self.asserts.iter_mut() {
-            assert.value.dispatch(map, self.global_context.func_shapes.unwrap(), &mut self.generic_args);
+            assert.value.dispatch(map, func_shapes, &mut self.generic_args);
 
             if let Some(note) = &mut assert.note {
-                note.dispatch(map, self.global_context.func_shapes.unwrap(), &mut self.generic_args);
+                note.dispatch(map, func_shapes, &mut self.generic_args);
             }
         }
     }

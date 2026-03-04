@@ -1,5 +1,4 @@
-use super::TypeSolver;
-use crate::{Expr, Type};
+use crate::{Expr, Session, Type};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_hir::{AssociatedFunc, FuncPurity};
 use sodigy_mir::{Callable, ShortCircuitKind};
@@ -10,7 +9,7 @@ use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::collections::HashMap;
 
-impl TypeSolver<'_, '_> {
+impl Session {
     // FIXME: there are A LOT OF heap allocations
     //
     // It can solve type of any expression, but the result maybe `Type::Var`.
@@ -19,15 +18,9 @@ impl TypeSolver<'_, '_> {
     // If there's no error, it must return the type of the expr: `(Some(ty), false)`.
     // If there're errors, it'll still try to return the type, so that it
     // can find more type errors (only obvious ones).
-    pub fn solve_expr(
-        &mut self,
-        expr: &Expr,
-        impure_calls: &mut Vec<Span>,
-        types: &mut HashMap<Span, Type>,
-        generic_args: &mut HashMap<(Span, Span), Type>,
-    ) -> (Option<Type>, bool /* has_error */) {
+    pub fn solve_expr(&mut self, expr: &Expr, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
         match expr {
-            Expr::Ident(id) => match types.get(&id.def_span) {
+            Expr::Ident(id) => match self.types.get(&id.def_span) {
                 Some(r#type) => (Some(r#type.clone()), false),
                 None => {
                     match id.origin {
@@ -149,7 +142,7 @@ impl TypeSolver<'_, '_> {
                         &r#if.true_value,
                         &r#if.false_value,
                     ] {
-                        let (v_type, e) = self.solve_expr(v, impure_calls, types, generic_args);
+                        let (v_type, e) = self.solve_expr(v, impure_calls);
 
                         if e {
                             has_error = true;
@@ -159,8 +152,6 @@ impl TypeSolver<'_, '_> {
                             if let Err(()) = self.solve_supertype(
                                 &bool_type,
                                 &v_type,
-                                types,
-                                generic_args,
                                 false,
                                 None,
                                 Some(v.error_span_wide()),
@@ -175,7 +166,7 @@ impl TypeSolver<'_, '_> {
                     (Some(bool_type), has_error)
                 },
                 None => {
-                    let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), impure_calls, types, generic_args);
+                    let (cond_type, mut has_error) = self.solve_expr(r#if.cond.as_ref(), impure_calls);
 
                     if let Some(cond_type) = cond_type {
                         if let Err(()) = self.solve_supertype(
@@ -186,8 +177,6 @@ impl TypeSolver<'_, '_> {
                                 group_span: None,
                             },
                             &cond_type,
-                            types,
-                            generic_args,
                             false,
                             None,
                             Some(r#if.cond.error_span_wide()),
@@ -199,14 +188,12 @@ impl TypeSolver<'_, '_> {
                     }
 
                     match (
-                        self.solve_expr(r#if.true_value.as_ref(), impure_calls, types, generic_args),
-                        self.solve_expr(r#if.false_value.as_ref(), impure_calls, types, generic_args),
+                        self.solve_expr(r#if.true_value.as_ref(), impure_calls),
+                        self.solve_expr(r#if.false_value.as_ref(), impure_calls),
                     ) {
                         ((Some(true_type), e1), (Some(false_type), e2)) => match self.solve_supertype(
                             &true_type,
                             &false_type,
-                            types,
-                            generic_args,
                             false,
                             Some(r#if.true_value.error_span_wide()),
                             Some(r#if.false_value.error_span_wide()),
@@ -230,20 +217,18 @@ impl TypeSolver<'_, '_> {
             // 4. arm_type == expr_type
             // 5. scrutinee_type == pattern_types
             Expr::Match(r#match) => {
-                let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), impure_calls, types, generic_args);
+                let (scrutinee_type, mut has_error) = self.solve_expr(r#match.scrutinee.as_ref(), impure_calls);
                 let mut arm_types = Vec::with_capacity(r#match.arms.len());
 
                 // TODO: it's okay to fail to infer the types of name bindings
                 //       we need some kinda skip list
                 for arm in r#match.arms.iter() {
                     if let Some(scrutinee_type) = &scrutinee_type {
-                        match self.solve_pattern(&arm.pattern, types, generic_args) {
+                        match self.solve_pattern(&arm.pattern) {
                             (Some(pattern_type), e) => {
                                 if let Err(()) = self.solve_supertype(
                                     &scrutinee_type,
                                     &pattern_type,
-                                    types,
-                                    generic_args,
                                     false,
                                     Some(r#match.scrutinee.error_span_wide()),
                                     Some(arm.pattern.error_span_wide()),
@@ -265,7 +250,7 @@ impl TypeSolver<'_, '_> {
                     }
 
                     if let Some(guard) = &arm.guard {
-                        let (guard_type, e) = self.solve_expr(guard, impure_calls, types, generic_args);
+                        let (guard_type, e) = self.solve_expr(guard, impure_calls);
                         has_error |= e;
 
                         if let Some(guard_type) = guard_type {
@@ -277,8 +262,6 @@ impl TypeSolver<'_, '_> {
                                     group_span: None,
                                 },
                                 &guard_type,
-                                types,
-                                generic_args,
                                 false,
                                 None,
                                 Some(guard.error_span_wide()),
@@ -290,7 +273,7 @@ impl TypeSolver<'_, '_> {
                         }
                     }
 
-                    let (arm_type, e) = self.solve_expr(&arm.value, impure_calls, types, generic_args);
+                    let (arm_type, e) = self.solve_expr(&arm.value, impure_calls);
                     has_error |= e;
 
                     if let Some(arm_type) = arm_type {
@@ -311,8 +294,6 @@ impl TypeSolver<'_, '_> {
                         if let Ok(new_expr_type) = self.solve_supertype(
                             &expr_type,
                             &arm_types[i],
-                            types,
-                            generic_args,
                             false,
                             Some(r#match.arms[0].value.error_span_wide()),
                             Some(r#match.arms[i].value.error_span_wide()),
@@ -342,21 +323,21 @@ impl TypeSolver<'_, '_> {
                 let mut has_error = false;
 
                 for r#let in block.lets.iter() {
-                    let (_, e) = self.solve_let(r#let, impure_calls, types, generic_args);
+                    let (_, e) = self.solve_let(r#let, impure_calls);
                     has_error |= e;
                 }
 
                 for assert in block.asserts.iter() {
-                    if let Err(()) = self.solve_assert(assert, impure_calls, types, generic_args) {
+                    if let Err(()) = self.solve_assert(assert, impure_calls) {
                         has_error = true;
                     }
                 }
 
-                let (expr_type, e) = self.solve_expr(block.value.as_ref(), impure_calls, types, generic_args);
+                let (expr_type, e) = self.solve_expr(block.value.as_ref(), impure_calls);
                 (expr_type, e || has_error)
             },
-            Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls, types, generic_args) {
-                (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_args) {
+            Expr::Field { lhs, fields } => match self.solve_expr(lhs, impure_calls) {
+                (Some(lhs_type), has_error) => match self.get_type_of_field(&lhs_type, fields) {
                     Ok(field_type) => (Some(field_type), has_error),
                     Err(()) => (None, true),
                 },
@@ -365,17 +346,15 @@ impl TypeSolver<'_, '_> {
             // 1. Make sure that `lhs` has the fields.
             // 2. Make sure that the field's type and `rhs`' type are the same.
             // 3. Return the type of `lhs`.
-            Expr::FieldUpdate { fields, lhs, rhs } => match self.solve_expr(lhs, impure_calls, types, generic_args) {
-                (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields, types, generic_args) {
-                    Ok(field_type) => match self.solve_expr(rhs, impure_calls, types, generic_args) {
+            Expr::FieldUpdate { fields, lhs, rhs } => match self.solve_expr(lhs, impure_calls) {
+                (Some(lhs_type), mut has_error) => match self.get_type_of_field(&lhs_type, fields) {
+                    Ok(field_type) => match self.solve_expr(rhs, impure_calls) {
                         (Some(rhs_type), e) => {
                             has_error |= e;
 
                             if let Err(()) = self.solve_supertype(
                                 &field_type,
                                 &rhs_type,
-                                types,
-                                generic_args,
                                 false,
                                 Some(merge_field_spans(fields)),
                                 Some(rhs.error_span_wide()),
@@ -406,7 +385,7 @@ impl TypeSolver<'_, '_> {
                 let mut arg_types = Vec::with_capacity(args.len());
 
                 for arg in args.iter() {
-                    match self.solve_expr(arg, impure_calls, types, generic_args) {
+                    match self.solve_expr(arg, impure_calls) {
                         (Some(arg_type), e) => {
                             arg_types.push(arg_type);
                             has_error |= e;
@@ -423,7 +402,7 @@ impl TypeSolver<'_, '_> {
 
                 match func {
                     // The `expr` is `f()` and we know the def_span of `f`.
-                    Callable::Static { def_span, span } => match types.get(def_span) {
+                    Callable::Static { def_span, span } => match self.types.get(def_span) {
                         // `f` is a function and we have enough information.
                         Some(Type::Func {
                             params,
@@ -437,7 +416,7 @@ impl TypeSolver<'_, '_> {
 
                             let mut params = params.clone();
                             let mut return_type: Type = *r#return.clone();
-                            let generic_params = self.global_context.func_shapes.unwrap().get(def_span).map(
+                            let generic_params = self.func_shapes.get(def_span).map(
                                 |func_shape| func_shape.generics.iter().map(
                                     |generic| generic.name_span
                                 ).collect()
@@ -460,7 +439,7 @@ impl TypeSolver<'_, '_> {
                             // Whether or not there're type errors with args, it returns the return type.
                             if arg_types.len() != params.len() {
                                 has_error = true;
-                                self.errors.push(TypeError::WrongNumberOfArguments {
+                                self.type_errors.push(TypeError::WrongNumberOfArguments {
                                     expected: params,
                                     got: arg_types,
                                     given_keyword_arguments: given_keyword_arguments.to_vec(),
@@ -474,8 +453,6 @@ impl TypeSolver<'_, '_> {
                                     if let Err(()) = self.solve_supertype(
                                         param,
                                         &arg_types[i],
-                                        types,
-                                        generic_args,
                                         false,
                                         None,
                                         Some(args[i].error_span_wide()),
@@ -492,7 +469,7 @@ impl TypeSolver<'_, '_> {
                         // We're sure that `f` is not a function.
                         // For example, `let f = 3; f()`.
                         Some(t @ Type::Data { .. }) => {
-                            self.errors.push(TypeError::NotCallable {
+                            self.type_errors.push(TypeError::NotCallable {
                                 r#type: t.clone(),
                                 func_span: *span,
                             });
@@ -515,8 +492,6 @@ impl TypeSolver<'_, '_> {
                                     is_return: true,
                                 },
                                 &v,
-                                types,
-                                generic_args,
                                 false,
                                 None,
                                 None,
@@ -529,7 +504,7 @@ impl TypeSolver<'_, '_> {
                         },
                         None => todo!(),
                     },
-                    Callable::StructInit { def_span, span } => match self.global_context.struct_shapes.unwrap().get(def_span) {
+                    Callable::StructInit { def_span, span } => match self.struct_shapes.get(def_span) {
                         Some(s) => {
                             // The compiler checked it when lowering hir to mir.
                             assert_eq!(s.fields.len(), arg_types.len());
@@ -540,7 +515,7 @@ impl TypeSolver<'_, '_> {
                             ).collect::<Vec<_>>();
 
                             for i in 0..arg_types.len() {
-                                let field_type = match types.get(&s.fields[i].name_span) {
+                                let field_type = match self.types.get(&s.fields[i].name_span) {
                                     Some(r#type) => {
                                         let mut r#type = r#type.clone();
                                         r#type.substitute_generic_param_for_arg(call_span, &generic_params);
@@ -552,8 +527,6 @@ impl TypeSolver<'_, '_> {
                                 if let Err(()) = self.solve_supertype(
                                     &field_type,
                                     &arg_types[i],
-                                    types,
-                                    generic_args,
                                     false,
                                     None,
                                     Some(args[i].error_span_wide()),
@@ -575,7 +548,7 @@ impl TypeSolver<'_, '_> {
                             } else {
                                 (Some(s.generics.iter().map(
                                     |generic| {
-                                        match generic_args.get(&(call_span, generic.name_span)) {
+                                        match self.generic_args.get(&(call_span, generic.name_span)) {
                                             Some(r#type) => r#type.clone(),
                                             None => Type::GenericArg { call: call_span, generic: generic.name_span },
                                         }
@@ -638,8 +611,6 @@ impl TypeSolver<'_, '_> {
                                 if let Ok(new_elem_type) = self.solve_supertype(
                                     &elem_type,
                                     &arg_types[i],
-                                    types,
-                                    generic_args,
                                     false,
                                     Some(args[0].error_span_wide()),
                                     Some(args[i].error_span_wide()),
@@ -668,7 +639,7 @@ impl TypeSolver<'_, '_> {
                         }
                     },
                     Callable::Dynamic(func) => {
-                        let (func_type, mut has_error) = match self.solve_expr(func, impure_calls, types, generic_args) {
+                        let (func_type, mut has_error) = match self.solve_expr(func, impure_calls) {
                             (Some(func_type), has_error) => (func_type, has_error),
                             (None, has_error) => {
                                 return (None, has_error);
@@ -678,7 +649,7 @@ impl TypeSolver<'_, '_> {
                         match func_type {
                             // TODO: What if there's a callable `Type::Data`?
                             Type::Data { .. } => {
-                                self.errors.push(TypeError::NotCallable {
+                                self.type_errors.push(TypeError::NotCallable {
                                     r#type: func_type.clone(),
                                     func_span: func.error_span_wide(),
                                 });
@@ -697,7 +668,7 @@ impl TypeSolver<'_, '_> {
                                 // Whether or not there're type errors with args, it returns the return type.
                                 if arg_types.len() != params.len() {
                                     has_error = true;
-                                    self.errors.push(TypeError::WrongNumberOfArguments {
+                                    self.type_errors.push(TypeError::WrongNumberOfArguments {
                                         expected: params,
                                         got: arg_types,
                                         given_keyword_arguments: given_keyword_arguments.to_vec(),
@@ -711,8 +682,6 @@ impl TypeSolver<'_, '_> {
                                         if let Err(()) = self.solve_supertype(
                                             &params[i],
                                             &arg_types[i],
-                                            types,
-                                            generic_args,
                                             false,
                                             None,
                                             Some(args[i].error_span_wide()),
@@ -748,13 +717,7 @@ impl TypeSolver<'_, '_> {
         }
     }
 
-    pub fn get_type_of_field(
-        &mut self,
-        r#type: &Type,
-        field: &[Field],
-        types: &HashMap<Span, Type>,
-        generic_args: &HashMap<(Span, Span), Type>,
-    ) -> Result<Type, ()> {
+    pub fn get_type_of_field(&mut self, r#type: &Type, field: &[Field]) -> Result<Type, ()> {
         let mut field_type = None;
 
         // Let's say there's a struct `Game<T, U>` and `r#type` is `Game<Int, String>`.
@@ -787,7 +750,7 @@ impl TypeSolver<'_, '_> {
                     }
                 }
 
-                else if let Some(struct_shape) = self.global_context.struct_shapes.unwrap().get(def_span) {
+                else if let Some(struct_shape) = self.struct_shapes.get(def_span) {
                     if let Some(args) = args {
                         for (generic_param, generic_arg) in struct_shape.generics.iter().zip(args.iter()) {
                             generic_map.insert(generic_param.name_span, generic_arg);
@@ -798,7 +761,7 @@ impl TypeSolver<'_, '_> {
                         Field::Name { name, name_span, .. } => {
                             for field in struct_shape.fields.iter() {
                                 if field.name == *name {
-                                    match types.get(&field.name_span) {
+                                    match self.types.get(&field.name_span) {
                                         Some(r#type) => {
                                             field_type = Some(r#type.clone());
                                         },
@@ -815,7 +778,7 @@ impl TypeSolver<'_, '_> {
                             let i = if *i < 0 { (*i + struct_shape.fields.len() as i64) as usize } else { *i as usize };
                             let name_span = struct_shape.fields[i].name_span;
 
-                            match types.get(&name_span) {
+                            match self.types.get(&name_span) {
                                 Some(r#type) => {
                                     field_type = Some(r#type.clone());
                                 },
@@ -829,7 +792,7 @@ impl TypeSolver<'_, '_> {
                 }
 
                 if let Field::Name { name, name_span, .. } = &field[0] && field_type.is_none() {
-                    if let Some(item_shape) = self.global_context.get_item_shape(*def_span) {
+                    if let Some(item_shape) = self.get_item_shape(*def_span) {
                         // `x.unwrap()` is desugared to `associated_func::unwrap::pure::1(x)`.
                         // `associated_func::unwrap::pure::1` is a poly-generic function and we can
                         // easily reference the function with its name.
@@ -895,12 +858,7 @@ impl TypeSolver<'_, '_> {
                 }
 
                 else {
-                    self.get_type_of_field(
-                        &field_type,
-                        &field[1..],
-                        types,
-                        generic_args,
-                    )
+                    self.get_type_of_field(&field_type, &field[1..])
                 }
             },
             None => {

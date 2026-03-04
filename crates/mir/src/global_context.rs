@@ -2,6 +2,7 @@ use crate::Type;
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
+use sodigy_string::InternedString;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug)]
@@ -18,6 +19,7 @@ pub struct GlobalContext<'hir, 'mir> {
 
     pub types: Option<&'mir HashMap<Span, Type>>,
     pub generic_args: Option<&'mir HashMap<(Span, Span), Type>>,
+    pub span_string_map: Option<&'mir HashMap<Span, InternedString>>,
 }
 
 impl<'hir> GlobalContext<'hir, '_> {
@@ -31,6 +33,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             lang_items: None,
             types: None,
             generic_args: None,
+            span_string_map: None,
         }
     }
 
@@ -44,6 +47,7 @@ impl<'hir> GlobalContext<'hir, '_> {
             lang_items: Some(&session.lang_items),
             types: None,
             generic_args: None,
+            span_string_map: None,
         }
     }
 

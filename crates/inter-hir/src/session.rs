@@ -5,7 +5,6 @@ use sodigy_hir::{
     EnumShape,
     Expr,
     Func,
-    FuncParam,
     FuncShape,
     ItemShapeMut,
     Poly,
@@ -21,7 +20,7 @@ use std::collections::HashMap;
 pub struct Session {
     pub intermediate_dir: String,
 
-    // of all hir modules
+    // of all modules' hir
     pub func_shapes: HashMap<Span, FuncShape>,
     pub struct_shapes: HashMap<Span, StructShape>,
     pub enum_shapes: HashMap<Span, EnumShape>,

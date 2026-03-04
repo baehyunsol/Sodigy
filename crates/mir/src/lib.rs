@@ -19,6 +19,7 @@ mod r#type;
 
 pub use assert::Assert;
 pub use block::Block;
+pub use dump::{render_type, span_to_string, span_to_string_or_verbose};
 pub use r#enum::Enum;
 pub use expr::{Callable, Expr, ShortCircuitKind};
 pub use func::Func;
