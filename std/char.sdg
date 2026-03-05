@@ -1,3 +1,10 @@
+use std.bool.Bool;
+
 #[built_in]
 #[lang_item("type.Char")]
 pub enum Char;
+
+#[built_in]
+#[impl(std.op.eq)]
+#[lang_item("built_in.eq_char")]
+fn eq_char(a: Char, b: Char) -> Bool;

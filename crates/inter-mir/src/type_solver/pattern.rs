@@ -158,8 +158,14 @@ impl Session {
                     )
                 }
             },
-            PatternKind::List { elements, group_span, .. } => {
-                if elements.is_empty() {
+            PatternKind::List { elements, group_span, rest } => {
+                let mut rest_pattern_name_binding = None;
+
+                if let Some(rest) = rest {
+                    rest_pattern_name_binding = rest.name_span;
+                }
+
+                let (mut r#type, mut has_error) = if elements.is_empty() {
                     let type_var = Type::GenericArg { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
                     self.add_type_var(type_var.clone(), None);
 
@@ -171,7 +177,7 @@ impl Session {
                         // this is for the type annotation, hence None
                         group_span: Some(Span::None),
                     };
-                    (Some(r#type), false)
+                    (r#type, false)
                 }
 
                 else {
@@ -219,8 +225,29 @@ impl Session {
                         // this is for the type annotation, hence None
                         group_span: Some(Span::None),
                     };
-                    (Some(r#type), has_error)
+                    (r#type, has_error)
+                };
+
+                // If there's a rest pattern, it must have the same type.
+                if let Some(rest) = rest_pattern_name_binding {
+                    if let Ok(new_type) = self.solve_supertype(
+                        &Type::Var { def_span: rest, is_return: false },
+                        &r#type,
+                        false,
+                        None,
+                        None,
+                        ErrorContext::ListElementEqual,
+                        true,
+                    ) {
+                        r#type = new_type;
+                    }
+
+                    else {
+                        has_error = true;
+                    }
                 }
+
+                (Some(r#type), has_error)
             },
             PatternKind::Range { lhs, rhs, .. } => {
                 match (
