@@ -1,14 +1,15 @@
-use crate::Span;
+use crate::{MonomorphizationInfo, Span};
 use sodigy_file::File;
 use std::collections::hash_map::{Entry, HashMap};
 
 pub struct Session {
-    intermediate_dir: String,
-    file_paths: HashMap<File, String>,
+    pub intermediate_dir: String,
+    pub file_paths: HashMap<File, String>,
+    pub monomorphizations: HashMap<u128, MonomorphizationInfo>,
 
     // Spans only have byte offset, but we want row and col indexes.
     // So the session remembers the line breaks.
-    line_breaks: HashMap<File, Vec<usize>>,
+    pub line_breaks: HashMap<File, Vec<usize>>,
 }
 
 impl Session {
@@ -16,6 +17,7 @@ impl Session {
         Session {
             intermediate_dir: intermediate_dir.to_string(),
             file_paths: HashMap::new(),
+            monomorphizations: HashMap::new(),
             line_breaks: HashMap::new(),
         }
     }

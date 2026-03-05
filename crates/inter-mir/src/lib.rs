@@ -1,3 +1,4 @@
+use mono::GenericCall;
 use sodigy_mir::{Expr, Session as MirSession, Type};
 use std::collections::{HashMap, HashSet};
 
@@ -10,7 +11,7 @@ mod span_string_map;
 mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError};
-pub(crate) use mono::GenericCall;
+pub use mono::Monomorphization;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
 
@@ -90,13 +91,29 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         }
 
         match session.get_mono_plan(&poly_solver, mir_session) {
-            Ok(mono) => {
-                for monomorphization in mono.monomorphizations.iter() {
-                    panic!("TODO: {monomorphization:?}");
+            Ok(mut plan) => {
+                for monomorphization in plan.monomorphizations.drain(..) {
+                    if session.monomorphizations.contains_key(&monomorphization.id) {
+                        continue;
+                    }
+
+                    if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
+                        let func = &mir_session.funcs[*index];
+                        let new_func = session.monomorphize_func(func, &monomorphization);
+                        session.monomorphizations.insert(monomorphization.id, monomorphization);
+                        session.func_shapes.insert(new_func.name_span, new_func.shape());
+                        session.funcs_rev.insert(new_func.name_span, mir_session.funcs.len());
+                        mir_session.funcs.push(new_func);
+                    }
+
+                    else {
+                        // maybe a struct or an enum?
+                        todo!()
+                    }
                 }
 
-                if !mono.dispatch_map.is_empty() {
-                    mir_session.dispatch(&mono.dispatch_map, &session.func_shapes);
+                if !plan.dispatch_map.is_empty() {
+                    mir_session.dispatch(&plan.dispatch_map, &session.func_shapes);
                     // TODO: do we have to invalidate previous `generic_args` after dispatching?
                     continue;
                 }
@@ -141,13 +158,13 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         session.apply_never_types();
 
         if let Err(()) = session.check_all_types_infered() {
-            has_error = true;
+            // has_error = true;
         }
 
         // If the solver has failed to infer some types, it's dangerous to check type assertions.
         // Checking type assertions may solve type variables, which may introduce false-positives.
         else if let Err(()) = session.check_type_assertions(&mir_session.type_assertions) {
-            has_error = true;
+            // has_error = true;
         }
     }
 

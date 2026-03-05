@@ -1,5 +1,5 @@
 use crate::{Expr, Session, Type};
-use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncPurity, Generic};
+use sodigy_hir::{self as hir, FuncOrigin, FuncParam, FuncPurity, FuncShape, Generic};
 use sodigy_span::Span;
 use sodigy_string::InternedString;
 
@@ -112,6 +112,14 @@ impl Func {
                 built_in: hir_func.built_in,
                 origin: hir_func.origin,
             })
+        }
+    }
+
+    pub fn shape(&self) -> FuncShape {
+        FuncShape {
+            // type annotations are already erased
+            params: self.params.clone(),
+            generics: self.generics.clone(),
         }
     }
 }

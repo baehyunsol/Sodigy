@@ -564,6 +564,7 @@ impl Worker {
                 // monomorphization. It's very heavy, and we're not gonna store this.
                 self.stage_start(CompileStage::InterMir, None);
                 let inter_mir_session = sodigy_inter_mir::solve_type(&mut mir_session);
+                inter_mir_session.store_monomorphization_info()?;
                 self.stage_end(!inter_mir_session.errors.is_empty());
 
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.

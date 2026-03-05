@@ -158,6 +158,70 @@ impl Session {
                     )
                 }
             },
+            PatternKind::List { elements, group_span, .. } => {
+                if elements.is_empty() {
+                    let type_var = Type::GenericArg { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
+                    self.add_type_var(type_var.clone(), None);
+
+                    let r#type = Type::Data {
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
+                        args: Some(vec![type_var]),
+
+                        // this is for the type annotation, hence None
+                        group_span: Some(Span::None),
+                    };
+                    (Some(r#type), false)
+                }
+
+                else {
+                    let mut elem_types = vec![];
+                    let mut has_error = false;
+
+                    for element in elements.iter() {
+                        let (elem_type, e) = self.solve_pattern(element);
+                        has_error |= e;
+
+                        if let Some(elem_type) = elem_type {
+                            elem_types.push(elem_type);
+                        }
+                    }
+
+                    if has_error {
+                        return (None, true);
+                    }
+
+                    let mut elem_type = elem_types[0].clone();
+
+                    for i in 1..elem_types.len() {
+                        if let Ok(new_elem_type) = self.solve_supertype(
+                            &elem_type,
+                            &elem_types[i],
+                            false,
+                            Some(elements[0].error_span_wide()),
+                            Some(elements[i].error_span_wide()),
+                            ErrorContext::ListElementEqual,
+                            true,
+                        ) {
+                            elem_type = new_elem_type;
+                        }
+
+                        else {
+                            has_error = true;
+                        }
+                    }
+
+                    let r#type = Type::Data {
+                        constructor_def_span: self.get_lang_item_span("type.List"),
+                        constructor_span: Span::None,
+                        args: Some(vec![elem_type]),
+
+                        // this is for the type annotation, hence None
+                        group_span: Some(Span::None),
+                    };
+                    (Some(r#type), has_error)
+                }
+            },
             PatternKind::Range { lhs, rhs, .. } => {
                 match (
                     lhs.as_ref().map(|lhs| self.solve_pattern(lhs)),

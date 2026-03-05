@@ -1,4 +1,4 @@
-use crate::Session;
+use crate::{Monomorphization, Session};
 use sodigy_endec::{DecodeError, DumpSession, Endec};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, Poly, StructShape};
@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 impl Endec for Session {
     fn encode_impl(&self, buffer: &mut Vec<u8>) {
         // The other fields are just tmp values.
+        self.monomorphizations.encode_impl(buffer);
         self.types.encode_impl(buffer);
         self.generic_args.encode_impl(buffer);
         self.func_shapes.encode_impl(buffer);
@@ -24,6 +25,7 @@ impl Endec for Session {
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (monomorphizations, cursor) = HashMap::<u128, Monomorphization>::decode_impl(buffer, cursor)?;
         let (types, cursor) = HashMap::<Span, Type>::decode_impl(buffer, cursor)?;
         let (generic_args, cursor) = HashMap::<(Span, Span), Type>::decode_impl(buffer, cursor)?;
         let (func_shapes, cursor) = HashMap::<Span, FuncShape>::decode_impl(buffer, cursor)?;
@@ -44,6 +46,8 @@ impl Endec for Session {
                 blocked_type_vars: HashSet::new(),
                 pattern_name_bindings: HashSet::new(),
                 solved_generic_args: HashSet::new(),
+                funcs_rev: HashMap::new(),
+                monomorphizations,
                 types,
                 generic_args,
                 func_shapes,

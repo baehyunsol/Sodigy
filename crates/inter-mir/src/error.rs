@@ -131,6 +131,7 @@ pub enum ExprContext {
     InlineFunc,
     Lambda,
     TopLevelAssert,
+    Monomorphization,
 }
 
 impl From<LetOrigin> for ExprContext {
@@ -151,6 +152,7 @@ impl From<FuncOrigin> for ExprContext {
             FuncOrigin::Inline => ExprContext::InlineFunc,
             FuncOrigin::Lambda => ExprContext::Lambda,
             FuncOrigin::AssociatedFunc => ExprContext::TopLevelFunc,
+            FuncOrigin::Monomorphization => ExprContext::Monomorphization,
         }
     }
 }
@@ -595,6 +597,7 @@ impl Session {
                     ),
                     ExprContext::Lambda => (Some("A lambda function is pure by default. If you want the lambda to be impure, add `impure` keyword before the backslash."), None),
                     ExprContext::TopLevelAssert => (Some("You can't call impure functions when asserting something."), None),
+                    ExprContext::Monomorphization => todo!(),
                 };
                 let (keyword_note, error_note) = (keyword_note.map(|s| s.to_string()), error_note.map(|s| s.to_string()));
 

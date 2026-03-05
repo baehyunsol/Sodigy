@@ -4,7 +4,7 @@
 // After type-checking, we can lower `mir::Match` to `mir::MatchFsm`, which knows
 // how to destructure patterns. It also does exhaustiveness checking.
 
-use crate::{Expr, Session};
+use crate::{Expr, Pattern, Session};
 use sodigy_hir as hir;
 use sodigy_span::Span;
 
@@ -19,7 +19,7 @@ pub struct Match {
 
 #[derive(Clone, Debug)]
 pub struct MatchArm {
-    pub pattern: hir::Pattern,
+    pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub value: Expr,
 }

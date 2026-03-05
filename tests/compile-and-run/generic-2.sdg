@@ -1,0 +1,4 @@
+fn foo<T>(x: T) -> String = "";
+
+assert foo(3) == "";
+assert foo("") == "";

@@ -84,6 +84,7 @@ pub enum FuncOrigin {
     Inline,  // `fn` keyword in an inline block
     Lambda,
     AssociatedFunc,
+    Monomorphization,
 }
 
 #[derive(Clone, Debug)]

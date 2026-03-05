@@ -217,11 +217,11 @@ impl PolySolver {
             // ```rust
             // {
             //     T: {
-            //         Tuple { arity: 0 }: [eq_tuple0],
-            //         Tuple { arity: 1 }: [eq_tuple1],
-            //         Tuple { arity: 2 }: [eq_tuple2],
-            //         Tuple { arity: 3 }: [eq_tuple3],
-            //         Static { def: Int }: [eq_int],
+            //         Data { constructor: Tuple, arity: 0 }: [eq_tuple0],
+            //         Data { constructor: Tuple, arity: 1 }: [eq_tuple1],
+            //         Data { constructor: Tuple, arity: 2 }: [eq_tuple2],
+            //         Data { constructor: Tuple, arity: 3 }: [eq_tuple3],
+            //         Data { constructor: Int, arity: 0 }: [eq_int],
             //     },
             // }
             // ```
@@ -293,21 +293,21 @@ impl PolySolver {
 // //    There's an actual poly-solver that runs on the candidates. The poly-solver instantiates a
 // //    tmp type-solver and compares the types.
 // match T {
-//     Tuple { arity: 1 } => match U {
-//         Tuple { arity: 1 } => [foo2],
-//         Tuple { arity: 2 } => [foo3],
+//     Data { constructor: Tuple, arity: 1 } => match U {
+//         Data { constructor: Tuple, arity: 1 } => [foo2],
+//         Data { constructor: Tuple, arity: 2 } => [foo3],
 //         Var => [foo2, foo3],
 //         _ => [],
 //     },
-//     Static { def: Int } => match U {
-//         Static { def: Int } => [foo1],
+//     Data { constructor: Int, arity: 0 } => match U {
+//         Data { constructor: Int, arity: 0 } => [foo1],
 //         Var => [foo1],
 //         _ => [],
 //     },
 //     Var => match U {
-//         Static { def: Int } => [foo1],
-//         Tuple { arity: 1 } => [foo2],
-//         Tuple { arity: 2 } => [foo3],
+//         Data { constructor: Int, arity: 0 } => [foo1],
+//         Data { constructor: Tuple, arity: 1 } => [foo2],
+//         Data { constructor: Tuple, arity: 2 } => [foo3],
 //         Var => [foo1, foo2, foo3],
 //         _ => [],
 //     },

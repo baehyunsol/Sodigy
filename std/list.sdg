@@ -17,6 +17,13 @@ fn init_list<T>(/* varargs */) -> [T];
 #[lang_item_generics("built_in.init_list.generic.0")]
 fn index_list_built_in<T>(ls: [T], i: Int) -> T;
 
+#[impl(std.op.eq)]
+fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
+    ([], []) => Bool.True,
+    ([], _) | (_, []) => Bool.False,
+    ([$l] ++ $lhs, [$r] ++ $rhs) => l == r && lhs == rhs,
+};
+
 // TODO: The compiler isn't strong enough to compile these functions.
 /*
 #[impl(std.op.index)]
@@ -33,13 +40,6 @@ fn index_list<T>(ls: [T], i: Int) -> T = {
         // TODO: error message
         std.panic()
     }
-};
-
-#[impl(std.op.eq)]
-fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
-    ([], []) => Bool.True,
-    ([], _) | (_, []) => Bool.False,
-    ([$l] ++ $lhs, [$r] ++ $rhs_r) => l == r && lhs == rhs,
 };
 
 #[impl(std.op.concat)]

@@ -372,14 +372,6 @@ impl Session {
                 },
                 (None, _) => (None, true),
             },
-            // 1. we can solve types of args
-            // 2. if callable is...
-            //    - a function without generic
-            //      - every arg must have a concrete type, so does the return type
-            //      - it calls `equal` for all args, and returns the return type
-            //    - a generic function
-            //      - it first converts `GenericParam` to `GenericArg` and does what
-            //        a non-generic function does
             Expr::Call { func, args, given_keyword_arguments, .. } => {
                 let mut has_error = false;
                 let mut arg_types = Vec::with_capacity(args.len());
@@ -583,11 +575,6 @@ impl Session {
                         has_error,
                     ),
                     Callable::ListInit { group_span } => {
-                        // We can treat a list initialization (`[1, 2, 3]`) like calling a
-                        // function with variadic arguments (`list.init(1, 2, 3)`).
-                        // Here, `list.init` is a generic function `fn init<T>(args) -> [T]`.
-                        // Then, an empty initialization is like calling a generic function
-                        // but we don't know its generic yet.
                         if arg_types.is_empty() {
                             let type_var = Type::GenericArg { call: *group_span, generic: self.get_lang_item_span("built_in.init_list.generic.0") };
                             self.add_type_var(type_var.clone(), None);

@@ -1,8 +1,22 @@
 use crate::{PolySolver, Session, SolvePolyResult, TypeError};
+use sodigy_endec::Endec;
+use sodigy_fs_api::{
+    FileError,
+    WriteMode,
+    create_dir_all,
+    exists,
+    join4,
+    parent,
+    write_bytes,
+};
 use sodigy_mir::{Session as MirSession, Type};
-use sodigy_span::Span;
+use sodigy_span::{MonomorphizationInfo, Span};
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
+
+mod expr;
+mod func;
+mod pattern;
 
 pub struct MonomorphizePlan {
     // key: call span
@@ -13,9 +27,13 @@ pub struct MonomorphizePlan {
 
 #[derive(Clone, Debug)]
 pub struct Monomorphization {
-    pub def_span: Span,
-    pub generics: HashMap<Span, Type>,
     pub id: u128,
+    pub def_span: Span,
+
+    // This is later used for error messages.
+    pub call_span: Span,
+
+    pub generics: HashMap<Span, Type>,
 }
 
 impl Session {
@@ -84,6 +102,7 @@ impl Session {
                     let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
                     monomorphizations.push(Monomorphization {
                         def_span: generic_call.def,
+                        call_span: generic_call.call,
                         generics: generic_call.generics.clone(),
                         id: monomorphization_id,
                     });
@@ -119,6 +138,46 @@ impl Session {
                 dispatch_map,
                 monomorphizations,
             })
+        }
+    }
+
+    pub fn store_monomorphization_info(&self) -> Result<(), FileError> {
+        for mono in self.monomorphizations.values() {
+            let mono_info = self.render_monomorphization_info(mono);
+            let id_str = format!("{:x}", mono_info.id);
+            let mono_info_at = join4(
+                &self.intermediate_dir,
+                "mono",
+                id_str.get(0..2).unwrap(),
+                id_str.get(2..).unwrap(),
+            )?;
+
+            if !exists(&parent(&mono_info_at)?) {
+                create_dir_all(&parent(&mono_info_at)?)?;
+            }
+
+            write_bytes(
+                &mono_info_at,
+                &mono_info.encode(),
+                WriteMode::CreateOrTruncate,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn render_monomorphization_info(&self, mono: &Monomorphization) -> MonomorphizationInfo {
+        let mut generics = mono.generics.iter().collect::<Vec<_>>();
+        generics.sort_by_key(|(span, _)| *span);
+        let generics = generics.iter().map(
+            |(_, r#type)| self.render_type(r#type)
+        ).collect::<Vec<_>>().join(", ");
+
+        MonomorphizationInfo {
+            id: mono.id,
+            parent: None,  // TODO: track parents
+            info: format!("{}<{generics}>", self.span_to_string(mono.def_span).unwrap_or(String::from("????"))),
+            span: mono.call_span,
         }
     }
 }

@@ -10,6 +10,7 @@ pub use derive::SpanDeriveKind;
 pub use render::{
     Color,
     ColorOption,
+    MonomorphizationInfo,
     RenderSpanOption,
     RenderSpanSession,
     RenderableSpan,

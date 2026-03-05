@@ -1,11 +1,14 @@
-use crate::Span;
+use crate::{Span, SpanDeriveKind};
 use sodigy_file::File;
+use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
 mod color;
+mod monomorphization;
 mod session;
 
 pub use color::{Color, apply_colors};
+pub use monomorphization::MonomorphizationInfo;
 pub use session::Session as RenderSpanSession;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -58,6 +61,15 @@ pub fn render_spans(
         return String::new();
     }
 
+    let mut monomorphizations = HashSet::new();
+
+    for span in spans.iter() {
+        if let Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. } = span.span {
+            monomorphizations.insert(id);
+        }
+    }
+
+    let spans = vec![spans.to_vec(), session.explain_monomorphizations(&monomorphizations)].concat();
     let mut spans_by_file: HashMap<File, Vec<(RenderableSpan, (usize, usize, usize, usize))>> = HashMap::new();
     let mut files_with_empty_rects = HashMap::new();
 
@@ -211,7 +223,7 @@ fn render_close_spans(
 
                     if i == start {
                         if let Span::Derived { kind, .. } = s.span {
-                            if let Some(note) = kind.error_note() {
+                            if let Some(note) = kind.error_note(session) {
                                 curr_notes.push((col, note.to_string(), curr_span_color));
                             }
                         }

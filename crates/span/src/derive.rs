@@ -1,4 +1,4 @@
-use crate::Span;
+use crate::{RenderSpanSession, Span};
 
 // It's used for more helpful error messages.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -43,25 +43,29 @@ pub enum SpanDeriveKind {
 }
 
 impl SpanDeriveKind {
-    pub fn error_note(&self) -> Option<&'static str> {
+    pub fn error_note(&self, session: &mut RenderSpanSession) -> Option<String> {
         match self {
             SpanDeriveKind::Trivial => None,
-            SpanDeriveKind::Pipeline => Some("It is desugared to an inline `let` statement."),
-            SpanDeriveKind::ConstEval => Some("It is evaluated at compile-time."),
-            SpanDeriveKind::ExprInPattern => Some("It is desugared to a guard expression."),
+            SpanDeriveKind::Pipeline => Some(String::from("It is desugared to an inline `let` statement.")),
+            SpanDeriveKind::ConstEval => Some(String::from("It is evaluated at compile-time.")),
+            SpanDeriveKind::ExprInPattern => Some(String::from("It is desugared to a guard expression.")),
 
             // too obvious
-            // SpanDeriveKind::Lambda => Some("It is desugared to a function definition."),
+            // SpanDeriveKind::Lambda => Some(String::from("It is desugared to a function definition.")),
             SpanDeriveKind::Lambda => None,
 
-            SpanDeriveKind::IfLet => Some("It is desugared to a match expression."),
-            SpanDeriveKind::FuncDefaultValue => Some("It is desugared to a `let` statement."),
+            SpanDeriveKind::IfLet => Some(String::from("It is desugared to a match expression.")),
+            SpanDeriveKind::FuncDefaultValue => Some(String::from("It is desugared to a `let` statement.")),
             SpanDeriveKind::MatchScrutinee(_) => None,
-            SpanDeriveKind::ConcatPatternRest => Some("It is desugared to a rest pattern."),
-            SpanDeriveKind::ConcatPatternList => Some("It is desugared to a list pattern."),
-            SpanDeriveKind::FStringToString => Some("It is desugared to `to_string(..)`."),
-            SpanDeriveKind::FStringConcat => Some("It is desugared to a `++` operator."),
-            SpanDeriveKind::Monomorphize(_) => todo!(),
+            SpanDeriveKind::ConcatPatternRest => Some(String::from("It is desugared to a rest pattern.")),
+            SpanDeriveKind::ConcatPatternList => Some(String::from("It is desugared to a list pattern.")),
+            SpanDeriveKind::FStringToString => Some(String::from("It is desugared to `to_string(..)`.")),
+            SpanDeriveKind::FStringConcat => Some(String::from("It is desugared to a `++` operator.")),
+            SpanDeriveKind::Monomorphize(id) => {
+                // TODO: `unwrap()` vs returning None
+                let mono_info = session.get_monomorphization_info(*id).unwrap();
+                Some(format!("This is inside a monomorphization of `{}`.", mono_info.info))
+            },
         }
     }
 }

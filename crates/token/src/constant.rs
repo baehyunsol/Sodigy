@@ -58,4 +58,27 @@ impl Constant {
             Constant::Byte { b, .. } => format!("#{b}"),
         }
     }
+
+    #[must_use = "method returns a new constant and does not mutate the original constant"]
+    pub fn monomorphize(&self, monomorphize_id: u128) -> Self {
+        match self {
+            Constant::Number { n, span } => Constant::Number {
+                n: n.clone(),
+                span: span.monomorphize(monomorphize_id),
+            },
+            Constant::String { binary, s, span } => Constant::String {
+                binary: *binary,
+                s: *s,
+                span: span.monomorphize(monomorphize_id),
+            },
+            Constant::Char { ch, span } => Constant::Char {
+                ch: *ch,
+                span: span.monomorphize(monomorphize_id),
+            },
+            Constant::Byte { b, span } => Constant::Byte {
+                b: *b,
+                span: span.monomorphize(monomorphize_id),
+            },
+        }
+    }
 }

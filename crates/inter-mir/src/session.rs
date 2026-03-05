@@ -1,3 +1,4 @@
+use crate::Monomorphization;
 use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
@@ -59,6 +60,16 @@ pub struct Session {
     //    -> this happens for poly generics. You can dispatch a poly generic with partially infered types!
     pub solved_generic_args: HashSet<(Span /* call */, Span /* generic */)>,
 
+    // mir_session has `funcs: Vec<Func>`, but sometimes we want to find a function by its def_span.
+    // This is the map from def_span to index. So, it's safe to push functions to `mir_session.funcs`,
+    // but you shouldn't change the order of `.funcs` or remove an element.
+    pub funcs_rev: HashMap<Span, usize>,
+
+    // `u128` is an id of a monomorphization.
+    // 1. It prevents the compiler from doing the same monomorphization multiple times.
+    // 2. It helps the compiler more helpful error messages if there's an error in a monomorphized function.
+    pub monomorphizations: HashMap<u128, Monomorphization>,
+
     // These 2 fields are the result of the type-solver.
     pub types: HashMap<Span, Type>,
     pub generic_args: HashMap<(Span /* call */, Span /* generic */), Type>,
@@ -91,6 +102,8 @@ impl Session {
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
             solved_generic_args: HashSet::new(),
+            funcs_rev: HashMap::new(),
+            monomorphizations: HashMap::new(),
             types: HashMap::new(),
             generic_args: HashMap::new(),
             func_shapes: HashMap::new(),
@@ -119,6 +132,8 @@ impl Session {
             blocked_type_vars: HashSet::new(),
             pattern_name_bindings: HashSet::new(),
             solved_generic_args: HashSet::new(),
+            funcs_rev: mir_session.funcs.iter().enumerate().map(|(i, func)| (func.name_span, i)).collect(),
+            monomorphizations: HashMap::new(),
             types: mir_session.types.drain().collect(),
             generic_args: mir_session.generic_args.drain().collect(),
             func_shapes: mir_session.global_context.func_shapes.take().unwrap().clone(),

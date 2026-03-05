@@ -1,4 +1,10 @@
-use crate::{PolySpanKind, RenderableSpan, Span, SpanDeriveKind};
+use crate::{
+    MonomorphizationInfo,
+    PolySpanKind,
+    RenderableSpan,
+    Span,
+    SpanDeriveKind,
+};
 use sodigy_endec::{DecodeError, Endec};
 use sodigy_file::File;
 use sodigy_string::InternedString;
@@ -103,14 +109,7 @@ impl Endec for RenderableSpan {
         let (auxiliary, cursor) = bool::decode_impl(buffer, cursor)?;
         let (note, cursor) = Option::<String>::decode_impl(buffer, cursor)?;
 
-        Ok((
-            RenderableSpan {
-                span,
-                auxiliary,
-                note,
-            },
-            cursor,
-        ))
+        Ok((RenderableSpan { span, auxiliary, note }, cursor))
     }
 }
 
@@ -215,5 +214,23 @@ impl Endec for PolySpanKind {
             Some(n @ 3..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
+    }
+}
+
+impl Endec for MonomorphizationInfo {
+    fn encode_impl(&self, buffer: &mut Vec<u8>) {
+        self.id.encode_impl(buffer);
+        self.parent.encode_impl(buffer);
+        self.info.encode_impl(buffer);
+        self.span.encode_impl(buffer);
+    }
+
+    fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
+        let (id, cursor) = u128::decode_impl(buffer, cursor)?;
+        let (parent, cursor) = Option::<u128>::decode_impl(buffer, cursor)?;
+        let (info, cursor) = String::decode_impl(buffer, cursor)?;
+        let (span, cursor) = Span::decode_impl(buffer, cursor)?;
+
+        Ok((MonomorphizationInfo { id, parent, info, span }, cursor))
     }
 }
