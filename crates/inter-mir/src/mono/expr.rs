@@ -82,7 +82,9 @@ impl Session {
                     }
                 }
             },
-            Expr::Field { .. } => todo!(),
+            Expr::Field { lhs, .. } => {
+                self.monomorphize_expr(lhs, monomorphization);
+            },
             Expr::FieldUpdate { .. } => todo!(),
             Expr::Call { func, args, arg_group_span, .. } => {
                 match func {

@@ -98,6 +98,10 @@ impl Session {
                         continue;
                     }
 
+                    for generic in generic_call.generics.keys() {
+                        self.solved_generic_args.insert((generic_call.call, *generic));
+                    }
+
                     let monomorphization_id = get_monomorphization_id(generic_call.def, &generic_call.generics);
                     let monomorphized_span = generic_call.def.monomorphize(monomorphization_id);
                     monomorphizations.push(Monomorphization {
@@ -119,11 +123,11 @@ impl Session {
                 },
                 SolvePolyResult::DefaultImpl(p) |
                 SolvePolyResult::OneCandidate(p) => {
+                    dispatch_map.insert(generic_call.call, p);
+
                     for generic in generic_call.generics.keys() {
                         self.solved_generic_args.insert((generic_call.call, *generic));
                     }
-
-                    dispatch_map.insert(generic_call.call, p);
                 },
                 r => panic!("TODO: {r:?}"),
             }

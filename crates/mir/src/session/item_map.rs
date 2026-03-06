@@ -6,12 +6,14 @@ use crate::{
     Session,
     Struct,
 };
+use sodigy_hir::FuncOrigin;
 use sodigy_span::Span;
 use std::collections::HashMap;
 
 pub struct ItemMap {
     pub lets: HashMap<Span, Let>,
     pub funcs: HashMap<Span, Func>,
+    pub monomorphized_funcs: Vec<Func>,
     pub enums: HashMap<Span, Enum>,
     pub structs: HashMap<Span, Struct>,
     pub asserts: HashMap<Span, Assert>,
@@ -19,9 +21,26 @@ pub struct ItemMap {
 
 impl Session<'_, '_> {
     pub fn get_item_map(&mut self) -> ItemMap {
+        let mut monomorphized_funcs = vec![];
+        let mut funcs = HashMap::with_capacity(self.funcs.len());
+
+        for func in self.funcs.drain(..) {
+            match func.origin {
+                FuncOrigin::Monomorphization => {
+                    monomorphized_funcs.push(func);
+                },
+                _ => {
+                    funcs.insert(func.name_span, func);
+                },
+            }
+        }
+
+        // TODO: handle monomorphized structs/enums
+
         ItemMap {
             lets: self.lets.drain(..).map(|r#let| (r#let.name_span, r#let)).collect(),
-            funcs: self.funcs.drain(..).map(|func| (func.name_span, func)).collect(),
+            funcs,
+            monomorphized_funcs,
             enums: self.enums.drain(..).map(|r#enum| (r#enum.name_span, r#enum)).collect(),
             structs: self.structs.drain(..).map(|r#struct| (r#struct.name_span, r#struct)).collect(),
             asserts: self.asserts.drain(..).map(|assert| (assert.keyword_span, assert)).collect(),

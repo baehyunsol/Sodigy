@@ -227,10 +227,6 @@ pub fn lower<'hir, 'mir>(mir_session: MirSession<'hir, 'mir>) -> Session<'hir, '
     }
 
     for func in mir_session.funcs.iter() {
-        if func.built_in {
-            continue;
-        }
-
         funcs.push(Func::from_mir(func, &mut session));
     }
 

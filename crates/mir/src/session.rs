@@ -1,6 +1,6 @@
 use crate::{Assert, Enum, Func, GlobalContext, Let, Struct, Type, TypeAssertion};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, FuncShape};
+use sodigy_hir::{self as hir, FuncOrigin, FuncShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;
@@ -97,6 +97,18 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
         self.generic_args.extend(s.generic_args.drain());
         self.errors.extend(s.errors.drain(..));
         self.warnings.extend(s.warnings.drain(..));
+    }
+
+    // This method is called after type-checking and monomorphization are complete.
+    // So, all the generics are either monomorphized or unused.
+    // Also, since the session knows the def_span of all the built_in functions, it
+    // doesn't need their definitions anymore.
+    pub fn remove_generics_and_builtins(&mut self) {
+        self.funcs = self.funcs.drain(..).filter(
+            |func| !func.built_in && !matches!(func.origin, FuncOrigin::Monomorphization)
+        ).collect();
+
+        // TODO: structs/enums
     }
 
     // It only dispatches `Callable::Static`. It only replaces `def_span`, not `span`.

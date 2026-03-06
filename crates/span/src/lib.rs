@@ -95,12 +95,35 @@ impl Span {
             ) if *file1 == file2 => {
                 let (file, start, end) = (*file1, (*start1).min(start2), (*end1).max(end2));
 
+                // TODO: It's getting too complicated.......
                 match (self, other) {
                     (Span::Range { .. }, Span::Range { .. }) => Span::Range { file, start, end },
                     (
                         Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
                         Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial, .. },
                     ) => Span::Derived { kind: SpanDeriveKind::Trivial, file, start, end },
+                    (
+                        Span::Derived { kind: SpanDeriveKind::Monomorphize(id1), .. },
+                        Span::Derived { kind: SpanDeriveKind::Monomorphize(id2), .. },
+                    ) => {
+                        if *id1 == id2 {
+                            Span::Derived { kind: SpanDeriveKind::Monomorphize(*id1), file, start, end }
+                        } else {
+                            unreachable!()
+                        }
+                    },
+                    (
+                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial | SpanDeriveKind::Monomorphize(_), .. },
+                        Span::Range { .. } | Span::Derived { kind: SpanDeriveKind::Trivial | SpanDeriveKind::Monomorphize(_), .. },
+                    ) => {
+                        let mono_id = match (self, other) {
+                            (Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. }, _) => *id,
+                            (_, Span::Derived { kind: SpanDeriveKind::Monomorphize(id), .. }) => id,
+                            _ => unreachable!(),
+                        };
+
+                        Span::Derived { kind: SpanDeriveKind::Monomorphize(mono_id), file, start, end }
+                    },
                     (Span::Derived { kind: kind1, .. }, Span::Derived { kind: kind2, .. }) if *kind1 == kind2 => Span::Derived {
                         kind: *kind1,
                         file,

@@ -344,6 +344,7 @@ impl Worker {
                     // inter-hir may create new funcs and poly-generics, and the new functions
                     // must belong to some module. They all go to `lib.sdg`.
                     // TODO: distribute the new functions for better parallelism
+                    //       there's a same issue in inter-mir
                     if input_module_path.is_lib() {
                         hir_session.funcs.extend(inter_hir_session.new_funcs.drain(..));
                         hir_session.polys.extend(inter_hir_session.new_polys.drain());
@@ -379,6 +380,7 @@ impl Worker {
                 mir_session.global_context = global_context.mir_global_context();
 
                 self.stage_start(CompileStage::PostMir, Some(input_module_path.to_string()));
+                mir_session.remove_generics_and_builtins();
                 let _ = sodigy_post_mir::lower(&mut mir_session);
                 self.stage_end(!mir_session.errors.is_empty());
 
@@ -570,7 +572,7 @@ impl Worker {
                 // InterMir may have modified MIRs, so we have to update all the cached MIRs.
                 // NOTE: It drains the items in `mir_session`, so we cannot use the session anymore.
                 // TODO: This is (potentially) one of the biggest bottlenecks in the compiler.
-                let items = mir_session.get_item_map();
+                let mut items = mir_session.get_item_map();
 
                 for path in modules.keys() {
                     let file = File::from_module_path(
@@ -587,6 +589,14 @@ impl Worker {
                     let mut mir_session = sodigy_mir::Session::decode(&mir_session_bytes)?;
                     mir_session.intermediate_dir = intermediate_dir.clone();
                     mir_session.update_items(&items);
+
+                    // monomorphized functions/structs/enums all go to lib.sdg
+                    // TODO: we have to distribute these
+                    //       there's a same issue in inter-hir
+                    if path.is_lib() {
+                        mir_session.funcs.extend(items.monomorphized_funcs.drain(..));
+                    }
+
                     emit_irs_if_has_to(
                         &mir_session,
                         &[

@@ -272,7 +272,7 @@ pub enum Constructor {
 // Int: [([constructor], Range { Int, -inf..inf })]
 // Number: [([constructor], Range { Number, -inf..inf })]  // We don't care about its denom and numer!
 // (Foo, Foo, Int): [  // struct Foo { f1: Bool, f2: Int }
-//     ([constructor], Tuple(2)),
+//     ([constructor], Tuple(3)),
 //     ([index(0), constructor], DefSpan(Foo)),
 //     ([index(0), name(f1), constructor], Or(DefSpan(True), DefSpan(False))),
 //     ([index(0), name(f1), payload], EnumPayload(Bool)),  // this is empty, but we'll optimize that later
@@ -314,18 +314,22 @@ fn get_matrix(
             else if constructor_def_span == lang_items.get("type.Tuple").unwrap() {
                 let args = args.as_ref().unwrap();
                 let mut result = vec![(vec![Field::Constructor], Constructor::Tuple(args.len()))];
-    
+
                 for (i, arg) in args.iter().enumerate() {
                     let mut arg_matrix = get_matrix(arg, lang_items);
-    
+
                     for row in arg_matrix.iter_mut() {
                         row.0.insert(0, Field::Index(i as i64));
                     }
-    
+
                     result.extend(arg_matrix);
                 }
-    
+
                 result
+            }
+
+            else if constructor_def_span == lang_items.get("type.List").unwrap() {
+                todo!()
             }
 
             else {
