@@ -33,6 +33,14 @@ impl Error {
             note: None,
         }
     }
+
+    pub fn ice(id: u32, span: Span) -> Error {
+        Error {
+            kind: ErrorKind::InternalCompilerError { id },
+            spans: span.simple_error(),
+            note: None,
+        }
+    }
 }
 
 /// By default,

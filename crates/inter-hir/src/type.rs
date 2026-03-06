@@ -112,11 +112,7 @@ impl Session {
                 _ if !path.fields.is_empty() => todo!(),
 
                 // `parse::parse_type` will never generate this, neither inter-hir
-                _ if path.types[0].is_some() => Err(Error {
-                    kind: ErrorKind::InternalCompilerError { id: 636810 },
-                    spans: path.error_span_wide().simple_error(),
-                    note: None,
-                }),
+                _ if path.types[0].is_some() => Err(Error::ice(636810, path.error_span_wide())),
                 NameOrigin::FuncParam { .. } => Err(not_x_but_y(path, TypeStructExpr::Type, NotXBut::Expr, intermediate_dir)),
                 NameOrigin::GenericParam { .. } => Ok(()),
                 NameOrigin::Local { kind } |
@@ -133,18 +129,10 @@ impl Session {
                     NameKind::GenericParam => Ok(()),
 
                     // inter-hir should have resolved it
-                    NameKind::Alias | NameKind::Use => Err(Error {
-                        kind: ErrorKind::InternalCompilerError { id: 636811 },
-                        spans: path.error_span_wide().simple_error(),
-                        note: None,
-                    }),
+                    NameKind::Alias | NameKind::Use => Err(Error::ice(636811, path.error_span_wide())),
                 },
                 // inter-hir should have resolved it
-                NameOrigin::External => Err(Error {
-                    kind: ErrorKind::InternalCompilerError { id: 636812 },
-                    spans: path.error_span_wide().simple_error(),
-                    note: None,
-                }),
+                NameOrigin::External => Err(Error::ice(636812, path.error_span_wide())),
             }
         }
 

@@ -1,4 +1,4 @@
-use crate::{Session, Type};
+use crate::{LogEntry, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError, TypeWarning};
 use sodigy_mir::Func;
 use std::collections::HashMap;
@@ -6,7 +6,6 @@ use std::collections::HashMap;
 impl Session {
     pub fn solve_func(&mut self, func: &Func) -> (Option<Type>, bool /* has_error */) {
         let mut impure_calls = vec![];
-        let mut has_error = false;
         let mut span_to_name_map = vec![(func.name_span, func.name)];
 
         for param in func.params.iter() {
@@ -46,8 +45,12 @@ impl Session {
             _ => unreachable!(),
         };
 
-        let (infered_type, e) = self.solve_expr(&func.value, &mut impure_calls);
-        has_error |= e;
+        let (infered_type, mut has_error) = self.solve_expr(&func.value, &mut impure_calls);
+        write_log!(self, LogEntry::SolveFunc {
+            func: func.clone(),
+            annotated_type: annotated_type.as_ref().clone(),
+            infered_type: infered_type.clone(),
+        });
 
         if let Some(infered_type) = infered_type {
             if let Err(()) = self.solve_supertype(

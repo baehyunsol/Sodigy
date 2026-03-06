@@ -60,6 +60,7 @@ impl Endec for Session {
                 intermediate_dir: String::new(),
                 type_errors: vec![],
                 type_warnings: vec![],
+                log: vec![],
                 errors,
                 warnings,
             },

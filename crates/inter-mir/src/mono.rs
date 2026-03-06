@@ -11,6 +11,7 @@ use sodigy_fs_api::{
 };
 use sodigy_mir::{Session as MirSession, Type};
 use sodigy_span::{MonomorphizationInfo, Span};
+use sodigy_string::hash;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
@@ -170,7 +171,7 @@ impl Session {
         Ok(())
     }
 
-    fn render_monomorphization_info(&self, mono: &Monomorphization) -> MonomorphizationInfo {
+    pub fn render_monomorphization_info(&self, mono: &Monomorphization) -> MonomorphizationInfo {
         let mut generics = mono.generics.iter().collect::<Vec<_>>();
         generics.sort_by_key(|(span, _)| *span);
         let generics = generics.iter().map(
@@ -201,14 +202,15 @@ pub struct GenericCall {
 }
 
 fn get_monomorphization_id(def_span: Span, generics: &HashMap<Span, Type>) -> u128 {
-    let mut hash = def_span.hash() & 0xffff_ffff_ffff_ffff_ffff_ffff;
+    let mut bytes = vec![];
+    bytes.extend(def_span.hash().to_le_bytes());
+
     let mut generics: Vec<(Span, &Type)> = generics.iter().map(|(s, t)| (*s, t)).collect();
     generics.sort_by_key(|(s, _)| *s);
 
     for (_, r#type) in generics.iter() {
-        hash += r#type.hash() & 0xffff_ffff_ffff_ffff_ffff_ffff;
-        hash &= 0xffff_ffff_ffff_ffff_ffff_ffff;
+        bytes.extend(r#type.hash().to_le_bytes());
     }
 
-    hash
+    hash(&bytes) & 0xffff_ffff_ffff_ffff_ffff_ffff
 }

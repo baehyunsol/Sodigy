@@ -1,4 +1,4 @@
-use crate::Monomorphization;
+use crate::{LogEntry, Monomorphization};
 use crate::error::{TypeError, TypeWarning};
 use sodigy_error::{Error, Warning};
 use sodigy_hir::{EnumShape, FuncShape, ItemShape, Poly, StructShape};
@@ -89,6 +89,9 @@ pub struct Session {
     pub type_warnings: Vec<TypeWarning>,
     pub errors: Vec<Error>,
     pub warnings: Vec<Warning>,
+
+    // The session collects log only if `cfg(feature = "log")` is enabled.
+    pub log: Vec<LogEntry>,
 }
 
 impl Session {
@@ -118,6 +121,7 @@ impl Session {
             type_warnings: vec![],
             errors: vec![],
             warnings: vec![],
+            log: vec![],
         }
     }
 
@@ -148,6 +152,7 @@ impl Session {
             type_warnings: vec![],
             errors: mir_session.errors.drain(..).collect(),
             warnings: mir_session.warnings.drain(..).collect(),
+            log: vec![],
         }
     }
 

@@ -1,5 +1,12 @@
 // TODO: maybe rewrite this entire thing in Sodigy?
 
+/// Prettify with default config.
+pub fn prettify(b: Vec<u8>) -> Vec<u8> {
+    let mut c = Context::new(b);
+    c.step_all();
+    c.output().to_vec()
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
     pub single_line_paren_limit: usize,

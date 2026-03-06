@@ -1,4 +1,4 @@
-use crate::{Session, Type};
+use crate::{LogEntry, Session, Type, write_log};
 use crate::error::{ErrorContext, TypeError};
 use sodigy_hir::FuncPurity;
 use sodigy_mir::TypeAssertion;
@@ -267,6 +267,14 @@ impl Session {
         context: ErrorContext,
         bidirectional: bool,
     ) -> Result<Type, ()> {
+        write_log!(self, LogEntry::SolveSupertype {
+            lhs: lhs.clone(),
+            rhs: rhs.clone(),
+            lhs_span: lhs_span.clone(),
+            rhs_span: rhs_span.clone(),
+            context: context.clone(),
+        });
+
         match (lhs, rhs) {
             (Type::Never(_), Type::Never(_)) => Ok(lhs.clone()),
             (

@@ -1,12 +1,10 @@
-use crate::{Session, Type};
+use crate::{LogEntry, Session, Type, write_log};
 use crate::error::ErrorContext;
 use sodigy_mir::Let;
 use sodigy_span::Span;
 
 impl Session {
     pub fn solve_let(&mut self, r#let: &Let, impure_calls: &mut Vec<Span>) -> (Option<Type>, bool /* has_error */) {
-        let mut has_error = false;
-
         let (
             annotated_type,
             value_span,
@@ -37,8 +35,12 @@ impl Session {
             ),
         };
 
-        let (infered_type, e) = self.solve_expr(&r#let.value, impure_calls);
-        has_error |= e;
+        let (infered_type, mut has_error) = self.solve_expr(&r#let.value, impure_calls);
+        write_log!(self, LogEntry::SolveLet {
+            r#let: r#let.clone(),
+            annotated_type: annotated_type.clone(),
+            infered_type: infered_type.clone(),
+        });
 
         match infered_type {
             Some(infered_type) => {

@@ -1,5 +1,11 @@
-use mono::GenericCall;
+// It's defined here because it defines a macro.
+mod log;
+
+use crate::log::write_log;
+use crate::mono::GenericCall;
+use sodigy_error::Error;
 use sodigy_mir::{Expr, Session as MirSession, Type};
+use sodigy_span::Span;
 use std::collections::{HashMap, HashSet};
 
 mod endec;
@@ -11,6 +17,7 @@ mod span_string_map;
 mod type_solver;
 
 pub use error::{ErrorContext, ExprContext, TypeError};
+pub use log::LogEntry;
 pub use mono::Monomorphization;
 pub(crate) use poly::{PolySolver, SolvePolyResult};
 pub use session::Session;
@@ -28,7 +35,18 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
     // There's nothing to solve for structs and enums.
     // Their type information is collected by `Struct::from_hir` and `Enum::from_hir`.
 
-    loop {
+    for i in 0..32 {
+        if i == 31 {
+            has_error = true;
+
+            // There's an infinite loop in inter-mir...
+            // I don't think we should set recursion-limit for this.
+            // If there's an infinite loop in the user code (not in the sodigy compiler),
+            // that must be caught eariler.
+            session.errors.push(Error::ice(132301, Span::None));
+            break;
+        }
+
         session.blocked_type_vars = HashSet::new();
 
         for func in mir_session.funcs.iter() {
@@ -96,6 +114,8 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
                     if session.monomorphizations.contains_key(&monomorphization.id) {
                         continue;
                     }
+
+                    write_log!(session, LogEntry::Monomorphization(monomorphization.clone()));
 
                     if let Some(index) = session.funcs_rev.get(&monomorphization.def_span) {
                         let func = &mir_session.funcs[*index];
