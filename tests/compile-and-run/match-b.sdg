@@ -3,7 +3,7 @@ enum Color = { Red, Green, Blue };
 use Color.{Red, Green, Blue};
 
 // TODO: assert that the compiler warns "the last arm is unreachable"
-fn colors(c1, c2) = match (c1, c2) {
+fn eq(c1, c2) = match (c1, c2) {
     (Red, Red) => True,
     (Red, _) => False,
     (Green, Green) => True,
@@ -11,3 +11,13 @@ fn colors(c1, c2) = match (c1, c2) {
     (Blue, Blue) => True,
     (Blue, _) => False,
 };
+
+assert eq(Red, Red) == True;
+assert eq(Red, Green) == False;
+assert eq(Red, Blue) == False;
+assert eq(Green, Red) == False;
+assert eq(Green, Green) == True;
+assert eq(Green, Blue) == False;
+assert eq(Blue, Red) == False;
+assert eq(Blue, Green) == False;
+assert eq(Blue, Blue) == True;

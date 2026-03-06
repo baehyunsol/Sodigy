@@ -23,8 +23,11 @@ impl Session {
                 let r#return = r#return.clone();
 
                 for type_var in f.get_type_vars() {
-                    let Type::Var { def_span, .. } = &type_var else { unreachable!() };
-                    self.add_type_var(type_var.clone(), span_to_name_map.get(def_span).map(|n| *n));
+                    let type_var_name = match &type_var {
+                        Type::Var { def_span, .. } => span_to_name_map.get(def_span).map(|n| *n),
+                        _ => None,
+                    };
+                    self.add_type_var(type_var.clone(), type_var_name);
                     self.add_type_var_ref(type_var, Type::Var { def_span: func.name_span, is_return: true });
                 }
 

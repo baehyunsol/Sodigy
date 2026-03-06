@@ -39,7 +39,7 @@ pub fn solve_type(mir_session: &mut MirSession<'_, '_>) -> Session {
         if i == 31 {
             has_error = true;
 
-            // There's an infinite loop in inter-mir...
+            // It means there's an infinite loop in inter-mir...
             // I don't think we should set recursion-limit for this.
             // If there's an infinite loop in the user code (not in the sodigy compiler),
             // that must be caught eariler.

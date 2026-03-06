@@ -24,8 +24,7 @@ pub struct Session {
     // Every type variable the type-solver encountered must be in this map.
     // The value being `None` or `Some(_)`... doesn't mean much. It's just used to
     // help generating error messages. If you want to check if a variable has been
-    // successfully infered, you have to check `types` or `generic_args`, which
-    // do not belong to `Solver`.
+    // successfully infered, you have to check `.types` or `.generic_args`.
     pub type_vars: HashMap<Type, Option<InternedString>>,
 
     // If a type variable references another type variable, we have to track the relation.

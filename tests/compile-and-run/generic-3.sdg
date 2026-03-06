@@ -1,0 +1,13 @@
+struct Box<T> = {
+    payload: T,
+};
+
+fn into_box<T>(v: T) -> Box<T> = Box { payload: v };
+fn from_box<T>(b: Box<T>) -> T = b.payload;
+
+assert from_box(into_box(3)) == 3;
+assert from_box(into_box(3)) != 4;
+assert from_box(into_box("")) == "";
+assert from_box(into_box("")) != "1";
+assert from_box(into_box((1, 2))) == (1, 2);
+assert from_box(into_box((1, 2))) != (3, 4);

@@ -1,0 +1,5 @@
+// TODO: It must be an error, but there's not even an error kind for this...
+
+struct Box<T> = { payload: T };
+
+fn what(_: Box<Int, Int>) = ();

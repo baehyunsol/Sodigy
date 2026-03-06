@@ -105,7 +105,7 @@ impl<'hir, 'mir> Session<'hir, 'mir> {
     // doesn't need their definitions anymore.
     pub fn remove_generics_and_builtins(&mut self) {
         self.funcs = self.funcs.drain(..).filter(
-            |func| !func.built_in && !matches!(func.origin, FuncOrigin::Monomorphization)
+            |func| !func.built_in && func.generics.is_empty()
         ).collect();
 
         // TODO: structs/enums
