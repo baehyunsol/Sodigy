@@ -20,9 +20,6 @@ pub struct MonomorphizationInfo {
 }
 
 impl RenderSpanSession {
-    // FIXME: There are too many unwraps.
-    //        In order for it to return `Result<_, _>`, a lot of APIs have to be changed.
-    //        So it just assumes that the compiler correctly stored the data in the intermediate_dir.
     pub fn get_monomorphization_info(&mut self, monomorphization_id: u128) -> Result<MonomorphizationInfo, FileError> {
         let id_str = format!("{monomorphization_id:x}");
         let mono_info_at = join4(

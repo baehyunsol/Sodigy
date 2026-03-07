@@ -13,7 +13,7 @@ pub(crate) fn lower_fields(lhs: &Expr, fields: &mut Vec<Field>, session: &mut Se
     for (i, field) in fields.iter_mut().enumerate() {
         match &curr_type {
             Type::Data { constructor_def_span, args, .. } => {
-                if constructor_def_span == session.global_context.lang_items.unwrap().get("type.Tuple").unwrap() {
+                if *constructor_def_span == session.get_lang_item_span("type.Tuple") {
                     let args = args.as_ref().unwrap();
 
                     match field {

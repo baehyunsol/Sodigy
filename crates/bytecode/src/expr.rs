@@ -208,9 +208,6 @@ pub fn lower_expr(
 
                         // TODO: inc_ref_count if it has to
                     },
-                    Field::Constructor => {
-                        // nop
-                    },
                     _ => todo!(),
                 }
             }

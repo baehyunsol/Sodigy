@@ -132,14 +132,8 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                         lines.push(&format!("_{i}"));
                     },
                     Field::Range(_, _) => todo!(),
-                    Field::Variant => {
-                        lines.push("__VARIANT__");
-                    },
-                    Field::Constructor => {
-                        lines.push("__CONSTRUCTOR__");
-                    },
-                    Field::Payload => {
-                        lines.push("__PAYLOAD__");
+                    Field::EnumDiscriminant => {
+                        lines.push("__DISCRIMINANT__");
                     },
                 }
             }

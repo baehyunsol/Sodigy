@@ -2,17 +2,18 @@ use super::{
     Constructor,
     LiteralType,
     NameBinding,
+    PatternField,
     Range,
     merge_conditions,
     read_field_of_pattern,
     remove_overlaps,
+    to_field_expr,
 };
 use crate::Session;
 use sodigy_error::Error;
 use sodigy_hir::LetOrigin;
 use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
-use sodigy_parse::Field;
 use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::intern_string;
 use sodigy_token::Constant;
@@ -29,7 +30,7 @@ pub struct DecisionTree {
     // It's used for spans. Just make sure that trees in a match expression have unique id.
     pub id: u32,
 
-    pub field: Option<Vec<Field>>,
+    pub field: Option<Vec<PatternField>>,
     pub branches: Vec<DecisionTreeBranch>,
 }
 
@@ -96,10 +97,7 @@ impl DecisionTree {
                 name: curr_field_name,
                 name_span: curr_field_span,
                 type_annot_span: None,
-                value: Expr::Field {
-                    lhs: Box::new(scrutinee.clone()),
-                    fields: field.clone(),
-                },
+                value: to_field_expr(scrutinee, field),
                 origin: LetOrigin::Match,
             }],
             None => vec![],
@@ -318,7 +316,7 @@ fn constructor_to_expr(
                                 if_span: Span::None,
                                 cond: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *session.global_context.lang_items.unwrap().get(f1).unwrap(),
+                                        def_span: session.get_lang_item_span(f1),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -331,7 +329,7 @@ fn constructor_to_expr(
                                 else_span: Span::None,
                                 true_value: Box::new(Expr::Call {
                                     func: Callable::Static {
-                                        def_span: *session.global_context.lang_items.unwrap().get(f2).unwrap(),
+                                        def_span: session.get_lang_item_span(f2),
                                         span: Span::None,
                                     },
                                     args: vec![
@@ -347,10 +345,10 @@ fn constructor_to_expr(
                                     span: Span::None,
                                     origin: NameOrigin::Foreign {
                                         kind: NameKind::EnumVariant {
-                                            parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
+                                            parent: session.get_lang_item_span("type.Bool"),
                                         },
                                     },
-                                    def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.False").unwrap(),
+                                    def_span: session.get_lang_item_span("variant.Bool.False"),
                                 })),
                                 false_group_span: Span::None,
                                 from_short_circuit: None,
@@ -441,7 +439,7 @@ pub enum DecisionTreeNode {
 
 pub(crate) fn build_tree(
     tree_id: &mut u32,
-    matrix: &[(Vec<Field>, Constructor)],
+    matrix: &[(Vec<PatternField>, Constructor)],
     arms: &[(usize, &MatchArm)],
     session: &mut Session,
 ) -> Result<DecisionTreeNode, ()> {
@@ -503,6 +501,7 @@ pub(crate) fn build_tree(
         match read_field_of_pattern(
             &arm.pattern,
             &matrix[0].0,
+            session,
         ) {
             Ok(pattern) => {
                 destructured_patterns.push((*id, *arm, pattern));
@@ -676,10 +675,10 @@ fn true_value(session: &Session) -> Expr {
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
+                parent: session.get_lang_item_span("type.Bool"),
             },
         },
-        def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.True").unwrap(),
+        def_span: session.get_lang_item_span("variant.Bool.True"),
     })
 }
 
@@ -689,9 +688,9 @@ fn false_value(session: &Session) -> Expr {
         span: Span::None,
         origin: NameOrigin::Foreign {
             kind: NameKind::EnumVariant {
-                parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
+                parent: session.get_lang_item_span("type.Bool"),
             },
         },
-        def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.False").unwrap(),
+        def_span: session.get_lang_item_span("variant.Bool.False"),
     })
 }
