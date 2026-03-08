@@ -1,7 +1,7 @@
 use crate::{Field, Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::InternedString;
+use sodigy_string::{InternedString, unintern_string};
 use sodigy_token::{Constant, Delim, InfixOp, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
@@ -151,8 +151,9 @@ impl Pattern {
     // - `$ns` -> `[$ns @ ..]`
     // - `[$a, $b, $c]` -> `[$a, $b, $c]`
     // - `"asdf"` -> `['a', 'b', 'c', 'd']`
+    // - `b"asdf"` -> `[b'a', b'b', b'c', b'd']`
     // - `[$a] ++ [$b]` -> `[$a, $b]`
-    pub fn to_list_pattern(self, is_lhs: bool) -> Result<PatternKind, Vec<Error>> {
+    pub fn to_list_pattern(self, is_lhs: bool, intermediate_dir: &str) -> Result<PatternKind, Vec<Error>> {
         let mut errors = vec![];
 
         if let (Some(name), Some(name_span)) = (self.name, self.name_span) {
@@ -175,7 +176,42 @@ impl Pattern {
                 group_span: span.derive(SpanDeriveKind::ConcatPatternList),
                 is_lowered_from_concat: true,
             },
-            PatternKind::Constant(Constant::String { binary, s, span }) => todo!(),
+            PatternKind::Constant(Constant::String { binary, s, span }) => {
+                // TODO: return ICE instead of unwrap
+                let bs = unintern_string(s, intermediate_dir).unwrap().unwrap();
+
+                // Lexer must guarantee that it's a valid utf8.
+                let s = String::from_utf8(bs.clone()).unwrap();
+
+                let elements: Vec<Pattern> = if binary {
+                    bs.iter().map(
+                        |b| Pattern {
+                            name: None,
+                            name_span: None,
+
+                            // TODO: maybe derive the span?
+                            kind: PatternKind::Constant(Constant::Byte { b: *b, span }),
+                        }
+                    ).collect()
+                } else {
+                    s.chars().map(
+                        |ch| Pattern {
+                            name: None,
+                            name_span: None,
+
+                            // TODO: maybe derive the span?
+                            kind: PatternKind::Constant(Constant::Char { ch: ch as u32, span }),
+                        }
+                    ).collect()
+                };
+
+                PatternKind::List {
+                    elements,
+                    rest: None,
+                    group_span: span,
+                    is_lowered_from_concat: true,
+                }
+            },
             l @ PatternKind::List { .. } => l,
             p => {
                 errors.push(Error {
@@ -751,7 +787,7 @@ impl<'t, 's> Tokens<'t, 's> {
                             self.cursor += 1;
                             let rhs = self.pratt_parse_pattern(context, r_bp)?;
 
-                            match (lhs.to_list_pattern(true), rhs.to_list_pattern(false)) {
+                            match (lhs.to_list_pattern(true, &self.intermediate_dir), rhs.to_list_pattern(false, &self.intermediate_dir)) {
                                 (
                                     Ok(PatternKind::List {
                                         elements: elems1,

@@ -318,6 +318,7 @@ impl PatternKind {
             PatternKind::Regex { span, .. } |
             PatternKind::Wildcard(span) |
             PatternKind::Tuple { group_span: span, .. } |
+            PatternKind::List { group_span: span, .. } |
             PatternKind::Range { op_span: span, .. } |
             PatternKind::Or { op_span: span, .. } => *span,
             _ => panic!("TODO: {self:?}"),
@@ -331,7 +332,8 @@ impl PatternKind {
             PatternKind::NameBinding { span, .. } |
             PatternKind::Regex { span, .. } |
             PatternKind::Wildcard(span) |
-            PatternKind::Tuple { group_span: span, .. } => *span,
+            PatternKind::Tuple { group_span: span, .. } |
+            PatternKind::List { group_span: span, .. } => *span,
             PatternKind::Range { lhs, op_span, rhs, .. } => {
                 let mut span = match lhs {
                     Some(lhs) => lhs.error_span_wide().merge(*op_span),

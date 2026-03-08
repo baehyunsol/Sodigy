@@ -135,6 +135,9 @@ pub fn dump_expr(expr: &Expr, lines: &mut IndentedLines, session: &Session) {
                     Field::EnumDiscriminant => {
                         lines.push("__DISCRIMINANT__");
                     },
+                    Field::ListLength => {
+                        lines.push("__LIST_LENGTH__");
+                    },
                 }
             }
         },

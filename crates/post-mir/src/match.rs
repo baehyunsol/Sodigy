@@ -156,6 +156,7 @@ use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{LetOrigin, Pattern, PatternKind};
 use sodigy_mir::{
     Block,
+    Callable,
     Expr,
     Let,
     Match,
@@ -167,7 +168,7 @@ use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::{InternedNumber, InternedNumberValue};
 use sodigy_parse::Field;
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
-use sodigy_string::{InternedString, intern_string};
+use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::Constant;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
@@ -360,6 +361,11 @@ fn get_matrix(
                             rhs: None,
                             rhs_inclusive: false,
                         }),
+                    ), (
+                        vec![PatternField::ListElements],
+
+                        // what here?
+                        todo!(),
                     ),
                 ]
             }
@@ -440,7 +446,12 @@ fn read_field_of_pattern<'p>(
                 name_binding,
                 name_binding_offset: None,
             }),
-            PatternKind::Constant(_) => todo!(),
+            PatternKind::Constant(Constant::String { .. }) => Ok(DestructuredPattern {
+                pattern,
+                constructor: Constructor::DefSpan(session.get_lang_item_span("type.List")),
+                name_binding,
+                name_binding_offset: None,
+            }),
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
@@ -546,6 +557,49 @@ fn read_field_of_pattern<'p>(
             }),
             _ => panic!("TODO: {pattern:?}"),
         },
+        PatternField::ListLength => {
+            let (lhs, lhs_inclusive, rhs, rhs_inclusive) = match &pattern.kind {
+                PatternKind::Constant(Constant::String { binary, s, .. }) => {
+                    if *binary {
+                        (Some(s.len()), true, Some(s.len()), true)
+                    }
+
+                    else {
+                        // FIXME: too many unwraps...
+                        let s = unintern_string(*s, &session.intermediate_dir).unwrap().unwrap();
+                        let s = String::from_utf8(s).unwrap();
+                        let char_count = s.chars().count();
+
+                        (Some(char_count), true, Some(char_count), true)
+                    }
+                },
+                PatternKind::List { elements, rest, .. } => {
+                    if let Some(_) = rest {
+                        // a rest pattern can be an arbitrary number of elements
+                        (Some(elements.len()), true, None, false)
+                    }
+
+                    else {
+                        (Some(elements.len()), true, Some(elements.len()), true)
+                    }
+                },
+                PatternKind::Wildcard(_) => (None, false, None, false),
+                _ => panic!("TODO: {pattern:?}"),
+            };
+
+            Ok(DestructuredPattern {
+                pattern,
+                constructor: Constructor::Range(Range {
+                    r#type: LiteralType::Int,
+                    lhs: lhs.map(|lhs| InternedNumber::from_u32(lhs as u32, true)),
+                    lhs_inclusive,
+                    rhs: rhs.map(|rhs| InternedNumber::from_u32(rhs as u32, true)),
+                    rhs_inclusive,
+                }),
+                name_binding,
+                name_binding_offset: None,
+            })
+        },
         f => panic!("TODO: {f:?}"),
     }
 }
@@ -637,7 +691,7 @@ fn check_arm_reachability(
     }
 }
 
-fn to_field_expr(expr: &Expr, fields: &[PatternField]) -> Expr {
+fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Expr {
     let fields: Vec<Field> = fields.iter().filter_map(
         |field| match field {
             PatternField::Constructor => None,
@@ -649,12 +703,46 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField]) -> Expr {
             }),
             PatternField::Index(i) => Some(Field::Index(*i)),
             PatternField::Range(a, b) => Some(Field::Range(*a, *b)),
-            _ => todo!(),
+            PatternField::ListLength => Some(Field::ListLength),
+            _ => panic!("TODO: {field:?}"),
         }
     ).collect();
 
     if fields.is_empty() {
         expr.clone()
+    }
+
+    // `x.y.z.__LIST_LENGTH__.w` -> `list_length(x.y.z).w`
+    else if let Some(list_length_at) = fields.iter().position(|field| matches!(field, Field::ListLength)) {
+        let arg = if list_length_at == 0 {
+            expr.clone()
+        } else {
+            Expr::Field {
+                lhs: Box::new(expr.clone()),
+                fields: fields[..list_length_at].to_vec(),
+            }
+        };
+
+        let list_length = Expr::Call {
+            func: Callable::Static {
+                def_span : session.get_lang_item_span("built_in.len_list"),
+                span: Span::None,
+            },
+            args: vec![arg],
+            arg_group_span: Span::None,
+            given_keyword_arguments: vec![],
+        };
+
+        if list_length_at == fields.len() - 1 {
+            list_length
+        }
+
+        else {
+            Expr::Field {
+                lhs: Box::new(list_length),
+                fields: fields[(list_length_at + 1)..].to_vec(),
+            }
+        }
     }
 
     else {

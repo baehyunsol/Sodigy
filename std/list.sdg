@@ -24,6 +24,11 @@ fn eq_list<T>(lhs: [T], rhs: [T]) -> Bool = match (lhs, rhs) {
     ([$l] ++ $lhs, [$r] ++ $rhs) => l == r && lhs == rhs,
 };
 
+#[built_in]
+#[lang_item("built_in.len_list")]
+#[lang_item_generics("built_in.len_list.generic.0")]
+fn len_list<T>(ls: [T]) -> Int;
+
 // TODO: The compiler isn't strong enough to compile these functions.
 /*
 #[impl(std.op.index)]

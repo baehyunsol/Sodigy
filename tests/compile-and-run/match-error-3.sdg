@@ -1,0 +1,8 @@
+//% compile-error == 1
+
+fn tt(a: Int, b: Int) -> Int = match (a, b) {
+    (0, 1) => 1,
+    (1, 0) => 2,
+    (1, 2, 3) => 3,
+    _ => 4,
+};

@@ -35,6 +35,9 @@ impl Endec for Field {
             Field::EnumDiscriminant => {
                 buffer.push(3);
             },
+            Field::ListLength => {
+                buffer.push(4);
+            },
         }
     }
 
@@ -65,7 +68,8 @@ impl Endec for Field {
                 Ok((Field::Range(a, b), cursor))
             },
             Some(3) => Ok((Field::EnumDiscriminant, cursor + 1)),
-            Some(n @ 4..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(4) => Ok((Field::ListLength, cursor + 1)),
+            Some(n @ 5..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

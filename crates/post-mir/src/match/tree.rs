@@ -97,7 +97,7 @@ impl DecisionTree {
                 name: curr_field_name,
                 name_span: curr_field_span,
                 type_annot_span: None,
-                value: to_field_expr(scrutinee, field),
+                value: to_field_expr(scrutinee, field, session),
                 origin: LetOrigin::Match,
             }],
             None => vec![],
@@ -539,6 +539,57 @@ pub(crate) fn build_tree(
                     },
                     _ => {
                         session.errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
+                    },
+                }
+            }
+
+            *tree_id += 1;
+            Ok(DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
+                field: Some(matrix[0].0.clone()),
+
+                // no branches
+                branches: vec![DecisionTreeBranch {
+                    condition: Constructor::Wildcard,
+                    guard: None,
+                    node: build_tree(
+                        tree_id,
+                        &matrix[1..],
+                        &okay_patterns,
+                        session,
+                    )?,
+                    name_bindings,
+                }],
+            }))
+        },
+        Constructor::DefSpan(def_span) => {
+            let mut okay_patterns = vec![];
+            let mut name_bindings = vec![];
+
+            for (id, arm, pattern) in destructured_patterns.iter() {
+                match &pattern.constructor {
+                    Constructor::DefSpan(d) => {
+                        if d == def_span {
+                            okay_patterns.push((*id, *arm));
+
+                            if let Some(name_binding) = pattern.get_name_binding(*id) {
+                                name_bindings.push(name_binding);
+                            }
+                        }
+
+                        else {
+                            todo!()
+                        }
+                    },
+                    Constructor::Wildcard => {
+                        okay_patterns.push((*id, *arm));
+
+                        if let Some(name_binding) = pattern.get_name_binding(*id) {
+                            name_bindings.push(name_binding);
+                        }
+                    },
+                    _ => {
+                        todo!()
                     },
                 }
             }

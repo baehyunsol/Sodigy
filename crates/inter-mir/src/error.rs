@@ -298,6 +298,8 @@ impl Session {
                     if let Some(span) = *expected_span {
                         let note = if let ErrorContext::FieldUpdate = context {
                             format!("The type of this field is `{expected_type}`.")
+                        } else if let ErrorContext::MatchScrutinee = context {
+                            format!("The scrutinee of the match expression has type `{expected_type}`.")
                         } else {
                             format!(
                                 "The value should have type `{expected_type}`{}.",

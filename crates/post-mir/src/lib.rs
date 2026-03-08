@@ -97,34 +97,11 @@ fn lower_expr(expr: &mut Expr, session: &mut Session) -> Result<(), ()> {
             }
         },
         Expr::Match(r#match) => {
-            let mut has_error = false;
-
-            has_error |= lower_expr(&mut r#match.scrutinee, session).is_err();
-
-            for arm in r#match.arms.iter_mut() {
-                if let Some(guard) = &mut arm.guard {
-                    has_error |= lower_expr(guard, session).is_err();
-                }
-
-                has_error |= lower_expr(&mut arm.value, session).is_err();
-            }
-
-            match lower_match(r#match, session) {
-                Ok(lowered) => {
-                    *expr = lowered;
-                },
-                Err(()) => {
-                    has_error = true;
-                },
-            }
-
-            if has_error {
-                Err(())
-            }
-
-            else {
-                Ok(())
-            }
+            // It must call `lower_match` before `lower_expr` because
+            // `lower_match` creates new field expressions.
+            let lowered = lower_match(r#match, session)?;
+            *expr = lowered;
+            lower_expr(expr, session)
         },
         Expr::Call { func, args, .. } => {
             let mut has_error = false;

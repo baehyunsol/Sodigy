@@ -208,7 +208,7 @@ pub fn lower_expr(
 
                         // TODO: inc_ref_count if it has to
                     },
-                    _ => todo!(),
+                    _ => panic!("TODO: {field:?}"),
                 }
             }
 
