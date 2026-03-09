@@ -1,4 +1,4 @@
-use super::{Constructor, NameBinding};
+use super::{ExprConstructor, NameBinding};
 use sodigy_mir::MatchArm;
 use sodigy_number::InternedNumber;
 use std::cmp::Ordering;
@@ -113,18 +113,18 @@ pub fn remove_overlaps<T: Clone + Merge>(mut branches: Vec<(Range, T)>) -> Vec<(
     }
 }
 
-pub fn merge_conditions(branches: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))>) -> Vec<(Constructor, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> {
+pub fn merge_conditions(branches: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))>) -> Vec<(ExprConstructor, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> {
     let mut result = Vec::with_capacity(branches.len());
 
     'outer_loop: for (range, arms) in branches.into_iter() {
         for (constructor, arms_r) in result.iter_mut() {
             if are_arms_eq(&arms, arms_r) {
                 match constructor {
-                    Constructor::Or(constructors) => {
-                        constructors.push(Constructor::Range(range));
+                    ExprConstructor::Or(constructors) => {
+                        constructors.push(ExprConstructor::Range(range));
                     },
-                    Constructor::Range(_) => {
-                        *constructor = Constructor::Or(vec![constructor.clone(), Constructor::Range(range)]);
+                    ExprConstructor::Range(_) => {
+                        *constructor = ExprConstructor::Or(vec![constructor.clone(), ExprConstructor::Range(range)]);
                     },
                     _ => unreachable!(),
                 }
@@ -133,7 +133,7 @@ pub fn merge_conditions(branches: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<Name
             }
         }
 
-        result.push((Constructor::Range(range), arms));
+        result.push((ExprConstructor::Range(range), arms));
     }
 
     result

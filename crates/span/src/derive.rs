@@ -36,6 +36,9 @@ pub enum SpanDeriveKind {
     FStringToString,
     FStringConcat,
 
+    // `(([], _) | (_, []), _)` -> `(([], _), _) | ((_, []), _)`
+    OrPattern(u32),
+
     // When a function is monomorphized, *every* span in the function are derived.
     // Each monomorphization has a unique id, which helps identifying function and
     // generating error messages. Each session manages the ids.
@@ -43,17 +46,14 @@ pub enum SpanDeriveKind {
 }
 
 impl SpanDeriveKind {
+    // It returns None if the error note is too obvious.
     pub fn error_note(&self, session: &mut RenderSpanSession) -> Option<String> {
         match self {
             SpanDeriveKind::Trivial => None,
             SpanDeriveKind::Pipeline => Some(String::from("It is desugared to an inline `let` statement.")),
             SpanDeriveKind::ConstEval => Some(String::from("It is evaluated at compile-time.")),
             SpanDeriveKind::ExprInPattern => Some(String::from("It is desugared to a guard expression.")),
-
-            // too obvious
-            // SpanDeriveKind::Lambda => Some(String::from("It is desugared to a function definition.")),
             SpanDeriveKind::Lambda => None,
-
             SpanDeriveKind::IfLet => Some(String::from("It is desugared to a match expression.")),
             SpanDeriveKind::FuncDefaultValue => Some(String::from("It is desugared to a `let` statement.")),
             SpanDeriveKind::MatchScrutinee(_) => None,
@@ -61,6 +61,7 @@ impl SpanDeriveKind {
             SpanDeriveKind::ConcatPatternList => Some(String::from("It is desugared to a list pattern.")),
             SpanDeriveKind::FStringToString => Some(String::from("It is desugared to `to_string(..)`.")),
             SpanDeriveKind::FStringConcat => Some(String::from("It is desugared to a `++` operator.")),
+            SpanDeriveKind::OrPattern(_) => None,
             SpanDeriveKind::Monomorphize(id) => {
                 // TODO: `unwrap()` vs returning None
                 let mono_info = session.get_monomorphization_info(*id).unwrap();

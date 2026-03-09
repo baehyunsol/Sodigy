@@ -1,7 +1,9 @@
 use super::{
-    Constructor,
     LiteralType,
+    MatrixConstructor,
+    MatrixRow,
     NameBinding,
+    PatternConstructor,
     PatternField,
     Range,
     merge_conditions,
@@ -10,7 +12,6 @@ use super::{
     to_field_expr,
 };
 use crate::Session;
-use sodigy_error::Error;
 use sodigy_hir::LetOrigin;
 use sodigy_mir::{Block, Callable, Expr, If, Let, MatchArm};
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
@@ -182,7 +183,7 @@ impl DecisionTree {
         // the more expensive it is to evaluate the condition.
         self.branches.sort_by_key(
             |branch| match &branch.condition {
-                Constructor::Or(cs) => cs.len(),
+                ExprConstructor::Or(cs) => cs.len(),
                 _ => 0,
             }
         );
@@ -214,7 +215,8 @@ impl DecisionTree {
 
 #[derive(Clone, Debug)]
 pub struct DecisionTreeBranch {
-    pub condition: Constructor,
+    pub condition: ExprConstructor,
+
     pub guard: Option<Expr>,
     pub node: DecisionTreeNode,
 
@@ -254,7 +256,7 @@ fn branch_condition_to_expr(
     session: &Session,
 ) -> Expr {
     match &branch.condition {
-        Constructor::Wildcard => match &branch.guard {
+        ExprConstructor::Wildcard => match &branch.guard {
             Some(guard) => guard.clone(),
             None => true_value(session),
         },
@@ -263,14 +265,12 @@ fn branch_condition_to_expr(
 }
 
 fn constructor_to_expr(
-    constructor: &Constructor,
+    constructor: &ExprConstructor,
     curr_field: &Expr,
     session: &Session,
 ) -> Expr {
     match constructor {
-        Constructor::Tuple(_) => true_value(session),
-        Constructor::DefSpan(_) => todo!(),
-        Constructor::Range(range) => {
+        ExprConstructor::Range(range) => {
             let (lang_item, operand) = match (&range.lhs, &range.rhs) {
                 (Some(lhs), Some(rhs)) => match lhs.cmp(rhs) {
                     Ordering::Equal if range.lhs_inclusive && range.rhs_inclusive => match range.r#type {
@@ -379,7 +379,7 @@ fn constructor_to_expr(
 
             Expr::Call {
                 func: Callable::Static {
-                    def_span: *session.global_context.lang_items.unwrap().get(lang_item).unwrap(),
+                    def_span: session.get_lang_item_span(lang_item),
                     span: Span::None,
                 },
                 args: vec![
@@ -390,13 +390,13 @@ fn constructor_to_expr(
                 given_keyword_arguments: vec![],
             }
         },
-        Constructor::Or(cs) => constructors_to_expr(cs, curr_field, session),
-        Constructor::Wildcard => true_value(session),
+        ExprConstructor::Or(cs) => constructors_to_expr(cs, curr_field, session),
+        ExprConstructor::Wildcard => true_value(session),
     }
 }
 
 fn constructors_to_expr(
-    constructors: &[Constructor],
+    constructors: &[ExprConstructor],
     curr_field: &Expr,
     session: &Session,
 ) -> Expr {
@@ -411,10 +411,10 @@ fn constructors_to_expr(
                 span: Span::None,
                 origin: NameOrigin::Foreign {
                     kind: NameKind::EnumVariant {
-                        parent: *session.global_context.lang_items.unwrap().get("type.Bool").unwrap(),
+                        parent: session.get_lang_item_span("type.Bool"),
                     },
                 },
-                def_span: *session.global_context.lang_items.unwrap().get("variant.Bool.True").unwrap(),
+                def_span: session.get_lang_item_span("variant.Bool.True"),
             })),
             true_group_span: Span::None,
             false_value: Box::new(constructors_to_expr(&constructors[1..], curr_field, session)),
@@ -439,7 +439,7 @@ pub enum DecisionTreeNode {
 
 pub(crate) fn build_tree(
     tree_id: &mut u32,
-    matrix: &[(Vec<PatternField>, Constructor)],
+    matrix: &[MatrixRow],
     arms: &[(usize, &MatchArm)],
     session: &mut Session,
 ) -> Result<DecisionTreeNode, ()> {
@@ -481,7 +481,7 @@ pub(crate) fn build_tree(
                     field: None,
                     branches: branches.into_iter().map(
                         |(guard, id)| DecisionTreeBranch {
-                            condition: Constructor::Wildcard,
+                            condition: ExprConstructor::Wildcard,
                             guard,
                             node: DecisionTreeNode::Leaf {
                                 matched: id,
@@ -498,26 +498,22 @@ pub(crate) fn build_tree(
     let mut destructured_patterns = Vec::with_capacity(arms.len());
 
     for (id, arm) in arms.iter() {
-        match read_field_of_pattern(
+        let pattern = read_field_of_pattern(
             &arm.pattern,
-            &matrix[0].0,
+            &matrix[0].field,
             session,
-        ) {
-            Ok(pattern) => {
-                destructured_patterns.push((*id, *arm, pattern));
-            },
-            Err(e) => todo!(),  // who handles this?
-        }
+        );
+        destructured_patterns.push((*id, *arm, pattern));
     }
 
-    match &matrix[0].1 {
-        Constructor::Tuple(s_l) => {
+    match &matrix[0].constructor {
+        MatrixConstructor::Tuple(s_l) => {
             let mut okay_patterns = vec![];
             let mut name_bindings = vec![];
 
             for (id, arm, pattern) in destructured_patterns.iter() {
                 match &pattern.constructor {
-                    Constructor::Tuple(p_l) => {
+                    PatternConstructor::Tuple(p_l) => {
                         if s_l == p_l {
                             okay_patterns.push((*id, *arm));
 
@@ -527,30 +523,28 @@ pub(crate) fn build_tree(
                         }
 
                         else {
-                            session.errors.push(Error::todo(19198, "type errors in patterns", pattern.pattern.error_span_wide()));
+                            todo!()
                         }
                     },
-                    Constructor::Wildcard => {
+                    PatternConstructor::Wildcard => {
                         okay_patterns.push((*id, *arm));
 
                         if let Some(name_binding) = pattern.get_name_binding(*id) {
                             name_bindings.push(name_binding);
                         }
                     },
-                    _ => {
-                        session.errors.push(Error::todo(19199, "type errors in patterns", pattern.pattern.error_span_wide()));
-                    },
+                    _ => panic!("TODO: {:?}", pattern.constructor),
                 }
             }
 
             *tree_id += 1;
             Ok(DecisionTreeNode::Tree(DecisionTree {
                 id: *tree_id,
-                field: Some(matrix[0].0.clone()),
+                field: Some(matrix[0].field.clone()),
 
                 // no branches
                 branches: vec![DecisionTreeBranch {
-                    condition: Constructor::Wildcard,
+                    condition: ExprConstructor::Wildcard,
                     guard: None,
                     node: build_tree(
                         tree_id,
@@ -562,13 +556,13 @@ pub(crate) fn build_tree(
                 }],
             }))
         },
-        Constructor::DefSpan(def_span) => {
+        MatrixConstructor::DefSpan(def_span) => {
             let mut okay_patterns = vec![];
             let mut name_bindings = vec![];
 
             for (id, arm, pattern) in destructured_patterns.iter() {
                 match &pattern.constructor {
-                    Constructor::DefSpan(d) => {
+                    PatternConstructor::DefSpan(d) => {
                         if d == def_span {
                             okay_patterns.push((*id, *arm));
 
@@ -581,7 +575,7 @@ pub(crate) fn build_tree(
                             todo!()
                         }
                     },
-                    Constructor::Wildcard => {
+                    PatternConstructor::Wildcard => {
                         okay_patterns.push((*id, *arm));
 
                         if let Some(name_binding) = pattern.get_name_binding(*id) {
@@ -597,11 +591,11 @@ pub(crate) fn build_tree(
             *tree_id += 1;
             Ok(DecisionTreeNode::Tree(DecisionTree {
                 id: *tree_id,
-                field: Some(matrix[0].0.clone()),
+                field: Some(matrix[0].field.clone()),
 
                 // no branches
                 branches: vec![DecisionTreeBranch {
-                    condition: Constructor::Wildcard,
+                    condition: ExprConstructor::Wildcard,
                     guard: None,
                     node: build_tree(
                         tree_id,
@@ -613,7 +607,7 @@ pub(crate) fn build_tree(
                 }],
             }))
         },
-        Constructor::Range(Range { r#type, .. }) => {
+        MatrixConstructor::Range(Range { r#type, .. }) => {
             let mut branches_with_overlap: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> = vec![];
 
             // default: wildcard
@@ -630,9 +624,9 @@ pub(crate) fn build_tree(
 
             for (id, arm, pattern) in destructured_patterns.iter() {
                 match &pattern.constructor {
-                    Constructor::Range(r) => {
+                    PatternConstructor::Range(r) => {
                         if r.r#type != *r#type {
-                            session.errors.push(Error::todo(19200, "type errors in patterns", pattern.pattern.error_span_wide()));
+                            todo!()
                         }
 
                         else {
@@ -662,7 +656,7 @@ pub(crate) fn build_tree(
                             }
                         }
                     },
-                    Constructor::Wildcard => {
+                    PatternConstructor::Wildcard => {
                         for (_, (arms, name_bindings)) in branches_with_overlap.iter_mut() {
                             arms.push((*id, *arm));
 
@@ -671,9 +665,7 @@ pub(crate) fn build_tree(
                             }
                         }
                     },
-                    _ => {
-                        session.errors.push(Error::todo(19201, "type errors in patterns", pattern.pattern.error_span_wide()));
-                    },
+                    _ => todo!(),
                 }
             }
 
@@ -711,12 +703,12 @@ pub(crate) fn build_tree(
                 *tree_id += 1;
                 Ok(DecisionTreeNode::Tree(DecisionTree {
                     id: *tree_id,
-                    field: Some(matrix[0].0.clone()),
+                    field: Some(matrix[0].field.clone()),
                     branches,
                 }))
             }
         },
-        c => panic!("TODO: {c:?}"),
+        MatrixConstructor::ListSubMatrix(r#type) => panic!("TODO: {type:?}\n{destructured_patterns:?}"),
     }
 }
 
@@ -744,4 +736,11 @@ fn false_value(session: &Session) -> Expr {
         },
         def_span: session.get_lang_item_span("variant.Bool.False"),
     })
+}
+
+#[derive(Clone, Debug)]
+pub enum ExprConstructor {
+    Range(Range),
+    Or(Vec<ExprConstructor>),
+    Wildcard,
 }

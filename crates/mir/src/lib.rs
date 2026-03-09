@@ -29,7 +29,7 @@ pub use r#if::If;
 pub(crate) use r#if::lower_hir_if;
 pub use intrinsic::Intrinsic;
 pub use r#let::Let;
-pub use r#match::{Match, MatchArm};
+pub use r#match::{ArmSplit, Match, MatchArm};
 pub use pattern::{Pattern, PatternKind};
 pub use session::Session;
 pub use r#struct::Struct;

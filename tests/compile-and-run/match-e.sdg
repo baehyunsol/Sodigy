@@ -1,0 +1,16 @@
+fn match_str(s: String) -> Int = match s {
+    "abc" => 0,
+    "abcde" => 1,
+    "abcdef" => 2,
+    "def" => 3,
+    _ => 4,
+};
+
+assert match_str("abc") == 0;
+assert match_str("abcd") == 4;
+assert match_str("abcde") == 1;
+assert match_str("abcdef") == 2;
+assert match_str("abcdefg") == 4;
+assert match_str("def") == 3;
+assert match_str("defg") == 4;
+assert match_str("") == 4;

@@ -153,8 +153,12 @@ impl Endec for SpanDeriveKind {
             SpanDeriveKind::FStringConcat => {
                 buffer.push(11);
             },
-            SpanDeriveKind::Monomorphize(id) => {
+            SpanDeriveKind::OrPattern(id) => {
                 buffer.push(12);
+                id.encode_impl(buffer);
+            },
+            SpanDeriveKind::Monomorphize(id) => {
+                buffer.push(13);
                 id.encode_impl(buffer);
             },
         }
@@ -178,10 +182,14 @@ impl Endec for SpanDeriveKind {
             Some(10) => Ok((SpanDeriveKind::FStringToString, cursor + 1)),
             Some(11) => Ok((SpanDeriveKind::FStringConcat, cursor + 1)),
             Some(12) => {
+                let (id, cursor) = u32::decode_impl(buffer, cursor + 1)?;
+                Ok((SpanDeriveKind::OrPattern(id), cursor))
+            },
+            Some(13) => {
                 let (id, cursor) = u128::decode_impl(buffer, cursor + 1)?;
                 Ok((SpanDeriveKind::Monomorphize(id), cursor))
             },
-            Some(n @ 13..) => Err(DecodeError::InvalidEnumVariant(*n)),
+            Some(n @ 14..) => Err(DecodeError::InvalidEnumVariant(*n)),
             None => Err(DecodeError::UnexpectedEof),
         }
     }

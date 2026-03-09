@@ -870,6 +870,10 @@ impl Expr {
             Expr::Call { func, arg_group_span, .. } => func.error_span_wide().merge(*arg_group_span),
         }
     }
+
+    pub fn derive(&self, kind: SpanDeriveKind) -> Expr {
+        todo!()
+    }
 }
 
 impl Callable {

@@ -1,6 +1,6 @@
 use crate::{Assert, Enum, Func, GlobalContext, Let, Struct, Type, TypeAssertion};
 use sodigy_error::{Error, Warning};
-use sodigy_hir::{self as hir, FuncOrigin, FuncShape};
+use sodigy_hir::{self as hir, FuncShape};
 use sodigy_inter_hir as inter_hir;
 use sodigy_span::Span;
 use sodigy_string::InternedString;

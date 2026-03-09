@@ -89,7 +89,7 @@ pub use r#let::{Let, LetOrigin, TrivialLet};
 pub use r#match::{Match, MatchArm};
 pub use module::Module;
 pub use path::Path;
-pub use pattern::{Pattern, PatternKind, StructFieldPattern};
+pub use pattern::{Pattern, PatternKind, PatternSplit, StructFieldPattern};
 pub use poly::Poly;
 pub use prelude::{PRELUDES, use_prelude};
 pub use session::Session;

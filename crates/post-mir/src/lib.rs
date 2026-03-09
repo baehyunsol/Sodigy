@@ -1,11 +1,9 @@
 use sodigy_mir::{Callable, Expr, Session as MirSession};
 
-mod error;
 mod field;
 mod r#match;
 mod session;
 
-pub use error::PatternAnalysisError;
 pub(crate) use field::lower_fields;
 pub(crate) use r#match::lower_match;
 use session::Session;

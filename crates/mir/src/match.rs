@@ -5,8 +5,8 @@
 // how to destructure patterns. It also does exhaustiveness checking.
 
 use crate::{Expr, Pattern, Session};
-use sodigy_hir as hir;
-use sodigy_span::Span;
+use sodigy_hir::{self as hir, PatternSplit};
+use sodigy_span::{Span, SpanDeriveKind};
 
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -22,6 +22,11 @@ pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub value: Expr,
+}
+
+pub enum ArmSplit<'a> {
+    NoSplit(&'a MatchArm),
+    Split(Vec<MatchArm>),
 }
 
 impl Match {
@@ -77,6 +82,25 @@ impl MatchArm {
                 value,
             }),
             _ => Err(()),
+        }
+    }
+
+    pub fn split_or_patterns<'s>(&'s self) -> ArmSplit<'s> {
+        match self.pattern.split_or_patterns() {
+            PatternSplit::NoSplit(_) => ArmSplit::NoSplit(self),
+            PatternSplit::Split(patterns) => {
+                let mut arms = Vec::with_capacity(patterns.len());
+
+                for (pattern, split_id) in patterns.into_iter() {
+                    arms.push(MatchArm {
+                        pattern,
+                        guard: self.guard.as_ref().map(|guard| guard.derive(SpanDeriveKind::OrPattern(split_id))),
+                        value: self.value.derive(SpanDeriveKind::OrPattern(split_id)),
+                    });
+                }
+
+                ArmSplit::Split(arms)
+            },
         }
     }
 }

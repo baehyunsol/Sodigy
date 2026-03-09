@@ -10,7 +10,7 @@ impl Pattern {
         &self,
 
         // If patterns are nested, we don't have to check name collisions
-        // in the inner patterns. Also, we only type-check the outer-most pattern.
+        // in the inner patterns.
         is_inner_pattern: bool,
         intermediate_dir: &str,
     ) -> Result<(), Vec<Error>> {

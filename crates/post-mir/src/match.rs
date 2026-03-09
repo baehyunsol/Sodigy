@@ -151,35 +151,38 @@
 //!
 //! Some special patterns have multiple constructors: ranges, wildcards, var-length lists and or-patterns.
 
-use crate::{PatternAnalysisError, Session};
+use crate::Session;
 use sodigy_error::{Error, ErrorKind, Warning, WarningKind};
 use sodigy_hir::{LetOrigin, Pattern, PatternKind};
 use sodigy_mir::{
+    ArmSplit,
     Block,
     Callable,
     Expr,
     Let,
     Match,
     MatchArm,
-    Type,
     type_of,
 };
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_number::{InternedNumber, InternedNumberValue};
-use sodigy_parse::Field;
+use sodigy_parse::{Field, RestPattern};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string, unintern_string};
 use sodigy_token::Constant;
 use std::collections::HashSet;
 use std::collections::hash_map::{Entry, HashMap};
 
+mod matrix;
 mod range;
 mod tree;
 
+use matrix::{MatrixConstructor, MatrixRow, get_matrix};
 pub(crate) use range::{LiteralType, Range, merge_conditions, remove_overlaps};
 use tree::{
     DecisionTree,
     DecisionTreeNode,
+    ExprConstructor,
     build_tree,
 };
 
@@ -205,10 +208,10 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     let scrutinee_type = type_of(&match_expr.scrutinee, session.global_context).expect("Internal Compiler Error: Type-check is complete, but it failed to solve an expression!");
 
     // We use `index: usize` of each arm as an id of the arm.
-    let mut arms: Vec<(usize, &MatchArm)> = match_expr.arms.iter().enumerate().collect();
+    let mut arms: Vec<(usize, MatchArm)> = split_or_patterns(&match_expr.arms);
 
     // We'll use this arm to check exhaustiveness.
-    let (extra_arm_id, extra_arm) = (arms.len(), &MatchArm {
+    let (extra_arm_id, extra_arm) = (arms.len(), MatchArm {
         pattern: Pattern {
             name: None,
             name_span: None,
@@ -219,12 +222,15 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
     });
     arms.push((extra_arm_id, extra_arm));
 
-    let matrix = get_matrix(&scrutinee_type, session.global_context.lang_items.unwrap());
+    let matrix = get_matrix(&scrutinee_type, session);
+    let borrowed_arms: Vec<(usize, &MatchArm)> = arms.iter().map(
+        |(id, arm)| (*id, arm)
+    ).collect();
 
     let mut tree = match build_tree(
         &mut 1,
         &matrix,
-        &arms,
+        &borrowed_arms,
         session,
     )? {
         DecisionTreeNode::Tree(tree) => tree,
@@ -233,7 +239,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
 
     check_unreachable_and_exhaustiveness(
         &tree,
-        &arms,
+        &borrowed_arms,
         match_expr.keyword_span,
         extra_arm_id,
         session,
@@ -257,7 +263,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         _ => (Expr::Ident(another_name_binding), true),
     };
 
-    let tree_expr = tree.into_expr(&scrutinee, &arms, session);
+    let tree_expr = tree.into_expr(&scrutinee, &borrowed_arms, session);
     let tree_expr = if needs_another_name_binding {
         // We have to bind the name!!
         Expr::Block(Block {
@@ -280,118 +286,28 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
 }
 
 #[derive(Clone, Debug)]
-pub enum Constructor {
+pub enum PatternConstructor {
     Tuple(usize),
     DefSpan(Span),
     Range(Range),
-    Or(Vec<Constructor>),
+    Or(Vec<PatternConstructor>),
     Wildcard,
-}
 
-// Int: [([constructor], Range { Int, -inf..inf })]
-// Number: [([constructor], Range { Number, -inf..inf })]  // We don't care about its denom and numer!
-// (Foo, Foo, Int): [  // struct Foo { f1: Bool, f2: Int }
-//     ([constructor], Tuple(3)),
-//     ([index(0), constructor], DefSpan(Foo)),
-//     ([index(0), name(f1), constructor], Or(DefSpan(True), DefSpan(False))),
-//     ([index(0), name(f1), payload], EnumPayload(Bool)),  // this is empty, but we'll optimize that later
-//     ([index(0), name(f2), constructor], Range { Int, -inf..inf }),
-//     ([index(1), constructor], DefSpan(Foo)),
-//     ([index(1), name(f1), constructor], Or(DefSpan(True), DefSpan(False))),
-//     ([index(1), name(f1), payload], EnumPayload(Bool)),  // this is empty, but we'll optimize that later
-//     ([index(1), name(f2), constructor], Range { Int, -inf..inf }),
-//     ([index(2), constructor], Range { Int, -inf..inf }),
-// ]
-// (Int, Int, Option<Int>): [
-//     ([constructor], Tuple(3)),
-//     ([index(0), constructor], Range { Int, -inf..inf }),
-//     ([index(1), constructor], Range { Int, -inf..inf }),
-//     ([index(2), constructor], DefSpan(Option)),
-//     ([index(2), variant], Or(DefSpan(Some), DefSpan(None))),
-//     ([index(2), payload], EnumPayload(Option)),
-// ]
-fn get_matrix(
-    r#type: &Type,
-    lang_items: &HashMap<String, Span>,
-) -> Vec<(Vec<PatternField>, Constructor)> {
-    match r#type {
-        Type::Data { constructor_def_span, args, .. } => {
-            // TODO: It's toooo inefficient to call `get_lang_item_span(...)` everytime.
-            if constructor_def_span == lang_items.get("type.Int").unwrap() {
-                vec![(
-                    vec![PatternField::Constructor],
-                    Constructor::Range(Range {
-                        r#type: LiteralType::Int,
-                        lhs: None,
-                        lhs_inclusive: false,
-                        rhs: None,
-                        rhs_inclusive: false,
-                    }),
-                )]
-            }
-
-            else if constructor_def_span == lang_items.get("type.Tuple").unwrap() {
-                let args = args.as_ref().unwrap();
-                let mut result = vec![(vec![PatternField::Constructor], Constructor::Tuple(args.len()))];
-
-                for (i, arg) in args.iter().enumerate() {
-                    let mut arg_matrix = get_matrix(arg, lang_items);
-
-                    for row in arg_matrix.iter_mut() {
-                        row.0.insert(0, PatternField::Index(i as i64));
-                    }
-
-                    result.extend(arg_matrix);
-                }
-
-                result
-            }
-
-            else if constructor_def_span == lang_items.get("type.List").unwrap() {
-                vec![
-                    (
-                        vec![PatternField::Constructor],
-                        Constructor::DefSpan(*constructor_def_span),
-                    ), (
-                        vec![PatternField::ListLength],
-                        Constructor::Range(Range {
-                            r#type: LiteralType::Int,
-                            lhs: Some(InternedNumber::from_u32(0, true)),
-                            lhs_inclusive: true,
-                            rhs: None,
-                            rhs_inclusive: false,
-                        }),
-                    ), (
-                        vec![PatternField::ListElements],
-
-                        // what here?
-                        todo!(),
-                    ),
-                ]
-            }
-
-            else {
-                todo!()
-            }
-        },
-        Type::Never(_) => todo!(),
-        Type::Func { .. } => todo!(),
-        Type::GenericParam { .. } |
-        Type::Var { .. } |
-        Type::GenericArg { .. } |
-        Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
-    }
+    // You can get this with `PatternField::ListElements`.
+    ListSubMatrix {
+        rest: Option<RestPattern>,
+        elements: Vec<Pattern>,
+    },
 }
 
 #[derive(Clone, Debug)]
-pub struct DestructuredPattern<'p> {
-    pub pattern: &'p Pattern,
-    pub constructor: Constructor,
+pub struct DestructuredPattern {
+    pub constructor: PatternConstructor,
     pub name_binding: Option<(InternedString, Span)>,
     pub name_binding_offset: Option<InternedNumberValue>,
 }
 
-impl DestructuredPattern<'_> {
+impl DestructuredPattern {
     pub fn get_name_binding(&self, id: usize) -> Option<NameBinding> {
         if let Some((name, name_span)) = self.name_binding {
             Some(NameBinding {
@@ -408,35 +324,99 @@ impl DestructuredPattern<'_> {
     }
 }
 
-// pattern: `(a @ 0..20, ())`, field: `._0.constructor`
-// -> constructor: Range { Int, 0..20 }, name_binding: Some((a, def_span of a))
+// pattern: `($a @ 0..20, ())`, field: `._0.constructor`
+// -> constructor: Range { Int, 0..20 }, name_binding: Some((a, name_span of a))
 //
-// pattern: `(a @ 0..20, ())`, field: `.constructor`
+// pattern: `($a @ 0..20, ())`, field: `.constructor`
 // -> constructor: Tuple(2), name_binding: None
 //
-// pattern: `($x, ())`, field: `._0.constructor`
-fn read_field_of_pattern<'p>(
-    pattern: &'p Pattern,
+// pattern: `$x @ ($y, ())`, field: `._0.constructor`
+// -> constructor: Wildcard, name_binding: Some((y, name_span of y))
+fn read_field_of_pattern(
+    pattern: &Pattern,
     field: &[PatternField],
     session: &Session,
-) -> Result<DestructuredPattern<'p>, PatternAnalysisError> {
+) -> DestructuredPattern {
     assert!(!field.is_empty(), "Internal Compiler Error");
-    let name_binding = match (pattern.name, pattern.name_span) {
+    let mut curr_pattern = pattern;
+    let wildcard = Pattern {
+        name: None,
+        name_span: None,
+        kind: PatternKind::Wildcard(Span::None),
+    };
+
+    if field.len() > 1 {
+        for f in field[..(field.len() - 1)].iter() {
+            match f {
+                PatternField::Constructor => {},
+                PatternField::Name { .. } => todo!(),
+                PatternField::Index(i) => match &curr_pattern.kind {
+                    PatternKind::Tuple { elements, rest, .. } => {
+                        if let Some(_) = rest {
+                            // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
+                            // we have to desugar this at some point
+                            todo!()
+                        }
+
+                        else if *i >= 0 {
+                            match elements.get(*i as usize) {
+                                Some(p) => {
+                                    curr_pattern = p;
+                                },
+                                None => todo!(),  // err
+                            }
+                        }
+
+                        else {
+                            todo!()
+                        }
+                    },
+                    PatternKind::List { elements, rest, .. } => {
+                        if let Some(_) = rest {
+                            todo!()
+                        }
+
+                        else if *i >= 0 {
+                            match elements.get(*i as usize) {
+                                Some(p) => {
+                                    curr_pattern = p;
+                                },
+                                None => todo!(),  // err
+                            }
+                        }
+
+                        else {
+                            todo!()
+                        }
+                    },
+                    PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
+                        curr_pattern = &wildcard;
+                    },
+                    _ => todo!(),
+                },
+                PatternField::Range(_, _) => todo!(),
+                PatternField::EnumDiscriminant |
+                PatternField::EnumPayload |
+                PatternField::ListLength |
+                PatternField::ListElements => unreachable!(),
+            }
+        }
+    }
+
+    let name_binding = match (curr_pattern.name, curr_pattern.name_span) {
         (Some(name), Some(name_span)) => Some((name, name_span)),
         _ => None,
     };
 
-    match &field[0] {
-        PatternField::Constructor => match &pattern.kind {
-            PatternKind::NameBinding { id, span } => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::Wildcard,
+    match field.last().unwrap() {
+        PatternField::Constructor => match &curr_pattern.kind {
+            PatternKind::NameBinding { id, span } => DestructuredPattern {
+                constructor: PatternConstructor::Wildcard,
                 name_binding: Some((*id, *span)),
                 name_binding_offset: None,
-            }),
-            PatternKind::Constant(Constant::Number { n, .. }) => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::Range(Range {
+            },
+            PatternKind::Constant(Constant::Number { n, .. }) => DestructuredPattern {
+                constructor: PatternConstructor::Range(Range {
                     r#type: if n.is_integer { LiteralType::Int } else { LiteralType::Number },
                     lhs: Some(n.clone()),
                     lhs_inclusive: true,
@@ -445,13 +425,12 @@ fn read_field_of_pattern<'p>(
                 }),
                 name_binding,
                 name_binding_offset: None,
-            }),
-            PatternKind::Constant(Constant::String { .. }) => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::DefSpan(session.get_lang_item_span("type.List")),
+            },
+            PatternKind::Constant(Constant::String { .. }) => DestructuredPattern {
+                constructor: PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
                 name_binding,
                 name_binding_offset: None,
-            }),
+            },
             PatternKind::Tuple { elements, rest, .. } => {
                 if let Some(_) = rest {
                     // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
@@ -460,20 +439,18 @@ fn read_field_of_pattern<'p>(
                 }
 
                 else {
-                    Ok(DestructuredPattern {
-                        pattern,
-                        constructor: Constructor::Tuple(elements.len()),
+                    DestructuredPattern {
+                        constructor: PatternConstructor::Tuple(elements.len()),
                         name_binding,
                         name_binding_offset: None,
-                    })
+                    }
                 }
             },
-            PatternKind::List { .. } => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::DefSpan(session.get_lang_item_span("type.List")),
+            PatternKind::List { .. } => DestructuredPattern {
+                constructor: PatternConstructor::DefSpan(session.get_lang_item_span("type.List")),
                 name_binding,
                 name_binding_offset: None,
-            }),
+            },
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
                 let lhs = lhs.as_ref().map(
                     |lhs| match &lhs.kind {
@@ -498,9 +475,8 @@ fn read_field_of_pattern<'p>(
                     _ => unreachable!(),
                 };
 
-                Ok(DestructuredPattern {
-                    pattern,
-                    constructor: Constructor::Range(Range {
+                DestructuredPattern {
+                    constructor: PatternConstructor::Range(Range {
                         r#type: if is_integer { LiteralType::Int } else { LiteralType::Number },
                         lhs,
                         lhs_inclusive: true,
@@ -509,56 +485,31 @@ fn read_field_of_pattern<'p>(
                     }),
                     name_binding,
                     name_binding_offset: None,
-                })
+                }
             },
             PatternKind::Or { lhs, rhs, .. } => {
-                let lhs = read_field_of_pattern(lhs, field, session)?;
-                let rhs = read_field_of_pattern(rhs, field, session)?;
+                let lhs = read_field_of_pattern(lhs, &[PatternField::Constructor], session);
+                let rhs = read_field_of_pattern(rhs, &[PatternField::Constructor], session);
 
-                Ok(DestructuredPattern {
-                    pattern,
-                    constructor: Constructor::Or(vec![
+                DestructuredPattern {
+                    constructor: PatternConstructor::Or(vec![
                         lhs.constructor,
                         rhs.constructor,
                     ]),
                     name_binding,
                     name_binding_offset: None,
-                })
-            },
-            PatternKind::Wildcard(_) => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::Wildcard,
-                name_binding,
-                name_binding_offset: None,
-            }),
-            _ => panic!("TODO: {pattern:?}"),
-        },
-        PatternField::Index(i) => match &pattern.kind {
-            PatternKind::Tuple { elements, rest, .. } => {
-                if let Some(_) = rest {
-                    // `(a, .. , b)` is just a syntax sugar for `(a, _, _, b)`.
-                    // we have to desugar this at some point
-                    todo!()
-                }
-
-                else {
-                    // TODO: handle negative indexes
-                    match elements.get(*i as usize) {
-                        Some(p) => read_field_of_pattern(p, &field[1..], session),
-                        None => todo!(),  // err
-                    }
                 }
             },
-            PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::Wildcard,
+            PatternKind::Wildcard(_) => DestructuredPattern {
+                constructor: PatternConstructor::Wildcard,
                 name_binding,
                 name_binding_offset: None,
-            }),
-            _ => panic!("TODO: {pattern:?}"),
+            },
+            _ => panic!("TODO: {curr_pattern:?}"),
         },
+        PatternField::Index(_) => unreachable!(),
         PatternField::ListLength => {
-            let (lhs, lhs_inclusive, rhs, rhs_inclusive) = match &pattern.kind {
+            let (lhs, lhs_inclusive, rhs, rhs_inclusive) = match &curr_pattern.kind {
                 PatternKind::Constant(Constant::String { binary, s, .. }) => {
                     if *binary {
                         (Some(s.len()), true, Some(s.len()), true)
@@ -587,9 +538,8 @@ fn read_field_of_pattern<'p>(
                 _ => panic!("TODO: {pattern:?}"),
             };
 
-            Ok(DestructuredPattern {
-                pattern,
-                constructor: Constructor::Range(Range {
+            DestructuredPattern {
+                constructor: PatternConstructor::Range(Range {
                     r#type: LiteralType::Int,
                     lhs: lhs.map(|lhs| InternedNumber::from_u32(lhs as u32, true)),
                     lhs_inclusive,
@@ -598,7 +548,17 @@ fn read_field_of_pattern<'p>(
                 }),
                 name_binding,
                 name_binding_offset: None,
-            })
+            }
+        },
+        PatternField::ListElements => match &curr_pattern.kind {
+            PatternKind::Constant(Constant::String { binary, s, .. }) => todo!(),
+            PatternKind::List { elements, rest, .. } => todo!(),
+            PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => DestructuredPattern {
+                constructor: PatternConstructor::Wildcard,
+                name_binding,
+                name_binding_offset: None,
+            },
+            _ => todo!(),
         },
         f => panic!("TODO: {f:?}"),
     }
@@ -627,8 +587,8 @@ fn check_unreachable_and_exhaustiveness(
 
     for arm_id in 0..extra_arm_id {
         if !reachable_arms.contains(&arm_id) {
-            let mut error_spans = vec![];
-            error_spans.extend(hidden_by.get(&arm_id).unwrap().iter().map(
+            let mut warning_spans = vec![];
+            warning_spans.extend(hidden_by.get(&arm_id).unwrap().iter().map(
                 |arm_id| RenderableSpan {
                     span: arms[*arm_id].1.pattern.error_span_wide(),
                     auxiliary: true,
@@ -636,7 +596,7 @@ fn check_unreachable_and_exhaustiveness(
                     note: Some(String::from("This arm makes the arm unreachable.")),
                 }
             ).collect::<Vec<_>>());
-            error_spans.push(RenderableSpan {
+            warning_spans.push(RenderableSpan {
                 span: arms[arm_id].1.pattern.error_span_wide(),
                 auxiliary: false,
                 note: Some(String::from("This arm is unreachable.")),
@@ -644,7 +604,7 @@ fn check_unreachable_and_exhaustiveness(
 
             session.warnings.push(Warning {
                 kind: WarningKind::UnreachableMatchArm,
-                spans: error_spans,
+                spans: warning_spans,
                 note: None,
             });
         }
@@ -751,4 +711,26 @@ fn to_field_expr(expr: &Expr, fields: &[PatternField], session: &Session) -> Exp
             fields,
         }
     }
+}
+
+fn split_or_patterns(arms: &[MatchArm]) -> Vec<(usize, MatchArm)> {
+    let mut result = Vec::with_capacity(arms.len());
+    let mut arm_id = 0;
+
+    for arm in arms.iter() {
+        match arm.split_or_patterns() {
+            ArmSplit::NoSplit(arm) => {
+                result.push((arm_id, arm.clone()));
+                arm_id += 1;
+            },
+            ArmSplit::Split(arms) => {
+                for arm in arms.into_iter() {
+                    result.push((arm_id, arm));
+                    arm_id += 1;
+                }
+            },
+        }
+    }
+
+    result
 }

@@ -1,0 +1,90 @@
+fn foo(s1: Option<String>, s2: Option<String>) -> String = match (s1, s2) {
+    (Some("abc" ++ $a), Some("abcdef" ++ $b)) => f"0/{a}/{b}",
+    (Some($a ++ "cdef"), Some($b @ "cdef")) => f"1/{a}/{b}",
+    (Some($a ++ "abcdef"), Some("abcd" ++ $b)) => f"2/{a}/{b}",
+    (Some($a @ "def"), Some($b ++ "abcdef")) => f"3/{a}/{b}",
+    (Some($a ++ "cdef"), Some($b @ "def")) => f"4/{a}/{b}",
+    (Some("abc" ++ $a), Some($b @ "abcd")) => f"5/{a}/{b}",
+    (Some($a ++ "abcdef"), Some($b)) => f"6/{a}/{b}",
+    (Some("abcdef" ++ $a), Some($b @ "abcd")) => f"7/{a}/{b}",
+    (Some($a @ "abcdef"), Some($b @ "abc")) => f"8/{a}/{b}",
+    (Some($a), Some($b @ "abcd")) => f"9/{a}/{b}",
+    (Some($a @ "def"), Some($b @ "cdef")) => f"10/{a}/{b}",
+    (Some($a @ "abc"), Some($b @ "abc")) => f"11/{a}/{b}",
+    (Some($a ++ "cdef"), Some($b @ "abc")) => f"12/{a}/{b}",
+    (Some("abc" ++ $a), Some($b @ "def")) => f"13/{a}/{b}",
+    (Some("abcd" ++ $a), Some($b @ "abc")) => f"14/{a}/{b}",
+    (Some($a @ "def"), Some($b @ "abc")) => f"15/{a}/{b}",
+    (Some($a ++ "def"), Some("abc" ++ $b)) => f"16/{a}/{b}",
+    (Some("abcd" ++ $a), Some($b ++ "abcdef")) => f"17/{a}/{b}",
+    (Some($a ++ "def"), Some($b @ "abcd")) => f"18/{a}/{b}",
+    (Some("abcdef" ++ $a), Some($b)) => f"19/{a}/{b}",
+    (Some($a ++ "def"), Some($b @ "def")) => f"20/{a}/{b}",
+    (Some($a @ "abcdef"), Some($b ++ "def")) => f"21/{a}/{b}",
+    (Some($a ++ "abcdef"), Some($b @ "cdef")) => f"22/{a}/{b}",
+    (Some($a), Some($b @ "def")) => f"23/{a}/{b}",
+    (Some($a @ ""), Some($b @ "cdef")) => f"24/{a}/{b}",
+    (Some($a @ "abcdef"), Some($b @ "")) => f"25/{a}/{b}",
+    (Some("abc" ++ $a), Some($b ++ "cdef")) => f"26/{a}/{b}",
+    (Some("abc" ++ $a), Some($b @ "abc")) => f"27/{a}/{b}",
+    (Some($a ++ "cdef"), Some($b @ "abcd")) => f"28/{a}/{b}",
+    (Some($a @ "abcd"), Some($b @ "def")) => f"29/{a}/{b}",
+    (Some($a @ "cdef"), Some($b ++ "abcdef")) => f"30/{a}/{b}",
+    (Some($a ++ "def"), Some($b)) => f"31/{a}/{b}",
+    (Some("abcdef" ++ $a), Some($b @ "abcdef")) => f"32/{a}/{b}",
+    (Some($a ++ "def"), Some($b ++ "abcdef")) => f"33/{a}/{b}",
+    (Some($a @ "abc"), Some($b ++ "def")) => f"34/{a}/{b}",
+    (Some("abc" ++ $a), Some($b @ "abcdef")) => f"35/{a}/{b}",
+    (Some($a ++ "abcdef"), Some($b @ "def")) => f"36/{a}/{b}",
+    (Some($a @ "abcd"), Some($b @ "")) => f"37/{a}/{b}",
+    (Some($a @ ""), Some("abcdef" ++ $b)) => f"38/{a}/{b}",
+    (Some($a ++ "def"), Some($b @ "cdef")) => f"39/{a}/{b}",
+    (None, Some("abcdef" ++ $a)) => f"40/{a}",
+    (None, Some($a ++ "def")) => f"41/{a}",
+    (None, Some($a @ "cdef")) => f"42/{a}",
+    (None, Some($a ++ "abcdef")) => f"43/{a}",
+    (None, Some("abcd" ++ $a)) => f"44/{a}",
+    (Some($a @ "abc"), None) => f"45/{a}",
+    (Some($a @ "abcd"), None) => f"46/{a}",
+    (Some($a ++ "def"), None) => f"47/{a}",
+    (Some($a ++ "cdef"), None) => f"48/{a}",
+    (Some($a @ "cdef"), None) => f"49/{a}",
+    (None, None) => f"50",
+};
+
+
+assert foo(Some("abcdef"), Some("abcd")) == "2//";
+assert foo(Some("def"), None) == "47/";
+assert foo(Some("def"), Some("abcdef")) == "3/def/";
+assert foo(Some("abcd"), Some("abcdef")) == "0/d/";
+assert foo(None, Some("def")) == "41/";
+assert foo(Some("cdef"), Some("abcd")) == "9/cdef/abcd";
+assert foo(Some("abc"), None) == "45/abc";
+assert foo(Some("cdef"), None) == "47/c";
+assert foo(None, Some("cdef")) == "41/c";
+assert foo(None, Some("abcd")) == "44/";
+assert foo(Some("abcdef"), Some("abc")) == "6//abc";
+assert foo(None, None) == "50";
+assert foo(Some("abcd"), Some("abcd")) == "5/d/abcd";
+assert foo(Some("abc"), Some("abc")) == "11/abc/abc";
+assert foo(None, Some("abcdef")) == "40/";
+assert foo(Some("abcd"), None) == "46/abcd";
+assert foo(Some("abc"), Some("cdef")) == "26//";
+assert foo(Some("abcd"), Some("abc")) == "14//abc";
+assert foo(Some("cdef"), Some("cdef")) == "1//cdef";
+assert foo(Some("abcdef"), None) == "47/abc";
+assert foo(Some("abc"), Some("abcd")) == "5//abcd";
+assert foo(Some("abcdef"), Some("def")) == "4/ab/def";
+assert foo(Some("abcdef"), Some("abcdef")) == "0/def/";
+assert foo(Some("cdef"), Some("abc")) == "12//abc";
+assert foo(Some("def"), Some("abc")) == "15/def/abc";
+assert foo(Some("cdef"), Some("abcdef")) == "16/c/def";
+assert foo(Some("abc"), Some("def")) == "13//def";
+assert foo(Some("def"), Some("abcd")) == "9/def/abcd";
+assert foo(Some("def"), Some("cdef")) == "10/def/cdef";
+assert foo(Some("abcd"), Some("def")) == "13/d/def";
+assert foo(Some("abc"), Some("abcdef")) == "0//";
+assert foo(Some("def"), Some("def")) == "20//def";
+assert foo(Some("abcd"), Some("cdef")) == "26/d/";
+assert foo(Some("cdef"), Some("def")) == "4//def";
+assert foo(Some("abcdef"), Some("cdef")) == "1/ab/cdef";

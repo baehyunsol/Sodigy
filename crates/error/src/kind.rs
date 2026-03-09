@@ -177,6 +177,7 @@ error_kinds!(
     (UnusedNames { names: Vec<InternedString>, kind: NameKind },    5000,  Warning),
     (UnreachableMatchArm,                                           5005,  Warning),
     (NoImpureCallInImpureContext,                                   5010,  Warning),
+    (OrWildcardPattern,                                             5015,  Warning),
 
     // Lints from here
     (FuncWithoutTypeAnnot,                                          8000,  Lint),

@@ -1,0 +1,6 @@
+// compile-warning == 1
+
+fn meaningless_patterns(x: Int) = match x {
+    1 | _ => 0,
+    _ => 1,
+};
