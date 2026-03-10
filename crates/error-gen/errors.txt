@@ -114,8 +114,8 @@ PolyImplDifferentNumberOfParams/495/Error
 CannotImplPoly/500/Error
 UnusedNames/5000/Warning
 UnreachableMatchArm/5005/Warning
+UnreachableOrPattern/5006/Warning
 NoImpureCallInImpureContext/5010/Warning
-OrWildcardPattern/5015/Warning
 FuncWithoutTypeAnnot/8000/Lint
 LetWithoutTypeAnnot/8005/Lint
 FieldWithoutTypeAnnot/8010/Lint

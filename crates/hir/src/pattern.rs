@@ -1,12 +1,15 @@
 use crate::{Expr, Path, Session, eval_const};
-use sodigy_error::{Error, Warning, WarningKind};
+use sodigy_error::Error;
 use sodigy_name_analysis::{IdentWithOrigin, NameKind, NameOrigin};
 use sodigy_parse::{self as ast, RestPattern};
-use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
+use sodigy_span::{Span, SpanDeriveKind};
 use sodigy_string::{InternedString, intern_string};
 use sodigy_token::{Constant, InfixOp};
 
 mod from_expr;
+mod or;
+
+pub use or::{PatternSplit, unreachable_or_pattern};
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -277,22 +280,21 @@ impl PatternKind {
                 (Ok(lhs), Ok(rhs)) => {
                     // `1 | _` is lowered to `_`.
                     // It's necessary for post-mir.
-                    if let Pattern { kind: PatternKind::Wildcard(_), .. } = &lhs {
-                        session.warnings.push(or_wildcard_pattern(&lhs, &rhs));
-                        Ok(rhs.kind)
-                    }
-
-                    else if let Pattern { kind: PatternKind::Wildcard(_), .. } = &rhs {
-                        session.warnings.push(or_wildcard_pattern(&rhs, &lhs));
-                        Ok(lhs.kind)
-                    }
-
-                    else {
-                        Ok(PatternKind::Or {
+                    match (&lhs.kind, &rhs.kind) {
+                        // If both are wildcard, `lhs` is matched.
+                        (PatternKind::Wildcard(_) | PatternKind::NameBinding { .. }, _) => {
+                            session.warnings.push(unreachable_or_pattern(&lhs, &rhs));
+                            Ok(lhs.kind)
+                        },
+                        (_, PatternKind::Wildcard(_) | PatternKind::NameBinding { .. }) => {
+                            session.warnings.push(unreachable_or_pattern(&rhs, &lhs));
+                            Ok(rhs.kind)
+                        },
+                        _ => Ok(PatternKind::Or {
                             lhs: Box::new(lhs),
                             rhs: Box::new(rhs),
                             op_span: *op_span,
-                        })
+                        }),
                     }
                 },
                 _ => Err(()),
@@ -367,73 +369,5 @@ impl PatternKind {
                 .merge(rhs.error_span_wide()),
             _ => panic!("TODO: {self:?}"),
         }
-    }
-}
-
-pub enum PatternSplit<'p> {
-    NoSplit(&'p Pattern),
-    Split(Vec<(Pattern, u32)>),
-}
-
-impl Pattern {
-    pub fn split_or_patterns<'p>(&'p self) -> PatternSplit<'p> {
-        match &self.kind {
-            PatternKind::Path(_) |
-            PatternKind::Constant(_) |
-            PatternKind::NameBinding { .. } |
-            PatternKind::Regex { .. } |
-            PatternKind::Wildcard(_) => PatternSplit::NoSplit(self),
-
-            // There can't be or-patterns in lhs/rhs of a range-pattern.
-            PatternKind::Range { .. } => PatternSplit::NoSplit(self),
-
-            // pattern: `([], _) | (_, [])`
-            // -> splitted
-            //
-            // pattern: `[1 | 2 | 3, _]`
-            // -> not splitted
-            // -> post-mir can handle this case!
-            // -> we can even optimize it to `[1..4, _]`
-            //
-            // pattern: `[1 | 4 | 7, _]`
-            // -> not splitted
-            // -> post-mir can handle this case, I believe...
-            //
-            // pattern: `[1 | Expr::Constant(_), _]`
-            // -> this is an error, but this function will ignore all the errors
-            //
-            // pattern: `[1 | _, _]`
-            // -> this is already filtered out
-            //
-            // pattern: `Expr::Constant(_) | Expr::If(_) | Expr::Call { .. }`
-            // -> not splitted
-            // -> post-mir can handle if no patterns have payloads
-            //
-            // pattern: `Expr::Constant(Constant::String { .. }) | Expr::If(_) | Expr::Call { .. }`
-            // -> splitted, but splitted into 2 parts, not 3 parts
-            // -> we don't have to split `If(_)` and `Call { .. }`.
-            PatternKind::Or { lhs, rhs, .. } => todo!(),
-            _ => panic!("TODO: {self:?}"),
-        }
-    }
-}
-
-// If both are wildcard, ... who cares? The warning message would still make sense.
-fn or_wildcard_pattern(wildcard: &Pattern, non_wildcard: &Pattern) -> Warning {
-    Warning {
-        kind: WarningKind::OrWildcardPattern,
-        spans: vec![
-            RenderableSpan {
-                span: wildcard.error_span_wide(),
-                auxiliary: false,
-                note: Some(String::from("This matches everything.")),
-            },
-            RenderableSpan {
-                span: non_wildcard.error_span_wide(),
-                auxiliary: true,
-                note: Some(String::from("This pattern is meaningless.")),
-            },
-        ],
-        note: None,
     }
 }

@@ -205,18 +205,21 @@ impl Endec for MatchArm {
         self.pattern.encode_impl(buffer);
         self.guard.encode_impl(buffer);
         self.value.encode_impl(buffer);
+        self.group_id.encode_impl(buffer);
     }
 
     fn decode_impl(buffer: &[u8], cursor: usize) -> Result<(Self, usize), DecodeError> {
         let (pattern, cursor) = hir::Pattern::decode_impl(buffer, cursor)?;
         let (guard, cursor) = Option::<Expr>::decode_impl(buffer, cursor)?;
         let (value, cursor) = Expr::decode_impl(buffer, cursor)?;
+        let (group_id, cursor) = Option::<u32>::decode_impl(buffer, cursor)?;
 
         Ok((
             MatchArm {
                 pattern,
                 guard,
                 value,
+                group_id,
             },
             cursor,
         ))

@@ -1,0 +1,18 @@
+enum Color = {
+    Red,
+    Green,
+    Blue,
+    RGB { r: Byte, g: Byte, b: Byte },
+};
+
+fn foo(c: Color) = match c {
+    Color.Red => 0,
+    Color.Green => 1,
+    Color.Blue => 2,
+
+    // TODO: `Color.Red | Color.Green` in this arm is unreachable.
+    //       I want the compiler to exactly underline that part.
+    Color.RGB { r: #192.., g: #192.., b: ..#64 } | Color.Red | Color.Green => 3,
+
+    Color.RGB { .. } => 4,
+};

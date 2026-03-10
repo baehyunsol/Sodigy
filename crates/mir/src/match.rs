@@ -6,7 +6,7 @@
 
 use crate::{Expr, Pattern, Session};
 use sodigy_hir::{self as hir, PatternSplit};
-use sodigy_span::{Span, SpanDeriveKind};
+use sodigy_span::Span;
 
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -22,6 +22,11 @@ pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
     pub value: Expr,
+
+    // If a pattern in the arm has or-patterns, the arm might be splitted into multiple arms.
+    // In that case, the splitted arms are assigned the same group id.
+    // Group ids are unique inside a match expression.
+    pub group_id: Option<u32>,
 }
 
 pub enum ArmSplit<'a> {
@@ -75,11 +80,13 @@ impl MatchArm {
                 pattern: hir_arm.pattern.clone(),
                 guard: Some(guard),
                 value,
+                group_id: None,
             }),
             (None, Ok(value)) => Ok(MatchArm {
                 pattern: hir_arm.pattern.clone(),
                 guard: None,
                 value,
+                group_id: None,
             }),
             _ => Err(()),
         }
@@ -91,11 +98,15 @@ impl MatchArm {
             PatternSplit::Split(patterns) => {
                 let mut arms = Vec::with_capacity(patterns.len());
 
+                // We don't derive spans here. If we do so, we also have to
+                // derive some def_spans (for name bindings from patterns),
+                // but it's really difficult to do so.
                 for (pattern, split_id) in patterns.into_iter() {
                     arms.push(MatchArm {
                         pattern,
-                        guard: self.guard.as_ref().map(|guard| guard.derive(SpanDeriveKind::OrPattern(split_id))),
-                        value: self.value.derive(SpanDeriveKind::OrPattern(split_id)),
+                        guard: self.guard.clone(),
+                        value: self.value.clone(),
+                        group_id: Some(split_id),
                     });
                 }
 

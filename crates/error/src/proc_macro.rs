@@ -67,7 +67,7 @@
     { poly_params: usize, impl_params: usize }, CannotImplPoly
     { poly_type: String, impl_type: String, param_index: ParamIndex },
     UnusedNames { names: Vec<InternedString>, kind: NameKind },
-    UnreachableMatchArm, NoImpureCallInImpureContext, OrWildcardPattern,
+    UnreachableMatchArm, UnreachableOrPattern, NoImpureCallInImpureContext,
     FuncWithoutTypeAnnot, LetWithoutTypeAnnot, FieldWithoutTypeAnnot,
     SelfParamNotNamedSelf, Todo { id: u32, message: String },
     InternalCompilerError { id: u32 },
@@ -170,8 +170,8 @@
             ErrorKind :: PolyImplDifferentNumberOfParams { .. } => 495u16,
             ErrorKind :: CannotImplPoly { .. } => 500u16, ErrorKind ::
             UnusedNames { .. } => 5000u16, ErrorKind :: UnreachableMatchArm =>
-            5005u16, ErrorKind :: NoImpureCallInImpureContext => 5010u16,
-            ErrorKind :: OrWildcardPattern => 5015u16, ErrorKind ::
+            5005u16, ErrorKind :: UnreachableOrPattern => 5006u16, ErrorKind
+            :: NoImpureCallInImpureContext => 5010u16, ErrorKind ::
             FuncWithoutTypeAnnot => 8000u16, ErrorKind :: LetWithoutTypeAnnot
             => 8005u16, ErrorKind :: FieldWithoutTypeAnnot => 8010u16,
             ErrorKind :: SelfParamNotNamedSelf => 8015u16, ErrorKind :: Todo
@@ -300,11 +300,11 @@
             ErrorLevel :: Error, ErrorKind :: CannotImplPoly { .. } =>
             ErrorLevel :: Error, ErrorKind :: UnusedNames { .. } => ErrorLevel
             :: Warning, ErrorKind :: UnreachableMatchArm => ErrorLevel ::
+            Warning, ErrorKind :: UnreachableOrPattern => ErrorLevel ::
             Warning, ErrorKind :: NoImpureCallInImpureContext => ErrorLevel ::
-            Warning, ErrorKind :: OrWildcardPattern => ErrorLevel :: Warning,
-            ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
-            :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
-            FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
+            Warning, ErrorKind :: FuncWithoutTypeAnnot => ErrorLevel :: Lint,
+            ErrorKind :: LetWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind
+            :: FieldWithoutTypeAnnot => ErrorLevel :: Lint, ErrorKind ::
             SelfParamNotNamedSelf => ErrorLevel :: Lint, ErrorKind :: Todo
             { .. } => ErrorLevel :: Error, ErrorKind :: InternalCompilerError
             { .. } => ErrorLevel :: Error,
@@ -618,13 +618,14 @@
                 r#names.encode_impl(buffer); r#kind.encode_impl(buffer);
             }, ErrorKind :: UnreachableMatchArm =>
             { buffer.push(19u8); buffer.push(141u8); }, ErrorKind ::
+            UnreachableOrPattern =>
+            { buffer.push(19u8); buffer.push(142u8); }, ErrorKind ::
             NoImpureCallInImpureContext =>
             { buffer.push(19u8); buffer.push(146u8); }, ErrorKind ::
-            OrWildcardPattern => { buffer.push(19u8); buffer.push(151u8); },
-            ErrorKind :: FuncWithoutTypeAnnot =>
-            { buffer.push(31u8); buffer.push(64u8); }, ErrorKind ::
-            LetWithoutTypeAnnot => { buffer.push(31u8); buffer.push(69u8); },
-            ErrorKind :: FieldWithoutTypeAnnot =>
+            FuncWithoutTypeAnnot => { buffer.push(31u8); buffer.push(64u8); },
+            ErrorKind :: LetWithoutTypeAnnot =>
+            { buffer.push(31u8); buffer.push(69u8); }, ErrorKind ::
+            FieldWithoutTypeAnnot =>
             { buffer.push(31u8); buffer.push(74u8); }, ErrorKind ::
             SelfParamNotNamedSelf =>
             { buffer.push(31u8); buffer.push(79u8); }, ErrorKind :: Todo
@@ -1015,11 +1016,11 @@
                 NameKind :: decode_impl(buffer, cursor) ? ;
                 Ok((ErrorKind :: UnusedNames { r#names, r#kind, }, cursor))
             }, 5005u16 => Ok((ErrorKind :: UnreachableMatchArm, cursor)),
+            5006u16 => Ok((ErrorKind :: UnreachableOrPattern, cursor)),
             5010u16 => Ok((ErrorKind :: NoImpureCallInImpureContext, cursor)),
-            5015u16 => Ok((ErrorKind :: OrWildcardPattern, cursor)), 8000u16
-            => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)), 8005u16 =>
-            Ok((ErrorKind :: LetWithoutTypeAnnot, cursor)), 8010u16 =>
-            Ok((ErrorKind :: FieldWithoutTypeAnnot, cursor)), 8015u16 =>
+            8000u16 => Ok((ErrorKind :: FuncWithoutTypeAnnot, cursor)),
+            8005u16 => Ok((ErrorKind :: LetWithoutTypeAnnot, cursor)), 8010u16
+            => Ok((ErrorKind :: FieldWithoutTypeAnnot, cursor)), 8015u16 =>
             Ok((ErrorKind :: SelfParamNotNamedSelf, cursor)), 9998u16 =>
             {
                 let (r#id, cursor) = u32 :: decode_impl(buffer, cursor) ? ;

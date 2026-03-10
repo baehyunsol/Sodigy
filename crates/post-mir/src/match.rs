@@ -219,6 +219,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         },
         guard: None,
         value: Expr::dummy(),
+        group_id: None,
     });
     arms.push((extra_arm_id, extra_arm));
 
@@ -585,28 +586,39 @@ fn check_unreachable_and_exhaustiveness(
     let mut reachable_arms = HashSet::new();
     check_arm_reachability(tree, &mut hidden_by, &mut reachable_arms);
 
-    for arm_id in 0..extra_arm_id {
-        if !reachable_arms.contains(&arm_id) {
-            let mut warning_spans = vec![];
-            warning_spans.extend(hidden_by.get(&arm_id).unwrap().iter().map(
-                |arm_id| RenderableSpan {
-                    span: arms[*arm_id].1.pattern.error_span_wide(),
-                    auxiliary: true,
-                    // TODO: better error message?
-                    note: Some(String::from("This arm makes the arm unreachable.")),
-                }
-            ).collect::<Vec<_>>());
-            warning_spans.push(RenderableSpan {
-                span: arms[arm_id].1.pattern.error_span_wide(),
-                auxiliary: false,
-                note: Some(String::from("This arm is unreachable.")),
-            });
+    for (arm_id, arm) in arms.iter() {
+        if *arm_id == extra_arm_id {
+            continue;
+        }
 
-            session.warnings.push(Warning {
-                kind: WarningKind::UnreachableMatchArm,
-                spans: warning_spans,
-                note: None,
-            });
+        if !reachable_arms.contains(arm_id) {
+            // It's WarningKind::UnreachableOrPattern
+            if let Some(_) = arm.group_id {
+                todo!()
+            }
+
+            else {
+                let mut warning_spans = vec![];
+                warning_spans.extend(hidden_by.get(arm_id).unwrap().iter().map(
+                    |arm_id| RenderableSpan {
+                        span: arms[*arm_id].1.pattern.error_span_wide(),
+                        auxiliary: true,
+                        // TODO: better error message?
+                        note: Some(String::from("This arm makes the arm unreachable.")),
+                    }
+                ).collect::<Vec<_>>());
+                warning_spans.push(RenderableSpan {
+                    span: arms[*arm_id].1.pattern.error_span_wide(),
+                    auxiliary: false,
+                    note: Some(String::from("This arm is unreachable.")),
+                });
+
+                session.warnings.push(Warning {
+                    kind: WarningKind::UnreachableMatchArm,
+                    spans: warning_spans,
+                    note: None,
+                });
+            }
         }
     }
 

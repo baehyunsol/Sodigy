@@ -39,6 +39,7 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
                     pattern: pattern.clone(),
                     guard: None,
                     value: true_value,
+                    group_id: None,
                 },
                 MatchArm {
                     pattern: hir::Pattern {
@@ -48,6 +49,7 @@ pub fn lower_hir_if(hir_if: &hir::If, session: &mut Session) -> Result<Expr, ()>
                     },
                     guard: None,
                     value: false_value,
+                    group_id: None,
                 },
             ],
             group_span: Span::None,
