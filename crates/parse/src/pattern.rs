@@ -2,7 +2,7 @@ use crate::{Field, Path, Tokens};
 use sodigy_error::{Error, ErrorKind, ErrorToken};
 use sodigy_span::{RenderableSpan, Span, SpanDeriveKind};
 use sodigy_string::{InternedString, unintern_string};
-use sodigy_token::{Constant, Delim, InfixOp, Punct, Token, TokenKind};
+use sodigy_token::{Constant, Delim, InfixOp, Keyword, Punct, Token, TokenKind};
 
 #[derive(Clone, Debug)]
 pub struct Pattern {
@@ -354,6 +354,17 @@ pub(crate) enum ParsePatternContext {
 }
 
 impl ParsePatternContext {
+    pub fn is_expected_token(&self, token_kind: &TokenKind) -> bool {
+        match (self, token_kind) {
+            (ParsePatternContext::MatchArm, TokenKind::Punct(Punct::Arrow)) => true,
+            (ParsePatternContext::MatchArm, TokenKind::Keyword(Keyword::If)) => true,
+            (ParsePatternContext::IfLet, TokenKind::Punct(Punct::Assign)) => true,
+            (ParsePatternContext::Let, TokenKind::Punct(Punct::Assign | Punct::Colon)) => true,
+            (ParsePatternContext::Group, TokenKind::Punct(Punct::Comma)) => true,
+            _ => false,
+        }
+    }
+
     pub fn expected_token(&self) -> ErrorToken {
         match self {
             ParsePatternContext::MatchArm => ErrorToken::Punct(Punct::Arrow),
@@ -1087,14 +1098,20 @@ impl<'t, 's> Tokens<'t, 's> {
                     }
                 },
                 Some(t) => {
-                    return Err(vec![Error {
-                        kind: ErrorKind::UnexpectedToken {
-                            expected: context.expected_token(),
-                            got: (&t.kind).into(),
-                        },
-                        spans: t.span.simple_error(),
-                        note: None,
-                    }]);
+                    if context.is_expected_token(&t.kind) {
+                        break;
+                    }
+
+                    else {
+                        return Err(vec![Error {
+                            kind: ErrorKind::UnexpectedToken {
+                                expected: context.expected_token(),
+                                got: (&t.kind).into(),
+                            },
+                            spans: t.span.simple_error(),
+                            note: None,
+                        }]);
+                    }
                 },
                 None => match context {
                     ParsePatternContext::Group => {

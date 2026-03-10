@@ -24,10 +24,10 @@ fn isqrt(n: Int) -> Int = match n {
         let ssqrt = isqrt(n / 16) * 4;
 
         match () {
-            _ if ssqrt * ssqrt <= n => ssqrt,
-            _ if (ssqrt + 1) * (ssqrt + 1) <= n => ssqrt + 1,
+            _ if (ssqrt + 3) * (ssqrt + 3) <= n => ssqrt + 3,
             _ if (ssqrt + 2) * (ssqrt + 2) <= n => ssqrt + 2,
-            _ => ssqrt + 3,
+            _ if (ssqrt + 1) * (ssqrt + 1) <= n => ssqrt + 1,
+            _ => ssqrt,
         }
     },
 };

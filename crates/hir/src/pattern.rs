@@ -384,6 +384,9 @@ impl Pattern {
             PatternKind::Regex { .. } |
             PatternKind::Wildcard(_) => PatternSplit::NoSplit(self),
 
+            // There can't be or-patterns in lhs/rhs of a range-pattern.
+            PatternKind::Range { .. } => PatternSplit::NoSplit(self),
+
             // pattern: `([], _) | (_, [])`
             // -> splitted
             //
