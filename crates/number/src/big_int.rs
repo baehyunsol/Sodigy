@@ -29,6 +29,10 @@ impl BigInt {
         }
     }
 
+    pub fn is_zero(&self) -> bool {
+        !self.is_neg && &self.nums == &[0]
+    }
+
     pub fn is_one(&self) -> bool {
         !self.is_neg && &self.nums == &[1]
     }

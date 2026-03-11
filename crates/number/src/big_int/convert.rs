@@ -64,6 +64,28 @@ impl TryFrom<&BigInt> for i64 {
     }
 }
 
+impl TryFrom<&BigInt> for u32 {
+    type Error = ();
+
+    fn try_from(n: &BigInt) -> Result<u32, ()> {
+        match u64::try_from(n) {
+            Ok(n @ (0..=0xffff_ffff)) => Ok(n as u32),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&BigInt> for u8 {
+    type Error = ();
+
+    fn try_from(n: &BigInt) -> Result<u8, ()> {
+        match u64::try_from(n) {
+            Ok(n @ (0..=255)) => Ok(n as u8),
+            _ => Err(()),
+        }
+    }
+}
+
 pub fn bi_to_string(neg: bool, ns: &[u32]) -> String {
     let n = ubi_to_string(ns);
 

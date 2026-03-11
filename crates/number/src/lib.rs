@@ -14,7 +14,12 @@ pub use big_int::{
     op::*,
 };
 pub(crate) use error::ParseIntError;
-pub use ratio::{Ratio, cmp::*, op::*};
+pub use ratio::{
+    Ratio,
+    cmp::*,
+    convert::*,
+    op::*,
+};
 
 // `InternedString` implements `Copy` (hence "interned"), but
 // `InternedNumber` doesn't. My idea is that strings, including identifiers
@@ -287,3 +292,25 @@ impl PartialOrd for InternedNumberValue {
         }
     }
 }
+
+macro_rules! try_from_interned_number {
+    ($ty:ty) => {
+        impl TryFrom<&InternedNumber> for $ty {
+            type Error = ();
+
+            fn try_from(n: &InternedNumber) -> Result<$ty, ()> {
+                match n {
+                    InternedNumber { is_integer: false, .. } => Err(()),
+                    InternedNumber { value: InternedNumberValue::SmallInt(n), .. } => <$ty>::try_from(*n).map_err(|_| ()),
+                    InternedNumber { value: InternedNumberValue::BigInt(n), .. } => <$ty>::try_from(n),
+                    _ => Err(()),
+                }
+            }
+        }
+    };
+}
+
+try_from_interned_number!(u8);
+// try_from_interned_number!(u16);
+try_from_interned_number!(u32);
+// try_from_interned_number!(u64);

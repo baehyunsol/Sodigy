@@ -1,0 +1,8 @@
+// This must be an exhaustive match!
+fn check_char(c: Char) = match c {
+    '\u{0}'..='\u{d7ff}' => 0,
+    '\u{e000}'..='\u{10ffff}' => 1,
+};
+
+assert check_char('a') == 0;
+assert check_char('🦫') == 1;

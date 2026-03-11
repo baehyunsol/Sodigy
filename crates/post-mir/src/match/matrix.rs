@@ -5,14 +5,14 @@ use sodigy_number::InternedNumber;
 use sodigy_span::Span;
 
 /// matrix for `Int`
-/// ```
+/// ```ignore
 /// Matrix {
 ///     rows: [MatrixRow { field: [constructor], constructor: Range { Int, -inf..inf } }],
 /// }
 /// ```
 ///
 /// matrix for `Number`
-/// ```
+/// ```ignore
 /// Matrix {
 ///     // We don't care about its denom and numer!
 ///     rows: [MatrixRow { field: [constructor], constructor: Range { Number, -inf..inf } }],
@@ -20,7 +20,7 @@ use sodigy_span::Span;
 /// ```
 ///
 /// matrix for `(Foo, Foo, Int)`, where `struct Foo = { f1: Bool, f2: Int }`
-/// ```
+/// ```ignore
 /// Matrix {
 ///     rows: [
 ///         MatrixRow { field: [constructor], constructor: Tuple(3) },
@@ -44,7 +44,7 @@ use sodigy_span::Span;
 /// ```
 ///
 /// matrix for `(Int, Int, Option<Int>)`
-/// ```
+/// ```ignore
 /// Matrix {
 ///     rows: [
 ///         MatrixRow { field: [constructor], constructor: Tuple(3) },
@@ -77,11 +77,26 @@ pub fn get_matrix(
     match r#type {
         Type::Data { constructor_def_span, args, .. } => {
             // TODO: It's toooo inefficient to call `get_lang_item_span(...)` everytime.
-            if *constructor_def_span == session.get_lang_item_span("type.Int") {
+            if *constructor_def_span == session.get_lang_item_span("type.Int") ||
+               *constructor_def_span == session.get_lang_item_span("type.Char") ||
+               *constructor_def_span == session.get_lang_item_span("type.Byte") ||
+               *constructor_def_span == session.get_lang_item_span("type.Number") {
+                let r#type = if *constructor_def_span == session.get_lang_item_span("type.Int") {
+                    LiteralType::Int
+                } else if *constructor_def_span == session.get_lang_item_span("type.Char") {
+                    LiteralType::Char
+                } else if *constructor_def_span == session.get_lang_item_span("type.Byte") {
+                    LiteralType::Byte
+                } else {
+                    LiteralType::Number
+                };
+
+                // Invalid ranges (256.. for bytes and 0xd800..0xe000 | 0x110000.. for chars) will be
+                // filtered out by `filter_out_invalid_ranges` in `build_tree`.
                 vec![MatrixRow {
                     field: vec![PatternField::Constructor],
                     constructor: MatrixConstructor::Range(Range {
-                        r#type: LiteralType::Int,
+                        r#type,
                         lhs: None,
                         lhs_inclusive: false,
                         rhs: None,
@@ -128,8 +143,6 @@ pub fn get_matrix(
                     },
                     MatrixRow {
                         field: vec![PatternField::ListElements],
-
-                        // what here?
                         constructor: MatrixConstructor::ListSubMatrix(args.as_ref().unwrap()[0].clone()),
                     },
                 ]
@@ -146,4 +159,39 @@ pub fn get_matrix(
         Type::GenericArg { .. } |
         Type::Blocked { .. } => panic!("Internal Compiler Error: Type-infer is complete, but I found a type variable!"),
     }
+}
+
+/// Let's say the patterns in the arms are `[1, 2]`, `[1, 2, 3]`, `[1, 3, 5]`, `[2, 4, 6]` and `_`.
+/// First, the decision tree will split the patterns by the lengths of the lists. So `[1, 2]` and
+/// `[1, 2, 3]` cannot be in the same sub-matrix. We'll look at the sub-matrix with `[1, 2, 3]`,
+/// `[1, 3, 5]`, `[2, 4, 6]` and `_`.
+///
+/// It's very simple. We can treat the lists like tuples. We do have to worry about rest patterns,
+/// and that's why the indexes are signed integers.
+pub fn get_list_sub_matrix(
+    r#type: &Type,  // of an element, not the list
+    field_prefix: &[PatternField],
+
+    // We already know the length of the lists in this submatrix, so
+    // we only have to check a few indexes. Read the comment above.
+    indexes: &[i32],
+    session: &Session,
+) -> Vec<MatrixRow> {
+    let mut result = vec![];
+
+    for index in indexes.iter() {
+        let mut arg_matrix = get_matrix(r#type, session);
+
+        for row in arg_matrix.iter_mut() {
+            row.field = vec![
+                field_prefix.to_vec(),
+                vec![PatternField::Index(*index as i64)],
+                row.field.clone(),
+            ].concat();
+        }
+
+        result.extend(arg_matrix);
+    }
+
+    result
 }

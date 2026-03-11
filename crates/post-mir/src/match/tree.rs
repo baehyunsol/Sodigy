@@ -6,6 +6,8 @@ use super::{
     PatternConstructor,
     PatternField,
     Range,
+    filter_out_invalid_ranges,
+    get_list_sub_matrix,
     merge_conditions,
     read_field_of_pattern,
     remove_overlaps,
@@ -20,6 +22,7 @@ use sodigy_string::intern_string;
 use sodigy_token::Constant;
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::fmt;
 
 // In this tree, it reads `scrutinee.field` and branches to the next tree (or leaf).
 // `.condition` of each branch must be non-overlapping.
@@ -295,21 +298,34 @@ fn constructor_to_expr(
                         // `if 0 <= x { x < 10 } else { False }`
                         else {
                             let (lhs, rhs) = match range.r#type {
-                                LiteralType::Int => (
+                                LiteralType::Int | LiteralType::Number => (
                                     Expr::Constant(Constant::Number { n: lhs.clone(), span: Span::None }),
                                     Expr::Constant(Constant::Number { n: rhs.clone(), span: Span::None }),
                                 ),
-                                _ => todo!(),
+                                LiteralType::Byte => (
+                                    Expr::Constant(Constant::Byte { b: lhs.try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Byte { b: rhs.try_into().unwrap(), span: Span::None }),
+                                ),
+                                LiteralType::Char => (
+                                    Expr::Constant(Constant::Char { ch: lhs.try_into().unwrap(), span: Span::None }),
+                                    Expr::Constant(Constant::Char { ch: rhs.try_into().unwrap(), span: Span::None }),
+                                ),
                             };
-                            let f1 = if range.lhs_inclusive {
-                                "fn.leq_int"
-                            } else {
-                                "built_in.lt_int"
+                            let f1 = match (range.r#type, range.lhs_inclusive) {
+                                (LiteralType::Int, true) => "fn.leq_int",
+                                (LiteralType::Int, false) => "built_in.lt_int",
+                                (LiteralType::Number, true) => "fn.leq_number",
+                                (LiteralType::Number, false) => "fn.lt_number",
+                                (LiteralType::Char | LiteralType::Byte, true) => "fn.leq_scalar",
+                                (LiteralType::Char | LiteralType::Byte, false) => "built_in.lt_scalar",
                             };
-                            let f2 = if range.rhs_inclusive {
-                                "fn.leq_int"
-                            } else {
-                                "built_in.lt_int"
+                            let f2 = match (range.r#type, range.rhs_inclusive) {
+                                (LiteralType::Int, true) => "fn.leq_int",
+                                (LiteralType::Int, false) => "built_in.lt_int",
+                                (LiteralType::Number, true) => "fn.leq_number",
+                                (LiteralType::Number, false) => "fn.lt_number",
+                                (LiteralType::Char | LiteralType::Byte, true) => "fn.leq_scalar",
+                                (LiteralType::Char | LiteralType::Byte, false) => "built_in.lt_scalar",
                             };
 
                             return Expr::If(If {
@@ -442,7 +458,7 @@ pub(crate) fn build_tree(
     matrix: &[MatrixRow],
     arms: &[(usize, &MatchArm)],
     session: &mut Session,
-) -> Result<DecisionTreeNode, ()> {
+) -> DecisionTreeNode {
     if matrix.is_empty() {
         let mut branches = vec![];
         let mut unmatched_ids = vec![];
@@ -468,15 +484,15 @@ pub(crate) fn build_tree(
             1 => match &branches[0] {
                 (Some(guard), _) => todo!(),
                 (None, id) => {
-                    return Ok(DecisionTreeNode::Leaf {
+                    return DecisionTreeNode::Leaf {
                         matched: *id,
                         unmatched: unmatched_ids,
-                    });
+                    };
                 },
             },
             _ => {
                 *tree_id += 1;
-                return Ok(DecisionTreeNode::Tree(DecisionTree {
+                return DecisionTreeNode::Tree(DecisionTree {
                     id: *tree_id,
                     field: None,
                     branches: branches.into_iter().map(
@@ -490,7 +506,7 @@ pub(crate) fn build_tree(
                             name_bindings: vec![],
                         }
                     ).collect(),
-                }));
+                });
             },
         }
     }
@@ -538,7 +554,7 @@ pub(crate) fn build_tree(
             }
 
             *tree_id += 1;
-            Ok(DecisionTreeNode::Tree(DecisionTree {
+            DecisionTreeNode::Tree(DecisionTree {
                 id: *tree_id,
                 field: Some(matrix[0].field.clone()),
 
@@ -551,10 +567,10 @@ pub(crate) fn build_tree(
                         &matrix[1..],
                         &okay_patterns,
                         session,
-                    )?,
+                    ),
                     name_bindings,
                 }],
-            }))
+            })
         },
         MatrixConstructor::DefSpan(def_span) => {
             let mut okay_patterns = vec![];
@@ -589,7 +605,7 @@ pub(crate) fn build_tree(
             }
 
             *tree_id += 1;
-            Ok(DecisionTreeNode::Tree(DecisionTree {
+            DecisionTreeNode::Tree(DecisionTree {
                 id: *tree_id,
                 field: Some(matrix[0].field.clone()),
 
@@ -602,10 +618,10 @@ pub(crate) fn build_tree(
                         &matrix[1..],
                         &okay_patterns,
                         session,
-                    )?,
+                    ),
                     name_bindings,
                 }],
-            }))
+            })
         },
         MatrixConstructor::Range(Range { r#type, .. }) => {
             let mut branches_with_overlap: Vec<(Range, (Vec<(usize, &MatchArm)>, Vec<NameBinding>))> = vec![];
@@ -669,46 +685,141 @@ pub(crate) fn build_tree(
                 }
             }
 
+            // Let's say the match expression is
+            // ```
+            // match _ {
+            //     0 => 0,
+            //     2 => 1,
+            //     1..5 => 2,
+            //     3..10 => 3,
+            //     _ => 4,
+            // }
+            // ```
+            //
+            // Then `branches_with_overlap` looks like
+            //
+            // ```
+            // [
+            //     (range: (-inf, +inf), arms: [4]),
+            //     (range: [0, 0],       arms: [0, 4]),
+            //     (range: [2, 2],       arms: [1, 4]),
+            //     (range: [1, 5),       arms: [2, 4]),
+            //     (range: [3, 10),      arms: [3, 4]),
+            // ]
+            // ```
+            //
+            // It just naively translated ranges and allocated arm ids.
+            // There're small optimizations, tho:
+            //    1. wildcard ranges are allocated to every branches
+            //    2. if two arms have exactly the same ranges, they're in the same branch (not shown in the example above)
+
             let branches_without_overlap = remove_overlaps(branches_with_overlap);
+
+            // after `remove_overlaps()`, `branches_without_overlap` looks like below:
+            //
+            // ```
+            // [
+            //     (range: (-inf, 0),  arms: [4]),
+            //     (range: [0, 0],     arms: [0, 4]),
+            //     (range: [1, 2),     arms: [2, 4]),
+            //     (range: [2, 2],     arms: [1, 2, 4]),
+            //     (range: [3, 5),     arms: [2, 3, 4]),
+            //     (range: [5, 10),    arms: [3, 4]),
+            //     (range: [10, +inf), arms: [4]),
+            // ]
+            // ```
+            //
+            // Now the ranges are splitted: no ranges are overlapping.
+            // For example, if scrutinee is 2, it can match arm-1 (whose range is [2, 2]),
+            // arm-2 (whose range is [1, 5)), or arm-4 (whose range is (-inf, +inf)).
+            // So the range [2,2] in the above value has arms [1, 2, 4].
+
+            let branches_without_overlap = filter_out_invalid_ranges(branches_without_overlap);
+
+            // Unlike int, some `LiteralType`s (like `Char` or `Byte`) have invalid ranges.
+            // For example, a byte has to be in range 0..256 and a char has to be in
+            // range 0..0xd800 | 0xe000..0x110000. `filter_out_invalid_ranges` will filter out
+            // such ranges. In this example, `filter_out_invalid_ranges` does nothing because
+            // `LiteralType::Int` has no invalid ranges.
+
             let branches_without_overlap = merge_conditions(branches_without_overlap);
+
+            // after `merge_conditions()`, `branches_without_overlap` looks like below:
+            //
+            // ```
+            // [
+            //     (condition: (-inf, 0) | [10, +inf), arms: [4]),
+            //     (condition: [0, 0],  arms: [0, 4]),
+            //     (condition: [1, 2),  arms: [2, 4]),
+            //     (condition: [2, 2],  arms: [1, 2, 4]),
+            //     (condition: [3, 5),  arms: [2, 3, 4]),
+            //     (condition: [5, 10), arms: [3, 4]),
+            // ]
+            // ```
+            //
+            // In the previous step 2 ranges (-inf, 0) and [10, +inf) were both pointing to arms [4],
+            // so they're grouped.
+
+            // println!(
+            //     "{:?}",
+            //     branches_without_overlap.iter().map(
+            //         |(condition, (arms, _))| (condition.to_string(), arms.iter().map(|(id, _)| *id).collect::<Vec<_>>())
+            //     ).collect::<Vec<_>>(),
+            // );
+
             let mut branches = Vec::with_capacity(branches_without_overlap.len());
-            let mut has_error = false;
 
             for (condition, (arms, name_bindings)) in branches_without_overlap.into_iter() {
-                match build_tree(
+                let node = build_tree(
                     tree_id,
                     &matrix[1..],
                     &arms,
                     session,
-                ) {
-                    Ok(node) => {
-                        branches.push(DecisionTreeBranch {
-                            condition,
-                            guard: None,
-                            node,
-                            name_bindings,
-                        });
+                );
+
+                branches.push(DecisionTreeBranch {
+                    condition,
+                    guard: None,
+                    node,
+                    name_bindings,
+                });
+            }
+
+            *tree_id += 1;
+            DecisionTreeNode::Tree(DecisionTree {
+                id: *tree_id,
+                field: Some(matrix[0].field.clone()),
+                branches,
+            })
+        },
+        MatrixConstructor::ListSubMatrix(r#type) => {
+            let mut indexes = HashSet::new();
+
+            for (_, _, constructor) in destructured_patterns.iter() {
+                match &constructor.constructor {
+                    PatternConstructor::ListSubMatrix { elements, rest: None } => {
+                        for i in 0..elements.len() {
+                            indexes.insert(i as i32);
+                        }
                     },
-                    Err(_) => {
-                        has_error = true;
-                    },
+                    PatternConstructor::ListSubMatrix { elements, rest: Some(_) } => todo!(),
+                    PatternConstructor::Wildcard => {},
+                    _ => todo!(),
                 }
             }
 
-            if has_error {
-                Err(())
-            }
+            let mut indexes = indexes.into_iter().collect::<Vec<_>>();
+            indexes.sort();
+            let sub_matrix = get_list_sub_matrix(r#type, &matrix[0].field, &indexes, session);
 
-            else {
-                *tree_id += 1;
-                Ok(DecisionTreeNode::Tree(DecisionTree {
-                    id: *tree_id,
-                    field: Some(matrix[0].field.clone()),
-                    branches,
-                }))
-            }
+            *tree_id += 1;
+            build_tree(
+                tree_id,
+                &sub_matrix,
+                arms,
+                session,
+            )
         },
-        MatrixConstructor::ListSubMatrix(r#type) => panic!("TODO: {type:?}\n{destructured_patterns:?}"),
     }
 }
 
@@ -743,4 +854,16 @@ pub enum ExprConstructor {
     Range(Range),
     Or(Vec<ExprConstructor>),
     Wildcard,
+}
+
+impl fmt::Display for ExprConstructor {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let s = match self {
+            ExprConstructor::Range(r) => format!("{r}"),
+            ExprConstructor::Or(cs) => format!("{}", cs.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" | ")),
+            ExprConstructor::Wildcard => String::from("_"),
+        };
+
+        write!(fmt, "{s}")
+    }
 }

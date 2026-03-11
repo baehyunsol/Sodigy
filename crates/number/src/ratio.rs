@@ -1,6 +1,7 @@
 use crate::big_int::BigInt;
 
 pub mod cmp;
+pub mod convert;
 pub mod op;
 
 // `denom` is always greater than or equal to 0.

@@ -289,6 +289,30 @@ fn execute(
                         },
                     }
                 },
+                Intrinsic::LtScalar |
+                Intrinsic::EqScalar |
+                Intrinsic::GtScalar => {
+                    let lhs = *stack.stack.get(stack.stack_pointer + *stack_offset).expect("stack overflow");
+                    let rhs = *stack.stack.get(stack.stack_pointer + *stack_offset + 1).expect("stack overflow");
+                    let result = match intrinsic {
+                        Intrinsic::LtScalar => lhs < rhs,
+                        Intrinsic::EqScalar => lhs == rhs,
+                        Intrinsic::GtScalar => lhs > rhs,
+                        _ => unreachable!(),
+                    };
+
+                    match dst {
+                        Memory::Return => {
+                            stack.r#return = result as u32;
+                        },
+                        Memory::Stack(i) => {
+                            *stack.stack.get_mut(stack.stack_pointer + i).expect("stack overflow") = result as u32;
+                        },
+                        Memory::Global(s) => {
+                            heap.global_values.insert(*s, result as u32);
+                        },
+                    }
+                },
                 Intrinsic::IndexList => todo!(),
                 Intrinsic::Exit => {
                     // TODO: clean up stack and heap

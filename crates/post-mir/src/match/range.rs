@@ -1,7 +1,15 @@
 use super::{ExprConstructor, NameBinding};
 use sodigy_mir::MatchArm;
-use sodigy_number::InternedNumber;
+use sodigy_number::{
+    BigInt,
+    InternedNumber,
+    bi_to_string,
+    div_bi,
+    ratio_to_string,
+    unintern_number,
+};
 use std::cmp::Ordering;
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LiteralType {
@@ -27,6 +35,57 @@ pub struct Range {
     pub lhs_inclusive: bool,
     pub rhs: Option<InternedNumber>,
     pub rhs_inclusive: bool,
+}
+
+impl fmt::Display for Range {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let lhs = render_literal(self.r#type, &self.lhs, true);
+        let rhs = render_literal(self.r#type, &self.rhs, false);
+        write!(
+            fmt,
+            "{}{lhs},{rhs}{}",
+            if self.lhs_inclusive { "[" } else { "(" },
+            if self.rhs_inclusive { "]" } else { ")" },
+        )
+    }
+}
+
+fn render_literal(r#type: LiteralType, value: &Option<InternedNumber>, is_lhs: bool) -> String {
+    match value {
+        Some(n) => {
+            let n = unintern_number(n.value.clone());
+
+            match r#type {
+                LiteralType::Number => ratio_to_string(&n),
+                _ => {
+                    let (is_neg, nums) = div_bi(n.numer.is_neg, &n.numer.nums, n.denom.is_neg, &n.denom.nums);
+
+                    match r#type {
+                        LiteralType::Int => bi_to_string(is_neg, &nums),
+                        _ => match i64::try_from(&BigInt { is_neg, nums }) {
+                            Ok(n) => match r#type {
+                                LiteralType::Byte => match u8::try_from(n) {
+                                    Ok(n) => format!("#{n}"),
+                                    Err(_) => String::from("???"),
+                                },
+                                LiteralType::Char => match u32::try_from(n) {
+                                    Ok(n) => match char::from_u32(n) {
+                                        Some(ch) => format!("{ch:?}"),
+                                        None => String::from("???"),
+                                    },
+                                    Err(_) => String::from("???"),
+                                },
+                                _ => n.to_string(),
+                            },
+                            Err(()) => String::from("???"),
+                        },
+                    }
+                },
+            }
+        },
+        None if is_lhs => String::from("-inf"),
+        None => String::from("+inf"),
+    }
 }
 
 // [
@@ -185,7 +244,7 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>((a_range, a_val): &(Range, 
         },
     };
 
-    let overlap = match (&lhs, &rhs) {
+    let mut overlap = match (&lhs, &rhs) {
         (None, _) | (_, None) => Some(Range { r#type: a_range.r#type, lhs, lhs_inclusive, rhs, rhs_inclusive }),
         (Some(lhs_n), Some(rhs_n)) => match lhs_n.cmp(rhs_n) {
             Ordering::Greater => None,
@@ -210,6 +269,8 @@ fn split_to_non_overlapping_ranges<T: Clone + Merge>((a_range, a_val): &(Range, 
             },
         },
     };
+
+    overlap = discard_empty_range(overlap);
 
     if let Some(overlap) = overlap {
         let (a_left, a_right) = get_left_and_right(a_range, &overlap);
@@ -310,11 +371,126 @@ fn get_left_and_right(super_range: &Range, sub_range: &Range) -> (Option<Range>,
         },
     };
 
+    let left = discard_empty_range(left);
+    let right = discard_empty_range(right);
     (left, right)
+}
+
+fn discard_empty_range(range: Option<Range>) -> Option<Range> {
+    match range {
+        Some(Range {
+            r#type,
+            lhs: Some(ref lhs),
+            lhs_inclusive,
+            rhs: Some(ref rhs),
+            rhs_inclusive,
+        }) => {
+            if r#type.is_int_like() {
+                if lhs == rhs {
+                    match (lhs_inclusive, rhs_inclusive) {
+                        // 3 <= x && x <= 3
+                        (true, true) => range,
+                        // 3 <= x && x < 3
+                        (true, false) => None,
+                        // 3 < x && x <= 3
+                        (false, true) => None,
+                        // 3 < x && x < 3
+                        (false, false) => None,
+                    }
+                }
+
+                else if &lhs.add_one() == rhs {
+                    match (lhs_inclusive, rhs_inclusive) {
+                        // 3 <= x && x <= 4
+                        (true, true) => range,
+                        // 3 <= x && x < 4
+                        (true, false) => range,
+                        // 3 < x && x <= 4
+                        (false, true) => range,
+                        // 3 < x && x < 4
+                        (false, false) => None,
+                    }
+                }
+
+                else {
+                    range
+                }
+            }
+
+            else {
+                if lhs == rhs {
+                    match (lhs_inclusive, rhs_inclusive) {
+                        // 3.0 <= x && x <= 3.0
+                        (true, true) => range,
+                        // 3.0 <= x && x < 3.0
+                        (true, false) => None,
+                        // 3.0 < x && x <= 3.0
+                        (false, true) => None,
+                        // 3.0 < x && x < 3.0
+                        (false, false) => None,
+                    }
+                }
+
+                else {
+                    range
+                }
+            }
+        },
+        _ => range,
+    }
+}
+
+pub fn filter_out_invalid_ranges<T: Clone + Merge>(mut branches: Vec<(Range, T)>) -> Vec<(Range, T)> {
+    // Every range has the same type. Otherwise, that's a type error, but this function is not a type-checker!
+    let valid_ranges = match &branches[0].0.r#type {
+        LiteralType::Int | LiteralType::Number => {
+            return branches;
+        },
+        LiteralType::Char => vec![
+            Range {
+                r#type: LiteralType::Char,
+                lhs: Some(InternedNumber::from_u32(0, true)),
+                lhs_inclusive: true,
+                rhs: Some(InternedNumber::from_u32(0xd7ff, true)),
+                rhs_inclusive: true,
+            },
+            Range {
+                r#type: LiteralType::Char,
+                lhs: Some(InternedNumber::from_u32(0xe000, true)),
+                lhs_inclusive: true,
+                rhs: Some(InternedNumber::from_u32(0x10_ffff, true)),
+                rhs_inclusive: true,
+            },
+        ],
+        LiteralType::Byte => vec![
+            Range {
+                r#type: LiteralType::Byte,
+                lhs: Some(InternedNumber::from_u32(0, true)),
+                lhs_inclusive: true,
+                rhs: Some(InternedNumber::from_u32(255, true)),
+                rhs_inclusive: true,
+            },
+        ],
+    };
+
+    let mut result = vec![];
+
+    for (range, value) in branches.into_iter() {
+        for valid_range in valid_ranges.iter() {
+            if let Some((range, value)) = split_to_non_overlapping_ranges(&(range.clone(), value.clone()), &(valid_range.clone(), T::identity_element())).overlap {
+                result.push((range, value));
+            }
+        }
+    }
+
+    result
 }
 
 pub trait Merge {
     fn merge(&self, other: &Self) -> Self;
+
+    // merge(x, id) == x
+    fn identity_element() -> Self;
 }
 
 impl Merge for (Vec<(usize, &MatchArm)>, Vec<NameBinding>) {
@@ -330,10 +506,17 @@ impl Merge for (Vec<(usize, &MatchArm)>, Vec<NameBinding>) {
 
         // 1. We have to make sure that `arms` are sorted because earlier arms must be matched first.
         // 2. It's nice to keep `name_bindings` sorted because it makes comparing `name_bindings` easier.
+        // 3. We have to sort these anyway because we have to dedup these.
         arms.sort_by_key(|(id, _)| *id);
+        arms.dedup_by_key(|(id, _)| *id);
         name_bindings.sort_by_key(|name_binding| name_binding.id);
+        name_bindings.dedup_by_key(|name_binding| name_binding.name_span);
 
         (arms, name_bindings)
+    }
+
+    fn identity_element() -> Self {
+        (vec![], vec![])
     }
 }
 
@@ -352,6 +535,10 @@ mod tests {
     impl Merge for i32 {
         fn merge(&self, other: &i32) -> i32 {
             *self + *other
+        }
+
+        fn identity_element() -> i32 {
+            0
         }
     }
 
@@ -494,6 +681,42 @@ mod tests {
                 None,
                 Some((Some(50), false, Some(100), true)),
             ),
+            // (-inf, +inf) vs [2, 3]
+            // ->
+            // (-inf, 2), [2, 3], (3, +inf)
+            (
+                ((None, false, None, false), 1),
+                ((Some(2), true, Some(3), true), 2),
+                Some((None, false, Some(2), false)),
+                Some((Some(3), false, None, false)),
+                Some((Some(2), true, Some(3), true)),
+                None,
+                None,
+            ),
+            // (-inf, +inf) vs [2, 2]
+            // ->
+            // (-inf, 2), [2, 2], (2, +inf)
+            (
+                ((None, false, None, false), 1),
+                ((Some(2), true, Some(2), true), 2),
+                Some((None, false, Some(2), false)),
+                Some((Some(2), false, None, false)),
+                Some((Some(2), true, Some(2), true)),
+                None,
+                None,
+            ),
+            // (2, +inf) vs [3, 3]
+            // ->
+            // None, [3, 3], (3, +inf)
+            (
+                ((Some(2), false, None, false), 1),
+                ((Some(3), true, Some(3), true), 2),
+                None,
+                Some((Some(3), false, None, false)),
+                Some((Some(3), true, Some(3), true)),
+                None,
+                None,
+            ),
         ] {
             let a_range = into_range(a_range);
             let b_range = into_range(b_range);
@@ -508,7 +731,7 @@ mod tests {
 
             if let Some((a_left, a_val_v)) = &result.a_left {
                 assert_eq!(*a_val_v, a_val);
-                assert_eq!(a_left, &a_left_answer.unwrap());
+                assert_eq!(a_left, &a_left_answer.expect(&format!("expected `None`, got `{:?}`", Some(a_left))));
             }
 
             else {
@@ -517,7 +740,7 @@ mod tests {
 
             if let Some((a_right, a_val_v)) = &result.a_right {
                 assert_eq!(*a_val_v, a_val);
-                assert_eq!(a_right, &a_right_answer.unwrap());
+                assert_eq!(a_right, &a_right_answer.expect(&format!("expected `None`, got `{:?}`", Some(a_right))));
             }
 
             else {
@@ -526,7 +749,7 @@ mod tests {
 
             if let Some((b_left, b_val_v)) = &result.b_left {
                 assert_eq!(*b_val_v, b_val);
-                assert_eq!(b_left, &b_left_answer.unwrap());
+                assert_eq!(b_left, &b_left_answer.expect(&format!("expected `None`, got `{:?}`", Some(b_left))));
             }
 
             else {
@@ -535,7 +758,7 @@ mod tests {
 
             if let Some((b_right, b_val_v)) = &result.b_right {
                 assert_eq!(*b_val_v, b_val);
-                assert_eq!(b_right, &b_right_answer.unwrap());
+                assert_eq!(b_right, &b_right_answer.expect(&format!("expected `None`, got `{:?}`", Some(b_right))));
             }
 
             else {
@@ -544,7 +767,7 @@ mod tests {
 
             if let Some((overlap_range, overlap_val)) = &result.overlap {
                 assert_eq!(*overlap_val, a_val.merge(&b_val));
-                assert_eq!(overlap_range, &overlap_answer.unwrap());
+                assert_eq!(overlap_range, &overlap_answer.expect(&format!("expected `None`, got `{:?}`", Some(overlap_range))));
             }
 
             else {

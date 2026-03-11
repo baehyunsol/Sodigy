@@ -1,0 +1,27 @@
+use std.bool.Bool;
+
+// TODO: It has to be private and used only inside std.
+//       It has to be impossible in user code to generate this value.
+#[built_in]
+struct Scalar;
+
+#[built_in]
+#[lang_item("built_in.lt_scalar")]
+fn lt_scalar(a: Scalar, b: Scalar) -> Bool;
+
+#[built_in]
+#[lang_item("built_in.eq_scalar")]
+fn eq_scalar(a: Scalar, b: Scalar) -> Bool;
+
+#[built_in]
+#[lang_item("built_in.gt_scalar")]
+fn gt_scalar(a: Scalar, b: Scalar) -> Bool;
+
+#[lang_item("fn.leq_scalar")]
+fn leq_scalar(a: Scalar, b: Scalar) -> Bool = !gt_scalar(a, b);
+
+#[lang_item("fn.neq_scalar")]
+fn neq_scalar(a: Scalar, b: Scalar) -> Bool = !eq_scalar(a, b);
+
+#[lang_item("fn.geq_scalar")]
+fn geq_scalar(a: Scalar, b: Scalar) -> Bool = !lt_scalar(a, b);

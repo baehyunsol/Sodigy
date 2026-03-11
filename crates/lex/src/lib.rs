@@ -1479,7 +1479,7 @@ impl Session {
                         },
                         None => {
                             return Err(Error {
-                                kind: ErrorKind::InvalidUtf8,
+                                kind: ErrorKind::InvalidUnicodeCharacter,
                                 // It points to the quote character because it doesn't know which byte is erroneous.
                                 spans: Span::range(
                                     self.file,

@@ -177,8 +177,8 @@ mod matrix;
 mod range;
 mod tree;
 
-use matrix::{MatrixConstructor, MatrixRow, get_matrix};
-pub(crate) use range::{LiteralType, Range, merge_conditions, remove_overlaps};
+use matrix::{MatrixConstructor, MatrixRow, get_list_sub_matrix, get_matrix};
+pub(crate) use range::{LiteralType, Range, filter_out_invalid_ranges, merge_conditions, remove_overlaps};
 use tree::{
     DecisionTree,
     DecisionTreeNode,
@@ -233,7 +233,7 @@ pub(crate) fn lower_match(match_expr: &mut Match, session: &mut Session) -> Resu
         &matrix,
         &borrowed_arms,
         session,
-    )? {
+    ) {
         DecisionTreeNode::Tree(tree) => tree,
         DecisionTreeNode::Leaf { .. } => unreachable!(),
     };
@@ -349,7 +349,8 @@ fn read_field_of_pattern(
     if field.len() > 1 {
         for f in field[..(field.len() - 1)].iter() {
             match f {
-                PatternField::Constructor => {},
+                PatternField::Constructor |
+                PatternField::ListElements => {},
                 PatternField::Name { .. } => todo!(),
                 PatternField::Index(i) => match &curr_pattern.kind {
                     PatternKind::Tuple { elements, rest, .. } => {
@@ -393,13 +394,12 @@ fn read_field_of_pattern(
                     PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => {
                         curr_pattern = &wildcard;
                     },
-                    _ => todo!(),
+                    p => panic!("TODO: {p:?}, {f:?}"),
                 },
                 PatternField::Range(_, _) => todo!(),
                 PatternField::EnumDiscriminant |
                 PatternField::EnumPayload |
-                PatternField::ListLength |
-                PatternField::ListElements => unreachable!(),
+                PatternField::ListLength => unreachable!(),
             }
         }
     }
@@ -453,32 +453,45 @@ fn read_field_of_pattern(
                 name_binding_offset: None,
             },
             PatternKind::Range { lhs, rhs, is_inclusive, .. } => {
+                let mut literal_type = None;
                 let lhs = lhs.as_ref().map(
                     |lhs| match &lhs.kind {
-                        PatternKind::Constant(Constant::Number { n, .. }) => n.clone(),
-                        PatternKind::Constant(Constant::Char { ch, .. }) => InternedNumber::from_u32(*ch, true),
-                        PatternKind::Constant(Constant::Byte { b, .. }) => InternedNumber::from_u32(*b as u32, true),
+                        PatternKind::Constant(Constant::Number { n, .. }) => {
+                            literal_type = Some(if n.is_integer { LiteralType::Int } else { LiteralType::Number });
+                            n.clone()
+                        },
+                        PatternKind::Constant(Constant::Char { ch, .. }) => {
+                            literal_type = Some(LiteralType::Char);
+                            InternedNumber::from_u32(*ch, true)
+                        },
+                        PatternKind::Constant(Constant::Byte { b, .. }) => {
+                            literal_type = Some(LiteralType::Byte);
+                            InternedNumber::from_u32(*b as u32, true)
+                        },
                         _ => unreachable!(),
                     }
                 );
                 let rhs = rhs.as_ref().map(
                     |rhs| match &rhs.kind {
-                        PatternKind::Constant(Constant::Number { n, .. }) => n.clone(),
-                        PatternKind::Constant(Constant::Char { ch, .. }) => InternedNumber::from_u32(*ch, true),
-                        PatternKind::Constant(Constant::Byte { b, .. }) => InternedNumber::from_u32(*b as u32, true),
+                        PatternKind::Constant(Constant::Number { n, .. }) => {
+                            literal_type = Some(if n.is_integer { LiteralType::Int } else { LiteralType::Number });
+                            n.clone()
+                        },
+                        PatternKind::Constant(Constant::Char { ch, .. }) => {
+                            literal_type = Some(LiteralType::Char);
+                            InternedNumber::from_u32(*ch, true)
+                        },
+                        PatternKind::Constant(Constant::Byte { b, .. }) => {
+                            literal_type = Some(LiteralType::Byte);
+                            InternedNumber::from_u32(*b as u32, true)
+                        },
                         _ => unreachable!(),
                     }
                 );
 
-                let is_integer = match (&lhs, &rhs) {
-                    (Some(lhs), _) => lhs.is_integer,
-                    (_, Some(rhs)) => rhs.is_integer,
-                    _ => unreachable!(),
-                };
-
                 DestructuredPattern {
                     constructor: PatternConstructor::Range(Range {
-                        r#type: if is_integer { LiteralType::Int } else { LiteralType::Number },
+                        r#type: literal_type.unwrap(),
                         lhs,
                         lhs_inclusive: true,
                         rhs,
@@ -552,8 +565,49 @@ fn read_field_of_pattern(
             }
         },
         PatternField::ListElements => match &curr_pattern.kind {
-            PatternKind::Constant(Constant::String { binary, s, .. }) => todo!(),
-            PatternKind::List { elements, rest, .. } => todo!(),
+            PatternKind::Constant(Constant::String { binary, s, .. }) => {
+                let s = unintern_string(*s, &session.intermediate_dir).unwrap().unwrap();
+                let elements = if *binary {
+                    s.iter().map(
+                        |b| Pattern {
+                            name: None,
+                            name_span: None,
+                            kind: PatternKind::Constant(Constant::Byte {
+                                b: *b,
+                                span: Span::None,
+                            }),
+                        }
+                    ).collect()
+                } else {
+                    String::from_utf8(s).unwrap().chars().map(
+                        |ch| Pattern {
+                            name: None,
+                            name_span: None,
+                            kind: PatternKind::Constant(Constant::Char {
+                                ch: ch as u32,
+                                span: Span::None,
+                            }),
+                        }
+                    ).collect()
+                };
+
+                DestructuredPattern {
+                    constructor: PatternConstructor::ListSubMatrix {
+                        elements,
+                        rest: None,
+                    },
+                    name_binding,
+                    name_binding_offset: None,
+                }
+            },
+            PatternKind::List { elements, rest, .. } => DestructuredPattern {
+                constructor: PatternConstructor::ListSubMatrix {
+                    elements: elements.clone(),
+                    rest: rest.clone(),
+                },
+                name_binding,
+                name_binding_offset: None,
+            },
             PatternKind::NameBinding { .. } | PatternKind::Wildcard(_) => DestructuredPattern {
                 constructor: PatternConstructor::Wildcard,
                 name_binding,

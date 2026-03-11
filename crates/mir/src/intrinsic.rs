@@ -63,13 +63,16 @@ intrinsics!(
     (LtInt     , "built_in.lt_int"     , 6),
     (EqInt     , "built_in.eq_int"     , 7),
     (GtInt     , "built_in.gt_int"     , 8),
-    (IndexList , "built_in.index_list" , 9),
-    (Exit      , "built_in.exit"       , 10),
-    (Panic     , "built_in.panic"      , 11),
-    (Print     , "built_in.print"      , 12),
-    (EPrint    , "built_in.eprint"     , 13),
-    (RandomInt , "built_in.random_int" , 14),
-//   ^^^^^^^^^   ^^^^^^^^^^^^^^^^^       ^^
+    (LtScalar  , "built_in.lt_scalar"  , 9),
+    (EqScalar  , "built_in.eq_scalar"  , 10),
+    (GtScalar  , "built_in.gt_scalar"  , 11),
+    (IndexList , "built_in.index_list" , 12),
+    (Exit      , "built_in.exit"       , 13),
+    (Panic     , "built_in.panic"      , 14),
+    (Print     , "built_in.print"      , 15),
+    (EPrint    , "built_in.eprint"     , 16),
+    (RandomInt , "built_in.random_int" , 17),
+//   ^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^   ^^
 //   |           |                       |
 //  (0)         (1)                     (2)
 //

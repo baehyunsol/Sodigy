@@ -9,6 +9,7 @@ mod number;
 mod op;
 mod prelude;
 mod random;
+mod scalar;
 mod string;
 mod tuple;
 
